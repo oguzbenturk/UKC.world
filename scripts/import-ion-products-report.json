@@ -1,0 +1,280 @@
+{
+  "scanned": 54,
+  "skipped_no_price": [
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Men Wetsuit Protection Suit 3-2 Shortsleeve Front Zip\\product-import.json",
+      "name": "Men Wetsuit Protection Suit 3/2 Shortsleeve Front Zip",
+      "sku": "MEN-WETSUIT-PROTECTION-SUIT-3-2-SHORTSLEEVE-FRONT-ZIP-0A922E"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 3-2 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 3/2 Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-3-2-FRONT-ZIP-WETSUIT-MEN-F247EA"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 2-2 Shorty Shortsleeve Back Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 2/2 Shorty Shortsleeve Back Zip Wetsuit Men",
+      "sku": "SEEK-CORE-2-2-SHORTY-SHORTSLEEVE-BACK-ZIP-WETSUIT-MEN-B05584"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 3-2 Shorty Longsleeve Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 3/2 Shorty Longsleeve Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-3-2-SHORTY-LONGSLEEVE-FRONT-ZIP-WETSUIT-MEN-E07C86"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 3.5-2 Shortsleeve Back Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 3.5/2 Shortsleeve Back Zip Wetsuit Men",
+      "sku": "SEEK-CORE-3-5-2-SHORTSLEEVE-BACK-ZIP-WETSUIT-MEN-B32AD8"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 4-3 Back Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 4/3 Back Zip Wetsuit Men",
+      "sku": "SEEK-CORE-4-3-BACK-ZIP-WETSUIT-MEN-82F1AA"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 4-3 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 4/3 Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-4-3-FRONT-ZIP-WETSUIT-MEN-6B5F17"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 4-3 Overknee Longsleeve Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 4/3 Overknee Longsleeve Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-4-3-OVERKNEE-LONGSLEEVE-FRONT-ZIP-WETSUIT-MEN-330390"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 5-4 Back Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 5/4 Back Zip Wetsuit Men",
+      "sku": "SEEK-CORE-5-4-BACK-ZIP-WETSUIT-MEN-89D5B3"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 5-4 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 5/4 Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-5-4-FRONT-ZIP-WETSUIT-MEN-528BB2"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Core 5-4 Hood Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Core 5/4 Hood Front Zip Wetsuit Men",
+      "sku": "SEEK-CORE-5-4-HOOD-FRONT-ZIP-WETSUIT-MEN-2B276E"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Select 4-3 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Select 4/3 Front Zip Wetsuit Men",
+      "sku": "SEEK-SELECT-4-3-FRONT-ZIP-WETSUIT-MEN-639CED"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Select 5-4 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Select 5/4 Front Zip Wetsuit Men",
+      "sku": "SEEK-SELECT-5-4-FRONT-ZIP-WETSUIT-MEN-05884A"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Seek Select 5.5-4.5 Hood Front Zip Wetsuit Men\\product-import.json",
+      "name": "Seek Select 5.5/4.5 Hood Front Zip Wetsuit Men",
+      "sku": "SEEK-SELECT-5-5-4-5-HOOD-FRONT-ZIP-WETSUIT-MEN-7E62FD"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Static 2-2 Shorty Short Sleeve Back Zip Wetsuit Men\\product-import.json",
+      "name": "Static 2/2 Shorty Short Sleeve Back Zip Wetsuit Men",
+      "sku": "STATIC-2-2-SHORTY-SHORT-SLEEVE-BACK-ZIP-WETSUIT-MEN-3FFB06"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Static 3-2 Back Zip Wetsuit Men\\product-import.json",
+      "name": "Static 3/2 Back Zip Wetsuit Men",
+      "sku": "STATIC-3-2-BACK-ZIP-WETSUIT-MEN-0EEB7B"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Static 3-2 Front Zip Wetsuit Men\\product-import.json",
+      "name": "Static 3/2 Front Zip Wetsuit Men",
+      "sku": "STATIC-3-2-FRONT-ZIP-WETSUIT-MEN-7B9658"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Unisex Drysuit Fuse Lightweight Back Zip\\product-import.json",
+      "name": "Unisex Drysuit Fuse Lightweight Back Zip",
+      "sku": "UNISEX-DRYSUIT-FUSE-LIGHTWEIGHT-BACK-ZIP-09B67A"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Men\\Unisex Drysuit Fuse 4-3 Back Zip\\product-import.json",
+      "name": "Unisex Drysuit Fuse 4/3 Back Zip",
+      "sku": "UNISEX-DRYSUIT-FUSE-4-3-BACK-ZIP-628A50"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Amp Hot Shorty 2.0 Long Sleeve Front Zip Women\\product-import.json",
+      "name": "Amaze Amp Hot Shorty 2.0 Long Sleeve Front Zip Women",
+      "sku": "AMAZE-AMP-HOT-SHORTY-2-0-LONG-SLEEVE-FRONT-ZIP-WOMEN-B6EA2A"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Amp Shorty 2.0 Long Sleeve Back Zip Women\\product-import.json",
+      "name": "Amaze Amp Shorty 2.0 Long Sleeve Back Zip Women",
+      "sku": "AMAZE-AMP-SHORTY-2-0-LONG-SLEEVE-BACK-ZIP-WOMEN-C9D947"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Core 3-2 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Core 3/2 Front Zip Wetsuit Women",
+      "sku": "AMAZE-CORE-3-2-FRONT-ZIP-WETSUIT-WOMEN-FD0B0B"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Core 2-2 Shorty SS Back Zip women\\product-import.json",
+      "name": "Amaze Core 2/2 Shorty SS Back Zip women",
+      "sku": "AMAZE-CORE-2-2-SHORTY-SS-BACK-ZIP-WOMEN-9BAD2B"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Core 4-3 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Core 4/3 Front Zip Wetsuit Women",
+      "sku": "AMAZE-CORE-4-3-FRONT-ZIP-WETSUIT-WOMEN-2BD391"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Core 5-4 Back Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Core 5/4 Back Zip Wetsuit Women",
+      "sku": "AMAZE-CORE-5-4-BACK-ZIP-WETSUIT-WOMEN-CA9C35"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Core 5-4 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Core 5/4 Front Zip Wetsuit Women",
+      "sku": "AMAZE-CORE-5-4-FRONT-ZIP-WETSUIT-WOMEN-6DA391"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Shorty 2.0 Long Sleeve Back Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Shorty 2.0 Long Sleeve Back Zip Wetsuit Women",
+      "sku": "AMAZE-SHORTY-2-0-LONG-SLEEVE-BACK-ZIP-WETSUIT-WOMEN-F89EE8"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Hot Shorty 1.5 Long Sleeve Wetsuit Women\\product-import.json",
+      "name": "Amaze Hot Shorty 1.5 Long Sleeve Wetsuit Women",
+      "sku": "AMAZE-HOT-SHORTY-1-5-LONG-SLEEVE-WETSUIT-WOMEN-9573C1"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze Shorty 2.5 Short Sleeve Back Zip Wetsuit Women\\product-import.json",
+      "name": "Amaze Shorty 2.5 Short Sleeve Back Zip Wetsuit Women",
+      "sku": "AMAZE-SHORTY-2-5-SHORT-SLEEVE-BACK-ZIP-WETSUIT-WOMEN-42FE30"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Amaze V-Back 1.5 Wetsuit Women\\product-import.json",
+      "name": "Amaze V-Back 1.5 Wetsuit Women",
+      "sku": "AMAZE-V-BACK-1-5-WETSUIT-WOMEN-5E4A4E"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 2-2 Shorty Short Sleeve Back Zip Wetsuit Women\\product-import.json",
+      "name": "Element 2/2 Shorty Short Sleeve Back Zip Wetsuit Women",
+      "sku": "ELEMENT-2-2-SHORTY-SHORT-SLEEVE-BACK-ZIP-WETSUIT-WOMEN-709EA8"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 3-2 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Element 3/2 Front Zip Wetsuit Women",
+      "sku": "ELEMENT-3-2-FRONT-ZIP-WETSUIT-WOMEN-74645C"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 3-2 Overknee Short Sleeve Back Zip Wetsuit Women\\product-import.json",
+      "name": "Element 3/2 Overknee Short Sleeve Back Zip Wetsuit Women",
+      "sku": "ELEMENT-3-2-OVERKNEE-SHORT-SLEEVE-BACK-ZIP-WETSUIT-WOMEN-C84B6E"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 4-3 Back Zip Wetsuit Women\\product-import.json",
+      "name": "Element 4/3 Back Zip Wetsuit Women",
+      "sku": "ELEMENT-4-3-BACK-ZIP-WETSUIT-WOMEN-7AF1B1"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 4-3 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Element 4/3 Front Zip Wetsuit Women",
+      "sku": "ELEMENT-4-3-FRONT-ZIP-WETSUIT-WOMEN-520E47"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 5-4 Back Zip Wetsuit Women\\product-import.json",
+      "name": "Element 5/4 Back Zip Wetsuit Women",
+      "sku": "ELEMENT-5-4-BACK-ZIP-WETSUIT-WOMEN-AE03F3"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Element 5-4 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Element 5/4 Front Zip Wetsuit Women",
+      "sku": "ELEMENT-5-4-FRONT-ZIP-WETSUIT-WOMEN-6A36BF"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Static 2-2 Shorty Short Sleeve Back Zip Wetsuit Women\\product-import.json",
+      "name": "Static 2/2 Shorty Short Sleeve Back Zip Wetsuit Women",
+      "sku": "STATIC-2-2-SHORTY-SHORT-SLEEVE-BACK-ZIP-WETSUIT-WOMEN-CA83C0"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Static 3-2 Front Zip Wetsuit Women\\product-import.json",
+      "name": "Static 3/2 Front Zip Wetsuit Women",
+      "sku": "STATIC-3-2-FRONT-ZIP-WETSUIT-WOMEN-75388A"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Static 3-2 Back Zip Wetsuit Women\\product-import.json",
+      "name": "Static 3/2 Back Zip Wetsuit Women",
+      "sku": "STATIC-3-2-BACK-ZIP-WETSUIT-WOMEN-C6FF9E"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 3-2 Front Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 3/2 Front Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-3-2-FRONT-ZIP-918660"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 4-3 Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 4/3 Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-4-3-BACK-ZIP-16B704"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 4-3 Front Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 4/3 Front Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-4-3-FRONT-ZIP-4A698B"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 5-4 Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 5/4 Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-5-4-BACK-ZIP-443FC3"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 5-4 Front Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 5/4 Front Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-5-4-FRONT-ZIP-9AEFD7"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Amp 6-5 Hood Front Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Amp 6/5 Hood Front Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-AMP-6-5-HOOD-FRONT-ZIP-2877A6"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Core 2-2 Shorty Shortsleeve Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Core 2/2 Shorty Shortsleeve Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-CORE-2-2-SHORTY-SHORTSLEEVE-BACK-ZIP-9E2163"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Core 5-4 Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Core 5/4 Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-CORE-5-4-BACK-ZIP-952BA1"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Shorty 2.0 Longsleeve Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Shorty 2.0 Longsleeve Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-SHORTY-2-0-LONGSLEEVE-BACK-ZIP-613DA3"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Core 5-4 Front Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Core 5/4 Front Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-CORE-5-4-FRONT-ZIP-D3C73A"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Shorty 2.5 Shortsleeve Back Zip\\product-import.json",
+      "name": "Women Wetsuit Amaze Shorty 2.5  Shortsleeve Back Zip",
+      "sku": "WOMEN-WETSUIT-AMAZE-SHORTY-2-5-SHORTSLEEVE-BACK-ZIP-AC10AA"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Amaze Shorty Crossback 1.5\\product-import.json",
+      "name": "Women Wetsuit Amaze Shorty Crossback 1.5",
+      "sku": "WOMEN-WETSUIT-AMAZE-SHORTY-CROSSBACK-1-5-D2CD03"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Element 2-2 Shorty Shortsleeve Back Zip\\product-import.json",
+      "name": "Women Wetsuit Element 2/2 Shorty Shortsleeve Back Zip",
+      "sku": "WOMEN-WETSUIT-ELEMENT-2-2-SHORTY-SHORTSLEEVE-BACK-ZIP-DE462F"
+    },
+    {
+      "file": "d:\\kspro-plannivo\\tools\\downloads-ion-duotone\\ION\\Wetsuits\\Women\\Women Wetsuit Monoshorty 0.5\\product-import.json",
+      "name": "Women Wetsuit Monoshorty 0.5",
+      "sku": "WOMEN-WETSUIT-MONOSHORTY-0-5-128F8A"
+    }
+  ],
+  "skipped_missing_images": [],
+  "uploaded_images_count": 0,
+  "products_created": [],
+  "products_failed": [],
+  "dryRun": true
+}

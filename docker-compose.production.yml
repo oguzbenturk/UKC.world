@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      # Webroot for ACME HTTP-01 challenges (host path -> container path used in nginx.conf)
+      - /root/acme-webroot:/var/www/acme:ro
+      # Issued certificate/keys come from repo's SSL folder for deterministic deploys
+      - ./SSL:/etc/ssl/plannivo:ro
+      # Shared uploads volume for serving media directly
+      - uploads_data:/var/www/uploads:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./backend/.env.production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://backend:4000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: plannivo
+      POSTGRES_USER: plannivo
+      POSTGRES_PASSWORD: WHMgux86
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./ksprodb.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plannivo -d plannivo"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  app-network:
+    driver: bridge

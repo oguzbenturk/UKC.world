@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+  <!-- Real icons for crawlers/browsers -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <!-- Mobile-safe viewport: allow drawing into safe areas (notch) and resize content when keyboard shows -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>Plannivo | Lesson, Rentals, and Operations Platform</title>
+    <meta name="description" content="Plannivo helps schools and rental shops manage lessons, rentals, customers, payments, and operations in one fast, modern app." />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#3B82F6" />
+
+  <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Plannivo | Lesson, Rentals, and Operations Platform" />
+    <meta property="og:description" content="Manage lessons, rentals, customers, payments, and operations in one modern app." />
+  <meta property="og:image" content="https://plannivo.com/logo.png" />
+  <meta property="og:image:alt" content="Plannivo logo" />
+  <meta property="og:url" content="https://plannivo.com/" />
+  <meta property="og:site_name" content="Plannivo" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Plannivo | Lesson, Rentals, and Operations Platform" />
+    <meta name="twitter:description" content="Manage lessons, rentals, customers, payments, and operations in one modern app." />
+  <meta name="twitter:image" content="https://plannivo.com/logo.png" />
+  <meta name="twitter:image:alt" content="Plannivo logo" />
+
+  <!-- Discovery -->
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <link rel="robots" href="/robots.txt" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://plannivo.com/" />
+
+    <!-- JSON-LD: Organization -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Plannivo",
+        "url": "https://plannivo.com/",
+        "logo": "https://plannivo.com/logo.png"
+      }
+    </script>
+    <!-- JSON-LD: WebSite -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Plannivo",
+        "url": "https://plannivo.com/"
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Mobile-only: prevent pinch/double-tap zoom; keep desktop behavior unchanged
+      (function() {
+        try {
+          var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (vp) {
+            var base = 'width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content';
+            if (isMobile) {
+              // Disable pinch-zoom and double-tap zoom on mobile
+              vp.setAttribute('content', base + ', maximum-scale=1, user-scalable=no');
+            } else {
+              // Leave desktop zoom behavior intact
+              vp.setAttribute('content', base);
+            }
+          }
+        } catch (e) { /* noop */ }
+      })();
+    </script>
+    <script>
+      // Optional: detect on-screen keyboard to help browsers that don't support interactive-widget
+      (function() {
+        try {
+          if ('virtualKeyboard' in navigator) {
+            // Enable virtual keyboard overlays on supported browsers
+            navigator.virtualKeyboard.overlaysContent = true;
+          }
+          const onResize = () => {
+            const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+            document.documentElement.style.setProperty('--app-vh', vh + 'px');
+          };
+          window.addEventListener('resize', onResize);
+          onResize();
+        } catch (e) {
+          // no-op
+        }
+      })();
+    </script>
+  </body>
+</html>

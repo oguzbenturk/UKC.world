@@ -1,0 +1,30 @@
+services:
+  frontend:
+    ports:
+      - "3000:80"  # Frontend için yerel port
+    volumes:
+      - ./src:/app/src  # Frontend kod senkronizasyonu
+      - ./public:/app/public
+      - uploads_data:/var/www/uploads
+    environment:
+      - NODE_ENV=development
+
+  backend:
+    ports:
+      - "4000:4000"  # Backend API için yerel port
+    volumes:
+      - ./backend:/app  # Backend kod senkronizasyonu
+      - /app/node_modules  # node_modules'ı container'da tut
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - ENABLE_CORS=true
+    command: ["npm", "run", "dev"]  # Geliştirme modu için
+
+  db:
+    ports:
+      - "5432:5432"  # PostgreSQL'e doğrudan erişim için
+
+  redis:
+    ports:
+      - "6379:6379"  # Redis'e doğrudan erişim için

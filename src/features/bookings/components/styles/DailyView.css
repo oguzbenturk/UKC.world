@@ -1,0 +1,815 @@
+/* CSS Variables for DailyView */
+:root {
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+  --gray-50: #f9fafb;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+}
+
+/* Daily View Styles - Matching Monthly View Design */
+
+.daily-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: white;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--gray-300);
+}
+
+/* Daily Header - Redesigned */
+.daily-header {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-5) var(--spacing-6); /* Increased padding */
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 70%, var(--primary-light) 100%); /* Adjusted gradient */
+  color: white;
+  border-bottom: 2px solid var(--primary-darker); /* Stronger border */
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0; /* Match container radius if applicable */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between; /* Space for date and potential nav arrows */
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+}
+
+.date-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.daily-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.daily-date .day-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.daily-date .day-number.today {
+  background-color: white;
+  color: var(--primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.date-info {
+  flex: 1;
+}
+
+.day-title {
+  font-size: var(--text-2xl); /* Larger title */
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.today-badge {
+  display: inline-block;
+  background-color: var(--accent-color, #FFD700); /* Using an accent color, fallback to gold */
+  color: var(--primary-dark, #003366);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-left: var(--spacing-3); /* Spacing from the date title */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.daily-summary-stats {
+  display: flex;
+  justify-content: space-around; /* Distribute summary items */
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3);
+  background-color: rgba(255, 255, 255, 0.1); /* Slight overlay for stats section */
+  border-radius: var(--radius-md);
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--white, #fff);
+  font-size: var(--text-sm);
+}
+
+.summary-icon {
+  color: #0ea5e9; /* sky-500 from login theme */
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.summary-label {
+  font-weight: 500;
+}
+
+.summary-value {
+  font-weight: 700;
+  font-size: var(--text-base);
+  background-color: rgba(0,0,0,0.1);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-sm);
+}
+
+/* Daily Content */
+.daily-content {
+  flex: 1;
+  padding: var(--spacing-3);
+  overflow: auto;
+}
+
+/* Daily Grid */
+.daily-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: calc(100vh - 300px);
+  min-width: max-content; /* Ensure grid doesn't shrink below content size */
+}
+
+.daily-grid-content {
+  width: 100%;
+  overflow-x: auto;
+  min-width: max-content; /* Ensure content doesn't shrink below its natural size */
+}
+
+.daily-grid-container {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.daily-grid-header {
+  display: grid;
+  grid-template-columns: 120px repeat(var(--instructor-count, 4), minmax(150px, 1fr));
+  background-color: var(--gray-100);
+  border-bottom: 1px solid var(--gray-300);
+  width: 100%;
+  min-width: max-content; /* Prevent grid from shrinking below content size */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.time-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-3);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--gray-700);
+  background-color: var(--gray-200);
+  border-right: 1px solid var(--gray-300);
+  height: 60px; /* Consistent height with instructor-header-cell */
+}
+
+.instructor-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2);
+  border-right: 1px solid var(--gray-300);
+  text-align: center;
+  height: 60px; /* Explicit height for consistency */
+  box-sizing: border-box; /* Ensure padding is included in width calculation */
+  /* width: 150px; Removed to allow grid to control width */
+  min-width: 150px; /* Ensure minimum width is maintained */
+  max-width: 180px; /* Allow some flexibility for larger screens */
+  background-color: var(--gray-50); /* Slightly different background for header cells */
+}
+
+.instructor-header-cell:last-child {
+  border-right: none;
+}
+
+.instructor-name {
+  font-size: var(--text-sm); /* Adjusted for better fit */
+  font-weight: 500; /* Changed to match filters section font weight */
+  color: #000000; /* Changed to black as requested */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.instructor-initials { /* Style for initials */
+  font-size: var(--text-xs);
+  font-weight: normal;
+  color: var(--gray-700); /* Darker gray for initials */
+  margin-top: 2px;
+}
+
+.simple-instructor-initial { /* Style for simplified instructor initials in header */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #3B82F6; /* Blue background */
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Daily Grid Content */
+.daily-grid-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.time-slot-row {
+  display: grid;
+  grid-template-columns: 120px repeat(var(--instructor-count, 4), minmax(150px, 1fr));
+  border-bottom: 1px solid var(--gray-300);
+  height: 70px; /* Set a fixed height for rows, allows 60px slot + 5px padding top/bottom */
+  width: 100%;
+  min-width: max-content; /* Prevent grid from shrinking below content size */
+}
+
+/* Adjust row height based on lesson duration */
+.time-slot-row[data-duration="120"] {
+  min-height: 80px;
+}
+
+.time-slot-row[data-duration="90"] {
+  min-height: 80px;
+}
+
+.time-slot-row[data-duration="60"] {
+  min-height: 80px;
+}
+
+.time-slot-row:last-child {
+  border-bottom: none;
+}
+
+.time-label-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--gray-800);
+  background-color: var(--gray-50); /* Light background for time labels */
+  border-right: 1px solid var(--gray-300);
+  height: 100%; /* Ensure it fills the row height */
+}
+
+.time-range {
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+}
+
+.instructor-slot-cell {
+  display: flex;
+  align-items: center; /* Center TimeSlot vertically */
+  justify-content: center; /* Center TimeSlot horizontally */
+  padding: var(--spacing-1); /* Add some padding around TimeSlot */
+  border-right: 1px solid var(--gray-200);
+  height: 100%; /* Ensure it fills the row height */
+  position: relative; /* For potential absolute positioning within TimeSlot if needed */
+}
+
+.instructor-slot-cell:last-child {
+  border-right: none;
+}
+
+.instructor-slot-cell:hover {
+  background-color: var(--gray-50);
+}
+
+/* Time Slot Component Overrides for Daily View */
+.daily-view .time-slot {
+  width: 60px; /* Reduced width for a more square look */
+  height: 60px; /* Set height to match width for a square look */
+  /* margin: auto; /* Center the smaller square slot */
+  border-radius: var(--radius-sm); /* Slightly smaller radius for a smaller square */
+  padding: var(--spacing-1); /* Reduced padding */
+  font-size: var(--text-xs); /* Smaller font size for compact view */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.daily-view .time-slot.status-available {
+  background-color: var(--status-available-light);
+  border: 1px solid var(--status-available);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.daily-view .time-slot.status-available:hover {
+  background-color: var(--status-available);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.daily-view .time-slot.status-booked {
+  background-color: var(--status-booked-light);
+  border: 2px solid var(--status-booked);
+  cursor: not-allowed;
+}
+
+.daily-view .time-slot.status-unavailable {
+  background-color: var(--gray-200);
+  border: 2px solid var(--gray-400);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Time Slot Content Responsive Overrides */
+.daily-view .time-slot .slot-time {
+  font-size: 10px; /* Adjusted for smaller slot */
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.daily-view .time-slot .slot-instructor {
+  display: none; /* Hide instructor name as requested */
+}
+
+.daily-view .time-slot .slot-student {
+  font-size: 10px; /* Adjusted for smaller slot */
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  max-width: 100%;
+}
+
+.daily-view .time-slot .slot-service {
+  display: none; /* Hide service to save space */
+}
+
+.daily-view .time-slot .slot-duration {
+  display: none; /* Hide duration to save space */
+}
+
+.daily-view .time-slot .book-slot-prompt {
+  font-size: 10px; /* Adjusted for smaller slot */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--status-available);
+  text-align: center;
+}
+
+.daily-view .time-slot .slot-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Empty State */
+.empty-state-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+  color: var(--gray-500);
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.5;
+}
+
+.empty-state-large h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: var(--spacing-4) 0 var(--spacing-2) 0;
+  color: var(--gray-700);
+}
+
+.empty-state-large p {
+  font-size: var(--text-base);
+  color: var(--gray-500);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* Sticky Header with Filters */
+.daily-view-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;  background: white;
+  border-bottom: 1px solid var(--gray-200);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.instructor-badges-container {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+.instructor-badges-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.instructor-badges-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.instructor-badges-container::-webkit-scrollbar-thumb {
+  background-color: var(--gray-300);
+  border-radius: 2px;
+}
+
+.instructor-badge {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Enhanced Filter Panel */
+.filters-panel {
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.filter-toggle-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.filter-toggle-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Calendar Content Area */
+.calendar-content-scrollable {
+  flex: 1;
+  overflow: auto;
+  height: calc(100vh - 200px); /* Adjust based on header height */
+}
+
+/* Enhanced Instructor Column Headers */
+.instructor-column-header {
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  height: 4rem;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .daily-grid-header,
+  .time-slot-row {
+    grid-template-columns: 100px repeat(var(--instructor-count, 3), 1fr);
+  }
+  
+  /* Ensure instructor columns maintain alignment */
+  .daily-grid[data-instructor-count="1"] .daily-grid-header,
+  .daily-grid[data-instructor-count="1"] .time-slot-row {
+    grid-template-columns: 100px 1fr;
+  }
+  
+  .daily-grid[data-instructor-count="2"] .daily-grid-header,
+  .daily-grid[data-instructor-count="2"] .time-slot-row {
+    grid-template-columns: 100px repeat(2, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="3"] .daily-grid-header,
+  .daily-grid[data-instructor-count="3"] .time-slot-row {
+    grid-template-columns: 100px repeat(3, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="4"] .daily-grid-header,
+  .daily-grid[data-instructor-count="4"] .time-slot-row {
+    grid-template-columns: 100px repeat(4, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="5"] .daily-grid-header,
+  .daily-grid[data-instructor-count="5"] .time-slot-row {
+    grid-template-columns: 100px repeat(5, 1fr);
+  }
+  
+  .time-header-cell,
+  .time-label-cell {
+    padding: var(--spacing-2);
+  }
+  
+  .instructor-header-cell {
+    padding: var(--spacing-2);
+    min-height: 45px;
+  }
+  
+  .time-slot-row {
+    min-height: 80px;
+  }
+  
+  .daily-view .time-slot {
+    min-height: 60px;
+  }
+}
+
+@media (max-width: 768px) {
+  .daily-header {
+    padding: var(--spacing-3);
+  }
+  
+  /* Ensure instructor columns maintain alignment */
+  .daily-grid[data-instructor-count="1"] .daily-grid-header,
+  .daily-grid[data-instructor-count="1"] .time-slot-row {
+    grid-template-columns: 90px 1fr;
+  }
+  
+  .daily-grid[data-instructor-count="2"] .daily-grid-header,
+  .daily-grid[data-instructor-count="2"] .time-slot-row {
+    grid-template-columns: 90px repeat(2, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="3"] .daily-grid-header,
+  .daily-grid[data-instructor-count="3"] .time-slot-row {
+    grid-template-columns: 90px repeat(3, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="4"] .daily-grid-header,
+  .daily-grid[data-instructor-count="4"] .time-slot-row {
+    grid-template-columns: 90px repeat(4, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="5"] .daily-grid-header,
+  .daily-grid[data-instructor-count="5"] .time-slot-row {
+    grid-template-columns: 90px repeat(5, 1fr);
+  }
+  
+  .daily-date {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--spacing-1);
+  }
+  
+  .daily-summary {
+    margin-top: var(--spacing-md);
+  }
+    .daily-date .day-number {
+    width: 40px;
+    height: 40px;
+    font-size: var(--text-lg);
+  }
+    .day-title {
+    font-size: var(--text-lg);
+  }
+    .summary-stats {
+    gap: var(--spacing-3);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+    .stat-number {
+    font-size: var(--text-lg);
+  }
+    .daily-content {
+    padding: var(--spacing-2);
+  }
+    .daily-grid-header,
+  .time-slot-row {
+    grid-template-columns: 90px repeat(var(--instructor-count, 2), 1fr);
+  }
+  
+  .time-header-cell,
+  .time-label-cell {
+    padding: var(--spacing-1);
+    font-size: var(--text-sm);
+  }
+  
+  .instructor-header-cell {
+    padding: var(--spacing-1);
+    min-height: 50px;
+  }
+  .instructor-name {
+    font-size: var(--text-sm);
+    margin-bottom: 2px;
+  }
+  
+  .instructor-availability {
+    font-size: 11px;
+  }
+  .time-slot-row {
+    min-height: 70px;
+  }
+  
+  .instructor-slot-cell {
+    padding: var(--spacing-1);
+  }
+    .daily-view .time-slot {
+    min-height: 50px;
+    padding: var(--spacing-1);
+    font-size: var(--text-sm);
+    border-radius: var(--radius-sm);
+  }
+  
+  /* More aggressive mobile styling for TimeSlot content */
+  .daily-view .time-slot .slot-time {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  
+  .daily-view .time-slot .slot-instructor,
+  .daily-view .time-slot .slot-student,
+  .daily-view .time-slot .slot-service,
+  .daily-view .time-slot .slot-duration,
+  .daily-view .time-slot .book-slot-prompt {
+    font-size: 10px;
+    line-height: 1.1;
+    margin: 1px 0;
+  }
+  
+  .time-range {
+    font-size: var(--text-sm);
+  }
+  
+  .time-duration {
+    font-size: var(--text-xs);
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .daily-grid-header,
+  .time-slot-row {
+    grid-template-columns: 80px repeat(var(--instructor-count, 2), 1fr);
+  }
+  
+  /* Ensure instructor columns maintain alignment */
+  .daily-grid[data-instructor-count="1"] .daily-grid-header,
+  .daily-grid[data-instructor-count="1"] .time-slot-row {
+    grid-template-columns: 80px 1fr;
+  }
+  
+  .daily-grid[data-instructor-count="2"] .daily-grid-header,
+  .daily-grid[data-instructor-count="2"] .time-slot-row {
+    grid-template-columns: 80px repeat(2, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="3"] .daily-grid-header,
+  .daily-grid[data-instructor-count="3"] .time-slot-row {
+    grid-template-columns: 80px repeat(3, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="4"] .daily-grid-header,
+  .daily-grid[data-instructor-count="4"] .time-slot-row {
+    grid-template-columns: 80px repeat(4, 1fr);
+  }
+  
+  .daily-grid[data-instructor-count="5"] .daily-grid-header,
+  .daily-grid[data-instructor-count="5"] .time-slot-row {
+    grid-template-columns: 80px repeat(5, 1fr);
+  }
+  
+  .time-header-cell,
+  .time-label-cell {
+    padding: 6px;
+    font-size: 12px;
+  }
+  
+  .instructor-header-cell {
+    padding: 6px;
+    min-height: 45px;
+  }
+  
+  .instructor-name {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  
+  .instructor-availability {
+    font-size: 10px;
+  }
+    .time-slot-row {
+    min-height: 60px;
+  }
+  
+  .instructor-slot-cell {
+    padding: 4px;
+  }
+    .daily-view .time-slot {
+    min-height: 45px;
+    padding: 4px;
+    font-size: 11px;
+    border-width: 1px;
+  }
+  
+  /* Ultra compact TimeSlot content for very small screens */
+  .daily-view .time-slot .slot-time {
+    font-size: 10px;
+    line-height: 1.1;
+  }
+  
+  .daily-view .time-slot .slot-instructor,
+  .daily-view .time-slot .slot-student,
+  .daily-view .time-slot .slot-service,
+  .daily-view .time-slot .slot-duration,
+  .daily-view .time-slot .book-slot-prompt {
+    font-size: 9px;
+    line-height: 1.0;
+    margin: 0;
+  }
+  
+  .time-range {
+    font-size: 12px;
+  }
+  
+  .time-duration {
+    font-size: 10px;
+  }
+}
+
+/* Dynamic grid columns based on instructor count - ensuring alignment */
+.daily-grid[data-instructor-count="1"] .daily-grid-header,
+.daily-grid[data-instructor-count="1"] .time-slot-row {
+  grid-template-columns: 120px 1fr;
+}
+
+.daily-grid[data-instructor-count="2"] .daily-grid-header,
+.daily-grid[data-instructor-count="2"] .time-slot-row {
+  grid-template-columns: 120px repeat(2, 1fr);
+}
+
+.daily-grid[data-instructor-count="3"] .daily-grid-header,
+.daily-grid[data-instructor-count="3"] .time-slot-row {
+  grid-template-columns: 120px repeat(3, 1fr);
+}
+
+.daily-grid[data-instructor-count="4"] .daily-grid-header,
+.daily-grid[data-instructor-count="4"] .time-slot-row {
+  grid-template-columns: 120px repeat(4, 1fr);
+}
+
+.daily-grid[data-instructor-count="5"] .daily-grid-header,
+.daily-grid[data-instructor-count="5"] .time-slot-row {
+  grid-template-columns: 120px repeat(5, 1fr);
+}
+
+/* Animation for smooth loading */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.time-slot-row {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.time-slot-row:nth-child(1) { animation-delay: 0.1s; }
+.time-slot-row:nth-child(2) { animation-delay: 0.2s; }
+.time-slot-row:nth-child(3) { animation-delay: 0.3s; }
+.time-slot-row:nth-child(4) { animation-delay: 0.4s; }

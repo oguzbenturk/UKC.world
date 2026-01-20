@@ -1,0 +1,4 @@
+{
+  "watch": ["server.js", "routes", "utils", "db.js"],
+  "ignore": ["../src", "../public", "../react_templates", "../scripts", "../data", "../node_modules"]
+}

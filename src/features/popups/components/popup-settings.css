@@ -1,0 +1,123 @@
+/* Mobile-optimized popup settings styles (global) */
+
+.popup-settings-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+/* Mobile tab navigation */
+@media (max-width: 768px) {
+  .popup-settings-tabs .ant-tabs-nav-wrap {
+    justify-content: flex-start;
+  }
+  
+  .popup-settings-tabs .ant-tabs-tab {
+    flex: none;
+    min-width: auto;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  /* Horizontal scroll for tabs on very small screens */
+  .popup-settings-tabs .ant-tabs-nav {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  
+  .popup-settings-tabs .ant-tabs-nav::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+}
+
+/* Card responsiveness */
+@media (max-width: 1024px) {
+  .popup-list-card {
+    margin-bottom: 16px;
+  }
+  
+  .popup-list-card .ant-card-body {
+    padding: 12px;
+  }
+  
+  .popup-detail-card .ant-card-head {
+    padding: 12px 16px;
+  }
+  
+  .popup-detail-card .ant-card-body {
+    padding: 16px;
+  }
+}
+
+/* Form field spacing on mobile */
+@media (max-width: 576px) {
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+  
+  .ant-form-item-label {
+    padding-bottom: 4px;
+  }
+  
+  .ant-input,
+  .ant-select-selector,
+  .ant-input-number {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Mobile action bar */
+.mobile-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: white;
+  border-top: 1px solid #f0f0f0;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Popup list optimizations */
+.popup-list-item {
+  transition: all 0.2s ease;
+}
+
+.popup-list-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.popup-list-item.selected {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 768px) {
+  .settings-container {
+    padding: 12px;
+  }
+  
+  .settings-section {
+    margin-bottom: 16px;
+  }
+  
+  .settings-section .ant-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .settings-section .ant-card-body {
+    padding: 16px 12px;
+  }
+}
+
+/* Form button optimizations */
+@media (max-width: 576px) {
+  .form-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .form-actions .ant-btn {
+    width: 100%;
+  }
+}
