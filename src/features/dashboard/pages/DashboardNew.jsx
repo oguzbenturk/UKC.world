@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import {
     Card,
@@ -11,7 +11,10 @@ import {
     List,
     Empty,
     Divider,
-    Segmented
+    Segmented,
+    Modal,
+    Spin,
+    Collapse
 } from "antd";
 import {
     ArrowRightOutlined,
@@ -23,13 +26,24 @@ import {
     StarOutlined,
     ClockCircleOutlined,
     AppstoreOutlined,
-    LineChartOutlined
+    LineChartOutlined,
+    DownOutlined,
+    UpOutlined
 } from "@ant-design/icons";
 import { useData } from "@/shared/hooks/useData";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useDashboardRealTime } from "@/shared/hooks/useRealTime";
 import QuickActionCard from "../components/QuickActionCard";
 import { useQuickActionConfig } from "../hooks/useQuickActionConfig";
+
+// Lazy load modals for better performance
+const StepBookingModal = lazy(() => import('@/features/bookings/components/components/StepBookingModal'));
+const QuickRentalModal = lazy(() => import('../components/QuickRentalModal'));
+const QuickCustomerModal = lazy(() => import('../components/QuickCustomerModal'));
+const QuickAccommodationModal = lazy(() => import('../components/QuickAccommodationModal'));
+
+// Import CalendarProvider for StepBookingModal context
+import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 
 const { Title, Text } = Typography;
 
@@ -379,6 +393,306 @@ const DashboardSummaryGrid = ({ summary, timeframeLabel, generatedLabel, canView
     );
 };
 
+// ============= ANALYTICS DETAIL PANELS =============
+
+const BookingsDetailPanel = ({ stats, upcomingBookings = [] }) => {
+    const statusCounts = useMemo(() => {
+        const counts = { scheduled: 0, confirmed: 0, completed: 0, cancelled: 0 };
+        upcomingBookings.forEach(b => {
+            const status = b.status?.toLowerCase() || 'scheduled';
+            if (counts[status] !== undefined) counts[status]++;
+        });
+        return counts;
+    }, [upcomingBookings]);
+
+    return (
+        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-blue-700">Booking Status Breakdown</Text>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Scheduled</Text>
+                                <div className="text-xl font-bold text-blue-600">{statusCounts.scheduled}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Confirmed</Text>
+                                <div className="text-xl font-bold text-green-600">{statusCounts.confirmed}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Completed</Text>
+                                <div className="text-xl font-bold text-emerald-600">{statusCounts.completed}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Cancelled</Text>
+                                <div className="text-xl font-bold text-red-500">{statusCounts.cancelled}</div>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-blue-700">Quick Stats</Text>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center p-2 bg-white rounded-lg">
+                                <Text type="secondary">Active Bookings</Text>
+                                <Tag color="blue">{formatNumber(stats.activeBookings)}</Tag>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-white rounded-lg">
+                                <Text type="secondary">Today's Lessons</Text>
+                                <Tag color="cyan">{upcomingBookings.filter(b => {
+                                    const today = new Date().toDateString();
+                                    return new Date(b.start_time).toDateString() === today;
+                                }).length}</Tag>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-white rounded-lg">
+                                <Text type="secondary">This Week</Text>
+                                <Tag color="geekblue">{upcomingBookings.length}</Tag>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+            <div className="mt-4 pt-4 border-t border-blue-100">
+                <Link to="/bookings" className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2">
+                    View All Bookings <ArrowRightOutlined />
+                </Link>
+            </div>
+        </div>
+    );
+};
+
+const MembersDetailPanel = ({ stats }) => {
+    const totalMembers = (stats.shopCustomers || 0) + (stats.schoolCustomers || 0) + (stats.instructors || 0);
+    
+    return (
+        <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-white rounded-xl shadow-sm text-center">
+                        <ShoppingOutlined className="text-3xl text-blue-500 mb-2" />
+                        <div className="text-2xl font-bold text-blue-600">{formatNumber(stats.shopCustomers)}</div>
+                        <Text type="secondary">Shop Customers</Text>
+                        <div className="mt-2">
+                            <Tag color="blue">{totalMembers > 0 ? ((stats.shopCustomers / totalMembers) * 100).toFixed(0) : 0}%</Tag>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-white rounded-xl shadow-sm text-center">
+                        <TeamOutlined className="text-3xl text-cyan-500 mb-2" />
+                        <div className="text-2xl font-bold text-cyan-600">{formatNumber(stats.schoolCustomers)}</div>
+                        <Text type="secondary">School Students</Text>
+                        <div className="mt-2">
+                            <Tag color="cyan">{totalMembers > 0 ? ((stats.schoolCustomers / totalMembers) * 100).toFixed(0) : 0}%</Tag>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-white rounded-xl shadow-sm text-center">
+                        <StarOutlined className="text-3xl text-amber-500 mb-2" />
+                        <div className="text-2xl font-bold text-amber-600">{formatNumber(stats.instructors)}</div>
+                        <Text type="secondary">Instructors</Text>
+                        <div className="mt-2">
+                            <Tag color="gold">{totalMembers > 0 ? ((stats.instructors / totalMembers) * 100).toFixed(0) : 0}%</Tag>
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+            <div className="mt-4 pt-4 border-t border-emerald-100">
+                <Link to="/customers" className="text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-2">
+                    Manage Members <ArrowRightOutlined />
+                </Link>
+            </div>
+        </div>
+    );
+};
+
+const RentalsDetailPanel = ({ stats, summary = {} }) => {
+    return (
+        <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-indigo-700">Rental Status</Text>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Active</Text>
+                                <div className="text-xl font-bold text-indigo-600">{formatNumber(summary.active || stats.activeRentals)}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Completed</Text>
+                                <div className="text-xl font-bold text-green-600">{formatNumber(summary.completed)}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Upcoming</Text>
+                                <div className="text-xl font-bold text-cyan-600">{formatNumber(summary.upcoming)}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Total</Text>
+                                <div className="text-xl font-bold text-slate-600">{formatNumber(summary.total)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-indigo-700">Revenue</Text>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                                <Text type="secondary">Total Revenue</Text>
+                                <Text strong className="text-indigo-600">{formatCurrency(summary.totalRevenue)}</Text>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                                <Text type="secondary">Paid Revenue</Text>
+                                <Text strong className="text-green-600">{formatCurrency(summary.paidRevenue)}</Text>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-white rounded-lg">
+                                <Text type="secondary">Avg per Rental</Text>
+                                <Text strong>{formatCurrency(summary.averageRevenue)}</Text>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+            <div className="mt-4 pt-4 border-t border-indigo-100">
+                <Link to="/rentals" className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2">
+                    View All Rentals <ArrowRightOutlined />
+                </Link>
+            </div>
+        </div>
+    );
+};
+
+const EquipmentDetailPanel = ({ stats, equipment = [] }) => {
+    const equipmentStats = useMemo(() => {
+        const available = equipment.filter(e => e.status === 'available' || e.status === 'good').length;
+        const inUse = equipment.filter(e => e.status === 'in_use' || e.status === 'rented').length;
+        const maintenance = equipment.filter(e => e.status === 'maintenance' || e.status === 'repair').length;
+        return { available, inUse, maintenance, total: equipment.length };
+    }, [equipment]);
+
+    return (
+        <div className="p-4 bg-orange-50/50 rounded-xl border border-orange-100">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-orange-700">Equipment Status</Text>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Available</Text>
+                                <div className="text-xl font-bold text-green-600">{equipmentStats.available}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">In Use</Text>
+                                <div className="text-xl font-bold text-blue-600">{equipmentStats.inUse}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Maintenance</Text>
+                                <div className="text-xl font-bold text-orange-600">{equipmentStats.maintenance}</div>
+                            </div>
+                            <div className="p-3 bg-white rounded-lg shadow-sm">
+                                <Text type="secondary" className="text-xs">Total Items</Text>
+                                <div className="text-xl font-bold text-slate-600">{formatNumber(stats.equipment)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={12}>
+                    <div className="space-y-3">
+                        <Text strong className="text-orange-700">Availability</Text>
+                        <div className="p-4 bg-white rounded-xl">
+                            <div className="flex items-center justify-center">
+                                <div className="relative w-32 h-32">
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <div className="text-3xl font-bold text-orange-600">
+                                                {stats.equipment > 0 ? ((equipmentStats.available / stats.equipment) * 100).toFixed(0) : 0}%
+                                            </div>
+                                            <Text type="secondary" className="text-xs">Available</Text>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+            <div className="mt-4 pt-4 border-t border-orange-100">
+                <Link to="/equipment" className="text-orange-600 hover:text-orange-800 font-medium flex items-center gap-2">
+                    Manage Equipment <ArrowRightOutlined />
+                </Link>
+            </div>
+        </div>
+    );
+};
+
+const RevenueDetailPanel = ({ stats, summary = {} }) => {
+    const netClass = (summary.net ?? 0) >= 0 ? "text-emerald-600" : "text-rose-600";
+    
+    return (
+        <div className="p-4 bg-violet-50/50 rounded-xl border border-violet-100">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-white rounded-xl shadow-sm">
+                        <Text type="secondary" className="text-xs block mb-1">Total Income</Text>
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.income)}</div>
+                        <div className="mt-2">
+                            <Tag color="green">📥 Revenue</Tag>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-white rounded-xl shadow-sm">
+                        <Text type="secondary" className="text-xs block mb-1">Total Expenses</Text>
+                        <div className="text-2xl font-bold text-red-500">{formatCurrency(summary.expenses)}</div>
+                        <div className="mt-2">
+                            <Tag color="red">📤 Expenses</Tag>
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} md={8}>
+                    <div className="p-4 bg-gradient-to-br from-violet-100 to-white rounded-xl shadow-sm">
+                        <Text type="secondary" className="text-xs block mb-1">Net Profit</Text>
+                        <div className={`text-2xl font-bold ${netClass}`}>{formatCurrency(summary.net)}</div>
+                        <div className="mt-2">
+                            <Tag color={(summary.net ?? 0) >= 0 ? "green" : "red"}>
+                                {(summary.net ?? 0) >= 0 ? "📈 Profit" : "📉 Loss"}
+                            </Tag>
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+            <div className="mt-4">
+                <Row gutter={[16, 16]}>
+                    <Col xs={24} md={12}>
+                        <div className="p-3 bg-white rounded-lg">
+                            <div className="flex justify-between items-center">
+                                <Text type="secondary">Service Revenue</Text>
+                                <Text strong className="text-violet-600">{formatCurrency(summary.serviceRevenue)}</Text>
+                            </div>
+                        </div>
+                    </Col>
+                    <Col xs={24} md={12}>
+                        <div className="p-3 bg-white rounded-lg">
+                            <div className="flex justify-between items-center">
+                                <Text type="secondary">Rental Revenue</Text>
+                                <Text strong className="text-violet-600">{formatCurrency(summary.rentalRevenue)}</Text>
+                            </div>
+                        </div>
+                    </Col>
+                </Row>
+            </div>
+            <div className="mt-4 pt-4 border-t border-violet-100">
+                <Link to="/finance" className="text-violet-600 hover:text-violet-800 font-medium flex items-center gap-2">
+                    View Financial Details <ArrowRightOutlined />
+                </Link>
+            </div>
+        </div>
+    );
+};
+
 // ============= QUICK ACTIONS GRID =============
 
 const QuickActionsGrid = ({ actions }) => {
@@ -437,6 +751,54 @@ function Dashboard() {
     const dashboardUpdates = useDashboardRealTime();
     const [viewMode, setViewMode] = useState('actions');
 
+    // Modal states for quick actions
+    const [showBookingModal, setShowBookingModal] = useState(false);
+    const [showRentalModal, setShowRentalModal] = useState(false);
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [showAccommodationModal, setShowAccommodationModal] = useState(false);
+
+    // Analytics panel expansion state - persisted in localStorage
+    const ANALYTICS_PREFS_KEY = 'dashboard_analytics_expanded_panels';
+    const [expandedPanels, setExpandedPanels] = useState(() => {
+        try {
+            const saved = localStorage.getItem(ANALYTICS_PREFS_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    // Save expanded panels preference to localStorage
+    useEffect(() => {
+        try {
+            localStorage.setItem(ANALYTICS_PREFS_KEY, JSON.stringify(expandedPanels));
+        } catch {
+            // Ignore localStorage errors
+        }
+    }, [expandedPanels]);
+
+    // Toggle panel expansion
+    const togglePanel = useCallback((panelKey) => {
+        setExpandedPanels(prev => 
+            prev.includes(panelKey) 
+                ? prev.filter(k => k !== panelKey)
+                : [...prev, panelKey]
+        );
+    }, []);
+
+    // Modal handlers - memoized to prevent unnecessary re-renders
+    const modalHandlers = useMemo(() => ({
+        newBooking: () => setShowBookingModal(true),
+        newRental: () => setShowRentalModal(true),
+        newCustomer: () => setShowCustomerModal(true),
+        newAccommodation: () => setShowAccommodationModal(true),
+    }), []);
+
+    // Handle successful modal submissions
+    const handleModalSuccess = useCallback(() => {
+        refreshData();
+    }, [refreshData]);
+
     // Helper to normalize permissions (can be object or array)
     const normalizePermissions = (perms) => {
         if (!perms) return [];
@@ -458,7 +820,7 @@ function Dashboard() {
         return normalizePermissions(rawPerms);
     }, [user]);
 
-    const quickActions = useQuickActionConfig(userPermissions, user?.role);
+    const quickActions = useQuickActionConfig(userPermissions, user?.role, modalHandlers);
 
     useEffect(() => {
         if (dashboardUpdates.refresh || dashboardUpdates.bookings || dashboardUpdates.stats) {
@@ -917,57 +1279,138 @@ function Dashboard() {
                 {/* Analytics Mode */}
                 {viewMode === 'analytics' && (
                     <div className="animate-fade-in">
-                        {/* KPI Cards Grid */}
+                        {/* KPI Cards Grid - Clickable for Details */}
                         <div className="mb-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <Text type="secondary" className="text-sm">
+                                    Click on cards to expand detailed information
+                                </Text>
+                                {expandedPanels.length > 0 && (
+                                    <Button 
+                                        type="link" 
+                                        size="small"
+                                        onClick={() => setExpandedPanels([])}
+                                    >
+                                        Collapse All
+                                    </Button>
+                                )}
+                            </div>
                             <Row gutter={[16, 16]}>
                                 {highlightCards.map((item, idx) => {
-                                    const bgClass = accentStyles[item.accent] || accentStyles.blue;
                                     const iconClass = iconBgStyles[item.accent] || iconBgStyles.blue;
+                                    const isExpanded = expandedPanels.includes(item.key);
                                     return (
                                         <Col key={item.key} xs={24} sm={12} lg={6}>
-                                            <Link to={item.link} className="block h-full">
-                                                <Card
-                                                    hoverable
-                                                    className={`dashboard-card highlight-card h-full rounded-2xl border shadow-sm`}
-                                                    styles={{ body: { padding: 20 } }}
-                                                    style={{
-                                                        animationDelay: `${idx * 80}ms`
-                                                    }}
-                                                >
-                                                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                                                        <div className="flex items-start justify-between">
-                                                            <div>
-                                                                <Text 
-                                                                    type="secondary" 
-                                                                    style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
-                                                                >
-                                                                    {item.title}
-                                                                </Text>
-                                                                <Title 
-                                                                    level={3} 
-                                                                    style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}
-                                                                >
-                                                                    {item.value}
-                                                                </Title>
-                                                            </div>
-                                                            <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconClass}`} style={{ fontSize: 20 }}>
-                                                                {item.icon}
-                                                            </div>
+                                            <Card
+                                                hoverable
+                                                className={`dashboard-card highlight-card h-full rounded-2xl border shadow-sm cursor-pointer ${isExpanded ? 'ring-2 ring-offset-2 ring-blue-400' : ''}`}
+                                                styles={{ body: { padding: 20 } }}
+                                                style={{
+                                                    animationDelay: `${idx * 80}ms`
+                                                }}
+                                                onClick={() => togglePanel(item.key)}
+                                            >
+                                                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                                                    <div className="flex items-start justify-between">
+                                                        <div>
+                                                            <Text 
+                                                                type="secondary" 
+                                                                style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                                                            >
+                                                                {item.title}
+                                                            </Text>
+                                                            <Title 
+                                                                level={3} 
+                                                                style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}
+                                                            >
+                                                                {item.value}
+                                                            </Title>
                                                         </div>
-                                                        {item.meta && (
-                                                            <>
-                                                                <Divider style={{ margin: "8px 0" }} />
-                                                                {item.meta}
-                                                            </>
-                                                        )}
-                                                    </Space>
-                                                </Card>
-                                            </Link>
+                                                        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconClass}`} style={{ fontSize: 20 }}>
+                                                            {item.icon}
+                                                        </div>
+                                                    </div>
+                                                    {item.meta && (
+                                                        <>
+                                                            <Divider style={{ margin: "8px 0" }} />
+                                                            {item.meta}
+                                                        </>
+                                                    )}
+                                                    <div className="flex items-center justify-center pt-2 border-t border-slate-100">
+                                                        <Text type="secondary" className="text-xs flex items-center gap-1">
+                                                            {isExpanded ? (
+                                                                <>
+                                                                    <UpOutlined /> Click to collapse
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <DownOutlined /> Click for details
+                                                                </>
+                                                            )}
+                                                        </Text>
+                                                    </div>
+                                                </Space>
+                                            </Card>
                                         </Col>
                                     );
                                 })}
                             </Row>
                         </div>
+
+                        {/* Expandable Detail Panels */}
+                        {expandedPanels.length > 0 && (
+                            <div className="mb-6 space-y-4">
+                                <Collapse
+                                    activeKey={expandedPanels}
+                                    onChange={(keys) => setExpandedPanels(keys)}
+                                    className="bg-transparent border-0"
+                                    expandIcon={({ isActive }) => isActive ? <UpOutlined /> : <DownOutlined />}
+                                    items={highlightCards
+                                        .filter(item => expandedPanels.includes(item.key))
+                                        .map(item => ({
+                                            key: item.key,
+                                            label: (
+                                                <Space>
+                                                    {item.icon}
+                                                    <Text strong>{item.title} Details</Text>
+                                                </Space>
+                                            ),
+                                            children: (
+                                                <>
+                                                    {item.key === 'bookings' && (
+                                                        <BookingsDetailPanel 
+                                                            stats={stats} 
+                                                            upcomingBookings={upcomingBookings} 
+                                                        />
+                                                    )}
+                                                    {item.key === 'members' && (
+                                                        <MembersDetailPanel stats={stats} />
+                                                    )}
+                                                    {item.key === 'rentals' && (
+                                                        <RentalsDetailPanel 
+                                                            stats={stats} 
+                                                            summary={dashboardSummary?.rentals || {}} 
+                                                        />
+                                                    )}
+                                                    {item.key === 'equipment' && (
+                                                        <EquipmentDetailPanel 
+                                                            stats={stats} 
+                                                            equipment={equipment} 
+                                                        />
+                                                    )}
+                                                    {item.key === 'revenue' && (
+                                                        <RevenueDetailPanel 
+                                                            stats={stats} 
+                                                            summary={dashboardSummary?.revenue || {}} 
+                                                        />
+                                                    )}
+                                                </>
+                                            ),
+                                            className: 'bg-white rounded-xl mb-2 shadow-sm border'
+                                        }))}
+                                />
+                            </div>
+                        )}
 
                         {/* Summary Grid */}
                         {dashboardSummary && (
@@ -981,6 +1424,61 @@ function Dashboard() {
                     </div>
                 )}
             </div>
+
+            {/* Quick Action Modals */}
+            <Suspense fallback={<Spin />}>
+                {showBookingModal && (
+                    <CalendarProvider>
+                        <StepBookingModal
+                            isOpen={showBookingModal}
+                            onClose={() => setShowBookingModal(false)}
+                            onBookingCreated={() => {
+                                setShowBookingModal(false);
+                                handleModalSuccess();
+                            }}
+                        />
+                    </CalendarProvider>
+                )}
+            </Suspense>
+
+            <Suspense fallback={<Spin />}>
+                {showRentalModal && (
+                    <QuickRentalModal
+                        open={showRentalModal}
+                        onClose={() => setShowRentalModal(false)}
+                        onSuccess={() => {
+                            setShowRentalModal(false);
+                            handleModalSuccess();
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={<Spin />}>
+                {showCustomerModal && (
+                    <QuickCustomerModal
+                        open={showCustomerModal}
+                        onClose={() => setShowCustomerModal(false)}
+                        onSuccess={() => {
+                            setShowCustomerModal(false);
+                            handleModalSuccess();
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={<Spin />}>
+                {showAccommodationModal && (
+                    <QuickAccommodationModal
+                        open={showAccommodationModal}
+                        onClose={() => setShowAccommodationModal(false)}
+                        onSuccess={() => {
+                            setShowAccommodationModal(false);
+                            handleModalSuccess();
+                        }}
+                    />
+                )}
+            </Suspense>
         </div>
     );
 }

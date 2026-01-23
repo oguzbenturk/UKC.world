@@ -59,6 +59,9 @@ import FamilyManagementPage from '../features/students/pages/FamilyManagementPag
 import StudentFriendsPage from '../features/students/pages/StudentFriendsPage';
 import StudentPortalUnavailable from '../features/students/pages/StudentPortalUnavailable';
 import StudentBookServicePage from '../features/students/pages/StudentBookServicePage';
+import StudentBookEquipmentPage from '../features/students/pages/StudentBookEquipmentPage';
+import StudentMyRentalsPage from '../features/students/pages/StudentMyRentalsPage';
+import StudentMyAccommodationPage from '../features/students/pages/StudentMyAccommodationPage';
 import NotificationCenter from '../features/notifications/pages/NotificationCenter';
 import GdprDataManager from '../features/compliance/components/GdprDataManager';
 import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage';
@@ -291,6 +294,11 @@ const AppRoutes = () => {
         )}
         {/* Student booking service redirect - triggers booking wizard from dashboard */}
         <Route path="/academy/book-service" element={<StudentBookServicePage />} />
+        {/* Student rental pages */}
+        <Route path="/rental/book-equipment" element={<StudentBookEquipmentPage />} />
+        <Route path="/rental/my-rentals" element={<StudentMyRentalsPage />} />
+        {/* Student accommodation page */}
+        <Route path="/stay/my-accommodation" element={<StudentMyAccommodationPage />} />
       </Route>
       {/* Customer management routes - instructors and above */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} />}>

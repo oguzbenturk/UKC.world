@@ -345,10 +345,15 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			check_in_date, 
 			check_out_date, 
 			guests_count = 1,
+			guest_id: requestedGuestId,
 			notes 
 		} = req.body;
 		
-		const guest_id = req.user.id;
+		// Staff (admin, manager, front_desk) can book for any user
+		// Regular users can only book for themselves
+		const staffRoles = ['admin', 'manager', 'front_desk'];
+		const isStaff = staffRoles.includes(req.user.user_role);
+		const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
 		
 		if (!unit_id || !check_in_date || !check_out_date) {
 			return res.status(400).json({ error: 'unit_id, check_in_date, and check_out_date are required' });

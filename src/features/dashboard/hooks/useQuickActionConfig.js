@@ -10,14 +10,19 @@ import {
   MessageOutlined,
   GiftOutlined,
   DollarOutlined,
-  SettingOutlined
+  SettingOutlined,
+  UserAddOutlined
 } from '@ant-design/icons';
 
 /**
  * Configuration for all Quick Action cards on the dashboard
  * Each service has its own configuration with permissions, colors, actions, etc.
+ * 
+ * Actions can have:
+ * - `to`: Navigation path (renders as Link)
+ * - `modal`: Modal identifier (renders as button, parent component handles modal)
  */
-export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
+export const useQuickActionConfig = (userPermissions = [], userRole = '', modalHandlers = {}) => {
   
   // Normalize permissions to array (can be object with permission keys or array)
   const normalizePermissions = (perms) => {
@@ -42,6 +47,14 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
   };
 
   const quickActions = useMemo(() => {
+    // Helper to create action with modal or link
+    const createAction = (label, toPath, modalId = null) => {
+      if (modalId && modalHandlers[modalId]) {
+        return { label, onClick: modalHandlers[modalId] };
+      }
+      return { label, to: toPath };
+    };
+
     const allActions = [
       // ===== LESSONS / BOOKINGS =====
       {
@@ -51,7 +64,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
         icon: BookOutlined,
         color: 'blue',
         permissions: ['bookings:read', 'bookings:write'],
-        primaryAction: { label: 'New Booking', to: '/bookings' },
+        primaryAction: createAction('New Booking', '/bookings', 'newBooking'),
         secondaryActions: [
           { label: 'Calendar', to: '/calendars/lessons' },
           { label: 'All Lessons', to: '/bookings' }
@@ -67,7 +80,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
         icon: ToolOutlined,
         color: 'emerald',
         permissions: ['equipment:rental', 'equipment:read'],
-        primaryAction: { label: 'New Rental', to: '/rentals' },
+        primaryAction: createAction('New Rental', '/rentals', 'newRental'),
         secondaryActions: [
           { label: 'Calendar', to: '/calendars/rentals' },
           { label: 'Equipment', to: '/equipment' }
@@ -98,7 +111,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
         icon: HomeOutlined,
         color: 'orange',
         permissions: ['bookings:read', 'bookings:write'],
-        primaryAction: { label: 'Book Room', to: '/accommodation' },
+        primaryAction: createAction('Book Room', '/accommodation', 'newAccommodation'),
         secondaryActions: [
           { label: 'Manage Units', to: '/services/accommodation' }
         ],
@@ -173,9 +186,9 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
         icon: TeamOutlined,
         color: 'slate',
         permissions: ['users:read', 'users:write'],
-        primaryAction: { label: 'All Customers', to: '/customers' },
+        primaryAction: createAction('Register New', '/customers/new', 'newCustomer'),
         secondaryActions: [
-          { label: 'Add New', to: '/customers' }
+          { label: 'All Customers', to: '/customers' }
         ],
         order: 9
       },
@@ -214,7 +227,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '') => {
     return allActions
       .filter(action => hasPermission(action.permissions))
       .sort((a, b) => a.order - b.order);
-  }, [permissionsArray, userRole]);
+  }, [permissionsArray, userRole, modalHandlers]);
 
   return quickActions;
 };

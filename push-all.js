@@ -293,36 +293,62 @@ fi
 echo "Port usage after cleanup (80/443):"
 ss -tulpn 2>/dev/null | grep -E ':(80|443) ' || true
 if [ -f docker-compose.production.yml ]; then
-  # Prefer docker-compose; fallback to docker compose
-  if docker compose version >/dev/null 2>&1; then
-    DC="docker compose"
-  elif command -v docker-compose >/dev/null 2>&1; then
-    DC="docker-compose"
-  else
-    echo "No Docker Compose found (v2 or legacy)."; exit 1
-  fi
-  $DC -f docker-compose.production.yml pull || true
-  # Try normal up; if it fails (e.g., legacy 'ContainerConfig' error), do a clean down and retry
-  $DC -f docker-compose.production.yml up -d --build || (
-    echo "Compose up failed. Attempting clean restart..." && \
-    $DC -f docker-compose.production.yml down --remove-orphans || true && \
-    docker rm -f $(docker ps -aq --filter "name=plannivo_") 2>/dev/null || true && \
-    $DC -f docker-compose.production.yml up -d --build
-  )
-  # Show status and recent logs for backend
-  $DC -f docker-compose.production.yml ps
+  # Build images first
+  echo "Building Docker images..."
+  docker build -t plannivo_backend -f backend/Dockerfile.production backend/
+  docker build -t plannivo_frontend -f Dockerfile .
+
+  # Stop and remove old containers (ignore errors if they don't exist)
+  echo "Stopping old containers..."
+  docker stop frontend backend 2>/dev/null || true
+  docker rm frontend backend 2>/dev/null || true
+  
+  # Ensure network exists
+  docker network create plannivo_app-network 2>/dev/null || true
+  
+  # Start db and redis if not running
+  echo "Ensuring db and redis are running..."
+  docker start 04f6f53837f7_plannivo_db_1 e9fee54aad2f_plannivo_redis_1 2>/dev/null || true
+  sleep 3
+  
+  # Start backend with proper name for nginx resolution
+  echo "Starting backend..."
+  docker run -d --name backend \\
+    --network plannivo_app-network \\
+    --env-file ${remotePath}/backend/.env.production \\
+    -v plannivo_uploads_data:/app/uploads \\
+    --restart unless-stopped \\
+    plannivo_backend
+  
+  # Wait for backend to be healthy
+  echo "Waiting for backend..."
+  sleep 5
+  
+  # Start frontend with proper name and SSL mounts
+  echo "Starting frontend..."
+  docker run -d --name frontend \\
+    --network plannivo_app-network \\
+    -p 80:80 -p 443:443 \\
+    -v /root/acme-webroot:/var/www/acme:ro \\
+    -v ${remotePath}/SSL:/etc/ssl/plannivo:ro \\
+    -v plannivo_uploads_data:/var/www/uploads:ro \\
+    --restart unless-stopped \\
+    plannivo_frontend
+  
+  # Show status
+  docker ps
   echo "Checking backend health..."
   for i in 1 2 3 4 5; do
-    if curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
+    if docker exec frontend curl -fsS http://backend:4000/api/health >/dev/null 2>&1; then
       echo "Backend Health: OK"; break; fi; echo "waiting backend ($i)..."; sleep 4; done
-  if ! curl -fsS http://localhost:4000/api/health >/dev/null 2>&1; then
-    echo "Backend Health: FAIL"; $DC -f docker-compose.production.yml logs --tail=200 backend || true; fi
+  if ! docker exec frontend curl -fsS http://backend:4000/api/health >/dev/null 2>&1; then
+    echo "Backend Health: FAIL"; docker logs backend --tail=200 || true; fi
   echo "Checking frontend health..."
   for i in 1 2 3 4 5; do
     if curl -fsS http://localhost:80/ >/dev/null 2>&1; then
       echo "Frontend Health: OK"; break; fi; echo "waiting frontend ($i)..."; sleep 4; done
   if ! curl -fsS http://localhost:80/ >/dev/null 2>&1; then
-    echo "Frontend Health: FAIL"; $DC -f docker-compose.production.yml logs --tail=200 frontend || true; fi
+    echo "Frontend Health: FAIL"; docker logs frontend --tail=200 || true; fi
 else
   # Node-based build and restart
   if command -v nvm >/dev/null 2>&1; then

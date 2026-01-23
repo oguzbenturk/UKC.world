@@ -205,7 +205,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/stay/book-accommodation', label: 'Book Accommodation' },
           { to: '/stay/hotel', label: 'Hotel' },
           { to: '/stay/home', label: 'Home' },
-          { to: '/accommodation', label: 'My Accommodation' }
+          { to: '/stay/my-accommodation', label: 'My Accommodation' }
         ]
       }),
       item('/experience', 'Experience', 'CalendarDaysIcon', {

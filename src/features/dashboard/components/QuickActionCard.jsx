@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 /**
  * QuickActionCard - A modern card component for dashboard quick actions
  * Each card represents a service/feature with quick access buttons
+ * Supports both navigation (to) and onClick handlers for modal actions
  */
 const QuickActionCard = ({ 
   title, 
@@ -154,32 +155,60 @@ const QuickActionCard = ({
       <div className="mt-auto space-y-2">
         {/* Primary Action */}
         {primaryAction && (
-          <Link 
-            to={primaryAction.to}
-            className={`
-              block w-full text-center py-2.5 px-4 rounded-xl text-white font-medium
-              ${colors.button} transition-colors shadow-sm
-            `}
-          >
-            {primaryAction.label}
-          </Link>
+          primaryAction.onClick ? (
+            <button
+              type="button"
+              onClick={primaryAction.onClick}
+              className={`
+                block w-full text-center py-2.5 px-4 rounded-xl text-white font-medium
+                ${colors.button} transition-colors shadow-sm cursor-pointer
+              `}
+            >
+              {primaryAction.label}
+            </button>
+          ) : (
+            <Link 
+              to={primaryAction.to}
+              className={`
+                block w-full text-center py-2.5 px-4 rounded-xl text-white font-medium
+                ${colors.button} transition-colors shadow-sm
+              `}
+            >
+              {primaryAction.label}
+            </Link>
+          )
         )}
         
         {/* Secondary Actions */}
         {secondaryActions.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {secondaryActions.map((action, index) => (
-              <Link
-                key={index}
-                to={action.to}
-                className={`
-                  flex-1 min-w-[45%] text-center py-2 px-3 rounded-lg text-sm font-medium
-                  ${colors.buttonSecondary} transition-colors border border-transparent
-                  hover:border-current
-                `}
-              >
-                {action.label}
-              </Link>
+              action.onClick ? (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={action.onClick}
+                  className={`
+                    flex-1 min-w-[45%] text-center py-2 px-3 rounded-lg text-sm font-medium
+                    ${colors.buttonSecondary} transition-colors border border-transparent
+                    hover:border-current cursor-pointer bg-transparent
+                  `}
+                >
+                  {action.label}
+                </button>
+              ) : (
+                <Link
+                  key={index}
+                  to={action.to}
+                  className={`
+                    flex-1 min-w-[45%] text-center py-2 px-3 rounded-lg text-sm font-medium
+                    ${colors.buttonSecondary} transition-colors border border-transparent
+                    hover:border-current
+                  `}
+                >
+                  {action.label}
+                </Link>
+              )
             ))}
           </div>
         )}
