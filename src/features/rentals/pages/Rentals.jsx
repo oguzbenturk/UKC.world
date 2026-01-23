@@ -19,6 +19,9 @@ import {
   Tooltip,
   Popconfirm,
   Radio,
+  Checkbox,
+  Alert,
+  Spin,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -33,6 +36,7 @@ import {
   DollarOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  GiftOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -146,6 +150,13 @@ function Rentals() {
   const [customers, setCustomers] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [form] = Form.useForm();
+  
+  // Package-based rental state
+  const [usePackage, setUsePackage] = useState(false);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const [availableRentalPackages, setAvailableRentalPackages] = useState([]);
+  const [packagesLoading, setPackagesLoading] = useState(false);
+  
   const actorDirectory = useMemo(() => {
     const directory = {};
 
@@ -332,6 +343,38 @@ function Rentals() {
 
   // Family participant state
   const [participantMode, setParticipantMode] = useState('single');
+
+  // Watch customer selection to fetch their rental packages
+  const watchedCustomerId = Form.useWatch('customer_id', form);
+  
+  // Fetch available rental packages when customer is selected
+  useEffect(() => {
+    const fetchRentalPackages = async () => {
+      if (!watchedCustomerId || !apiClient) {
+        setAvailableRentalPackages([]);
+        setUsePackage(false);
+        setSelectedPackageId(null);
+        return;
+      }
+      
+      setPackagesLoading(true);
+      try {
+        const response = await apiClient.get(`/services/customer-packages/${watchedCustomerId}/rental`);
+        const packages = Array.isArray(response.data) ? response.data : [];
+        setAvailableRentalPackages(packages);
+        // Auto-reset package selection when customer changes
+        setUsePackage(false);
+        setSelectedPackageId(null);
+      } catch (error) {
+        console.error('Failed to fetch rental packages:', error);
+        setAvailableRentalPackages([]);
+      } finally {
+        setPackagesLoading(false);
+      }
+    };
+    
+    fetchRentalPackages();
+  }, [watchedCustomerId, apiClient]);
 
   const watchedEquipmentIds = Form.useWatch('equipment_ids', form);
   const normalizedEquipmentIds = useMemo(() => {
@@ -665,6 +708,9 @@ function Rentals() {
     setEditingRental(null);
     form.resetFields();
     setParticipantMode('single');
+    setUsePackage(false);
+    setSelectedPackageId(null);
+    setAvailableRentalPackages([]);
   }, [form]);
 
   const handleModalOk = async () => {
@@ -680,6 +726,10 @@ function Rentals() {
         start_date: rentalDate ? rentalDate.startOf('day').toISOString() : new Date().toISOString(),
         end_date: rentalDate ? rentalDate.endOf('day').toISOString() : new Date().toISOString(),
         participant_type: participantMode,
+        // Package-based rental fields
+        use_package: usePackage && !!selectedPackageId,
+        customer_package_id: usePackage ? selectedPackageId : null,
+        rental_days: 1, // Default to 1 day per rental
       };
 
       const customerIds = toArray(values.customer_ids);
@@ -1156,10 +1206,89 @@ function Rentals() {
                       {equipmentSummary.count} {equipmentSummary.count === 1 ? 'service' : 'services'}
                     </span>
                     {equipmentSummary.durationLabel && <span>• {equipmentSummary.durationLabel}</span>}
-                    {equipmentSummary.priceLabel && <span>• {equipmentSummary.priceLabel}</span>}
+                    {equipmentSummary.priceLabel && !usePackage && <span>• {equipmentSummary.priceLabel}</span>}
+                    {usePackage && selectedPackageId && (
+                      <Tag color="green" className="ml-2">📦 Using Package</Tag>
+                    )}
                   </div>
                 )}
               </section>
+
+              {/* Package Selection Section - Only show for single customer with packages */}
+              {participantMode === 'single' && !editingRental && (
+                <section className="space-y-4 rounded-xl border border-slate-200/70 bg-gradient-to-br from-green-50/50 to-emerald-50/50 p-4">
+                  <div className="border-b border-slate-200/70 pb-3">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">💳 Payment Method</p>
+                    <h3 className="text-base font-semibold text-slate-800">Use Package or Charge Wallet</h3>
+                  </div>
+                  
+                  {packagesLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Spin size="small" />
+                      <span className="ml-2 text-slate-500 text-sm">Loading packages...</span>
+                    </div>
+                  ) : availableRentalPackages.length > 0 ? (
+                    <div className="space-y-3">
+                      <Checkbox 
+                        checked={usePackage}
+                        onChange={(e) => {
+                          setUsePackage(e.target.checked);
+                          if (!e.target.checked) {
+                            setSelectedPackageId(null);
+                          } else if (availableRentalPackages.length === 1) {
+                            setSelectedPackageId(availableRentalPackages[0].id);
+                          }
+                        }}
+                      >
+                        <span className="font-medium text-slate-700">Use rental days from package</span>
+                      </Checkbox>
+                      
+                      {usePackage && (
+                        <Select
+                          value={selectedPackageId}
+                          onChange={setSelectedPackageId}
+                          placeholder="Select a package"
+                          className="w-full"
+                          size="middle"
+                        >
+                          {availableRentalPackages.map((pkg) => (
+                            <Option key={pkg.id} value={pkg.id}>
+                              <div className="flex items-center justify-between">
+                                <span>{pkg.packageName}</span>
+                                <Tag color="green" className="ml-2">
+                                  {pkg.rentalDaysRemaining} day{pkg.rentalDaysRemaining !== 1 ? 's' : ''} left
+                                </Tag>
+                              </div>
+                            </Option>
+                          ))}
+                        </Select>
+                      )}
+                      
+                      {usePackage && selectedPackageId && (
+                        <Alert
+                          type="success"
+                          showIcon
+                          message="Package rental day will be used"
+                          description="1 rental day will be deducted from the selected package. No wallet charge will be applied."
+                          className="text-xs"
+                        />
+                      )}
+                    </div>
+                  ) : watchedCustomerId ? (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="No rental packages available"
+                      description="This customer doesn't have any active packages with remaining rental days. The rental will be charged to their wallet."
+                      className="text-xs"
+                    />
+                  ) : (
+                    <div className="text-slate-500 text-sm py-2">
+                      Select a customer to check for available rental packages.
+                    </div>
+                  )}
+                </section>
+              )}
 
               <section className="space-y-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-4">
                 <div className="grid gap-3 md:grid-cols-2">

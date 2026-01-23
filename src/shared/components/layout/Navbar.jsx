@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Bars3Icon, UserCircleIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { Avatar, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -10,6 +10,7 @@ import StudentWalletTriggerButton from '@/features/students/components/StudentWa
 import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
+import { getNavItemsForRole } from '@/shared/utils/navConfig';
 
 const profileImageCandidateKeys = [
   'profile_image_url',
@@ -76,6 +77,7 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { logout, user, isAuthenticated } = useAuth();
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
+  const location = useLocation();
   
   // Storage currency is always EUR (base currency)
   const storageCurrency = businessCurrency || 'EUR';
@@ -204,8 +206,9 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
         }`}
       >
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8"> {/* Changed to max-w-full for wider layout */}
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center">
+            <div className="flex items-center h-16">
+              {/* Left Section */}
+              <div className="flex items-center flex-shrink-0">
                 {/* Mobile/Tablet Menu Toggle - visible only on screens smaller than 1200px */}
                   <button 
                   onClick={toggleSidebar}
@@ -224,15 +227,93 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                 <div>
                   <NavLink 
                     to="/" 
-                    className="flex items-center px-3 py-1 rounded-md text-slate-800 hover:text-sky-600 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out dark:text-white dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
+                    className="flex items-center px-3 py-1 rounded-md text-slate-800 hover:text-slate-900 hover:bg-slate-100/80 transition-colors duration-150 ease-in-out dark:text-slate-100 dark:hover:text-white dark:hover:bg-slate-800/60"
+                    onClick={(e) => {
+                      // For UKC roles on shop page, navigate to home (same as back button)
+                      if ((user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && location.pathname.startsWith('/shop')) {
+                        e.preventDefault();
+                        navigate('/');
+                      }
+                    }}
                   >
-                    <span className="font-semibold text-xl tracking-tight">Plannivo</span>
+                    {/* Always show UKC.World branding for all roles */}
+                    <span className="flex items-baseline tracking-wide">
+                      <span className="font-bold text-slate-800 dark:text-white text-xl">UKC</span>
+                      <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
+                      <span className="font-medium text-slate-500 dark:text-slate-300 text-sm">World</span>
+                    </span>
                   </NavLink>
                 </div>
               </div>
 
+              {/* Center - Active Page Indicator (Outsider & Student) */}
+              <div className="flex-grow flex items-center justify-center">
+                {(user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && (() => {
+                  try {
+                    const navItems = getNavItemsForRole(user.role, user.permissions);
+                    let currentPath = location.pathname;
+                    
+                    // Don't show anything on root path or login
+                    if (currentPath === '/' || currentPath === '/login') {
+                      return null;
+                    }
+                    
+                    // Map special paths to their parent sections
+                    // /book is the outsider booking page which belongs to Academy
+                    const pathToSectionMap = {
+                      '/book': '/academy',
+                      '/members/offerings': '/members/offerings', // Membership section
+                    };
+                    
+                    // Use mapped path if available for matching
+                    const matchPath = pathToSectionMap[currentPath] || currentPath;
+                    
+                    // Find the matching nav item based on current path
+                    let activeItem = navItems.find(item => {
+                      // Check if current path starts with the item path
+                      if (item.to && (matchPath === item.to || matchPath.startsWith(item.to + '/'))) {
+                        return true;
+                      }
+                      // Check subitems
+                      if (item.subItems) {
+                        return item.subItems.some(sub => matchPath === sub.to || matchPath.startsWith(sub.to + '/'));
+                      }
+                      return false;
+                    });
+
+                    // No match found - don't show anything
+                    if (!activeItem || !activeItem.customStyle) return null;
+
+                    return (
+                      <div className="flex items-center">
+                        <span
+                          className="animate-pulse"
+                          style={{
+                            color: activeItem.customStyle.dotColor,
+                            fontSize: '1.75rem',
+                            marginRight: '0.25rem',
+                            lineHeight: 1
+                          }}
+                        >
+                          •
+                        </span>
+                        <span
+                          className="font-bold whitespace-nowrap"
+                          style={{ color: activeItem.customStyle.textColor, fontSize: '1.25rem', letterSpacing: '0.02em' }}
+                        >
+                          {activeItem.label}
+                        </span>
+                      </div>
+                    );
+                  } catch (error) {
+                    console.error('Error rendering page indicator:', error);
+                    return null;
+                  }
+                })()}
+              </div>
+
               {/* Right-side icons */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end flex-shrink-0">
                 {/* Subtle Plannivo link */}
                 <a 
                   href="http://plannivo.com" 

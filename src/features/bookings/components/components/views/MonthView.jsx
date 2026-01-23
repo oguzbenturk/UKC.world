@@ -448,7 +448,7 @@ const MonthView = ({ onBookingClick }) => {
                             return (
                               <DraggableBooking booking={booking} key={booking.id} className="w-full">
                                   <div
-                                  className={`relative block w-full min-w-0 items-center gap-2 px-1.5 md:px-2 py-1 rounded-sm cursor-pointer ${statusClass}`}
+                                  className={`relative block w-full min-w-0 items-center gap-2 p-2 rounded-xl cursor-pointer hover:shadow-sm transition-all duration-200 ${statusClass}`}
                                   onClick={(e) => {
                                     if (isMobile) {
                                       e.stopPropagation();
@@ -461,17 +461,17 @@ const MonthView = ({ onBookingClick }) => {
                                 >
                                   <div className="relative z-[1] min-w-0">
                                     {isMobile ? (
-                                      <span className={'text-[10px] md:text-[11px] text-gray-900 leading-tight tracking-wide truncate min-w-0 max-w-full'}>
+                                      <span className={'text-[10px] md:text-[11px] font-semibold leading-tight tracking-wide truncate min-w-0 max-w-full'}>
                                         {nameOnly}
                                       </span>
                                     ) : (
                                       <div className="min-w-0">
-                                        <div className="text-[11px] text-gray-900 leading-tight tracking-wide truncate min-w-0 max-w-full">{nameOnly}</div>
+                                        <div className="text-[11px] font-semibold leading-tight tracking-wide truncate min-w-0 max-w-full">{nameOnly}</div>
                                         {timeText && (
-                                          <div className="text-[11px] text-gray-700 leading-tight">{timeText}</div>
+                                          <div className="text-[10px] opacity-80 leading-tight mt-0.5">{timeText}</div>
                                         )}
                                         {instructorText && (
-                                          <div className="text-[11px] text-gray-600 leading-tight">{instructorText}</div>
+                                          <div className="text-[10px] opacity-70 leading-tight">{instructorText}</div>
                                         )}
                                       </div>
                                     )}
@@ -540,17 +540,17 @@ const MonthView = ({ onBookingClick }) => {
               return (
                 <DraggableBooking booking={booking} key={`expanded-${booking.id}`} className="w-full">
                   <div
-                    className={`relative w-full flex items-start gap-2 px-2 py-1 rounded-md cursor-pointer ${statusClass}`}
+                    className={`relative w-full flex items-start gap-2 p-2.5 rounded-xl cursor-pointer hover:shadow-sm transition-all duration-200 ${statusClass}`}
                     onClick={(e) => handleBookingClick(booking, e)}
                     title={tooltipText}
                   >
                     <div className="relative z-[1] flex-1 whitespace-normal break-words">
-                      <div className="text-[11px] text-gray-900 tracking-wide leading-tight">{nameText}</div>
+                      <div className="text-[11px] font-semibold tracking-wide leading-tight">{nameText}</div>
                       {timeText && (
-                        <div className="text-[11px] text-gray-700 leading-tight">{timeText}</div>
+                        <div className="text-[10px] opacity-80 leading-tight mt-0.5">{timeText}</div>
                       )}
                       {booking.instructorName && (
-                        <div className="text-[11px] text-gray-600 leading-tight">{booking.instructorName}</div>
+                        <div className="text-[10px] opacity-70 leading-tight">{booking.instructorName}</div>
                       )}
                     </div>
                   </div>

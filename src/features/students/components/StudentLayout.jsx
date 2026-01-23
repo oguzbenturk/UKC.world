@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { App, Spin } from 'antd';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { featureFlags } from '@/shared/config/featureFlags';
@@ -121,6 +121,7 @@ const StudentHeader = ({
 const StudentLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { data, isLoading, refetch } = useStudentDashboard();
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -176,6 +177,25 @@ const StudentLayout = () => {
     setBookingOpen(false);
     setBookingInitialData({});
   };
+
+  // Handle incoming navigation state to open booking wizard (e.g., from lesson info pages)
+  useEffect(() => {
+    if (location.state?.openBooking || location.state?.serviceCategory || location.state?.discipline) {
+      const initialData = {};
+      
+      if (location.state.serviceCategory) {
+        initialData.serviceCategory = location.state.serviceCategory;
+      }
+      if (location.state.discipline) {
+        initialData.discipline = location.state.discipline;
+      }
+      
+      handleBookingOpen(initialData);
+      
+      // Clear the navigation state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const openWaiverModal = useCallback(({ userId, userType = 'user', origin = null, participantName = null }) => {
     if (!userId) {

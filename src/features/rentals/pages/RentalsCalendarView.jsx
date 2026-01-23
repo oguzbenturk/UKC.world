@@ -313,21 +313,13 @@ const RentalsCalendarView = () => {
                             </div>
                           }
                         >
-                          <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg text-xs cursor-pointer hover:bg-orange-100 transition-colors">
-                            <div className="flex items-center gap-1 text-orange-700 font-medium">
-                              <ToolOutlined className="flex-shrink-0" />
-                              <span className="truncate">{customerName}</span>
+                          <div className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs cursor-pointer hover:bg-orange-100 hover:border-orange-300 hover:shadow-sm transition-all duration-200">
+                            <div className="text-orange-700 font-semibold truncate">
+                              {customerName}
                             </div>
-                            <div className="text-orange-600 mt-1 truncate">
+                            <div className="text-orange-600/80 mt-1 truncate text-[11px]">
                               {serviceLabel}
                             </div>
-                            <Tag
-                              size="small"
-                              color={getStatusColor(rental.status)}
-                              className="mt-1"
-                            >
-                              {rental.status}
-                            </Tag>
                           </div>
                         </Tooltip>
                       );

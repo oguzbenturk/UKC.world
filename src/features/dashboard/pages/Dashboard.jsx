@@ -20,7 +20,7 @@ import {
     ShoppingOutlined,
     TeamOutlined,
     ToolOutlined,
-    SparklesOutlined,
+    StarOutlined,
     LineChartOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined
@@ -687,7 +687,7 @@ function Dashboard() {
                         <Col xs={24} lg={16}>
                             <Space direction="vertical" size={16} style={{ width: "100%" }}>
                                 <div className="flex items-center gap-3">
-                                    <SparklesOutlined className="text-2xl bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent" />
+                                    <StarOutlined className="text-2xl bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent" />
                                     <Tag bordered={false} color="geekblue" style={{ fontSize: 12, fontWeight: 600 }}>
                                         Welcome Dashboard
                                     </Tag>

@@ -34,10 +34,16 @@ export const useTheme = () => {
       return;
     }
 
-    document.documentElement.classList.remove('dark');
+    const isDarkMode = theme === 'dark';
+
+    // Handle Tailwind dark mode class on document root
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
 
     const body = document.body;
-    const isDarkMode = theme === 'dark';
 
     if (body) {
       body.setAttribute('data-theme', theme);

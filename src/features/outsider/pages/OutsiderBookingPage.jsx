@@ -7,7 +7,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { App, Button, Card, Typography, Alert, Spin, Tag, Empty, Modal, Radio, Input, Form, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import { CalendarOutlined, CheckCircleOutlined, RocketOutlined, ShoppingOutlined, WalletOutlined, CreditCardOutlined } from '@ant-design/icons';
@@ -75,11 +75,13 @@ const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
 const OutsiderBookingPage = () => {
   const { user, refreshToken } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
   const { notification, message } = App.useApp();
   const queryClient = useQueryClient();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
+  const [pendingAutoOpen, setPendingAutoOpen] = useState(false); // Track if we should auto-open after waiver check
   const [waiverModalState, setWaiverModalState] = useState(() => ({ ...DEFAULT_WAIVER_MODAL_STATE }));
   const [initialWaiverCheckDone, setInitialWaiverCheckDone] = useState(false);
   const [needsWaiver, setNeedsWaiver] = useState(false);
@@ -590,6 +592,37 @@ const OutsiderBookingPage = () => {
     };
   }, [user?.id, user?.first_name, user?.last_name, user?.name, initialWaiverCheckDone]);
 
+  // Handle incoming navigation state from lesson info pages
+  useEffect(() => {
+    if (location.state?.serviceCategory || location.state?.discipline) {
+      // Build initial data for the booking wizard
+      const initialData = {};
+      
+      if (location.state.serviceCategory) {
+        initialData.serviceCategory = location.state.serviceCategory;
+      }
+      if (location.state.discipline) {
+        initialData.discipline = location.state.discipline;
+      }
+      
+      setBookingInitialData(initialData);
+      
+      // Mark that we should auto-open after waiver check completes
+      setPendingAutoOpen(true);
+      
+      // Clear the navigation state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
+  // Auto-open booking wizard after waiver check completes (if pending)
+  useEffect(() => {
+    if (pendingAutoOpen && !checkingWaiver && !needsWaiver) {
+      setBookingOpen(true);
+      setPendingAutoOpen(false);
+    }
+  }, [pendingAutoOpen, checkingWaiver, needsWaiver]);
+
   const openWaiverModal = useCallback(({ userId, userType = 'user', origin = null, participantName = null }) => {
     if (!userId) return;
     setWaiverModalState({
@@ -981,6 +1014,7 @@ const OutsiderBookingPage = () => {
         walletBalance={walletBalance}
         currency={currency}
         ensureWaiverSignature={ensureWaiverSignature}
+        initialData={bookingInitialData}
       />
 
       {/* Waiver Modal - only render when userId is present */}

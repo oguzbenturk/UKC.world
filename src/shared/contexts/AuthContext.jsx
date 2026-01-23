@@ -229,6 +229,10 @@ export function AuthProvider({ children }) {
           const userData = await authService.getCurrentUser();
           const normalizedUser = userData ? { ...userData } : null;
           setUser(normalizedUser);
+          // Update localStorage with fresh user data (includes permissions)
+          if (normalizedUser) {
+            localStorage.setItem('user', JSON.stringify(normalizedUser));
+          }
           applyConsentRef.current?.(userData?.consent ?? null, { syncUser: false });
           setIsAuthenticated(true);
         } catch {

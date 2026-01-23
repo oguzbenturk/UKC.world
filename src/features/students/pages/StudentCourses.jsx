@@ -18,6 +18,16 @@ const PACKAGE_STATUS_COLORS = {
 const normalizeText = (value) => (value || '').toString().toLowerCase();
 
 const classifyPackage = (pkg) => {
+  // First check the package_type field for accurate classification
+  const pkgType = (pkg.packageType || pkg.package_type || '').toLowerCase();
+  if (pkgType.includes('rental') && !pkgType.includes('lesson') && !pkgType.includes('accommodation')) return 'rentals';
+  if (pkgType === 'accommodation') return 'accommodation';
+  if (pkgType === 'lesson') return 'lessons';
+  // For combo packages, classify based on primary type or fallback to text matching
+  if (pkgType.includes('all_inclusive') || pkgType.includes('accommodation')) return 'accommodation';
+  if (pkgType.includes('rental')) return 'rentals';
+  
+  // Fallback to text matching for legacy packages
   const haystack = normalizeText(`${pkg.name} ${pkg.lessonType}`);
   if (haystack.includes('rental')) return 'rentals';
   if (haystack.includes('accommodation') || haystack.includes('accom')) return 'accommodation';
@@ -43,6 +53,12 @@ const PackageCard = ({ pkg, formatDisplayPrice }) => {
   const status = (pkg.status || 'active').toLowerCase();
   const statusLabel = status.replace(/_/g, ' ');
   const priceLabel = formatDisplayPrice ? formatDisplayPrice(pkg.price, pkg.currency) : null;
+  
+  // Determine what the package includes
+  const includesLessons = pkg.includesLessons !== false && (pkg.totalHours || 0) > 0;
+  const includesRental = pkg.includesRental && (pkg.rentalDaysTotal || 0) > 0;
+  const includesAccommodation = pkg.includesAccommodation && (pkg.accommodationNightsTotal || 0) > 0;
+  
   return (
     <Card
       className="h-full rounded-2xl border border-slate-200/70 bg-white/95 shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
@@ -56,18 +72,49 @@ const PackageCard = ({ pkg, formatDisplayPrice }) => {
             <strong>{pkg.lessonType}</strong>
           </div>
         )}
-        <div className="flex justify-between">
-          <span>Remaining</span>
-          <strong>{pkg.remainingHours ?? 0} h</strong>
-        </div>
-        <div className="flex justify-between">
-          <span>Used</span>
-          <strong>{pkg.usedHours ?? 0} h</strong>
-        </div>
-        <div className="flex justify-between">
-          <span>Total hours</span>
-          <strong>{pkg.totalHours ?? 0} h</strong>
-        </div>
+        
+        {/* Lesson Hours Section */}
+        {includesLessons && (
+          <>
+            <div className="flex justify-between">
+              <span>🎓 Lesson Hours Remaining</span>
+              <strong className="text-blue-600">{pkg.remainingHours ?? 0} h</strong>
+            </div>
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Used / Total</span>
+              <span>{pkg.usedHours ?? 0} / {pkg.totalHours ?? 0} h</span>
+            </div>
+          </>
+        )}
+        
+        {/* Rental Days Section */}
+        {includesRental && (
+          <>
+            <div className="flex justify-between">
+              <span>🏄 Rental Days Remaining</span>
+              <strong className="text-green-600">{pkg.rentalDaysRemaining ?? 0} days</strong>
+            </div>
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Used / Total</span>
+              <span>{pkg.rentalDaysUsed ?? 0} / {pkg.rentalDaysTotal ?? 0} days</span>
+            </div>
+          </>
+        )}
+        
+        {/* Accommodation Nights Section */}
+        {includesAccommodation && (
+          <>
+            <div className="flex justify-between">
+              <span>🏨 Nights Remaining</span>
+              <strong className="text-orange-600">{pkg.accommodationNightsRemaining ?? 0} nights</strong>
+            </div>
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Used / Total</span>
+              <span>{pkg.accommodationNightsUsed ?? 0} / {pkg.accommodationNightsTotal ?? 0} nights</span>
+            </div>
+          </>
+        )}
+        
         {pkg.expiresAt && (
           <div className="flex justify-between">
             <span>Expires</span>

@@ -7,6 +7,7 @@ import Login from '../features/authentication/pages/Login';
 import ResetPassword from '../features/authentication/pages/ResetPassword';
 import PublicHome from '../features/public/PublicHome';
 import ExecutiveDashboard from '../features/dashboard/pages/ExecutiveDashboard';
+import DashboardRouter from '../features/dashboard/pages/DashboardRouter';
 import InstructorDashboard from '../features/instructor/pages/InstructorDashboard';
 import InstructorDashboardFallback from '../features/instructor/pages/InstructorDashboardFallback';
 import MyStudents from '../features/instructor/pages/MyStudents';
@@ -57,10 +58,26 @@ import StudentProfile from '../features/students/pages/StudentProfile';
 import FamilyManagementPage from '../features/students/pages/FamilyManagementPage';
 import StudentFriendsPage from '../features/students/pages/StudentFriendsPage';
 import StudentPortalUnavailable from '../features/students/pages/StudentPortalUnavailable';
+import StudentBookServicePage from '../features/students/pages/StudentBookServicePage';
 import NotificationCenter from '../features/notifications/pages/NotificationCenter';
 import GdprDataManager from '../features/compliance/components/GdprDataManager';
 import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage';
 import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPage';
+import KiteLessonsPage from '../features/outsider/pages/KiteLessonsPage';
+import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
+import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
+import RentalStandardPage from '../features/outsider/pages/RentalStandardPage';
+import RentalPremiumPage from '../features/outsider/pages/RentalPremiumPage';
+// Stay pages
+import StayBookingPage from '../features/outsider/pages/StayBookingPage';
+import StayHotelPage from '../features/outsider/pages/StayHotelPage';
+import StayHomePage from '../features/outsider/pages/StayHomePage';
+// Experience pages
+import ExperienceBookPackagePage from '../features/outsider/pages/ExperienceBookPackagePage';
+import ExperienceKitePackagesPage from '../features/outsider/pages/ExperienceKitePackagesPage';
+import ExperienceWingPackagesPage from '../features/outsider/pages/ExperienceWingPackagesPage';
+import ExperienceDownwindersPage from '../features/outsider/pages/ExperienceDownwindersPage';
+import ExperienceCampsPage from '../features/outsider/pages/ExperienceCampsPage';
 import GroupInvitationPage from '../features/bookings/pages/GroupInvitationPage';
 import StudentGroupBookingsPage from '../features/bookings/pages/StudentGroupBookingsPage';
 import GroupBookingDetailPage from '../features/bookings/pages/GroupBookingDetailPage';
@@ -148,16 +165,45 @@ const AppRoutes = () => {
       return featureFlags.studentPortal ? '/student/dashboard' : '/student';
     }
     if (role === ROLES.INSTRUCTOR) return '/instructor/dashboard';
-    if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(role)) return '/admin/dashboard';
+    // Admin, manager, developer, and ALL custom roles go to admin dashboard
+    // Standard staff roles and any custom role not matching outsider/student
     return '/dashboard';
   };
 
   const landingRoute = resolveLandingRoute();
   
+  // Helper function to check if a role is a "staff" role (can access staff routes)
+  // Custom roles are treated as staff unless they match outsider/student
+  const isStaffRole = (role) => {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    // Exclude outsider and student roles - everything else is considered staff
+    if (r === ROLES.OUTSIDER || r === ROLES.STUDENT) return false;
+    return true;
+  };
+  
   // Define a ProtectedRoute component with role-based access
-  const ProtectedRoute = ({ allowedRoles = [] }) => {
-    const canAccess = isAuthenticated
-      && (allowedRoles.length === 0 || (user && hasPermission(user.role, allowedRoles)));
+  const ProtectedRoute = ({ allowedRoles = [], staffOnly = false }) => {
+    let canAccess = false;
+    
+    if (!isAuthenticated) {
+      canAccess = false;
+    } else if (allowedRoles.length === 0 && !staffOnly) {
+      // No specific roles required, any authenticated user can access
+      canAccess = true;
+    } else if (staffOnly && user) {
+      // Staff-only routes - allow standard staff roles and custom roles
+      canAccess = isStaffRole(user.role);
+    } else if (user && hasPermission(user.role, allowedRoles)) {
+      // Specific roles required - check exact match
+      canAccess = true;
+    } else if (user && isStaffRole(user.role)) {
+      // For custom staff roles, allow access to routes meant for manager/admin
+      const staffRoles = [ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER];
+      if (allowedRoles.some(r => staffRoles.includes(r))) {
+        canAccess = true;
+      }
+    }
 
     return canAccess ? <Outlet /> : <Navigate to="/login" replace />;
   };
@@ -165,7 +211,7 @@ const AppRoutes = () => {
     <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />
-  <Route path="/" element={!isAuthenticated ? <PublicHome /> : <Navigate to={landingRoute} replace />} />
+  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/login"} replace />} />
   
   {/* Public route for group booking invitations */}
   <Route path="/group-invitation/:token" element={<GroupInvitationPage />} />
@@ -193,9 +239,28 @@ const AppRoutes = () => {
         <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
       </Route>
 
+      {/* Academy lesson info pages - accessible to outsiders and students */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.OUTSIDER, ROLES.STUDENT]} />}>
+        <Route path="/academy/kite-lessons" element={<KiteLessonsPage />} />
+        <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
+        <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
+        <Route path="/rental/standard" element={<RentalStandardPage />} />
+        <Route path="/rental/premium" element={<RentalPremiumPage />} />
+        {/* Stay pages */}
+        <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
+        <Route path="/stay/hotel" element={<StayHotelPage />} />
+        <Route path="/stay/home" element={<StayHomePage />} />
+        {/* Experience pages */}
+        <Route path="/experience/book-package" element={<ExperienceBookPackagePage />} />
+        <Route path="/experience/kite-packages" element={<ExperienceKitePackagesPage />} />
+        <Route path="/experience/wing-packages" element={<ExperienceWingPackagesPage />} />
+        <Route path="/experience/downwinders" element={<ExperienceDownwindersPage />} />
+        <Route path="/experience/camps" element={<ExperienceCampsPage />} />
+      </Route>
+
       {/* Dashboard routes for staff */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER]} />}>
-        <Route path="/dashboard" element={<ExecutiveDashboard />} />
+        <Route path="/dashboard" element={<DashboardRouter />} />
         <Route
           path="/instructor/dashboard"
           element={featureFlags.instructorDashboardRevamp ? <InstructorDashboard /> : <InstructorDashboardFallback />}
@@ -224,6 +289,8 @@ const AppRoutes = () => {
         ) : (
           <Route path="/student/*" element={<StudentPortalUnavailable />} />
         )}
+        {/* Student booking service redirect - triggers booking wizard from dashboard */}
+        <Route path="/academy/book-service" element={<StudentBookServicePage />} />
       </Route>
       {/* Customer management routes - instructors and above */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} />}>

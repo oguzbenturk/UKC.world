@@ -71,6 +71,7 @@ import quickLinksRouter from './routes/quickLinks.js';
 import userRelationshipsRouter from './routes/userRelationships.js';
 import chatRouter from './routes/chat.js';
 import shopOrdersRouter from './routes/shopOrders.js';
+import businessExpensesRouter from './routes/businessExpenses.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import './services/alerts/notificationAlertService.js';
 import { 
@@ -362,6 +363,7 @@ app.use('/api/accommodation', authenticateJWT, accommodationRouter);
 app.use('/api/webhooks', paymentWebhooksRouter);
 app.use('/api/wallet', authenticateJWT, walletRouter);
 app.use('/api/shop-orders', shopOrdersRouter);
+app.use('/api/business-expenses', authenticateJWT, businessExpensesRouter);
 app.use('/api/group-bookings', groupBookingsRouter);
 app.use('/api/system', authenticateJWT, systemRouter);
 app.use('/api/settings', settingsRouter);

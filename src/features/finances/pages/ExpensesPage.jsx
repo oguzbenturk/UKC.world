@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -13,6 +13,10 @@ import {
   Statistic,
   Button,
   Empty,
+  Modal,
+  Form,
+  InputNumber,
+  Popconfirm,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -21,6 +25,9 @@ import {
   DollarOutlined,
   FilterOutlined,
   ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
@@ -28,12 +35,39 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
+const { TextArea } = Input;
+
+// Expense categories
+const EXPENSE_CATEGORIES = [
+  { value: 'rent', label: 'Rent', color: 'blue' },
+  { value: 'utilities', label: 'Utilities', color: 'cyan' },
+  { value: 'salaries', label: 'Salaries', color: 'green' },
+  { value: 'equipment', label: 'Equipment', color: 'purple' },
+  { value: 'maintenance', label: 'Maintenance', color: 'orange' },
+  { value: 'supplies', label: 'Supplies', color: 'gold' },
+  { value: 'marketing', label: 'Marketing', color: 'magenta' },
+  { value: 'insurance', label: 'Insurance', color: 'geekblue' },
+  { value: 'professional_services', label: 'Professional Services', color: 'volcano' },
+  { value: 'travel', label: 'Travel', color: 'lime' },
+  { value: 'software_subscriptions', label: 'Software/Subscriptions', color: 'cyan' },
+  { value: 'bank_fees', label: 'Bank Fees', color: 'red' },
+  { value: 'taxes', label: 'Taxes', color: 'default' },
+  { value: 'other', label: 'Other', color: 'default' },
+];
+
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'card', label: 'Card' },
+  { value: 'wallet', label: 'Wallet' },
+  { value: 'other', label: 'Other' },
+];
 
 const ExpensesPage = () => {
   const { formatCurrency } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [expenses, setExpenses] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [summary, setSummary] = useState({ totalExpenses: 0, totalCount: 0, byCategory: [] });
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -44,18 +78,24 @@ const ExpensesPage = () => {
     category: null,
     search: '',
   });
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchExpenses = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
+        page,
         limit: pageSize,
-        offset: (page - 1) * pageSize,
       });
 
       if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
-        params.append('start_date', filters.dateRange[0].startOf('day').toISOString());
-        params.append('end_date', filters.dateRange[1].endOf('day').toISOString());
+        params.append('start_date', filters.dateRange[0].format('YYYY-MM-DD'));
+        params.append('end_date', filters.dateRange[1].format('YYYY-MM-DD'));
       }
 
       if (filters.category) {
@@ -66,10 +106,10 @@ const ExpensesPage = () => {
         params.append('search', filters.search);
       }
 
-      const response = await apiClient.get(`/finances/expenses?${params.toString()}`);
+      const response = await apiClient.get(`/business-expenses?${params.toString()}`);
       
       setExpenses(response.data.expenses || []);
-      setCategories(response.data.categories || []);
+      setSummary(response.data.summary || { totalExpenses: 0, totalCount: 0, byCategory: [] });
       setPagination(prev => ({
         ...prev,
         current: page,
@@ -83,14 +123,17 @@ const ExpensesPage = () => {
     }
   }, [filters]);
 
-  const handleRefresh = useCallback(() => {
-    fetchExpenses(1, pagination.pageSize);
-  }, [fetchExpenses, pagination.pageSize]);
-
   // Initial load
-  useState(() => {
-    handleRefresh();
+  useEffect(() => {
+    fetchExpenses(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refetch when filters change
+  useEffect(() => {
+    fetchExpenses(1, pagination.pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.dateRange, filters.category]);
 
   const handleTableChange = (paginationConfig) => {
     fetchExpenses(paginationConfig.current, paginationConfig.pageSize);
@@ -98,6 +141,7 @@ const ExpensesPage = () => {
 
   const handleSearch = (value) => {
     setFilters(prev => ({ ...prev, search: value }));
+    fetchExpenses(1, pagination.pageSize);
   };
 
   const handleDateRangeChange = (dates) => {
@@ -117,12 +161,12 @@ const ExpensesPage = () => {
   };
 
   const handleExport = () => {
-    // Create CSV content
-    const headers = ['Date', 'Description', 'Category', 'Amount', 'Payment Method', 'Reference'];
+    const headers = ['Date', 'Description', 'Category', 'Vendor', 'Amount', 'Payment Method', 'Reference'];
     const rows = expenses.map(expense => [
-      dayjs(expense.created_at).format('YYYY-MM-DD HH:mm'),
+      dayjs(expense.expense_date).format('YYYY-MM-DD'),
       expense.description || '-',
-      expense.transaction_type || '-',
+      getCategoryLabel(expense.category),
+      expense.vendor || '-',
       expense.amount,
       expense.payment_method || '-',
       expense.reference_number || '-',
@@ -136,50 +180,100 @@ const ExpensesPage = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `expenses_${dayjs().format('YYYY-MM-DD')}.csv`;
+    a.download = `business_expenses_${dayjs().format('YYYY-MM-DD')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     message.success('Expenses exported successfully');
   };
 
-  const getCategoryColor = (type) => {
-    const colors = {
-      salary: 'blue',
-      operating_cost: 'orange',
-      refund: 'red',
-      withdrawal: 'purple',
-      expense: 'volcano',
-      adjustment: 'cyan',
-    };
-    return colors[type] || 'default';
+  const getCategoryColor = (category) => {
+    return EXPENSE_CATEGORIES.find(c => c.value === category)?.color || 'default';
   };
 
-  const formatCategoryLabel = (type) => {
-    if (!type) return 'Other';
-    return type
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
+  const getCategoryLabel = (category) => {
+    return EXPENSE_CATEGORIES.find(c => c.value === category)?.label || category;
+  };
+
+  // Modal handlers
+  const openAddModal = () => {
+    setEditingExpense(null);
+    form.resetFields();
+    form.setFieldsValue({
+      expense_date: dayjs(),
+      currency: 'EUR',
+    });
+    setModalOpen(true);
+  };
+
+  const openEditModal = (record) => {
+    setEditingExpense(record);
+    form.setFieldsValue({
+      ...record,
+      expense_date: dayjs(record.expense_date),
+    });
+    setModalOpen(true);
+  };
+
+  const handleModalCancel = () => {
+    setModalOpen(false);
+    setEditingExpense(null);
+    form.resetFields();
+  };
+
+  const handleModalSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+
+      const payload = {
+        ...values,
+        expense_date: values.expense_date.format('YYYY-MM-DD'),
+      };
+
+      if (editingExpense) {
+        await apiClient.put(`/business-expenses/${editingExpense.id}`, payload);
+        message.success('Expense updated successfully');
+      } else {
+        await apiClient.post('/business-expenses', payload);
+        message.success('Expense added successfully');
+      }
+
+      setModalOpen(false);
+      setEditingExpense(null);
+      form.resetFields();
+      fetchExpenses(pagination.current, pagination.pageSize);
+    } catch (error) {
+      if (error.response?.data?.error) {
+        message.error(error.response.data.error);
+      } else if (error.errorFields) {
+        // Form validation error
+      } else {
+        message.error('Failed to save expense');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await apiClient.delete(`/business-expenses/${id}`);
+      message.success('Expense deleted successfully');
+      fetchExpenses(pagination.current, pagination.pageSize);
+    } catch {
+      message.error('Failed to delete expense');
+    }
   };
 
   const columns = [
     {
       title: 'Date',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 160,
+      dataIndex: 'expense_date',
+      key: 'expense_date',
+      width: 120,
       render: (date) => (
-        <Text>{dayjs(date).format('MMM DD, YYYY HH:mm')}</Text>
+        <Text>{dayjs(date).format('MMM DD, YYYY')}</Text>
       ),
-      responsive: ['md'],
-    },
-    {
-      title: 'Date',
-      dataIndex: 'created_at',
-      key: 'created_at_mobile',
-      render: (date) => (
-        <Text>{dayjs(date).format('MMM DD')}</Text>
-      ),
-      responsive: ['xs', 'sm'],
     },
     {
       title: 'Description',
@@ -189,10 +283,10 @@ const ExpensesPage = () => {
       render: (text, record) => (
         <div>
           <Text strong>{text || 'No description'}</Text>
-          {record.user_name && (
+          {record.vendor && (
             <div>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {record.user_name}
+                {record.vendor}
               </Text>
             </div>
           )}
@@ -201,15 +295,14 @@ const ExpensesPage = () => {
     },
     {
       title: 'Category',
-      dataIndex: 'transaction_type',
-      key: 'transaction_type',
-      width: 140,
-      render: (type) => (
-        <Tag color={getCategoryColor(type)}>
-          {formatCategoryLabel(type)}
+      dataIndex: 'category',
+      key: 'category',
+      width: 160,
+      render: (category) => (
+        <Tag color={getCategoryColor(category)}>
+          {getCategoryLabel(category)}
         </Tag>
       ),
-      responsive: ['sm'],
     },
     {
       title: 'Amount',
@@ -224,40 +317,74 @@ const ExpensesPage = () => {
       ),
     },
     {
-      title: 'Payment Method',
+      title: 'Payment',
       dataIndex: 'payment_method',
       key: 'payment_method',
-      width: 130,
+      width: 120,
       render: (method) => (
-        <Text type="secondary">{method || '-'}</Text>
+        <Text type="secondary">{method ? method.replace('_', ' ') : '-'}</Text>
       ),
       responsive: ['lg'],
     },
     {
-      title: 'Reference',
-      dataIndex: 'reference_number',
-      key: 'reference_number',
+      title: 'Added By',
+      key: 'created_by',
       width: 140,
-      ellipsis: true,
-      render: (ref) => (
-        <Text copyable={!!ref} type="secondary">
-          {ref || '-'}
+      render: (_, record) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {record.creator_first_name} {record.creator_last_name}
         </Text>
       ),
       responsive: ['xl'],
     },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 100,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+            size="small"
+          />
+          <Popconfirm
+            title="Delete expense?"
+            description="This action cannot be undone."
+            onConfirm={() => handleDelete(record.id)}
+            okText="Delete"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="text"
+              icon={<DeleteOutlined />}
+              danger
+              size="small"
+            />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
-  const totalExpenses = categories.reduce((sum, cat) => sum + parseFloat(cat.total || 0), 0);
-  const totalCount = categories.reduce((sum, cat) => sum + parseInt(cat.count || 0), 0);
+  // Get top 2 categories for summary cards
+  const topCategories = summary.byCategory?.slice(0, 2) || [];
 
   return (
     <div className="p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <Title level={3} className="mb-4 md:mb-0">
-          Expenses
+          Business Expenses
         </Title>
         <Space wrap>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={openAddModal}
+          >
+            Add Expense
+          </Button>
           <Button
             icon={<ReloadOutlined />}
             onClick={() => fetchExpenses(pagination.current, pagination.pageSize)}
@@ -280,7 +407,7 @@ const ExpensesPage = () => {
           <Card>
             <Statistic
               title="Total Expenses"
-              value={totalExpenses}
+              value={summary.totalExpenses}
               prefix={<DollarOutlined />}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: '#cf1322' }}
@@ -290,19 +417,19 @@ const ExpensesPage = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Transactions"
-              value={totalCount}
+              title="Total Entries"
+              value={summary.totalCount}
             />
           </Card>
         </Col>
-        {categories.slice(0, 2).map((cat) => (
-          <Col xs={24} sm={12} lg={6} key={cat.transaction_type}>
+        {topCategories.map((cat) => (
+          <Col xs={24} sm={12} lg={6} key={cat.category}>
             <Card>
               <Statistic
-                title={formatCategoryLabel(cat.transaction_type)}
-                value={cat.total}
+                title={getCategoryLabel(cat.category)}
+                value={cat.total_amount}
                 formatter={(value) => formatCurrency(value)}
-                valueStyle={{ color: getCategoryColor(cat.transaction_type) === 'blue' ? '#1890ff' : '#fa8c16' }}
+                valueStyle={{ color: getCategoryColor(cat.category) === 'red' ? '#cf1322' : '#1890ff' }}
               />
             </Card>
           </Col>
@@ -314,7 +441,7 @@ const ExpensesPage = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={24} md={8} lg={6}>
             <Input.Search
-              placeholder="Search description or reference..."
+              placeholder="Search description or vendor..."
               allowClear
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
@@ -337,14 +464,7 @@ const ExpensesPage = () => {
               allowClear
               value={filters.category}
               onChange={handleCategoryChange}
-              options={[
-                { value: 'salary', label: 'Salary' },
-                { value: 'operating_cost', label: 'Operating Cost' },
-                { value: 'refund', label: 'Refund' },
-                { value: 'withdrawal', label: 'Withdrawal' },
-                { value: 'expense', label: 'Expense' },
-                { value: 'adjustment', label: 'Adjustment' },
-              ]}
+              options={EXPENSE_CATEGORIES}
             />
           </Col>
           <Col xs={24} sm={24} md={2} lg={2}>
@@ -377,13 +497,127 @@ const ExpensesPage = () => {
           locale={{
             emptyText: (
               <Empty
-                description="No expenses found"
+                description="No expenses found. Click 'Add Expense' to create one."
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             ),
           }}
         />
       </Card>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        title={editingExpense ? 'Edit Expense' : 'Add New Expense'}
+        open={modalOpen}
+        onCancel={handleModalCancel}
+        onOk={handleModalSubmit}
+        confirmLoading={submitting}
+        okText={editingExpense ? 'Update' : 'Add'}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          className="mt-4"
+        >
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="amount"
+                label="Amount"
+                rules={[
+                  { required: true, message: 'Please enter amount' },
+                  { type: 'number', min: 0.01, message: 'Amount must be greater than 0' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  prefix="€"
+                  precision={2}
+                  min={0.01}
+                  placeholder="0.00"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="expense_date"
+                label="Date"
+                rules={[{ required: true, message: 'Please select date' }]}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="category"
+                label="Category"
+                rules={[{ required: true, message: 'Please select category' }]}
+              >
+                <Select
+                  placeholder="Select category"
+                  options={EXPENSE_CATEGORIES}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="payment_method"
+                label="Payment Method"
+              >
+                <Select
+                  placeholder="Select method"
+                  options={PAYMENT_METHODS}
+                  allowClear
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="description"
+            label="Description"
+            rules={[{ required: true, message: 'Please enter description' }]}
+          >
+            <TextArea
+              rows={2}
+              placeholder="What is this expense for?"
+            />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="vendor"
+                label="Vendor/Supplier"
+              >
+                <Input placeholder="Company or person name" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="reference_number"
+                label="Reference/Invoice #"
+              >
+                <Input placeholder="Invoice or receipt number" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="notes"
+            label="Additional Notes"
+          >
+            <TextArea
+              rows={2}
+              placeholder="Any additional information..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

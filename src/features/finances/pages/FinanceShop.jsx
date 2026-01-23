@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { ReloadOutlined } from '@ant-design/icons';
-import ShopAnalytics from '../components/ShopAnalytics';
 import TransactionHistory from '../components/TransactionHistory';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
@@ -13,6 +12,8 @@ const { useBreakpoint } = Grid;
 const accentStyles = {
   cyan: { bg: 'bg-cyan-50', text: 'text-cyan-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -57,13 +58,14 @@ const FinanceShop = () => {
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [summaryData, setSummaryData] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [customerDirectory, setCustomerDirectory] = useState({});
+  const [shopOrders, setShopOrders] = useState([]);
   const [shopOrderCount, setShopOrderCount] = useState(0);
+  const [shopRevenue, setShopRevenue] = useState(0);
+  const [totalCostPrice, setTotalCostPrice] = useState(0);
+  const [netProfit, setNetProfit] = useState(0);
 
   useEffect(() => {
     loadFinancialData();
-    loadPaymentsData();
     loadShopOrders();
   }, [dateRange]);
 
@@ -85,30 +87,74 @@ const FinanceShop = () => {
 
   const loadShopOrders = async () => {
     try {
-      const response = await apiClient.get('/shop-orders', {
+      const response = await apiClient.get('/shop-orders/admin/all', {
         params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
+          date_from: dateRange.startDate,
+          date_to: dateRange.endDate,
+          limit: 1000,
+          payment_status: 'completed'
         }
       });
-      setShopOrderCount(response.data?.orders?.length || 0);
+      const orders = response.data?.orders || [];
+      setShopOrders(orders);
+      setShopOrderCount(response.data?.total || orders.length);
+      
+      // Calculate total revenue from completed orders
+      const revenue = orders
+        .filter(o => o.payment_status === 'completed')
+        .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+      setShopRevenue(revenue);
+
+      // Calculate total cost price (COGS) from order items
+      // We need to fetch product cost prices for accurate calculation
+      const productIds = new Set();
+      orders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            if (item.product_id) productIds.add(item.product_id);
+          });
+        }
+      });
+
+      // If we have products, fetch their cost prices
+      let costPriceMap = {};
+      if (productIds.size > 0) {
+        try {
+          const productsResponse = await apiClient.get('/products', {
+            params: { ids: Array.from(productIds).join(','), limit: 1000 }
+          });
+          const products = productsResponse.data?.products || productsResponse.data || [];
+          products.forEach(p => {
+            costPriceMap[p.id] = parseFloat(p.cost_price || 0);
+          });
+        } catch {
+          // Fallback: estimate cost as 60% of selling price
+          console.warn('Could not fetch product cost prices, using estimate');
+        }
+      }
+
+      // Calculate total cost of goods sold
+      let totalCost = 0;
+      orders.forEach(order => {
+        if (order.items && order.payment_status === 'completed') {
+          order.items.forEach(item => {
+            const itemCost = costPriceMap[item.product_id] 
+              ? costPriceMap[item.product_id] * (item.quantity || 1)
+              : parseFloat(item.unit_price || 0) * 0.6 * (item.quantity || 1); // 60% estimate if no cost price
+            totalCost += itemCost;
+          });
+        }
+      });
+
+      setTotalCostPrice(totalCost);
+      setNetProfit(revenue - totalCost);
     } catch (error) {
       console.error('Error loading shop orders:', error);
-    }
-  };
-
-  const loadPaymentsData = async () => {
-    try {
-      const response = await apiClient.get('/transactions/payments', {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        }
-      });
-      setPayments(response.data.payments || []);
-      setCustomerDirectory(response.data.customerDirectory || {});
-    } catch (error) {
-      console.error('Error loading payments:', error);
+      setShopOrders([]);
+      setShopOrderCount(0);
+      setShopRevenue(0);
+      setTotalCostPrice(0);
+      setNetProfit(0);
     }
   };
 
@@ -146,33 +192,59 @@ const FinanceShop = () => {
   }, [dateRange]);
 
   const headlineStats = useMemo(() => {
-    if (!summaryData) {
+    // Use shop revenue from actual orders, or from summary API as fallback
+    const revenue = summaryData?.revenue || {};
+    const apiShopRevenue = Number(revenue.shop_revenue || 0);
+    const displayRevenue = shopRevenue > 0 ? shopRevenue : apiShopRevenue;
+    
+    // Calculate profit margin percentage
+    const profitMargin = displayRevenue > 0 ? ((netProfit / displayRevenue) * 100).toFixed(1) : 0;
+
+    if (!summaryData && shopOrders.length === 0) {
       return [
-        { key: 'shop', label: 'Shop Revenue', value: '--', accent: 'cyan' },
+        { key: 'revenue', label: 'Total Revenue', value: '--', accent: 'cyan' },
         { key: 'orders', label: 'Total Orders', value: '--', accent: 'emerald' },
-        { key: 'net', label: 'Net Shop Revenue', value: '--', accent: 'slate' }
+        { key: 'cost', label: 'Cost of Goods', value: '--', accent: 'amber' },
+        { key: 'profit', label: 'Net Profit', value: '--', accent: 'emerald', subtitle: '--' }
       ];
     }
 
-    // API returns nested structure: { revenue: {...}, netRevenue: {...} }
-    const revenue = summaryData.revenue || {};
-    
-    const shopRevenue = Number(revenue.shop_revenue || 0);
-
     return [
-      { key: 'shop', label: 'Shop Revenue', value: formatCurrency(shopRevenue), accent: 'cyan' },
-      { key: 'orders', label: 'Total Orders', value: shopOrderCount.toLocaleString(), accent: 'emerald' },
-      { key: 'net', label: 'Net Shop Revenue', value: formatCurrency(shopRevenue), accent: 'slate' }
+      { key: 'revenue', label: 'Total Revenue', value: formatCurrency(displayRevenue), accent: 'cyan' },
+      { key: 'orders', label: 'Total Orders', value: shopOrderCount.toLocaleString(), accent: 'slate' },
+      { key: 'cost', label: 'Cost of Goods', value: formatCurrency(totalCostPrice), accent: 'amber' },
+      { 
+        key: 'profit', 
+        label: 'Net Profit', 
+        value: formatCurrency(netProfit), 
+        accent: netProfit >= 0 ? 'emerald' : 'rose',
+        subtitle: `${profitMargin}% margin`
+      }
     ];
-  }, [summaryData, shopOrderCount]);
+  }, [summaryData, shopOrderCount, shopRevenue, shopOrders, totalCostPrice, netProfit]);
 
+  // Transform shop orders into transaction-like format for TransactionHistory component
   const shopTransactions = useMemo(() => {
-    return Array.isArray(payments) ? payments.filter(p => 
-      p.transaction_type === 'product_purchase' || 
-      p.transaction_type === 'shop_purchase' ||
-      (p.description && (p.description.toLowerCase().includes('product') || p.description.toLowerCase().includes('shop')))
-    ) : [];
-  }, [payments]);
+    return shopOrders.map(order => ({
+      id: order.id,
+      transaction_type: 'shop_purchase',
+      amount: parseFloat(order.total_amount || 0),
+      currency: order.currency || 'EUR',
+      status: order.payment_status || order.status,
+      description: `Order #${order.order_number} - ${order.items?.length || 0} items`,
+      created_at: order.created_at,
+      user_id: order.user_id,
+      user_name: order.first_name && order.last_name 
+        ? `${order.first_name} ${order.last_name}` 
+        : order.email || 'Unknown',
+      user_email: order.email,
+      metadata: {
+        order_number: order.order_number,
+        items: order.items,
+        item_count: order.item_count
+      }
+    }));
+  }, [shopOrders]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -232,7 +304,7 @@ const FinanceShop = () => {
           </Space>
         </div>
       </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
             return (
@@ -246,18 +318,13 @@ const FinanceShop = () => {
                 <p className={`mt-2 text-2xl font-semibold ${accent.text}`}>
                   {stat.value}
                 </p>
+                {stat.subtitle && (
+                  <p className="mt-1 text-xs text-slate-400">{stat.subtitle}</p>
+                )}
               </div>
             );
           })}
         </div>
-      </Card>
-
-      <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Shop Revenue Analytics</h3>
-        <ShopAnalytics
-          summaryData={summaryData}
-          chartData={[]}
-        />
       </Card>
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
@@ -266,14 +333,14 @@ const FinanceShop = () => {
           <Button
             size={isMobile ? 'small' : 'middle'}
             icon={<ReloadOutlined />}
-            onClick={loadPaymentsData}
+            onClick={loadShopOrders}
           >
             Refresh
           </Button>
         </div>
         <TransactionHistory
           transactions={shopTransactions}
-          customerDirectory={customerDirectory}
+          customerDirectory={{}}
         />
       </Card>
     </div>

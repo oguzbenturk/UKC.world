@@ -318,7 +318,10 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), requireW
       total_price,
       payment_status = 'unpaid',
       family_member_id,
-      currency: requestedCurrency
+      currency: requestedCurrency,
+      use_package = false,
+      customer_package_id,
+      rental_days = 1
     } = req.body;
     
     // Storage currency is always EUR (base currency)
@@ -372,6 +375,100 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), requireW
     const rentalEndDate = end_date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const rentalDateFormatted = rental_date || new Date().toISOString().split('T')[0];
     
+    // Track package usage
+    let usedPackageId = null;
+    let finalPaymentStatus = payment_status;
+    let skipWalletCharge = false;
+    const daysToUse = parseInt(rental_days) || 1;
+    
+    // Handle package-based rental
+    if (use_package && customer_package_id && user_id) {
+      // Verify package belongs to user and has enough rental days
+      const packageCheck = await client.query(`
+        SELECT id, customer_id, package_name, rental_days_remaining, rental_days_used, rental_days_total,
+               includes_rental, status
+        FROM customer_packages 
+        WHERE id = $1 
+          AND customer_id = $2 
+          AND status = 'active'
+          AND includes_rental = true
+          AND rental_days_remaining >= $3
+      `, [customer_package_id, user_id, daysToUse]);
+      
+      if (packageCheck.rows.length === 0) {
+        // Check if package exists but doesn't have enough days
+        const fallbackCheck = await client.query(`
+          SELECT rental_days_remaining, includes_rental, status FROM customer_packages 
+          WHERE id = $1 AND customer_id = $2
+        `, [customer_package_id, user_id]);
+        
+        if (fallbackCheck.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Package not found or does not belong to this customer' });
+        }
+        
+        const pkg = fallbackCheck.rows[0];
+        if (!pkg.includes_rental) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'This package does not include rental days' });
+        }
+        if (pkg.status !== 'active') {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'This package is no longer active' });
+        }
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Insufficient rental days. Only ${pkg.rental_days_remaining || 0} days remaining, but ${daysToUse} required.` 
+        });
+      }
+      
+      const packageToUse = packageCheck.rows[0];
+      const currentUsed = parseInt(packageToUse.rental_days_used) || 0;
+      const currentRemaining = parseInt(packageToUse.rental_days_remaining) || 0;
+      const newUsedDays = currentUsed + daysToUse;
+      const newRemainingDays = currentRemaining - daysToUse;
+      
+      // Get remaining hours and accommodation to check if fully used
+      const fullPackageCheck = await client.query(
+        'SELECT remaining_hours, accommodation_nights_remaining FROM customer_packages WHERE id = $1',
+        [customer_package_id]
+      );
+      const lessonHoursRemaining = parseFloat(fullPackageCheck.rows[0]?.remaining_hours) || 0;
+      const accommodationNightsRemaining = parseInt(fullPackageCheck.rows[0]?.accommodation_nights_remaining) || 0;
+      const isFullyUsed = lessonHoursRemaining <= 0 && newRemainingDays <= 0 && accommodationNightsRemaining <= 0;
+      const newStatus = isFullyUsed ? 'used_up' : 'active';
+      
+      // Update the package
+      const packageUpdateResult = await client.query(`
+        UPDATE customer_packages 
+        SET rental_days_used = $1, 
+            rental_days_remaining = $2,
+            last_used_date = $3,
+            status = $4,
+            updated_at = NOW()
+        WHERE id = $5 AND status = 'active' AND rental_days_remaining >= $6
+        RETURNING id, package_name, rental_days_used, rental_days_remaining
+      `, [newUsedDays, newRemainingDays, rentalDateFormatted, newStatus, customer_package_id, daysToUse]);
+      
+      if (packageUpdateResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Package update failed. It may have been modified by another user or no longer has sufficient days.'
+        });
+      }
+      
+      console.log('Package rental days deducted:', {
+        packageId: customer_package_id,
+        daysUsed: daysToUse,
+        newRemaining: newRemainingDays
+      });
+      
+      usedPackageId = customer_package_id;
+      finalPaymentStatus = 'package';
+      skipWalletCharge = true;
+      calculatedTotalPrice = 0; // No charge when using package
+    }
+    
     // Create the rental record with all the new fields
     const rentalResult = await client.query(
       `INSERT INTO rentals (
@@ -384,11 +481,12 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), requireW
         total_price, 
         payment_status,
         equipment_details,
-                notes,
+        notes,
         created_by,
         family_member_id,
-        participant_type
-      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13) RETURNING *`,
+        participant_type,
+        customer_package_id
+      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14) RETURNING *`,
       [
         user_id, 
         JSON.stringify(equipment_ids),
@@ -397,19 +495,20 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), requireW
         rentalEndDate, 
         status, 
         calculatedTotalPrice, 
-        payment_status,
+        finalPaymentStatus,
         JSON.stringify(equipmentDetails),
         notes,
         actorId || null,
         family_member_id || null,
-        (family_member_id ? 'family_member' : 'self')
+        (family_member_id ? 'family_member' : 'self'),
+        usedPackageId
       ]
     );
     
     const rental = rentalResult.rows[0];
     
-    // CREATE FINANCIAL TRANSACTION FOR RENTAL CHARGE
-    if (calculatedTotalPrice > 0) {
+    // CREATE FINANCIAL TRANSACTION FOR RENTAL CHARGE (skip if using package)
+    if (calculatedTotalPrice > 0 && !skipWalletCharge) {
       const equipmentNames = Object.values(equipmentDetails).map(item => item.name).join(', ');
       const description = `Rental charge: ${equipmentNames} (${rentalDateFormatted})`;
       let walletChargeSucceeded = false;

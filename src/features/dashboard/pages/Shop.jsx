@@ -30,6 +30,7 @@ import {
 import { productApi } from '@/shared/services/productApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useCart } from '@/shared/contexts/CartContext';
+import { useShopFilters, SORT_OPTIONS, CATEGORY_LABELS } from '@/shared/contexts/ShopFiltersContext';
 import ShoppingCart from '@/features/students/components/ShoppingCart';
 import FinancialService from '@/features/finances/services/financialService';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -41,29 +42,7 @@ import { DownOutlined, RightOutlined } from '@ant-design/icons';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-// Sort options with icons/descriptions
-const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest First', icon: '🆕' },
-    { value: 'price-low', label: 'Price: Low → High', icon: '💰' },
-    { value: 'price-high', label: 'Price: High → Low', icon: '💎' },
-    { value: 'name-az', label: 'Name: A → Z', icon: '🔤' },
-    { value: 'popular', label: 'Most Popular', icon: '⭐' }
-];
-
-// Category label mapping (for display purposes)
-const CATEGORY_LABELS = {
-    'kites': 'Kites',
-    'boards': 'Boards',
-    'harnesses': 'Harnesses',
-    'wetsuits': 'Wetsuits',
-    'bars': 'Bars & Lines',
-    'equipment': 'Equipment',
-    'accessories': 'Accessories',
-    'apparel': 'Apparel',
-    'safety': 'Safety Gear',
-    'spare-parts': 'Spare Parts',
-    'other': 'Other'
-};
+// Note: SORT_OPTIONS and CATEGORY_LABELS are imported from ShopFiltersContext
 
 const PAGE_SIZE = 1000; // Load all products at once
 const SKELETON_KEYS = Array.from({ length: 8 }, (_, index) => `skeleton-${index}`);
@@ -96,23 +75,46 @@ const ShopPage = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [selectedSubcategory, setSelectedSubcategory] = useState('all');
-    const [selectedBrand, setSelectedBrand] = useState('all');
-    const [sortBy, setSortBy] = useState('newest');
-    const [showInStockOnly, setShowInStockOnly] = useState(false);
     const [pagination, setPagination] = useState({ page: 1, total: 0 });
     const [cartVisible, setCartVisible] = useState(false);
     const [userBalance, setUserBalance] = useState(0);
     const [previewProduct, setPreviewProduct] = useState(null);
-    const [searchText, setSearchText] = useState('');
     const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [expandedCategories, setExpandedCategories] = useState({});
     const [expandedCategorySections, setExpandedCategorySections] = useState({}); // Track which categories show all products
-    const [allProducts, setAllProducts] = useState([]); // Store all products for stable category counts
+
+    // Use shared filter context
+    const {
+        selectedCategory,
+        selectedSubcategory,
+        selectedBrand,
+        sortBy,
+        showInStockOnly,
+        searchText,
+        expandedCategories,
+        allProducts,
+        activeFilterCount,
+        availableCategories,
+        setSelectedCategory,
+        setSelectedSubcategory,
+        setSelectedBrand,
+        setSortBy,
+        setShowInStockOnly,
+        setSearchText,
+        setExpandedCategories,
+        setAllProducts,
+        handleCategoryChange,
+        handleSubcategoryChange,
+        handleSortChange,
+        handleSearchChange,
+        clearAllFilters,
+        toggleCategoryExpanded
+    } = useShopFilters();
 
     const { user } = useAuth();
+    // Check if user is UKC role (outsider or student) - hide desktop sidebar for these roles
+    const isUKCRole = user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student';
+    
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
     const {
         addToCart: addToCartContext,
@@ -140,10 +142,6 @@ const ShopPage = () => {
                             availableProducts.push(...categoryGroup.products);
                         });
                         total = availableProducts.length;
-                        // Store all products for stable category counts (only on initial load)
-                        if (allProducts.length === 0) {
-                            setAllProducts(availableProducts);
-                        }
                     }
                 } else {
                     // Fetch all products for specific category with subcategory filter
@@ -179,7 +177,7 @@ const ShopPage = () => {
                 setLoading(false);
             }
         },
-        [selectedCategory, selectedSubcategory, allProducts.length]
+        [selectedCategory, selectedSubcategory]
     );
 
     useEffect(() => {
@@ -214,45 +212,30 @@ const ShopPage = () => {
         };
     }, [user?.id]);
 
-    const handleCategoryChange = useCallback((value, keepSubcategory = false) => {
-        setSelectedCategory(value);
+    // Local handler wrappers to reset pagination when category changes
+    const localHandleCategoryChange = useCallback((value, keepSubcategory = false) => {
+        handleCategoryChange(value);
         if (!keepSubcategory) {
             setSelectedSubcategory('all'); // Reset subcategory when category changes (unless explicitly kept)
         }
         setPagination({ page: 1, total: 0 });
-    }, []);
+    }, [handleCategoryChange, setSelectedSubcategory]);
 
-    const handleSubcategoryChange = useCallback((value) => {
-        setSelectedSubcategory(value);
-    }, []);
+    const localHandleSubcategoryChange = useCallback((value) => {
+        handleSubcategoryChange(value);
+    }, [handleSubcategoryChange]);
 
     const handleBrandChange = useCallback((value) => {
         setSelectedBrand(value);
-    }, []);
+    }, [setSelectedBrand]);
 
-    const handleSortChange = useCallback((value) => {
-        setSortBy(value);
-    }, []);
+    const localHandleSortChange = useCallback((value) => {
+        handleSortChange(value);
+    }, [handleSortChange]);
 
-    const clearAllFilters = useCallback(() => {
-        setSelectedCategory('all');
-        setSelectedSubcategory('all');
-        setSelectedBrand('all');
-        setSearchText('');
-        setShowInStockOnly(false);
-        setSortBy('newest');
-    }, []);
+    // clearAllFilters from context now handles everything including sortBy reset
 
-    // Count active filters
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        if (selectedCategory !== 'all') count++;
-        if (selectedSubcategory !== 'all') count++;
-        if (selectedBrand !== 'all') count++;
-        if (searchText.trim()) count++;
-        if (showInStockOnly) count++;
-        return count;
-    }, [selectedCategory, selectedSubcategory, selectedBrand, searchText, showInStockOnly]);
+    // activeFilterCount is now from context
 
     const handleAddToCart = useCallback(
         (product, options = {}) => {
@@ -287,34 +270,14 @@ const ShopPage = () => {
 
     const cartCount = getCartCount();
 
-    // Dynamically build categories from ALL products (stable, doesn't change on filter)
-    const availableCategories = useMemo(() => {
-        const productsForCounts = allProducts.length > 0 ? allProducts : products;
-        const categoryMap = {};
-        productsForCounts.forEach(p => {
-            const cat = p.category || 'other';
-            if (!categoryMap[cat]) {
-                categoryMap[cat] = {
-                    value: cat,
-                    label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' '),
-                    count: 0
-                };
-            }
-            categoryMap[cat].count++;
-        });
-        
-        // Sort by count (most products first), then alphabetically
-        const sorted = Object.values(categoryMap).sort((a, b) => {
-            if (b.count !== a.count) return b.count - a.count;
-            return a.label.localeCompare(b.label);
-        });
-        
-        // Add "All Products" at the beginning
-        return [
-            { value: 'all', label: 'All Products', count: productsForCounts.length },
-            ...sorted
-        ];
-    }, [allProducts, products]);
+    // availableCategories is now from context
+    // We need to update allProducts in context when we fetch ALL products (for category counts)
+    useEffect(() => {
+        // Only set allProducts when viewing 'all' categories and we have products
+        if (selectedCategory === 'all' && products.length > 0 && allProducts.length === 0) {
+            setAllProducts(products);
+        }
+    }, [selectedCategory, products, allProducts.length, setAllProducts]);
 
     // Dynamically build brands from actual products
     const availableBrands = useMemo(() => {
@@ -730,7 +693,8 @@ const ShopPage = () => {
                     )}
                 </Button>
                 
-                {/* Sidebar Toggle - Desktop */}
+                {/* Sidebar Toggle - Desktop (hidden for UKC roles who use app sidebar) */}
+                {!isUKCRole && (
                 <Tooltip title={sidebarCollapsed ? "Show filters" : "Hide filters"}>
                     <Button
                         icon={<AppstoreOutlined />}
@@ -740,6 +704,7 @@ const ShopPage = () => {
                         style={{ borderRadius: 10 }}
                     />
                 </Tooltip>
+                )}
             </div>
 
             {/* Mobile Category Pills - Quick Access (Dynamic) */}
@@ -1216,8 +1181,8 @@ const ShopPage = () => {
                 
                 {/* Main Content with Sidebar */}
                 <div className="flex gap-6">
-                    {/* Sidebar - Desktop */}
-                    {renderSidebar()}
+                    {/* Sidebar - Desktop (hidden for UKC roles - they use the main sidebar) */}
+                    {!isUKCRole && renderSidebar()}
                     
                     {/* Product Grid Area */}
                     <div className="flex-1 min-w-0">

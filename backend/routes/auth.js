@@ -29,7 +29,7 @@ router.post('/login', authRateLimit, async (req, res) => {
   try {
     // Find user by email with security fields (exclude soft-deleted users)
     const userResult = await pool.query(`
-      SELECT u.*, r.name as role_name
+      SELECT u.*, r.name as role_name, r.permissions as role_permissions
       FROM users u
       JOIN roles r ON r.id = u.role_id
       WHERE u.email = $1 AND u.deleted_at IS NULL
@@ -206,7 +206,8 @@ router.get('/me', authenticateJWT, async (req, res) => {
           u.updated_at,
           u.profile_image_url,
           u.preferred_currency,
-          r.name as role_name
+          r.name as role_name,
+          r.permissions as role_permissions
         FROM users u
         LEFT JOIN roles r ON r.id = u.role_id
         WHERE u.id = $1
@@ -243,6 +244,10 @@ router.get('/me', authenticateJWT, async (req, res) => {
       // Set role property and ensure we have a valid name
       user.role = user.role_name || 'user';
       delete user.role_name;
+      
+      // Include role permissions for custom role sidebar filtering
+      user.permissions = user.role_permissions || {};
+      delete user.role_permissions;
       
       // Create a mock user if needed for testing
       if (!user.name) {
@@ -604,6 +609,10 @@ async function completeLogin(user, req, res) {
     // Normalize role field
     user.role = user.role_name;
     delete user.role_name;
+    
+    // Include role permissions for custom role sidebar filtering
+    user.permissions = user.role_permissions || {};
+    delete user.role_permissions;
 
     // Log successful login
     await logSecurityEvent(user.id, 'successful_login', req);

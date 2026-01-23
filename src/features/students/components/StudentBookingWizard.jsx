@@ -665,6 +665,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
     setProcessorModal(null);
     setProcessorInfo({});
     setPreferredCategory(initialData.preferredCategory ? normalizeText(initialData.preferredCategory) : null);
+    // Handle serviceCategory from initial data (e.g., from lesson info pages)
+    if (initialData.serviceCategory) {
+      setSelectedServiceCategory(initialData.serviceCategory);
+    }
+    // Note: discipline is no longer used to pre-fill search - category filtering is sufficient
     // Handle showBuyPackages flag from FAB
     if (initialData.showBuyPackages) {
       setShowBuyPackages(true);

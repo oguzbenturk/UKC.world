@@ -6,6 +6,7 @@ import { DataProvider } from './shared/contexts/DataContext';
 import { ToastProvider } from './shared/contexts/ToastContext';
 import { CurrencyProvider } from './shared/contexts/CurrencyContext';
 import { CartProvider } from './shared/contexts/CartContext';
+import { ShopFiltersProvider } from './shared/contexts/ShopFiltersContext';
 import { ForecastProvider } from './features/forecast/contexts/ForecastContext';
 import AppRoutes from './routes/AppRoutes';
 import { Navbar } from './shared/components/layout/Navbar';
@@ -50,6 +51,7 @@ function App() {
           <AuthProvider>
             <CurrencyProvider>
               <CartProvider>
+                <ShopFiltersProvider>
                 <DataProvider>
                   <ToastProvider>
                     <ForecastProvider>
@@ -57,6 +59,7 @@ function App() {
                     </ForecastProvider>
                   </ToastProvider>
                 </DataProvider>
+                </ShopFiltersProvider>
               </CartProvider>
             </CurrencyProvider>
           </AuthProvider>
@@ -217,12 +220,13 @@ const AppLayoutWithAuth = () => {
   }
 
   // Define which roles can see the navigation components
+  // Standard roles + any custom role (custom roles are valid if they have permission)
+  const standardRoles = ['admin', 'manager', 'instructor', 'student', 'outsider', 'developer', 'trusted_customer'];
+  const userRole = user?.role?.toLowerCase?.() || '';
   const canAccessNavigation = user && (
-    user.role === 'admin' || 
-    user.role === 'manager' || 
-    user.role === 'instructor' || 
-    user.role === 'student' ||
-    user.role === 'outsider'
+    standardRoles.includes(userRole) || 
+    // Allow any other role (custom roles) to access navigation
+    (userRole && userRole.length > 0)
   );
 
   // If authenticated but not authorized to see navigation, show a limited view
@@ -230,8 +234,22 @@ const AppLayoutWithAuth = () => {
     return (
       <main className="min-h-dvh safe-pb">
         {consentModal}
-        <div className="bg-slate-800 shadow-lg sticky top-0 z-50 p-4">
-          <h1 className="text-white font-semibold text-xl">Kite Surf Pro</h1>
+        <div className="bg-slate-800 shadow-lg sticky top-0 z-50 p-4 flex justify-between items-center">
+          <span className="flex items-baseline tracking-wide">
+            <span className="font-bold text-white text-xl">UKC</span>
+            <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
+            <span className="font-medium text-slate-300 text-sm">World</span>
+          </span>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              window.location.href = '/login';
+            }}
+            className="text-slate-300 hover:text-white text-sm"
+          >
+            Logout
+          </button>
         </div>
         <div className="p-4 md:p-6">
           <AppRoutes />

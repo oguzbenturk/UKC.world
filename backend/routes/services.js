@@ -870,13 +870,30 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     // Determine payment status based on method
     const paymentStatus = normalizedPaymentMethod === 'pay_later' ? 'pending' : 'paid';
     
+    // Extract package details including rental days and accommodation nights
+    const pkgTotalHours = parseFloat(pkg.total_hours) || 0;
+    const pkgRentalDays = parseInt(pkg.rental_days) || 0;
+    const pkgAccommodationNights = parseInt(pkg.accommodation_nights) || 0;
+    const pkgType = pkg.package_type || 'lesson';
+    const pkgIncludesLessons = pkg.includes_lessons !== false;
+    const pkgIncludesRental = pkg.includes_rental || false;
+    const pkgIncludesAccommodation = pkg.includes_accommodation || false;
+    
     const customerPackageQuery = `
       INSERT INTO customer_packages (
         id, customer_id, service_package_id, package_name, lesson_service_name,
         total_hours, remaining_hours, purchase_price, currency, expiry_date, status, purchase_date, notes,
-        check_in_date, check_out_date
+        check_in_date, check_out_date,
+        rental_days_total, rental_days_remaining, rental_days_used,
+        accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
+        package_type, includes_lessons, includes_rental, includes_accommodation,
+        rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, 'active', NOW(), $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, 'active', NOW(), $10, $11, $12,
+              $13, $13, 0,
+              $14, $14, 0,
+              $15, $16, $17, $18,
+              $19, $20, $21, $22)
       RETURNING *
     `;
 
@@ -894,13 +911,23 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       packageId,
       pkg.name,
       pkg.lesson_service_name || pkg.name,
-      parseFloat(pkg.total_hours) || 0,
+      pkgTotalHours,
       packagePrice,
       priceCurrency,
       expiryDate,
       purchaseNotes,
       checkInDate || null,
-      checkOutDate || null
+      checkOutDate || null,
+      pkgRentalDays,
+      pkgAccommodationNights,
+      pkgType,
+      pkgIncludesLessons,
+      pkgIncludesRental,
+      pkgIncludesAccommodation,
+      pkg.rental_service_id || null,
+      pkg.rental_service_name || null,
+      pkg.accommodation_unit_id || null,
+      pkg.accommodation_unit_name || null
     ]);
 
     // Create accommodation booking if package includes accommodation
@@ -2061,7 +2088,11 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
       SELECT cp.*, sp.name as service_package_name, sp.lesson_service_name,
              sp.discipline_tag as sp_discipline_tag,
              sp.lesson_category_tag as sp_lesson_category_tag,
-             sp.level_tag as sp_level_tag
+             sp.level_tag as sp_level_tag,
+             sp.package_type as sp_package_type,
+             sp.includes_lessons as sp_includes_lessons,
+             sp.includes_rental as sp_includes_rental,
+             sp.includes_accommodation as sp_includes_accommodation
       FROM customer_packages cp
       LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
       WHERE cp.customer_id = $1
@@ -2076,6 +2107,7 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
       servicePackageId: row.service_package_id,
       packageName: row.package_name,
       lessonType: row.lesson_service_name || row.package_name,
+      // Lesson hours tracking
       totalHours: parseFloat(row.total_hours) || 0,
       usedHours: parseFloat(row.used_hours) || 0,
       remainingHours: parseFloat(row.remaining_hours) || 0,
@@ -2083,20 +2115,50 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
       total_hours: parseFloat(row.total_hours) || 0,
       used_hours: parseFloat(row.used_hours) || 0,
       remaining_hours: parseFloat(row.remaining_hours) || 0,
+      // Rental tracking
+      rentalDaysTotal: parseInt(row.rental_days_total) || 0,
+      rentalDaysUsed: parseInt(row.rental_days_used) || 0,
+      rentalDaysRemaining: parseInt(row.rental_days_remaining) || 0,
+      rental_days_total: parseInt(row.rental_days_total) || 0,
+      rental_days_used: parseInt(row.rental_days_used) || 0,
+      rental_days_remaining: parseInt(row.rental_days_remaining) || 0,
+      // Accommodation tracking
+      accommodationNightsTotal: parseInt(row.accommodation_nights_total) || 0,
+      accommodationNightsUsed: parseInt(row.accommodation_nights_used) || 0,
+      accommodationNightsRemaining: parseInt(row.accommodation_nights_remaining) || 0,
+      accommodation_nights_total: parseInt(row.accommodation_nights_total) || 0,
+      accommodation_nights_used: parseInt(row.accommodation_nights_used) || 0,
+      accommodation_nights_remaining: parseInt(row.accommodation_nights_remaining) || 0,
+      // Package type and includes flags
+      packageType: row.package_type || row.sp_package_type || 'lesson',
+      package_type: row.package_type || row.sp_package_type || 'lesson',
+      includesLessons: row.includes_lessons !== false,
+      includesRental: row.includes_rental || false,
+      includesAccommodation: row.includes_accommodation || false,
+      includes_lessons: row.includes_lessons !== false,
+      includes_rental: row.includes_rental || false,
+      includes_accommodation: row.includes_accommodation || false,
+      // Service references
+      rentalServiceId: row.rental_service_id || null,
+      rentalServiceName: row.rental_service_name || null,
+      accommodationUnitId: row.accommodation_unit_id || null,
+      accommodationUnitName: row.accommodation_unit_name || null,
+      // Other fields
       package_name: row.package_name,
       lesson_service_name: row.lesson_service_name || row.package_name,
-  price: parseFloat(row.purchase_price),
-  // structured tags from service_packages (if any)
-  disciplineTag: row.sp_discipline_tag || null,
-  lessonCategoryTag: row.sp_lesson_category_tag || null,
-  levelTag: row.sp_level_tag || null,
+      price: parseFloat(row.purchase_price),
+      // structured tags from service_packages (if any)
+      disciplineTag: row.sp_discipline_tag || null,
+      lessonCategoryTag: row.sp_lesson_category_tag || null,
+      levelTag: row.sp_level_tag || null,
       currency: row.currency || 'EUR',
       purchaseDate: row.purchase_date,
       expiryDate: row.expiry_date,
       lastUsedDate: row.last_used_date,
       status: row.status,
       notes: row.notes,
-      packageType: row.total_hours > 0 ? 'lesson-only' : 'other', // Simplified logic
+      checkInDate: row.check_in_date,
+      checkOutDate: row.check_out_date,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }));
@@ -2130,6 +2192,54 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
   }
 });
 
+// Get customer's available rental packages (packages with remaining rental days)
+router.get('/customer-packages/:customerId/rental', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const userRole = req.user?.role?.toLowerCase();
+    const authenticatedUserId = req.user?.id;
+    
+    // Students and outsiders can only access their own packages
+    if ((userRole === 'student' || userRole === 'outsider') && customerId !== authenticatedUserId) {
+      return res.status(403).json({ error: 'You can only access your own packages' });
+    }
+
+    const query = `
+      SELECT 
+        id, customer_id, package_name, 
+        rental_days_total, rental_days_used, rental_days_remaining,
+        includes_rental, status, expiry_date,
+        rental_service_id, rental_service_name
+      FROM customer_packages
+      WHERE customer_id = $1
+        AND status = 'active'
+        AND includes_rental = true
+        AND rental_days_remaining > 0
+      ORDER BY created_at ASC
+    `;
+
+    const { rows } = await pool.query(query, [customerId]);
+
+    const packages = rows.map(row => ({
+      id: row.id,
+      customerId: row.customer_id,
+      packageName: row.package_name,
+      rentalDaysTotal: parseInt(row.rental_days_total) || 0,
+      rentalDaysUsed: parseInt(row.rental_days_used) || 0,
+      rentalDaysRemaining: parseInt(row.rental_days_remaining) || 0,
+      rentalServiceId: row.rental_service_id,
+      rentalServiceName: row.rental_service_name,
+      status: row.status,
+      expiryDate: row.expiry_date
+    }));
+
+    res.json(packages);
+  } catch (error) {
+    logger.error('Error fetching customer rental packages:', error);
+    res.status(500).json({ error: 'Failed to fetch rental packages' });
+  }
+});
+
 // Create/Purchase a package for a customer
 // eslint-disable-next-line complexity
 router.post('/customer-packages', authorize(['admin', 'manager']), async (req, res) => {
@@ -2143,7 +2253,18 @@ router.post('/customer-packages', authorize(['admin', 'manager']), async (req, r
       purchasePrice,
       currency,
       expiryDate,
-      notes
+      notes,
+      // New fields for combo packages
+      rentalDays,
+      accommodationNights,
+      packageType,
+      includesLessons,
+      includesRental,
+      includesAccommodation,
+      rentalServiceId,
+      rentalServiceName,
+      accommodationUnitId,
+      accommodationUnitName
     } = req.body;
     
     // Validate required fields
@@ -2167,19 +2288,47 @@ router.post('/customer-packages', authorize(['admin', 'manager']), async (req, r
         throw new Error('Customer not found');
       }
       
+      // Get the service package details to inherit combo package values if not provided
+      let pkgDetails = null;
+      try {
+        const spResult = await client.query('SELECT * FROM service_packages WHERE id = $1', [servicePackageId]);
+        if (spResult.rows.length > 0) {
+          pkgDetails = spResult.rows[0];
+        }
+      } catch (spErr) {
+        logger.warn('Could not fetch service package details', { servicePackageId, error: spErr.message });
+      }
+      
       // Storage currency is always EUR (base currency)
       // We accept currency param for frontend display purposes but always store in EUR
       const storageCurrency = 'EUR';
       const inputCurrency = currency || userCheck.rows[0].preferred_currency || 'EUR';
+      
+      // Use provided values or fallback to service package values
+      const pkgTotalHours = parseFloat(totalHours) || parseFloat(pkgDetails?.total_hours) || 0;
+      const pkgRentalDays = parseInt(rentalDays) || parseInt(pkgDetails?.rental_days) || 0;
+      const pkgAccommodationNights = parseInt(accommodationNights) || parseInt(pkgDetails?.accommodation_nights) || 0;
+      const pkgType = packageType || pkgDetails?.package_type || 'lesson';
+      const pkgIncludesLessons = includesLessons !== undefined ? includesLessons : (pkgDetails?.includes_lessons !== false);
+      const pkgIncludesRental = includesRental !== undefined ? includesRental : (pkgDetails?.includes_rental || false);
+      const pkgIncludesAccommodation = includesAccommodation !== undefined ? includesAccommodation : (pkgDetails?.includes_accommodation || false);
       
       // Create the package record
       const customerPackageId = uuidv4();
       const packageQuery = `
         INSERT INTO customer_packages (
           id, customer_id, service_package_id, package_name, lesson_service_name,
-          total_hours, remaining_hours, purchase_price, currency, expiry_date, notes, status
+          total_hours, remaining_hours, purchase_price, currency, expiry_date, notes, status,
+          rental_days_total, rental_days_remaining, rental_days_used,
+          accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
+          package_type, includes_lessons, includes_rental, includes_accommodation,
+          rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, 'active')
+        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, 'active',
+                $11, $11, 0,
+                $12, $12, 0,
+                $13, $14, $15, $16,
+                $17, $18, $19, $20)
         RETURNING *
       `;
       
@@ -2189,11 +2338,21 @@ router.post('/customer-packages', authorize(['admin', 'manager']), async (req, r
         servicePackageId,
         packageName,
         lessonServiceName || packageName,
-        parseFloat(totalHours) || 0,
+        pkgTotalHours,
         packagePrice,
         storageCurrency, // Always store in EUR
         expiryDate || null,
-        notes || null
+        notes || null,
+        pkgRentalDays,
+        pkgAccommodationNights,
+        pkgType,
+        pkgIncludesLessons,
+        pkgIncludesRental,
+        pkgIncludesAccommodation,
+        rentalServiceId || pkgDetails?.rental_service_id || null,
+        rentalServiceName || pkgDetails?.rental_service_name || null,
+        accommodationUnitId || pkgDetails?.accommodation_unit_id || null,
+        accommodationUnitName || pkgDetails?.accommodation_unit_name || null
       ]);
 
       // Create package purchase transaction (debit from customer balance)
@@ -2243,13 +2402,31 @@ router.post('/customer-packages', authorize(['admin', 'manager']), async (req, r
         totalHours: parseFloat(rows[0].total_hours) || 0,
         usedHours: parseFloat(rows[0].used_hours) || 0,
         remainingHours: parseFloat(rows[0].remaining_hours) || 0,
+        // Rental tracking
+        rentalDaysTotal: parseInt(rows[0].rental_days_total) || 0,
+        rentalDaysUsed: parseInt(rows[0].rental_days_used) || 0,
+        rentalDaysRemaining: parseInt(rows[0].rental_days_remaining) || 0,
+        // Accommodation tracking
+        accommodationNightsTotal: parseInt(rows[0].accommodation_nights_total) || 0,
+        accommodationNightsUsed: parseInt(rows[0].accommodation_nights_used) || 0,
+        accommodationNightsRemaining: parseInt(rows[0].accommodation_nights_remaining) || 0,
+        // Package type info
+        packageType: rows[0].package_type || 'lesson',
+        includesLessons: rows[0].includes_lessons !== false,
+        includesRental: rows[0].includes_rental || false,
+        includesAccommodation: rows[0].includes_accommodation || false,
+        // Service references
+        rentalServiceId: rows[0].rental_service_id || null,
+        rentalServiceName: rows[0].rental_service_name || null,
+        accommodationUnitId: rows[0].accommodation_unit_id || null,
+        accommodationUnitName: rows[0].accommodation_unit_name || null,
+        // Other fields
         price: parseFloat(rows[0].purchase_price),
         currency: rows[0].currency,
         purchaseDate: rows[0].purchase_date,
         expiryDate: rows[0].expiry_date,
         status: rows[0].status,
         notes: rows[0].notes,
-        packageType: 'lesson-only',
         createdAt: rows[0].created_at,
         updatedAt: rows[0].updated_at
       };
@@ -2361,6 +2538,176 @@ router.post('/customer-packages/:id/use-hours', authorize(['admin', 'manager']),
   } catch (error) {
     logger.error('Error using package hours:', error);
     res.status(500).json({ error: 'Failed to use package hours' });
+  }
+});
+
+// Use rental days from a customer package
+router.post('/customer-packages/:id/use-rental-days', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { daysToUse, rentalDate, notes, rentalId } = req.body;
+    
+    if (!daysToUse || daysToUse <= 0) {
+      return res.status(400).json({ error: 'Invalid days to use' });
+    }
+    
+    // Get current package details
+    const getCurrentQuery = 'SELECT * FROM customer_packages WHERE id = $1';
+    const currentResult = await pool.query(getCurrentQuery, [id]);
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer package not found' });
+    }
+    
+    const currentPackage = currentResult.rows[0];
+    
+    // Check if package includes rental
+    if (!currentPackage.includes_rental) {
+      return res.status(400).json({ error: 'This package does not include rental days' });
+    }
+    
+    const remainingDays = parseInt(currentPackage.rental_days_remaining) || 0;
+    
+    if (daysToUse > remainingDays) {
+      return res.status(400).json({ 
+        error: `Insufficient rental days. Only ${remainingDays} days remaining.` 
+      });
+    }
+    
+    // Update package rental days
+    const newUsedDays = (parseInt(currentPackage.rental_days_used) || 0) + parseInt(daysToUse);
+    const newRemainingDays = remainingDays - parseInt(daysToUse);
+    
+    // Determine if package is fully used (check all components)
+    const lessonHoursRemaining = parseFloat(currentPackage.remaining_hours) || 0;
+    const accommodationNightsRemaining = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    const isFullyUsed = lessonHoursRemaining <= 0 && newRemainingDays <= 0 && accommodationNightsRemaining <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
+    
+    const updateQuery = `
+      UPDATE customer_packages 
+      SET rental_days_used = $1, rental_days_remaining = $2, last_used_date = $3, status = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(updateQuery, [
+      newUsedDays,
+      newRemainingDays,
+      rentalDate || new Date().toISOString().split('T')[0],
+      newStatus,
+      id
+    ]);
+    
+    logger.info('Rental days used from package', {
+      packageId: id,
+      customerId: currentPackage.customer_id,
+      daysUsed: daysToUse,
+      remainingDays: newRemainingDays,
+      rentalId
+    });
+    
+    res.json({
+      package: {
+        id: rows[0].id,
+        customerId: rows[0].customer_id,
+        packageName: rows[0].package_name,
+        rentalDaysTotal: parseInt(rows[0].rental_days_total) || 0,
+        rentalDaysUsed: parseInt(rows[0].rental_days_used) || 0,
+        rentalDaysRemaining: parseInt(rows[0].rental_days_remaining) || 0,
+        status: rows[0].status
+      },
+      message: `Successfully used ${daysToUse} rental days. ${newRemainingDays} days remaining.`
+    });
+    
+  } catch (error) {
+    logger.error('Error using package rental days:', error);
+    res.status(500).json({ error: 'Failed to use package rental days' });
+  }
+});
+
+// Use accommodation nights from a customer package
+router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nightsToUse, checkInDate, checkOutDate, notes, accommodationBookingId } = req.body;
+    
+    if (!nightsToUse || nightsToUse <= 0) {
+      return res.status(400).json({ error: 'Invalid nights to use' });
+    }
+    
+    // Get current package details
+    const getCurrentQuery = 'SELECT * FROM customer_packages WHERE id = $1';
+    const currentResult = await pool.query(getCurrentQuery, [id]);
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer package not found' });
+    }
+    
+    const currentPackage = currentResult.rows[0];
+    
+    // Check if package includes accommodation
+    if (!currentPackage.includes_accommodation) {
+      return res.status(400).json({ error: 'This package does not include accommodation nights' });
+    }
+    
+    const remainingNights = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    
+    if (nightsToUse > remainingNights) {
+      return res.status(400).json({ 
+        error: `Insufficient accommodation nights. Only ${remainingNights} nights remaining.` 
+      });
+    }
+    
+    // Update package accommodation nights
+    const newUsedNights = (parseInt(currentPackage.accommodation_nights_used) || 0) + parseInt(nightsToUse);
+    const newRemainingNights = remainingNights - parseInt(nightsToUse);
+    
+    // Determine if package is fully used (check all components)
+    const lessonHoursRemaining = parseFloat(currentPackage.remaining_hours) || 0;
+    const rentalDaysRemaining = parseInt(currentPackage.rental_days_remaining) || 0;
+    const isFullyUsed = lessonHoursRemaining <= 0 && rentalDaysRemaining <= 0 && newRemainingNights <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
+    
+    const updateQuery = `
+      UPDATE customer_packages 
+      SET accommodation_nights_used = $1, accommodation_nights_remaining = $2, last_used_date = $3, status = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(updateQuery, [
+      newUsedNights,
+      newRemainingNights,
+      checkInDate || new Date().toISOString().split('T')[0],
+      newStatus,
+      id
+    ]);
+    
+    logger.info('Accommodation nights used from package', {
+      packageId: id,
+      customerId: currentPackage.customer_id,
+      nightsUsed: nightsToUse,
+      remainingNights: newRemainingNights,
+      accommodationBookingId
+    });
+    
+    res.json({
+      package: {
+        id: rows[0].id,
+        customerId: rows[0].customer_id,
+        packageName: rows[0].package_name,
+        accommodationNightsTotal: parseInt(rows[0].accommodation_nights_total) || 0,
+        accommodationNightsUsed: parseInt(rows[0].accommodation_nights_used) || 0,
+        accommodationNightsRemaining: parseInt(rows[0].accommodation_nights_remaining) || 0,
+        status: rows[0].status
+      },
+      message: `Successfully used ${nightsToUse} accommodation nights. ${newRemainingNights} nights remaining.`
+    });
+    
+  } catch (error) {
+    logger.error('Error using package accommodation nights:', error);
+    res.status(500).json({ error: 'Failed to use package accommodation nights' });
   }
 });
 

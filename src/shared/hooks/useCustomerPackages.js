@@ -56,7 +56,29 @@ export const useCustomerPackages = (customerId) => {
         const normalizedPackages = customerPackages.map(pkg => ({
           ...pkg,
           status: ((pkg.status || pkg.Status || '').toString().toLowerCase()) || pkg.status,
+          // Lesson hours
           remainingHours: pkg.remaining_hours || pkg.remainingHours || 0,
+          totalHours: pkg.total_hours || pkg.totalHours || 0,
+          usedHours: pkg.used_hours || pkg.usedHours || 0,
+          // Rental days
+          rentalDaysTotal: pkg.rental_days_total || pkg.rentalDaysTotal || 0,
+          rentalDaysUsed: pkg.rental_days_used || pkg.rentalDaysUsed || 0,
+          rentalDaysRemaining: pkg.rental_days_remaining || pkg.rentalDaysRemaining || 0,
+          // Accommodation nights
+          accommodationNightsTotal: pkg.accommodation_nights_total || pkg.accommodationNightsTotal || 0,
+          accommodationNightsUsed: pkg.accommodation_nights_used || pkg.accommodationNightsUsed || 0,
+          accommodationNightsRemaining: pkg.accommodation_nights_remaining || pkg.accommodationNightsRemaining || 0,
+          // Package type flags
+          packageType: pkg.package_type || pkg.packageType || 'lesson',
+          includesLessons: pkg.includes_lessons !== false,
+          includesRental: pkg.includes_rental || false,
+          includesAccommodation: pkg.includes_accommodation || false,
+          // Service references
+          rentalServiceId: pkg.rental_service_id || pkg.rentalServiceId || null,
+          rentalServiceName: pkg.rental_service_name || pkg.rentalServiceName || null,
+          accommodationUnitId: pkg.accommodation_unit_id || pkg.accommodationUnitId || null,
+          accommodationUnitName: pkg.accommodation_unit_name || pkg.accommodationUnitName || null,
+          // Other normalizations
           lessonType: pkg.lesson_type || pkg.lessonType || pkg.lesson_service_name || 'lesson',
           packageName: pkg.package_name || pkg.packageName || pkg.name || 'Package',
           expiryDate: pkg.expiry_date || pkg.expiryDate || pkg.expires_at
@@ -206,6 +228,159 @@ export const useCustomerPackages = (customerId) => {
     };
   };
 
+  // Use rental days from a customer package
+  const usePackageRentalDays = async (daysToUse, rentalData) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Find packages with available rental days
+      const rentalPackages = packages
+        .filter(pkg => pkg.status === 'active' && pkg.includesRental && pkg.rentalDaysRemaining > 0)
+        .sort((a, b) => new Date(a.purchaseDate) - new Date(b.purchaseDate));
+
+      if (rentalPackages.length === 0) {
+        throw new Error('No active packages with available rental days');
+      }
+
+      let remainingDaysToUse = daysToUse;
+      const results = [];
+
+      for (const pkg of rentalPackages) {
+        if (remainingDaysToUse <= 0) break;
+
+        const daysFromThisPackage = Math.min(remainingDaysToUse, pkg.rentalDaysRemaining);
+        
+        if (daysFromThisPackage > 0) {
+          const response = await fetch(`/api/services/customer-packages/${pkg.id}/use-rental-days`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              daysToUse: daysFromThisPackage,
+              rentalDate: rentalData?.date,
+              notes: rentalData?.notes || `Used ${daysFromThisPackage} rental days`,
+              rentalId: rentalData?.rentalId
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to use rental days from package ${pkg.id}`);
+          }
+
+          const result = await response.json();
+          results.push(result);
+          remainingDaysToUse -= daysFromThisPackage;
+        }
+      }
+
+      if (remainingDaysToUse > 0) {
+        throw new Error(`Not enough rental days available. Need ${daysToUse}, used ${daysToUse - remainingDaysToUse}`);
+      }
+
+      await fetchCustomerPackages(true);
+      
+      return {
+        success: true,
+        daysUsed: daysToUse,
+        packagesUsed: results.length,
+        details: results
+      };
+
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use accommodation nights from a customer package
+  const usePackageAccommodationNights = async (nightsToUse, accommodationData) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Find packages with available accommodation nights
+      const accommodationPackages = packages
+        .filter(pkg => pkg.status === 'active' && pkg.includesAccommodation && pkg.accommodationNightsRemaining > 0)
+        .sort((a, b) => new Date(a.purchaseDate) - new Date(b.purchaseDate));
+
+      if (accommodationPackages.length === 0) {
+        throw new Error('No active packages with available accommodation nights');
+      }
+
+      let remainingNightsToUse = nightsToUse;
+      const results = [];
+
+      for (const pkg of accommodationPackages) {
+        if (remainingNightsToUse <= 0) break;
+
+        const nightsFromThisPackage = Math.min(remainingNightsToUse, pkg.accommodationNightsRemaining);
+        
+        if (nightsFromThisPackage > 0) {
+          const response = await fetch(`/api/services/customer-packages/${pkg.id}/use-accommodation-nights`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              nightsToUse: nightsFromThisPackage,
+              checkInDate: accommodationData?.checkInDate,
+              checkOutDate: accommodationData?.checkOutDate,
+              notes: accommodationData?.notes || `Used ${nightsFromThisPackage} accommodation nights`,
+              accommodationBookingId: accommodationData?.bookingId
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to use accommodation nights from package ${pkg.id}`);
+          }
+
+          const result = await response.json();
+          results.push(result);
+          remainingNightsToUse -= nightsFromThisPackage;
+        }
+      }
+
+      if (remainingNightsToUse > 0) {
+        throw new Error(`Not enough accommodation nights available. Need ${nightsToUse}, used ${nightsToUse - remainingNightsToUse}`);
+      }
+
+      await fetchCustomerPackages(true);
+      
+      return {
+        success: true,
+        nightsUsed: nightsToUse,
+        packagesUsed: results.length,
+        details: results
+      };
+
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get available rental days from active packages
+  const getAvailableRentalDays = () => {
+    return packages
+      .filter(pkg => pkg.status === 'active' && pkg.includesRental && pkg.rentalDaysRemaining > 0)
+      .reduce((sum, pkg) => sum + pkg.rentalDaysRemaining, 0);
+  };
+
+  // Get available accommodation nights from active packages
+  const getAvailableAccommodationNights = () => {
+    return packages
+      .filter(pkg => pkg.status === 'active' && pkg.includesAccommodation && pkg.accommodationNightsRemaining > 0)
+      .reduce((sum, pkg) => sum + pkg.accommodationNightsRemaining, 0);
+  };
+
   useEffect(() => {
     if (customerId) {
       // Debounced fetch to prevent rapid calls
@@ -240,7 +415,11 @@ export const useCustomerPackages = (customerId) => {
     error,
     fetchCustomerPackages,
     usePackageHours,
+    usePackageRentalDays,
+    usePackageAccommodationNights,
     getPackagesForService,
-    getPaymentOptions
+    getPaymentOptions,
+    getAvailableRentalDays,
+    getAvailableAccommodationNights
   };
 };
