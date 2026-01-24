@@ -253,18 +253,35 @@ router.get('/unit-types', async (req, res) => {
 // List accommodation bookings with optional status filter
 router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
 	try {
-		const { status, limit = 50, offset = 0 } = req.query;
+		const { status, limit = 50, offset = 0, startDate, endDate } = req.query;
 		const params = [];
 		let where = 'WHERE 1=1';
 		if (status) {
 			params.push(status);
-			where += ` AND status = $${params.length}`;
+			where += ` AND ab.status = $${params.length}`;
+		}
+		if (startDate) {
+			params.push(startDate);
+			where += ` AND ab.check_in_date >= $${params.length}`;
+		}
+		if (endDate) {
+			params.push(endDate);
+			where += ` AND ab.check_out_date <= $${params.length}`;
 		}
 		params.push(parseInt(limit, 10));
 		params.push(parseInt(offset, 10));
 		const { rows } = await pool.query(
-			`SELECT * FROM accommodation_bookings ${where}
-			 ORDER BY check_in_date DESC
+			`SELECT 
+				ab.*,
+				u.name as guest_name,
+				u.email as guest_email,
+				au.name as unit_name,
+				au.type as unit_type
+			 FROM accommodation_bookings ab
+			 LEFT JOIN users u ON ab.guest_id = u.id
+			 LEFT JOIN accommodation_units au ON ab.unit_id = au.id
+			 ${where}
+			 ORDER BY ab.check_in_date DESC
 			 LIMIT $${params.length - 1} OFFSET $${params.length}`,
 			params
 		);

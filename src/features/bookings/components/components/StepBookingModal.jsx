@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment, useCallback, useMemo } from 'react';
 import { computeBookingPrice } from '@/shared/utils/pricing';
+import { isGroupService } from '@/shared/utils/serviceCapacityFilter';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon, UserGroupIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -356,7 +357,7 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
 
     setIsSubmitting(true);
     setSubmitStatus(null);
-      try {
+    try {
       
       // Validate required services data
       if (!services || services.length === 0) {
@@ -369,8 +370,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
         throw new Error('Selected service not found. Please refresh and try again.');
       }
       
-  const serviceName = selectedService.name;
-        // Get booking time and calculate duration with proper validation
+      const serviceName = selectedService.name;
+      // Get booking time and calculate duration with proper validation
       let bookingTime = formData.startTime || selectedSlot?.startTime || selectedSlot?.time;
       let endTime = formData.endTime || selectedSlot?.endTime;
       let bookingDuration = Number(formData.duration) || 1; // Use manual duration from form data first, fallback to 1 hour
@@ -411,17 +412,18 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
           bookingDuration = Number(formData.duration) || 1;
         }
       } else if (formData.duration) {
-        // DEBUG: Log when using manual duration
-        //      }
+        // Use manual duration from form data
+        bookingDuration = Number(formData.duration) || 1;
+      }
       
       // Ensure we have valid time data
       if (!bookingTime || !endTime) {
         throw new Error('Invalid time data: Both start and end times are required');
       }
-        // DEBUG: Log complete form data to understand package selection
-  // Debug data removed for production
+      // DEBUG: Log complete form data to understand package selection
+      // Debug data removed for production
 
-        // Prepare booking data for the context with complete validation
+      // Prepare booking data for the context with complete validation
         // Compute final pricing: deduct package hours if selected
         const plannedHours = bookingDuration;
         const hourlyRate = Number(selectedService.price || 0);
@@ -602,7 +604,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
         
         response = await createBooking(singleBookingData);
       } else {
-        // Fallback to existing single booking logic for backwards compatibility        response = await createBooking(bookingData);
+        // Fallback to existing single booking logic for backwards compatibility
+        response = await createBooking(bookingData);
       }
       
       if (!response) {
@@ -610,7 +613,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
       }
 
       // Check if there's a conflict (before checking for ID)
-      if (response.success === false && response.requiresConfirmation && response.conflictDetails) {        setSubmitStatus({
+      if (response.success === false && response.requiresConfirmation && response.conflictDetails) {
+        setSubmitStatus({
           type: 'conflict',
           message: response.error,
           conflictDetails: response.conflictDetails,
@@ -625,17 +629,28 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
         throw new Error('Booking was created but no ID was returned');
       }
 
-      // Success message logic
-      // DEBUG: Log all relevant data for success message decision      if (formData.participants?.length > 1) {
-        const participantCount = formData.participants.length;        showSuccess(`Group booking created successfully with ${participantCount} participants!`);
+      // Success message logic - based on service type, not just participant count
+      const isGroupLessonService = isGroupService(selectedService);
+      const participantCount = formData.participants?.length || 1;
+      
+      if (isGroupLessonService && participantCount > 1) {
+        // Group lesson with multiple participants
+        showSuccess(`Group lesson booked successfully with ${participantCount} participants!`);
       } else if (formData.participants?.length === 1) {
-        const participant = formData.participants[0];        if (participant.usePackage && participant.selectedPackageId) {          showSuccess(`Booking created successfully for ${participant.userName}! Package hours were used for this booking.`);
-        } else {          showSuccess(`Booking created successfully for ${participant.userName}!`);
+        const participant = formData.participants[0];
+        if (participant.usePackage && participant.selectedPackageId) {
+          showSuccess(`Lesson booked successfully for ${participant.userName} using package hours!`);
+        } else {
+          const lessonType = isGroupLessonService ? 'Group lesson' : 'Private lesson';
+          showSuccess(`${lessonType} booked successfully for ${participant.userName}!`);
         }
       } else if (formData.usePackageHours && formData.selectedPackage) {
-        // Fallback for backwards compatibility        showSuccess(`Booking created successfully for ${formData.userName}! Package hours were used for this booking.`);
+        // Fallback for backwards compatibility
+        showSuccess(`Booking created successfully for ${formData.userName}! Package hours were used for this booking.`);
       } else {
-        // Standard cash payment success message        showSuccess(`Booking created successfully for ${formData.userName}!`);
+        // Standard booking success message
+        const lessonType = isGroupLessonService ? 'Group lesson' : 'Private lesson';
+        showSuccess(`${lessonType} booked successfully for ${formData.userName}!`);
       }
       
       // Calendar data will be updated automatically by the unified refresh system
@@ -650,11 +665,11 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
       handleClose(true);
     } catch (error) {
       // Error logged for debugging in development
-  // Optional debug log removed
       
       // Handle enhanced backend conflict errors with suggestions
       if (error.isConflictError && error.details) {
-        const { details } = error;        setSubmitStatus({
+        const { details } = error;
+        setSubmitStatus({
           type: 'conflict',
           message: details.message,
           conflictingSlot: details.conflictingSlot,
@@ -666,7 +681,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
       }
       
       // Handle 400 status errors as conflicts even if not properly marked
-      if (error.status === 400 || (error.message && error.message.includes('conflict'))) {        setSubmitStatus({
+      if (error.status === 400 || (error.message && error.message.includes('conflict'))) {
+        setSubmitStatus({
           type: 'conflict',
           message: error.details?.message || error.message || 'Time slot conflict detected',
           conflictDetails: error.details,
@@ -678,7 +694,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
       }
       
       // Handle frontend conflict detection fallback (shouldn't happen with backend detection)
-      if (error.message === 'Booking conflict detected' || (error.conflictDetails && error.conflicts)) {        setSubmitStatus({
+      if (error.message === 'Booking conflict detected' || (error.conflictDetails && error.conflicts)) {
+        setSubmitStatus({
           type: 'conflict',
           message: error.message || 'Time slot conflict detected',
           conflictDetails: error.conflictDetails,

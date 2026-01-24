@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Spin, Alert, message, Modal, Space } from 'antd';
 import { 
   CrownOutlined, 
@@ -416,6 +416,13 @@ const MemberOfferings = () => {
   const queryClient = useQueryClient();
   const { formatCurrency, convertCurrency, displayCurrency, businessCurrency } = useCurrency();
   const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { data: offerings = [], isLoading, error } = useQuery({
     queryKey: ['member-offerings'],
@@ -467,14 +474,14 @@ const MemberOfferings = () => {
 
   return (
     <div style={{ 
-      padding: '48px 24px', 
+      padding: isMobile ? '24px 16px' : '48px 24px', 
       maxWidth: '1100px', 
       margin: '0 auto',
       minHeight: 'calc(100vh - 120px)',
     }}>
-      <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+      <div style={{ textAlign: 'center', marginBottom: isMobile ? '32px' : '56px' }}>
         <h1 style={{ 
-          fontSize: '40px', 
+          fontSize: isMobile ? '28px' : '40px', 
           fontWeight: '800', 
           margin: '0 0 16px 0',
           color: '#1a1a1a',
@@ -484,12 +491,13 @@ const MemberOfferings = () => {
         </h1>
         <p style={{ 
           color: '#6b7280', 
-          fontSize: '18px', 
+          fontSize: isMobile ? '15px' : '18px', 
           margin: 0,
           maxWidth: '500px',
           marginLeft: 'auto',
           marginRight: 'auto',
           lineHeight: '1.6',
+          padding: isMobile ? '0 8px' : '0',
         }}>
           Join our membership program and enjoy exclusive perks, discounts, and priority access
         </p>
@@ -515,10 +523,10 @@ const MemberOfferings = () => {
       ) : (
         <div style={{ 
           display: 'grid',
-          gridTemplateColumns: `repeat(${Math.min(offerings.length, 3)}, 1fr)`,
+          gridTemplateColumns: offerings.length === 1 ? '1fr' : offerings.length === 2 ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
           gap: '28px',
           alignItems: 'stretch',
-          maxWidth: offerings.length === 2 ? '700px' : offerings.length === 1 ? '380px' : '100%',
+          maxWidth: offerings.length === 2 ? '740px' : offerings.length === 1 ? '400px' : '100%',
           margin: '0 auto',
         }}>
           {offerings.map((offering) => (
@@ -541,10 +549,14 @@ const MemberOfferings = () => {
         textAlign: 'center', 
         marginTop: '48px',
         color: '#9ca3af',
-        fontSize: '13px',
+        fontSize: isMobile ? '11px' : '13px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: isMobile ? '12px' : '24px',
       }}>
-        <span style={{ marginRight: '24px' }}>✓ Cancel anytime</span>
-        <span style={{ marginRight: '24px' }}>✓ Instant activation</span>
+        <span>✓ Cancel anytime</span>
+        <span>✓ Instant activation</span>
         <span>✓ Secure payment</span>
       </div>
 
@@ -552,10 +564,14 @@ const MemberOfferings = () => {
         .offering-card:hover {
           transform: translateY(-4px);
         }
+        @media (max-width: 1024px) {
+          .offering-card {
+            max-width: 100%;
+          }
+        }
         @media (max-width: 768px) {
           .offering-card {
-            max-width: 400px;
-            margin: 0 auto;
+            max-width: 100%;
           }
         }
       `}</style>

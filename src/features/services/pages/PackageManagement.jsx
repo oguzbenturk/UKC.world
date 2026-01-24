@@ -15,7 +15,6 @@ import {
   Row,
   Col,
   Space,
-  Tabs,
   App,
   Popconfirm,
   Typography,
@@ -85,7 +84,7 @@ function PackageManagementInner() {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [viewMode, setViewMode] = useState('table');
-  const [activeTab, setActiveTab] = useState('all');
+  const [selectedTypes, setSelectedTypes] = useState([]);  // Multi-select filter - empty means all
   
   const { userCurrency, formatCurrency } = useCurrency();
 
@@ -174,10 +173,10 @@ function PackageManagementInner() {
     return PACKAGE_TYPES.find(pt => pt.value === type) || PACKAGE_TYPES[0];
   };
 
-  // Filter packages by type
+  // Filter packages by type (multi-select)
   const getFilteredPackages = () => {
-    if (activeTab === 'all') return packages;
-    return packages.filter(pkg => pkg.packageType === activeTab);
+    if (selectedTypes.length === 0) return packages;  // No filter = show all
+    return packages.filter(pkg => selectedTypes.includes(pkg.packageType));
   };
 
   // Helper to check which features a package type includes
@@ -467,18 +466,17 @@ function PackageManagementInner() {
     );
   };
 
-  // Tab items with package counts
-  const tabItems = [
-    { key: 'all', label: <Badge count={packages.length} offset={[10, 0]}>All Packages</Badge> },
-    ...PACKAGE_TYPES.map(pt => ({
-      key: pt.value,
-      label: (
-        <Badge count={packages.filter(p => p.packageType === pt.value).length} offset={[10, 0]}>
-          <Space>{pt.icon} {pt.label}</Space>
-        </Badge>
-      )
-    }))
-  ];
+  // Package type filter options for multi-select dropdown
+  const filterOptions = PACKAGE_TYPES.map(pt => ({
+    value: pt.value,
+    label: (
+      <Space>
+        {pt.icon} 
+        {pt.label}
+        <Badge count={packages.filter(p => p.packageType === pt.value).length} size="small" />
+      </Space>
+    )
+  }));
 
   const filteredPackages = getFilteredPackages();
 
@@ -499,7 +497,7 @@ function PackageManagementInner() {
           <Button 
             type="primary" 
             icon={<PlusOutlined />}
-            onClick={() => openCreateModal(activeTab === 'all' ? 'lesson' : activeTab)}
+            onClick={() => openCreateModal(selectedTypes.length === 1 ? selectedTypes[0] : 'lesson')}
           >
             Create Package
           </Button>
@@ -507,12 +505,23 @@ function PackageManagementInner() {
       </div>
 
       <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          style={{ marginBottom: 16 }}
-        />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <Text strong className="whitespace-nowrap">Filter by type:</Text>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="All package types"
+            value={selectedTypes}
+            onChange={setSelectedTypes}
+            options={filterOptions}
+            style={{ minWidth: 200, maxWidth: '100%' }}
+            className="flex-1"
+            maxTagCount="responsive"
+          />
+          <Text type="secondary" className="whitespace-nowrap">
+            Showing {filteredPackages.length} of {packages.length} packages
+          </Text>
+        </div>
 
         {loading ? (
           <div className="flex justify-center p-8">
@@ -556,7 +565,7 @@ function PackageManagementInner() {
         }}
         footer={null}
         width={800}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}

@@ -246,11 +246,11 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                 </div>
               </div>
 
-              {/* Center - Active Page Indicator (Outsider & Student) */}
+              {/* Center - Active Page Indicator (All Roles) */}
               <div className="flex-grow flex items-center justify-center">
-                {(user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && (() => {
+                {(() => {
                   try {
-                    const navItems = getNavItemsForRole(user.role, user.permissions);
+                    const navItems = getNavItemsForRole(user?.role, user?.permissions);
                     let currentPath = location.pathname;
                     
                     // Don't show anything on root path or login
@@ -259,38 +259,58 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                     }
                     
                     // Map special paths to their parent sections
-                    // /book is the outsider booking page which belongs to Academy
                     const pathToSectionMap = {
                       '/book': '/academy',
-                      '/members/offerings': '/members/offerings', // Membership section
+                      '/members/offerings': '/members/offerings',
                     };
                     
                     // Use mapped path if available for matching
                     const matchPath = pathToSectionMap[currentPath] || currentPath;
                     
-                    // Find the matching nav item based on current path
-                    let activeItem = navItems.find(item => {
-                      // Check if current path starts with the item path
-                      if (item.to && (matchPath === item.to || matchPath.startsWith(item.to + '/'))) {
-                        return true;
-                      }
-                      // Check subitems
+                    // Find the matching nav item and sub-item
+                    let activeItem = null;
+                    let activeSubItem = null;
+                    
+                    for (const item of navItems) {
+                      // Check subitems first (more specific match)
+                      // Sort by path length descending to match most specific first
                       if (item.subItems) {
-                        return item.subItems.some(sub => matchPath === sub.to || matchPath.startsWith(sub.to + '/'));
+                        const sortedSubItems = [...item.subItems].sort((a, b) => 
+                          (b.to?.length || 0) - (a.to?.length || 0)
+                        );
+                        const matchedSub = sortedSubItems.find(sub => 
+                          matchPath === sub.to || matchPath.startsWith(sub.to + '/')
+                        );
+                        if (matchedSub) {
+                          activeItem = item;
+                          activeSubItem = matchedSub;
+                          break;
+                        }
                       }
-                      return false;
-                    });
+                      // Check main item path
+                      if (item.to && (matchPath === item.to || matchPath.startsWith(item.to + '/'))) {
+                        activeItem = item;
+                        break;
+                      }
+                    }
 
                     // No match found - don't show anything
-                    if (!activeItem || !activeItem.customStyle) return null;
+                    if (!activeItem) return null;
+
+                    // Determine what to display
+                    // If we have a sub-item, show the sub-item label
+                    // Otherwise show the main item label
+                    const displayLabel = activeSubItem?.label || activeItem.label;
+                    const dotColor = activeSubItem?.dotColor || activeItem.customStyle?.dotColor || '#2d6a3e';
+                    const textColor = activeSubItem?.dotColor || activeItem.customStyle?.textColor || '#64748b';
 
                     return (
-                      <div className="flex items-center">
+                      <div className="flex items-center max-w-[120px] sm:max-w-[200px] md:max-w-none overflow-hidden">
                         <span
-                          className="animate-pulse"
+                          className="animate-pulse flex-shrink-0"
                           style={{
-                            color: activeItem.customStyle.dotColor,
-                            fontSize: '1.75rem',
+                            color: dotColor,
+                            fontSize: '1.25rem',
                             marginRight: '0.25rem',
                             lineHeight: 1
                           }}
@@ -298,10 +318,11 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                           •
                         </span>
                         <span
-                          className="font-bold whitespace-nowrap"
-                          style={{ color: activeItem.customStyle.textColor, fontSize: '1.25rem', letterSpacing: '0.02em' }}
+                          className="font-bold whitespace-nowrap text-sm sm:text-base md:text-lg lg:text-xl truncate"
+                          style={{ color: textColor, letterSpacing: '0.02em' }}
+                          title={displayLabel}
                         >
-                          {activeItem.label}
+                          {displayLabel}
                         </span>
                       </div>
                     );
@@ -327,15 +348,6 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
               
                 {/* Real-time Status Indicator */}
                 <NotificationBell />
-                {isAuthenticated && (
-                  <StudentWalletTriggerButton
-                    onClick={handleWalletClick}
-                    variant="navbar"
-                    currency={preferredCurrency}
-                    balance={walletBalance}
-                    className="!px-2.5 !py-1.5 sm:!px-4 sm:!py-2"
-                  />
-                )}
                 <div className="hidden md:flex">
                   <RealTimeStatusIndicator />
                 </div>
@@ -394,6 +406,22 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                       >
                         My Profile
                       </NavLink>
+                      {isAuthenticated && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleWalletClick();
+                            setIsProfileDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          role="menuitem"
+                        >
+                          <span>My Wallet</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {walletBalance !== undefined && preferredCurrency ? `${preferredCurrency.symbol}${walletBalance.toFixed(2)}` : '...'}
+                          </span>
+                        </button>
+                      )}
                       <NavLink
                         to="/settings"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
@@ -405,18 +433,6 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                         }}
                       >
                         Settings
-                      </NavLink>
-                      <NavLink
-                        to="/marketing"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
-                        role="menuitem"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setIsProfileDropdownOpen(false);
-                          navigate('/marketing');
-                        }}
-                      >
-                        Marketing & Popups
                       </NavLink>
                       <NavLink
                         to="/notifications"

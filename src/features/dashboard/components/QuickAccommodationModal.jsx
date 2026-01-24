@@ -200,26 +200,37 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
           {/* Selected Accommodation Preview */}
           {selectedAccommodation && (
             <Card size="small" className="mb-4 bg-purple-50 border-purple-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium text-purple-800">{selectedAccommodation.name}</h4>
-                  <p className="text-sm text-purple-600">
-                    {selectedAccommodation.description?.slice(0, 100) || 'No description'}
-                  </p>
-                  <Space className="mt-2">
-                    <Tag icon={<TeamOutlined />} color="purple">
-                      Max {selectedAccommodation.capacity || 2} guests
-                    </Tag>
-                    {selectedAccommodation.amenities?.slice(0, 3).map((amenity) => (
-                      <Tag key={amenity}>{amenity}</Tag>
-                    ))}
-                  </Space>
+              <div className="flex flex-col gap-3">
+                {/* Header Row - Name and Price */}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-semibold text-purple-800 text-base mb-0">
+                      {selectedAccommodation.name}
+                    </h4>
+                    <p className="text-sm text-purple-600 mb-0 mt-0.5">
+                      {selectedAccommodation.description?.slice(0, 80) || 'No description'}
+                      {selectedAccommodation.description?.length > 80 && '...'}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-4">
+                    <span className="text-xl font-bold text-purple-600">
+                      {formatCurrency(selectedAccommodation.price_per_night, businessCurrency)}
+                    </span>
+                    <p className="text-xs text-purple-500 mb-0">per night</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-bold text-purple-600">
-                    {formatCurrency(selectedAccommodation.price_per_night, businessCurrency)}
-                  </span>
-                  <p className="text-sm text-purple-500">per night</p>
+                
+                {/* Info Row - Capacity and Amenities */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tag icon={<TeamOutlined />} color="purple" className="m-0">
+                    Max {selectedAccommodation.capacity || 2} guests
+                  </Tag>
+                  {selectedAccommodation.amenities?.slice(0, 4).map((amenity) => (
+                    <Tag key={amenity} className="m-0">{amenity}</Tag>
+                  ))}
+                  {selectedAccommodation.amenities?.length > 4 && (
+                    <Tag className="m-0">+{selectedAccommodation.amenities.length - 4} more</Tag>
+                  )}
                 </div>
               </div>
             </Card>

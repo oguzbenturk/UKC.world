@@ -801,7 +801,7 @@ router.get('/:id', async (req, res) => {
 // POST /bookings - Create booking with proper package/individual lesson logic
 router.post('/', 
   authenticateJWT, 
-  authorizeRoles(['admin', 'manager', 'instructor', 'student', 'outsider']),
+  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student', 'outsider']),
   requireWaiver,
   checkFamilyMemberWaiver,
   async (req, res) => {
@@ -837,6 +837,11 @@ router.post('/',
       parsed: parseFloat(duration),
       fallback: parseFloat(duration) || 1
     });
+    
+    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
+    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker;
     
     // Validate required fields
     if (!date) {
@@ -1111,6 +1116,7 @@ router.post('/',
           relatedEntityType: 'booking',
           relatedEntityId: booking.id,
           createdBy: actorId,
+          allowNegative: allowNegativeBalance, // Staff can book even if customer has no balance
           client
         });
       } catch (walletError) {
@@ -1139,6 +1145,7 @@ router.post('/',
           relatedEntityType: 'booking',
           relatedEntityId: booking.id,
           createdBy: actorId,
+          allowNegative: allowNegativeBalance, // Staff can book even if customer has no balance
           client
         });
       }
@@ -1338,7 +1345,7 @@ router.post('/',
 // POST /bookings/group - Create group booking with multiple participants
 router.post('/group', 
   authenticateJWT, 
-  authorizeRoles(['admin', 'manager', 'instructor', 'student']),
+  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student']),
   async (req, res) => {
   const client = await pool.connect();
   
@@ -1352,8 +1359,13 @@ router.post('/group',
       date, start_hour, duration, instructor_user_id, 
       status, notes, location, equipment_ids, service_id,
       participants, // Array of participant objects with payment info
-      allowNegativeBalance // Allow wallet balance to go negative if explicitly set
+      allowNegativeBalance: requestedAllowNegative // Allow wallet balance to go negative if explicitly set
     } = req.body;
+
+    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
+    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker;
 
     // Debug: Log duration received in group booking backend
     console.log('🔍 BACKEND GROUP BOOKING - Received duration:', {

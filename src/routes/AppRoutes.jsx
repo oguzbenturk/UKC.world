@@ -69,6 +69,7 @@ import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPag
 import KiteLessonsPage from '../features/outsider/pages/KiteLessonsPage';
 import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
 import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
+import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
 import RentalStandardPage from '../features/outsider/pages/RentalStandardPage';
 import RentalPremiumPage from '../features/outsider/pages/RentalPremiumPage';
 // Stay pages
@@ -111,11 +112,17 @@ import FinanceLessons from '../features/finances/pages/FinanceLessons';
 import FinanceRentals from '../features/finances/pages/FinanceRentals';
 import FinanceMembership from '../features/finances/pages/FinanceMembership';
 import FinanceShop from '../features/finances/pages/FinanceShop';
+import FinanceAccommodation from '../features/finances/pages/FinanceAccommodation';
+import FinanceEvents from '../features/finances/pages/FinanceEvents';
 import FinanceDailyOperations from '../features/finances/pages/FinanceDailyOperations';
 import ExpensesPage from '../features/finances/pages/ExpensesPage';
 
 // Shop Order Management
 import OrderManagement from '../features/dashboard/pages/OrderManagement';
+import ShopOrdersPage from '../features/services/pages/ShopOrdersPage';
+
+// Admin Members
+import AdminMembersPage from '../features/members/pages/AdminMembersPage';
 
 import { hasPermission, ROLES } from '../shared/utils/roleUtils';
 import { featureFlags } from '../shared/config/featureFlags';
@@ -247,6 +254,7 @@ const AppRoutes = () => {
         <Route path="/academy/kite-lessons" element={<KiteLessonsPage />} />
         <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
         <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
+        <Route path="/academy/premium-lessons" element={<PremiumLessonsPage />} />
         <Route path="/rental/standard" element={<RentalStandardPage />} />
         <Route path="/rental/premium" element={<RentalPremiumPage />} />
         {/* Stay pages */}
@@ -355,7 +363,9 @@ const AppRoutes = () => {
         <Route path="/calendars" element={<Navigate to="/calendars/lessons" replace />} />
         <Route path="/calendars/lessons" element={<LessonsCalendar />} />
         <Route path="/calendars/rentals" element={<RentalsCalendar />} />
-
+        <Route path="/calendars/members" element={<AdminMembersPage />} />
+        <Route path="/calendars/stay" element={<AccommodationBookingPage />} />
+        <Route path="/calendars/shop-orders" element={<ShopOrdersPage />} />
         <Route path="/calendars/events" element={<EventsCalendar />} />
         {/* Rentals calendar view */}
         <Route path="/rentals/calendar" element={<RentalsCalendarView />} />
@@ -376,7 +386,10 @@ const AppRoutes = () => {
         <Route path="/finance/rentals" element={<FinanceRentals />} />
         <Route path="/finance/membership" element={<FinanceMembership />} />
         <Route path="/finance/shop" element={<FinanceShop />} />
+        <Route path="/finance/accommodation" element={<FinanceAccommodation />} />
+        <Route path="/finance/events" element={<FinanceEvents />} />
         <Route path="/finance/daily-operations" element={<FinanceDailyOperations />} />
+        <Route path="/finance/payment-history" element={<FinanceDailyOperations />} />
         <Route path="/finance/expenses" element={<ExpensesPage />} />
       </Route>
         {/* User profile and settings routes - all authenticated users can access */}

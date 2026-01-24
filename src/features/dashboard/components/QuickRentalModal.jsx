@@ -8,10 +8,7 @@ import {
   Form, 
   Select, 
   DatePicker, 
-  InputNumber, 
   Button, 
-  Row, 
-  Col, 
   Space,
   Divider,
   Tag,
@@ -51,17 +48,21 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
           serviceApi.getServices()
         ]);
 
-        // Filter customers (students and customers)
+        // Filter customers only (not staff - admin, manager, instructor, front_desk)
         const users = Array.isArray(usersRes.data) ? usersRes.data : [];
-        const customersOnly = users.filter(
-          (user) => !user.user_role || user.user_role === 'student' || user.user_role === 'customer' || user.user_role === 'outsider'
-        );
+        const staffRoles = ['admin', 'manager', 'instructor', 'front_desk', 'developer'];
+        const customersOnly = users.filter((user) => {
+          const role = (user.user_role || user.role || '').toLowerCase();
+          return !staffRoles.includes(role);
+        });
         setCustomers(customersOnly);
 
-        // Filter rental equipment
-        const rentalEquipment = (servicesData || []).filter(
-          (s) => s.service_type === 'rental' && s.status === 'active'
-        );
+        // Filter rental equipment by category (rentals are stored with category='rentals')
+        const rentalEquipment = (servicesData || []).filter((s) => {
+          const category = (s.category || '').toLowerCase();
+          const serviceType = (s.serviceType || s.service_type || '').toLowerCase();
+          return category === 'rentals' || category === 'rental' || serviceType === 'rental';
+        });
         setEquipment(rentalEquipment);
       } catch {
         message.error('Failed to load data');
@@ -80,17 +81,16 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
     }
   }, [open, form]);
 
-  // Calculate total price
+  // Calculate total price based on equipment selection
   const calculateTotal = useCallback(() => {
     const values = form.getFieldsValue();
     const equipmentIds = values.equipment_ids || [];
-    const duration = values.duration || 1;
 
     let total = 0;
     equipmentIds.forEach(id => {
       const item = equipment.find(e => e.id === id);
       if (item) {
-        total += (item.price || 0) * duration;
+        total += (item.price || 0);
       }
     });
 
@@ -105,8 +105,6 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
         user_id: values.customer_id,
         equipment_ids: values.equipment_ids,
         start_date: values.start_date.format('YYYY-MM-DD'),
-        end_date: values.end_date?.format('YYYY-MM-DD') || values.start_date.format('YYYY-MM-DD'),
-        duration: values.duration || 1,
         total_price: calculateTotal(),
         status: 'active',
         notes: values.notes
@@ -146,8 +144,7 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={{
-            start_date: dayjs(),
-            duration: 1
+            start_date: dayjs()
           }}
         >
           {/* Customer Selection */}
@@ -195,37 +192,17 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
             </Select>
           </Form.Item>
 
-          <Row gutter={16}>
-            {/* Start Date */}
-            <Col span={12}>
-              <Form.Item
-                name="start_date"
-                label={<><CalendarOutlined /> Start Date</>}
-                rules={[{ required: true }]}
-              >
-                <DatePicker 
-                  className="w-full" 
-                  disabledDate={(current) => current && current < dayjs().startOf('day')}
-                />
-              </Form.Item>
-            </Col>
-
-            {/* Duration */}
-            <Col span={12}>
-              <Form.Item
-                name="duration"
-                label="Duration (hours)"
-                rules={[{ required: true }]}
-              >
-                <InputNumber 
-                  min={1} 
-                  max={24} 
-                  className="w-full"
-                  onChange={() => form.setFieldsValue({})} // Trigger re-render for total
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+          {/* Start Date - Defaults to today */}
+          <Form.Item
+            name="start_date"
+            label={<><CalendarOutlined /> Start Date</>}
+            rules={[{ required: true }]}
+          >
+            <DatePicker 
+              className="w-full" 
+              disabledDate={(current) => current && current < dayjs().startOf('day')}
+            />
+          </Form.Item>
 
           <Divider />
 

@@ -125,8 +125,8 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         description: 'Point of sale for products, gear, and merchandise',
         icon: ShoppingCartOutlined,
         color: 'pink',
-        permissions: ['products:read', 'products:write'],
-        primaryAction: { label: 'Open Shop', to: '/services/shop' },
+        permissions: [], // Available to all dashboard users (especially Front Desk)
+        primaryAction: createAction('Quick Sale', '/services/shop', 'newShopSale'),
         secondaryActions: [
           { label: 'Products', to: '/services/shop' }
         ],
@@ -140,9 +140,10 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         description: 'Member offerings, subscriptions and loyalty programs',
         icon: CrownOutlined,
         color: 'amber',
-        permissions: ['users:read', 'finances:read'],
-        primaryAction: { label: 'Members', to: '/members' },
+        permissions: [],
+        primaryAction: createAction('Register New Member', '/members', 'newMembership'),
         secondaryActions: [
+          { label: 'All Members', to: '/members' },
           { label: 'Offerings', to: '/services/memberships' }
         ],
         order: 6

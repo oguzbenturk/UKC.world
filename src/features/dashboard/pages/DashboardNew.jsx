@@ -41,6 +41,8 @@ const StepBookingModal = lazy(() => import('@/features/bookings/components/compo
 const QuickRentalModal = lazy(() => import('../components/QuickRentalModal'));
 const QuickCustomerModal = lazy(() => import('../components/QuickCustomerModal'));
 const QuickAccommodationModal = lazy(() => import('../components/QuickAccommodationModal'));
+const QuickShopSaleModal = lazy(() => import('../components/QuickShopSaleModal'));
+const QuickMembershipModal = lazy(() => import('../components/QuickMembershipModal'));
 
 // Import CalendarProvider for StepBookingModal context
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
@@ -756,6 +758,8 @@ function Dashboard() {
     const [showRentalModal, setShowRentalModal] = useState(false);
     const [showCustomerModal, setShowCustomerModal] = useState(false);
     const [showAccommodationModal, setShowAccommodationModal] = useState(false);
+    const [showShopSaleModal, setShowShopSaleModal] = useState(false);
+    const [showMembershipModal, setShowMembershipModal] = useState(false);
 
     // Analytics panel expansion state - persisted in localStorage
     const ANALYTICS_PREFS_KEY = 'dashboard_analytics_expanded_panels';
@@ -792,6 +796,8 @@ function Dashboard() {
         newRental: () => setShowRentalModal(true),
         newCustomer: () => setShowCustomerModal(true),
         newAccommodation: () => setShowAccommodationModal(true),
+        newShopSale: () => setShowShopSaleModal(true),
+        newMembership: () => setShowMembershipModal(true),
     }), []);
 
     // Handle successful modal submissions
@@ -954,6 +960,11 @@ function Dashboard() {
         const rentalRoles = ['admin', 'manager', 'developer'];
         return rentalRoles.includes(user?.role) || userPermissions.includes('equipment:rental');
     }, [user?.role, userPermissions]);
+
+    // Hide welcome header for front desk role - they need quick actions only
+    const showWelcomeHeader = useMemo(() => {
+        return user?.role !== 'front_desk';
+    }, [user?.role]);
 
     const highlightCards = useMemo(() => {
         const items = [
@@ -1119,7 +1130,8 @@ function Dashboard() {
                 }
             `}</style>
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-                {/* Hero Header */}
+                {/* Hero Header - hidden for front desk role */}
+                {showWelcomeHeader && (
                 <div className="animate-slide-in-down">
                     <Card
                         className="dashboard-card rounded-3xl border border-white/40 bg-gradient-to-br from-white/90 to-white/60 shadow-lg"
@@ -1156,6 +1168,7 @@ function Dashboard() {
                         </div>
                     </Card>
                 </div>
+                )}
 
                 {/* Quick Actions Mode */}
                 {viewMode === 'actions' && (
@@ -1474,6 +1487,32 @@ function Dashboard() {
                         onClose={() => setShowAccommodationModal(false)}
                         onSuccess={() => {
                             setShowAccommodationModal(false);
+                            handleModalSuccess();
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={<Spin />}>
+                {showShopSaleModal && (
+                    <QuickShopSaleModal
+                        open={showShopSaleModal}
+                        onClose={() => setShowShopSaleModal(false)}
+                        onSuccess={() => {
+                            setShowShopSaleModal(false);
+                            handleModalSuccess();
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <Suspense fallback={<Spin />}>
+                {showMembershipModal && (
+                    <QuickMembershipModal
+                        open={showMembershipModal}
+                        onClose={() => setShowMembershipModal(false)}
+                        onSuccess={() => {
+                            setShowMembershipModal(false);
                             handleModalSuccess();
                         }}
                     />

@@ -80,7 +80,7 @@ const getNavItemPermissionKey = (path, label) => {
   
   if (p.includes('dashboard') || l === 'dashboard') return 'dashboard';
   if (p.includes('calendar') || l === 'academy') return 'academy';
-  if (p.includes('member') || l === 'membership') return 'membership';
+  if (p.includes('member') || l === 'member' || l === 'membership') return 'membership';
   if (p.includes('customer') || l === 'customers') return 'customers';
   if (p.includes('instructor') || l === 'instructors') return 'instructors';
   if (p.includes('shop') || l === 'shop') return 'shop';
@@ -117,10 +117,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/academy', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
         subItems: [
-          { to: '/academy/book-service', label: 'Book a Service' },
           { to: '/academy/kite-lessons', label: 'Kite Lessons' },
           { to: '/academy/foil-lessons', label: 'Foil Lessons' },
-          { to: '/academy/wing-lessons', label: 'Wing Lessons' }
+          { to: '/academy/wing-lessons', label: 'Wing Lessons' },
+          { to: '/academy/premium-lessons', label: 'Premium Lessons' }
         ]
       }),
       item('/rental', 'Rental', 'CubeIcon', {
@@ -130,7 +130,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/rental/premium', label: 'Premium Equipment' }
         ]
       }),
-      item('/members/offerings', 'Membership', 'UsersIcon', {
+      item('/members/offerings', 'Member', 'UsersIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
       }),
       item('/repairs', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
@@ -147,17 +147,18 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/experience', 'Experience', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
         subItems: [
-          { to: '/experience/book-package', label: 'Book Package' },
           { to: '/experience/kite-packages', label: 'Kite Packages' },
           { to: '/experience/wing-packages', label: 'Wing Packages' },
           { to: '/experience/downwinders', label: 'DownWinders' },
           { to: '/experience/camps', label: 'Camps' }
         ]
       }),
-      item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue
+      // Community/Events - Sky Blue (icon only, with Chat and Events as subcategories)
+      item('/community', 'Community/Events', 'ChatBubbleLeftRightIcon', {
+        customStyle: { textColor: '#0ea5e9' },
         subItems: [
-          { to: '/community/news', label: 'News' }
+          { to: '/chat', label: 'Chat', icon: 'ChatBubbleLeftRightIcon' },
+          { to: '/services/events', label: 'Events', icon: 'CalendarDaysIcon' }
         ]
       })
     ];
@@ -196,7 +197,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/rental/my-rentals', label: 'My Equipment Rentals' }
         ]
       }),
-      item('/members/offerings', 'Membership', 'SparklesIcon', {
+      item('/members/offerings', 'Member', 'SparklesIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
       }),
       item('/stay', 'Stay', 'HomeIcon', {
@@ -211,7 +212,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/experience', 'Experience', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
         subItems: [
-          { to: '/experience/book-package', label: 'Book Package' },
           { to: '/student/courses', label: 'My Packages' },
           { to: '/experience/kite-packages', label: 'Kite Packages' },
           { to: '/experience/wing-packages', label: 'Wing Packages' },
@@ -225,21 +225,22 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/repairs', label: 'Equipment Repairs' }
         ]
       }),
-      item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue
+      // Community/Events - Sky Blue (icon only, with Chat and Events as subcategories)
+      item('/community', 'Community/Events', 'ChatBubbleLeftRightIcon', {
+        customStyle: { textColor: '#0ea5e9' },
         subItems: [
-          { to: '/chat', label: 'Messages' },
-          { to: '/services/events', label: 'Events' }
+          { to: '/chat', label: 'Chat', icon: 'ChatBubbleLeftRightIcon' },
+          { to: '/services/events', label: 'Events', icon: 'CalendarDaysIcon' }
         ]
       }),
-      item('/student/payments', 'Payments', 'CurrencyDollarIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#10b981' } // emerald
+      item('/student/payments', 'Wallet Payments', 'WalletIcon', {
+        customStyle: { textColor: '#10b981' } // emerald
       }),
-      item('/student/support', 'Support', 'QuestionMarkCircleIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#f59e0b' } // amber
+      item('/student/support', 'Support', 'LifebuoyIcon', {
+        customStyle: { textColor: '#f59e0b' } // amber
       }),
-      item('/student/profile', 'Profile', 'UsersIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#64748b' }, // slate
+      item('/student/profile', 'Profile', 'UserCircleIcon', {
+        customStyle: { textColor: '#cbd5e1' }, // slate-300 (matches logout in dark mode)
         subItems: [
           { to: '/student/profile', label: 'Profile Overview' },
           { to: '/student/family', label: 'Family' }
@@ -281,8 +282,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/services/events', label: 'Events' }
         ]
       }),
-      // Membership - Pistachio Green
-      item('/members/offerings', 'Membership', 'SparklesIcon', {
+      // Member - Pistachio Green
+      item('/members/offerings', 'Member', 'SparklesIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
       }),
       // Repairs - Teal
@@ -302,91 +303,82 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 
   if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
     return [
-      // Dashboard - Blue
+      // Dashboard - Blue (icon only)
       item('/dashboard', 'Dashboard', 'HomeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
+        customStyle: { textColor: '#3b82f6' }
       }),
-      // Shop - Pink - NOW AT TOP with full UKC experience
+      // Customers - Cyan (icon only)
+      item('/customers', 'Customers', 'UsersIcon', {
+        customStyle: { textColor: '#06b6d4' }
+      }),
+      // Instructors - Yellow (icon only)
+      item('/instructors', 'Instructors', 'AcademicCapIcon', {
+        customStyle: { textColor: '#eab308' }
+      }),
+      // Calendars - Teal (icon only)
+      item('/calendars', 'Calendars', 'CalendarDaysIcon', {
+        customStyle: { textColor: '#14b8a6' },
+        subItems: [
+          { to: '/calendars/lessons', label: 'Academy', dotColor: '#4ade80' },
+          { to: '/calendars/rentals', label: 'Rental', dotColor: '#fb923c' },
+          { to: '/calendars/members', label: 'Member', dotColor: '#93c47d' },
+          { to: '/calendars/stay', label: 'Stay', dotColor: '#8b5cf6' },
+          { to: '/repairs', label: 'Care', dotColor: '#14b8a6' },
+          { to: '/calendars/shop-orders', label: 'Shop', dotColor: '#ec4899' }
+        ]
+      }),
+      // Services Parameters - Orange (renamed, icon only, no dots in subitems)
+      item('/services', 'Services Parameters', 'CogIcon', {
+        customStyle: { textColor: '#fb923c' },
+        subItems: [
+          { to: '/services/lessons', label: 'Lessons', icon: 'AcademicCapIcon' },
+          { to: '/services/rentals', label: 'Rentals', icon: 'CubeIcon' },
+          { to: '/services/packages', label: 'Packages', icon: 'CubeIcon' },
+          { to: '/services/accommodation', label: 'Accommodation', icon: 'HomeIcon' },
+          { to: '/services/shop', label: 'Shop', icon: 'ShoppingBagIcon' },
+          { to: '/services/memberships', label: 'Memberships', icon: 'SparklesIcon' },
+          { to: '/calendars/events', label: 'Events', icon: 'CalendarDaysIcon' }
+        ]
+      }),
+      // Finance - Emerald (icon only, no dot)
+      item('/finance', 'Finance', 'CurrencyDollarIcon', {
+        customStyle: { textColor: '#10b981' },
+        subItems: [
+          { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' },
+          { to: '/finance/lessons', label: 'Lessons', icon: 'AcademicCapIcon' },
+          { to: '/finance/rentals', label: 'Rentals', icon: 'CubeIcon' },
+          { to: '/finance/membership', label: 'Member', icon: 'SparklesIcon' },
+          { to: '/finance/accommodation', label: 'Accommodation', icon: 'HomeIcon' },
+          { to: '/finance/events', label: 'Events', icon: 'CalendarDaysIcon' },
+          { to: '/finance/shop', label: 'Shop', icon: 'ShoppingBagIcon' },
+          { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
+          { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' }
+        ]
+      }),
+      // Marketing - Rose (icon only, no dot)
+      item('/marketing', 'Marketing', 'MegaphoneIcon', {
+        customStyle: { textColor: '#f43f5e' },
+        subItems: [
+          { to: '/marketing', label: 'Marketing Dashboard', icon: 'PresentationChartBarIcon' },
+          { to: '/quick-links', label: 'Quick Links', icon: 'SparklesIcon' }
+        ]
+      }),
+      // Rating Analytics - Amber (icon only, no dot)
+      item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
+        customStyle: { textColor: '#f59e0b' }
+      }),
+      // Community/Events - Sky Blue (icon only, with Chat and Events as subcategories)
+      item('/community', 'Community/Events', 'ChatBubbleLeftRightIcon', {
+        customStyle: { textColor: '#0ea5e9' },
+        subItems: [
+          { to: '/chat', label: 'Chat', icon: 'ChatBubbleLeftRightIcon' },
+          { to: '/services/events', label: 'Events', icon: 'CalendarDaysIcon' }
+        ]
+      }),
+      // Shop - Pink with dot (at bottom after Community)
       item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
-        isShopLink: true,
-        subItems: [
-          { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wing-foil', label: 'Wing Foil' },
-          { to: '/shop/e-foil', label: 'E-Foil' },
-          { to: '/shop/wetsuits', label: 'Wetsuits' },
-          { to: '/shop/ion-accs', label: 'ION ACCS' },
-          { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
-        ]
-      }),
-      // Academy - Light Green (contains Lessons, Rentals, Events, Inventory)
-      item('/calendars', 'Academy', 'AcademicCapIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
-        subItems: [
-          { to: '/calendars/lessons', label: 'Lessons' },
-          { to: '/calendars/rentals', label: 'Rentals' },
-          { to: '/services/events', label: 'Events' },
-          { to: '/inventory', label: 'Inventory' }
-        ]
-      }),
-      // Membership - Pistachio Green
-      item('/members/offerings', 'Membership', 'SparklesIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
-      }),
-      // Customers - Cyan
-      item('/customers', 'Customers', 'UsersIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#06b6d4' }
-      }),
-      // Instructors - Yellow
-      item('/instructors', 'Instructors', 'AcademicCapIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }
-      }),
-      // Services Settings - Orange
-      item('/services', 'Services Settings', 'CogIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' },
-        subItems: [
-          { to: '/services/lessons', label: 'Lesson Parameters' },
-          { to: '/services/rentals', label: 'Rental Parameters' },
-          { to: '/services/packages', label: 'Package Manager' },
-          { to: '/services/accommodation', label: 'Accommodation' },
-          { to: '/services/shop', label: 'Shop Management' },
-          { to: '/services/memberships', label: 'Memberships' },
-          { to: '/services/categories', label: 'Category Parameters' },
-          { to: '/calendars/events', label: 'Event Manager' }
-        ]
-      }),
-      // Finance - Emerald
-      item('/finance', 'Finance', 'CurrencyDollarIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#10b981' },
-        subItems: [
-          { to: '/finance', label: 'Overall' },
-          { to: '/finance/lessons', label: 'Lessons' },
-          { to: '/finance/rentals', label: 'Rentals' },
-          { to: '/finance/membership', label: 'Membership' },
-          { to: '/finance/shop', label: 'Shop' },
-          { to: '/finance/daily-operations', label: 'Daily Operations' },
-          { to: '/finance/expenses', label: 'Expenses' }
-        ]
-      }),
-      // Care - Teal (more visible than dark green)
-      item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
-      }),
-      // Marketing - Rose (with QuickLinks dropdown)
-      item('/marketing', 'Marketing', 'MegaphoneIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#f43f5e' },
-        subItems: [
-          { to: '/marketing', label: 'Marketing Dashboard' },
-          { to: '/quick-links', label: 'Quick Links' }
-        ]
-      }),
-      // Rating Analytics - Amber
-      item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#f59e0b' }
-      }),
-      // Chat - Sky Blue
-      item('/chat', 'Chat', 'ChatBubbleLeftRightIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
+        isShopLink: true
       })
     ];
   }
@@ -395,7 +387,15 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
   // filtered by their actual permissions from the database.
   // All items with full styling - only items they have permissions for will show.
   const allStaffNavItems = [
-    // Shop - Pink - TOP POSITION (requires shop or finances permissions)
+    // Dashboard - No dot, icon only, slate color (matches logout)
+    item('/dashboard', 'Dashboard', 'HomeIcon', {
+      customStyle: { textColor: '#cbd5e1' }
+    }),
+    // Customers - No dot, icon only, slate color (matches logout)
+    item('/customers', 'Customers', 'UsersIcon', {
+      customStyle: { textColor: '#cbd5e1' }
+    }),
+    // Shop - Pink - 3rd position
     item('/shop', 'Shop', 'ShoppingBagIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
       isShopLink: true,
@@ -408,10 +408,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
       ]
     }),
-    // Dashboard - Blue (visible to all staff)
-    item('/dashboard', 'Dashboard', 'HomeIcon', {
-      customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
-    }),
     // Academy - Light Green (requires bookings or equipment permissions)
     item('/calendars', 'Academy', 'AcademicCapIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
@@ -422,13 +418,9 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         { to: '/inventory', label: 'Inventory' }
       ]
     }),
-    // Membership - Pistachio Green (requires users permissions)
-    item('/members/offerings', 'Membership', 'SparklesIcon', {
+    // Member - Pistachio Green (requires users permissions)
+    item('/members/offerings', 'Member', 'SparklesIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
-    }),
-    // Customers - Cyan (requires users permissions)
-    item('/customers', 'Customers', 'UsersIcon', {
-      customStyle: { dotColor: '#2d6a3e', textColor: '#06b6d4' }
     }),
     // Instructors - Yellow (requires instructors permissions)
     item('/instructors', 'Instructors', 'AcademicCapIcon', {
@@ -477,9 +469,13 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#f59e0b' }
     }),
-    // Chat - Sky Blue (requires notifications permissions)
-    item('/chat', 'Chat', 'ChatBubbleLeftRightIcon', {
-      customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
+    // Community/Events - Sky Blue (requires notifications permissions)
+    item('/community', 'Community/Events', 'ChatBubbleLeftRightIcon', {
+      customStyle: { textColor: '#0ea5e9' },
+      subItems: [
+        { to: '/chat', label: 'Chat', icon: 'ChatBubbleLeftRightIcon' },
+        { to: '/services/events', label: 'Events', icon: 'CalendarDaysIcon' }
+      ]
     })
   ];
   
@@ -505,12 +501,13 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
     return [
       item('/admin', 'Settings', 'CogIcon', {
         subItems: [
-          { to: '/admin/roles', label: 'Roles' },
-          { to: '/admin/waivers', label: 'Waivers' },
-          { to: '/admin/vouchers', label: 'Vouchers' },
-          { to: '/admin/spare-parts', label: 'Spare Parts' },
-          { to: '/admin/deleted-bookings', label: 'Deleted Bookings' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions' }
+          { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
+          { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
+          { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
+          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' },
+          { to: '/admin/spare-parts', label: 'Spare Parts', icon: 'WrenchScrewdriverIcon' },
+          { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
+          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]
       })
     ];
@@ -521,12 +518,13 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
     return [
       item('/admin', 'Settings', 'CogIcon', {
         subItems: [
-          { to: '/admin/roles', label: 'Roles' },
-          { to: '/admin/waivers', label: 'Waivers' },
-          { to: '/admin/vouchers', label: 'Vouchers' },
-          { to: '/admin/spare-parts', label: 'Spare Parts' },
-          { to: '/admin/deleted-bookings', label: 'Deleted Bookings' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions' }
+          { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
+          { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
+          { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
+          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' },
+          { to: '/admin/spare-parts', label: 'Spare Parts', icon: 'WrenchScrewdriverIcon' },
+          { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
+          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]
       })
     ];

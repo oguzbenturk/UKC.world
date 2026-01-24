@@ -28,7 +28,10 @@ import {
   ArrowLeftIcon,
   SparklesIcon,
   MagnifyingGlassIcon,
-  FunnelIcon
+  FunnelIcon,
+  WalletIcon,
+  LifebuoyIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
@@ -212,7 +215,10 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     WrenchScrewdriverIcon,
     MegaphoneIcon,
     ChatBubbleLeftRightIcon,
-    SparklesIcon
+    SparklesIcon,
+    WalletIcon,
+    LifebuoyIcon,
+    UserCircleIcon
   };
 
   let currentRole = undefined;
@@ -266,6 +272,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
             <span style={{ color: '#2d6a3e', fontSize: '1.75rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
             <span style={{ color: '#ec4899', letterSpacing: '0.02em', fontSize: '1.25rem' }}>Shop</span>
           </div>
+        </div>
+
+        {/* Back to Menu Button - Top of sidebar */}
+        <div className="px-2 mb-4">
+          <button
+            onClick={handleBackToMenu}
+            className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            <span>Back to Menu</span>
+          </button>
         </div>
 
         {/* Filters Header */}
@@ -381,14 +398,14 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
           </label>
         </div>
 
-        {/* Back to Menu Button - Right under In Stock Only */}
+        {/* Other Services Button - Bottom of sidebar */}
         <div className="px-2 mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
           <button
             onClick={handleBackToMenu}
             className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            <span>Back to Menu</span>
+            <span>Other Services</span>
           </button>
         </div>
       </div>
@@ -421,16 +438,26 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                       <NavLink
                         to={item.to}
                         className={({ isActive }) =>
-                          `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${isCollapsed ? 'justify-center' : ''}`
+                          `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${isCollapsed ? 'justify-center' : item.customStyle?.centered ? 'justify-center' : ''}`
                         }
                         onClick={() => {
                           setIsShopMode(true);
                           if (isOpen && window.innerWidth < 1200) toggleSidebar();
                         }}
                       >
-                        {item.customStyle ? (
+                        {item.customStyle?.centered && !isCollapsed ? (
+                          // Centered Shop header - matches shop sidebar style
+                          <div className="flex items-center justify-center">
+                            <span style={{ color: item.customStyle.dotColor || '#2d6a3e', fontSize: '1.5rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
+                            <span style={{ color: item.customStyle.textColor, letterSpacing: '0.02em', fontSize: '1.1rem', fontWeight: 600 }}>{item.label}</span>
+                          </div>
+                        ) : item.customStyle ? (
                           <span className="flex items-center text-[15px] font-semibold">
-                            <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
+                            {item.customStyle.dotColor ? (
+                              <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
+                            ) : (
+                              <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
+                            )}
                             {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>}
                           </span>
                         ) : (
@@ -458,7 +485,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                           >
                             {item.customStyle ? (
                               <span className="flex items-center text-lg font-semibold">
-                                <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
+                                {item.customStyle.dotColor ? (
+                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
+                                ) : (
+                                  <item.icon className="h-5 w-5" style={{ color: item.customStyle.textColor }} />
+                                )}
                               </span>
                             ) : (
                               <item.icon className="h-5 w-5" />
@@ -474,29 +505,47 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                         <>
                           <button 
                             onClick={() => toggleExpanded(item.label)}
-                            className={`${commonLinkClasses} w-full justify-between ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`}
+                            className={`${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`}
                           >
-                            <div className="flex items-center">
-                              {item.customStyle ? (
-                                <span className="flex items-center text-[15px] font-semibold mr-0">
-                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
-                                  <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>
-                                </span>
-                              ) : (
-                                <>
-                                  <item.icon className="h-5 w-5 mr-3" />
-                                  {item.label}
-                                </>
-                              )}
-                            </div>
-                            <ChevronDownIcon 
-                              className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} 
-                            />
+                            {item.customStyle?.centered ? (
+                              // Centered item (like Shop at top)
+                              <span className="text-base font-semibold tracking-widest" style={{ color: item.customStyle.textColor }}>
+                                {item.label}
+                              </span>
+                            ) : (
+                              // Normal left-aligned item with icon
+                              <div className="flex items-center">
+                                {item.customStyle ? (
+                                  <span className="flex items-center text-[15px] font-semibold mr-0">
+                                    {item.customStyle.dotColor ? (
+                                      <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                    ) : item.icon ? (
+                                      <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
+                                    ) : null}
+                                    <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>
+                                  </span>
+                                ) : (
+                                  <>
+                                    <item.icon className="h-5 w-5 mr-3" />
+                                    {item.label}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {!item.customStyle?.centered && (
+                              <ChevronDownIcon 
+                                className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} 
+                              />
+                            )}
                           </button>
                           {expandedItems[item.label] && (
                             <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
                               {item.subItems.map(subItem => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
+                                // Resolve sub-item icon if specified
+                                const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
+                                const subItemIconColor = subItem.iconColor || parentColor;
+                                const subItemDotColor = subItem.dotColor || '#2d6a3e';
                                 return (
                                   <NavLink
                                     key={subItem.to}
@@ -507,10 +556,35 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                                     }
                                     onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
                                   >
-                                    <span className="flex items-center">
-                                      <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
-                                      <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
-                                    </span>
+                                    {item.label === 'Profile' ? (
+                                      <span className="flex items-center">
+                                        <span
+                                          style={{
+                                            color: parentColor,
+                                            opacity: 0.45,
+                                            marginRight: '0.4rem',
+                                            fontSize: '0.8rem',
+                                            lineHeight: '1'
+                                          }}
+                                        >–</span>
+                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                      </span>
+                                    ) : SubItemIcon ? (
+                                      <span className="flex items-center">
+                                        <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItemIconColor, opacity: 0.75 }} />
+                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                      </span>
+                                    ) : subItem.dotColor ? (
+                                      <span className="flex items-center">
+                                        <span style={{ color: subItemDotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
+                                        <span style={{ color: subItemDotColor, opacity: 0.85 }}>{subItem.label}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center">
+                                        <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
+                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                      </span>
+                                    )}
                                   </NavLink>
                                 );
                               })}
@@ -539,7 +613,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                       >
                         {item.customStyle ? (
                           <span className="flex items-center text-[15px] font-semibold">
-                            <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
+                            {item.customStyle.dotColor ? (
+                              <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
+                            ) : (
+                              <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
+                            )}
                             {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>}
                           </span>
                         ) : (
@@ -579,7 +657,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                           >
                             {item.customStyle ? (
                               <span className="flex items-center text-lg font-bold">
-                                <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
+                                {item.customStyle.dotColor ? (
+                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
+                                ) : (
+                                  <item.icon className="h-5 w-5" style={{ color: item.customStyle.textColor }} />
+                                )}
                               </span>
                             ) : (
                               <item.icon className="h-5 w-5" />
@@ -611,7 +693,12 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                           </button>
                           {expandedItems[item.label] && (
                             <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
-                              {item.subItems.map(subItem => (
+                              {item.subItems.map(subItem => {
+                                // Resolve sub-item icon if specified
+                                const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
+                                const subItemIconColor = subItem.iconColor || '#94a3b8';
+                                const subItemDotColor = subItem.dotColor || '#2d6a3e';
+                                return (
                                 <NavLink
                                   key={subItem.to}
                                   to={subItem.to}
@@ -621,9 +708,38 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                                   }
                                   onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
                                 >
-                                  {subItem.label}
+                                  {item.label === 'Profile' ? (
+                                    <span className="flex items-center">
+                                      <span
+                                        style={{
+                                          color: 'inherit',
+                                          opacity: 0.45,
+                                          marginRight: '0.4rem',
+                                          fontSize: '0.8rem',
+                                          lineHeight: '1'
+                                        }}
+                                      >–</span>
+                                      <span>{subItem.label}</span>
+                                    </span>
+                                  ) : SubItemIcon ? (
+                                    <span className="flex items-center">
+                                      <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItemIconColor, opacity: 0.75 }} />
+                                      <span>{subItem.label}</span>
+                                    </span>
+                                  ) : subItem.dotColor ? (
+                                    <span className="flex items-center">
+                                      <span style={{ color: subItemDotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
+                                      <span style={{ color: subItemDotColor, opacity: 0.85 }}>{subItem.label}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center">
+                                      <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
+                                      <span>{subItem.label}</span>
+                                    </span>
+                                  )}
                                 </NavLink>
-                              ))}
+                              );
+                              })}
                             </div>
                           )}
                         </>

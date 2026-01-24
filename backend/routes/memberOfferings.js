@@ -9,7 +9,7 @@ import { getBalance, recordTransaction } from '../services/walletService.js';
 
 const router = Router();
 
-const ADMIN_ROLES = ['admin', 'manager', 'developer'];
+const ADMIN_ROLES = ['admin', 'manager', 'developer', 'front_desk'];
 
 // ==================================================
 // PUBLIC ROUTES (Authenticated users)
@@ -501,7 +501,7 @@ router.post(
   authenticateJWT,
   authorizeRoles(ADMIN_ROLES),
   [
-    body('userId').isInt().withMessage('User ID is required'),
+    body('userId').isUUID().withMessage('User ID must be a valid UUID'),
     body('offeringId').isInt().withMessage('Offering ID is required'),
     body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer']).withMessage('Invalid payment method'),
   ],

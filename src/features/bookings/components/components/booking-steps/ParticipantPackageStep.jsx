@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Select, Spin, Alert } from 'antd';
-import { TagOutlined } from '@ant-design/icons';
+import { Select, Spin, Alert, Tag, Progress } from 'antd';
+import { TagOutlined, ClockCircleOutlined, CalendarOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
+import dayjs from 'dayjs';
 
 /**
  * Step for assigning packages to participants
@@ -25,6 +26,25 @@ const ParticipantPackageStep = ({ formData, updateFormData }) => {
     if (normalized.includes('semi-private') || normalized.includes('semi private')) return 'Semi-Private';
     if (normalized.includes('private')) return 'Private';
     return serviceName;
+  };
+  
+  // Format package details for display
+  const formatPackageDetails = (pkg) => {
+    const remainingHours = Number(pkg.remaining_hours || pkg.remainingHours || 0);
+    const totalHours = Number(pkg.total_hours || pkg.totalHours || remainingHours);
+    const lessonType = pkg.lesson_service_name || pkg.lessonServiceName || getLessonType(pkg.package_name || pkg.packageName);
+    const expiryDate = pkg.expiry_date || pkg.expiryDate;
+    const usagePercent = totalHours > 0 ? Math.round((remainingHours / totalHours) * 100) : 100;
+    
+    return { remainingHours, totalHours, lessonType, expiryDate, usagePercent };
+  };
+  
+  // Check if package is expiring soon (within 7 days)
+  const isExpiringSoon = (expiryDate) => {
+    if (!expiryDate) return false;
+    const expiry = dayjs(expiryDate);
+    const now = dayjs();
+    return expiry.diff(now, 'day') <= 7 && expiry.isAfter(now);
   };
   
   const lessonType = getLessonType(formData.serviceName);
@@ -146,47 +166,117 @@ const ParticipantPackageStep = ({ formData, updateFormData }) => {
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
                       <TagOutlined className="text-xs" />
                     </span>
-                    Use from Package
+                    Select Package to Use
                   </label>
-                  <Select
-                    size="large"
-                    style={{ width: '100%' }}
-                    className="booking-package-select"
-                    placeholder="Select a package or pay with wallet balance"
-                    value={participant.selectedPackageId || undefined}
-                    onChange={(value) => handlePackageSelection(index, value)}
-                    allowClear
-                    options={[
-                      ...packages.map(pkg => ({
-                        value: pkg.id,
-                        label: pkg.package_name || pkg.packageName
-                      }))
-                    ]}
-                  />
-                  {/* Compute selected package info for display */}
-                  {(() => {
-                    const selectedPkg = packages.find(p => p.id === participant.selectedPackageId);
-                    const remainingHours = Number(selectedPkg?.remaining_hours || selectedPkg?.remainingHours || 0);
-                    return participant.selectedPackageId ? (
-                      <div className="mt-3 p-3.5 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-xs flex-shrink-0">✓</span>
-                          <span className="text-sm font-medium text-green-700">
-                            Package selected • {remainingHours.toFixed(2)} hours will be deducted
-                          </span>
+                  
+                  {/* Package Cards Grid */}
+                  <div className="grid gap-3">
+                    {/* Wallet Balance Option */}
+                    <div 
+                      onClick={() => handlePackageSelection(index, null)}
+                      className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                        !participant.selectedPackageId 
+                          ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                          !participant.selectedPackageId ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          <span className="text-lg font-bold">€</span>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="mt-3 p-3.5 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2.5">
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex-shrink-0">€</span>
-                          <span className="text-sm font-medium text-blue-700">
-                            Will be charged from wallet balance
-                          </span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">Pay with Wallet Balance</div>
+                          <div className="text-sm text-gray-500">Charge this lesson from customer's wallet</div>
                         </div>
+                        {!participant.selectedPackageId && (
+                          <CheckCircleOutlined className="text-blue-500 text-xl" />
+                        )}
                       </div>
-                    );
-                  })()}
+                    </div>
+                    
+                    {/* Package Options */}
+                    {packages.map(pkg => {
+                      const { remainingHours, totalHours, lessonType: pkgLessonType, expiryDate, usagePercent } = formatPackageDetails(pkg);
+                      const isSelected = participant.selectedPackageId === pkg.id;
+                      const expiringSoon = isExpiringSoon(expiryDate);
+                      
+                      return (
+                        <div 
+                          key={pkg.id}
+                          onClick={() => handlePackageSelection(index, pkg.id)}
+                          className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                            isSelected 
+                              ? 'border-green-500 bg-green-50 shadow-sm' 
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 ${
+                              isSelected ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-600'
+                            }`}>
+                              <TagOutlined className="text-lg" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {/* Package Name & Type */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-gray-900 truncate">
+                                  {pkg.package_name || pkg.packageName}
+                                </span>
+                                {pkgLessonType && (
+                                  <Tag color="blue" className="text-xs">{pkgLessonType}</Tag>
+                                )}
+                                {expiringSoon && (
+                                  <Tag color="orange" className="text-xs">Expiring Soon</Tag>
+                                )}
+                              </div>
+                              
+                              {/* Hours Remaining */}
+                              <div className="mt-2 flex items-center gap-2">
+                                <ClockCircleOutlined className="text-gray-400" />
+                                <span className="text-sm text-gray-700 font-medium">
+                                  {remainingHours.toFixed(1)} / {totalHours.toFixed(1)} hours remaining
+                                </span>
+                              </div>
+                              
+                              {/* Progress Bar */}
+                              <Progress 
+                                percent={usagePercent} 
+                                size="small" 
+                                strokeColor={usagePercent > 50 ? '#22c55e' : usagePercent > 20 ? '#f59e0b' : '#ef4444'}
+                                showInfo={false}
+                                className="mt-1"
+                              />
+                              
+                              {/* Expiry Date */}
+                              {expiryDate && (
+                                <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                                  <CalendarOutlined />
+                                  <span>Expires: {dayjs(expiryDate).format('MMM D, YYYY')}</span>
+                                </div>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <CheckCircleOutlined className="text-green-500 text-xl flex-shrink-0" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Selection Confirmation */}
+                  {participant.selectedPackageId && (
+                    <div className="mt-3 p-3.5 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-xs flex-shrink-0">✓</span>
+                        <span className="text-sm font-medium text-green-700">
+                          Package hours will be deducted for this booking
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Alert

@@ -15,10 +15,10 @@ import {
   Badge,
   Alert,
   Upload,
-  Image,
   Switch,
   Checkbox,
-  Slider
+  Slider,
+  Grid
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -44,6 +44,7 @@ import { logger } from '@/shared/utils/logger';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { useBreakpoint } = Grid;
 
 const PERIOD_OPTIONS = [
   { value: 'month', label: 'Monthly' },
@@ -105,6 +106,8 @@ const ICON_OPTIONS = [
 function MembershipSettings() {
   usePageSEO({ title: 'Membership Settings', description: 'Configure VIP memberships and offerings' });
   const { formatCurrency, businessCurrency } = useCurrency();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
   const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -330,39 +333,135 @@ function MembershipSettings() {
     }
   ];
 
+  // Mobile card component for memberships
+  const MembershipCard = ({ membership }) => {
+    const badgeColor = BADGE_COLORS.find(c => c.value === membership.badge_color)?.color || '#1890ff';
+    const IconComponent = ICON_OPTIONS.find(i => i.value === membership.icon)?.icon || <StarOutlined />;
+    
+    return (
+      <Card 
+        className="mb-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+        bodyStyle={{ padding: 12 }}
+      >
+        <div className="flex gap-3">
+          {/* Icon/Badge */}
+          <div 
+            className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl"
+            style={{ backgroundColor: `${badgeColor}20`, color: badgeColor }}
+          >
+            {IconComponent}
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-semibold text-slate-900 truncate flex items-center gap-2">
+                  {membership.name}
+                  {membership.highlighted && (
+                    <Tag color="gold" className="text-xs">Featured</Tag>
+                  )}
+                </div>
+                <div className="text-sm text-slate-500">
+                  {formatCurrency(membership.price, businessCurrency)} / {membership.period || 'month'}
+                </div>
+              </div>
+              <Tag color={membership.badge_color || 'blue'} className="flex-shrink-0">
+                {membership.period?.toUpperCase() || 'MONTH'}
+              </Tag>
+            </div>
+            
+            {/* Duration */}
+            <div className="text-xs text-slate-400 mt-1">
+              Duration: {membership.duration_days ? `${membership.duration_days} days` : 'Unlimited'}
+            </div>
+            
+            {/* Features preview */}
+            {membership.features?.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {membership.features.slice(0, 2).map((f, i) => (
+                  <Tag key={i} className="text-xs" color="default">{f}</Tag>
+                ))}
+                {membership.features.length > 2 && (
+                  <Tag className="text-xs" color="default">+{membership.features.length - 2}</Tag>
+                )}
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div className="flex gap-2 mt-3 pt-2 border-t border-slate-100">
+              <Button 
+                icon={<EditOutlined />} 
+                size="small"
+                onClick={() => handleEdit(membership)}
+                className="flex-1"
+              >
+                Edit
+              </Button>
+              <Popconfirm
+                title="Deactivate membership?"
+                description="This will hide the membership from users."
+                onConfirm={() => handleDelete(membership.id)}
+                okText="Deactivate"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true }}
+              >
+                <Button icon={<DeleteOutlined />} size="small" danger />
+              </Popconfirm>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
-    <div className="p-6">
-      <Card className="shadow-sm border-slate-200">
-        <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6">
+      <Card className="shadow-sm border-slate-200 rounded-xl md:rounded-2xl">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
           <div>
-            <Title level={3}>Membership Settings</Title>
-            <Text type="secondary">Configure VIP memberships and subscription packages</Text>
+            <Title level={isMobile ? 4 : 3} className="!mb-1">Membership Settings</Title>
+            <Text type="secondary" className="text-sm hidden sm:block">Configure VIP memberships and subscription packages</Text>
           </div>
           <Button 
             type="primary" 
             icon={<PlusOutlined />} 
             onClick={handleCreate}
-            size="large"
+            size={isMobile ? 'middle' : 'large'}
           >
-            Add Membership
+            {isMobile ? 'Add' : 'Add Membership'}
           </Button>
         </div>
 
         <Alert 
           message="About Memberships" 
-          description="Memberships allow students to access special rates or features. Configuring 'Duration Days' sets an automatic expiration."
+          description={isMobile ? "Configure membership duration and pricing." : "Memberships allow students to access special rates or features. Configuring 'Duration Days' sets an automatic expiration."}
           type="info"
           showIcon
-          className="mb-6"
+          className="mb-4 md:mb-6"
         />
 
-        <Table 
-          columns={columns} 
-          dataSource={offerings} 
-          rowKey="id" 
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
+        {isMobile ? (
+          // Mobile: Card View
+          <div>
+            <div className="text-xs text-slate-500 mb-2">{offerings.length} membership{offerings.length !== 1 ? 's' : ''}</div>
+            {offerings.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">No memberships yet</div>
+            ) : (
+              offerings.map(m => <MembershipCard key={m.id} membership={m} />)
+            )}
+          </div>
+        ) : (
+          // Desktop: Table View
+          <Table 
+            columns={columns} 
+            dataSource={offerings} 
+            rowKey="id" 
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 600 }}
+          />
+        )}
       </Card>
 
       <Modal
@@ -370,22 +469,23 @@ function MembershipSettings() {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={() => form.submit()}
-        width={1100}
+        width={isMobile ? '100%' : 1100}
+        style={isMobile ? { top: 20, margin: '0 10px' } : undefined}
         destroyOnHidden
       >
-        <div className="flex gap-6">
-          <div className="flex-1" style={{ maxWidth: '600px' }}>
+        <div className={`flex ${isMobile ? 'flex-col' : 'gap-6'}`}>
+          <div className="flex-1" style={{ maxWidth: isMobile ? '100%' : '600px' }}>
             <Form
               form={form}
               layout="vertical"
               onFinish={handleSave}
             >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <Form.Item
               name="name"
               label="Membership Name"
               rules={[{ required: true, message: 'Please enter a name' }]}
-              tooltip="The main title displayed on the membership card"
+              tooltip={!isMobile ? "The main title displayed on the membership card" : undefined}
             >
               <Input placeholder="e.g. VIP Gold" />
             </Form.Item>
@@ -394,7 +494,6 @@ function MembershipSettings() {
               name="price"
               label={`Price (${businessCurrency})`}
               rules={[{ required: true, message: 'Please enter price' }]}
-              tooltip="The membership cost in your business currency"
             >
               <InputNumber 
                 className="w-full" 
@@ -408,20 +507,18 @@ function MembershipSettings() {
               name="period"
               label="Billing Period"
               rules={[{ required: true, message: 'Select period' }]}
-              tooltip="How often this membership is charged"
             >
               <Select options={PERIOD_OPTIONS} />
             </Form.Item>
 
              <Form.Item
               name="duration_days"
-              label="Duration (Days)"
-              tooltip="Leave empty for automatic renewal based on period"
+              label={isMobile ? 'Duration (Days)' : 'Duration (Days)'}
             >
               <InputNumber className="w-full" min={1} placeholder="30" />
             </Form.Item>
             
-            <Form.Item name="badge_color" label="Badge Color" tooltip="Color for the badge/tag on the card">
+            <Form.Item name="badge_color" label="Badge Color">
               <Select 
                 options={BADGE_COLORS}
                 optionRender={(option) => (
@@ -439,15 +536,15 @@ function MembershipSettings() {
               />
             </Form.Item>
             
-            <Form.Item name="badge" label="Badge Text" tooltip="Short text to display in the badge/ribbon (e.g., 'VIP', 'POPULAR')">
+            <Form.Item name="badge" label="Badge Text">
               <Input placeholder="e.g. VIP" maxLength={10} />
             </Form.Item>
             
-            <Form.Item name="sort_order" label="Display Order" tooltip="Lower numbers appear first">
+            <Form.Item name="sort_order" label="Display Order">
               <InputNumber className="w-full" min={0} />
             </Form.Item>
 
-            <Form.Item name="highlighted" valuePropName="checked" label="Highlight as Popular" tooltip="Adds a gradient border and visual emphasis">
+            <Form.Item name="highlighted" valuePropName="checked" label={isMobile ? 'Featured' : 'Highlight as Popular'}>
               <Checkbox>Featured</Checkbox>
             </Form.Item>
           </div>
@@ -658,7 +755,8 @@ function MembershipSettings() {
             </Form>
           </div>
 
-          {/* Live Preview */}
+          {/* Live Preview - Hidden on mobile */}
+          {!isMobile && (
           <div className="flex-shrink-0" style={{ width: '380px', borderLeft: '1px solid #f0f0f0', paddingLeft: '24px' }}>
             <Text strong className="block mb-3">Live Preview</Text>
             <div style={{ position: 'sticky', top: '20px' }}>
@@ -885,6 +983,7 @@ function MembershipSettings() {
               )}
             </div>
           </div>
+          )}
         </div>
       </Modal>
     </div>
