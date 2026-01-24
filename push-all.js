@@ -141,6 +141,26 @@ async function main() {
 
   const deploy = process.env.DEPLOY !== 'false';
 
+  // 0) Validate production env file exists and has proper DATABASE_URL
+  console.log('🔍 Pre-flight checks...');
+  if (!fs.existsSync(beEnvProd)) {
+    console.error('❌ FATAL: backend/.env.production is missing!');
+    console.error('   Create it with proper production database credentials before deploying.');
+    process.exit(1);
+  }
+  const prodEnvContent = parseSimpleEnv(beEnvProd);
+  if (!prodEnvContent.DATABASE_URL) {
+    console.error('❌ FATAL: backend/.env.production is missing DATABASE_URL!');
+    process.exit(1);
+  }
+  if (prodEnvContent.DATABASE_URL.includes(':password@') || prodEnvContent.DATABASE_URL.includes(':changeme@')) {
+    console.error('❌ FATAL: backend/.env.production has placeholder password in DATABASE_URL!');
+    console.error('   Current: ' + prodEnvContent.DATABASE_URL.replace(/:[^:@]+@/, ':***@'));
+    console.error('   Please update with the real database password.');
+    process.exit(1);
+  }
+  console.log('   ✓ backend/.env.production validated');
+
   // 1) Swap to production envs (with backup)
   console.log('📦 Step 1/5: Backing up and switching .env files to production...');
   if (fs.existsSync(rootEnv)) fs.copyFileSync(rootEnv, rootEnvBackup);
