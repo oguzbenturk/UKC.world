@@ -59,10 +59,6 @@ const FinanceEvents = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadEventsData();
-  }, [dateRange]);
-
   const loadEventsData = async () => {
     setLoading(true);
     try {
@@ -73,13 +69,19 @@ const FinanceEvents = () => {
         }
       });
       setEvents(response.data || []);
-    } catch (error) {
-      console.error('Error loading events:', error);
+    } catch {
+      // Silently handle error
       setEvents([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Load data when dateRange changes
+  useEffect(() => {
+    loadEventsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
   const handleDateRangeChange = (dates) => {
     if (dates && dates[0] && dates[1]) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, DatePicker, Space, Button, Tag, Grid, Table, Statistic, Row, Col, Empty } from 'antd';
+import { Card, DatePicker, Space, Button, Tag, Grid, Table, Empty } from 'antd';
 import dayjs from 'dayjs';
-import { ReloadOutlined, HomeOutlined, CalendarOutlined, DollarOutlined } from '@ant-design/icons';
+import { ReloadOutlined, HomeOutlined, CalendarOutlined } from '@ant-design/icons';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -55,14 +55,9 @@ const FinanceAccommodation = () => {
     endDate: dayjs().format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
-  const [summaryData, setSummaryData] = useState(null);
+  const [_summaryData, setSummaryData] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadFinancialData();
-    loadBookingsData();
-  }, [dateRange]);
 
   const loadFinancialData = async () => {
     try {
@@ -75,8 +70,8 @@ const FinanceAccommodation = () => {
         }
       });
       setSummaryData(response.data);
-    } catch (error) {
-      console.error('Error loading financial data:', error);
+    } catch {
+      // Silently handle error
     }
   };
 
@@ -90,13 +85,20 @@ const FinanceAccommodation = () => {
         }
       });
       setBookings(response.data || []);
-    } catch (error) {
-      console.error('Error loading bookings:', error);
+    } catch {
+      // Silently handle error
       setBookings([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Load data when dateRange changes
+  useEffect(() => {
+    loadFinancialData();
+    loadBookingsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
   const handleDateRangeChange = (dates) => {
     if (dates && dates[0] && dates[1]) {

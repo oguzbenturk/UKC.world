@@ -1,11 +1,11 @@
 // src/features/members/pages/AdminMembersPage.jsx
 // Admin page to view all member purchases and assign memberships
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { 
   Card, Table, Tag, Button, Space, Typography, 
-  Badge, Modal, Input, Select, DatePicker, Spin,
-  Statistic, Row, Col, Avatar, Tooltip, Descriptions,
+  Modal, Input, Select, DatePicker, Spin,
+  Statistic, Row, Col, Avatar, Descriptions,
   message, Empty, Grid
 } from 'antd';
 import {
@@ -19,10 +19,9 @@ import {
   SearchOutlined,
   PlusOutlined,
   UserOutlined,
-  ReloadOutlined,
-  CalendarOutlined
+  ReloadOutlined
 } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
@@ -168,7 +167,7 @@ const AdminMembersPage = () => {
       dataIndex: 'expires_at',
       key: 'expires_at',
       width: 150,
-      render: (date, record) => {
+      render: (date, _record) => {
         if (!date) return <Text type="secondary">Never</Text>;
         const expiry = dayjs(date);
         const isExpired = expiry.isBefore(dayjs());
