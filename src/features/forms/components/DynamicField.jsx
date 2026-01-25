@@ -243,21 +243,10 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
 
     case FIELD_TYPES.FILE:
       return (
-        <Dragger
-          name="file"
-          multiple={field.options?.multiple || false}
-          accept={field.options?.accept}
-          maxCount={field.options?.max_files || 1}
-          disabled={commonProps.disabled}
-        >
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined />
-          </p>
-          <p className="ant-upload-text">Click or drag file to upload</p>
-          {field.options?.accept && (
-            <p className="ant-upload-hint">Accepted: {field.options.accept}</p>
-          )}
-        </Dragger>
+        <FileUploadField 
+          field={field} 
+          disabled={commonProps.disabled} 
+        />
       );
 
     case FIELD_TYPES.IMAGE:
@@ -545,12 +534,99 @@ const ToggleField = ({ field, disabled, value, onChange }) => {
 };
 
 /**
+ * File Upload Field - Stores files locally (no server upload)
+ * For public forms, files are converted to base64 and stored in submission
+ */
+const FileUploadField = ({ field, disabled, value, onChange }) => {
+  const [fileList, setFileList] = useState([]);
+
+  // Initialize from value prop
+  useEffect(() => {
+    if (value && Array.isArray(value) && value.length > 0 && fileList.length === 0) {
+      setFileList(value);
+    }
+  }, [value, fileList.length]);
+
+  const getBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+
+  const handleChange = async ({ fileList: newFileList }) => {
+    // Process files to include base64 data
+    const processedList = await Promise.all(
+      newFileList.map(async (file) => {
+        if (file.originFileObj && !file.base64) {
+          try {
+            file.base64 = await getBase64(file.originFileObj);
+          } catch {
+            // Ignore errors
+          }
+        }
+        return file;
+      })
+    );
+    
+    setFileList(processedList);
+    
+    // Pass to form with file info
+    if (onChange) {
+      const fileData = processedList.map(f => ({
+        uid: f.uid,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        base64: f.base64 || null,
+        status: 'done'
+      }));
+      onChange(fileData);
+    }
+  };
+
+  // Determine accepted file types - default to images for certification fields
+  const acceptTypes = field.options?.accept || 'image/*';
+
+  return (
+    <Dragger
+      name="file"
+      multiple={field.options?.multiple || false}
+      accept={acceptTypes}
+      maxCount={field.options?.max_files || 1}
+      disabled={disabled}
+      fileList={fileList}
+      onChange={handleChange}
+      beforeUpload={() => false}
+    >
+      <p className="ant-upload-drag-icon">
+        <InboxOutlined />
+      </p>
+      <p className="ant-upload-text">Click or drag file to upload</p>
+      <p className="ant-upload-hint">
+        {acceptTypes === 'image/*' 
+          ? 'Accepted: Images (JPG, PNG, GIF)' 
+          : `Accepted: ${acceptTypes}`}
+      </p>
+    </Dragger>
+  );
+};
+
+/**
  * Image Upload Field - With preview
  */
-const ImageUploadField = ({ field, disabled }) => {
+const ImageUploadField = ({ field, disabled, value, onChange }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [fileList, setFileList] = useState([]);
+
+  // Initialize from value prop
+  useEffect(() => {
+    if (value && Array.isArray(value) && value.length > 0 && fileList.length === 0) {
+      setFileList(value);
+    }
+  }, [value, fileList.length]);
 
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
@@ -568,7 +644,37 @@ const ImageUploadField = ({ field, disabled }) => {
       reader.onerror = (error) => reject(error);
     });
 
-  const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
+  const handleChange = async ({ fileList: newFileList }) => {
+    // Process files to include base64 data
+    const processedList = await Promise.all(
+      newFileList.map(async (file) => {
+        if (file.originFileObj && !file.base64) {
+          try {
+            file.base64 = await getBase64(file.originFileObj);
+            file.preview = file.base64;
+          } catch {
+            // Ignore errors
+          }
+        }
+        return file;
+      })
+    );
+    
+    setFileList(processedList);
+    
+    // Pass to form with file info
+    if (onChange) {
+      const fileData = processedList.map(f => ({
+        uid: f.uid,
+        name: f.name,
+        type: f.type,
+        size: f.size,
+        base64: f.base64 || f.preview || null,
+        status: 'done'
+      }));
+      onChange(fileData);
+    }
+  };
 
   const uploadButton = (
     <div>
@@ -733,8 +839,12 @@ const SliderField = ({ field, disabled }) => {
 
 /**
  * Consent Field - Terms acceptance checkbox
+ * Note: When used with Form.Item valuePropName="checked", 
+ * Ant Design passes the value as "checked" prop
  */
-const ConsentField = ({ field, disabled, value, onChange }) => {
+const ConsentField = ({ field, disabled, value, onChange, checked }) => {
+  // Support both 'value' and 'checked' props (for compatibility with Form.Item valuePropName)
+  const isChecked = checked !== undefined ? checked : value;
   const consentText = field.options?.consent_text || 'I agree to the Terms and Conditions';
   const privacyLink = field.options?.privacy_link || '';
   const termsLink = field.options?.terms_link || '';
@@ -782,7 +892,7 @@ const ConsentField = ({ field, disabled, value, onChange }) => {
 
   return (
     <div className="consent-field">
-      <Checkbox disabled={disabled} checked={value} onChange={(e) => onChange?.(e.target.checked)}>
+      <Checkbox disabled={disabled} checked={isChecked} onChange={(e) => onChange?.(e.target.checked)}>
         <span className="flex items-start gap-2">
           <SafetyCertificateOutlined className="text-green-600 mt-1" />
           <span>{renderLabel()}</span>

@@ -96,6 +96,25 @@ router.patch('/:id/archive', authenticateJWT, authorizeRoles(['admin', 'manager'
 });
 
 /**
+ * PATCH /api/form-submissions/:id
+ * Update submission (notes, status)
+ * Accessible by admin, manager, instructor
+ */
+router.patch('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
+  try {
+    const { notes, status } = req.body;
+    const submission = await formSubmissionService.updateFormSubmission(req.params.id, { notes, status });
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    res.json(submission);
+  } catch (error) {
+    logger.error('Error updating submission:', error);
+    res.status(500).json({ error: 'Failed to update submission' });
+  }
+});
+
+/**
  * DELETE /api/form-submissions/:id
  * Delete a submission (admin only)
  */

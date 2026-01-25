@@ -26,7 +26,8 @@ import {
   Popconfirm,
   Drawer,
   Descriptions,
-  Divider
+  Divider,
+  Collapse
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -52,7 +53,8 @@ import {
   SendOutlined,
   RightOutlined,
   UserOutlined,
-  InboxOutlined
+  InboxOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as quickLinksService from '../services/quickLinksService';
@@ -98,9 +100,28 @@ const QuickLinksPage = ({ embedded = false }) => {
   const [createdLink, setCreatedLink] = useState(null);
   const [submissionDetailVisible, setSubmissionDetailVisible] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [instructorNotes, setInstructorNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   
   const [createFormForm] = Form.useForm();
   const [createLinkForm] = Form.useForm();
+
+  // Save instructor notes
+  const handleSaveNotes = async () => {
+    if (!selectedSubmission) return;
+    setSavingNotes(true);
+    try {
+      const updated = await formService.updateFormSubmission(selectedSubmission.id, { notes: instructorNotes });
+      setSelectedSubmission(prev => ({ ...prev, notes: updated.notes }));
+      // Update in list too
+      setFormSubmissions(prev => prev.map(s => s.id === selectedSubmission.id ? { ...s, notes: updated.notes } : s));
+      message.success('Notes saved');
+    } catch {
+      message.error('Failed to save notes');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   // Helper to extract submitter name from submission data
   const getSubmitterName = (record) => {
@@ -202,6 +223,17 @@ const QuickLinksPage = ({ embedded = false }) => {
       setFormSubmissionsLoading(false);
     }
   }, []);
+
+  // Delete a form submission
+  const handleDeleteSubmission = async (submissionId) => {
+    try {
+      await formService.deleteFormSubmission(submissionId);
+      message.success('Submission deleted successfully');
+      fetchFormSubmissions(); // Refresh the list
+    } catch (error) {
+      message.error('Failed to delete submission');
+    }
+  };
 
   useEffect(() => {
     fetchAllFormTemplates();
@@ -646,6 +678,15 @@ const QuickLinksPage = ({ embedded = false }) => {
               }
             },
             {
+              title: '',
+              dataIndex: 'notes',
+              key: 'notes',
+              width: 40,
+              render: (notes) => notes ? (
+                <MessageOutlined className="text-blue-500" title="Has notes" />
+              ) : null
+            },
+            {
               title: 'Submitted',
               dataIndex: 'submitted_at',
               key: 'date',
@@ -655,19 +696,36 @@ const QuickLinksPage = ({ embedded = false }) => {
             {
               title: 'Actions',
               key: 'actions',
-              width: 100,
+              width: 150,
               render: (_, record) => (
-                <Button 
-                  type="primary" 
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => {
-                    setSelectedSubmission(record);
-                    setSubmissionDetailVisible(true);
-                  }}
-                >
-                  View
-                </Button>
+                <Space size="small">
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => {
+                      setSelectedSubmission(record);
+                      setInstructorNotes(record.notes || '');
+                      setSubmissionDetailVisible(true);
+                    }}
+                  >
+                    View
+                  </Button>
+                  <Popconfirm
+                    title="Delete submission"
+                    description="Are you sure you want to delete this submission? This cannot be undone."
+                    onConfirm={() => handleDeleteSubmission(record.id)}
+                    okText="Delete"
+                    cancelText="Cancel"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button 
+                      danger 
+                      size="small"
+                      icon={<DeleteOutlined />}
+                    />
+                  </Popconfirm>
+                </Space>
               )
             }
           ]}
@@ -1079,101 +1137,178 @@ const QuickLinksPage = ({ embedded = false }) => {
         title={
           <div className="flex items-center gap-2">
             <FileTextOutlined />
-            <span>Form Submission Details</span>
+            <span>Form Submission</span>
           </div>
         }
         placement="right"
-        width={600}
+        width={650}
         open={submissionDetailVisible}
         onClose={() => {
           setSubmissionDetailVisible(false);
           setSelectedSubmission(null);
+          setInstructorNotes('');
         }}
+        extra={
+          selectedSubmission && (
+            <Tag color={selectedSubmission.status === 'approved' ? 'green' : selectedSubmission.status === 'rejected' ? 'red' : 'orange'}>
+              {selectedSubmission.status === 'pending' ? 'Pending' : selectedSubmission.status || 'Pending'}
+            </Tag>
+          )
+        }
       >
         {selectedSubmission && (
-          <div className="space-y-6">
-            {/* Submission Info */}
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Form">
-                <Tag color="blue" icon={<FormOutlined />}>
-                  {selectedSubmission.form_name || 'Unknown Form'}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Submitted By">
+          <div className="space-y-4">
+            {/* Summary Card */}
+            <Card size="small" className="bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-start justify-between">
                 <div>
-                  <Text strong>{getSubmitterName(selectedSubmission)}</Text>
+                  <Text strong className="text-lg block">{getSubmitterName(selectedSubmission)}</Text>
                   {getSubmitterEmail(selectedSubmission) && (
-                    <div className="text-xs text-gray-500">{getSubmitterEmail(selectedSubmission)}</div>
+                    <Text type="secondary">{getSubmitterEmail(selectedSubmission)}</Text>
                   )}
                 </div>
-              </Descriptions.Item>
-              <Descriptions.Item label="Submitted At">
-                {selectedSubmission.submitted_at 
-                  ? dayjs(selectedSubmission.submitted_at).format('MMMM D, YYYY h:mm A')
-                  : selectedSubmission.created_at
-                    ? dayjs(selectedSubmission.created_at).format('MMMM D, YYYY h:mm A')
-                    : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={selectedSubmission.status === 'approved' ? 'green' : selectedSubmission.status === 'rejected' ? 'red' : 'orange'}>
-                  {selectedSubmission.status === 'pending' ? 'Pending Review' : selectedSubmission.status || 'Pending'}
+                <div className="text-right">
+                  <Text type="secondary" className="text-xs block">
+                    {selectedSubmission.submitted_at 
+                      ? dayjs(selectedSubmission.submitted_at).format('MMM D, YYYY')
+                      : dayjs(selectedSubmission.created_at).format('MMM D, YYYY')}
+                  </Text>
+                  <Text type="secondary" className="text-xs block">
+                    {selectedSubmission.submitted_at 
+                      ? dayjs(selectedSubmission.submitted_at).format('h:mm A')
+                      : dayjs(selectedSubmission.created_at).format('h:mm A')}
+                  </Text>
+                </div>
+              </div>
+              <div className="mt-2">
+                <Tag color="blue" icon={<FormOutlined />} className="mt-1">
+                  {selectedSubmission.form_name || 'Unknown Form'}
                 </Tag>
-              </Descriptions.Item>
-            </Descriptions>
+              </div>
+            </Card>
 
-            <Divider orientation="left">Form Responses</Divider>
+            {/* Collapsible Sections */}
+            <Collapse 
+              defaultActiveKey={['responses', 'notes']} 
+              ghost
+              items={[
+                {
+                  key: 'responses',
+                  label: <Text strong>Form Responses ({Object.keys(selectedSubmission.submission_data || {}).length} fields)</Text>,
+                  children: (
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                      {Object.entries(selectedSubmission.submission_data || {}).map(([key, value]) => {
+                        const formattedKey = key
+                          .replace(/_/g, ' ')
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, str => str.toUpperCase())
+                          .trim();
+                        
+                        let displayValue = value;
+                        if (Array.isArray(value)) {
+                          displayValue = value.join(', ');
+                        } else if (typeof value === 'boolean') {
+                          displayValue = value ? '✓ Yes' : '✗ No';
+                        } else if (typeof value === 'object' && value !== null) {
+                          // Check if it's a file/image (base64)
+                          if (value.base64 || value.dataUrl) {
+                            displayValue = `📎 ${value.name || 'File uploaded'}`;
+                          } else {
+                            displayValue = JSON.stringify(value, null, 2);
+                          }
+                        }
 
-            {/* Form Data */}
-            <div className="space-y-3">
-              {Object.entries(selectedSubmission.submission_data || {}).map(([key, value]) => {
-                // Format the key to be more readable
-                const formattedKey = key
-                  .replace(/_/g, ' ')
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/^./, str => str.toUpperCase())
-                  .trim();
-                
-                // Format the value
-                let displayValue = value;
-                if (Array.isArray(value)) {
-                  displayValue = value.join(', ');
-                } else if (typeof value === 'boolean') {
-                  displayValue = value ? 'Yes' : 'No';
-                } else if (typeof value === 'object' && value !== null) {
-                  displayValue = JSON.stringify(value, null, 2);
-                }
+                        return (
+                          <div key={key} className="bg-white rounded border p-2 hover:bg-gray-50 transition-colors">
+                            <Text type="secondary" className="text-xs uppercase tracking-wide block">
+                              {formattedKey}
+                            </Text>
+                            <Text className="block whitespace-pre-wrap text-sm">
+                              {displayValue || <span className="text-gray-400 italic">Not provided</span>}
+                            </Text>
+                          </div>
+                        );
+                      })}
+                      {Object.keys(selectedSubmission.submission_data || {}).length === 0 && (
+                        <Empty description="No form data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                      )}
+                    </div>
+                  )
+                },
+                {
+                  key: 'notes',
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <Text strong>Instructor Notes</Text>
+                      {selectedSubmission.notes && <Tag color="blue" size="small">Has Notes</Tag>}
+                    </div>
+                  ),
+                  children: (
+                    <div className="space-y-3">
+                      <Input.TextArea
+                        placeholder="Add your thoughts, questions, or follow-up notes here..."
+                        rows={4}
+                        value={instructorNotes || selectedSubmission.notes || ''}
+                        onChange={(e) => setInstructorNotes(e.target.value)}
+                        className="resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <Button 
+                          type="primary" 
+                          size="small"
+                          loading={savingNotes}
+                          onClick={handleSaveNotes}
+                          disabled={instructorNotes === (selectedSubmission.notes || '')}
+                        >
+                          Save Notes
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                },
+                ...(selectedSubmission.metadata && Object.keys(selectedSubmission.metadata).length > 0 ? [{
+                  key: 'metadata',
+                  label: <Text type="secondary">Technical Info</Text>,
+                  children: (
+                    <Descriptions column={1} size="small" bordered>
+                      {selectedSubmission.metadata.user_agent && (
+                        <Descriptions.Item label="Browser">
+                          <Text className="text-xs">{selectedSubmission.metadata.user_agent.substring(0, 80)}...</Text>
+                        </Descriptions.Item>
+                      )}
+                      {selectedSubmission.metadata.ip_address && (
+                        <Descriptions.Item label="IP Address">
+                          {selectedSubmission.metadata.ip_address}
+                        </Descriptions.Item>
+                      )}
+                      {selectedSubmission.metadata.referrer && (
+                        <Descriptions.Item label="Referrer">
+                          <Text className="text-xs">{selectedSubmission.metadata.referrer}</Text>
+                        </Descriptions.Item>
+                      )}
+                    </Descriptions>
+                  )
+                }] : [])
+              ]}
+            />
 
-                return (
-                  <div key={key} className="bg-gray-50 rounded-lg p-3 border">
-                    <Text type="secondary" className="text-xs uppercase tracking-wide block mb-1">
-                      {formattedKey}
-                    </Text>
-                    <Text className="block whitespace-pre-wrap">
-                      {displayValue || <span className="text-gray-400 italic">Not provided</span>}
-                    </Text>
-                  </div>
-                );
-              })}
+            {/* Action Buttons */}
+            <Divider className="!my-3" />
+            <div className="flex justify-between">
+              <Popconfirm
+                title="Delete this submission?"
+                description="This action cannot be undone."
+                onConfirm={() => {
+                  handleDeleteSubmission(selectedSubmission.id);
+                  setSubmissionDetailVisible(false);
+                }}
+                okText="Delete"
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger icon={<DeleteOutlined />}>Delete</Button>
+              </Popconfirm>
+              <Button onClick={() => setSubmissionDetailVisible(false)}>Close</Button>
             </div>
-
-            {/* Metadata */}
-            {selectedSubmission.metadata && Object.keys(selectedSubmission.metadata).length > 0 && (
-              <>
-                <Divider orientation="left">Metadata</Divider>
-                <Descriptions column={1} size="small">
-                  {selectedSubmission.metadata.user_agent && (
-                    <Descriptions.Item label="Browser">
-                      <Text className="text-xs">{selectedSubmission.metadata.user_agent}</Text>
-                    </Descriptions.Item>
-                  )}
-                  {selectedSubmission.metadata.ip_address && (
-                    <Descriptions.Item label="IP Address">
-                      {selectedSubmission.metadata.ip_address}
-                    </Descriptions.Item>
-                  )}
-                </Descriptions>
-              </>
-            )}
           </div>
         )}
       </Drawer>

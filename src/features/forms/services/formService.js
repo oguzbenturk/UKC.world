@@ -235,6 +235,16 @@ export const getFormSubmission = async (id) => {
 };
 
 /**
+ * Update a submission (notes, status)
+ * @param {number} id - Submission ID
+ * @param {Object} data - { notes, status }
+ */
+export const updateFormSubmission = async (id, data) => {
+  const response = await apiClient.patch(`/form-submissions/${id}`, data);
+  return response.data;
+};
+
+/**
  * Process a submission
  * @param {number} id - Submission ID
  * @param {string} notes - Processing notes
