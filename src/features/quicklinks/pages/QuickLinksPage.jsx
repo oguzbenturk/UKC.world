@@ -23,7 +23,10 @@ import {
   Col,
   Empty,
   Tabs,
-  Popconfirm
+  Popconfirm,
+  Drawer,
+  Descriptions,
+  Divider
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -93,9 +96,38 @@ const QuickLinksPage = ({ embedded = false }) => {
   const [shareLinkModalVisible, setShareLinkModalVisible] = useState(false);
   const [selectedFormForLink, setSelectedFormForLink] = useState(null);
   const [createdLink, setCreatedLink] = useState(null);
+  const [submissionDetailVisible, setSubmissionDetailVisible] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
   
   const [createFormForm] = Form.useForm();
   const [createLinkForm] = Form.useForm();
+
+  // Helper to extract submitter name from submission data
+  const getSubmitterName = (record) => {
+    const data = record.submission_data || {};
+    // Try common field names for name
+    const firstName = data.first_name || data.firstName || data.firstname || '';
+    const lastName = data.last_name || data.lastName || data.lastname || data.surname || '';
+    if (firstName || lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+    // Try full name field
+    if (data.name || data.full_name || data.fullName) {
+      return data.name || data.full_name || data.fullName;
+    }
+    // Fall back to email
+    if (data.email) {
+      return data.email;
+    }
+    // Last resort
+    return record.submitted_by_name || record.user_name || 'Anonymous';
+  };
+
+  // Helper to get submitter email
+  const getSubmitterEmail = (record) => {
+    const data = record.submission_data || {};
+    return data.email || data.email_address || record.submitted_by_email || '';
+  };
 
   // Fetch all form templates
   const fetchAllFormTemplates = useCallback(async () => {
@@ -579,11 +611,11 @@ const QuickLinksPage = ({ embedded = false }) => {
                   <div className="flex items-center gap-2">
                     <UserOutlined className="text-gray-400" />
                     <Text strong>
-                      {record.submitted_by_name || record.user_name || 'Anonymous'}
+                      {getSubmitterName(record)}
                     </Text>
                   </div>
-                  {record.submitted_by_email && (
-                    <div className="text-xs text-gray-500 ml-5">{record.submitted_by_email}</div>
+                  {getSubmitterEmail(record) && (
+                    <div className="text-xs text-gray-500 ml-5">{getSubmitterEmail(record)}</div>
                   )}
                 </div>
               )
@@ -629,7 +661,10 @@ const QuickLinksPage = ({ embedded = false }) => {
                   type="primary" 
                   size="small"
                   icon={<EyeOutlined />}
-                  onClick={() => navigate(`/forms/submissions/${record.id}`)}
+                  onClick={() => {
+                    setSelectedSubmission(record);
+                    setSubmissionDetailVisible(true);
+                  }}
                 >
                   View
                 </Button>
@@ -1038,6 +1073,110 @@ const QuickLinksPage = ({ embedded = false }) => {
           </div>
         )}
       </Modal>
+
+      {/* Submission Detail Drawer */}
+      <Drawer
+        title={
+          <div className="flex items-center gap-2">
+            <FileTextOutlined />
+            <span>Form Submission Details</span>
+          </div>
+        }
+        placement="right"
+        width={600}
+        open={submissionDetailVisible}
+        onClose={() => {
+          setSubmissionDetailVisible(false);
+          setSelectedSubmission(null);
+        }}
+      >
+        {selectedSubmission && (
+          <div className="space-y-6">
+            {/* Submission Info */}
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="Form">
+                <Tag color="blue" icon={<FormOutlined />}>
+                  {selectedSubmission.form_name || 'Unknown Form'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Submitted By">
+                <div>
+                  <Text strong>{getSubmitterName(selectedSubmission)}</Text>
+                  {getSubmitterEmail(selectedSubmission) && (
+                    <div className="text-xs text-gray-500">{getSubmitterEmail(selectedSubmission)}</div>
+                  )}
+                </div>
+              </Descriptions.Item>
+              <Descriptions.Item label="Submitted At">
+                {selectedSubmission.submitted_at 
+                  ? dayjs(selectedSubmission.submitted_at).format('MMMM D, YYYY h:mm A')
+                  : selectedSubmission.created_at
+                    ? dayjs(selectedSubmission.created_at).format('MMMM D, YYYY h:mm A')
+                    : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={selectedSubmission.status === 'approved' ? 'green' : selectedSubmission.status === 'rejected' ? 'red' : 'orange'}>
+                  {selectedSubmission.status === 'pending' ? 'Pending Review' : selectedSubmission.status || 'Pending'}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left">Form Responses</Divider>
+
+            {/* Form Data */}
+            <div className="space-y-3">
+              {Object.entries(selectedSubmission.submission_data || {}).map(([key, value]) => {
+                // Format the key to be more readable
+                const formattedKey = key
+                  .replace(/_/g, ' ')
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, str => str.toUpperCase())
+                  .trim();
+                
+                // Format the value
+                let displayValue = value;
+                if (Array.isArray(value)) {
+                  displayValue = value.join(', ');
+                } else if (typeof value === 'boolean') {
+                  displayValue = value ? 'Yes' : 'No';
+                } else if (typeof value === 'object' && value !== null) {
+                  displayValue = JSON.stringify(value, null, 2);
+                }
+
+                return (
+                  <div key={key} className="bg-gray-50 rounded-lg p-3 border">
+                    <Text type="secondary" className="text-xs uppercase tracking-wide block mb-1">
+                      {formattedKey}
+                    </Text>
+                    <Text className="block whitespace-pre-wrap">
+                      {displayValue || <span className="text-gray-400 italic">Not provided</span>}
+                    </Text>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Metadata */}
+            {selectedSubmission.metadata && Object.keys(selectedSubmission.metadata).length > 0 && (
+              <>
+                <Divider orientation="left">Metadata</Divider>
+                <Descriptions column={1} size="small">
+                  {selectedSubmission.metadata.user_agent && (
+                    <Descriptions.Item label="Browser">
+                      <Text className="text-xs">{selectedSubmission.metadata.user_agent}</Text>
+                    </Descriptions.Item>
+                  )}
+                  {selectedSubmission.metadata.ip_address && (
+                    <Descriptions.Item label="IP Address">
+                      {selectedSubmission.metadata.ip_address}
+                    </Descriptions.Item>
+                  )}
+                </Descriptions>
+              </>
+            )}
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 };
