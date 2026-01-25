@@ -403,22 +403,15 @@ const PublicFormPage = () => {
         {/* Multi-step progress */}
         {steps.length > 1 && (
           <div className="mt-4">
-            <Progress 
-              percent={progressPercent} 
-              showInfo={false}
-              strokeColor={token.colorPrimary}
+            <Steps
+              current={currentStep}
+              size="small"
+              items={steps.map((step, index) => ({
+                title: step.step_name,
+                status: index < currentStep ? 'finish' : 
+                        index === currentStep ? 'process' : 'wait',
+              }))}
             />
-            <div className="mt-2">
-              <Steps
-                current={currentStep}
-                size="small"
-                items={steps.map((step, index) => ({
-                  title: step.step_name,
-                  status: index < currentStep ? 'finish' : 
-                          index === currentStep ? 'process' : 'wait',
-                }))}
-              />
-            </div>
           </div>
         )}
       </div>
@@ -554,22 +547,15 @@ const PublicFormPage = () => {
               {/* Multi-step progress */}
               {steps.length > 1 && (
                 <div className="mt-4">
-                  <Progress 
-                    percent={progressPercent} 
-                    showInfo={false}
-                    strokeColor={token.colorPrimary}
+                  <Steps
+                    current={currentStep}
+                    size="small"
+                    items={steps.map((step, index) => ({
+                      title: step.step_name,
+                      status: index < currentStep ? 'finish' : 
+                              index === currentStep ? 'process' : 'wait',
+                    }))}
                   />
-                  <div className="mt-2">
-                    <Steps
-                      current={currentStep}
-                      size="small"
-                      items={steps.map((step, index) => ({
-                        title: step.step_name,
-                        status: index < currentStep ? 'finish' : 
-                                index === currentStep ? 'process' : 'wait',
-                      }))}
-                    />
-                  </div>
                 </div>
               )}
             </Card>

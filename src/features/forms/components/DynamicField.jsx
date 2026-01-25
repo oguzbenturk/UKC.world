@@ -527,11 +527,13 @@ const AddressField = ({ field, disabled }) => {
 /**
  * Toggle Field - Yes/No switch
  */
-const ToggleField = ({ field, disabled }) => {
+const ToggleField = ({ field, disabled, value, onChange }) => {
   return (
     <Space className="toggle-field">
       <Switch 
         disabled={disabled}
+        checked={value}
+        onChange={onChange}
         checkedChildren={field.options?.true_label || 'Yes'}
         unCheckedChildren={field.options?.false_label || 'No'}
       />
@@ -649,7 +651,7 @@ const COUNTRIES = [
   { code: 'IL', name: 'Israel', flag: '🇮🇱' },
 ];
 
-const CountryField = ({ field, disabled }) => {
+const CountryField = ({ field, disabled, value, onChange }) => {
   const showFlags = field.options?.show_flags !== false;
   
   return (
@@ -657,6 +659,8 @@ const CountryField = ({ field, disabled }) => {
       showSearch
       allowClear
       disabled={disabled}
+      value={value}
+      onChange={onChange}
       placeholder={field.placeholder_text || 'Select country'}
       optionFilterProp="label"
       className="w-full"
@@ -730,7 +734,7 @@ const SliderField = ({ field, disabled }) => {
 /**
  * Consent Field - Terms acceptance checkbox
  */
-const ConsentField = ({ field, disabled }) => {
+const ConsentField = ({ field, disabled, value, onChange }) => {
   const consentText = field.options?.consent_text || 'I agree to the Terms and Conditions';
   const privacyLink = field.options?.privacy_link || '';
   const termsLink = field.options?.terms_link || '';
@@ -778,7 +782,7 @@ const ConsentField = ({ field, disabled }) => {
 
   return (
     <div className="consent-field">
-      <Checkbox disabled={disabled}>
+      <Checkbox disabled={disabled} checked={value} onChange={(e) => onChange?.(e.target.checked)}>
         <span className="flex items-start gap-2">
           <SafetyCertificateOutlined className="text-green-600 mt-1" />
           <span>{renderLabel()}</span>
