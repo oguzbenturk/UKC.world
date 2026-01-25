@@ -14,6 +14,7 @@ import {
   TeamOutlined,
   PercentageOutlined,
   WhatsAppOutlined,
+  LinkOutlined,
   PlusOutlined,
   EditOutlined,
   CopyOutlined,
@@ -37,6 +38,7 @@ import apiClient from '@/shared/services/apiClient';
 import { WhatsAppTextArea } from '../components/WhatsAppToolbar';
 import CroppableImage from '../components/CroppableImage';
 import PopupFormIntegration from '@/features/popups/components/PopupFormIntegration';
+import QuickLinksPage from '@/features/quicklinks/pages/QuickLinksPage';
 import { 
   EmailPreview, 
   PopupPreview, 
@@ -852,6 +854,13 @@ const MarketingPage = () => {
               )
             },
             {
+              key: 'quicklinks',
+              label: <span><LinkOutlined /> Quick Links</span>,
+              children: (
+                <QuickLinksPage embedded={true} />
+              )
+            },
+            {
               key: 'analytics',
               label: <span><PercentageOutlined /> Analytics</span>,
               children: (
@@ -884,7 +893,7 @@ const MarketingPage = () => {
             overflowX: 'hidden'
           }
         }}
-        destroyOnClose
+        destroyOnHidden
         className="campaign-modal"
       >
         <Row gutter={24}>

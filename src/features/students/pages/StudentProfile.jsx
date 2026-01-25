@@ -19,6 +19,7 @@ import {
   ClockCircleOutlined,
   CrownOutlined,
   DollarOutlined,
+  ScheduleOutlined,
   ShoppingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -475,7 +476,57 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
     [formatDualPrice, storageCurrency],
   );
 
-  return { bookingColumns, rentalColumns, financialColumns, membershipColumns, shopColumns, formatDualPrice };
+  const eventColumns = useMemo(
+    () => [
+      {
+        title: 'Event',
+        dataIndex: 'title',
+        key: 'title',
+        render: (value) => value || 'Event',
+      },
+      {
+        title: 'Date',
+        dataIndex: 'start_at',
+        key: 'start_at',
+        render: (value) => formatDateTime(value),
+        sorter: (a, b) => {
+          const dateA = toDate(a.start_at);
+          const dateB = toDate(b.start_at);
+          return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
+        },
+      },
+      {
+        title: 'Location',
+        dataIndex: 'location',
+        key: 'location',
+        render: (value) => value || 'TBA',
+      },
+      {
+        title: 'Price',
+        dataIndex: 'price',
+        key: 'price',
+        render: (value, record) => {
+          const price = Number(value || 0);
+          if (price === 0) return <Tag color="green">Free</Tag>;
+          const baseCurrency = record.currency || storageCurrency;
+          return formatDualPrice(price, baseCurrency);
+        },
+      },
+      {
+        title: 'Registration',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status) => {
+          const lower = String(status || '').toLowerCase();
+          const color = lower === 'registered' ? 'green' : lower === 'cancelled' ? 'red' : 'default';
+          return <Tag color={color}>{status ? status.toUpperCase() : 'N/A'}</Tag>;
+        },
+      },
+    ],
+    [formatDualPrice, storageCurrency],
+  );
+
+  return { bookingColumns, rentalColumns, financialColumns, membershipColumns, shopColumns, eventColumns, formatDualPrice };
 };
 
 const useStudentActivity = (studentId) => {
@@ -483,6 +534,7 @@ const useStudentActivity = (studentId) => {
   const [rentals, setRentals] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [shopHistory, setShopHistory] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -494,6 +546,7 @@ const useStudentActivity = (studentId) => {
       setRentals([]);
       setMemberships([]);
       setShopHistory([]);
+      setEvents([]);
       setLoading(false);
       setError(null);
       return () => {};
@@ -502,11 +555,12 @@ const useStudentActivity = (studentId) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [lessonData, rentalData, membershipData, shopData] = await Promise.all([
+        const [lessonData, rentalData, membershipData, shopData, eventData] = await Promise.all([
           DataService.getLessonsByUserId(studentId),
           DataService.getRentalsByUserId(studentId).catch(() => []),
           apiClient.get('/member-offerings/my-purchases').then((res) => res.data).catch(() => []),
           apiClient.get(`/students/${studentId}/shop-history`).then((res) => res.data).catch(() => []),
+          apiClient.get('/events/my-events').then((res) => res.data).catch(() => []),
         ]);
 
         if (!cancelled) {
@@ -514,6 +568,7 @@ const useStudentActivity = (studentId) => {
           setRentals(Array.isArray(rentalData) ? rentalData : []);
           setMemberships(Array.isArray(membershipData) ? membershipData : []);
           setShopHistory(Array.isArray(shopData) ? shopData : []);
+          setEvents(Array.isArray(eventData) ? eventData : []);
           setError(null);
         }
       } catch (err) {
@@ -534,7 +589,7 @@ const useStudentActivity = (studentId) => {
     };
   }, [studentId]);
 
-  return { bookings, rentals, memberships, shopHistory, loading, error };
+  return { bookings, rentals, memberships, shopHistory, events, loading, error };
 };
 
 const ProfileInfoCard = ({ student, stats, account, formatCurrency, displayCurrency, storageCurrency, convertCurrency }) => {
@@ -704,11 +759,13 @@ const HistorySection = ({
   rentals,
   memberships,
   shopHistory,
+  events,
   transactions,
   bookingColumns,
   rentalColumns,
   shopColumns,
   membershipColumns,
+  eventColumns,
   financialColumns,
   formatDualPrice,
   storageCurrency,
@@ -870,6 +927,28 @@ const HistorySection = ({
             ),
         },
         {
+          key: 'events',
+          label: (
+            <span>
+              <ScheduleOutlined /> Event History
+            </span>
+          ),
+          children:
+            events && events.length > 0 ? (
+              <UnifiedResponsiveTable
+                title="Event Registrations"
+                density="comfortable"
+                columns={eventColumns}
+                dataSource={events}
+                mobileCardRenderer={TransactionMobileCard}
+                rowKey="id"
+                pagination={{ pageSize: 5 }}
+              />
+            ) : (
+              <Empty description="No event registrations" />
+            ),
+        },
+        {
           key: 'financial',
           label: (
             <span>
@@ -939,11 +1018,13 @@ const StudentProfileContent = ({
   rentals,
   memberships,
   shopHistory,
+  events,
   transactions,
   bookingColumns,
   rentalColumns,
   shopColumns,
   membershipColumns,
+  eventColumns,
   financialColumns,
   formatDualPrice
 }) => (
@@ -990,11 +1071,13 @@ const StudentProfileContent = ({
       rentals={rentals}
       memberships={memberships}
       shopHistory={shopHistory}
+      events={events}
       transactions={transactions}
       bookingColumns={bookingColumns}
       rentalColumns={rentalColumns}
       shopColumns={shopColumns}
       membershipColumns={membershipColumns}
+      eventColumns={eventColumns}
       financialColumns={financialColumns}
       formatDualPrice={formatDualPrice}
       storageCurrency={storageCurrency}
@@ -1092,7 +1175,7 @@ const StudentProfile = () => {
   const storageCurrency = businessCurrency || 'EUR';
 
   const studentId = overview?.student?.id || user?.id;
-  const { bookings, rentals, memberships, shopHistory, loading: dataLoading, error } = useStudentActivity(studentId);
+  const { bookings, rentals, memberships, shopHistory, events, loading: dataLoading, error } = useStudentActivity(studentId);
 
   const { displayCurrency, stats, transactions, account, packages, upcomingSessions } = useStudentDisplayData(
     overview,
@@ -1102,7 +1185,7 @@ const StudentProfile = () => {
   );
 
   const activityRows = useMemo(() => buildActivityRows(bookings, rentals), [bookings, rentals]);
-  const { bookingColumns, rentalColumns, membershipColumns, financialColumns, shopColumns, formatDualPrice } = useStudentTables(displayCurrency, formatCurrency, storageCurrency, convertCurrency);
+  const { bookingColumns, rentalColumns, membershipColumns, financialColumns, shopColumns, eventColumns, formatDualPrice } = useStudentTables(displayCurrency, formatCurrency, storageCurrency, convertCurrency);
 
   if (!overview && dataLoading) {
     return (
@@ -1150,11 +1233,13 @@ const StudentProfile = () => {
           rentals={rentals}
           memberships={memberships}
           shopHistory={shopHistory}
+          events={events}
           transactions={transactions}
           bookingColumns={bookingColumns}
           rentalColumns={rentalColumns}
           shopColumns={shopColumns}
           membershipColumns={membershipColumns}
+          eventColumns={eventColumns}
           financialColumns={financialColumns}
           formatDualPrice={formatDualPrice}
         />

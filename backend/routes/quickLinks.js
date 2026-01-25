@@ -67,15 +67,38 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
  */
 router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
-    const { name, description, service_type, service_id, expires_at, max_uses, require_payment, custom_fields } = req.body;
+    const { name, description, link_type, service_type, service_id, form_template_id, expires_at, max_uses, require_payment, custom_fields } = req.body;
     
-    if (!name || !service_type) {
-      return res.status(400).json({ error: 'Name and service type are required' });
+    if (!name || !link_type) {
+      return res.status(400).json({ error: 'Name and link type are required' });
     }
 
-    const validServiceTypes = ['accommodation', 'lesson', 'rental', 'shop'];
-    if (!validServiceTypes.includes(service_type)) {
-      return res.status(400).json({ error: 'Invalid service type' });
+    const validLinkTypes = ['registration', 'service', 'form'];
+    if (!validLinkTypes.includes(link_type)) {
+      return res.status(400).json({ error: 'Invalid link type. Must be "registration", "service", or "form"' });
+    }
+
+    // If link_type is 'service', service_type is required
+    if (link_type === 'service' && !service_type) {
+      return res.status(400).json({ error: 'Service type is required for service quick links' });
+    }
+
+    // If link_type is 'form', form_template_id is required
+    if (link_type === 'form' && !form_template_id) {
+      return res.status(400).json({ error: 'Form template ID is required for form quick links' });
+    }
+
+    // Validate service_type only if provided (for service links)
+    if (service_type) {
+      const validServiceTypes = ['accommodation', 'lesson', 'rental', 'shop'];
+      if (!validServiceTypes.includes(service_type)) {
+        return res.status(400).json({ error: 'Invalid service type' });
+      }
+    }
+
+    // If creating a link for a form, auto-publish the form template
+    if (link_type === 'form' && form_template_id) {
+      await quickLinksService.publishFormTemplate(form_template_id);
     }
 
     const link = await quickLinksService.createQuickLink(req.body, req.user.id);

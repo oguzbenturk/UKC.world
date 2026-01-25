@@ -72,6 +72,9 @@ import userRelationshipsRouter from './routes/userRelationships.js';
 import chatRouter from './routes/chat.js';
 import shopOrdersRouter from './routes/shopOrders.js';
 import businessExpensesRouter from './routes/businessExpenses.js';
+import formTemplatesRouter from './routes/formTemplates.js';
+import formSubmissionsRouter from './routes/formSubmissions.js';
+import publicFormsRouter from './routes/publicForms.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import './services/alerts/notificationAlertService.js';
 import { 
@@ -357,12 +360,16 @@ app.use('/api/member-offerings', memberOfferingsRouter);
 app.use('/api/repair-requests', authenticateJWT, repairRequestsRouter);
 app.use('/api/marketing', authenticateJWT, marketingRouter);
 app.use('/api/quick-links', quickLinksRouter); // Has both public and protected routes
+app.use('/api/form-templates', formTemplatesRouter); // Form builder API
+app.use('/api/form-submissions', formSubmissionsRouter); // Form submissions API
+app.use('/api/public/forms', publicFormsRouter); // Public form access
 app.use('/api/relationships', userRelationshipsRouter); // Friend/connection management
 app.use('/api/finances/daily-operations', triggerFinancialReconciliation, financeDailyOperationsRouter);
 app.use('/api/accommodation', authenticateJWT, accommodationRouter);
 app.use('/api/webhooks', paymentWebhooksRouter);
 app.use('/api/wallet', authenticateJWT, walletRouter);
 app.use('/api/shop-orders', shopOrdersRouter);
+app.use('/api/shop/orders', shopOrdersRouter); // Alias for QuickShopSaleModal
 app.use('/api/business-expenses', authenticateJWT, businessExpensesRouter);
 app.use('/api/group-bookings', groupBookingsRouter);
 app.use('/api/system', authenticateJWT, systemRouter);
@@ -386,6 +393,7 @@ app.get('/api/services/categories/list', async (req, res) => {
 
 app.use('/api/services', authenticateJWT, servicesRouter);
 app.use('/api/products', authenticateJWT, productsRouter);
+app.use('/api/shop/products', authenticateJWT, productsRouter); // Alias for QuickShopSaleModal compatibility
 app.use('/api/ratings', authenticateJWT, ratingsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/instructor-commissions', instructorCommissionsRouter);

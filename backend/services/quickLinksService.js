@@ -13,6 +13,27 @@ function generateLinkCode() {
 }
 
 /**
+ * Publish a form template (set published_version = current_version)
+ * @param {number} formTemplateId - Form template ID
+ * @returns {Promise<boolean>} Success
+ */
+export async function publishFormTemplate(formTemplateId) {
+  try {
+    await pool.query(`
+      UPDATE form_templates 
+      SET published_version = current_version, 
+          last_published_at = NOW() 
+      WHERE id = $1 AND published_version IS NULL
+    `, [formTemplateId]);
+    logger.info(`Form template ${formTemplateId} auto-published for shareable link`);
+    return true;
+  } catch (error) {
+    logger.warn(`Failed to auto-publish form template ${formTemplateId}:`, error.message);
+    return false;
+  }
+}
+
+/**
  * Get all quick links (with optional filters)
  * @param {Object} filters - Optional filters
  * @param {string} userId - ID of requesting user
@@ -96,8 +117,10 @@ export async function createQuickLink(data, userId) {
   const {
     name,
     description,
+    link_type,
     service_type,
     service_id,
+    form_template_id,
     expires_at,
     max_uses,
     require_payment,
@@ -115,10 +138,10 @@ export async function createQuickLink(data, userId) {
 
   const query = `
     INSERT INTO quick_links (
-      link_code, name, description, service_type, service_id,
+      link_code, name, description, link_type, service_type, service_id, form_template_id,
       is_active, expires_at, max_uses, require_payment, custom_fields, created_by
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *
   `;
 
@@ -126,8 +149,10 @@ export async function createQuickLink(data, userId) {
     linkCode,
     name,
     description || null,
-    service_type,
+    link_type || 'service', // Default to 'service' if not specified
+    service_type || null,
     service_id || null,
+    form_template_id || null,
     true, // is_active defaults to true
     expires_at || null,
     max_uses || null,
@@ -136,7 +161,7 @@ export async function createQuickLink(data, userId) {
     userId
   ]);
 
-  logger.info(`Quick link created: ${linkCode} by user ${userId}`);
+  logger.info(`Quick link created: ${linkCode} (type: ${link_type || 'service'}) by user ${userId}`);
   return result.rows[0];
 }
 
@@ -147,7 +172,7 @@ export async function createQuickLink(data, userId) {
  * @returns {Promise<Object>} Updated quick link
  */
 export async function updateQuickLink(id, data) {
-  const allowedFields = ['name', 'description', 'service_type', 'service_id', 'is_active', 'expires_at', 'max_uses', 'require_payment', 'custom_fields'];
+  const allowedFields = ['name', 'description', 'link_type', 'service_type', 'service_id', 'form_template_id', 'is_active', 'expires_at', 'max_uses', 'require_payment', 'custom_fields'];
   const updates = [];
   const params = [];
   let paramCount = 1;

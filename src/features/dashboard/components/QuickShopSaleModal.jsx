@@ -75,11 +75,16 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
         // Fallback to alternative endpoint
         response = await apiClient.get('/products');
       }
-      // Show all products, indicate stock status in display
-      setProducts(response.data || []);
+      // API returns { data: [...], pagination: {...} } - extract the products array
+      const responseData = response.data || response || {};
+      const productsArray = Array.isArray(responseData) 
+        ? responseData 
+        : (responseData.data || responseData.products || []);
+      setProducts(productsArray);
     } catch (error) {
       console.error('Error fetching products:', error);
       message.error('Failed to load products');
+      setProducts([]); // Ensure products is always an array
     } finally {
       setLoading(false);
     }
@@ -104,9 +109,9 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
     try {
       setSubmitting(true);
 
-      // Create shop order
+      // Create shop order via admin quick-sale endpoint
       const orderData = {
-        user_id: values.customer_id,
+        user_id: values.customer_id || null, // null for walk-in customers
         items: [
           {
             product_id: values.product_id,
@@ -118,7 +123,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
         notes: values.notes || ''
       };
 
-      await apiClient.post('/shop/orders', orderData);
+      await apiClient.post('/shop/orders/admin/quick-sale', orderData);
 
       message.success('Sale completed successfully!');
       
@@ -220,19 +225,19 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
               <Select
                 showSearch
                 placeholder="Search for product..."
-                optionFilterProp="children"
+                optionFilterProp="label"
                 onChange={handleProductChange}
-                filterOption={(input, option) =>
-                  option.children.toLowerCase().includes(input.toLowerCase())
-                }
+                filterOption={(input, option) => {
+                  const label = option?.label || '';
+                  const searchText = typeof label === 'string' ? label : '';
+                  return searchText.toLowerCase().includes(input.toLowerCase());
+                }}
                 size="large"
-              >
-                {products.map((product) => (
-                  <Option key={product.id} value={product.id}>
-                    {product.name} - {formatCurrency(product.price)} (Stock: {product.stock})
-                  </Option>
-                ))}
-              </Select>
+                options={(products || []).map((product) => ({
+                  value: product.id,
+                  label: `${product.name} - ${formatCurrency(product.price)} (Stock: ${product.stock_quantity ?? product.stock ?? 0})`,
+                }))}
+              />
             </Form.Item>
 
             {selectedProduct && (
@@ -243,7 +248,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
                     <div className="text-sm text-slate-600 mb-1">Quantity</div>
                     <InputNumber
                       min={1}
-                      max={selectedProduct.stock}
+                      max={selectedProduct.stock_quantity ?? selectedProduct.stock ?? 999}
                       value={quantity}
                       onChange={handleQuantityChange}
                       size="large"
@@ -253,7 +258,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
                   <Col span={12}>
                     <div className="text-sm text-slate-600 mb-1">Available Stock</div>
                     <div className="text-lg font-semibold text-slate-800 mt-2">
-                      {selectedProduct.stock} units
+                      {selectedProduct.stock_quantity ?? selectedProduct.stock ?? 0} units
                     </div>
                   </Col>
                 </Row>

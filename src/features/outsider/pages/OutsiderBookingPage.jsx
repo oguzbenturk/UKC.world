@@ -752,22 +752,6 @@ const OutsiderBookingPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-900 dark:to-slate-800">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-sky-500 via-sky-600 to-indigo-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 py-12 sm:py-16">
-          <div className="text-center">
-            <Title level={1} className="!text-white !mb-4">
-              <RocketOutlined className="mr-3" />
-              Start Your Water Sports Journey
-            </Title>
-            <Paragraph className="text-xl text-sky-100 max-w-2xl mx-auto">
-              Book your first kitesurfing lesson and experience the thrill of riding the waves. 
-              Our expert instructors will guide you every step of the way.
-            </Paragraph>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
         {/* Welcome Card */}

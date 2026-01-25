@@ -433,4 +433,43 @@ router.get('/:eventId/my-registration', authenticateJWT, async (req, res) => {
   }
 });
 
+// Get current user's event registrations history
+router.get('/my-events', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const query = `
+      SELECT
+        er.id,
+        er.event_id,
+        er.status,
+        er.registered_at,
+        er.cancelled_at,
+        e.title,
+        e.description,
+        e.location,
+        e.start_at,
+        e.end_at,
+        e.price,
+        e.currency,
+        e.image_url,
+        e.status as event_status
+      FROM event_registrations er
+      JOIN events e ON er.event_id = e.id
+      WHERE er.user_id = $1
+      ORDER BY e.start_at DESC
+    `;
+
+    const { rows } = await pool.query(query, [userId]);
+    return res.json(rows);
+  } catch (error) {
+    logger.error('Error fetching user event registrations:', error);
+    return res.status(500).json({ error: 'Failed to fetch event registrations' });
+  }
+});
+
 export default router;

@@ -186,8 +186,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/academy/book-service', label: 'Book a Service' },
           { to: '/student/schedule', label: 'My Lessons' },
-          { to: '/student/courses', label: 'My Packages' },
-          { to: '/academy/progress', label: 'Learning Progress' }
+          { to: '/student/courses', label: 'My Packages' }
         ]
       }),
       item('/rental', 'Rental', 'CubeIcon', {
@@ -357,11 +356,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       // Marketing - Rose (icon only, no dot)
       item('/marketing', 'Marketing', 'MegaphoneIcon', {
-        customStyle: { textColor: '#f43f5e' },
-        subItems: [
-          { to: '/marketing', label: 'Marketing Dashboard', icon: 'PresentationChartBarIcon' },
-          { to: '/quick-links', label: 'Quick Links', icon: 'SparklesIcon' }
-        ]
+        customStyle: { textColor: '#f43f5e' }
       }),
       // Rating Analytics - Amber (icon only, no dot)
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
@@ -462,7 +457,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       customStyle: { dotColor: '#2d6a3e', textColor: '#f43f5e' },
       subItems: [
         { to: '/marketing', label: 'Marketing Dashboard' },
-        { to: '/quick-links', label: 'Quick Links' }
+        { to: '/quick-links', label: 'Links & Forms' }
       ]
     }),
     // Rating Analytics - Amber (requires reports permissions)

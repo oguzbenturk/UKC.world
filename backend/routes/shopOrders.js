@@ -776,4 +776,167 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
   }
 });
 
+// Admin/Staff: Create order on behalf of customer (Quick Sale from Front Desk)
+router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const staffUserId = req.user.id;
+    const { 
+      user_id, // Customer's user_id (optional for walk-in)
+      items, 
+      payment_method = 'cash',
+      notes
+    } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Order must contain at least one item' });
+    }
+
+    if (!['wallet', 'credit_card', 'cash', 'card'].includes(payment_method)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
+
+    await client.query('BEGIN');
+
+    // Calculate order totals and validate stock
+    let subtotal = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      const productResult = await client.query(`
+        SELECT id, name, price, stock_quantity, image_url, brand, status
+        FROM products 
+        WHERE id = $1 AND status = 'active'
+      `, [item.product_id]);
+
+      if (productResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Product ${item.product_name || item.product_id} is not available` 
+        });
+      }
+
+      const product = productResult.rows[0];
+
+      if (product.stock_quantity < item.quantity) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Insufficient stock for ${product.name}. Available: ${product.stock_quantity}` 
+        });
+      }
+
+      const itemTotal = product.price * item.quantity;
+      subtotal += itemTotal;
+
+      validatedItems.push({
+        product_id: product.id,
+        product_name: product.name,
+        product_image: product.image_url,
+        brand: product.brand,
+        quantity: item.quantity,
+        unit_price: product.price,
+        total_price: itemTotal
+      });
+    }
+
+    const totalAmount = subtotal;
+
+    // For wallet payment, check customer's wallet balance
+    if (payment_method === 'wallet' && user_id) {
+      const walletBalance = await getBalance(user_id, 'EUR');
+      const balance = walletBalance.available || 0;
+      
+      if (balance < totalAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Insufficient wallet balance. Required: €${totalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}` 
+        });
+      }
+    }
+
+    // Create the order (user_id can be null for walk-in customers)
+    // Note: Store staffUserId in notes since created_by column doesn't exist
+    const staffNote = notes ? `${notes} | Staff: ${staffUserId}` : `Staff sale by: ${staffUserId}`;
+    const orderResult = await client.query(`
+      INSERT INTO shop_orders (
+        user_id, status, payment_method, payment_status, 
+        subtotal, total_amount, notes
+      )
+      VALUES ($1, 'confirmed', $2, 'completed', $3, $4, $5)
+      RETURNING *
+    `, [user_id || null, payment_method === 'card' ? 'credit_card' : payment_method, subtotal, totalAmount, staffNote]);
+
+    const order = orderResult.rows[0];
+
+    // Insert order items and update stock
+    for (const item of validatedItems) {
+      await client.query(`
+        INSERT INTO shop_order_items (
+          order_id, product_id, product_name, product_image, brand,
+          quantity, unit_price, total_price
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        order.id,
+        item.product_id,
+        item.product_name,
+        item.product_image,
+        item.brand,
+        item.quantity,
+        item.unit_price,
+        item.total_price
+      ]);
+
+      // Decrease stock
+      await client.query(`
+        UPDATE products 
+        SET stock_quantity = stock_quantity - $1, updated_at = NOW()
+        WHERE id = $2
+      `, [item.quantity, item.product_id]);
+    }
+
+    // Process wallet payment if applicable
+    if (payment_method === 'wallet' && user_id) {
+      await recordTransaction({
+        client,
+        userId: user_id,
+        amount: totalAmount,
+        currency: 'EUR',
+        transactionType: 'payment',
+        direction: 'debit',
+        availableDelta: -totalAmount,
+        description: `Shop Order #${order.order_number} (Staff Sale)`,
+        relatedEntityType: 'shop_order',
+        metadata: { orderId: order.id, orderNumber: order.order_number, staffId: staffUserId }
+      });
+    }
+
+    // Log status in history
+    await client.query(`
+      INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+      VALUES ($1, 'pending', 'confirmed', $2, $3)
+    `, [order.id, staffUserId, `Quick sale by staff. Payment: ${payment_method}`]);
+
+    await client.query('COMMIT');
+
+    const completeOrder = await getOrderWithItems(order.id);
+
+    logger.info(`Quick sale #${order.order_number} created by staff ${staffUserId} for customer ${user_id || 'walk-in'}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Sale completed successfully',
+      order: completeOrder
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Error creating quick sale:', error);
+    res.status(500).json({ error: 'Failed to create sale' });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;

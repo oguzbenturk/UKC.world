@@ -5,7 +5,7 @@ import { RedoOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Paragraph, Text } = Typography;
 
-const AppErrorFallback = ({ error, onRetry }) => {
+const AppErrorFallback = ({ error = null, onRetry = undefined }) => {
   const isDevelopment = import.meta.env.DEV;
   const message = isDevelopment && error?.message
     ? error.message
@@ -55,11 +55,6 @@ const AppErrorFallback = ({ error, onRetry }) => {
 AppErrorFallback.propTypes = {
   error: PropTypes.instanceOf(Error),
   onRetry: PropTypes.func
-};
-
-AppErrorFallback.defaultProps = {
-  error: null,
-  onRetry: undefined
 };
 
 export default AppErrorFallback;

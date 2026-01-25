@@ -28,6 +28,7 @@ import Rentals from '../features/rentals/pages/Rentals';
 import AccommodationServices from '../features/services/pages/AccommodationServices';
 import AccommodationUnitsManager from '../features/services/pages/AccommodationUnitsManager';
 import AccommodationBookingPage from '../features/accommodation/pages/AccommodationBookingPage';
+import AccommodationAdminPage from '../features/accommodation/pages/AccommodationAdminPage';
 import LessonServices from '../features/services/pages/LessonServices';
 import RentalServices from '../features/services/pages/RentalServices';
 import SalesServices from '../features/services/pages/SalesServices';
@@ -106,6 +107,15 @@ import MarketingPage from '../features/marketing/pages/MarketingPage';
 // Quick Links
 import QuickLinksPage from '../features/quicklinks/pages/QuickLinksPage';
 import PublicQuickBooking from '../features/quicklinks/pages/PublicQuickBooking';
+
+// Form Builder
+import FormsListPage from '../features/forms/pages/FormsListPage';
+import FormBuilderPage from '../features/forms/pages/FormBuilderPage';
+import FormPreviewPage from '../features/forms/pages/FormPreviewPage';
+import PublicFormPage from '../features/forms/pages/PublicFormPage';
+import FormSuccessPage from '../features/forms/pages/FormSuccessPage';
+import FormAnalyticsPage from '../features/forms/pages/FormAnalyticsPage';
+import FormResponsesPage from '../features/forms/pages/FormResponsesPage';
 
 // Finance sub-pages
 import FinanceLessons from '../features/finances/pages/FinanceLessons';
@@ -228,6 +238,13 @@ const AppRoutes = () => {
   
   {/* Public route for quick link registration */}
   <Route path="/quick/:linkCode" element={<PublicQuickBooking />} />
+
+  {/* Public route for custom forms (short URL: /f/CODE) */}
+  <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />
+  <Route path="/f/:linkCode" element={<PublicFormPage />} />
+
+  {/* Form preview - rendered outside layout but requires auth (handled in component) */}
+  <Route path="/forms/preview/:id" element={<FormPreviewPage />} />
       
       {/* Routes accessible to all authenticated users including outsiders */}
       <Route element={<ProtectedRoute allowedRoles={[]} />}>
@@ -345,6 +362,11 @@ const AppRoutes = () => {
         <Route path="/marketing" element={<MarketingPage />} />
         {/* Quick Links - managers and above */}
         <Route path="/quick-links" element={<QuickLinksPage />} />
+        {/* Form Builder - managers and above */}
+        <Route path="/forms" element={<FormsListPage />} />
+        <Route path="/forms/builder/:id" element={<FormBuilderPage />} />
+        <Route path="/forms/:id/analytics" element={<FormAnalyticsPage />} />
+        <Route path="/forms/:id/responses" element={<FormResponsesPage />} />
       </Route>
       {/* Admin-only routes */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
@@ -364,7 +386,7 @@ const AppRoutes = () => {
         <Route path="/calendars/lessons" element={<LessonsCalendar />} />
         <Route path="/calendars/rentals" element={<RentalsCalendar />} />
         <Route path="/calendars/members" element={<AdminMembersPage />} />
-        <Route path="/calendars/stay" element={<AccommodationBookingPage />} />
+        <Route path="/calendars/stay" element={<AccommodationAdminPage />} />
         <Route path="/calendars/shop-orders" element={<ShopOrdersPage />} />
         <Route path="/calendars/events" element={<EventsCalendar />} />
         {/* Rentals calendar view */}

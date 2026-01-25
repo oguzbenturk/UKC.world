@@ -470,7 +470,7 @@ function AccommodationBookingPage() {
         onCancel={() => setBookingModalVisible(false)}
         footer={null}
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedUnit && (
           <Form

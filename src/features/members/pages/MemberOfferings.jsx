@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Spin, Alert, message, Modal, Space } from 'antd';
+import { Button, Spin, Alert, message, Modal, Space, Select, Card, Input } from 'antd';
 import { 
   CrownOutlined, 
   TrophyOutlined, 
@@ -7,10 +7,13 @@ import {
   CheckCircleFilled,
   WalletOutlined,
   ShopOutlined,
-  ThunderboltOutlined
+  ThunderboltOutlined,
+  UserOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 
 const fetchMemberOfferings = async () => {
@@ -414,15 +417,45 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, d
 
 const MemberOfferings = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { formatCurrency, convertCurrency, displayCurrency, businessCurrency } = useCurrency();
   const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+
+  // Determine if user is staff (can assign memberships to others)
+  const userRole = user?.role?.toLowerCase() || '';
+  const customerRoles = ['student', 'outsider', 'trusted_customer'];
+  const isStaff = !customerRoles.includes(userRole) && userRole !== '';
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Fetch customers for staff to assign memberships
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers-for-membership'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/users');
+      // Filter to only customers
+      return (data || []).filter(u => 
+        customerRoles.includes(u.role?.toLowerCase()) || 
+        (!u.role && !u.is_admin && !u.is_staff)
+      );
+    },
+    enabled: isStaff,
+  });
+
+  // Filter customers by search
+  const filteredCustomers = customers.filter(c => {
+    if (!customerSearch) return true;
+    const search = customerSearch.toLowerCase();
+    const fullName = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+    return fullName.includes(search) || c.email?.toLowerCase().includes(search);
+  });
 
   const { data: offerings = [], isLoading, error } = useQuery({
     queryKey: ['member-offerings'],
@@ -442,6 +475,7 @@ const MemberOfferings = () => {
       .map(p => p.offering_id)
   );
 
+  // Mutation for self-purchase (customers)
   const purchaseMutation = useMutation({
     mutationFn: purchaseMembership,
     onSuccess: () => {
@@ -455,16 +489,56 @@ const MemberOfferings = () => {
     },
   });
 
+  // Mutation for staff assigning membership to customer
+  const assignMutation = useMutation({
+    mutationFn: async ({ userId, offeringId, paymentMethod }) => {
+      const { data } = await apiClient.post('/member-offerings/admin/purchases', {
+        userId,
+        offeringId,
+        paymentMethod
+      });
+      return data;
+    },
+    onSuccess: () => {
+      const customer = customers.find(c => c.id === selectedCustomer);
+      const customerName = customer ? `${customer.first_name} ${customer.last_name}` : 'customer';
+      message.success(`🎉 Membership assigned to ${customerName}!`);
+      setPurchaseModal({ visible: false, offering: null });
+      setSelectedCustomer(null);
+      queryClient.invalidateQueries(['member-offerings']);
+      queryClient.invalidateQueries(['admin-member-purchases']);
+    },
+    onError: (err) => {
+      message.error(err.response?.data?.error || err.response?.data?.message || 'Assignment failed. Please try again.');
+    },
+  });
+
   const handlePurchase = (offering) => {
+    // For staff, require a customer to be selected first
+    if (isStaff && !selectedCustomer) {
+      message.warning('Please select a customer first to assign this membership.');
+      return;
+    }
     setPurchaseModal({ visible: true, offering });
   };
 
   const confirmPurchase = (paymentMethod) => {
     if (!purchaseModal.offering) return;
-    purchaseMutation.mutate({
-      offeringId: purchaseModal.offering.id,
-      paymentMethod: paymentMethod,
-    });
+    
+    if (isStaff && selectedCustomer) {
+      // Staff assigning to customer
+      assignMutation.mutate({
+        userId: selectedCustomer,
+        offeringId: purchaseModal.offering.id,
+        paymentMethod: paymentMethod,
+      });
+    } else {
+      // Customer self-purchase
+      purchaseMutation.mutate({
+        offeringId: purchaseModal.offering.id,
+        paymentMethod: paymentMethod,
+      });
+    }
   };
 
   const getIsPopular = (offering) => {
@@ -472,34 +546,98 @@ const MemberOfferings = () => {
     return n.includes('vip') || n.includes('beach');
   };
 
+  // Get selected customer name for display
+  const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
+  const selectedCustomerName = selectedCustomerData 
+    ? `${selectedCustomerData.first_name} ${selectedCustomerData.last_name}`
+    : null;
+
   return (
     <div style={{ 
-      padding: isMobile ? '24px 16px' : '48px 24px', 
-      maxWidth: '1100px', 
-      margin: '0 auto',
+      padding: isMobile ? '24px 16px' : '32px 24px', 
+      maxWidth: isStaff ? 'none' : '1100px', 
+      margin: isStaff ? '0' : '0 auto',
       minHeight: 'calc(100vh - 120px)',
     }}>
-      <div style={{ textAlign: 'center', marginBottom: isMobile ? '32px' : '56px' }}>
+      {/* Staff Customer Selector */}
+      {isStaff && (
+        <Card 
+          className="mb-6"
+          style={{ 
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+            border: '1px solid #bae6fd',
+          }}
+        >
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <UserOutlined style={{ fontSize: '20px', color: '#0284c7' }} />
+              <span style={{ fontWeight: '600', color: '#0369a1' }}>Assign Membership To:</span>
+            </div>
+            <div className="flex-1">
+              <Select
+                showSearch
+                placeholder="Search and select a customer..."
+                value={selectedCustomer}
+                onChange={setSelectedCustomer}
+                style={{ width: '100%', maxWidth: '400px' }}
+                size="large"
+                allowClear
+                filterOption={false}
+                onSearch={setCustomerSearch}
+                notFoundContent={customers.length === 0 ? <Spin size="small" /> : 'No customers found'}
+                suffixIcon={<SearchOutlined />}
+              >
+                {filteredCustomers.map((customer) => (
+                  <Select.Option key={customer.id} value={customer.id}>
+                    <div className="flex items-center gap-2">
+                      <UserOutlined />
+                      <span>{customer.first_name} {customer.last_name}</span>
+                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>({customer.email})</span>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+            {selectedCustomerName && (
+              <div style={{ 
+                padding: '8px 16px', 
+                background: '#dcfce7', 
+                borderRadius: '8px',
+                color: '#166534',
+                fontWeight: '500',
+              }}>
+                ✓ Selected: {selectedCustomerName}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      <div style={{ textAlign: isStaff ? 'left' : 'center', marginBottom: isMobile ? '32px' : '40px' }}>
         <h1 style={{ 
-          fontSize: isMobile ? '28px' : '40px', 
+          fontSize: isMobile ? '28px' : '36px', 
           fontWeight: '800', 
-          margin: '0 0 16px 0',
+          margin: '0 0 12px 0',
           color: '#1a1a1a',
           letterSpacing: '-1px',
         }}>
-          Unlock Premium Benefits
+          {isStaff ? 'Membership Packages' : 'Unlock Premium Benefits'}
         </h1>
         <p style={{ 
           color: '#6b7280', 
-          fontSize: isMobile ? '15px' : '18px', 
+          fontSize: isMobile ? '15px' : '16px', 
           margin: 0,
-          maxWidth: '500px',
-          marginLeft: 'auto',
-          marginRight: 'auto',
+          maxWidth: isStaff ? 'none' : '500px',
+          marginLeft: isStaff ? '0' : 'auto',
+          marginRight: isStaff ? '0' : 'auto',
           lineHeight: '1.6',
           padding: isMobile ? '0 8px' : '0',
         }}>
-          Join our membership program and enjoy exclusive perks, discounts, and priority access
+          {isStaff 
+            ? 'Select a customer above, then choose a membership package to assign to them.'
+            : 'Join our membership program and enjoy exclusive perks, discounts, and priority access'
+          }
         </p>
       </div>
 
@@ -513,7 +651,7 @@ const MemberOfferings = () => {
           description={error.message}
           type="error" 
           showIcon 
-          style={{ maxWidth: '500px', margin: '0 auto', borderRadius: '12px' }}
+          style={{ maxWidth: '500px', margin: isStaff ? '0' : '0 auto', borderRadius: '12px' }}
         />
       ) : offerings.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
@@ -523,11 +661,13 @@ const MemberOfferings = () => {
       ) : (
         <div style={{ 
           display: 'grid',
-          gridTemplateColumns: offerings.length === 1 ? '1fr' : offerings.length === 2 ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-          gap: '28px',
+          gridTemplateColumns: isStaff 
+            ? 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))'
+            : offerings.length === 1 ? '1fr' : offerings.length === 2 ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+          gap: '24px',
           alignItems: 'stretch',
-          maxWidth: offerings.length === 2 ? '740px' : offerings.length === 1 ? '400px' : '100%',
-          margin: '0 auto',
+          maxWidth: isStaff ? 'none' : offerings.length === 2 ? '740px' : offerings.length === 1 ? '400px' : '100%',
+          margin: isStaff ? '0' : '0 auto',
         }}>
           {offerings.map((offering) => (
             <OfferingCard
@@ -613,11 +753,38 @@ const MemberOfferings = () => {
                 {purchaseModal.offering.name}
               </h3>
               <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>
-                Complete your purchase
+                {isStaff && selectedCustomerName 
+                  ? `Assign to ${selectedCustomerName}` 
+                  : 'Complete your purchase'
+                }
               </p>
             </div>
 
             <div style={{ padding: '28px 24px' }}>
+              {/* Show selected customer for staff */}
+              {isStaff && selectedCustomerName && (
+                <div style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}>
+                  <UserOutlined style={{ color: '#0284c7', fontSize: '18px' }} />
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: '600' }}>
+                      Assigning to:
+                    </div>
+                    <div style={{ fontSize: '15px', color: '#1e293b', fontWeight: '500' }}>
+                      {selectedCustomerName}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 <Button
                   block
@@ -625,7 +792,7 @@ const MemberOfferings = () => {
                   type="primary"
                   icon={<WalletOutlined />}
                   onClick={() => confirmPurchase('wallet')}
-                  loading={purchaseMutation.isPending}
+                  loading={purchaseMutation.isPending || assignMutation.isPending}
                   style={{ 
                     height: '56px', 
                     borderRadius: '12px',
@@ -635,7 +802,7 @@ const MemberOfferings = () => {
                     border: 'none',
                   }}
                 >
-                  Pay with Wallet
+                  {isStaff ? 'Charge to Wallet' : 'Pay with Wallet'}
                 </Button>
 
                 <Button
@@ -643,7 +810,7 @@ const MemberOfferings = () => {
                   size="large"
                   icon={<ShopOutlined />}
                   onClick={() => confirmPurchase('cash')}
-                  loading={purchaseMutation.isPending}
+                  loading={purchaseMutation.isPending || assignMutation.isPending}
                   style={{ 
                     height: '56px', 
                     borderRadius: '12px',
@@ -653,7 +820,7 @@ const MemberOfferings = () => {
                     color: '#374151',
                   }}
                 >
-                  Pay at Reception
+                  {isStaff ? 'Cash Payment' : 'Pay at Reception'}
                 </Button>
               </Space>
 
@@ -664,7 +831,10 @@ const MemberOfferings = () => {
                 textAlign: 'center',
                 lineHeight: '1.5',
               }}>
-                By continuing you agree to our terms of service.
+                {isStaff 
+                  ? 'This will create a membership for the selected customer.'
+                  : 'By continuing you agree to our terms of service.'
+                }
               </p>
             </div>
           </>

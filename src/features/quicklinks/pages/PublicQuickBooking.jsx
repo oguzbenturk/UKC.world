@@ -164,6 +164,13 @@ const PublicQuickBooking = () => {
   const fetchLinkData = useCallback(async () => {
     try {
       const data = await getPublicQuickLink(linkCode);
+      
+      // If this quick link uses a custom form, redirect to the form page
+      if (data.link_type === 'form' && data.form_template_id) {
+        navigate(`/f/${linkCode}`, { replace: true });
+        return;
+      }
+      
       setLinkData(data);
       setError(null);
     } catch (err) {
@@ -171,7 +178,7 @@ const PublicQuickBooking = () => {
     } finally {
       setLoading(false);
     }
-  }, [linkCode]);
+  }, [linkCode, navigate]);
 
   useEffect(() => {
     fetchLinkData();

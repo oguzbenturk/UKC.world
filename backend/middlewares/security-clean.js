@@ -91,6 +91,23 @@ export const passwordResetRateLimit = rateLimit({
   }
 });
 
+// Rate limiting for form submissions (public forms)
+export const formSubmissionRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'development' ? 100 : 10, // 10 submissions per hour per IP
+  message: {
+    error: 'Too many form submissions from this IP, please try again later.',
+    retryAfter: '1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit per IP and form code combination
+    return `form_submit_${req.ip}_${req.params.code || 'unknown'}`;
+  },
+  skipSuccessfulRequests: false // Count all attempts
+});
+
 // Input validation middleware
 export const validateInput = (validations) => {
   return async (req, res, next) => {
@@ -199,6 +216,7 @@ export default {
   authRateLimit,
   twoFactorRateLimit,
   passwordResetRateLimit,
+  formSubmissionRateLimit,
   validateInput,
   sanitizeInput,
   securityResponseHeaders,

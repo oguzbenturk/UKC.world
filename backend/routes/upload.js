@@ -25,6 +25,17 @@ if (!fs.existsSync(serviceImagesDir)) {
   fs.mkdirSync(serviceImagesDir, { recursive: true });
 }
 
+// Form branding asset directories
+const formBackgroundsDir = path.join(uploadsDir, 'form-backgrounds');
+const formLogosDir = path.join(uploadsDir, 'form-logos');
+
+if (!fs.existsSync(formBackgroundsDir)) {
+  fs.mkdirSync(formBackgroundsDir, { recursive: true });
+}
+if (!fs.existsSync(formLogosDir)) {
+  fs.mkdirSync(formLogosDir, { recursive: true });
+}
+
 // Configure multer for general images
 const imageStorage = multer.diskStorage({
   destination: function (_req, _file, cb) {
@@ -72,6 +83,44 @@ const serviceImageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
+// Configure multer for form backgrounds (larger file size for high-res images)
+const formBackgroundStorage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, formBackgroundsDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    const safeUser = (req.user?.id || 'user').toString();
+    const name = `bg-${safeUser}-${Date.now()}${ext}`;
+    cb(null, name);
+  }
+});
+
+// Configure multer for form logos
+const formLogoStorage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, formLogosDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname) || '.png';
+    const safeUser = (req.user?.id || 'user').toString();
+    const name = `logo-${safeUser}-${Date.now()}${ext}`;
+    cb(null, name);
+  }
+});
+
+const formBackgroundUpload = multer({ 
+  storage: formBackgroundStorage, 
+  fileFilter, 
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB for high-res backgrounds
+});
+
+const formLogoUpload = multer({ 
+  storage: formLogoStorage, 
+  fileFilter, 
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB for logos
+});
+
 // For service image uploads
 router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager']), serviceImageUpload.single('image'), (req, res) => {
   try {
@@ -85,6 +134,38 @@ router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager
   } catch (error) {
     console.error('Error uploading service image:', error);
     res.status(500).json({ error: 'Failed to upload service image' });
+  }
+});
+
+// Form background image upload
+router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manager']), formBackgroundUpload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const relativePath = `/uploads/form-backgrounds/${req.file.filename}`;
+    console.log('Form background uploaded:', relativePath);
+    res.json({ url: relativePath, imageUrl: relativePath });
+  } catch (error) {
+    console.error('Error uploading form background:', error);
+    res.status(500).json({ error: 'Failed to upload form background' });
+  }
+});
+
+// Form logo upload
+router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']), formLogoUpload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const relativePath = `/uploads/form-logos/${req.file.filename}`;
+    console.log('Form logo uploaded:', relativePath);
+    res.json({ url: relativePath, imageUrl: relativePath });
+  } catch (error) {
+    console.error('Error uploading form logo:', error);
+    res.status(500).json({ error: 'Failed to upload form logo' });
   }
 });
 

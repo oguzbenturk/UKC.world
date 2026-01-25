@@ -23,6 +23,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -38,9 +39,10 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.created_at DESC
     `;
     const { rows } = await pool.query(query);
@@ -62,6 +64,7 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -77,9 +80,10 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.created_at DESC
       LIMIT $1
     `;
@@ -101,6 +105,7 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -116,10 +121,11 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       WHERE r.status = 'active'
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.created_at DESC
     `;
     const { rows } = await pool.query(query);
@@ -140,6 +146,7 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -155,10 +162,11 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       WHERE r.status = 'upcoming'
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.start_date ASC
     `;
     const { rows } = await pool.query(query);
@@ -179,6 +187,7 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -194,10 +203,11 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       WHERE r.status = 'overdue'
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.end_date ASC
     `;
     const { rows } = await pool.query(query);
@@ -218,6 +228,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
         r.*,
         u.name as customer_name,
         u.email as customer_email,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -233,10 +244,11 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       WHERE r.status = 'completed'
-      GROUP BY r.id, u.name, u.email
+      GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.end_date DESC
     `;
     const { rows } = await pool.query(query);
@@ -260,6 +272,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
         u.name as customer_name,
         u.email as customer_email,
         u.phone as customer_phone,
+        creator.name as created_by_name,
         COALESCE(
           json_object_agg(
             s.id, json_build_object(
@@ -275,10 +288,11 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       WHERE r.id = $1
-      GROUP BY r.id, u.name, u.email, u.phone
+      GROUP BY r.id, u.name, u.email, u.phone, creator.name
     `;
     
     const { rows } = await pool.query(query, [id]);
