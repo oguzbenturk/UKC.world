@@ -3,7 +3,7 @@
  * Configuration sidebar for editing selected field properties
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   Form, 
   Input, 
@@ -143,8 +143,16 @@ const OptionsEditor = ({ value = [], onChange }) => {
     message.success('Options exported');
   };
 
+  // Count incomplete options
+  const incompleteCount = value.filter(opt => !opt.value || !opt.label).length;
+
   return (
     <div className="space-y-2">
+      {incompleteCount > 0 && (
+        <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+          ⚠️ {incompleteCount} option{incompleteCount > 1 ? 's' : ''} incomplete - fill in both Label and Value
+        </div>
+      )}
       <div className="flex gap-2 mb-2">
         <Button
           type="dashed"
@@ -166,32 +174,40 @@ const OptionsEditor = ({ value = [], onChange }) => {
         )}
       </div>
 
-      {value.map((option, index) => (
-        <div key={`option-${option.value || index}`} className="flex items-center gap-2">
-          <DragOutlined className="text-gray-400 cursor-grab" />
-          <Input
-            size="small"
-            placeholder="Label"
-            value={option.label}
-            onChange={(e) => handleChange(index, 'label', e.target.value)}
-            className="flex-1"
-          />
-          <Input
-            size="small"
-            placeholder="Value"
-            value={option.value}
-            onChange={(e) => handleChange(index, 'value', e.target.value)}
-            style={{ width: 100 }}
-          />
-          <Button
-            type="text"
-            danger
-            size="small"
-            icon={<MinusCircleOutlined />}
-            onClick={() => handleRemove(index)}
-          />
-        </div>
-      ))}
+      {value.map((option, index) => {
+        const isIncomplete = !option.value || !option.label;
+        return (
+          <div 
+            key={`option-${option.value || index}`} 
+            className={`flex items-center gap-2 ${isIncomplete ? 'bg-orange-50 p-1 rounded border border-orange-200' : ''}`}
+          >
+            <DragOutlined className="text-gray-400 cursor-grab" />
+            <Input
+              size="small"
+              placeholder="Label"
+              value={option.label}
+              onChange={(e) => handleChange(index, 'label', e.target.value)}
+              className="flex-1"
+              status={!option.label ? 'warning' : undefined}
+            />
+            <Input
+              size="small"
+              placeholder="Value"
+              value={option.value}
+              onChange={(e) => handleChange(index, 'value', e.target.value)}
+              style={{ width: 100 }}
+              status={!option.value ? 'warning' : undefined}
+            />
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<MinusCircleOutlined />}
+              onClick={() => handleRemove(index)}
+            />
+          </div>
+        );
+      })}
       <Button
         type="dashed"
         size="small"
@@ -870,6 +886,7 @@ const PropertiesPanel = ({
   onDuplicate: _onDuplicate 
 }) => {
   const [form] = Form.useForm();
+  const updateTimerRef = useRef(null);
 
   // Update form when field changes
   useEffect(() => {
@@ -890,10 +907,32 @@ const PropertiesPanel = ({
     }
   }, [field, form]);
 
-  // Handle form changes
+  // Debounced update handler
+  const debouncedUpdate = useCallback((fieldId, changedValues) => {
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+    }
+    
+    updateTimerRef.current = setTimeout(() => {
+      if (onUpdate) {
+        onUpdate(fieldId, changedValues);
+      }
+    }, 800); // Wait 800ms after user stops typing
+  }, [onUpdate]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle form changes with debounce
   const handleValuesChange = (changedValues, _allValues) => {
-    if (field && onUpdate) {
-      onUpdate(field.id, changedValues);
+    if (field) {
+      debouncedUpdate(field.id, changedValues);
     }
   };
 

@@ -44,27 +44,37 @@ const renderTextInput = (field, commonProps, type = 'text') => (
 );
 
 // Render select/dropdown fields
-const renderSelectField = (field, commonProps, isMulti = false) => (
-  <Select
-    {...commonProps}
-    mode={isMulti ? 'multiple' : undefined}
-    options={field.options?.map(opt => ({
+const renderSelectField = (field, commonProps, isMulti = false) => {
+  // Filter out options with empty value or label
+  const validOptions = (field.options || [])
+    .filter(opt => opt.value && opt.label)
+    .map(opt => ({
       value: opt.value,
       label: opt.label,
-    }))}
-    className="w-full"
-  />
-);
+    }));
+
+  return (
+    <Select
+      {...commonProps}
+      mode={isMulti ? 'multiple' : undefined}
+      options={validOptions}
+      className="w-full"
+    />
+  );
+};
 
 // Render radio/checkbox choice fields
 const renderChoiceField = (field, isCheckbox = false) => {
   const GroupComponent = isCheckbox ? Checkbox.Group : Radio.Group;
   const ItemComponent = isCheckbox ? Checkbox : Radio;
   
+  // Filter out options with empty value or label
+  const validOptions = (field.options || []).filter(opt => opt.value && opt.label);
+  
   return (
     <GroupComponent disabled={field.is_readonly}>
       <Space direction="vertical">
-        {field.options?.map(opt => (
+        {validOptions.map(opt => (
           <ItemComponent key={opt.value} value={opt.value}>
             {opt.label}
           </ItemComponent>

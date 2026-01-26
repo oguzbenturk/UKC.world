@@ -5,7 +5,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Card, Spin, Alert, Typography, Button, Tabs, Tag, 
   Avatar, Row, Col, Space, Tooltip, Empty,
-  Form, Input, Select, Divider, InputNumber, Modal,
+  Form, Input, Select, Divider, InputNumber, Modal, App,
   Checkbox, List, Radio, Switch
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -115,6 +115,7 @@ function CustomerProfilePage() {
   const openModalTarget = locationState?.openModal;
   const { user: currentUser } = useAuth();
   const { formatCurrency, getCurrencySymbol, businessCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { modal } = App.useApp(); // Use App hook for modal to support theme context
 
   const [customer, setCustomer] = useState(null);
   const [userAccount, setUserAccount] = useState(null);
@@ -1071,7 +1072,7 @@ function CustomerProfilePage() {
     const isReversalChain = transaction.transaction_type?.toLowerCase().includes('reversal');
     
     // Always show both delete options
-    Modal.confirm({
+    modal.confirm({
       title: isReversalChain ? 'Delete Reversal Transaction' : 'Delete Transaction',
       width: 500,
       content: (
@@ -1250,9 +1251,24 @@ function CustomerProfilePage() {
   ]);
 
   const handleDeleteBooking = (booking) => {
-    Modal.confirm({
+    // Format the date safely
+    const formatBookingDate = (dateValue) => {
+      if (!dateValue) return 'unknown date';
+      try {
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return 'unknown date';
+        return date.toLocaleDateString();
+      } catch {
+        return 'unknown date';
+      }
+    };
+
+    const bookingDate = formatBookingDate(booking.date || booking.lesson_date);
+    const serviceName = booking.service_name || booking.serviceName || 'lesson';
+
+    modal.confirm({
       title: 'Delete Booking',
-      content: `Are you sure you want to delete this booking for ${booking.service_name || 'lesson'} on ${new Date(booking.lesson_date).toLocaleDateString()}?`,
+      content: `Are you sure you want to delete this booking for ${serviceName} on ${bookingDate}?`,
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
@@ -1272,7 +1288,7 @@ function CustomerProfilePage() {
   };
 
   const handleDeleteRental = (rental) => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete Rental',
       content: `Are you sure you want to delete this rental for ${rental.equipment_name || 'equipment'} on ${new Date(rental.rental_date || rental.start_date || rental.created_at).toLocaleDateString()}?`,
       okText: 'Delete',
@@ -1309,7 +1325,7 @@ function CustomerProfilePage() {
     let targetBalance = 0;
     let reason = '';
     
-    Modal.confirm({
+    modal.confirm({
       title: 'Reset Wallet Balance',
       width: 500,
       icon: null,
@@ -2714,7 +2730,7 @@ function CustomerProfilePage() {
               if (!selectedTransaction) {
                 return;
               }
-              Modal.confirm({
+              modal.confirm({
                 title: 'Delete transaction without removing linked items?',
                 content:
                   'The linked lessons, packages, or rentals will remain active and may create inconsistencies. Continue deleting the transaction only?',

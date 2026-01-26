@@ -441,7 +441,13 @@ router.get('/admin/purchases', authenticateJWT, authorizeRoles(ADMIN_ROLES), asy
         mp.*,
         u.name as user_name,
         u.email as user_email,
-        mo.name as current_offering_name
+        mo.name as current_offering_name,
+        CASE 
+          WHEN mp.status = 'cancelled' THEN 'cancelled'
+          WHEN mp.expires_at IS NULL THEN mp.status
+          WHEN mp.expires_at < NOW() THEN 'expired'
+          ELSE mp.status
+        END as computed_status
       FROM member_purchases mp
       JOIN users u ON mp.user_id = u.id
       LEFT JOIN member_offerings mo ON mp.offering_id = mo.id

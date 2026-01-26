@@ -316,6 +316,7 @@ const FormBuilderPage = () => {
             onUpdateStep={updateStep}
             onDeleteStep={deleteStep}
             onAddField={addField}
+            onUpdateField={updateField}
             onDeleteField={deleteField}
             onDuplicateField={duplicateField}
             onReorderFields={reorderFields}

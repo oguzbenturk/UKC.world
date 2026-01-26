@@ -482,8 +482,8 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
           userName: participant.userName,
           userEmail: participant.userEmail,
           userPhone: participant.userPhone,
-          isPrimary: participant.isPrimary,
-          usePackage: participant.usePackage && participant.selectedPackageId ? true : false, // Only true if package is selected
+          isPrimary: participant.isPrimary === true, // Ensure boolean
+          usePackage: participant.usePackage === true && participant.selectedPackageId ? true : false, // Only true if package is selected
           // Align field with backend expectation
           customerPackageId: participant.selectedPackageId || participant.customerPackageId,
           paymentStatus: (participant.usePackage && participant.selectedPackageId) ? 'package' : (participant.paymentStatus || 'paid'), // Pay-and-go: default to paid

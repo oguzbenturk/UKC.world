@@ -843,6 +843,11 @@ router.post('/',
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
     const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker;
     
+    // Staff roles automatically confirm bookings (admin, manager, front_desk)
+    const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
+    const shouldAutoConfirm = staffRolesForAutoConfirm.includes(req.user?.role);
+    const finalStatus = shouldAutoConfirm ? 'confirmed' : (status || 'pending');
+    
     // Validate required fields
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
@@ -1073,7 +1078,7 @@ router.post('/',
       student_user_id,
       instructor_user_id,
       student_user_id, // customer_user_id = student_user_id for most cases
-      status || 'pending',
+      finalStatus,
       finalPaymentStatus, // Now properly calculated based on package availability
       parseFloat(finalAmount) || 0, // Ensure numeric type
       parseFloat(req.body.discount_percent) || 0, // Ensure numeric type
@@ -1367,6 +1372,11 @@ router.post('/group',
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
     const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker;
 
+    // Staff roles automatically confirm bookings (admin, manager, front_desk)
+    const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
+    const shouldAutoConfirm = staffRolesForAutoConfirm.includes(req.user?.role);
+    const finalStatus = shouldAutoConfirm ? 'confirmed' : (status || 'pending');
+
     // Debug: Log duration received in group booking backend
     console.log('🔍 BACKEND GROUP BOOKING - Received duration:', {
       duration,
@@ -1375,10 +1385,14 @@ router.post('/group',
       fallback: parseFloat(duration) || 1
     });
 
-    // Normalize participants to accept older client field names
+    // Normalize participants to accept older client field names and sanitize boolean fields
     const normalizedParticipants = Array.isArray(participants) ? participants.map(p => ({
       ...p,
-      customerPackageId: p.customerPackageId || p.selectedPackageId || p.selected_package_id
+      customerPackageId: p.customerPackageId || p.selectedPackageId || p.selected_package_id,
+      // Ensure boolean fields are properly converted (empty strings, undefined, etc. become false)
+      isPrimary: p.isPrimary === true || p.isPrimary === 'true',
+      usePackage: p.usePackage === true || p.usePackage === 'true',
+      manualCashPreference: p.manualCashPreference === true || p.manualCashPreference === 'true'
     })) : [];
     
     logger.info('🔧 [Backend] Parsed values', {
@@ -1851,7 +1865,7 @@ router.post('/group',
       primaryParticipant.userId,
       instructor_user_id,
       primaryParticipant.userId,
-      status || 'pending',
+      finalStatus,
       mainBookingPaymentStatus,
       parseFloat(mainBookingAmount) || 0,
       parseFloat(mainBookingAmount) || 0,
@@ -1887,7 +1901,7 @@ router.post('/group',
       const participantValues = [
         booking.id,
         participant.userId,
-        participant.isPrimary || false,
+        participant.isPrimary === true, // Ensure boolean for PostgreSQL
         participant.actualPaymentStatus,
         participant.paymentAmount,
         participant.notes || '',
@@ -2105,14 +2119,19 @@ router.post('/group',
   }
 });
 
-// POST create a new booking from the calendar (temporarily without authentication for testing)
-router.post('/calendar', async (req, res) => {
+// POST create a new booking from the calendar
+router.post('/calendar', authenticateJWT, async (req, res) => {
   try {
     const { 
       date, time, duration, instructorId, serviceId, user, 
       amount, finalAmount, paymentStatus, checkinStatus, checkoutStatus, use_package, customerPackageId,
-      allowNegativeBalance // Allow wallet balance to go negative if explicitly set
+      allowNegativeBalance: requestedAllowNegative // Allow wallet balance to go negative if explicitly set
     } = req.body;
+    
+    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
+    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker;
     const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
     

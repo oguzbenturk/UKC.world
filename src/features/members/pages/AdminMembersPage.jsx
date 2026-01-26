@@ -70,7 +70,8 @@ const AdminMembersPage = () => {
       if (filters.dateRange?.[1]) params.append('to', filters.dateRange[1].toISOString());
       
       const { data } = await apiClient.get(`/member-offerings/admin/purchases?${params}`);
-      return data;
+      // Use computed_status from backend which considers expiry dates
+      return data.map(p => ({ ...p, status: p.computed_status || p.status }));
     }
   });
 
@@ -80,11 +81,12 @@ const AdminMembersPage = () => {
     queryFn: async () => {
       const allPurchases = await apiClient.get('/member-offerings/admin/purchases');
       const data = allPurchases.data || [];
+      // Use computed_status which considers expiry dates
       return {
         total: data.length,
-        active: data.filter(p => p.status === 'active').length,
-        pending: data.filter(p => p.status === 'pending').length,
-        expired: data.filter(p => p.status === 'expired').length
+        active: data.filter(p => (p.computed_status || p.status) === 'active').length,
+        pending: data.filter(p => (p.computed_status || p.status) === 'pending').length,
+        expired: data.filter(p => (p.computed_status || p.status) === 'expired').length
       };
     }
   });

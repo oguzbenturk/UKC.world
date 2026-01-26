@@ -747,29 +747,47 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     record.packageName || record.package_name || record.name || record.lessonType || record.serviceName || record.service_name || 'Package'
   );
 
-  const renderLessonProgress = (record) => (
-    (record.packageType === 'lesson-only' || record.packageType === 'combo') && (
-      <div>
-        <div className="flex justify-between text-xs mb-1">
-          <span>Hours: {record.usedHours}/{record.totalHours}</span>
-          <span>{record.remainingHours} left</span>
+  const renderLessonProgress = (record) => {
+    // Support both camelCase and snake_case field names from API
+    const totalHours = record.totalHours || record.total_hours;
+    const usedHours = record.usedHours || record.used_hours || 0;
+    const remainingHours = record.remainingHours !== undefined ? record.remainingHours : record.remaining_hours;
+    
+    // Show lesson progress if package has hours data (regardless of packageType)
+    if (totalHours > 0) {
+      return (
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span>Hours: {usedHours}/{totalHours}</span>
+            <span>{remainingHours !== undefined ? remainingHours : (totalHours - usedHours)} left</span>
+          </div>
+          <Progress percent={Math.round((usedHours / totalHours) * 100)} size="small" />
         </div>
-        <Progress percent={Math.round((record.usedHours / record.totalHours) * 100)} size="small" />
-      </div>
-    )
-  );
+      );
+    }
+    return null;
+  };
 
-  const renderNightProgress = (record) => (
-    (record.packageType === 'accommodation-only' || record.packageType === 'combo') && (
-      <div>
-        <div className="flex justify-between text-xs mb-1">
-          <span>Nights: {record.usedNights}/{record.accommodationNights}</span>
-          <span>{record.remainingNights} left</span>
+  const renderNightProgress = (record) => {
+    // Support both camelCase and snake_case field names from API
+    const accommodationNights = record.accommodationNights || record.accommodation_nights;
+    const usedNights = record.usedNights || record.used_nights || 0;
+    const remainingNights = record.remainingNights !== undefined ? record.remainingNights : record.remaining_nights;
+    
+    // Show night progress if package has accommodation data
+    if (accommodationNights > 0) {
+      return (
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span>Nights: {usedNights}/{accommodationNights}</span>
+            <span>{remainingNights !== undefined ? remainingNights : (accommodationNights - usedNights)} left</span>
+          </div>
+          <Progress percent={Math.round((usedNights / accommodationNights) * 100)} size="small" />
         </div>
-        <Progress percent={Math.round((record.usedNights / record.accommodationNights) * 100)} size="small" />
-      </div>
-    )
-  );
+      );
+    }
+    return null;
+  };
 
   const renderCardActions = (record, _statusText) => (
     disableActions ? null : (

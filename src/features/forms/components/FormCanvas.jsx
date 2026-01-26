@@ -1,9 +1,10 @@
 /**
  * Form Canvas Component
  * The main workspace for building forms with steps and fields
+ * Supports inline editing for field labels, placeholders, and help text
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Card, 
   Button, 
@@ -25,10 +26,12 @@ import {
   HolderOutlined,
   SettingOutlined,
   EyeOutlined,
-  EyeInvisibleOutlined
+  EyeInvisibleOutlined,
+  CheckOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import * as Icons from '@ant-design/icons';
-import { FIELD_CATEGORIES, WIDTH_OPTIONS } from '../constants/fieldTypes';
+import { FIELD_CATEGORIES, WIDTH_OPTIONS, FIELD_TYPES } from '../constants/fieldTypes';
 
 const { Text, Title } = Typography;
 
@@ -53,18 +56,66 @@ const getFieldTypeLabel = (fieldType) => {
   return fieldType;
 };
 
-// Field Item Component
+// Field Item Component with Inline Editing
 const FieldItem = ({ 
   field, 
   isSelected, 
   onSelect, 
   onDelete, 
   onDuplicate,
+  onUpdate,
   onDragStart,
   onDragOver,
   onDrop
 }) => {
+  const [editingField, setEditingField] = useState(null); // 'label' | 'placeholder' | 'help_text' | null
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef(null);
   const width = WIDTH_OPTIONS.find(w => w.value === field.width)?.label || 'Full Width';
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingField && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingField]);
+
+  // Start inline editing
+  const startEditing = (fieldName, currentValue, e) => {
+    e?.stopPropagation();
+    setEditingField(fieldName);
+    setEditValue(currentValue || '');
+  };
+
+  // Save inline edit
+  const saveEdit = () => {
+    if (editingField && onUpdate) {
+      const trimmedValue = editValue.trim();
+      // Only update if value changed
+      if (trimmedValue !== field[editingField]) {
+        onUpdate(field.id, { [editingField]: trimmedValue || null });
+      }
+    }
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  // Cancel edit
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  // Handle key press
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
 
   const menuItems = [
     {
@@ -83,59 +134,251 @@ const FieldItem = ({
     },
   ];
 
+  // Render field preview based on type
+  const renderFieldPreview = () => {
+    const fieldType = field.field_type;
+    const placeholder = field.placeholder_text || 'Enter placeholder text...';
+    
+    // Common input style for preview
+    const previewInputClass = `
+      w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 
+      text-gray-400 text-sm cursor-text hover:border-blue-300
+      transition-colors
+    `;
+
+    // Placeholder click handler
+    const handlePlaceholderClick = (e) => {
+      e.stopPropagation();
+      startEditing('placeholder_text', field.placeholder_text, e);
+    };
+
+    if (editingField === 'placeholder_text') {
+      return (
+        <Input
+          ref={inputRef}
+          size="small"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={saveEdit}
+          onKeyDown={handleKeyDown}
+          placeholder="Enter placeholder text..."
+          className="mt-2"
+          onClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+
+    switch (fieldType) {
+      case FIELD_TYPES.TEXTAREA:
+        return (
+          <div 
+            className={`${previewInputClass} h-16 mt-2`}
+            onClick={handlePlaceholderClick}
+          >
+            {placeholder}
+          </div>
+        );
+      
+      case FIELD_TYPES.SELECT:
+      case FIELD_TYPES.MULTISELECT:
+        return (
+          <div 
+            className={`${previewInputClass} mt-2 flex items-center justify-between`}
+            onClick={handlePlaceholderClick}
+          >
+            <span>{placeholder}</span>
+            <Icons.DownOutlined className="text-gray-400 text-xs" />
+          </div>
+        );
+      
+      case FIELD_TYPES.CHECKBOX: {
+        const checkboxOptions = (field.options || []).filter(opt => opt.value && opt.label);
+        const displayOptions = checkboxOptions.length > 0 
+          ? checkboxOptions 
+          : [{ label: 'Option 1', value: 'option1' }, { label: 'Option 2', value: 'option2' }];
+        return (
+          <div className="mt-2 space-y-1">
+            {displayOptions.slice(0, 3).map((opt, i) => (
+              <div key={opt.value || i} className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="w-4 h-4 border border-gray-300 rounded" />
+                <span>{opt.label}</span>
+              </div>
+            ))}
+            {checkboxOptions.length > 3 && (
+              <div className="text-xs text-gray-400">+{checkboxOptions.length - 3} more</div>
+            )}
+          </div>
+        );
+      }
+      
+      case FIELD_TYPES.RADIO: {
+        const radioOptions = (field.options || []).filter(opt => opt.value && opt.label);
+        const displayRadioOptions = radioOptions.length > 0 
+          ? radioOptions 
+          : [{ label: 'Option 1', value: 'option1' }, { label: 'Option 2', value: 'option2' }];
+        return (
+          <div className="mt-2 space-y-1">
+            {displayRadioOptions.slice(0, 3).map((opt, i) => (
+              <div key={opt.value || i} className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="w-4 h-4 border border-gray-300 rounded-full" />
+                <span>{opt.label}</span>
+              </div>
+            ))}
+            {radioOptions.length > 3 && (
+              <div className="text-xs text-gray-400">+{radioOptions.length - 3} more</div>
+            )}
+          </div>
+        );
+      }
+
+      case FIELD_TYPES.TOGGLE:
+        return (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="w-10 h-5 bg-gray-200 rounded-full relative">
+              <div className="w-4 h-4 bg-white rounded-full absolute left-0.5 top-0.5 shadow" />
+            </div>
+            <span className="text-sm text-gray-500">No</span>
+          </div>
+        );
+
+      case FIELD_TYPES.DATE:
+      case FIELD_TYPES.TIME:
+      case FIELD_TYPES.DATETIME:
+        return (
+          <div 
+            className={`${previewInputClass} mt-2 flex items-center justify-between`}
+            onClick={handlePlaceholderClick}
+          >
+            <span>{placeholder}</span>
+            <Icons.CalendarOutlined className="text-gray-400" />
+          </div>
+        );
+
+      case FIELD_TYPES.FILE:
+        return (
+          <div className="mt-2 border-2 border-dashed border-gray-200 rounded-md p-4 text-center text-gray-400 text-sm">
+            <Icons.UploadOutlined className="text-xl mb-1" />
+            <div>Click or drag to upload</div>
+          </div>
+        );
+
+      case FIELD_TYPES.SIGNATURE:
+        return (
+          <div className="mt-2 border border-gray-200 rounded-md p-4 h-20 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+            <Icons.EditOutlined className="mr-2" />
+            Sign here
+          </div>
+        );
+
+      default:
+        // Text, Email, Phone, Number, URL, etc.
+        return (
+          <div 
+            className={`${previewInputClass} mt-2`}
+            onClick={handlePlaceholderClick}
+          >
+            {placeholder}
+          </div>
+        );
+    }
+  };
+
   return (
     <div
       className={`
-        field-item group relative p-3 mb-2 rounded border-2 bg-white
+        field-item group relative p-3 mb-2 rounded-lg border-2 bg-white
         transition-all cursor-pointer
         ${isSelected 
-          ? 'border-blue-500 ring-2 ring-blue-100' 
-          : 'border-gray-200 hover:border-gray-300'
+          ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm' 
+          : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
         }
       `}
       onClick={() => onSelect(field.id)}
-      draggable
-      onDragStart={(e) => onDragStart(e, field)}
+      draggable={!editingField}
+      onDragStart={(e) => !editingField && onDragStart(e, field)}
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, field)}
     >
       {/* Drag Handle */}
-      <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 cursor-grab">
+      <div className="absolute left-1 top-3 opacity-0 group-hover:opacity-100 cursor-grab">
         <HolderOutlined className="text-gray-400" />
       </div>
 
-      {/* Field Content */}
-      <div className="pl-4">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="text-blue-500">{getFieldIcon(field.field_type)}</span>
-            <Text strong className="text-sm">{field.field_label}</Text>
-            {field.is_required && <Tag color="red" className="text-xs">Required</Tag>}
-          </div>
-          
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-            <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-              <Button 
-                size="small" 
-                type="text" 
-                icon={<MoreOutlined />}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Dropdown>
-          </div>
+      {/* Actions Menu */}
+      <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+        <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+          <Button 
+            size="small" 
+            type="text" 
+            icon={<MoreOutlined />}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </Dropdown>
+      </div>
+
+      {/* Field Content - WYSIWYG Style */}
+      <div className="pl-4 pr-8">
+        {/* Label - Click to edit */}
+        <div className="flex items-center gap-2 mb-1">
+          {editingField === 'field_label' ? (
+            <Input
+              ref={inputRef}
+              size="small"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={saveEdit}
+              onKeyDown={handleKeyDown}
+              className="flex-1 font-medium"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <Text 
+              strong 
+              className="cursor-text hover:bg-blue-50 px-1 py-0.5 rounded transition-colors"
+              onClick={(e) => startEditing('field_label', field.field_label, e)}
+            >
+              {field.field_label}
+            </Text>
+          )}
+          {field.is_required && <span className="text-red-500">*</span>}
+          <Tag color="blue" className="text-xs ml-auto opacity-60">
+            {getFieldTypeLabel(field.field_type)}
+          </Tag>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <span>{getFieldTypeLabel(field.field_type)}</span>
-          <span>•</span>
-          <span>{width}</span>
-          {field.conditional_logic && Object.keys(field.conditional_logic).length > 0 && (
-            <>
-              <span>•</span>
-              <Tooltip title="Has conditional logic">
-                <EyeInvisibleOutlined />
-              </Tooltip>
-            </>
+        {/* Field Preview */}
+        {renderFieldPreview()}
+
+        {/* Help Text - Click to edit/add */}
+        <div className="mt-2">
+          {editingField === 'help_text' ? (
+            <Input
+              ref={inputRef}
+              size="small"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={saveEdit}
+              onKeyDown={handleKeyDown}
+              placeholder="Add help text..."
+              className="text-xs"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : field.help_text ? (
+            <Text 
+              type="secondary" 
+              className="text-xs cursor-text hover:bg-blue-50 px-1 py-0.5 rounded block transition-colors"
+              onClick={(e) => startEditing('help_text', field.help_text, e)}
+            >
+              {field.help_text}
+            </Text>
+          ) : (
+            <Text 
+              type="secondary" 
+              className="text-xs cursor-text hover:bg-blue-50 px-1 py-0.5 rounded block transition-colors opacity-50 hover:opacity-100"
+              onClick={(e) => startEditing('help_text', '', e)}
+            >
+              + Add help text
+            </Text>
           )}
         </div>
       </div>
@@ -154,6 +397,7 @@ const StepPanel = ({
   onUpdateStep,
   onDeleteStep,
   onAddField,
+  onUpdateField,
   onDeleteField,
   onDuplicateField,
   onReorderFields,
@@ -162,12 +406,21 @@ const StepPanel = ({
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(step.title);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState(step.description || '');
 
   const handleSaveTitle = () => {
     if (titleValue.trim() && titleValue !== step.title) {
       onUpdateStep(step.id, { title: titleValue.trim() });
     }
     setEditingTitle(false);
+  };
+
+  const handleSaveDescription = () => {
+    if (descriptionValue !== step.description) {
+      onUpdateStep(step.id, { description: descriptionValue.trim() || null });
+    }
+    setEditingDescription(false);
   };
 
   const stepMenuItems = [
@@ -295,9 +548,42 @@ const StepPanel = ({
     >
       {!collapsed && (
         <>
-          {step.description && (
-            <Text type="secondary" className="block mb-3 text-sm">
+          {/* Description - Click to edit */}
+          {editingDescription ? (
+            <Input
+              size="small"
+              value={descriptionValue}
+              onChange={(e) => setDescriptionValue(e.target.value)}
+              onBlur={handleSaveDescription}
+              onPressEnter={handleSaveDescription}
+              onKeyDown={(e) => e.key === 'Escape' && setEditingDescription(false)}
+              placeholder="Add step description..."
+              className="mb-3"
+              autoFocus
+            />
+          ) : step.description ? (
+            <Text 
+              type="secondary" 
+              className="block mb-3 text-sm cursor-text hover:bg-blue-50 px-1 py-0.5 rounded transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDescriptionValue(step.description);
+                setEditingDescription(true);
+              }}
+            >
               {step.description}
+            </Text>
+          ) : (
+            <Text 
+              type="secondary" 
+              className="block mb-3 text-xs cursor-text hover:bg-blue-50 px-1 py-0.5 rounded transition-colors opacity-50 hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDescriptionValue('');
+                setEditingDescription(true);
+              }}
+            >
+              + Add step description
             </Text>
           )}
 
@@ -312,6 +598,7 @@ const StepPanel = ({
                     field={field}
                     isSelected={selectedFieldId === field.id}
                     onSelect={onSelectField}
+                    onUpdate={onUpdateField}
                     onDelete={onDeleteField}
                     onDuplicate={onDuplicateField}
                     onDragStart={handleFieldDragStart}
@@ -358,6 +645,7 @@ const FormCanvas = ({
   onUpdateStep,
   onDeleteStep,
   onAddField,
+  onUpdateField,
   onDeleteField,
   onDuplicateField,
   onReorderFields,
@@ -431,6 +719,7 @@ const FormCanvas = ({
                 onUpdateStep={onUpdateStep}
                 onDeleteStep={onDeleteStep}
                 onAddField={onAddField}
+                onUpdateField={onUpdateField}
                 onDeleteField={onDeleteField}
                 onDuplicateField={onDuplicateField}
                 onReorderFields={onReorderFields}

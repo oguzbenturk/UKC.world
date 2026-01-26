@@ -144,10 +144,12 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
           allowClear
           showSearch
           optionFilterProp="label"
-          options={field.options?.map(opt => ({
-            value: opt.value,
-            label: opt.label,
-          }))}
+          options={(field.options || [])
+            .filter(opt => opt.value && opt.label)
+            .map(opt => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
           className="w-full"
         />
       );
@@ -160,10 +162,12 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
           allowClear
           showSearch
           optionFilterProp="label"
-          options={field.options?.map(opt => ({
-            value: opt.value,
-            label: opt.label,
-          }))}
+          options={(field.options || [])
+            .filter(opt => opt.value && opt.label)
+            .map(opt => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
           className="w-full"
         />
       );
@@ -172,11 +176,13 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
       return (
         <Radio.Group disabled={commonProps.disabled}>
           <Space direction="vertical">
-            {field.options?.map(opt => (
-              <Radio key={opt.value} value={opt.value}>
-                {opt.label}
-              </Radio>
-            ))}
+            {(field.options || [])
+              .filter(opt => opt.value && opt.label)
+              .map(opt => (
+                <Radio key={opt.value} value={opt.value}>
+                  {opt.label}
+                </Radio>
+              ))}
           </Space>
         </Radio.Group>
       );
@@ -185,11 +191,13 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
       return (
         <Checkbox.Group disabled={commonProps.disabled}>
           <Space direction="vertical">
-            {field.options?.map(opt => (
-              <Checkbox key={opt.value} value={opt.value}>
-                {opt.label}
-              </Checkbox>
-            ))}
+            {(field.options || [])
+              .filter(opt => opt.value && opt.label)
+              .map(opt => (
+                <Checkbox key={opt.value} value={opt.value}>
+                  {opt.label}
+                </Checkbox>
+              ))}
           </Space>
         </Checkbox.Group>
       );
