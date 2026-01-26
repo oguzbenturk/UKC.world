@@ -387,10 +387,7 @@ const PublicFormPage = () => {
   const formContent = (
     <>
       {/* Form Header */}
-      <div 
-        className="p-4 sm:p-6 border-b"
-        style={{ borderTop: `4px solid ${token.colorPrimary}` }}
-      >
+      <div className="p-4 sm:p-6 border-b">
         <Title level={3} className="mb-2 text-lg sm:text-xl md:text-2xl">
           {formTemplate.form_name}
         </Title>
