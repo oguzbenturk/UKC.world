@@ -912,16 +912,25 @@ const ConsentField = ({ field, disabled, value, onChange, checked }) => {
 
 /**
  * Get column span based on field width setting
+ * Returns responsive props for Ant Design Col component
+ * Mobile (xs): always full width
+ * Tablet (sm): 50% width for half, else full
+ * Desktop (md+): use specified width
  */
-const getColSpan = (width) => {
-  const widthMap = {
+const getColProps = (width) => {
+  const baseSpan = {
     'full': 24,
     'half': 12,
     'third': 8,
     'quarter': 6,
     'two-thirds': 16,
+  }[width] || 24;
+
+  return {
+    xs: 24, // Mobile: always full width
+    sm: baseSpan === 24 ? 24 : Math.max(baseSpan, 12), // Tablet: at least half width
+    md: baseSpan, // Desktop: use specified width
   };
-  return widthMap[width] || 24;
 };
 
 /**
@@ -1037,11 +1046,11 @@ const DynamicField = ({
   // Don't render if not visible
   if (!isVisible) return null;
 
-  const colSpan = getColSpan(field.width);
+  const colProps = getColProps(field.width);
   const rules = buildValidationRules(field);
 
   return (
-    <Col span={colSpan}>
+    <Col {...colProps}>
       <Form.Item
         name={field.field_name}
         label={showLabel ? field.field_label : undefined}

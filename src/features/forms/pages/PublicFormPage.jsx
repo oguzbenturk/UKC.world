@@ -388,26 +388,29 @@ const PublicFormPage = () => {
     <>
       {/* Form Header */}
       <div 
-        className="p-6 border-b"
+        className="p-4 sm:p-6 border-b"
         style={{ borderTop: `4px solid ${token.colorPrimary}` }}
       >
-        <Title level={3} className="mb-2">
+        <Title level={3} className="mb-2 text-lg sm:text-xl md:text-2xl">
           {formTemplate.form_name}
         </Title>
         {formTemplate.description && (
-          <Paragraph type="secondary">
+          <Paragraph type="secondary" className="text-sm sm:text-base">
             {formTemplate.description}
           </Paragraph>
         )}
         
         {/* Multi-step progress */}
         {steps.length > 1 && (
-          <div className="mt-4">
+          <div className="mt-4 overflow-x-auto">
             <Steps
               current={currentStep}
               size="small"
+              responsive={false}
+              direction="horizontal"
+              className="min-w-max sm:min-w-0"
               items={steps.map((step, index) => ({
-                title: step.step_name,
+                title: <span className="text-xs sm:text-sm">{step.step_name}</span>,
                 status: index < currentStep ? 'finish' : 
                         index === currentStep ? 'process' : 'wait',
               }))}
@@ -417,17 +420,17 @@ const PublicFormPage = () => {
       </div>
 
       {/* Step Content */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {currentStepData && (
           <>
             {/* Step header */}
             {steps.length > 1 && (
-              <div className="mb-6">
-                <Title level={4} className="mb-1">
+              <div className="mb-4 sm:mb-6">
+                <Title level={4} className="mb-1 text-base sm:text-lg">
                   {currentStepData.step_name}
                 </Title>
                 {currentStepData.step_description && (
-                  <Text type="secondary">
+                  <Text type="secondary" className="text-sm">
                     {currentStepData.step_description}
                   </Text>
                 )}
@@ -455,14 +458,15 @@ const PublicFormPage = () => {
               </Row>
 
               {/* Navigation buttons */}
-              <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
-                <div className="flex gap-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {!isFirstStep && (
                     <Button 
                       size="large"
                       icon={<ArrowLeftOutlined />}
                       onClick={handlePrevious}
                       disabled={submitting}
+                      className="w-full sm:w-auto"
                     >
                       Previous
                     </Button>
@@ -475,6 +479,7 @@ const PublicFormPage = () => {
                         icon={<SaveOutlined />}
                         onClick={handleSaveDraft}
                         loading={savingDraft}
+                        className="w-full sm:w-auto"
                       >
                         {lastSaved ? 'Saved ✓' : 'Save Progress'}
                       </Button>
@@ -482,13 +487,14 @@ const PublicFormPage = () => {
                         size="large"
                         icon={<MailOutlined />}
                         onClick={() => setResumeEmailModalVisible(true)}
+                        className="w-full sm:w-auto"
                       >
                         Email Resume Link
                       </Button>
                     </>
                   )}
                 </div>
-                <div>
+                <div className="w-full sm:w-auto">
                   {isLastStep ? (
                     <Button 
                       type="primary" 
@@ -496,6 +502,7 @@ const PublicFormPage = () => {
                       icon={<CheckCircleOutlined />}
                       htmlType="submit"
                       loading={submitting}
+                      className="w-full sm:w-auto"
                     >
                       {formTemplate.settings?.submit_button_text || 'Submit'}
                     </Button>
@@ -506,6 +513,7 @@ const PublicFormPage = () => {
                       icon={<ArrowRightOutlined />}
                       onClick={handleNext}
                       disabled={submitting}
+                      className="w-full sm:w-auto"
                     >
                       Next
                     </Button>
@@ -599,14 +607,15 @@ const PublicFormPage = () => {
                     </Row>
 
                     {/* Navigation buttons */}
-                    <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
-                      <div className="flex gap-2">
+                    <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-4 border-t border-gray-200">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         {!isFirstStep && (
                           <Button 
                             size="large"
                             icon={<ArrowLeftOutlined />}
                             onClick={handlePrevious}
                             disabled={submitting}
+                            className="w-full sm:w-auto"
                           >
                             Previous
                           </Button>
@@ -619,6 +628,7 @@ const PublicFormPage = () => {
                               icon={<SaveOutlined />}
                               onClick={handleSaveDraft}
                               loading={savingDraft}
+                              className="w-full sm:w-auto"
                             >
                               {lastSaved ? 'Saved ✓' : 'Save Progress'}
                             </Button>
@@ -626,13 +636,14 @@ const PublicFormPage = () => {
                               size="large"
                               icon={<MailOutlined />}
                               onClick={() => setResumeEmailModalVisible(true)}
+                              className="w-full sm:w-auto"
                             >
                               Email Resume Link
                             </Button>
                           </>
                         )}
                       </div>
-                      <div>
+                      <div className="w-full sm:w-auto">
                         {isLastStep ? (
                           <Button 
                             type="primary" 
@@ -640,6 +651,7 @@ const PublicFormPage = () => {
                             icon={<CheckCircleOutlined />}
                             htmlType="submit"
                             loading={submitting}
+                            className="w-full sm:w-auto"
                           >
                             {formTemplate.settings?.submit_button_text || 'Submit'}
                           </Button>
@@ -650,6 +662,7 @@ const PublicFormPage = () => {
                             icon={<ArrowRightOutlined />}
                             onClick={handleNext}
                             disabled={submitting}
+                            className="w-full sm:w-auto"
                           >
                             Next
                           </Button>

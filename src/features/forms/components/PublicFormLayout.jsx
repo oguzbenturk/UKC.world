@@ -346,13 +346,14 @@ const PublicFormLayout = ({
         style={{
           position: 'relative',
           zIndex: 1,
-          padding: '40px 16px',
+          padding: '24px 12px', // Reduced padding for mobile
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center', // Center vertically
           flex: 1,
         }}
+        className="sm:py-10 sm:px-4" // Larger padding on desktop
       >
         <div
           style={{
@@ -366,6 +367,7 @@ const PublicFormLayout = ({
               style={{ 
                 marginBottom: 24,
                 textAlign: 'left',
+                padding: '0 4px', // Small padding for mobile
               }}
             >
               {theme.content.form_title && (
@@ -374,10 +376,10 @@ const PublicFormLayout = ({
                   style={{ 
                     color: theme.colors.titleColor || '#fff',
                     marginBottom: 8,
-                    fontSize: '2.5rem',
                     fontWeight: 600,
                     textShadow: '0 2px 8px rgba(0,0,0,0.3)',
                   }}
+                  className="text-xl sm:text-2xl md:text-4xl" // Responsive font size
                 >
                   {theme.content.form_title}
                 </Title>
@@ -386,12 +388,12 @@ const PublicFormLayout = ({
                 <Text 
                   style={{ 
                     color: theme.colors.titleColor || '#fff',
-                    fontSize: '1.1rem',
                     opacity: 0.9,
                     textShadow: '0 1px 4px rgba(0,0,0,0.3)',
                     display: 'block',
                     lineHeight: 1.6,
                   }}
+                  className="text-sm sm:text-base md:text-lg" // Responsive font size
                 >
                   {theme.content.form_description}
                 </Text>
