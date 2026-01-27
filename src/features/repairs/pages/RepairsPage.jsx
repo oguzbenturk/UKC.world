@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, Typography, Table, Button, Tag, Modal, Form, Input, Select, Upload, Empty, Spin, Drawer, Space, Divider, Timeline, Descriptions, Image, Avatar, Checkbox } from 'antd';
+import { Card, Typography, Table, Button, Tag, Modal, Form, Input, Select, Upload, Empty, Spin, Drawer, Space, Divider, Timeline, Descriptions, Image, Avatar, Checkbox, Tabs } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, ToolOutlined, CameraOutlined, EditOutlined, EyeOutlined, MessageOutlined, SendOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
+import SparePartsOrders from '@/features/admin/pages/SparePartsOrders';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -469,54 +470,65 @@ const RepairsPage = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-              <ToolOutlined /> Repair Center
+              <ToolOutlined /> Care Center
             </div>
-            <h1 className="text-3xl font-semibold">Repair Requests</h1>
+            <h1 className="text-3xl font-semibold">Equipment Care</h1>
             <p className="text-sm text-white/75">
-              Submit repair requests for equipment, facilities, or any items that need fixing
+              Manage repairs and spare parts orders for equipment maintenance
             </p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsModalOpen(true)}
-              className="h-11 rounded-2xl bg-white text-orange-600 border-0 shadow-lg hover:bg-slate-100"
-            >
-              New Repair Request
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="rounded-2xl shadow-sm text-center">
-          <div className="text-2xl font-bold text-orange-500">
-            {repairs.filter(r => r.status === 'pending').length}
-          </div>
-          <Text className="text-slate-500">Pending</Text>
-        </Card>
-        <Card className="rounded-2xl shadow-sm text-center">
-          <div className="text-2xl font-bold text-blue-500">
-            {repairs.filter(r => r.status === 'in_progress').length}
-          </div>
-          <Text className="text-slate-500">In Progress</Text>
-        </Card>
-        <Card className="rounded-2xl shadow-sm text-center">
-          <div className="text-2xl font-bold text-green-500">
-            {repairs.filter(r => r.status === 'completed').length}
-          </div>
-          <Text className="text-slate-500">Completed</Text>
-        </Card>
-        <Card className="rounded-2xl shadow-sm text-center">
-          <div className="text-2xl font-bold text-slate-500">{repairs.length}</div>
-          <Text className="text-slate-500">Total Requests</Text>
-        </Card>
-      </div>
+      {/* Tabs for Repairs and Spare Parts */}
+      <Tabs
+        defaultActiveKey="repairs"
+        items={[
+          {
+            key: 'repairs',
+            label: 'Repairs',
+            children: (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="rounded-2xl shadow-sm text-center">
+                    <div className="text-2xl font-bold text-orange-500">
+                      {repairs.filter(r => r.status === 'pending').length}
+                    </div>
+                    <Text className="text-slate-500">Pending</Text>
+                  </Card>
+                  <Card className="rounded-2xl shadow-sm text-center">
+                    <div className="text-2xl font-bold text-blue-500">
+                      {repairs.filter(r => r.status === 'in_progress').length}
+                    </div>
+                    <Text className="text-slate-500">In Progress</Text>
+                  </Card>
+                  <Card className="rounded-2xl shadow-sm text-center">
+                    <div className="text-2xl font-bold text-green-500">
+                      {repairs.filter(r => r.status === 'completed').length}
+                    </div>
+                    <Text className="text-slate-500">Completed</Text>
+                  </Card>
+                  <Card className="rounded-2xl shadow-sm text-center">
+                    <div className="text-2xl font-bold text-slate-500">{repairs.length}</div>
+                    <Text className="text-slate-500">Total Requests</Text>
+                  </Card>
+                </div>
 
-      {/* Repairs Table */}
-      <Card className="rounded-2xl shadow-sm">
+                {/* New Repair Button */}
+                <div className="flex justify-end">
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsModalOpen(true)}
+                    className="h-11 rounded-2xl"
+                  >
+                    New Repair Request
+                  </Button>
+                </div>
+
+                {/* Repairs Table */}
+                <Card className="rounded-2xl shadow-sm">
         <Title level={4} className="mb-4">
           {user?.role === 'admin' || user?.role === 'manager' ? 'All Repair Requests' : 'My Repair Requests'}
         </Title>
@@ -547,6 +559,16 @@ const RepairsPage = () => {
         )}
         </Spin>
       </Card>
+              </div>
+            ),
+          },
+          {
+            key: 'spare-parts',
+            label: 'Spare Parts',
+            children: <SparePartsOrders />,
+          },
+        ]}
+      />
 
       {/* Create Repair Request Modal */}
       <Modal

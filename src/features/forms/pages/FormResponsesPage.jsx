@@ -35,7 +35,11 @@ import {
   ClockCircleOutlined,
   InboxOutlined,
   MoreOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileImageOutlined,
+  FileWordOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as formService from '../services/formService';
@@ -186,10 +190,96 @@ const FormResponsesPage = () => {
     setDetailDrawer({ visible: true, submission });
   };
 
+  // Get appropriate icon for file type
+  const getFileIcon = (file) => {
+    const type = file.type || '';
+    const name = file.name || '';
+    if (type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(name)) {
+      return <FileImageOutlined style={{ color: '#52c41a' }} />;
+    }
+    if (type === 'application/pdf' || name.endsWith('.pdf')) {
+      return <FilePdfOutlined style={{ color: '#ff4d4f' }} />;
+    }
+    if (type.includes('word') || /\.(doc|docx)$/i.test(name)) {
+      return <FileWordOutlined style={{ color: '#1890ff' }} />;
+    }
+    return <FileOutlined />;
+  };
+
+  // Check if value is a file upload (array of objects with url property)
+  const isFileUpload = (value) => {
+    return Array.isArray(value) && value.length > 0 && value[0]?.url;
+  };
+
+  // Render file upload value with clickable links
+  const renderFileValue = (files) => {
+    if (!Array.isArray(files)) return '-';
+    
+    return (
+      <Space direction="vertical" size="small" className="w-full">
+        {files.map((file, index) => {
+          const isImage = file.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name || '');
+          
+          return (
+            <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+              {isImage ? (
+                <a href={file.url} target="_blank" rel="noopener noreferrer">
+                  <img 
+                    src={file.url} 
+                    alt={file.name || 'Uploaded image'}
+                    className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80"
+                  />
+                </a>
+              ) : (
+                getFileIcon(file)
+              )}
+              <div className="flex-1 min-w-0">
+                <Text ellipsis className="block">{file.name || 'File'}</Text>
+                {file.size && (
+                  <Text type="secondary" className="text-xs">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </Text>
+                )}
+              </div>
+              <Space>
+                <Tooltip title="View">
+                  <Button 
+                    type="link" 
+                    size="small" 
+                    icon={<EyeOutlined />}
+                    href={file.url}
+                    target="_blank"
+                  />
+                </Tooltip>
+                <Tooltip title="Download">
+                  <Button 
+                    type="link" 
+                    size="small" 
+                    icon={<DownloadOutlined />}
+                    href={file.url}
+                    download={file.name || 'download'}
+                  />
+                </Tooltip>
+              </Space>
+            </div>
+          );
+        })}
+      </Space>
+    );
+  };
+
   const formatValue = (value) => {
     if (value === null || value === undefined) return '-';
+    // Check if this is a file upload array
+    if (isFileUpload(value)) {
+      return renderFileValue(value);
+    }
     if (Array.isArray(value)) return value.join(', ');
     if (typeof value === 'object') {
+      // Check if it's a single file object
+      if (value.url) {
+        return renderFileValue([value]);
+      }
       return Object.entries(value)
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}: ${v}`)

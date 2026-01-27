@@ -33,7 +33,9 @@ import {
   FunnelIcon,
   WalletIcon,
   LifebuoyIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  RocketLaunchIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
@@ -224,7 +226,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     SparklesIcon,
     WalletIcon,
     LifebuoyIcon,
-    UserCircleIcon
+    UserCircleIcon,
+    RocketLaunchIcon,
+    LinkIcon
   };
 
   let currentRole = undefined;

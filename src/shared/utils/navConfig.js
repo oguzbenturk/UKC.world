@@ -334,12 +334,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/calendars/events', label: 'Community (Events)', dotColor: '#0ea5e9' }
         ]
       }),
-      // --- UKC Services with dot styling (only unique items) ---
-      // Shop - Pink (links to /shop - different from calendars/shop-orders)
-      item('/shop', 'Shop', 'ShoppingBagIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
-        isShopLink: true
-      }),
       // --- Admin Tools (icon only, no dots) ---
       // Services Parameters - Orange
       item('/services', 'Services Parameters', 'CogIcon', {
@@ -358,7 +352,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/finance', 'Finance', 'CurrencyDollarIcon', {
         customStyle: { textColor: '#10b981' },
         subItems: [
-          { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' },
           { to: '/finance/shop', label: 'Shop', dotColor: '#ec4899' },
           { to: '/finance/lessons', label: 'Academy', dotColor: '#4ade80' },
           { to: '/finance/rentals', label: 'Rental', dotColor: '#fb923c' },
@@ -366,16 +359,27 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
           { to: '/finance/events', label: 'Experience', dotColor: '#eab308' },
           { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
-          { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' }
+          { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
+          { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
         ]
       }),
       // Marketing - Rose
       item('/marketing', 'Marketing', 'MegaphoneIcon', {
-        customStyle: { textColor: '#f43f5e' }
+        customStyle: { textColor: '#f43f5e' },
+        subItems: [
+          { to: '/marketing', label: 'Campaign Builder', icon: 'RocketLaunchIcon' },
+          { to: '/quick-links', label: 'Links & Forms', icon: 'LinkIcon' },
+          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' }
+        ]
       }),
       // Rating Analytics - Amber
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
         customStyle: { textColor: '#f59e0b' }
+      }),
+      // Shop - Pink (links to /shop - at bottom)
+      item('/shop', 'Shop', 'ShoppingBagIcon', {
+        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
+        isShopLink: true
       })
     ];
   }
@@ -480,8 +484,9 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     item('/marketing', 'Marketing', 'MegaphoneIcon', {
       customStyle: { textColor: '#f43f5e' },
       subItems: [
-        { to: '/marketing', label: 'Marketing Dashboard' },
-        { to: '/quick-links', label: 'Links & Forms' }
+        { to: '/marketing', label: 'Campaign Builder', icon: 'RocketLaunchIcon' },
+        { to: '/quick-links', label: 'Links & Forms', icon: 'LinkIcon' },
+        { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' }
       ]
     }),
     // Rating Analytics - Amber (requires reports permissions)
@@ -515,8 +520,6 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
           { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
-          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' },
-          { to: '/admin/spare-parts', label: 'Spare Parts', icon: 'WrenchScrewdriverIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]
@@ -532,8 +535,6 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
           { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
-          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' },
-          { to: '/admin/spare-parts', label: 'Spare Parts', icon: 'WrenchScrewdriverIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]
