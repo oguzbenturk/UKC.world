@@ -15,6 +15,7 @@ import StudentCheckInPanel from '../components/StudentCheckInPanel';
 import LessonStatusHeatmap from '../components/LessonStatusHeatmap';
 import FloatingQuickAction from '../components/FloatingQuickAction';
 import SurveyCard from '../components/SurveyCard';
+import InstructorRatingsCard from '../components/InstructorRatingsCard';
 
 const formatNumber = (value) => {
   if (value === undefined || value === null) return '—';
@@ -485,7 +486,10 @@ const InstructorDashboardView = ({
           onSelect={onStudentNavigate}
         />
       </div>
-      <LessonStatusHeatmap breakdown={statusBreakdown} />
+      <div className="space-y-6">
+        <LessonStatusHeatmap breakdown={statusBreakdown} />
+        <InstructorRatingsCard limit={5} />
+      </div>
     </div>
 
     <FloatingQuickAction label="Create booking" onClick={onCreateBooking} />

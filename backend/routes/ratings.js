@@ -26,7 +26,11 @@ router.post(
     body('rating').isInt({ min: 1, max: 5 }).withMessage('rating must be between 1 and 5'),
     body('feedbackText').optional({ nullable: true }).isString().isLength({ max: 2000 }).withMessage('feedbackText must be under 2000 characters'),
     body('isAnonymous').optional({ nullable: true }).isBoolean().withMessage('isAnonymous must be boolean'),
-    body('serviceType').optional({ nullable: true }).isString().isIn(['lesson', 'rental', 'accommodation', 'Lesson', 'Rental', 'Accommodation', 'LESSON', 'RENTAL', 'ACCOMMODATION']).withMessage('serviceType is not supported'),
+    body('serviceType').optional({ nullable: true }).isString().isIn([
+      'lesson', 'rental', 'accommodation', 'private', 'group', 'course', 'package', 'event',
+      'Lesson', 'Rental', 'Accommodation', 'Private', 'Group', 'Course', 'Package', 'Event',
+      'LESSON', 'RENTAL', 'ACCOMMODATION', 'PRIVATE', 'GROUP', 'COURSE', 'PACKAGE', 'EVENT'
+    ]).withMessage('serviceType is not supported'),
     body('metadata').optional({ nullable: true }).isObject().withMessage('metadata must be an object')
   ]),
   sanitizeInput(['feedbackText']),

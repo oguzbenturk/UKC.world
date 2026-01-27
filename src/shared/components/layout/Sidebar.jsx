@@ -50,10 +50,13 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   // All roles now get the UKC styled shop experience
   const isUKCRole = true;
 
-  // Detect shop route and enable shop mode for all roles
+  // Detect shop route and toggle shop mode automatically
   useEffect(() => {
     if (location.pathname.startsWith('/shop')) {
       setIsShopMode(true);
+    } else {
+      // Exit shop mode when navigating away from shop
+      setIsShopMode(false);
     }
   }, [location.pathname]);
 

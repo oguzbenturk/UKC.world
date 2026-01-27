@@ -11,6 +11,7 @@ import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { getNavItemsForRole } from '@/shared/utils/navConfig';
+import { APP_VERSION } from '@/shared/constants/version';
 
 const profileImageCandidateKeys = [
   'profile_image_url',
@@ -335,15 +336,18 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
 
               {/* Right-side icons */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end flex-shrink-0">
-                {/* Subtle Plannivo link */}
+                {/* Subtle Plannivo link with version */}
                 <a 
                   href="http://plannivo.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hidden lg:block text-xs text-slate-500 hover:text-slate-700 transition-colors duration-150 dark:text-slate-400 dark:hover:text-slate-300"
+                  className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors duration-150 dark:text-slate-400 dark:hover:text-slate-300"
                   title="Visit Plannivo.com"
                 >
-                  Plannivo Product
+                  <span>Plannivo</span>
+                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium dark:bg-blue-900/50 dark:text-blue-300">
+                    v{APP_VERSION}
+                  </span>
                 </a>
               
                 {/* Real-time Status Indicator */}
