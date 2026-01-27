@@ -99,8 +99,8 @@ const getNavItemPermissionKey = (path, label) => {
 export const getNavItemsForRole = (role, userPermissions = null) => {
   const r = role?.toLowerCase?.();
   
-  // Outsider role - ukc.World custom menu structure with styled dots (colors from actual images)
-  if (r === ROLES.OUTSIDER) {
+  // Outsider role OR unauthenticated (guest) - ukc.World custom menu structure with styled dots (colors from actual images)
+  if (r === ROLES.OUTSIDER || !r || r === 'undefined') {
     return [
       item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' }, // pembe (pink) - TOP POSITION
@@ -486,8 +486,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 export const getSystemItemsForRole = (role, userPermissions = null) => {
   const r = role?.toLowerCase?.();
   
-  // For outsider and student roles, no system items
-  if (r === ROLES.OUTSIDER || r === ROLES.STUDENT) {
+  // For outsider, student roles, and unauthenticated users - no system items
+  if (r === ROLES.OUTSIDER || r === ROLES.STUDENT || !r || r === 'undefined') {
     return [];
   }
   

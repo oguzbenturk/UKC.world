@@ -14,6 +14,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import apiClient from '@/shared/services/apiClient';
 
 const fetchMemberOfferings = async () => {
@@ -418,16 +419,20 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, d
 const MemberOfferings = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const { formatCurrency, convertCurrency, displayCurrency, businessCurrency } = useCurrency();
   const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
 
+  // Check if user is a guest (not logged in)
+  const isGuest = !user;
+  
   // Determine if user is staff (can assign memberships to others)
   const userRole = user?.role?.toLowerCase() || '';
   const customerRoles = ['student', 'outsider', 'trusted_customer'];
-  const isStaff = !customerRoles.includes(userRole) && userRole !== '';
+  const isStaff = !isGuest && !customerRoles.includes(userRole) && userRole !== '';
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -462,10 +467,11 @@ const MemberOfferings = () => {
     queryFn: fetchMemberOfferings,
   });
 
-  // Fetch user's purchases to determine owned offerings
+  // Fetch user's purchases to determine owned offerings (only if authenticated)
   const { data: myPurchases = [] } = useQuery({
     queryKey: ['my-member-purchases'],
     queryFn: fetchMyPurchases,
+    enabled: !!user, // Only fetch if user is logged in
   });
 
   // Create a set of owned offering IDs (active purchases only)
@@ -514,6 +520,12 @@ const MemberOfferings = () => {
   });
 
   const handlePurchase = (offering) => {
+    // If guest, prompt them to sign up/login
+    if (isGuest) {
+      message.info('Please sign in or create an account to purchase a membership.');
+      openAuthModal('signup');
+      return;
+    }
     // For staff, require a customer to be selected first
     if (isStaff && !selectedCustomer) {
       message.warning('Please select a customer first to assign this membership.');

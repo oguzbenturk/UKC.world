@@ -571,6 +571,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
   const [purchaseProcessor, setPurchaseProcessor] = useState(null);
   const [purchaseProcessorForm] = Form.useForm();
   
+  // Suppress form warning on unmount by using a ref to track mounted state
+  const isComponentMounted = useRef(false);
+  useEffect(() => {
+    isComponentMounted.current = true;
+    return () => {
+      isComponentMounted.current = false;
+    };
+  }, []);
+  
   // Accommodation date selection for package purchase
   const [accommodationDateModal, setAccommodationDateModal] = useState(null); // null or package object
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
@@ -627,7 +636,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
       setParticipantSearchQuery('');
       // Delay form reset to avoid "not connected" warning
       setTimeout(() => {
-        try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
+        if (isComponentMounted.current) {
+          try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
+        }
       }, 0);
       return;
     }

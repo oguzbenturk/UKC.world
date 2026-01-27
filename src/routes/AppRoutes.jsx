@@ -66,6 +66,7 @@ import StudentMyAccommodationPage from '../features/students/pages/StudentMyAcco
 import NotificationCenter from '../features/notifications/pages/NotificationCenter';
 import GdprDataManager from '../features/compliance/components/GdprDataManager';
 import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage';
+import GuestLandingPage from '../features/outsider/pages/GuestLandingPage';
 import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPage';
 import KiteLessonsPage from '../features/outsider/pages/KiteLessonsPage';
 import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
@@ -231,7 +232,8 @@ const AppRoutes = () => {
     <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />
-  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/login"} replace />} />
+  {/* Default route: guests go to /guest (Academy preview), authenticated users go to their role-based dashboard */}
+  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/guest"} replace />} />
   
   {/* Public route for group booking invitations */}
   <Route path="/group-invitation/:token" element={<GroupInvitationPage />} />
@@ -246,44 +248,56 @@ const AppRoutes = () => {
   {/* Form preview - rendered outside layout but requires auth (handled in component) */}
   <Route path="/forms/preview/:id" element={<FormPreviewPage />} />
       
-      {/* Routes accessible to all authenticated users including outsiders */}
+      {/* PUBLIC ROUTES - Accessible without authentication (Guest Mode) */}
+      {/* These routes are browsable by guests but actions require sign-in */}
+      
+      {/* Shop - browse products, but cart/purchase requires auth */}
+      <Route path="/shop" element={<ShopPage />} />
+      
+      {/* Academy lesson pages - browse and explore */}
+      <Route path="/academy/kite-lessons" element={<KiteLessonsPage />} />
+      <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
+      <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
+      <Route path="/academy/premium-lessons" element={<PremiumLessonsPage />} />
+      
+      {/* Rental pages - browse equipment */}
+      <Route path="/rental/standard" element={<RentalStandardPage />} />
+      <Route path="/rental/premium" element={<RentalPremiumPage />} />
+      
+      {/* Stay pages - explore accommodation */}
+      <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
+      <Route path="/stay/hotel" element={<StayHotelPage />} />
+      <Route path="/stay/home" element={<StayHomePage />} />
+      
+      {/* Experience pages - browse packages */}
+      <Route path="/experience/book-package" element={<ExperienceBookPackagePage />} />
+      <Route path="/experience/kite-packages" element={<ExperienceKitePackagesPage />} />
+      <Route path="/experience/wing-packages" element={<ExperienceWingPackagesPage />} />
+      <Route path="/experience/downwinders" element={<ExperienceDownwindersPage />} />
+      <Route path="/experience/camps" element={<ExperienceCampsPage />} />
+      
+      {/* Member Offerings - browse VIP & Seasonal Packages */}
+      <Route path="/members/offerings" element={<MemberOfferings />} />
+      
+      {/* Events - view upcoming events */}
+      <Route path="/services/events" element={<EventsPage />} />
+      
+      {/* Guest landing page - welcome page for Duotone Pro Center */}
+      <Route path="/guest" element={<GuestLandingPage />} />
+      {/* Legacy booking page - keep for direct access if needed */}
+      <Route path="/book" element={<OutsiderBookingPage />} />
+      <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
+      
+      {/* Help/Support - public access */}
+      <Route path="/help" element={<HelpSupport />} />
+      
+      {/* AUTHENTICATED-ONLY ROUTES */}
+      {/* These routes require authentication and redirect to login */}
       <Route element={<ProtectedRoute allowedRoles={[]} />}>
-        <Route path="/shop" element={<ShopPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/notifications" element={<NotificationCenter />} />
-        <Route path="/help" element={<HelpSupport />} />
         <Route path="/accommodation" element={<AccommodationBookingPage />} />
         <Route path="/repairs" element={<RepairsPage />} />
-        {/* Member Offerings - VIP & Seasonal Packages - accessible to all authenticated users */}
-        <Route path="/members/offerings" element={<MemberOfferings />} />
-        {/* Events - accessible to all authenticated users */}
-        <Route path="/services/events" element={<EventsPage />} />
-      </Route>
-
-      {/* Outsider booking route - allows new users to book their first lesson */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.OUTSIDER]} />}>
-        <Route path="/book" element={<OutsiderBookingPage />} />
-        <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
-      </Route>
-
-      {/* Academy lesson info pages - accessible to outsiders and students */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.OUTSIDER, ROLES.STUDENT]} />}>
-        <Route path="/academy/kite-lessons" element={<KiteLessonsPage />} />
-        <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
-        <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
-        <Route path="/academy/premium-lessons" element={<PremiumLessonsPage />} />
-        <Route path="/rental/standard" element={<RentalStandardPage />} />
-        <Route path="/rental/premium" element={<RentalPremiumPage />} />
-        {/* Stay pages */}
-        <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
-        <Route path="/stay/hotel" element={<StayHotelPage />} />
-        <Route path="/stay/home" element={<StayHomePage />} />
-        {/* Experience pages */}
-        <Route path="/experience/book-package" element={<ExperienceBookPackagePage />} />
-        <Route path="/experience/kite-packages" element={<ExperienceKitePackagesPage />} />
-        <Route path="/experience/wing-packages" element={<ExperienceWingPackagesPage />} />
-        <Route path="/experience/downwinders" element={<ExperienceDownwindersPage />} />
-        <Route path="/experience/camps" element={<ExperienceCampsPage />} />
       </Route>
 
       {/* Dashboard routes for staff */}

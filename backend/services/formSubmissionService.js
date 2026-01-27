@@ -547,17 +547,21 @@ export async function validateSubmission(submissionData, formTemplateId) {
         });
       }
       if (validationRules.pattern) {
-        try {
-          const regex = new RegExp(validationRules.pattern);
-          if (!regex.test(value)) {
-            errors.push({
-              field: field.field_name,
-              message: validationRules.custom_error_message || `${field.field_label} format is invalid`,
-              type: 'pattern'
-            });
+        // Skip predefined pattern names that are already handled by type-specific validation above
+        const predefinedPatterns = ['email', 'phone', 'url'];
+        if (!predefinedPatterns.includes(validationRules.pattern)) {
+          try {
+            const regex = new RegExp(validationRules.pattern);
+            if (!regex.test(value)) {
+              errors.push({
+                field: field.field_name,
+                message: validationRules.custom_error_message || `${field.field_label} format is invalid`,
+                type: 'pattern'
+              });
+            }
+          } catch {
+            // Invalid regex pattern, skip
           }
-        } catch {
-          // Invalid regex pattern, skip
         }
       }
     }

@@ -392,8 +392,8 @@ app.get('/api/services/categories/list', async (req, res) => {
 });
 
 app.use('/api/services', authenticateJWT, servicesRouter);
-app.use('/api/products', authenticateJWT, productsRouter);
-app.use('/api/shop/products', authenticateJWT, productsRouter); // Alias for QuickShopSaleModal compatibility
+app.use('/api/products', productsRouter); // Auth handled per-route for guest browsing
+app.use('/api/shop/products', productsRouter); // Alias - auth handled per-route
 app.use('/api/ratings', authenticateJWT, ratingsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/instructor-commissions', instructorCommissionsRouter);

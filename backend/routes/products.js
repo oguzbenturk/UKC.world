@@ -2,6 +2,7 @@
 // API routes for product management (retail/sales items)
 
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
@@ -14,6 +15,15 @@ import {
 
 const router = express.Router();
 
+// Rate limiter for public API endpoints (guests)
+const publicApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const parseBoolean = (value) => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
@@ -23,7 +33,8 @@ const parseBoolean = (value) => {
 };
 
 // Get all products with filtering and pagination
-router.get('/', authenticateJWT, async (req, res) => {
+// Made public for guest browsing - no auth required, rate limited
+router.get('/', publicApiLimiter, async (req, res) => {
   try {
     const {
       page = 1,
@@ -162,7 +173,8 @@ router.get('/', authenticateJWT, async (req, res) => {
 
 // Get products grouped by category (for shop homepage)
 // Returns up to 10 products per category
-router.get('/shop/by-category', authenticateJWT, async (req, res) => {
+// Public endpoint - guests can browse shop
+router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
   try {
     const { limit_per_category = 10 } = req.query;
     
@@ -254,7 +266,8 @@ router.get('/shop/by-category', authenticateJWT, async (req, res) => {
 });
 
 // Get available subcategories (all or by category)
-router.get('/subcategories', authenticateJWT, async (req, res) => {
+// Public endpoint - guests can view subcategories
+router.get('/subcategories', publicApiLimiter, async (req, res) => {
   try {
     const { category } = req.query;
     
@@ -324,7 +337,8 @@ router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager'
 });
 
 // Get product by ID
-router.get('/:id', authenticateJWT, async (req, res) => {
+// Public endpoint - guests can view product details
+router.get('/:id', publicApiLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -648,7 +662,8 @@ router.patch('/:id/stock', authenticateJWT, authorizeRoles(['admin', 'manager'])
 });
 
 // Get product categories
-router.get('/categories/list', authenticateJWT, async (req, res) => {
+// Public endpoint - guests can view categories
+router.get('/categories/list', publicApiLimiter, async (req, res) => {
   try {
     const query = `
       SELECT 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthProvider } from './shared/contexts/AuthContext';
+import { AuthModalProvider } from './shared/contexts/AuthModalContext';
 import { DataProvider } from './shared/contexts/DataContext';
 import { ToastProvider } from './shared/contexts/ToastContext';
 import { CurrencyProvider } from './shared/contexts/CurrencyContext';
@@ -12,6 +13,7 @@ import AppRoutes from './routes/AppRoutes';
 import { Navbar } from './shared/components/layout/Navbar';
 import Sidebar from './shared/components/layout/Sidebar';
 import PopupManager from './features/popups/components/PopupManager';
+import AuthModal from './shared/components/ui/AuthModal';
 import { useAuth } from './shared/hooks/useAuth';
 import { useTheme } from './shared/hooks/useTheme';
 import { realTimeService } from './shared/services/realTimeService';
@@ -49,19 +51,22 @@ function App() {
         <NetworkStatusBanner />
         <Router>
           <AuthProvider>
-            <CurrencyProvider>
-              <CartProvider>
-                <ShopFiltersProvider>
-                <DataProvider>
-                  <ToastProvider>
-                    <ForecastProvider>
-                      <AppLayoutWithAuth />
-                    </ForecastProvider>
-                  </ToastProvider>
-                </DataProvider>
-                </ShopFiltersProvider>
-              </CartProvider>
-            </CurrencyProvider>
+            <AuthModalProvider>
+              <CurrencyProvider>
+                <CartProvider>
+                  <ShopFiltersProvider>
+                  <DataProvider>
+                    <ToastProvider>
+                      <ForecastProvider>
+                        <AppLayoutWithAuth />
+                        <AuthModal />
+                      </ForecastProvider>
+                    </ToastProvider>
+                  </DataProvider>
+                  </ShopFiltersProvider>
+                </CartProvider>
+              </CurrencyProvider>
+            </AuthModalProvider>
           </AuthProvider>
         </Router>
       </AntdApp>
@@ -202,16 +207,8 @@ const AppLayoutWithAuth = () => {
     );
   }
 
-  // Only show navigation components when authenticated
-  if (!isAuthenticated) {
-    return (
-      <main className="min-h-dvh safe-pb overflow-x-hidden overflow-y-auto">
-        <AppRoutes />
-      </main>
-    );
-  }
-
-  if (requiresConsent) {
+  // Show consent modal ONLY for authenticated users who need to consent
+  if (isAuthenticated && requiresConsent) {
     return (
       <div className="min-h-screen">
         {consentModal}
@@ -223,11 +220,14 @@ const AppLayoutWithAuth = () => {
   // Standard roles + any custom role (custom roles are valid if they have permission)
   const standardRoles = ['admin', 'manager', 'instructor', 'student', 'outsider', 'developer', 'trusted_customer'];
   const userRole = user?.role?.toLowerCase?.() || '';
-  const canAccessNavigation = user && (
+  
+  // Guests (not authenticated) CAN access navigation
+  // Authenticated users without valid role CANNOT access navigation
+  const canAccessNavigation = !isAuthenticated || (user && (
     standardRoles.includes(userRole) || 
     // Allow any other role (custom roles) to access navigation
     (userRole && userRole.length > 0)
-  );
+  ));
 
   // If authenticated but not authorized to see navigation, show a limited view
   if (!canAccessNavigation) {

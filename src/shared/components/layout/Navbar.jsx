@@ -4,6 +4,7 @@ import { Bars3Icon, UserCircleIcon, MoonIcon, SunIcon } from '@heroicons/react/2
 import { Avatar, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../contexts/AuthModalContext';
 import RealTimeStatusIndicator from '../realtime/RealTimeStatusIndicator';
 import NotificationBell from '@/features/notifications/components/NotificationBell';
 import StudentWalletTriggerButton from '@/features/students/components/StudentWalletTriggerButton';
@@ -77,6 +78,7 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { logout, user, isAuthenticated } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
   const location = useLocation();
   
@@ -261,7 +263,7 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                     
                     // Map special paths to their parent sections
                     const pathToSectionMap = {
-                      '/book': '/academy',
+                      '/guest': '/academy',
                       '/members/offerings': '/members/offerings',
                     };
                     
@@ -350,31 +352,34 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                   </span>
                 </a>
               
-                {/* Real-time Status Indicator */}
-                <NotificationBell />
-                <div className="hidden md:flex">
-                  <RealTimeStatusIndicator />
-                </div>
+                {/* Real-time Status Indicator - Only for authenticated users */}
+                {isAuthenticated && <NotificationBell />}
+                {isAuthenticated && (
+                  <div className="hidden md:flex">
+                    <RealTimeStatusIndicator />
+                  </div>
+                )}
               
-                {/* Profile Dropdown Container */}
-                <div className="relative profile-dropdown-container z-50">
-                  <button 
-                    onClick={toggleProfileDropdown}
-                    className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
-                    aria-expanded={isProfileDropdownOpen}
-                    aria-haspopup="true"
-                    type="button"
-                    aria-label={`Open profile menu for ${displayName}`}
-                  >
-                    <Avatar
-                      size={32}
-                      shape="circle"
-                      src={profileImage || undefined}
-                      alt={`${displayName} avatar`}
-                      icon={!profileImage ? <UserCircleIcon className="h-5 w-5 text-slate-500 dark:text-slate-200" /> : undefined}
-                      className="border border-slate-200 bg-slate-100 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                    />
-                  </button>
+                {/* Profile Dropdown Container or Sign In Button */}
+                {isAuthenticated ? (
+                  <div className="relative profile-dropdown-container z-50">
+                    <button 
+                      onClick={toggleProfileDropdown}
+                      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
+                      aria-expanded={isProfileDropdownOpen}
+                      aria-haspopup="true"
+                      type="button"
+                      aria-label={`Open profile menu for ${displayName}`}
+                    >
+                      <Avatar
+                        size={32}
+                        shape="circle"
+                        src={profileImage || undefined}
+                        alt={`${displayName} avatar`}
+                        icon={!profileImage ? <UserCircleIcon className="h-5 w-5 text-slate-500 dark:text-slate-200" /> : undefined}
+                        className="border border-slate-200 bg-slate-100 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                    </button>
                   {isProfileDropdownOpen && (
                     <div 
                       className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-white border border-slate-200 focus:outline-none z-[60] dark:bg-slate-800 dark:border-slate-700/40"
@@ -484,7 +489,23 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                       </button>
                     </div>
                   )}
-                </div>
+                  </div>
+                ) : (
+                  // Sign In button for guests
+                  <button
+                    onClick={() => {
+                      openAuthModal({
+                        title: 'Sign In to UKC.World',
+                        message: 'Create an account or sign in to access all features',
+                        returnUrl: location.pathname
+                      });
+                    }}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    aria-label="Sign In"
+                  >
+                    Sign In
+                  </button>
+                )}
 
                 {/* Removed duplicate right-side hamburger to keep only sidebar toggle on the left */}
               </div>

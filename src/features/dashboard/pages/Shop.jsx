@@ -30,6 +30,7 @@ import {
 import { productApi } from '@/shared/services/productApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useCart } from '@/shared/contexts/CartContext';
+import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { useShopFilters, SORT_OPTIONS, CATEGORY_LABELS } from '@/shared/contexts/ShopFiltersContext';
 import ShoppingCart from '@/features/students/components/ShoppingCart';
 import FinancialService from '@/features/finances/services/financialService';
@@ -82,6 +83,9 @@ const ShopPage = () => {
     const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [expandedCategorySections, setExpandedCategorySections] = useState({}); // Track which categories show all products
+
+    const { isGuest, isAuthenticated } = useAuth();
+    const { openAuthModal } = useAuthModal();
 
     // Use shared filter context
     const {
@@ -239,10 +243,20 @@ const ShopPage = () => {
 
     const handleAddToCart = useCallback(
         (product, options = {}) => {
+            // Check if user is a guest
+            if (isGuest || !isAuthenticated) {
+                openAuthModal({
+                    title: 'Sign In to Purchase',
+                    message: 'Create an account to add items to your cart and complete your purchase',
+                    returnUrl: '/shop'
+                });
+                return;
+            }
+            
             addToCartContext(product, 1, options);
             message.success(`${product.name || 'Item'} added to cart`);
         },
-        [addToCartContext]
+        [addToCartContext, isGuest, isAuthenticated, openAuthModal]
     );
 
     const handleWishlistToggle = useCallback(
@@ -1178,6 +1192,30 @@ const ShopPage = () => {
         <div className="shop-page min-h-screen bg-gray-50 px-4 pb-28 pt-5 lg:px-6">
             <div className="w-full">
                 {renderHeader()}
+                
+                {/* Guest Mode Banner */}
+                {isGuest && (
+                    <Alert
+                        message="Browsing as Guest"
+                        description="Sign in to add items to your cart and complete your purchase. Browse our products and discover amazing deals!"
+                        type="info"
+                        showIcon
+                        action={
+                            <Button 
+                                size="small" 
+                                type="primary"
+                                onClick={() => openAuthModal({
+                                    title: 'Sign In to Shop',
+                                    message: 'Create an account to purchase products and track your orders',
+                                    returnUrl: '/shop'
+                                })}
+                            >
+                                Sign In
+                            </Button>
+                        }
+                        className="mb-6 rounded-xl"
+                    />
+                )}
                 
                 {/* Main Content with Sidebar */}
                 <div className="flex gap-6">

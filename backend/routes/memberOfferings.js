@@ -12,14 +12,14 @@ const router = Router();
 const ADMIN_ROLES = ['admin', 'manager', 'developer', 'front_desk'];
 
 // ==================================================
-// PUBLIC ROUTES (Authenticated users)
+// PUBLIC ROUTES (No authentication required)
 // ==================================================
 
 /**
  * GET /member-offerings
- * Get all active offerings (for all authenticated users)
+ * Get all active offerings (PUBLIC - for guests and authenticated users)
  */
-router.get('/', authenticateJWT, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT 
@@ -51,6 +51,10 @@ router.get('/', authenticateJWT, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch offerings' });
   }
 });
+
+// ==================================================
+// AUTHENTICATED ROUTES
+// ==================================================
 
 /**
  * GET /member-offerings/my-purchases

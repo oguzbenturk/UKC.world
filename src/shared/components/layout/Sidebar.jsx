@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Input, Select, Checkbox, Badge } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../contexts/AuthModalContext';
 import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig';
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
 import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
@@ -14,6 +15,7 @@ import {
   CogIcon,
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
+  ArrowLeftOnRectangleIcon,
   ShoppingBagIcon,
   CalendarDaysIcon,
   CubeIcon,
@@ -39,7 +41,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   const [expandedItems, setExpandedItems] = useState({});
   const [isShopMode, setIsShopMode] = useState(false);
   const sidebarRef = useRef(null);
-  const { logout } = useAuth();
+  const { logout, isAuthenticated, isGuest } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -773,23 +776,49 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                 </li>
               ))}
               <li>
-                <div className="relative group">
-                  <button 
-                    onClick={showLogoutConfirmation}
-                    className={`${commonLinkClasses} w-full text-left ${
-                      isCollapsed ? 'justify-center' : ''
-                    }`}
-                  >
-                    <ArrowRightOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                    {!isCollapsed && 'Logout'}
-                  </button>
-                  {/* Tooltip for collapsed mode */}
-                  {isCollapsed && (
-                    <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                      Logout
-                    </div>
-                  )}
-                </div>
+                {isGuest ? (
+                  /* Sign In button for guests */
+                  <div className="relative group">
+                    <button 
+                      onClick={() => openAuthModal({
+                        title: 'Sign In to UKC.World',
+                        message: 'Create an account or sign in to access all features',
+                        returnUrl: location.pathname
+                      })}
+                      className={`${commonLinkClasses} w-full text-left bg-blue-600 hover:bg-blue-700 text-white ${
+                        isCollapsed ? 'justify-center' : ''
+                      }`}
+                    >
+                      <ArrowLeftOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                      {!isCollapsed && 'Sign In'}
+                    </button>
+                    {/* Tooltip for collapsed mode */}
+                    {isCollapsed && (
+                      <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-blue-600 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        Sign In
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Logout button for authenticated users */
+                  <div className="relative group">
+                    <button 
+                      onClick={showLogoutConfirmation}
+                      className={`${commonLinkClasses} w-full text-left ${
+                        isCollapsed ? 'justify-center' : ''
+                      }`}
+                    >
+                      <ArrowRightOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                      {!isCollapsed && 'Logout'}
+                    </button>
+                    {/* Tooltip for collapsed mode */}
+                    {isCollapsed && (
+                      <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
+                        Logout
+                      </div>
+                    )}
+                  </div>
+                )}
               </li>
             </ul>
           </div>

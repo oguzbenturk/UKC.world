@@ -12,6 +12,7 @@ import { App, Button, Card, Typography, Alert, Spin, Tag, Empty, Modal, Radio, I
 import dayjs from 'dayjs';
 import { CalendarOutlined, CheckCircleOutlined, RocketOutlined, ShoppingOutlined, WalletOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -73,7 +74,8 @@ const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
 };
 
 const OutsiderBookingPage = () => {
-  const { user, refreshToken } = useAuth();
+  const { user, refreshToken, isAuthenticated, isGuest } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
   const location = useLocation();
   const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
@@ -687,6 +689,16 @@ const OutsiderBookingPage = () => {
   }, [waiverModalState, resetWaiverState, notification]);
 
   const handleBookingOpen = () => {
+    // Check if user is a guest (not authenticated)
+    if (isGuest || !isAuthenticated) {
+      openAuthModal({
+        title: 'Sign In to Book Your First Lesson',
+        message: 'Create a free account or sign in to book your lesson with us',
+        returnUrl: '/book'
+      });
+      return;
+    }
+    
     if (needsWaiver) {
       const participantName = user?.first_name
         ? `${user.first_name} ${user?.last_name ?? ''}`.trim()
@@ -761,13 +773,16 @@ const OutsiderBookingPage = () => {
               <CalendarOutlined className="text-4xl text-sky-600" />
             </div>
             <Title level={3} className="!mb-2">
-              Welcome, {user?.first_name || 'New Member'}!
+              {isGuest ? 'Welcome to UKC Academy!' : `Welcome, ${user?.first_name || 'New Member'}!`}
             </Title>
             <Paragraph className="text-slate-600 max-w-lg mx-auto mb-6">
-              You're just one step away from booking your first lesson. 
-              {needsWaiver 
-                ? ' Please sign the liability waiver first, then you can book your lesson.'
-                : ' Click the button below to choose your preferred time and instructor.'
+              {isGuest 
+                ? 'Discover the world of kite surfing with expert instructors. Sign in to book your first lesson and start your adventure!'
+                : `You're just one step away from booking your first lesson. 
+                  ${needsWaiver 
+                    ? ' Please sign the liability waiver first, then you can book your lesson.'
+                    : ' Click the button below to choose your preferred time and instructor.'
+                  }`
               }
             </Paragraph>
             
@@ -786,6 +801,15 @@ const OutsiderBookingPage = () => {
               size="large"
               icon={<ShoppingOutlined />}
               onClick={() => {
+                // Check if user is a guest
+                if (isGuest || !isAuthenticated) {
+                  openAuthModal({
+                    title: 'Sign In to Purchase Packages',
+                    message: 'Create an account to purchase lesson packages and save money',
+                    returnUrl: '/book'
+                  });
+                  return;
+                }
                 setShowPackages(true);
                 setSelectedPackageCategory(null);
               }}

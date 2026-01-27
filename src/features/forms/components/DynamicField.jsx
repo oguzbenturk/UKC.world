@@ -93,12 +93,18 @@ const buildValidationRules = (field) => {
     });
   }
 
-  // Pattern (regex)
+  // Pattern (regex) - skip predefined patterns that are already handled by type-specific validation
   if (validationRules.pattern) {
-    rules.push({
-      pattern: new RegExp(validationRules.pattern),
-      message: validationRules.pattern_message || 'Invalid format',
-    });
+    // Predefined pattern names that are handled by type-specific validation above
+    const predefinedPatterns = ['email', 'phone', 'url'];
+    
+    if (!predefinedPatterns.includes(validationRules.pattern)) {
+      // Custom regex pattern
+      rules.push({
+        pattern: new RegExp(validationRules.pattern),
+        message: validationRules.pattern_message || 'Invalid format',
+      });
+    }
   }
 
   return rules;

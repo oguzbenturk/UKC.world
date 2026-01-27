@@ -26,6 +26,10 @@ export function AuthProvider({ children }) {
   const [consent, setConsent] = useState(null);
   const [consentLoading, setConsentLoading] = useState(false);
   const authCheckRef = useRef(false);
+  
+  // Helper to determine if current state is guest mode
+  // Guest = not authenticated but also not loading
+  const isGuest = !isAuthenticated && !loading;
 
   const coerceConsent = useCallback((incoming) => {
     if (!incoming) {
@@ -475,11 +479,12 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     isAuthenticated,
+    isGuest,
     loading,
     error,
     consent,
     consentLoading,
-    requiresConsent: consent?.requiresTermsAcceptance ?? true,
+    requiresConsent: isAuthenticated && (consent?.requiresTermsAcceptance ?? true),
     login,
     logout,
     clearError,

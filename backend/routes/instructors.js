@@ -1,12 +1,22 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 
 const router = express.Router();
 
-// GET all instructors
-router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'student', 'outsider']), async (req, res) => {
+// Rate limiter for public API endpoints (guests)
+const publicApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// GET all instructors - Public endpoint for guest browsing - Public endpoint for guest browsing
+router.get('/', publicApiLimiter, async (req, res) => {
   try {
     const query = `
       SELECT u.*, r.name as role_name, 
@@ -20,26 +30,29 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor
     `;
     
     const { rows } = await pool.query(query);
-    if (req.user?.role === 'student') {
-      const sanitized = rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        email: row.email,
-        phone: row.phone,
-        profile_image_url: row.profile_image_url,
-        avatar_url: row.avatar_url,
-        bio: row.bio,
-        language: row.language,
-        role_name: row.role_name,
+    
+    // Always return sanitized data (for guests and authenticated users)
+    // Guests don't need sensitive information like commission details
+    const sanitized = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      profile_image_url: row.profile_image_url,
+      avatar_url: row.avatar_url,
+      bio: row.bio,
+      language: row.language,
+      role_name: row.role_name,
+      // Hide commission details from guests
+      ...(req.user ? {
         commission_rate: row.commission_rate,
         commission_type: row.commission_type
-      }));
-      return res.json(sanitized);
-    }
+      } : {})
+    }));
 
-    res.json(rows);
+    res.json(sanitized);
   } catch (err) {
     console.error('Error fetching instructors:', err);
     res.status(500).json({ error: 'Failed to fetch instructors' });
