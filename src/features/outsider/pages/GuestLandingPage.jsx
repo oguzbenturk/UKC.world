@@ -19,18 +19,8 @@ import {
 const GuestLandingPage = () => {
   const navigate = useNavigate();
 
-  // Services with size hints for bento layout
+  // Services with size hints for bento layout - ORDER MATCHES SIDEBAR
   const services = [
-    {
-      title: '.Academy',
-      icon: AcademicCapIcon,
-      color: '#4ade80',
-      path: '/academy/kite-lessons',
-      tagline: 'IKO Certified Instructors',
-      description: 'Learn to kite with the best. From beginner to advanced.',
-      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'Premium Lessons'],
-      size: 'large'
-    },
     {
       title: '.Shop',
       icon: ShoppingBagIcon,
@@ -42,6 +32,16 @@ const GuestLandingPage = () => {
       size: 'large'
     },
     {
+      title: '.Academy',
+      icon: AcademicCapIcon,
+      color: '#4ade80',
+      path: '/academy/kite-lessons',
+      tagline: 'IKO Certified Instructors',
+      description: 'Learn to kite with the best. From beginner to advanced.',
+      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'Premium Lessons'],
+      size: 'large'
+    },
+    {
       title: '.Rental',
       icon: CubeIcon,
       color: '#fb923c',
@@ -49,24 +49,6 @@ const GuestLandingPage = () => {
       tagline: '2024 Duotone Gear',
       subItems: ['Standard', 'Premium'],
       size: 'small'
-    },
-    {
-      title: '.Experience',
-      icon: CalendarDaysIcon,
-      color: '#eab308',
-      path: '/experience/kite-packages',
-      tagline: 'Adventure Awaits',
-      subItems: ['Packages', 'DownWinders', 'Camps'],
-      size: 'small'
-    },
-    {
-      title: '.Stay',
-      icon: HomeIcon,
-      color: '#3b82f6',
-      path: '/stay/book-accommodation',
-      tagline: 'Beach-side Living',
-      subItems: ['Accommodation', 'Hotel'],
-      size: 'medium'
     },
     {
       title: '.Member',
@@ -84,6 +66,24 @@ const GuestLandingPage = () => {
       path: '/repairs',
       tagline: 'All Brands Welcome',
       subItems: ['Kite', 'Board', 'Bar & Lines'],
+      size: 'small'
+    },
+    {
+      title: '.Stay',
+      icon: HomeIcon,
+      color: '#3b82f6',
+      path: '/stay/book-accommodation',
+      tagline: 'Beach-side Living',
+      subItems: ['Accommodation', 'Hotel'],
+      size: 'medium'
+    },
+    {
+      title: '.Experience',
+      icon: CalendarDaysIcon,
+      color: '#eab308',
+      path: '/experience/kite-packages',
+      tagline: 'Adventure Awaits',
+      subItems: ['Packages', 'DownWinders', 'Camps'],
       size: 'small'
     },
     {
