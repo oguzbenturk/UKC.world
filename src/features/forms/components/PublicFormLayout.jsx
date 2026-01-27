@@ -190,10 +190,11 @@ const PublicFormLayout = ({
             src={theme.branding.logo_url} 
             alt={theme.branding.company_name || formName}
             style={{ 
-              height: 80, 
-              maxHeight: 100,
+              height: 180, 
+              maxHeight: 220,
+              maxWidth: '360px',
               objectFit: 'contain',
-              marginBottom: theme.branding.company_name ? 8 : 0,
+              marginBottom: theme.branding.company_name ? 16 : 0,
             }}
           />
         )}

@@ -4,8 +4,10 @@ import multer from 'multer';
 import fs from 'fs';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { formSubmissionRateLimit } from '../middlewares/security-clean.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,12 +30,16 @@ if (!fs.existsSync(serviceImagesDir)) {
 // Form branding asset directories
 const formBackgroundsDir = path.join(uploadsDir, 'form-backgrounds');
 const formLogosDir = path.join(uploadsDir, 'form-logos');
+const formSubmissionsDir = path.join(uploadsDir, 'form-submissions');
 
 if (!fs.existsSync(formBackgroundsDir)) {
   fs.mkdirSync(formBackgroundsDir, { recursive: true });
 }
 if (!fs.existsSync(formLogosDir)) {
   fs.mkdirSync(formLogosDir, { recursive: true });
+}
+if (!fs.existsSync(formSubmissionsDir)) {
+  fs.mkdirSync(formSubmissionsDir, { recursive: true });
 }
 
 // Configure multer for general images
@@ -399,6 +405,99 @@ router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manag
   } catch (error) {
     console.error('Error uploading equipment image:', error);
     res.status(500).json({ error: 'Failed to upload equipment image' });
+  }
+});
+
+// ============================================
+// PUBLIC FORM SUBMISSION UPLOADS (No Authentication)
+// Rate limited to prevent abuse
+// ============================================
+
+// Configure multer for public form submission uploads
+const formSubmissionStorage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, formSubmissionsDir);
+  },
+  filename: function (_req, file, cb) {
+    const ext = path.extname(file.originalname) || '.jpg';
+    // Use UUID for security - no user ID since public
+    const name = `form-${uuidv4()}${ext}`;
+    cb(null, name);
+  }
+});
+
+const formSubmissionFileFilter = function (_req, file, cb) {
+  // Allow images and common document types for CVs, etc.
+  const allowedMimeTypes = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('File type not allowed. Allowed: JPEG, PNG, GIF, WebP, PDF, DOC, DOCX'));
+  }
+};
+
+const formSubmissionUpload = multer({
+  storage: formSubmissionStorage,
+  fileFilter: formSubmissionFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit for CVs and documents
+});
+
+/**
+ * PUBLIC endpoint for form submission file uploads
+ * No authentication required but rate limited
+ * Used for profile photos, CV uploads, etc. in public forms
+ */
+router.post('/form-submission', formSubmissionRateLimit, formSubmissionUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const relativePath = `/uploads/form-submissions/${req.file.filename}`;
+    console.log('Form submission file uploaded:', relativePath);
+    
+    res.json({ 
+      url: relativePath,
+      filename: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+  } catch (error) {
+    console.error('Error uploading form submission file:', error);
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+/**
+ * PUBLIC endpoint for multiple form submission file uploads
+ * For forms that need multiple file uploads
+ */
+router.post('/form-submission-multiple', formSubmissionRateLimit, formSubmissionUpload.array('files', 5), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+    
+    const uploadedFiles = req.files.map(file => ({
+      url: `/uploads/form-submissions/${file.filename}`,
+      filename: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype
+    }));
+    
+    console.log(`Form submission files uploaded: ${uploadedFiles.length} files`);
+    res.json({ 
+      files: uploadedFiles,
+      count: uploadedFiles.length 
+    });
+  } catch (error) {
+    console.error('Error uploading form submission files:', error);
+    res.status(500).json({ error: 'Failed to upload files' });
   }
 });
 

@@ -656,3 +656,301 @@
 .country-code-select .ant-select-item-option-selected {
   background: #f0f5ff;
 }
+
+/* ============================================
+   Form Builder Field Styles - Professional
+   ============================================ */
+
+/* Checkbox field improvements */
+.checkbox-field-group {
+  display: block !important;
+  width: 100%;
+}
+
+.checkbox-field-group .ant-space {
+  width: 100%;
+  gap: 8px !important;
+}
+
+.checkbox-field-group .ant-space-item {
+  width: 100%;
+}
+
+.checkbox-field-item {
+  display: flex !important;
+  align-items: center !important;
+  padding: 14px 16px;
+  margin: 0 !important;
+  margin-left: 0 !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.checkbox-field-item:hover {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: #0077b6;
+  transform: translateX(4px);
+}
+
+.checkbox-field-item .ant-checkbox-checked + span {
+  color: #0077b6;
+  font-weight: 500;
+}
+
+.checkbox-field-item .ant-checkbox {
+  margin-top: 0;
+}
+
+.checkbox-field-item > span:last-child {
+  flex: 1;
+  line-height: 1.4;
+  padding-left: 10px;
+  font-size: 14px;
+  color: #2d3748;
+}
+
+/* Fix Ant Design checkbox group alignment issues */
+.ant-checkbox-group {
+  display: block !important;
+}
+
+.ant-checkbox-wrapper {
+  margin-left: 0 !important;
+  margin-inline-start: 0 !important;
+}
+
+/* Section header styling */
+.form-section-header {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.form-section-header h4 {
+  color: #0077b6 !important;
+  font-weight: 600;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Radio button improvements */
+.ant-radio-group .ant-space-item {
+  width: 100%;
+}
+
+.ant-radio-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin: 0 0 8px 0 !important;
+  transition: all 0.2s ease;
+}
+
+.ant-radio-wrapper:hover {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: #0077b6;
+}
+
+.ant-radio-wrapper-checked {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+  border-color: #0077b6 !important;
+}
+
+.ant-radio-wrapper-checked span:last-child {
+  color: #0077b6;
+  font-weight: 500;
+}
+
+/* Form card styling for public forms */
+.public-form-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+}
+
+/* Step indicator improvements */
+.form-steps-indicator .ant-steps-item-icon {
+  background: #e2e8f0 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.form-steps-indicator .ant-steps-item-active .ant-steps-item-icon,
+.form-steps-indicator .ant-steps-item-finish .ant-steps-item-icon {
+  background: #0077b6 !important;
+  border-color: #0077b6 !important;
+}
+
+/* Input field improvements */
+.ant-input,
+.ant-select-selector,
+.ant-picker {
+  border-radius: 10px !important;
+  border-color: #e2e8f0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.ant-input:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: #0077b6 !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #0077b6 !important;
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1) !important;
+}
+
+/* Form labels */
+.ant-form-item-label > label {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+/* Help text styling */
+.ant-form-item-extra {
+  color: #718096;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Button improvements for forms */
+.form-nav-button {
+  border-radius: 10px;
+  font-weight: 500;
+  height: 44px;
+  padding: 0 24px;
+  transition: all 0.2s ease;
+}
+
+.form-nav-button.ant-btn-primary {
+  background: linear-gradient(135deg, #0077b6 0%, #0096c7 100%);
+  border: none;
+}
+
+.form-nav-button.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #005f8a 0%, #0077b6 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.3);
+}
+
+/* Paragraph/HTML content styling */
+.paragraph-field-content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.paragraph-field-content h1,
+.paragraph-field-content h2,
+.paragraph-field-content h3,
+.paragraph-field-content h4 {
+  margin-top: 0;
+}
+
+.paragraph-field-content ul,
+.paragraph-field-content ol {
+  padding-left: 20px;
+}
+
+.paragraph-field-content li {
+  margin-bottom: 4px;
+}
+
+/* Professional Image Upload styling */
+.professional-image-upload .ant-upload.ant-upload-select {
+  width: 160px !important;
+  height: 160px !important;
+  border-radius: 12px !important;
+  border: 2px dashed #cbd5e0 !important;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+  transition: all 0.3s ease !important;
+}
+
+.professional-image-upload .ant-upload.ant-upload-select:hover {
+  border-color: #0077b6 !important;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+}
+
+.professional-image-upload .ant-upload-list-item {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.professional-image-upload .ant-upload-list-picture-card .ant-upload-list-item {
+  width: 160px !important;
+  height: 160px !important;
+  padding: 0 !important;
+}
+
+.professional-image-upload .ant-upload-list-picture-card .ant-upload-list-item-thumbnail img {
+  object-fit: cover !important;
+}
+
+/* Consent Field - Professional Checkbox Styling */
+.consent-field-wrapper {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f7fa 100%);
+  border: 1px solid #0077b6;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 119, 182, 0.1);
+  transition: all 0.3s ease;
+}
+
+.consent-field-wrapper:hover {
+  border-color: #48cae4;
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.15);
+}
+
+.consent-checkbox {
+  display: flex !important;
+  align-items: flex-start !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  color: #1e3a5f !important;
+}
+
+.consent-checkbox .ant-checkbox {
+  margin-top: 3px;
+  transform: scale(1.15);
+}
+
+.consent-checkbox .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #0077b6 !important;
+  border-color: #0077b6 !important;
+}
+
+.consent-checkbox .ant-checkbox-inner {
+  border-radius: 4px;
+  border-width: 2px;
+  border-color: #0077b6;
+}
+
+.consent-text {
+  display: block;
+  margin-left: 8px;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.consent-links a {
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.consent-links a:hover {
+  color: #48cae4 !important;
+}

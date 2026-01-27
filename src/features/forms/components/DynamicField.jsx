@@ -189,12 +189,12 @@ const renderFieldInput = (field, disabled = false, allValues = {}) => {
 
     case FIELD_TYPES.CHECKBOX:
       return (
-        <Checkbox.Group disabled={commonProps.disabled}>
-          <Space direction="vertical">
+        <Checkbox.Group disabled={commonProps.disabled} className="checkbox-field-group">
+          <Space direction="vertical" className="w-full">
             {(field.options || [])
               .filter(opt => opt.value && opt.label)
               .map(opt => (
-                <Checkbox key={opt.value} value={opt.value}>
+                <Checkbox key={opt.value} value={opt.value} className="checkbox-field-item">
                   {opt.label}
                 </Checkbox>
               ))}
@@ -542,60 +542,71 @@ const ToggleField = ({ field, disabled, value, onChange }) => {
 };
 
 /**
- * File Upload Field - Stores files locally (no server upload)
- * For public forms, files are converted to base64 and stored in submission
+ * File Upload Field - Uploads files to server for public forms
+ * Uses /api/upload/form-submission endpoint (public, rate-limited)
  */
 const FileUploadField = ({ field, disabled, value, onChange }) => {
   const [fileList, setFileList] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   // Initialize from value prop
   useEffect(() => {
     if (value && Array.isArray(value) && value.length > 0 && fileList.length === 0) {
-      setFileList(value);
+      setFileList(value.map(f => ({
+        ...f,
+        status: 'done',
+        url: f.url
+      })));
     }
   }, [value, fileList.length]);
 
-  const getBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
+  const customUpload = async ({ file, onSuccess, onError }) => {
+    const formData = new FormData();
+    formData.append('file', file);
 
-  const handleChange = async ({ fileList: newFileList }) => {
-    // Process files to include base64 data
-    const processedList = await Promise.all(
-      newFileList.map(async (file) => {
-        if (file.originFileObj && !file.base64) {
-          try {
-            file.base64 = await getBase64(file.originFileObj);
-          } catch {
-            // Ignore errors
-          }
-        }
-        return file;
-      })
-    );
+    try {
+      setUploading(true);
+      const response = await fetch('/api/upload/form-submission', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      onSuccess(result, file);
+    } catch (error) {
+      console.error('File upload error:', error);
+      onError(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleChange = ({ fileList: newFileList }) => {
+    setFileList(newFileList);
     
-    setFileList(processedList);
-    
-    // Pass to form with file info
+    // Pass to form with uploaded file info
     if (onChange) {
-      const fileData = processedList.map(f => ({
-        uid: f.uid,
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        base64: f.base64 || null,
-        status: 'done'
-      }));
+      const fileData = newFileList
+        .filter(f => f.status === 'done' && (f.response?.url || f.url))
+        .map(f => ({
+          uid: f.uid,
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          url: f.response?.url || f.url,
+          status: 'done'
+        }));
       onChange(fileData);
     }
   };
 
-  // Determine accepted file types - default to images for certification fields
-  const acceptTypes = field.options?.accept || 'image/*';
+  // Determine accepted file types
+  const acceptTypes = field.options?.accept || 'image/*,.pdf,.doc,.docx';
 
   return (
     <Dragger
@@ -603,18 +614,20 @@ const FileUploadField = ({ field, disabled, value, onChange }) => {
       multiple={field.options?.multiple || false}
       accept={acceptTypes}
       maxCount={field.options?.max_files || 1}
-      disabled={disabled}
+      disabled={disabled || uploading}
       fileList={fileList}
       onChange={handleChange}
-      beforeUpload={() => false}
+      customRequest={customUpload}
     >
       <p className="ant-upload-drag-icon">
         <InboxOutlined />
       </p>
-      <p className="ant-upload-text">Click or drag file to upload</p>
+      <p className="ant-upload-text">
+        {uploading ? 'Uploading...' : 'Click or drag file to upload'}
+      </p>
       <p className="ant-upload-hint">
-        {acceptTypes === 'image/*' 
-          ? 'Accepted: Images (JPG, PNG, GIF)' 
+        {acceptTypes.includes('pdf') 
+          ? 'Accepted: Images, PDF, Word documents' 
           : `Accepted: ${acceptTypes}`}
       </p>
     </Dragger>
@@ -622,17 +635,23 @@ const FileUploadField = ({ field, disabled, value, onChange }) => {
 };
 
 /**
- * Image Upload Field - With preview
+ * Image Upload Field - With preview (Professional styling)
+ * Uploads images to server using /api/upload/form-submission endpoint
  */
 const ImageUploadField = ({ field, disabled, value, onChange }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [fileList, setFileList] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   // Initialize from value prop
   useEffect(() => {
     if (value && Array.isArray(value) && value.length > 0 && fileList.length === 0) {
-      setFileList(value);
+      setFileList(value.map(f => ({
+        ...f,
+        status: 'done',
+        url: f.url
+      })));
     }
   }, [value, fileList.length]);
 
@@ -652,14 +671,39 @@ const ImageUploadField = ({ field, disabled, value, onChange }) => {
       reader.onerror = (error) => reject(error);
     });
 
+  const customUpload = async ({ file, onSuccess, onError }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploading(true);
+      const response = await fetch('/api/upload/form-submission', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      onSuccess(result, file);
+    } catch (error) {
+      console.error('Image upload error:', error);
+      onError(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleChange = async ({ fileList: newFileList }) => {
-    // Process files to include base64 data
+    // For preview, add base64 if not already present
     const processedList = await Promise.all(
       newFileList.map(async (file) => {
-        if (file.originFileObj && !file.base64) {
+        if (file.originFileObj && !file.preview && file.status !== 'done') {
           try {
-            file.base64 = await getBase64(file.originFileObj);
-            file.preview = file.base64;
+            file.preview = await getBase64(file.originFileObj);
           } catch {
             // Ignore errors
           }
@@ -670,24 +714,50 @@ const ImageUploadField = ({ field, disabled, value, onChange }) => {
     
     setFileList(processedList);
     
-    // Pass to form with file info
+    // Pass to form with uploaded file info (only completed uploads)
     if (onChange) {
-      const fileData = processedList.map(f => ({
-        uid: f.uid,
-        name: f.name,
-        type: f.type,
-        size: f.size,
-        base64: f.base64 || f.preview || null,
-        status: 'done'
-      }));
+      const fileData = processedList
+        .filter(f => f.status === 'done' && (f.response?.url || f.url))
+        .map(f => ({
+          uid: f.uid,
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          url: f.response?.url || f.url,
+          status: 'done'
+        }));
       onChange(fileData);
     }
   };
 
   const uploadButton = (
-    <div>
-      <PlusOutlined />
-      <div style={{ marginTop: 8 }}>Upload</div>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      padding: '20px',
+      color: '#718096'
+    }}>
+      <div style={{ 
+        width: 64, 
+        height: 64, 
+        borderRadius: '50%', 
+        background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+        border: '2px dashed #90cdf4'
+      }}>
+        <PlusOutlined style={{ fontSize: 24, color: '#0077b6' }} />
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 500, color: '#2d3748' }}>
+        {uploading ? 'Uploading...' : (field.placeholder_text || 'Click to upload photo')}
+      </div>
+      <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 4 }}>
+        JPG, PNG or WebP
+      </div>
     </div>
   );
 
@@ -698,10 +768,11 @@ const ImageUploadField = ({ field, disabled, value, onChange }) => {
         fileList={fileList}
         onPreview={handlePreview}
         onChange={handleChange}
-        disabled={disabled}
+        customRequest={customUpload}
+        disabled={disabled || uploading}
         accept="image/*"
         maxCount={field.options?.max_files || 1}
-        beforeUpload={() => false}
+        className="professional-image-upload"
       >
         {fileList.length >= (field.options?.max_files || 1) ? null : uploadButton}
       </Upload>
@@ -846,14 +917,17 @@ const SliderField = ({ field, disabled }) => {
 };
 
 /**
- * Consent Field - Terms acceptance checkbox
+ * Consent Field - Terms acceptance checkbox (Professional styling)
  * Note: When used with Form.Item valuePropName="checked", 
  * Ant Design passes the value as "checked" prop
  */
 const ConsentField = ({ field, disabled, value, onChange, checked }) => {
   // Support both 'value' and 'checked' props (for compatibility with Form.Item valuePropName)
   const isChecked = checked !== undefined ? checked : value;
-  const consentText = field.options?.consent_text || 'I agree to the Terms and Conditions';
+  // Get consent text from options.consent_text, options[0].label, or fallback
+  const consentText = field.options?.consent_text 
+    || (Array.isArray(field.options) && field.options[0]?.label)
+    || 'I agree to the Terms and Conditions';
   const privacyLink = field.options?.privacy_link || '';
   const termsLink = field.options?.terms_link || '';
 
@@ -899,12 +973,14 @@ const ConsentField = ({ field, disabled, value, onChange, checked }) => {
   };
 
   return (
-    <div className="consent-field">
-      <Checkbox disabled={disabled} checked={isChecked} onChange={(e) => onChange?.(e.target.checked)}>
-        <span className="flex items-start gap-2">
-          <SafetyCertificateOutlined className="text-green-600 mt-1" />
-          <span>{renderLabel()}</span>
-        </span>
+    <div className="consent-field-wrapper">
+      <Checkbox 
+        disabled={disabled} 
+        checked={isChecked} 
+        onChange={(e) => onChange?.(e.target.checked)}
+        className="consent-checkbox"
+      >
+        <span className="consent-text">{renderLabel()}</span>
       </Checkbox>
     </div>
   );
@@ -1007,25 +1083,29 @@ const DynamicField = ({
     if (!isVisible) return null;
     return (
       <Col span={24}>
-        <Title level={4} className="mt-4 mb-2">
-          {field.field_label}
-        </Title>
-        {field.help_text && (
-          <Paragraph type="secondary" className="mb-4">
-            {field.help_text}
-          </Paragraph>
-        )}
+        <div className="form-section-header">
+          <Title level={4} className="mt-4 mb-2">
+            {field.field_label}
+          </Title>
+          {(field.help_text || field.default_value) && (
+            <Paragraph type="secondary" className="mb-0" style={{ marginTop: -4 }}>
+              {field.default_value || field.help_text}
+            </Paragraph>
+          )}
+        </div>
       </Col>
     );
   }
 
   if (field.field_type === FIELD_TYPES.PARAGRAPH) {
     if (!isVisible) return null;
+    const htmlContent = field.default_value || field.help_text;
     return (
       <Col span={24}>
-        <Paragraph type="secondary" className="my-3">
-          {field.default_value || field.help_text}
-        </Paragraph>
+        <div 
+          className="my-3 paragraph-field-content"
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
       </Col>
     );
   }

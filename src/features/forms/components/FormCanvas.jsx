@@ -270,6 +270,21 @@ const FieldItem = ({
           </div>
         );
 
+      case FIELD_TYPES.CONSENT: {
+        // Get consent text from options
+        const consentText = field.options?.consent_text 
+          || (Array.isArray(field.options) && field.options[0]?.label)
+          || 'I agree to the terms and conditions';
+        return (
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 mt-0.5 border-2 border-blue-400 rounded bg-white flex-shrink-0" />
+              <span className="text-sm text-gray-700 leading-relaxed">{consentText}</span>
+            </div>
+          </div>
+        );
+      }
+
       default:
         // Text, Email, Phone, Number, URL, etc.
         return (

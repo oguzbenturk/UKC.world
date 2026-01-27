@@ -1076,6 +1076,34 @@ const PropertiesPanel = ({
               </Panel>
             )}
 
+            {/* Consent Text (for consent fields) */}
+            {field.field_type === FIELD_TYPES.CONSENT && (
+              <Panel header="Consent Settings" key="consent">
+                <Form.Item
+                  label="Consent Text"
+                  name={['options', 'consent_text']}
+                  tooltip="The text shown next to the checkbox that users must agree to"
+                >
+                  <TextArea 
+                    rows={3} 
+                    placeholder="I confirm that all information provided is accurate and complete..."
+                  />
+                </Form.Item>
+                <Form.Item
+                  label="Terms Link (optional)"
+                  name={['options', 'terms_link']}
+                >
+                  <Input placeholder="https://example.com/terms" />
+                </Form.Item>
+                <Form.Item
+                  label="Privacy Link (optional)"
+                  name={['options', 'privacy_link']}
+                >
+                  <Input placeholder="https://example.com/privacy" />
+                </Form.Item>
+              </Panel>
+            )}
+
             {/* Validation */}
             <Panel header="Validation" key="validation">
               {[FIELD_TYPES.TEXT, FIELD_TYPES.TEXTAREA].includes(field.field_type) && (

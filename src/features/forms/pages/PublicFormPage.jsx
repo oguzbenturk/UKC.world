@@ -326,12 +326,15 @@ const PublicFormPage = () => {
       const response = await apiClient.post(`/public/forms/${linkCode}/submit`, submissionData);
 
       if (response.data?.submission_id) {
-        // Navigate to success page
+        // Navigate to success page with form settings for custom success message
         navigate(`/f/success/${linkCode}`, { 
           state: { 
             submissionId: response.data.submission_id,
             formName: formTemplate.form_name,
             submittedData: allValues,
+            formSettings: formTemplate.settings,
+            themeConfig: formTemplate.theme_config,
+            successMessage: response.data.message,
           },
           replace: true,
         });

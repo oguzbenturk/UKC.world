@@ -151,7 +151,8 @@ const renderField = (field) => {
     return <Title level={4} className="mb-0">{field.field_label}</Title>;
   }
   if (fieldType === FIELD_TYPES.PARAGRAPH) {
-    return <Paragraph type="secondary">{field.default_value || field.help_text || 'Paragraph text'}</Paragraph>;
+    const htmlContent = field.default_value || field.help_text || 'Paragraph text';
+    return <div className="paragraph-field-content" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
   }
 
   // Default fallback
