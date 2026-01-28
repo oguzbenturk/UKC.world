@@ -4,6 +4,7 @@
  * Renders a form for public submission using link code
  * Supports multi-step forms with progress indicator
  * Now with branded layout support via theme_config
+ * Service quick links are redirected to PublicQuickBooking page
  */
 
 import { useState, useEffect, useContext } from 'react';
@@ -102,6 +103,13 @@ const PublicFormPage = () => {
   const [formValues, setFormValues] = useState({});
   const [error, setError] = useState(null);
   const [redirecting, setRedirecting] = useState(false);
+  
+  // Draft save state - must be declared here before any early returns
+  const [lastSaved, setLastSaved] = useState(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [resumeEmailModalVisible, setResumeEmailModalVisible] = useState(false);
+  const [resumeEmail, setResumeEmail] = useState('');  
+  const [sendingResumeEmail, setSendingResumeEmail] = useState(false);
 
   // Fetch form template by link code
   useEffect(() => {
@@ -117,30 +125,14 @@ const PublicFormPage = () => {
           
           console.log('Quick link data:', quickLink);
           
-          // If it's a service link, redirect to the appropriate booking page
+          // If it's a service link, redirect to the PublicQuickBooking page
+          // This page handles the registration form without requiring authentication
           if (quickLink.service_type && quickLink.service_id) {
-            const { service_type, service_id } = quickLink;
-            
-            console.log('Redirecting to service:', service_type, service_id);
-            
-            // Set redirecting state to prevent rendering form content
+            console.log('Service quick link detected, redirecting to registration form:', quickLink.service_type, quickLink.service_id);
             setRedirecting(true);
             setLoading(false);
-            
-            // Redirect based on service type
-            if (service_type === 'accommodation') {
-              navigate(`/accommodation/${service_id}`);
-              return;
-            } else if (service_type === 'lesson') {
-              navigate(`/academy?service=${service_id}`);
-              return;
-            } else if (service_type === 'rental') {
-              navigate(`/rentals?service=${service_id}`);
-              return;
-            } else if (service_type === 'shop') {
-              navigate(`/shop?product=${service_id}`);
-              return;
-            }
+            navigate(`/quick/${linkCode}`, { replace: true });
+            return;
           }
           
           console.log('Not a service link, continuing with form fetch');
@@ -226,7 +218,7 @@ const PublicFormPage = () => {
     if (linkCode) {
       fetchForm();
     }
-  }, [linkCode, searchParams, form, currentUser]);
+  }, [linkCode, searchParams, form, currentUser, navigate]);
 
   // If redirecting to a service page, show loading spinner
   if (redirecting) {
@@ -234,6 +226,37 @@ const PublicFormPage = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Spin size="large" tip="Redirecting..." />
       </div>
+    );
+  }
+
+  // Render error state first
+  if (error) {
+    return (
+      <PublicFormLayout themeConfig={null} formName="">
+        <div className="p-8">
+          <Result
+            status={error.status}
+            title={error.title}
+            subTitle={error.subTitle}
+            extra={
+              <Button type="primary" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            }
+          />
+        </div>
+      </PublicFormLayout>
+    );
+  }
+
+  // If still loading or no form template, show loading
+  if (loading || !formTemplate) {
+    return (
+      <PublicFormLayout themeConfig={null} formName="">
+        <div className="flex items-center justify-center p-16">
+          <Spin size="large" />
+        </div>
+      </PublicFormLayout>
     );
   }
 
@@ -263,13 +286,6 @@ const PublicFormPage = () => {
       return false;
     }
   };
-
-  // Auto-save draft when step changes or values change
-  const [lastSaved, setLastSaved] = useState(null);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const [resumeEmailModalVisible, setResumeEmailModalVisible] = useState(false);
-  const [resumeEmail, setResumeEmail] = useState('');
-  const [sendingResumeEmail, setSendingResumeEmail] = useState(false);
 
   // Save progress as draft
   const handleSaveDraft = async () => {
@@ -400,37 +416,6 @@ const PublicFormPage = () => {
       setSubmitting(false);
     }
   };
-
-  // Render loading state
-  if (loading) {
-    return (
-      <PublicFormLayout themeConfig={null} formName="">
-        <div className="flex items-center justify-center p-16">
-          <Spin size="large" />
-        </div>
-      </PublicFormLayout>
-    );
-  }
-
-  // Render error state
-  if (error) {
-    return (
-      <PublicFormLayout themeConfig={null} formName="">
-        <div className="p-8">
-          <Result
-            status={error.status}
-            title={error.title}
-            subTitle={error.subTitle}
-            extra={
-              <Button type="primary" onClick={() => navigate('/')}>
-                Go to Homepage
-              </Button>
-            }
-          />
-        </div>
-      </PublicFormLayout>
-    );
-  }
 
   // Check if branded theme is enabled
   const hasBrandedTheme = formTemplate?.theme_config?.background?.type === 'image' || 

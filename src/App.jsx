@@ -77,6 +77,13 @@ function App() {
 // Create a layout component that renders navigation only when authenticated
 // This component is separated from App so it can use the useAuth hook
 const AppLayoutWithAuth = () => {
+  const location = useLocation();
+  
+  // Check if current route is a public form route (no sidebar/navbar needed)
+  const isPublicFormRoute = location.pathname.startsWith('/f/') || 
+                            location.pathname.startsWith('/quick/') ||
+                            location.pathname.startsWith('/group-invitation/');
+
   // Initialize sidebar state based on screen size
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     // Only open by default on large screens (≥1200px)
@@ -254,6 +261,15 @@ const AppLayoutWithAuth = () => {
         <div className="p-4 md:p-6">
           <AppRoutes />
         </div>
+      </main>
+    );
+  }
+
+  // For public form routes, render without sidebar/navbar
+  if (isPublicFormRoute) {
+    return (
+      <main className="min-h-dvh">
+        <AppRoutes />
       </main>
     );
   }
