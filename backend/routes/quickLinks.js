@@ -231,6 +231,7 @@ router.get('/public/:code', async (req, res) => {
       id: link.id,
       name: link.name,
       description: link.description,
+      link_type: link.link_type,
       service_type: link.service_type,
       service_id: link.service_id,
       require_payment: link.require_payment,

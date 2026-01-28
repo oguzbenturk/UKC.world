@@ -239,12 +239,30 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                       }
                     }}
                   >
-                    {/* Always show UKC.World branding for all roles */}
-                    <span className="flex items-baseline tracking-wide">
-                      <span className="font-bold text-slate-800 dark:text-white text-xl">UKC</span>
-                      <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
-                      <span className="font-medium text-slate-500 dark:text-slate-300 text-sm">World</span>
-                    </span>
+                    {/* Show uploaded logo if available, otherwise show UKC.World branding */}
+                    {(() => {
+                      try {
+                        const settings = JSON.parse(localStorage.getItem('systemSettings') || '{}');
+                        if (settings.branding?.logo) {
+                          return (
+                            <img 
+                              src={settings.branding.logo} 
+                              alt={settings.branding?.company_name || 'Logo'}
+                              style={{ height: '40px', objectFit: 'contain' }}
+                            />
+                          );
+                        }
+                      } catch (e) {
+                        console.error('Failed to load logo:', e);
+                      }
+                      return (
+                        <span className="flex items-baseline tracking-wide">
+                          <span className="font-bold text-slate-800 dark:text-white text-xl">UKC</span>
+                          <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
+                          <span className="font-medium text-slate-500 dark:text-slate-300 text-sm">World</span>
+                        </span>
+                      );
+                    })()}
                   </NavLink>
                 </div>
               </div>

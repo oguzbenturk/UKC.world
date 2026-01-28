@@ -101,6 +101,7 @@ const PublicFormPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formValues, setFormValues] = useState({});
   const [error, setError] = useState(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   // Fetch form template by link code
   useEffect(() => {
@@ -108,6 +109,48 @@ const PublicFormPage = () => {
       try {
         setLoading(true);
         setError(null);
+
+        // First, try to fetch as a quick link to determine the type
+        try {
+          const quickLinkResponse = await apiClient.get(`/quick-links/public/${linkCode}`);
+          const quickLink = quickLinkResponse.data;
+          
+          console.log('Quick link data:', quickLink);
+          
+          // If it's a service link, redirect to the appropriate booking page
+          if (quickLink.service_type && quickLink.service_id) {
+            const { service_type, service_id } = quickLink;
+            
+            console.log('Redirecting to service:', service_type, service_id);
+            
+            // Set redirecting state to prevent rendering form content
+            setRedirecting(true);
+            setLoading(false);
+            
+            // Redirect based on service type
+            if (service_type === 'accommodation') {
+              navigate(`/accommodation/${service_id}`);
+              return;
+            } else if (service_type === 'lesson') {
+              navigate(`/academy?service=${service_id}`);
+              return;
+            } else if (service_type === 'rental') {
+              navigate(`/rentals?service=${service_id}`);
+              return;
+            } else if (service_type === 'shop') {
+              navigate(`/shop?product=${service_id}`);
+              return;
+            }
+          }
+          
+          console.log('Not a service link, continuing with form fetch');
+          
+          // If it's a form link, continue with form fetching below
+          // Fall through to the form fetch logic
+        } catch (quickLinkErr) {
+          // If quick link fetch fails, try as a regular form
+          console.log('Quick link fetch failed, trying as form:', quickLinkErr.message);
+        }
 
         const response = await apiClient.get(`/public/forms/${linkCode}`);
         
@@ -184,6 +227,15 @@ const PublicFormPage = () => {
       fetchForm();
     }
   }, [linkCode, searchParams, form, currentUser]);
+
+  // If redirecting to a service page, show loading spinner
+  if (redirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Spin size="large" tip="Redirecting..." />
+      </div>
+    );
+  }
 
   // Get current step data
   const steps = formTemplate?.steps || [];

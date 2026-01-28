@@ -253,7 +253,7 @@ const PublicFormLayout = ({
                     src={logo.url} 
                     alt={logo.alt || 'Partner logo'}
                     style={{ 
-                      height: 36, 
+                      height: 60, 
                       objectFit: 'contain',
                       filter: 'grayscale(100%) brightness(2)',
                       opacity: 0.8,
@@ -268,7 +268,7 @@ const PublicFormLayout = ({
                   src={logo.url} 
                   alt={logo.alt || 'Partner logo'}
                   style={{ 
-                    height: 36, 
+                    height: 60, 
                     objectFit: 'contain',
                     filter: 'grayscale(100%) brightness(2)',
                     opacity: 0.8,

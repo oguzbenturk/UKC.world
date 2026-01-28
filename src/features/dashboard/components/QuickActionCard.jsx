@@ -115,6 +115,36 @@ const QuickActionCard = ({
       hover: 'hover:border-slate-300',
       button: 'bg-slate-600 hover:bg-slate-700',
       buttonSecondary: 'text-slate-600 hover:bg-slate-50'
+    },
+    lime: {
+      bg: 'bg-gradient-to-br from-lime-50 to-lime-100/50',
+      border: 'border-lime-200/50',
+      iconBg: 'bg-lime-500',
+      iconText: 'text-white',
+      accent: 'text-lime-600',
+      hover: 'hover:border-lime-300',
+      button: 'bg-lime-600 hover:bg-lime-700',
+      buttonSecondary: 'text-lime-600 hover:bg-lime-50'
+    },
+    green: {
+      bg: 'bg-gradient-to-br from-green-50 to-green-100/50',
+      border: 'border-green-200/50',
+      iconBg: 'bg-green-500',
+      iconText: 'text-white',
+      accent: 'text-green-600',
+      hover: 'hover:border-green-300',
+      button: 'bg-green-600 hover:bg-green-700',
+      buttonSecondary: 'text-green-600 hover:bg-green-50'
+    },
+    sky: {
+      bg: 'bg-gradient-to-br from-sky-50 to-sky-100/50',
+      border: 'border-sky-200/50',
+      iconBg: 'bg-sky-500',
+      iconText: 'text-white',
+      accent: 'text-sky-600',
+      hover: 'hover:border-sky-300',
+      button: 'bg-sky-600 hover:bg-sky-700',
+      buttonSecondary: 'text-sky-600 hover:bg-sky-50'
     }
   };
 

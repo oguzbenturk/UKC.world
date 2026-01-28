@@ -56,69 +56,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
     };
 
     const allActions = [
-      // ===== LESSONS / BOOKINGS =====
-      {
-        id: 'lessons',
-        title: 'Lessons',
-        description: 'Schedule and manage kite surfing lessons for students',
-        icon: BookOutlined,
-        color: 'blue',
-        permissions: ['bookings:read', 'bookings:write'],
-        primaryAction: createAction('New Booking', '/bookings', 'newBooking'),
-        secondaryActions: [
-          { label: 'Calendar', to: '/calendars/lessons' },
-          { label: 'All Lessons', to: '/bookings' }
-        ],
-        order: 1
-      },
-
-      // ===== EQUIPMENT RENTALS =====
-      {
-        id: 'rentals',
-        title: 'Rentals',
-        description: 'Rent out equipment - kites, boards, harnesses & more',
-        icon: ToolOutlined,
-        color: 'emerald',
-        permissions: ['equipment:rental', 'equipment:read'],
-        primaryAction: createAction('New Rental', '/rentals', 'newRental'),
-        secondaryActions: [
-          { label: 'Calendar', to: '/calendars/rentals' },
-          { label: 'Equipment', to: '/equipment' }
-        ],
-        order: 2
-      },
-
-      // ===== PACKAGES =====
-      {
-        id: 'packages',
-        title: 'Packages',
-        description: 'Experience packages - camps, downwinders, wing foil & more',
-        icon: GiftOutlined,
-        color: 'violet',
-        permissions: ['services:read', 'bookings:write'],
-        primaryAction: { label: 'View Packages', to: '/services/packages' },
-        secondaryActions: [
-          { label: 'Manage', to: '/services/packages' }
-        ],
-        order: 3
-      },
-
-      // ===== ACCOMMODATION =====
-      {
-        id: 'accommodation',
-        title: 'Accommodation',
-        description: 'Manage room bookings and guest accommodations',
-        icon: HomeOutlined,
-        color: 'orange',
-        permissions: ['bookings:read', 'bookings:write'],
-        primaryAction: createAction('Book Room', '/accommodation', 'newAccommodation'),
-        secondaryActions: [
-          { label: 'Manage Units', to: '/services/accommodation' }
-        ],
-        order: 4
-      },
-
-      // ===== SHOP / PRODUCTS =====
+      // ===== 1. SHOP / PRODUCTS =====
       {
         id: 'shop',
         title: 'Shop',
@@ -130,44 +68,61 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         secondaryActions: [
           { label: 'Products', to: '/services/shop' }
         ],
-        order: 5
+        order: 1
       },
 
-      // ===== MEMBERSHIP =====
+      // ===== 2. ACADEMY / LESSONS =====
+      {
+        id: 'lessons',
+        title: 'Academy',
+        description: 'Schedule and manage kite surfing lessons for students',
+        icon: BookOutlined,
+        color: 'lime',
+        permissions: ['bookings:read', 'bookings:write'],
+        primaryAction: createAction('New Booking', '/bookings', 'newBooking'),
+        secondaryActions: [
+          { label: 'Calendar', to: '/calendars/lessons' },
+          { label: 'All Lessons', to: '/bookings' }
+        ],
+        order: 2
+      },
+
+      // ===== 3. RENTALS =====
+      {
+        id: 'rentals',
+        title: 'Rentals',
+        description: 'Rent out equipment - kites, boards, harnesses & more',
+        icon: ToolOutlined,
+        color: 'orange',
+        permissions: ['equipment:rental', 'equipment:read'],
+        primaryAction: createAction('New Rental', '/rentals', 'newRental'),
+        secondaryActions: [
+          { label: 'Calendar', to: '/calendars/rentals' },
+          { label: 'Equipment', to: '/equipment' }
+        ],
+        order: 3
+      },
+
+      // ===== 4. MEMBERSHIP =====
       {
         id: 'membership',
-        title: 'Membership',
+        title: 'Member',
         description: 'Member offerings, subscriptions and loyalty programs',
         icon: CrownOutlined,
-        color: 'amber',
+        color: 'green',
         permissions: [],
         primaryAction: createAction('Register New Member', '/members', 'newMembership'),
         secondaryActions: [
           { label: 'All Members', to: '/members' },
           { label: 'Offerings', to: '/services/memberships' }
         ],
-        order: 6
+        order: 4
       },
 
-      // ===== EVENTS =====
-      {
-        id: 'events',
-        title: 'Events',
-        description: 'Community events, competitions and special activities',
-        icon: CalendarOutlined,
-        color: 'cyan',
-        permissions: ['bookings:read'],
-        primaryAction: { label: 'View Events', to: '/calendars/events' },
-        secondaryActions: [
-          { label: 'Calendar', to: '/calendars/events' }
-        ],
-        order: 7
-      },
-
-      // ===== CARE / REPAIRS =====
+      // ===== 5. CARE / REPAIRS =====
       {
         id: 'care',
-        title: 'Care & Repairs',
+        title: 'Care',
         description: 'Equipment repairs, maintenance and service requests',
         icon: SettingOutlined,
         color: 'teal',
@@ -176,10 +131,53 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         secondaryActions: [
           { label: 'Equipment', to: '/equipment' }
         ],
+        order: 5
+      },
+
+      // ===== 6. ACCOMMODATION / STAY =====
+      {
+        id: 'accommodation',
+        title: 'Stay',
+        description: 'Manage room bookings and guest accommodations',
+        icon: HomeOutlined,
+        color: 'blue',
+        permissions: ['bookings:read', 'bookings:write'],
+        primaryAction: createAction('Book Room', '/accommodation', 'newAccommodation'),
+        secondaryActions: [
+          { label: 'Manage Units', to: '/services/accommodation' }
+        ],
+        order: 6
+      },
+
+      // ===== 7. COMMUNITY / EVENTS =====
+      {
+        id: 'events',
+        title: 'Community',
+        description: 'Community events, competitions and special activities',
+        icon: CalendarOutlined,
+        color: 'sky',
+        permissions: ['bookings:read'],
+        primaryAction: { label: 'View Events', to: '/calendars/events' },
+        secondaryActions: [
+          { label: 'Calendar', to: '/calendars/events' }
+        ],
+        order: 7
+      },
+
+      // ===== 8. CHAT =====
+      {
+        id: 'chat',
+        title: 'Chat',
+        description: 'Message customers and team members',
+        icon: MessageOutlined,
+        color: 'rose',
+        permissions: ['notifications:read', 'notifications:send'],
+        primaryAction: { label: 'Open Chat', to: '/chat' },
+        secondaryActions: [],
         order: 8
       },
 
-      // ===== CUSTOMERS =====
+      // ===== 9. CUSTOMERS (LAST) =====
       {
         id: 'customers',
         title: 'Customers',
@@ -194,16 +192,18 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         order: 9
       },
 
-      // ===== CHAT =====
+      // ===== PACKAGES (HIDDEN FROM MAIN ORDER) =====
       {
-        id: 'chat',
-        title: 'Chat',
-        description: 'Message customers and team members',
-        icon: MessageOutlined,
-        color: 'rose',
-        permissions: ['notifications:read', 'notifications:send'],
-        primaryAction: { label: 'Open Chat', to: '/chat' },
-        secondaryActions: [],
+        id: 'packages',
+        title: 'Packages',
+        description: 'Experience packages - camps, downwinders, wing foil & more',
+        icon: GiftOutlined,
+        color: 'violet',
+        permissions: ['services:read', 'bookings:write'],
+        primaryAction: { label: 'View Packages', to: '/services/packages' },
+        secondaryActions: [
+          { label: 'Manage', to: '/services/packages' }
+        ],
         order: 10
       },
 

@@ -92,9 +92,18 @@ const QuickLinksPage = ({ embedded = false }) => {
   const [formSubmissions, setFormSubmissions] = useState([]);
   const [formSubmissionsLoading, setFormSubmissionsLoading] = useState(false);
   
+  // Service items for link configuration
+  const [accommodations, setAccommodations] = useState([]);
+  const [lessons, setLessons] = useState([]);
+  const [rentals, setRentals] = useState([]);
+  const [shopProducts, setShopProducts] = useState([]);
+  const [selectedServiceType, setSelectedServiceType] = useState(null);
+  
   // Modals
   const [createFormModalVisible, setCreateFormModalVisible] = useState(false);
   const [createLinkModalVisible, setCreateLinkModalVisible] = useState(false);
+  const [editLinkModalVisible, setEditLinkModalVisible] = useState(false);
+  const [selectedLink, setSelectedLink] = useState(null);
   const [shareLinkModalVisible, setShareLinkModalVisible] = useState(false);
   const [selectedFormForLink, setSelectedFormForLink] = useState(null);
   const [createdLink, setCreatedLink] = useState(null);
@@ -168,8 +177,10 @@ const QuickLinksPage = ({ embedded = false }) => {
     setLoading(true);
     try {
       const data = await quickLinksService.getQuickLinks();
-      setLinks(data || []);
-    } catch {
+      console.log('Fetched links:', data); // Debug log
+      setLinks(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load links:', error);
       message.error('Failed to load links');
     } finally {
       setLoading(false);
@@ -239,7 +250,46 @@ const QuickLinksPage = ({ embedded = false }) => {
     fetchAllFormTemplates();
     fetchLinks();
     fetchFormSubmissions();
+    fetchServices();
   }, [fetchAllFormTemplates, fetchLinks, fetchFormSubmissions]);
+
+  // Fetch available services for link configuration
+  const fetchServices = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // Fetch accommodations
+      const accomResponse = await fetch('/api/accommodation', { headers });
+      if (accomResponse.ok) {
+        const accomData = await accomResponse.json();
+        setAccommodations(accomData.accommodations || accomData || []);
+      }
+
+      // Fetch lessons (from services with category=lesson)
+      const lessonResponse = await fetch('/api/services?category=lesson', { headers });
+      if (lessonResponse.ok) {
+        const lessonData = await lessonResponse.json();
+        setLessons(Array.isArray(lessonData) ? lessonData : []);
+      }
+
+      // Fetch rentals (from services with serviceType=rental)
+      const rentalResponse = await fetch('/api/services?serviceType=rental', { headers });
+      if (rentalResponse.ok) {
+        const rentalData = await rentalResponse.json();
+        setRentals(Array.isArray(rentalData) ? rentalData : []);
+      }
+
+      // Fetch shop products
+      const shopResponse = await fetch('/api/shop/products', { headers });
+      if (shopResponse.ok) {
+        const shopData = await shopResponse.json();
+        setShopProducts(shopData.products || shopData || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch services:', error);
+    }
+  };
 
   useEffect(() => {
     if (links.length > 0) {
@@ -272,16 +322,26 @@ const QuickLinksPage = ({ embedded = false }) => {
   // Submit create link
   const handleCreateLink = async (values) => {
     try {
+      // Determine link type based on whether a form is selected
+      const linkType = values.form_template_id ? 'form' : values.service_type ? 'service' : 'registration';
+      
       const data = {
-        ...values,
-        link_type: 'form',
+        name: values.name,
+        description: values.description,
+        link_type: linkType,
+        service_type: values.service_type,
+        service_id: values.service_id,
+        form_template_id: values.form_template_id,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+        max_uses: values.max_uses,
         is_active: true
       };
+      
       const newLink = await quickLinksService.createQuickLink(data);
       message.success('Shareable link created!');
       setCreateLinkModalVisible(false);
       createLinkForm.resetFields();
+      setSelectedServiceType(null);
       setCreatedLink(newLink);
       setShareLinkModalVisible(true);
       fetchLinks();
@@ -325,6 +385,45 @@ const QuickLinksPage = ({ embedded = false }) => {
       fetchLinks();
     } catch {
       message.error('Failed to delete link');
+    }
+  };
+
+  // Open edit link modal
+  const handleEditLink = (link) => {
+    setSelectedLink(link);
+    setSelectedServiceType(link.service_type || null);
+    createLinkForm.setFieldsValue({
+      name: link.name,
+      description: link.description,
+      service_type: link.service_type,
+      service_id: link.service_id,
+      expires_at: link.expires_at ? dayjs(link.expires_at) : null,
+      max_uses: link.max_uses
+    });
+    setEditLinkModalVisible(true);
+  };
+
+  // Update link
+  const handleUpdateLink = async (values) => {
+    try {
+      const data = {
+        name: values.name,
+        description: values.description,
+        service_type: values.service_type,
+        service_id: values.service_id,
+        expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+        max_uses: values.max_uses
+      };
+      
+      await quickLinksService.updateQuickLink(selectedLink.id, data);
+      message.success('Link updated successfully!');
+      setEditLinkModalVisible(false);
+      createLinkForm.resetFields();
+      setSelectedLink(null);
+      setSelectedServiceType(null);
+      fetchLinks();
+    } catch (error) {
+      message.error(error.response?.data?.error || 'Failed to update link');
     }
   };
 
@@ -501,12 +600,25 @@ const QuickLinksPage = ({ embedded = false }) => {
           <Title level={4} className="!mb-1">Active Links</Title>
           <Text type="secondary">All your shareable links - copy and send to customers</Text>
         </div>
-        <Button 
-          icon={<ReloadOutlined />} 
-          onClick={fetchLinks}
-        >
-          Refresh
-        </Button>
+        <Space>
+          <Button 
+            type="primary"
+            icon={<PlusOutlined />} 
+            onClick={() => {
+              setSelectedFormForLink(null);
+              createLinkForm.resetFields();
+              setCreateLinkModalVisible(true);
+            }}
+          >
+            Create Link
+          </Button>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={fetchLinks}
+          >
+            Refresh
+          </Button>
+        </Space>
       </div>
 
       {/* Links Table */}
@@ -570,9 +682,16 @@ const QuickLinksPage = ({ embedded = false }) => {
             {
               title: 'Actions',
               key: 'actions',
-              width: 200,
+              width: 250,
               render: (_, record) => (
                 <Space>
+                  <Button 
+                    size="small" 
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditLink(record)}
+                  >
+                    Edit
+                  </Button>
                   <Button 
                     type="primary" 
                     size="small" 
@@ -1042,6 +1161,110 @@ const QuickLinksPage = ({ embedded = false }) => {
               <Input size="large" placeholder="e.g., Instructor Application 2026" />
             </Form.Item>
 
+            {/* Show service type selector only if no form is selected */}
+            {!selectedFormForLink && (
+              <>
+                <Form.Item
+                  name="service_type"
+                  label="Service Type"
+                  rules={[{ required: true, message: 'Select a service type' }]}
+                >
+                  <Select 
+                    size="large" 
+                    placeholder="Select service type"
+                    onChange={(value) => {
+                      setSelectedServiceType(value);
+                      createLinkForm.setFieldsValue({ service_id: undefined });
+                    }}
+                  >
+                    <Option value="accommodation">
+                      <Space>
+                        <HomeOutlined />
+                        Accommodation
+                      </Space>
+                    </Option>
+                    <Option value="lesson">
+                      <Space>
+                        <BookOutlined />
+                        Lessons
+                      </Space>
+                    </Option>
+                    <Option value="rental">
+                      <Space>
+                        <CarOutlined />
+                        Rentals
+                      </Space>
+                    </Option>
+                    <Option value="shop">
+                      <Space>
+                        <ShoppingCartOutlined />
+                        Shop
+                      </Space>
+                    </Option>
+                  </Select>
+                </Form.Item>
+
+                {/* Show specific service item selector based on service type */}
+                <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.service_type !== currentValues.service_type}>
+                  {({ getFieldValue }) => {
+                    const serviceType = getFieldValue('service_type');
+                    if (!serviceType) return null;
+
+                    let items = [];
+                    let label = '';
+                    
+                    if (serviceType === 'accommodation') {
+                      items = accommodations;
+                      label = 'Select Accommodation';
+                    } else if (serviceType === 'lesson') {
+                      items = lessons;
+                      label = 'Select Lesson';
+                    } else if (serviceType === 'rental') {
+                      items = rentals;
+                      label = 'Select Rental';
+                    } else if (serviceType === 'shop') {
+                      items = shopProducts;
+                      label = 'Select Product';
+                    }
+
+                    return (
+                      <Form.Item
+                        name="service_id"
+                        label={label}
+                        rules={[{ required: true, message: `Please select a ${serviceType}` }]}
+                      >
+                        <Select 
+                          size="large" 
+                          placeholder={`Choose specific ${serviceType}...`}
+                          showSearch
+                          filterOption={(input, option) =>
+                            option.children.toLowerCase().includes(input.toLowerCase())
+                          }
+                        >
+                          {items.map(item => (
+                            <Option key={item.id} value={item.id}>
+                              {item.name || item.title}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    );
+                  }}
+                </Form.Item>
+              </>
+            )}
+
+            <Form.Item
+              name="description"
+              label="Description (optional)"
+            >
+              <Input.TextArea 
+                size="large" 
+                rows={3}
+                placeholder="Add details about what this link is for..."
+              />
+            </Form.Item>
+
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
@@ -1075,6 +1298,180 @@ const QuickLinksPage = ({ embedded = false }) => {
               <Button onClick={() => setCreateLinkModalVisible(false)}>Cancel</Button>
               <Button type="primary" htmlType="submit" icon={<LinkOutlined />} size="large">
                 Create Link
+              </Button>
+            </div>
+          </Form>
+        </div>
+      </Modal>
+
+      {/* Edit Link Modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <EditOutlined className="text-blue-500" />
+            <span>Edit Link</span>
+          </div>
+        }
+        open={editLinkModalVisible}
+        onCancel={() => {
+          setEditLinkModalVisible(false);
+          setSelectedLink(null);
+          setSelectedServiceType(null);
+          createLinkForm.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        <div className="py-4">
+          <Form
+            form={createLinkForm}
+            layout="vertical"
+            onFinish={handleUpdateLink}
+          >
+            <Form.Item
+              name="name"
+              label="Link Name"
+              rules={[{ required: true, message: 'Enter a name' }]}
+            >
+              <Input size="large" placeholder="e.g., Instructor Application 2026" />
+            </Form.Item>
+
+            {/* Show service type selector (read-only if already set) */}
+            {selectedLink && selectedLink.service_type && (
+              <>
+                <Form.Item
+                  name="service_type"
+                  label="Service Type"
+                >
+                  <Select size="large" disabled>
+                    <Option value="accommodation">
+                      <Space>
+                        <HomeOutlined />
+                        Accommodation
+                      </Space>
+                    </Option>
+                    <Option value="lesson">
+                      <Space>
+                        <BookOutlined />
+                        Lessons
+                      </Space>
+                    </Option>
+                    <Option value="rental">
+                      <Space>
+                        <CarOutlined />
+                        Rentals
+                      </Space>
+                    </Option>
+                    <Option value="shop">
+                      <Space>
+                        <ShoppingCartOutlined />
+                        Shop
+                      </Space>
+                    </Option>
+                  </Select>
+                </Form.Item>
+
+                {/* Show specific service item selector */}
+                <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.service_type !== currentValues.service_type}>
+                  {({ getFieldValue }) => {
+                    const serviceType = getFieldValue('service_type');
+                    if (!serviceType) return null;
+
+                    let items = [];
+                    let label = '';
+                    
+                    if (serviceType === 'accommodation') {
+                      items = accommodations;
+                      label = 'Select Accommodation';
+                    } else if (serviceType === 'lesson') {
+                      items = lessons;
+                      label = 'Select Lesson';
+                    } else if (serviceType === 'rental') {
+                      items = rentals;
+                      label = 'Select Rental';
+                    } else if (serviceType === 'shop') {
+                      items = shopProducts;
+                      label = 'Select Product';
+                    }
+
+                    return (
+                      <Form.Item
+                        name="service_id"
+                        label={label}
+                        rules={[{ required: true, message: `Please select a ${serviceType}` }]}
+                      >
+                        <Select 
+                          size="large" 
+                          placeholder={`Choose specific ${serviceType}...`}
+                          showSearch
+                          filterOption={(input, option) =>
+                            option.children.toLowerCase().includes(input.toLowerCase())
+                          }
+                        >
+                          {items.map(item => (
+                            <Option key={item.id} value={item.id}>
+                              {item.name || item.title}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    );
+                  }}
+                </Form.Item>
+              </>
+            )}
+
+            <Form.Item
+              name="description"
+              label="Description (optional)"
+            >
+              <Input.TextArea 
+                size="large" 
+                rows={3}
+                placeholder="Add details about what this link is for..."
+              />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name="expires_at"
+                  label="Expires (optional)"
+                >
+                  <DatePicker 
+                    className="w-full" 
+                    size="large"
+                    placeholder="Never"
+                    disabledDate={(current) => current && current < dayjs().startOf('day')}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="max_uses"
+                  label="Max responses (optional)"
+                >
+                  <InputNumber 
+                    className="w-full" 
+                    size="large"
+                    min={1} 
+                    placeholder="Unlimited" 
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button onClick={() => {
+                setEditLinkModalVisible(false);
+                setSelectedLink(null);
+                setSelectedServiceType(null);
+                createLinkForm.resetFields();
+              }}>
+                Cancel
+              </Button>
+              <Button type="primary" htmlType="submit" icon={<EditOutlined />} size="large">
+                Update Link
               </Button>
             </div>
           </Form>

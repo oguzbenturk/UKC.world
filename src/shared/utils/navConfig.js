@@ -357,7 +357,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/rentals', label: 'Rental', dotColor: '#fb923c' },
           { to: '/finance/membership', label: 'Member', dotColor: '#93c47d' },
           { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
-          { to: '/finance/events', label: 'Experience', dotColor: '#eab308' },
+          { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
           { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
           { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
@@ -415,8 +415,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
       subItems: [
         { to: '/calendars/lessons', label: 'Lessons' },
-        { to: '/calendars/rentals', label: 'Rentals' },
-        { to: '/services/events', label: 'Events' },
         { to: '/inventory', label: 'Inventory' }
       ]
     }),
