@@ -36,6 +36,7 @@ import {
   CONDITION_OPERATORS,
   FIELD_CATEGORIES 
 } from '../constants/fieldTypes';
+import RichHTMLEditor from './RichHTMLEditor';
 
 const { Panel } = Collapse;
 const { Text } = Typography;
@@ -886,7 +887,6 @@ const PropertiesPanel = ({
   onDuplicate: _onDuplicate 
 }) => {
   const [form] = Form.useForm();
-  const updateTimerRef = useRef(null);
 
   // Update form when field changes
   useEffect(() => {
@@ -907,32 +907,24 @@ const PropertiesPanel = ({
     }
   }, [field, form]);
 
-  // Debounced update handler
-  const debouncedUpdate = useCallback((fieldId, changedValues) => {
-    if (updateTimerRef.current) {
-      clearTimeout(updateTimerRef.current);
-    }
-    
-    updateTimerRef.current = setTimeout(() => {
-      if (onUpdate) {
-        onUpdate(fieldId, changedValues);
-      }
-    }, 800); // Wait 800ms after user stops typing
-  }, [onUpdate]);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (updateTimerRef.current) {
-        clearTimeout(updateTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Handle form changes with debounce
+  // Handle form changes - for most fields, defer to blur
+  // But for complex editors like RichHTMLEditor, save immediately
   const handleValuesChange = (changedValues, _allValues) => {
-    if (field) {
-      debouncedUpdate(field.id, changedValues);
+    // If default_value changed (from RichHTMLEditor), save immediately
+    if (changedValues.default_value !== undefined && field && onUpdate) {
+      onUpdate(field.id, { default_value: changedValues.default_value });
+    }
+  };
+
+  // Handle field blur to save all other changes
+  const handleFieldBlur = () => {
+    if (field && onUpdate) {
+      const values = form.getFieldsValue();
+      // Don't include default_value as it's saved via onChange for RichHTMLEditor
+      const { default_value, ...otherValues } = values;
+      if (Object.keys(otherValues).length > 0) {
+        onUpdate(field.id, otherValues);
+      }
     }
   };
 
@@ -986,6 +978,7 @@ const PropertiesPanel = ({
           layout="vertical"
           size="small"
           onValuesChange={handleValuesChange}
+          onBlur={handleFieldBlur}
         >
           <Collapse defaultActiveKey={['basic', 'appearance']} ghost>
             {/* Basic Settings */}
@@ -1026,12 +1019,23 @@ const PropertiesPanel = ({
                 <TextArea rows={2} placeholder="Optional help text shown below field" />
               </Form.Item>
 
-              <Form.Item
-                label="Default Value"
-                name="default_value"
-              >
-                <Input placeholder="Pre-filled value" />
-              </Form.Item>
+              {/* Rich HTML Editor for Paragraph fields */}
+              {field.field_type === FIELD_TYPES.PARAGRAPH || field.field_type === FIELD_TYPES.SECTION_HEADER ? (
+                <Form.Item
+                  label="Content (HTML)"
+                  name="default_value"
+                  tooltip="Use the visual editor to create styled content easily"
+                >
+                  <RichHTMLEditor />
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  label="Default Value"
+                  name="default_value"
+                >
+                  <Input placeholder="Pre-filled value" />
+                </Form.Item>
+              )}
 
               <div className="flex gap-4">
                 <Form.Item

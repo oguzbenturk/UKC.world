@@ -18,7 +18,8 @@ import {
   Select,
   message,
   Spin,
-  Breadcrumb
+  Breadcrumb,
+  Segmented
 } from 'antd';
 import { 
   EyeOutlined, 
@@ -28,7 +29,10 @@ import {
   ArrowLeftOutlined,
   MoreOutlined,
   FormOutlined,
-  BgColorsOutlined
+  BgColorsOutlined,
+  EditOutlined,
+  EyeFilled,
+  SaveOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFormBuilder } from '../hooks/useFormBuilder';
@@ -37,6 +41,8 @@ import FormCanvas from '../components/FormCanvas';
 import PropertiesPanel from '../components/PropertiesPanel';
 import ThemeBrandingPanel from '../components/ThemeBrandingPanel';
 import StepConfigModal from '../components/StepConfigModal';
+import LiveFormPreview from '../components/LiveFormPreview';
+import StepNavigator from '../components/StepNavigator';
 import { FORM_CATEGORIES } from '../constants/fieldTypes';
 
 const { Header, Sider, Content } = Layout;
@@ -50,6 +56,7 @@ const FormBuilderPage = () => {
   const [stepToEdit, setStepToEdit] = useState(null);
   const [settingsForm] = Form.useForm();
   const [rightPanelMode, setRightPanelMode] = useState('properties'); // 'properties' | 'theme'
+  const [viewMode, setViewMode] = useState('builder'); // 'builder' | 'preview'
 
   // Form builder hook
   const {
@@ -61,7 +68,7 @@ const FormBuilderPage = () => {
     loading,
     saving,
     hasChanges,
-    lastAutoSave,
+    saveChanges,
     canUndo,
     canRedo,
     undo,
@@ -140,8 +147,7 @@ const FormBuilderPage = () => {
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        // Auto-save is already handled
-        message.success('Changes saved');
+        saveChanges();
       }
       if (e.key === 'Delete' && selectedFieldId) {
         deleteField(selectedFieldId);
@@ -232,23 +238,38 @@ const FormBuilderPage = () => {
           />
 
           {hasChanges && (
-            <Text type="secondary" className="text-xs">
-              (unsaved changes)
+            <Text type="warning" className="text-xs">
+              • Unsaved changes
             </Text>
           )}
-          {!hasChanges && lastAutoSave && (
-            <Text type="secondary" className="text-xs text-green-600">
-              ✓ Saved
-            </Text>
-          )}
-          {saving && (
-            <Text type="secondary" className="text-xs">
-              Saving...
+          {!hasChanges && (
+            <Text type="success" className="text-xs">
+              ✓ All changes saved
             </Text>
           )}
         </div>
 
         <Space>
+          {/* View Mode Toggle */}
+          <Segmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              {
+                label: 'Builder',
+                value: 'builder',
+                icon: <EditOutlined />,
+              },
+              {
+                label: 'Live Preview',
+                value: 'preview',
+                icon: <EyeFilled />,
+              },
+            ]}
+          />
+
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+
           {/* Undo/Redo */}
           <Tooltip title="Undo (Ctrl+Z)">
             <Button 
@@ -267,9 +288,20 @@ const FormBuilderPage = () => {
 
           <div className="w-px h-6 bg-gray-200 mx-1" />
 
-          {/* Preview */}
+          {/* Save Button */}
+          <Button 
+            type={hasChanges ? 'primary' : 'default'}
+            icon={<SaveOutlined />} 
+            onClick={saveChanges}
+            loading={saving}
+            disabled={!hasChanges}
+          >
+            Save
+          </Button>
+
+          {/* Preview in new tab */}
           <Button icon={<EyeOutlined />} onClick={handlePreview}>
-            Preview
+            Preview in Tab
           </Button>
 
           {/* Settings */}
@@ -286,41 +318,61 @@ const FormBuilderPage = () => {
 
       {/* Main Content */}
       <Layout>
-        {/* Left Sidebar - Field Toolbox */}
+        {/* Left Sidebar - Field Toolbox or Step Navigator */}
         <Sider 
           width={260} 
           className="bg-white border-r"
           theme="light"
         >
-          <FieldToolbox
-            onFieldClick={handleToolboxFieldClick}
-            disabled={!selectedStepId && steps.length === 0}
-          />
+          {viewMode === 'builder' ? (
+            <FieldToolbox
+              onFieldClick={handleToolboxFieldClick}
+              disabled={!selectedStepId && steps.length === 0}
+            />
+          ) : (
+            <StepNavigator
+              steps={steps}
+              selectedStepId={selectedStepId}
+              onSelectStep={setSelectedStepId}
+              onAddStep={addStep}
+            />
+          )}
         </Sider>
 
-        {/* Center - Canvas */}
+        {/* Center - Canvas or Live Preview */}
         <Content className="bg-gray-100">
-          <FormCanvas
-            steps={steps}
-            selectedStepId={selectedStepId}
-            selectedFieldId={selectedFieldId}
-            onSelectStep={(stepId, openSettings) => {
-              setSelectedStepId(stepId);
-              if (openSettings) {
-                const step = steps.find(s => s.id === stepId);
-                if (step) handleOpenStepConfig(step);
-              }
-            }}
-            onSelectField={setSelectedFieldId}
-            onAddStep={addStep}
-            onUpdateStep={updateStep}
-            onDeleteStep={deleteStep}
-            onAddField={addField}
-            onUpdateField={updateField}
-            onDeleteField={deleteField}
-            onDuplicateField={duplicateField}
-            onReorderFields={reorderFields}
-          />
+          {viewMode === 'builder' ? (
+            <FormCanvas
+              steps={steps}
+              selectedStepId={selectedStepId}
+              selectedFieldId={selectedFieldId}
+              onSelectStep={(stepId, openSettings) => {
+                setSelectedStepId(stepId);
+                if (openSettings) {
+                  const step = steps.find(s => s.id === stepId);
+                  if (step) handleOpenStepConfig(step);
+                }
+              }}
+              onSelectField={setSelectedFieldId}
+              onAddStep={addStep}
+              onUpdateStep={updateStep}
+              onDeleteStep={deleteStep}
+              onAddField={addField}
+              onUpdateField={updateField}
+              onDeleteField={deleteField}
+              onDuplicateField={duplicateField}
+              onReorderFields={reorderFields}
+            />
+          ) : (
+            <LiveFormPreview
+              template={template}
+              steps={steps}
+              selectedStepId={selectedStepId}
+              selectedFieldId={selectedFieldId}
+              onSelectField={setSelectedFieldId}
+              onSelectStep={setSelectedStepId}
+            />
+          )}
         </Content>
 
         {/* Right Sidebar - Properties Panel / Theme Panel */}

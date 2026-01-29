@@ -36,6 +36,10 @@ export function useFormBuilder(templateId) {
   
   // Auto-save timer
   const autoSaveTimer = useRef(null);
+  
+  // Keep a ref to the latest steps state to avoid stale closures
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
 
   // Get selected step
   const selectedStep = steps.find(s => s.id === selectedStepId);
@@ -120,14 +124,16 @@ export function useFormBuilder(templateId) {
   // Add new step
   const addStep = useCallback(async (data = {}) => {
     try {
+      // Use the most current steps state
+      const currentSteps = stepsRef.current;
       const newStep = await formService.createFormStep(templateId, {
-        title: data.title || `Step ${steps.length + 1}`,
+        title: data.title || `Step ${currentSteps.length + 1}`,
         description: data.description || '',
-        order_index: steps.length,
+        order_index: currentSteps.length,
         show_progress: true,
       });
       
-      const updatedSteps = [...steps, { ...newStep, fields: [] }];
+      const updatedSteps = [...currentSteps, { ...newStep, fields: [] }];
       setSteps(updatedSteps);
       setSelectedStepId(newStep.id);
       setSelectedFieldId(null);
@@ -139,14 +145,15 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to add step');
       console.error('Error adding step:', error);
     }
-  }, [templateId, steps, saveToHistory, showMessage]);
+  }, [templateId, saveToHistory, showMessage]);
 
   // Update step
   const updateStep = useCallback(async (stepId, updates) => {
     try {
       await formService.updateFormStep(stepId, updates);
       
-      const updatedSteps = steps.map(s => 
+      // Use the most current steps state
+      const updatedSteps = stepsRef.current.map(s => 
         s.id === stepId ? { ...s, ...updates } : s
       );
       setSteps(updatedSteps);
@@ -156,14 +163,15 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to update step');
       console.error('Error updating step:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
   // Delete step
   const deleteStep = useCallback(async (stepId) => {
     try {
       await formService.deleteFormStep(stepId);
       
-      const updatedSteps = steps.filter(s => s.id !== stepId);
+      // Use the most current steps state
+      const updatedSteps = stepsRef.current.filter(s => s.id !== stepId);
       setSteps(updatedSteps);
       
       // Select another step if the deleted one was selected
@@ -179,15 +187,17 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to delete step');
       console.error('Error deleting step:', error);
     }
-  }, [steps, selectedStepId, saveToHistory, showMessage]);
+  }, [selectedStepId, saveToHistory, showMessage]);
 
   // Reorder steps
   const reorderSteps = useCallback(async (stepIds) => {
     try {
       await formService.reorderFormSteps(templateId, stepIds);
       
+      // Use the most current steps state
+      const currentSteps = stepsRef.current;
       const reorderedSteps = stepIds.map((id, index) => {
-        const step = steps.find(s => s.id === id);
+        const step = currentSteps.find(s => s.id === id);
         return { ...step, order_index: index };
       });
       
@@ -198,7 +208,7 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to reorder steps');
       console.error('Error reordering steps:', error);
     }
-  }, [templateId, steps, saveToHistory, showMessage]);
+  }, [templateId, saveToHistory, showMessage]);
 
   // ============================================
   // FIELD OPERATIONS
@@ -206,7 +216,9 @@ export function useFormBuilder(templateId) {
 
   // Add field to step
   const addField = useCallback(async (stepId, fieldType, insertIndex = null) => {
-    const step = steps.find(s => s.id === stepId);
+    // Use ref to get the most current steps state
+    const currentSteps = stepsRef.current;
+    const step = currentSteps.find(s => s.id === stepId);
     if (!step) return;
 
     const defaults = FIELD_DEFAULTS[fieldType] || {};
@@ -222,7 +234,8 @@ export function useFormBuilder(templateId) {
         ...defaults,
       });
 
-      const updatedSteps = steps.map(s => {
+      // Use the most current steps state when updating
+      const updatedSteps = stepsRef.current.map(s => {
         if (s.id !== stepId) return s;
         
         const fields = [...(s.fields || [])];
@@ -244,14 +257,15 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to add field');
       console.error('Error adding field:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
   // Update field
   const updateField = useCallback(async (fieldId, updates) => {
     try {
       await formService.updateFormField(fieldId, updates);
       
-      const updatedSteps = steps.map(s => ({
+      // Use the most current steps state
+      const updatedSteps = stepsRef.current.map(s => ({
         ...s,
         fields: s.fields?.map(f => 
           f.id === fieldId ? { ...f, ...updates } : f
@@ -265,14 +279,15 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to update field');
       console.error('Error updating field:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
   // Delete field
   const deleteField = useCallback(async (fieldId) => {
     try {
       await formService.deleteFormField(fieldId);
       
-      const updatedSteps = steps.map(s => ({
+      // Use the most current steps state
+      const updatedSteps = stepsRef.current.map(s => ({
         ...s,
         fields: s.fields?.filter(f => f.id !== fieldId),
       }));
@@ -290,11 +305,13 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to delete field');
       console.error('Error deleting field:', error);
     }
-  }, [steps, selectedFieldId, saveToHistory, showMessage]);
+  }, [selectedFieldId, saveToHistory, showMessage]);
 
   // Duplicate field
   const duplicateField = useCallback(async (fieldId) => {
-    const step = steps.find(s => s.fields?.some(f => f.id === fieldId));
+    // Use the most current steps state
+    const currentSteps = stepsRef.current;
+    const step = currentSteps.find(s => s.fields?.some(f => f.id === fieldId));
     const field = step?.fields?.find(f => f.id === fieldId);
     
     if (!step || !field) return;
@@ -316,7 +333,8 @@ export function useFormBuilder(templateId) {
         conditional_logic: field.conditional_logic,
       });
 
-      const updatedSteps = steps.map(s => {
+      // Use the most current steps state when updating
+      const updatedSteps = stepsRef.current.map(s => {
         if (s.id !== step.id) return s;
         
         const fields = [...(s.fields || [])];
@@ -336,7 +354,7 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to duplicate field');
       console.error('Error duplicating field:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
   // Helper function to reorder fields within a step
   const reorderFieldsInStep = (step, fieldIds) => {
@@ -352,7 +370,8 @@ export function useFormBuilder(templateId) {
     try {
       await formService.reorderFormFields(stepId, fieldIds);
       
-      const updatedSteps = steps.map(s => {
+      // Use the most current steps state
+      const updatedSteps = stepsRef.current.map(s => {
         if (s.id !== stepId) return s;
         return reorderFieldsInStep(s, fieldIds);
       });
@@ -364,11 +383,13 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to reorder fields');
       console.error('Error reordering fields:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
   // Move field to different step
   const moveFieldToStep = useCallback(async (fieldId, fromStepId, toStepId, insertIndex = null) => {
-    const fromStep = steps.find(s => s.id === fromStepId);
+    // Use the most current steps state
+    const currentSteps = stepsRef.current;
+    const fromStep = currentSteps.find(s => s.id === fromStepId);
     const field = fromStep?.fields?.find(f => f.id === fieldId);
     
     if (!field || fromStepId === toStepId) return;
@@ -383,7 +404,8 @@ export function useFormBuilder(templateId) {
         order_index: insertIndex || 0,
       });
 
-      const updatedSteps = steps.map(s => {
+      // Use the most current steps state when updating
+      const updatedSteps = stepsRef.current.map(s => {
         if (s.id === fromStepId) {
           return { ...s, fields: s.fields.filter(f => f.id !== fieldId) };
         }
@@ -409,52 +431,24 @@ export function useFormBuilder(templateId) {
       showMessage('error', 'Failed to move field');
       console.error('Error moving field:', error);
     }
-  }, [steps, saveToHistory, showMessage]);
+  }, [saveToHistory, showMessage]);
 
-  // Auto-save state
-  const [lastAutoSave, setLastAutoSave] = useState(null);
-
-  // Perform auto-save of all pending changes
-  const performAutoSave = useCallback(async () => {
+  // Manual save function to mark changes as saved
+  const saveChanges = useCallback(async () => {
     if (!hasChanges || saving) return;
     
     try {
       setSaving(true);
-      // The individual step/field operations already save to the backend
-      // This just marks the state as saved and updates the timestamp
+      // All changes are already persisted to backend via individual operations
+      // This just marks the state as saved
       setHasChanges(false);
-      setLastAutoSave(new Date());
-      showMessage('success', 'Auto-saved', 1);
+      showMessage('success', 'Changes saved');
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      console.error('Save failed:', error);
     } finally {
       setSaving(false);
     }
   }, [hasChanges, saving, showMessage]);
-
-  // Auto-save every 30 seconds when there are changes
-  useEffect(() => {
-    if (hasChanges && !saving) {
-      autoSaveTimer.current = setTimeout(() => {
-        performAutoSave();
-      }, 30000);
-    }
-    
-    return () => {
-      if (autoSaveTimer.current) {
-        clearTimeout(autoSaveTimer.current);
-      }
-    };
-  }, [hasChanges, saving, performAutoSave]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimer.current) {
-        clearTimeout(autoSaveTimer.current);
-      }
-    };
-  }, []);
 
   return {
     // State
@@ -467,7 +461,9 @@ export function useFormBuilder(templateId) {
     loading,
     saving,
     hasChanges,
-    lastAutoSave,
+    
+    // Actions
+    saveChanges,
     
     // History
     canUndo: historyIndex > 0,

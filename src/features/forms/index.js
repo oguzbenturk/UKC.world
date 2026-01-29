@@ -19,6 +19,9 @@ export { default as FormPreview } from './components/FormPreview';
 export { default as FormPreviewModal } from './components/FormPreviewModal';
 export { default as FormSelector } from './components/FormSelector';
 export { default as DynamicField } from './components/DynamicField';
+export { default as LiveFormPreview } from './components/LiveFormPreview';
+export { default as StepNavigator } from './components/StepNavigator';
+export { default as RichHTMLEditor } from './components/RichHTMLEditor';
 
 // Services
 export * from './services/formService';

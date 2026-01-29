@@ -1087,16 +1087,19 @@ const DynamicField = ({
   // Layout fields render differently
   if (field.field_type === FIELD_TYPES.SECTION_HEADER) {
     if (!isVisible) return null;
+    const htmlContent = field.default_value || field.help_text;
     return (
       <Col span={24}>
         <div className="form-section-header">
           <Title level={4} className="mt-4 mb-2">
             {field.field_label}
           </Title>
-          {(field.help_text || field.default_value) && (
-            <Paragraph type="secondary" className="mb-0" style={{ marginTop: -4 }}>
-              {field.default_value || field.help_text}
-            </Paragraph>
+          {htmlContent && (
+            <div 
+              className="section-header-content"
+              style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
           )}
         </div>
       </Col>

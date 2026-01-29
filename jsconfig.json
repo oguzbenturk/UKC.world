@@ -12,5 +12,18 @@
     "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "**/node_modules/**",
+    "dist",
+    "dist-ssr",
+    "backend",
+    "backend/**",
+    "logs",
+    "uploads",
+    "tools/**/downloads",
+    "playwright-report",
+    "test-results"
+  ]
 }
