@@ -371,6 +371,7 @@ const FormBuilderPage = () => {
               selectedFieldId={selectedFieldId}
               onSelectField={setSelectedFieldId}
               onSelectStep={setSelectedStepId}
+              onReorderFields={reorderFields}
             />
           )}
         </Content>

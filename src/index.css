@@ -954,3 +954,35 @@
 .consent-links a:hover {
   color: #48cae4 !important;
 }
+
+/* Ensure Ant Design dropdowns appear above form builder wrapper */
+.ant-picker-dropdown,
+.ant-select-dropdown,
+.ant-upload-list-item-actions,
+.ant-image-preview-root {
+  z-index: 1050 !important;
+}
+
+/* Fix for form builder live preview - ensure fields are interactive */
+.ant-picker,
+.ant-select,
+.ant-upload,
+.ant-upload-wrapper {
+  position: relative;
+  z-index: 5;
+}
+
+/* Ensure upload buttons are clickable */
+.ant-upload.ant-upload-select,
+.ant-upload-drag {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* DatePicker and Select inputs should be clickable */
+.ant-picker-input,
+.ant-picker-input input,
+.ant-select-selector {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}

@@ -7,9 +7,9 @@
  * - index.html meta tag
  * - Console on app load
  * 
- * Version is auto-incremented by push-all.js on each deploy
+ * Version is auto-incremented by push-all.js and push-sync.js on each deploy
  */
-export const APP_VERSION = '0.0.8';
+export const APP_VERSION = '0.0.9';
 
 // Log version on app load (helpful for debugging)
 if (typeof window !== 'undefined') {

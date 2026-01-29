@@ -24,13 +24,17 @@ import {
   Space,
   Divider,
   Row,
-  Col
+  Col,
+  Switch,
+  Slider,
+  Image
 } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { UploadOutlined, InboxOutlined, PlusOutlined } from '@ant-design/icons';
 import { FIELD_TYPES, WIDTH_OPTIONS } from '../constants/fieldTypes';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 // Get column span from width value
 const getColSpan = (width) => {
@@ -72,10 +76,10 @@ const renderChoiceField = (field, isCheckbox = false) => {
   const validOptions = (field.options || []).filter(opt => opt.value && opt.label);
   
   return (
-    <GroupComponent disabled={field.is_readonly}>
-      <Space direction="vertical">
+    <GroupComponent disabled={field.is_readonly} className={isCheckbox ? "checkbox-field-group" : undefined}>
+      <Space direction="vertical" className={isCheckbox ? "w-full" : undefined}>
         {validOptions.map(opt => (
-          <ItemComponent key={opt.value} value={opt.value}>
+          <ItemComponent key={opt.value} value={opt.value} className={isCheckbox ? "checkbox-field-item" : undefined}>
             {opt.label}
           </ItemComponent>
         ))}
@@ -91,6 +95,9 @@ const renderDateTimeField = (field, commonProps, variant) => {
   }
   if (variant === 'datetime') {
     return <DatePicker showTime {...commonProps} className="w-full" />;
+  }
+  if (variant === 'range') {
+    return <RangePicker {...commonProps} className="w-full" format="YYYY-MM-DD" />;
   }
   return <DatePicker {...commonProps} className="w-full" />;
 };
@@ -137,22 +144,200 @@ const renderField = (field) => {
   if (fieldType === FIELD_TYPES.DATE) return renderDateTimeField(field, commonProps, 'date');
   if (fieldType === FIELD_TYPES.TIME) return renderDateTimeField(field, commonProps, 'time');
   if (fieldType === FIELD_TYPES.DATETIME) return renderDateTimeField(field, commonProps, 'datetime');
+  if (fieldType === FIELD_TYPES.DATE_RANGE) return renderDateTimeField(field, commonProps, 'range');
 
   // Special fields
-  if (fieldType === FIELD_TYPES.FILE) {
-    return <Upload><Button icon={<UploadOutlined />}>Click to Upload</Button></Upload>;
+  if (fieldType === FIELD_TYPES.FILE_UPLOAD || fieldType === FIELD_TYPES.FILE) {
+    const maxFiles = field.options?.max_files || 1;
+    const accept = field.options?.accept || '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+    const maxSize = field.options?.max_size || 5; // MB
+    const uploadType = field.options?.upload_type || 'button'; // 'button' or 'dragger'
+    
+    if (uploadType === 'dragger') {
+      return (
+        <Upload.Dragger
+          name="file"
+          multiple={maxFiles > 1}
+          maxCount={maxFiles}
+          accept={accept}
+          disabled={field.is_readonly}
+          beforeUpload={() => false}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined style={{ fontSize: 48, color: '#0077b6' }} />
+          </p>
+          <p className="ant-upload-text">{field.placeholder_text || 'Click or drag to upload your photo'}</p>
+          <p className="ant-upload-hint" style={{ fontSize: '12px', color: '#718096' }}>
+            {field.help_text || `Max ${maxSize}MB. Accepted: ${accept}`}
+          </p>
+        </Upload.Dragger>
+      );
+    }
+    
+    return (
+      <Upload
+        name="file"
+        multiple={maxFiles > 1}
+        maxCount={maxFiles}
+        accept={accept}
+        disabled={field.is_readonly}
+        beforeUpload={() => false}
+      >
+        <Button icon={<UploadOutlined />} disabled={field.is_readonly}>
+          {field.placeholder_text || 'Click to Upload'}
+        </Button>
+        {field.help_text && (
+          <div style={{ marginTop: 8, fontSize: '12px', color: '#718096' }}>
+            {field.help_text}
+          </div>
+        )}
+      </Upload>
+    );
   }
+  
+  if (fieldType === FIELD_TYPES.CONSENT) {
+    const consentText = field.options?.consent_text 
+      || (Array.isArray(field.options) && field.options[0]?.label)
+      || field.field_label
+      || 'I agree to the Terms and Conditions';
+    const termsLink = field.options?.terms_link || '';
+    const privacyLink = field.options?.privacy_link || '';
+    
+    return (
+      <Checkbox disabled={field.is_readonly} className="consent-checkbox">
+        <span className="consent-text">
+          {consentText}
+          {(termsLink || privacyLink) && (
+            <span className="consent-links ml-1">
+              {termsLink && (
+                <a 
+                  href={termsLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Terms
+                </a>
+              )}
+              {termsLink && privacyLink && ' & '}
+              {privacyLink && (
+                <a 
+                  href={privacyLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </a>
+              )}
+            </span>
+          )}
+        </span>
+      </Checkbox>
+    );
+  }
+  
   if (fieldType === FIELD_TYPES.RATING) {
     return <Rate allowHalf={field.options?.allow_half} count={field.options?.max || 5} disabled={field.is_readonly} />;
   }
   if (fieldType === FIELD_TYPES.ADDRESS) return renderAddressField();
   if (fieldType === FIELD_TYPES.HIDDEN) return null;
   if (fieldType === FIELD_TYPES.SECTION_HEADER) {
-    return <Title level={4} className="mb-0">{field.field_label}</Title>;
+    const htmlContent = field.default_value || field.help_text;
+    return (
+      <div className="form-section-header">
+        <Title level={4} className="mt-4 mb-2">{field.field_label}</Title>
+        {htmlContent && (
+          <div 
+            className="section-header-content"
+            style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        )}
+      </div>
+    );
   }
   if (fieldType === FIELD_TYPES.PARAGRAPH) {
     const htmlContent = field.default_value || field.help_text || 'Paragraph text';
     return <div className="paragraph-field-content" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+  }
+
+  // Toggle field (Yes/No switch)
+  if (fieldType === FIELD_TYPES.TOGGLE) {
+    return (
+      <Space>
+        <Switch 
+          disabled={field.is_readonly}
+          checkedChildren={field.options?.true_label || 'Yes'}
+          unCheckedChildren={field.options?.false_label || 'No'}
+        />
+      </Space>
+    );
+  }
+
+  // Image upload field
+  if (fieldType === FIELD_TYPES.IMAGE) {
+    return (
+      <Upload
+        listType="picture-card"
+        disabled={field.is_readonly}
+        beforeUpload={() => false}
+        maxCount={field.options?.max_files || 1}
+        accept="image/*"
+        className="professional-image-upload"
+      >
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: '#718096'
+        }}>
+          <PlusOutlined style={{ fontSize: 24, color: '#0077b6' }} />
+          <div style={{ marginTop: 8, fontSize: 12 }}>
+            {field.placeholder_text || 'Click to upload'}
+          </div>
+        </div>
+      </Upload>
+    );
+  }
+
+  // Country selector
+  if (fieldType === FIELD_TYPES.COUNTRY) {
+    return (
+      <Select
+        {...commonProps}
+        showSearch
+        className="w-full"
+        placeholder={field.placeholder_text || 'Select country'}
+        optionFilterProp="label"
+        options={[
+          { value: 'TR', label: 'Turkey' },
+          { value: 'DE', label: 'Germany' },
+          { value: 'GB', label: 'United Kingdom' },
+          { value: 'US', label: 'United States' },
+          { value: 'FR', label: 'France' },
+          { value: 'ES', label: 'Spain' },
+          { value: 'IT', label: 'Italy' },
+          { value: 'NL', label: 'Netherlands' },
+          // ... more countries available in production
+        ]}
+      />
+    );
+  }
+
+  // Slider field
+  if (fieldType === FIELD_TYPES.SLIDER) {
+    return (
+      <Slider
+        disabled={field.is_readonly}
+        min={field.options?.min || 0}
+        max={field.options?.max || 100}
+        step={field.options?.step || 1}
+      />
+    );
   }
 
   // Default fallback
@@ -193,14 +378,14 @@ const FormPreview = ({
     }
 
     return (
-      <Row gutter={[16, 0]}>
+      <Row gutter={[16, 16]}>
         {activeStep.fields
           .sort((a, b) => a.order_index - b.order_index)
           .map(field => {
             // Layout fields render differently
             if ([FIELD_TYPES.SECTION_HEADER, FIELD_TYPES.PARAGRAPH].includes(field.field_type)) {
               return (
-                <Col span={24} key={field.id}>
+                <Col span={getColSpan(field.width)} key={field.id}>
                   <div className="my-4">
                     {renderField(field)}
                   </div>
@@ -211,6 +396,42 @@ const FormPreview = ({
             // Hidden fields don't render
             if (field.field_type === FIELD_TYPES.HIDDEN) {
               return null;
+            }
+
+            // CONSENT fields render without label wrapper (checkbox contains label)
+            if (field.field_type === FIELD_TYPES.CONSENT) {
+              return (
+                <Col span={getColSpan(field.width)} key={field.id}>
+                  <Form.Item
+                    name={field.field_name}
+                    valuePropName="checked"
+                    rules={field.is_required ? [{ 
+                      validator: (_, value) => value ? Promise.resolve() : Promise.reject(new Error('This field is required'))
+                    }] : []}
+                    initialValue={field.default_value}
+                  >
+                    {renderField(field)}
+                  </Form.Item>
+                </Col>
+              );
+            }
+
+            // FILE and IMAGE fields need valuePropName="fileList"
+            if ([FIELD_TYPES.FILE, FIELD_TYPES.FILE_UPLOAD, FIELD_TYPES.IMAGE].includes(field.field_type)) {
+              return (
+                <Col span={getColSpan(field.width)} key={field.id}>
+                  <Form.Item
+                    label={field.field_label}
+                    name={field.field_name}
+                    valuePropName="fileList"
+                    getValueFromEvent={(e) => Array.isArray(e) ? e : e?.fileList}
+                    rules={field.is_required ? [{ required: true, message: `${field.field_label} is required` }] : []}
+                    extra={field.help_text}
+                  >
+                    {renderField(field)}
+                  </Form.Item>
+                </Col>
+              );
             }
 
             return (

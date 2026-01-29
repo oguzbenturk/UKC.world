@@ -482,7 +482,7 @@ const PublicFormPage = () => {
               onFinish={handleSubmit}
               requiredMark="optional"
             >
-              <Row gutter={[16, 0]}>
+              <Row gutter={[16, 16]}>
                 {currentStepData.fields?.map(field => (
                   <DynamicField
                     key={field.id || field.field_name}
@@ -631,7 +631,7 @@ const PublicFormPage = () => {
                     onFinish={handleSubmit}
                     requiredMark="optional"
                   >
-                    <Row gutter={[16, 0]}>
+                    <Row gutter={[16, 16]}>
                       {currentStepData.fields?.map(field => (
                         <DynamicField
                           key={field.id || field.field_name}

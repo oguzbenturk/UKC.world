@@ -38,7 +38,6 @@ import {
 } from '../constants/fieldTypes';
 import RichHTMLEditor from './RichHTMLEditor';
 
-const { Panel } = Collapse;
 const { Text } = Typography;
 const { TextArea } = Input;
 
@@ -980,185 +979,210 @@ const PropertiesPanel = ({
           onValuesChange={handleValuesChange}
           onBlur={handleFieldBlur}
         >
-          <Collapse defaultActiveKey={['basic', 'appearance']} ghost>
-            {/* Basic Settings */}
-            <Panel header="Basic Settings" key="basic">
-              <Form.Item
-                label="Label"
-                name="field_label"
-                rules={[{ required: true, message: 'Label is required' }]}
-              >
-                <Input placeholder="Enter field label" />
-              </Form.Item>
+          <Collapse 
+            defaultActiveKey={['basic', 'appearance']} 
+            ghost
+            items={[
+              // Basic Settings
+              {
+                key: 'basic',
+                label: 'Basic Settings',
+                children: (
+                  <>
+                    <Form.Item
+                      label="Label"
+                      name="field_label"
+                      rules={[{ required: true, message: 'Label is required' }]}
+                    >
+                      <Input placeholder="Enter field label" />
+                    </Form.Item>
 
-              <Form.Item
-                label={
-                  <span>
-                    Field Name
-                    <Tooltip title="Unique identifier used in submissions">
-                      <QuestionCircleOutlined className="ml-1 text-gray-400" />
-                    </Tooltip>
-                  </span>
-                }
-                name="field_name"
-              >
-                <Input placeholder="auto_generated_name" />
-              </Form.Item>
+                    <Form.Item
+                      label={
+                        <span>
+                          Field Name
+                          <Tooltip title="Unique identifier used in submissions">
+                            <QuestionCircleOutlined className="ml-1 text-gray-400" />
+                          </Tooltip>
+                        </span>
+                      }
+                      name="field_name"
+                    >
+                      <Input placeholder="auto_generated_name" />
+                    </Form.Item>
 
-              <Form.Item
-                label="Placeholder"
-                name="placeholder_text"
-              >
-                <Input placeholder="Enter placeholder text" />
-              </Form.Item>
+                    <Form.Item
+                      label="Placeholder"
+                      name="placeholder_text"
+                    >
+                      <Input placeholder="Enter placeholder text" />
+                    </Form.Item>
 
-              <Form.Item
-                label="Help Text"
-                name="help_text"
-              >
-                <TextArea rows={2} placeholder="Optional help text shown below field" />
-              </Form.Item>
+                    <Form.Item
+                      label="Help Text"
+                      name="help_text"
+                    >
+                      <TextArea rows={2} placeholder="Optional help text shown below field" />
+                    </Form.Item>
 
-              {/* Rich HTML Editor for Paragraph fields */}
-              {field.field_type === FIELD_TYPES.PARAGRAPH || field.field_type === FIELD_TYPES.SECTION_HEADER ? (
-                <Form.Item
-                  label="Content (HTML)"
-                  name="default_value"
-                  tooltip="Use the visual editor to create styled content easily"
-                >
-                  <RichHTMLEditor />
-                </Form.Item>
-              ) : (
-                <Form.Item
-                  label="Default Value"
-                  name="default_value"
-                >
-                  <Input placeholder="Pre-filled value" />
-                </Form.Item>
-              )}
+                    {/* Rich HTML Editor for Paragraph fields */}
+                    {field.field_type === FIELD_TYPES.PARAGRAPH || field.field_type === FIELD_TYPES.SECTION_HEADER ? (
+                      <Form.Item
+                        label="Content (HTML)"
+                        name="default_value"
+                        tooltip="Use the visual editor to create styled content easily"
+                      >
+                        <RichHTMLEditor />
+                      </Form.Item>
+                    ) : (
+                      <Form.Item
+                        label="Default Value"
+                        name="default_value"
+                      >
+                        <Input placeholder="Pre-filled value" />
+                      </Form.Item>
+                    )}
 
-              <div className="flex gap-4">
-                <Form.Item
-                  name="is_required"
-                  valuePropName="checked"
-                  className="mb-0"
-                >
-                  <Switch checkedChildren="Required" unCheckedChildren="Optional" />
-                </Form.Item>
+                    <div className="flex gap-4">
+                      <Form.Item
+                        name="is_required"
+                        valuePropName="checked"
+                        className="mb-0"
+                      >
+                        <Switch checkedChildren="Required" unCheckedChildren="Optional" />
+                      </Form.Item>
 
-                <Form.Item
-                  name="is_readonly"
-                  valuePropName="checked"
-                  className="mb-0"
-                >
-                  <Switch checkedChildren="Read-only" unCheckedChildren="Editable" />
-                </Form.Item>
-              </div>
-            </Panel>
-
-            {/* Appearance */}
-            <Panel header="Appearance" key="appearance">
-              <Form.Item
-                label="Field Width"
-                name="width"
-              >
-                <Select
-                  options={WIDTH_OPTIONS.map(w => ({
-                    value: w.value,
-                    label: w.label,
-                  }))}
-                />
-              </Form.Item>
-            </Panel>
-
-            {/* Options (for select/radio/checkbox) */}
-            {hasOptions(field.field_type) && (
-              <Panel header="Options" key="options">
-                <Form.Item name="options">
-                  <OptionsEditor />
-                </Form.Item>
-              </Panel>
-            )}
-
-            {/* Consent Text (for consent fields) */}
-            {field.field_type === FIELD_TYPES.CONSENT && (
-              <Panel header="Consent Settings" key="consent">
-                <Form.Item
-                  label="Consent Text"
-                  name={['options', 'consent_text']}
-                  tooltip="The text shown next to the checkbox that users must agree to"
-                >
-                  <TextArea 
-                    rows={3} 
-                    placeholder="I confirm that all information provided is accurate and complete..."
-                  />
-                </Form.Item>
-                <Form.Item
-                  label="Terms Link (optional)"
-                  name={['options', 'terms_link']}
-                >
-                  <Input placeholder="https://example.com/terms" />
-                </Form.Item>
-                <Form.Item
-                  label="Privacy Link (optional)"
-                  name={['options', 'privacy_link']}
-                >
-                  <Input placeholder="https://example.com/privacy" />
-                </Form.Item>
-              </Panel>
-            )}
-
-            {/* Validation */}
-            <Panel header="Validation" key="validation">
-              {[FIELD_TYPES.TEXT, FIELD_TYPES.TEXTAREA].includes(field.field_type) && (
-                <>
+                      <Form.Item
+                        name="is_readonly"
+                        valuePropName="checked"
+                        className="mb-0"
+                      >
+                        <Switch checkedChildren="Read-only" unCheckedChildren="Editable" />
+                      </Form.Item>
+                    </div>
+                  </>
+                )
+              },
+              // Appearance
+              {
+                key: 'appearance',
+                label: 'Appearance',
+                children: (
                   <Form.Item
-                    label="Minimum Length"
-                    name={['validation_rules', 'min_length']}
+                    label="Field Width"
+                    name="width"
                   >
-                    <InputNumber min={0} className="w-full" />
+                    <Select
+                      options={WIDTH_OPTIONS.map(w => ({
+                        value: w.value,
+                        label: w.label,
+                      }))}
+                    />
                   </Form.Item>
-                  <Form.Item
-                    label="Maximum Length"
-                    name={['validation_rules', 'max_length']}
-                  >
-                    <InputNumber min={0} className="w-full" />
+                )
+              },
+              // Options (conditionally included)
+              ...(hasOptions(field.field_type) ? [{
+                key: 'options',
+                label: 'Options',
+                children: (
+                  <Form.Item name="options">
+                    <OptionsEditor />
                   </Form.Item>
-                </>
-              )}
+                )
+              }] : []),
+              // Consent Settings (conditionally included)
+              ...(field.field_type === FIELD_TYPES.CONSENT ? [{
+                key: 'consent',
+                label: 'Consent Settings',
+                children: (
+                  <>
+                    <Form.Item
+                      label="Consent Text"
+                      name={['options', 'consent_text']}
+                      tooltip="The text shown next to the checkbox that users must agree to"
+                    >
+                      <TextArea 
+                        rows={3} 
+                        placeholder="I confirm that all information provided is accurate and complete..."
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      label="Terms Link (optional)"
+                      name={['options', 'terms_link']}
+                    >
+                      <Input placeholder="https://example.com/terms" />
+                    </Form.Item>
+                    <Form.Item
+                      label="Privacy Link (optional)"
+                      name={['options', 'privacy_link']}
+                    >
+                      <Input placeholder="https://example.com/privacy" />
+                    </Form.Item>
+                  </>
+                )
+              }] : []),
+              // Validation
+              {
+                key: 'validation',
+                label: 'Validation',
+                children: (
+                  <>
+                    {[FIELD_TYPES.TEXT, FIELD_TYPES.TEXTAREA].includes(field.field_type) && (
+                      <>
+                        <Form.Item
+                          label="Minimum Length"
+                          name={['validation_rules', 'min_length']}
+                        >
+                          <InputNumber min={0} className="w-full" />
+                        </Form.Item>
+                        <Form.Item
+                          label="Maximum Length"
+                          name={['validation_rules', 'max_length']}
+                        >
+                          <InputNumber min={0} className="w-full" />
+                        </Form.Item>
+                      </>
+                    )}
 
-              {field.field_type === FIELD_TYPES.NUMBER && (
-                <>
-                  <Form.Item
-                    label="Minimum Value"
-                    name={['validation_rules', 'min']}
-                  >
-                    <InputNumber className="w-full" />
-                  </Form.Item>
-                  <Form.Item
-                    label="Maximum Value"
-                    name={['validation_rules', 'max']}
-                  >
-                    <InputNumber className="w-full" />
-                  </Form.Item>
-                </>
-              )}
+                    {field.field_type === FIELD_TYPES.NUMBER && (
+                      <>
+                        <Form.Item
+                          label="Minimum Value"
+                          name={['validation_rules', 'min']}
+                        >
+                          <InputNumber className="w-full" />
+                        </Form.Item>
+                        <Form.Item
+                          label="Maximum Value"
+                          name={['validation_rules', 'max']}
+                        >
+                          <InputNumber className="w-full" />
+                        </Form.Item>
+                      </>
+                    )}
 
-              <Form.Item
-                label="Custom Error Message"
-                name={['validation_rules', 'error_message']}
-              >
-                <Input placeholder="Shown when validation fails" />
-              </Form.Item>
-            </Panel>
-
-            {/* Conditional Logic */}
-            <Panel header="Conditional Logic" key="conditional">
-              <Form.Item name="conditional_logic">
-                <ConditionalLogicEditor availableFields={otherFields} />
-              </Form.Item>
-            </Panel>
-          </Collapse>
+                    <Form.Item
+                      label="Custom Error Message"
+                      name={['validation_rules', 'error_message']}
+                    >
+                      <Input placeholder="Shown when validation fails" />
+                    </Form.Item>
+                  </>
+                )
+              },
+              // Conditional Logic
+              {
+                key: 'conditional',
+                label: 'Conditional Logic',
+                children: (
+                  <Form.Item name="conditional_logic">
+                    <ConditionalLogicEditor availableFields={otherFields} />
+                  </Form.Item>
+                )
+              }
+            ]}
+          />
         </Form>
       </div>
 

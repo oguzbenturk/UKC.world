@@ -20,15 +20,31 @@ import {
 import { 
   ArrowLeftOutlined, 
   ArrowRightOutlined, 
-  CheckCircleOutlined 
+  CheckCircleOutlined,
+  HolderOutlined
 } from '@ant-design/icons';
+import { 
+  DndContext, 
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import DynamicField, { getColProps } from './DynamicField';
 import { FIELD_TYPES } from '../constants/fieldTypes';
 
 const { Title, Paragraph, Text } = Typography;
 
 /**
- * Wrapper component to make fields clickable for selection
+ * Wrapper component to make fields clickable for selection and draggable
  * Uses the same getColProps function as DynamicField for consistent layout
  */
 const SelectableFieldWrapper = ({ field, selectedFieldId, onSelectField, children }) => {
@@ -37,24 +53,73 @@ const SelectableFieldWrapper = ({ field, selectedFieldId, onSelectField, childre
   // Use same responsive col props as DynamicField
   const colProps = getColProps(field.width);
 
+  // Sortable hook for drag-and-drop
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: field.id
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // Handle wrapper click for field selection
+  const handleWrapperClick = (e) => {
+    // Don't interfere with input interactions (DatePicker, Upload, Select dropdowns)
+    const target = e.target;
+    const isInteractiveElement = 
+      target.closest('.ant-picker') || 
+      target.closest('.ant-picker-dropdown') ||
+      target.closest('.ant-upload') || 
+      target.closest('.ant-select') ||
+      target.closest('.ant-select-dropdown') ||
+      target.closest('.ant-modal') ||
+      target.closest('.ant-image-preview') ||
+      target.closest('input') ||
+      target.closest('button') ||
+      target.closest('textarea') ||
+      target.closest('a');
+    
+    if (!isInteractiveElement && onSelectField) {
+      onSelectField(field.id);
+    }
+  };
+
   return (
     <Col {...colProps}>
       <div
+        ref={setNodeRef}
+        style={style}
         className={`
-          cursor-pointer transition-all rounded-lg
+          group relative transition-all rounded-lg p-2
           ${isSelected 
             ? 'ring-2 ring-blue-500 ring-offset-2' 
             : 'hover:ring-2 hover:ring-blue-300 hover:ring-offset-1'
           }
+          ${isDragging ? 'z-50 shadow-lg' : ''}
         `}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onSelectField) {
-            onSelectField(field.id);
-          }
-        }}
+        onClick={handleWrapperClick}
       >
-        {children}
+        {/* Drag Handle - only this part triggers drag */}
+        <div 
+          className="absolute left-1 top-1 opacity-30 group-hover:opacity-100 cursor-move z-20 p-1"
+          {...attributes}
+          {...listeners}
+        >
+          <HolderOutlined className="text-gray-400 text-lg" />
+        </div>
+        {/* Field content - allow normal interactions */}
+        <div className="relative z-10">
+          {children}
+        </div>
       </div>
     </Col>
   );
@@ -66,10 +131,12 @@ const LiveFormPreview = ({
   selectedStepId, 
   selectedFieldId,
   onSelectField,
-  onSelectStep 
+  onSelectStep,
+  onReorderFields 
 }) => {
   const [form] = Form.useForm();
   const [formValues, setFormValues] = useState({});
+  const [activeId, setActiveId] = useState(null);
   const { token } = theme.useToken();
 
   // Find current step index based on selectedStepId
@@ -80,14 +147,47 @@ const LiveFormPreview = ({
   // Ensure valid step
   const validCurrentStep = currentStep >= 0 && currentStep < steps.length ? currentStep : 0;
 
-  // Apply theme configuration (for custom CSS only)
-  const themeConfig = template?.theme_config || {};
-  const { custom_css } = themeConfig;
-
-  // Get current step data
+  // Get current step data - needed before handlers
   const currentStepData = steps[validCurrentStep];
   const isLastStep = validCurrentStep === steps.length - 1;
   const isFirstStep = validCurrentStep === 0;
+
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required to activate drag
+      },
+    })
+  );
+
+  // Handle drag start
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  // Handle drag end
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+    
+    if (active.id !== over?.id && currentStepData) {
+      const fields = currentStepData.fields.sort((a, b) => a.order_index - b.order_index);
+      const oldIndex = fields.findIndex(f => f.id === active.id);
+      const newIndex = fields.findIndex(f => f.id === over?.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(fields, oldIndex, newIndex).map(f => f.id);
+        if (onReorderFields) {
+          onReorderFields(currentStepData.id, newOrder);
+        }
+      }
+    }
+  };
+
+  // Apply theme configuration (for custom CSS only)
+  const themeConfig = template?.theme_config || {};
+  const { custom_css } = themeConfig;
 
   // Handle navigation
   const handleNext = () => {
@@ -155,7 +255,7 @@ const LiveFormPreview = ({
       return (
         <SelectableFieldWrapper 
           key={field.id || field.field_name}
-          field={{ ...field, width: 'full' }} // PARAGRAPH always full width
+          field={field}
           selectedFieldId={selectedFieldId} 
           onSelectField={onSelectField}
         >
@@ -171,7 +271,7 @@ const LiveFormPreview = ({
       return (
         <SelectableFieldWrapper 
           key={field.id || field.field_name}
-          field={{ ...field, width: 'full' }} // SECTION_HEADER always full width
+          field={field}
           selectedFieldId={selectedFieldId} 
           onSelectField={onSelectField}
         >
@@ -269,21 +369,40 @@ const LiveFormPreview = ({
                 onValuesChange={handleValuesChange}
                 requiredMark="optional"
               >
-                <Row gutter={[16, 0]}>
-                  {currentStepData.fields?.length > 0 ? (
-                    currentStepData.fields
-                      .sort((a, b) => a.order_index - b.order_index)
-                      .map(field => renderFieldWithSelection(field))
-                  ) : (
-                    <Col span={24}>
-                      <div className="w-full text-center py-8">
-                        <Text type="secondary" className="text-sm">
-                          No fields in this step yet
-                        </Text>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={currentStepData.fields?.map(f => f.id) || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <Row gutter={[16, 16]}>
+                      {currentStepData.fields?.length > 0 ? (
+                        currentStepData.fields
+                          .sort((a, b) => a.order_index - b.order_index)
+                          .map(field => renderFieldWithSelection(field))
+                      ) : (
+                        <Col span={24}>
+                          <div className="w-full text-center py-8">
+                            <Text type="secondary" className="text-sm">
+                              No fields in this step yet
+                            </Text>
+                          </div>
+                        </Col>
+                      )}
+                    </Row>
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeId ? (
+                      <div className="bg-white shadow-lg rounded-lg p-3 border-2 border-blue-500">
+                        Dragging field...
                       </div>
-                    </Col>
-                  )}
-                </Row>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
 
                 {/* Navigation buttons - matching PublicFormPage */}
                 <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-4 border-t border-gray-200">

@@ -1109,7 +1109,7 @@ const DynamicField = ({
         )}
       </div>
     );
-    return wrapInCol(content, 24);
+    return wrapInCol(content, span);
   }
 
   if (field.field_type === FIELD_TYPES.PARAGRAPH) {
@@ -1121,7 +1121,7 @@ const DynamicField = ({
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     );
-    return wrapInCol(content, 24);
+    return wrapInCol(content, span);
   }
 
   // Hidden fields

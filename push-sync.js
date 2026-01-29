@@ -14,6 +14,74 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const cwd = process.cwd();
 
+/**
+ * Bump the app version (patch version by default)
+ * Reads src/shared/constants/version.js and increments the patch number
+ * @param {string} type - 'major', 'minor', or 'patch' (default: 'patch')
+ * @returns {string} The new version string
+ */
+function bumpVersion(type = 'patch') {
+  const versionFilePath = path.join(cwd, 'src', 'shared', 'constants', 'version.js');
+  
+  if (!fs.existsSync(versionFilePath)) {
+    console.warn('⚠️  Version file not found, skipping version bump');
+    return null;
+  }
+  
+  let content = fs.readFileSync(versionFilePath, 'utf-8');
+  
+  // Extract current version
+  const versionMatch = content.match(/export const APP_VERSION = ['"]([\d]+)\.([\d]+)\.([\d]+)['"]/);
+  if (!versionMatch) {
+    console.warn('⚠️  Could not parse version from version.js, skipping version bump');
+    return null;
+  }
+  
+  let major = parseInt(versionMatch[1], 10);
+  let minor = parseInt(versionMatch[2], 10);
+  let patch = parseInt(versionMatch[3], 10);
+  
+  // Increment based on type
+  switch (type) {
+    case 'major':
+      major++;
+      minor = 0;
+      patch = 0;
+      break;
+    case 'minor':
+      minor++;
+      patch = 0;
+      break;
+    case 'patch':
+    default:
+      patch++;
+      break;
+  }
+  
+  const newVersion = `${major}.${minor}.${patch}`;
+  
+  // Update the file
+  content = content.replace(
+    /export const APP_VERSION = ['"][^'"]+['"]/,
+    `export const APP_VERSION = '${newVersion}'`
+  );
+  
+  fs.writeFileSync(versionFilePath, content, 'utf-8');
+  
+  // Also update index.html meta tag if it exists
+  const indexHtmlPath = path.join(cwd, 'index.html');
+  if (fs.existsSync(indexHtmlPath)) {
+    let htmlContent = fs.readFileSync(indexHtmlPath, 'utf-8');
+    htmlContent = htmlContent.replace(
+      /<meta name="app-version" content="[^"]*"/,
+      `<meta name="app-version" content="${newVersion}"`
+    );
+    fs.writeFileSync(indexHtmlPath, htmlContent, 'utf-8');
+  }
+  
+  return newVersion;
+}
+
 function sh(cmd, opts = {}) {
   execSync(cmd, { stdio: 'inherit', cwd, ...opts });
 }
@@ -236,6 +304,12 @@ git status -sb`;
 
 async function main() {
   const { dryRun, title, desc, branch } = parseArgs();
+
+  // Bump version before committing
+  const newVersion = bumpVersion('patch');
+  if (newVersion) {
+    console.log(`🔢 Version bumped to ${newVersion}`);
+  }
 
   const secrets = loadSecrets(path.join(cwd, '.deploy.secrets.json'));
   const currentBranch = determineBranch(branch);

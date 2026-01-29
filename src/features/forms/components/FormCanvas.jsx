@@ -2,6 +2,7 @@
  * Form Canvas Component
  * The main workspace for building forms with steps and fields
  * Supports inline editing for field labels, placeholders, and help text
+ * Enhanced with smooth drag-and-drop reordering using @dnd-kit
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -15,7 +16,9 @@ import {
   Modal,
   Input,
   Tag,
-  Space
+  Space,
+  Row,
+  Col
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -31,6 +34,21 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import * as Icons from '@ant-design/icons';
+import { 
+  DndContext, 
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { FIELD_CATEGORIES, WIDTH_OPTIONS, FIELD_TYPES } from '../constants/fieldTypes';
 
 const { Text, Title } = Typography;
@@ -56,22 +74,44 @@ const getFieldTypeLabel = (fieldType) => {
   return fieldType;
 };
 
-// Field Item Component with Inline Editing
+// Get column span based on width
+const getColSpan = (width) => {
+  const widthOption = WIDTH_OPTIONS.find(w => w.value === width);
+  return widthOption?.span || 24; // Default to full width
+};
+
+// Field Item Component with Inline Editing and Sortable DnD
 const FieldItem = ({ 
   field, 
   isSelected, 
   onSelect, 
   onDelete, 
   onDuplicate,
-  onUpdate,
-  onDragStart,
-  onDragOver,
-  onDrop
+  onUpdate
 }) => {
   const [editingField, setEditingField] = useState(null); // 'label' | 'placeholder' | 'help_text' | null
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);
   const width = WIDTH_OPTIONS.find(w => w.value === field.width)?.label || 'Full Width';
+
+  // Sortable hook for drag-and-drop
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: field.id,
+    disabled: editingField !== null // Disable dragging while editing
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   // Focus input when editing starts
   useEffect(() => {
@@ -299,23 +339,27 @@ const FieldItem = ({
   };
 
   return (
-    <div
-      className={`
-        field-item group relative p-3 mb-2 rounded-lg border-2 bg-white
-        transition-all cursor-pointer
-        ${isSelected 
-          ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm' 
-          : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
-        }
-      `}
-      onClick={() => onSelect(field.id)}
-      draggable={!editingField}
-      onDragStart={(e) => !editingField && onDragStart(e, field)}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, field)}
-    >
+    <Col span={getColSpan(field.width)}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`
+          field-item group relative p-3 rounded-lg border-2 bg-white
+          transition-all cursor-move
+          ${isSelected 
+            ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm' 
+            : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+          }
+          ${isDragging ? 'z-50 shadow-lg' : ''}
+        `}
+        onClick={() => onSelect(field.id)}
+        {...attributes}
+        {...listeners}
+      >
       {/* Drag Handle */}
-      <div className="absolute left-1 top-3 opacity-0 group-hover:opacity-100 cursor-grab">
+      <div 
+        className="absolute left-1 top-3 opacity-30 group-hover:opacity-100 cursor-grab active:cursor-grabbing pointer-events-none"
+      >
         <HolderOutlined className="text-gray-400" />
       </div>
 
@@ -398,6 +442,7 @@ const FieldItem = ({
         </div>
       </div>
     </div>
+    </Col>
   );
 };
 
@@ -423,6 +468,38 @@ const StepPanel = ({
   const [titleValue, setTitleValue] = useState(step.title);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionValue, setDescriptionValue] = useState(step.description || '');
+  const [activeId, setActiveId] = useState(null);
+
+  // Setup sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required to activate drag
+      },
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const fields = step.fields.sort((a, b) => a.order_index - b.order_index);
+      const oldIndex = fields.findIndex(f => f.id === active.id);
+      const newIndex = fields.findIndex(f => f.id === over?.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(fields, oldIndex, newIndex).map(f => f.id);
+        onReorderFields(step.id, newOrder);
+      }
+    }
+    
+    setActiveId(null);
+  };
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
 
   const handleSaveTitle = () => {
     if (titleValue.trim() && titleValue !== step.title) {
@@ -462,55 +539,6 @@ const StepPanel = ({
       },
     },
   ];
-
-  // Handle field drag/drop
-  const handleFieldDragStart = (e, field) => {
-    e.dataTransfer.setData('fieldId', field.id);
-    e.dataTransfer.setData('fromStepId', step.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleFieldDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleFieldDrop = (e, targetField) => {
-    e.preventDefault();
-    const fieldId = parseInt(e.dataTransfer.getData('fieldId'));
-    const fieldType = e.dataTransfer.getData('fieldType');
-    
-    if (fieldType) {
-      // New field from toolbox
-      onAddField(step.id, fieldType, targetField?.order_index);
-    } else if (fieldId) {
-      // Existing field being reordered
-      const fromStepId = parseInt(e.dataTransfer.getData('fromStepId'));
-      
-      if (fromStepId === step.id) {
-        // Reorder within same step
-        const currentOrder = step.fields.map(f => f.id);
-        const fromIndex = currentOrder.indexOf(fieldId);
-        const toIndex = currentOrder.indexOf(targetField.id);
-        
-        if (fromIndex !== toIndex) {
-          currentOrder.splice(fromIndex, 1);
-          currentOrder.splice(toIndex, 0, fieldId);
-          onReorderFields(step.id, currentOrder);
-        }
-      }
-    }
-  };
-
-  // Handle drop on step (empty or end)
-  const handleStepDrop = (e) => {
-    e.preventDefault();
-    const fieldType = e.dataTransfer.getData('fieldType');
-    
-    if (fieldType) {
-      onAddField(step.id, fieldType);
-    }
-  };
 
   return (
     <Card
@@ -558,8 +586,6 @@ const StepPanel = ({
       }
       size="small"
       onClick={() => onSelectStep(step.id)}
-      onDragOver={handleFieldDragOver}
-      onDrop={handleStepDrop}
     >
       {!collapsed && (
         <>
@@ -604,24 +630,43 @@ const StepPanel = ({
 
           {/* Fields */}
           {step.fields?.length > 0 ? (
-            <div className="space-y-2">
-              {step.fields
-                .sort((a, b) => a.order_index - b.order_index)
-                .map(field => (
-                  <FieldItem
-                    key={field.id}
-                    field={field}
-                    isSelected={selectedFieldId === field.id}
-                    onSelect={onSelectField}
-                    onUpdate={onUpdateField}
-                    onDelete={onDeleteField}
-                    onDuplicate={onDuplicateField}
-                    onDragStart={handleFieldDragStart}
-                    onDragOver={handleFieldDragOver}
-                    onDrop={handleFieldDrop}
-                  />
-                ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={step.fields.map(f => f.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <Row gutter={[16, 16]}>
+                  {step.fields
+                    .sort((a, b) => a.order_index - b.order_index)
+                    .map(field => (
+                      <FieldItem
+                        key={field.id}
+                        field={field}
+                        isSelected={selectedFieldId === field.id}
+                        onSelect={onSelectField}
+                        onUpdate={onUpdateField}
+                        onDelete={onDeleteField}
+                        onDuplicate={onDuplicateField}
+                      />
+                    ))}
+                </Row>
+              </SortableContext>
+              <DragOverlay>
+                {activeId ? (
+                  <div className="field-item p-3 rounded-lg border-2 border-blue-500 bg-white shadow-lg opacity-90">
+                    <HolderOutlined className="text-gray-400 mr-2" />
+                    <Text strong>
+                      {step.fields.find(f => f.id === activeId)?.field_label || 'Field'}
+                    </Text>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
