@@ -1023,7 +1023,8 @@ const DynamicField = ({
   form: _form,
   allValues = {},
   disabled = false,
-  showLabel = true 
+  showLabel = true,
+  skipColWrapper = false  // Allow parent to handle Col wrapper
 }) => {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -1084,39 +1085,43 @@ const DynamicField = ({
     }
   }, [field.conditional_logic, allValues]);
 
+  // Helper to conditionally wrap content in Col
+  const wrapInCol = (content, span = 24) => {
+    if (skipColWrapper) return content;
+    return <Col span={span}>{content}</Col>;
+  };
+
   // Layout fields render differently
   if (field.field_type === FIELD_TYPES.SECTION_HEADER) {
     if (!isVisible) return null;
     const htmlContent = field.default_value || field.help_text;
-    return (
-      <Col span={24}>
-        <div className="form-section-header">
-          <Title level={4} className="mt-4 mb-2">
-            {field.field_label}
-          </Title>
-          {htmlContent && (
-            <div 
-              className="section-header-content"
-              style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
-            />
-          )}
-        </div>
-      </Col>
+    const content = (
+      <div className="form-section-header">
+        <Title level={4} className="mt-4 mb-2">
+          {field.field_label}
+        </Title>
+        {htmlContent && (
+          <div 
+            className="section-header-content"
+            style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        )}
+      </div>
     );
+    return wrapInCol(content, 24);
   }
 
   if (field.field_type === FIELD_TYPES.PARAGRAPH) {
     if (!isVisible) return null;
     const htmlContent = field.default_value || field.help_text;
-    return (
-      <Col span={24}>
-        <div 
-          className="my-3 paragraph-field-content"
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
-        />
-      </Col>
+    const content = (
+      <div 
+        className="my-3 paragraph-field-content"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
     );
+    return wrapInCol(content, 24);
   }
 
   // Hidden fields
@@ -1138,20 +1143,30 @@ const DynamicField = ({
   const colProps = getColProps(field.width);
   const rules = buildValidationRules(field);
 
+  const formItem = (
+    <Form.Item
+      name={field.field_name}
+      label={showLabel ? field.field_label : undefined}
+      rules={rules}
+      extra={field.help_text}
+      initialValue={field.default_value}
+      valuePropName={[FIELD_TYPES.CHECKBOX, FIELD_TYPES.TOGGLE, FIELD_TYPES.CONSENT].includes(field.field_type) ? 'checked' : 'value'}
+    >
+      {renderFieldInput(field, disabled, allValues)}
+    </Form.Item>
+  );
+
+  if (skipColWrapper) {
+    return formItem;
+  }
+
   return (
     <Col {...colProps}>
-      <Form.Item
-        name={field.field_name}
-        label={showLabel ? field.field_label : undefined}
-        rules={rules}
-        extra={field.help_text}
-        initialValue={field.default_value}
-        valuePropName={[FIELD_TYPES.CHECKBOX, FIELD_TYPES.TOGGLE, FIELD_TYPES.CONSENT].includes(field.field_type) ? 'checked' : 'value'}
-      >
-        {renderFieldInput(field, disabled, allValues)}
-      </Form.Item>
+      {formItem}
     </Col>
   );
 };
 
+// Export getColProps for use in other components (like LiveFormPreview)
+export { getColProps };
 export default DynamicField;
