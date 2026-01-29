@@ -851,6 +851,16 @@
   font-size: 15px;
   line-height: 1.7;
   color: #333;
+  white-space: pre-line; /* Preserve line breaks from plain text */
+}
+
+/* Ensure paragraphs inside paragraph content have proper spacing */
+.paragraph-field-content p {
+  margin-bottom: 0.75em;
+}
+
+.paragraph-field-content p:last-child {
+  margin-bottom: 0;
 }
 
 .paragraph-field-content h1,

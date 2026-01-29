@@ -1095,6 +1095,7 @@ const DynamicField = ({
   if (field.field_type === FIELD_TYPES.SECTION_HEADER) {
     if (!isVisible) return null;
     const htmlContent = field.default_value || field.help_text;
+    const colProps = getColProps(field.width);
     const content = (
       <div className="form-section-header">
         <Title level={4} className="mt-4 mb-2">
@@ -1109,19 +1110,22 @@ const DynamicField = ({
         )}
       </div>
     );
-    return wrapInCol(content, span);
+    if (skipColWrapper) return content;
+    return <Col {...colProps}>{content}</Col>;
   }
 
   if (field.field_type === FIELD_TYPES.PARAGRAPH) {
     if (!isVisible) return null;
     const htmlContent = field.default_value || field.help_text;
+    const colProps = getColProps(field.width);
     const content = (
       <div 
         className="my-3 paragraph-field-content"
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     );
-    return wrapInCol(content, span);
+    if (skipColWrapper) return content;
+    return <Col {...colProps}>{content}</Col>;
   }
 
   // Hidden fields
