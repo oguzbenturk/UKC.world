@@ -758,10 +758,31 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       return (
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span>Hours: {usedHours}/{totalHours}</span>
+            <span>🎓 Hours: {usedHours}/{totalHours}</span>
             <span>{remainingHours !== undefined ? remainingHours : (totalHours - usedHours)} left</span>
           </div>
-          <Progress percent={Math.round((usedHours / totalHours) * 100)} size="small" />
+          <Progress percent={Math.round((usedHours / totalHours) * 100)} size="small" strokeColor="#1890ff" />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderRentalProgress = (record) => {
+    // Support both camelCase and snake_case field names from API
+    const rentalDaysTotal = record.rentalDaysTotal || record.rental_days_total;
+    const rentalDaysUsed = record.rentalDaysUsed || record.rental_days_used || 0;
+    const rentalDaysRemaining = record.rentalDaysRemaining !== undefined ? record.rentalDaysRemaining : record.rental_days_remaining;
+    
+    // Show rental progress if package has rental days data
+    if (rentalDaysTotal > 0) {
+      return (
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span>🏄 Rental Days: {rentalDaysUsed}/{rentalDaysTotal}</span>
+            <span>{rentalDaysRemaining !== undefined ? rentalDaysRemaining : (rentalDaysTotal - rentalDaysUsed)} left</span>
+          </div>
+          <Progress percent={Math.round((rentalDaysUsed / rentalDaysTotal) * 100)} size="small" strokeColor="#52c41a" />
         </div>
       );
     }
@@ -779,10 +800,10 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       return (
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span>Nights: {usedNights}/{accommodationNights}</span>
+            <span>🏨 Nights: {usedNights}/{accommodationNights}</span>
             <span>{remainingNights !== undefined ? remainingNights : (accommodationNights - usedNights)} left</span>
           </div>
-          <Progress percent={Math.round((usedNights / accommodationNights) * 100)} size="small" />
+          <Progress percent={Math.round((usedNights / accommodationNights) * 100)} size="small" strokeColor="#fa8c16" />
         </div>
       );
     }
@@ -817,6 +838,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
             </div>
             <div className="space-y-2 text-sm">
               {renderLessonProgress(record)}
+              {renderRentalProgress(record)}
               {renderNightProgress(record)}
             </div>
             <div className="mt-3 flex justify-between items-center">

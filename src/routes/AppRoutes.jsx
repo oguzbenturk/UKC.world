@@ -47,6 +47,7 @@ import MemberOfferings from '../features/members/pages/MemberOfferings';
 import WaiverManagement from '../features/admin/pages/WaiverManagement';
 import VoucherManagement from '../features/admin/pages/VoucherManagement';
 import SupportTicketsPage from '../features/admin/pages/SupportTicketsPage';
+import LegalDocumentsPage from '../features/settings/pages/LegalDocumentsPage';
 import HelpSupport from '../features/help/pages/HelpSupport';
 import DeletedBookingsPage from '../components/admin/DeletedBookingsPage';
 import StudentLayout from '../features/students/components/StudentLayout';
@@ -65,6 +66,7 @@ import StudentMyRentalsPage from '../features/students/pages/StudentMyRentalsPag
 import StudentMyAccommodationPage from '../features/students/pages/StudentMyAccommodationPage';
 import NotificationCenter from '../features/notifications/pages/NotificationCenter';
 import GdprDataManager from '../features/compliance/components/GdprDataManager';
+import PrivacyGdprPage from '../features/compliance/components/PrivacyGdprPage';
 import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage';
 import GuestLandingPage from '../features/outsider/pages/GuestLandingPage';
 import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPage';
@@ -368,6 +370,7 @@ const AppRoutes = () => {
         <Route path="/admin/ratings-analytics" element={<InstructorRatingsAnalytics />} />
   <Route path="/admin/roles" element={<RolesAdmin />} />
   <Route path="/admin/waivers" element={<WaiverManagement />} />
+  <Route path="/admin/legal-documents" element={<LegalDocumentsPage />} />
   <Route path="/admin/vouchers" element={<VoucherManagement />} />
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
         <Route path="/admin/manager-commissions" element={<ManagerCommissionSettings />} />
@@ -433,8 +436,8 @@ const AppRoutes = () => {
         <Route path="/users/:id/edit" element={<UserProfilePage />} />
         {/* Redirect /profile to current user's profile */}
         <Route path="/profile" element={<CurrentUserProfile />} />
-        {/* GDPR Privacy Rights - accessible to all authenticated users */}
-        <Route path="/privacy/gdpr" element={<GdprDataManager />} />
+        {/* GDPR Privacy Rights - admins see Legal Documents, users see GDPR manager */}
+        <Route path="/privacy/gdpr" element={<PrivacyGdprPage />} />
         {/* User settings - accessible to all authenticated users */}
         <Route path="/settings" element={<UserSettings />} />
       </Route>

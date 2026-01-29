@@ -653,28 +653,50 @@ const ProfileInfoCard = ({ student, stats, account, formatCurrency, displayCurre
   );
 };
 
-const PackagesCard = ({ packages }) => (
-  <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">
-    <div className="mb-4 flex items-center justify-between">
-      <h3 className="text-lg font-semibold">Package Summary</h3>
-      <Tag color="cyan">View only</Tag>
-    </div>
-    {packages.length > 0 ? (
-      <div className="space-y-3">
-        {packages.map((pkg) => {
-          const utilisation = pkg.utilisation ?? (pkg.totalHours > 0
-            ? Math.round(((pkg.usedHours || 0) / pkg.totalHours) * 100)
-            : 0);
-          return (
-            <div
-              key={pkg.id}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+const PackagesCard = ({ packages }) => {
+  // Debug: Log packages to see what data we're receiving
+  console.log('PackagesCard packages:', packages);
+  if (packages && packages.length > 0) {
+    console.log('First package full object:', JSON.stringify(packages[0], null, 2));
+  }
+  
+  return (
+    <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Package Summary</h3>
+        <Tag color="cyan">View only</Tag>
+      </div>
+      {packages.length > 0 ? (
+        <div className="space-y-3">
+          {packages.map((pkg) => {
+            console.log('Rendering package:', pkg.name, {
+              includesRental: pkg.includesRental,
+              rentalDaysTotal: pkg.rentalDaysTotal,
+              includesAccommodation: pkg.includesAccommodation,
+              accommodationNightsTotal: pkg.accommodationNightsTotal
+            });
+            
+            const utilisation = pkg.utilisation ?? (pkg.totalHours > 0
+              ? Math.round(((pkg.usedHours || 0) / pkg.totalHours) * 100)
+              : 0);
+            
+            // Determine what the package includes
+            const includesLessons = pkg.includesLessons !== false && (pkg.totalHours || 0) > 0;
+            const includesRental = pkg.includesRental && (pkg.rentalDaysTotal || 0) > 0;
+            const includesAccommodation = pkg.includesAccommodation && (pkg.accommodationNightsTotal || 0) > 0;
+            
+            return (
+              <div
+                key={pkg.id}
+                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="font-semibold text-gray-900">{pkg.name}</div>
                   <div className="text-sm text-gray-500">
                     {pkg.lessonType || 'General package'}
+                    {includesRental && ' + Rental'}
+                    {includesAccommodation && ' + Accommodation'}
                   </div>
                 </div>
                 <Space size="small">
@@ -688,33 +710,86 @@ const PackagesCard = ({ packages }) => (
                   )}
                 </Space>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
-                <div>
-                  <Text type="secondary">Total Hours</Text>
-                  <p className="font-medium">{(pkg.totalHours ?? 0).toFixed(1)}</p>
+              
+              {/* Lesson Hours Section */}
+              {includesLessons && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
+                  <div>
+                    <Text type="secondary">🎓 Total Hours</Text>
+                    <p className="font-medium">{(pkg.totalHours ?? 0).toFixed(1)}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Used</Text>
+                    <p className="font-medium">{(pkg.usedHours ?? 0).toFixed(1)}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Remaining</Text>
+                    <p className="font-medium text-blue-600">{(pkg.remainingHours ?? 0).toFixed(1)}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Utilisation</Text>
+                    <p className="font-medium">{utilisation}%</p>
+                  </div>
                 </div>
-                <div>
-                  <Text type="secondary">Used</Text>
-                  <p className="font-medium">{(pkg.usedHours ?? 0).toFixed(1)}</p>
+              )}
+              
+              {/* Rental Days Section */}
+              {includesRental && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
+                  <div>
+                    <Text type="secondary">🏄 Total Days</Text>
+                    <p className="font-medium">{(pkg.rentalDaysTotal ?? 0).toFixed(0)}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Used</Text>
+                    <p className="font-medium">{(pkg.rentalDaysUsed ?? 0).toFixed(0)}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Remaining</Text>
+                    <p className="font-medium text-green-600">{(pkg.rentalDaysRemaining ?? 0).toFixed(0)}</p>
+                  </div>
+                  {pkg.rentalServiceName && (
+                    <div>
+                      <Text type="secondary">Equipment</Text>
+                      <p className="font-medium text-xs">{pkg.rentalServiceName}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Text type="secondary">Remaining</Text>
-                  <p className="font-medium">{(pkg.remainingHours ?? 0).toFixed(1)}</p>
+              )}
+              
+              {/* Accommodation Nights Section */}
+              {includesAccommodation && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
+                  <div>
+                    <Text type="secondary">🏨 Total Nights</Text>
+                    <p className="font-medium">{pkg.accommodationNightsTotal ?? 0}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Used</Text>
+                    <p className="font-medium">{pkg.accommodationNightsUsed ?? 0}</p>
+                  </div>
+                  <div>
+                    <Text type="secondary">Remaining</Text>
+                    <p className="font-medium text-orange-600">{pkg.accommodationNightsRemaining ?? 0}</p>
+                  </div>
+                  {pkg.accommodationUnitName && (
+                    <div>
+                      <Text type="secondary">Unit</Text>
+                      <p className="font-medium text-xs">{pkg.accommodationUnitName}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Text type="secondary">Utilisation</Text>
-                  <p className="font-medium">{utilisation}%</p>
-                </div>
+              )}
               </div>
-            </div>
-          );
-        })}
-      </div>
-    ) : (
-      <Empty description="No packages assigned" />
-    )}
-  </Card>
-);
+            );
+          })}
+        </div>
+      ) : (
+        <Empty description="No packages assigned" />
+      )}
+    </Card>
+  );
+};
 
 const UpcomingLessonsCard = ({ sessions }) => (
   <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">

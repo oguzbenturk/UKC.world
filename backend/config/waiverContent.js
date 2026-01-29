@@ -1,12 +1,10 @@
 /**
- * Liability Waiver Content - Plannivo Water Sports
+ * Liability Waiver Content - Duotone Pro Center
  * 
- * ⚠️ IMPORTANT: This is a DRAFT template and MUST be reviewed and approved
- * by qualified legal counsel before use. This waiver should be customized
- * to comply with local laws and regulations in your jurisdiction.
+ * Professional kitesurfing and water sports center liability waiver
  * 
- * Version: 1.0
- * Effective Date: To be determined upon legal approval
+ * Version: 2.0
+ * Effective Date: January 2026
  * Language: English (en)
  * 
  * @module waiverContent
@@ -15,11 +13,11 @@
 /**
  * Waiver metadata
  */
-export const WAIVER_VERSION = '1.0';
+export const WAIVER_VERSION = '2.0';
 export const WAIVER_LANGUAGE = 'en';
-export const EFFECTIVE_DATE = new Date('2025-11-01'); // To be updated upon legal approval
-export const COMPANY_NAME = 'Plannivo Water Sports';
-export const COMPANY_LOCATION = '[City, Country]'; // Update with actual location
+export const EFFECTIVE_DATE = new Date('2026-01-01');
+export const COMPANY_NAME = 'Duotone Pro Center';
+export const COMPANY_LOCATION = 'International Kitesurfing Destinations';
 
 /**
  * Full waiver content object
@@ -34,70 +32,79 @@ export const waiverContent = {
   /**
    * Waiver title and introduction
    */
-  title: 'LIABILITY WAIVER AND RELEASE OF CLAIMS',
+  title: 'DUOTONE PRO CENTER LIABILITY WAIVER AND RELEASE',
   
   introduction: {
-    heading: 'Introduction and Acknowledgment',
+    heading: 'Welcome to Duotone Pro Center',
     content: `
-BY SIGNING THIS DOCUMENT, YOU WILL WAIVE CERTAIN LEGAL RIGHTS, INCLUDING THE RIGHT TO SUE OR CLAIM COMPENSATION FOLLOWING AN ACCIDENT.
+IMPORTANT LEGAL DOCUMENT - READ CAREFULLY BEFORE PARTICIPATING
 
-Please read this document carefully before signing. This is a binding legal agreement. By signing this waiver, you acknowledge that you have read, understood, and agree to be bound by its terms.
+This Liability Waiver and Release of Claims ("Agreement") is a legally binding contract between you (the "Participant") and ${COMPANY_NAME} and its affiliated locations, instructors, and partners (collectively, the "Center").
 
-This Liability Waiver and Release of Claims ("Waiver") is entered into by and between ${COMPANY_NAME} (the "Company") and the participant or guardian signing below (the "Participant").
+BY SIGNING THIS AGREEMENT, YOU ACKNOWLEDGE THAT:
 
-The Participant wishes to participate in water sports activities, including but not limited to surfing, kitesurfing, windsurfing, paddleboarding, kayaking, sailing, and related instruction and equipment rental (collectively, the "Activities").
+• Kitesurfing, windsurfing, wing foiling, and all water sports involve inherent risks that can result in serious injury or death
+• You are voluntarily participating in these activities with full knowledge of the risks involved
+• You are releasing the Center from all liability for injuries or damages that may occur
+• This waiver affects your legal rights, including the right to sue
+
+ACTIVITIES COVERED: This waiver applies to all kitesurfing, windsurfing, wing foiling, SUP, surfing, equipment rental, instruction, coaching, beach services, and any other activities provided by Duotone Pro Center.
+
+PARTICIPANT CONFIRMATION: I confirm that I am at least 18 years of age (or have parental/guardian consent if under 18), am in good physical and mental health, and understand the nature of the activities I will be undertaking.
     `.trim()
   },
 
   /**
    * Assumption of Risk section
-   * Covers water sports specific dangers
+   * Covers kitesurfing and water sports specific dangers
    */
   assumptionOfRisk: {
-    heading: 'Assumption of Risk',
+    heading: 'Assumption of Risk and Acknowledgment of Dangers',
     content: `
-The Participant acknowledges and understands that water sports activities involve inherent and significant risks, hazards, and dangers that no amount of care, caution, instruction, or expertise can eliminate. These risks include, but are not limited to:
+I, the Participant, acknowledge and fully understand that kitesurfing, windsurfing, wing foiling, and all water sports activities involve INHERENT AND SIGNIFICANT RISKS that cannot be eliminated regardless of the care taken. I voluntarily assume all risks associated with participation, including but not limited to:
 
-**WATER-RELATED HAZARDS:**
-• Drowning or near-drowning incidents
-• Strong currents, rip tides, and undertows
-• Unpredictable wave conditions and surf
-• Cold water exposure and hypothermia
-• Marine life encounters (jellyfish, sea urchins, etc.)
-• Submerged objects, reefs, and rocks
-• Water pollution and contamination
+**KITESURFING & WIND SPORTS SPECIFIC RISKS:**
+• Sudden wind gusts, lulls, or changes in wind direction causing loss of control
+• Kite power and uncontrolled flight leading to being dragged, lifted, or thrown
+• Line entanglement causing cuts, lacerations, or strangulation
+• Equipment malfunction including line breaks, kite tears, or board failures
+• Collisions with other riders, swimmers, watercraft, or obstacles
+• Impact injuries from being struck by kites, boards, or bars (own or others')
+• Being launched into the air and falling from height onto water or land
+• Overconfidence leading to attempting maneuvers beyond skill level
 
-**WEATHER AND ENVIRONMENTAL RISKS:**
-• Sudden weather changes and storms
-• Lightning strikes
-• High winds and wind gusts
-• Poor visibility conditions
-• Sun exposure, heat exhaustion, and dehydration
-• Extreme temperatures
+**WATER & ENVIRONMENTAL HAZARDS:**
+• Drowning or near-drowning in any water depth
+• Strong currents, rip tides, undertows, and offshore winds
+• Large waves, shore break, and unpredictable surf conditions
+• Cold water exposure, hypothermia, and heat-related illnesses
+• Marine life encounters (jellyfish, stingrays, sharks, etc.)
+• Submerged rocks, reefs, sandbars, and other obstacles
+• Water contamination and pollution
+• Lightning strikes and sudden weather changes
 
-**EQUIPMENT-RELATED RISKS:**
-• Equipment failure or malfunction
-• Improper use of equipment
-• Collisions with equipment (boards, sails, kites, etc.)
-• Entanglement in lines, leashes, or rigging
-• Loss of control of equipment
+**PHYSICAL INJURIES:**
+• Head, neck, spine, and traumatic brain injuries
+• Broken bones, dislocations, sprains, and torn ligaments
+• Cuts, lacerations, abrasions, and puncture wounds
+• Muscle tears, exhaustion, and overexertion
+• Permanent disability, paralysis, or DEATH
 
-**PHYSICAL AND MEDICAL RISKS:**
-• Cuts, bruises, sprains, and fractures
-• Head, neck, and spinal injuries
-• Muscle strains and joint injuries
-• Exhaustion and physical fatigue
-• Allergic reactions
-• Pre-existing medical condition complications
-• Permanent disability or death
+**EQUIPMENT & FACILITY RISKS:**
+• Rental equipment may have wear, defects, or be unsuitable for conditions
+• Beach hazards including rocks, shells, debris, and uneven surfaces
+• Slips and falls at the center, beach, or launch areas
+• Vehicle collisions in parking or access areas
 
-**RISKS FROM OTHER PARTICIPANTS:**
-• Collisions with other participants
-• Collisions with watercraft (boats, jet skis, etc.)
-• Negligence or recklessness of other water users
+**INSTRUCTION & SUPERVISION LIMITATIONS:**
+• Instructors cannot guarantee safety or prevent all accidents
+• Group lessons mean individual attention is limited
+• Communication may be difficult in wind, water, or language barriers
+• Participant error, misjudgment, or failure to follow instructions
 
-**FACILITY AND INSTRUCTION RISKS:**
-• Slips, trips, and falls on docks, beaches, or facilities
+I understand that these risks can result in SERIOUS INJURY, PERMANENT DISABILITY, or DEATH, and I VOLUNTARILY CHOOSE TO PARTICIPATE despite these risks.
+    `.trim()
+  },
 • Inadequate supervision or instruction
 • Communication difficulties in water or adverse conditions
 

@@ -518,6 +518,7 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
           { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
+          { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]
@@ -533,6 +534,7 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
           { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
+          { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
         ]

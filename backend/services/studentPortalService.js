@@ -623,7 +623,21 @@ export async function getStudentOverview(studentId, options = {}) {
                     cp.lesson_service_name,
                     cp.purchase_price,
                     cp.currency,
-                    cp.last_used_date
+                    cp.last_used_date,
+                    cp.package_type,
+                    cp.includes_lessons,
+                    cp.includes_rental,
+                    cp.includes_accommodation,
+                    cp.rental_days_total,
+                    cp.rental_days_used,
+                    cp.rental_days_remaining,
+                    cp.accommodation_nights_total,
+                    cp.accommodation_nights_used,
+                    cp.accommodation_nights_remaining,
+                    cp.rental_service_id,
+                    cp.rental_service_name,
+                    cp.accommodation_unit_id,
+                    cp.accommodation_unit_name
                FROM customer_packages cp
               WHERE cp.customer_id = $1
               ORDER BY cp.created_at DESC
@@ -869,10 +883,22 @@ export async function getStudentOverview(studentId, options = {}) {
       const utilisation = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
       const expiryDate = row.expiry_date ? new Date(row.expiry_date) : null;
       const daysToExpiry = expiryDate ? Math.round((expiryDate.getTime() - now.getTime()) / 86400000) : null;
+      
+      // Rental package fields
+      const rentalDaysTotal = coalesceNumber(row.rental_days_total);
+      const rentalDaysUsed = coalesceNumber(row.rental_days_used);
+      const rentalDaysRemaining = coalesceNumber(row.rental_days_remaining, Math.max(rentalDaysTotal - rentalDaysUsed, 0));
+      
+      // Accommodation package fields
+      const accommodationNightsTotal = coalesceNumber(row.accommodation_nights_total);
+      const accommodationNightsUsed = coalesceNumber(row.accommodation_nights_used);
+      const accommodationNightsRemaining = coalesceNumber(row.accommodation_nights_remaining, Math.max(accommodationNightsTotal - accommodationNightsUsed, 0));
+      
       return {
         id: row.id,
         name: row.package_name || 'Package',
         lessonType: row.lesson_service_name || null,
+        packageType: row.package_type || 'lesson',
         totalHours,
         usedHours,
         remainingHours,
@@ -883,7 +909,22 @@ export async function getStudentOverview(studentId, options = {}) {
         daysToExpiry,
         lastUsedAt: toIso(row.last_used_date),
         price: coalesceNumber(row.purchase_price),
-        currency: row.currency || profileRow.preferred_currency || 'EUR'
+        currency: row.currency || profileRow.preferred_currency || 'EUR',
+        // Rental package fields
+        includesLessons: row.includes_lessons !== false,
+        includesRental: row.includes_rental || false,
+        includesAccommodation: row.includes_accommodation || false,
+        rentalDaysTotal,
+        rentalDaysUsed,
+        rentalDaysRemaining,
+        rentalServiceId: row.rental_service_id || null,
+        rentalServiceName: row.rental_service_name || null,
+        // Accommodation package fields
+        accommodationNightsTotal,
+        accommodationNightsUsed,
+        accommodationNightsRemaining,
+        accommodationUnitId: row.accommodation_unit_id || null,
+        accommodationUnitName: row.accommodation_unit_name || null
       };
     });
 

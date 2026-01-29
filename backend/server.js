@@ -75,6 +75,7 @@ import businessExpensesRouter from './routes/businessExpenses.js';
 import formTemplatesRouter from './routes/formTemplates.js';
 import formSubmissionsRouter from './routes/formSubmissions.js';
 import publicFormsRouter from './routes/publicForms.js';
+import adminRouter from './routes/admin.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import './services/alerts/notificationAlertService.js';
 import { 
@@ -408,6 +409,8 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/admin/waivers', adminWaiversRouter);
 app.use('/api/admin/support-tickets', adminSupportTicketsRouter);
+app.use('/api/admin/financial-reconciliation', adminReconciliationRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/vouchers', vouchersRouter);
 app.use('/api/manager/commissions', managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars

@@ -221,12 +221,20 @@ const StudentLayout = () => {
     });
   }, [openWaiverModal]);
 
-  useInitialWaiverPrompt({
-    user,
-    initialWaiverCheckDone,
-    setInitialWaiverCheckDone,
-    openWaiverModal,
-  });
+  // DISABLED: Waiver is now included in unified consent modal
+  // useInitialWaiverPrompt({
+  //   user,
+  //   initialWaiverCheckDone,
+  //   setInitialWaiverCheckDone,
+  //   openWaiverModal,
+  // });
+
+  // Mark waiver check as done immediately since it's handled by consent modal
+  useEffect(() => {
+    if (user?.id && !initialWaiverCheckDone) {
+      setInitialWaiverCheckDone(true);
+    }
+  }, [user?.id, initialWaiverCheckDone, setInitialWaiverCheckDone]);
 
   const resetWaiverState = useCallback(() => {
     setWaiverModalState({ ...DEFAULT_WAIVER_MODAL_STATE });

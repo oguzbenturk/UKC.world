@@ -378,7 +378,6 @@ const QuickLinksPage = ({ embedded = false }) => {
     setLoading(true);
     try {
       const data = await quickLinksService.getQuickLinks();
-      console.log('Fetched links:', data); // Debug log
       setLinks(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load links:', error);

@@ -14,7 +14,7 @@ router.get('/me', async (req, res) => {
 });
 
 router.post('/me', async (req, res) => {
-  const { acceptTerms, allowEmail, allowSms, allowWhatsapp, termsVersion } = req.body || {};
+  const { acceptTerms, allowEmail, allowSms, allowWhatsapp, termsVersion, acceptWaiver } = req.body || {};
 
   try {
     const status = await updateUserConsent({
@@ -23,7 +23,8 @@ router.post('/me', async (req, res) => {
       allowEmail,
       allowSms,
       allowWhatsapp,
-      termsVersion: termsVersion || LATEST_TERMS_VERSION
+      termsVersion: termsVersion || LATEST_TERMS_VERSION,
+      acceptWaiver
     });
     res.json(status);
   } catch (error) {

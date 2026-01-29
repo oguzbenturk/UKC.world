@@ -112,7 +112,8 @@ export async function updateUserConsent({
   allowEmail,
   allowSms,
   allowWhatsapp,
-  termsVersion
+  termsVersion,
+  acceptWaiver
 }) {
   if (!userId) {
     throw new Error('userId is required to update consent');
@@ -200,6 +201,33 @@ export async function updateUserConsent({
         next.marketingWhatsappOptIn
       ]
     );
+
+    // If acceptWaiver is true, also create a waiver record
+    if (acceptWaiver === true) {
+      // Check if user already has a valid waiver
+      const existingWaiverResult = await client.query(
+        `SELECT id FROM liability_waivers 
+         WHERE user_id = $1 
+         AND signed_at > NOW() - INTERVAL '365 days'
+         ORDER BY signed_at DESC LIMIT 1`,
+        [userId]
+      );
+
+      // Only create waiver if they don't have a recent one
+      if (existingWaiverResult.rows.length === 0) {
+        await client.query(
+          `INSERT INTO liability_waivers (
+            user_id,
+            signer_user_id,
+            waiver_version,
+            language_code,
+            agreed_to_terms,
+            signed_at
+          ) VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [userId, userId, '2025-01-01', 'en', true]
+        );
+      }
+    }
 
     await client.query('COMMIT');
 

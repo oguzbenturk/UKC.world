@@ -22,35 +22,86 @@ import RatingReminderBanner from '../components/RatingReminderBanner';
 import RateInstructorModal from '../components/RateInstructorModal';
 import InstructorNotesPanel from '../components/InstructorNotesPanel';
 
-const PackageCard = ({ pkg }) => (
-  <Card className="h-full shadow-sm" title={pkg.name} extra={pkg.lessonType ? <Tag>{pkg.lessonType}</Tag> : null}>
-    <div className="flex flex-col gap-2 text-sm">
-      <div className="flex justify-between">
-        <span>Total hours</span>
-        <strong>{pkg.totalHours}</strong>
-      </div>
-      <div className="flex justify-between">
-        <span>Used</span>
-        <strong>{pkg.usedHours}</strong>
-      </div>
-      <div className="flex justify-between">
-        <span>Remaining</span>
-        <strong>{pkg.remainingHours}</strong>
-      </div>
-      <div className="flex justify-between">
-        <span>Status</span>
-        <Tag color={pkg.status === 'active' ? 'blue' : pkg.status === 'used_up' ? 'gold' : 'default'}>{pkg.status}</Tag>
-      </div>
-      {pkg.expiresAt && (
+const PackageCard = ({ pkg }) => {
+  const includesLessons = pkg.includesLessons !== false && (pkg.totalHours || 0) > 0;
+  const includesRental = pkg.includesRental && (pkg.rentalDaysTotal || 0) > 0;
+  const includesAccommodation = pkg.includesAccommodation && (pkg.accommodationNightsTotal || 0) > 0;
+  
+  return (
+    <Card className="h-full shadow-sm" title={pkg.name} extra={pkg.lessonType ? <Tag>{pkg.lessonType}</Tag> : null}>
+      <div className="flex flex-col gap-2 text-sm">
+        {/* Lesson Hours */}
+        {includesLessons && (
+          <>
+            <div className="flex justify-between">
+              <span>🎓 Total hours</span>
+              <strong>{pkg.totalHours}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Used</span>
+              <strong>{pkg.usedHours}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Remaining</span>
+              <strong className="text-blue-600">{pkg.remainingHours}</strong>
+            </div>
+          </>
+        )}
+        
+        {/* Rental Days */}
+        {includesRental && (
+          <>
+            {includesLessons && <div className="border-t border-slate-200 my-2" />}
+            <div className="flex justify-between">
+              <span>🏄 Rental Days Total</span>
+              <strong>{pkg.rentalDaysTotal}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Used</span>
+              <strong>{pkg.rentalDaysUsed || 0}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Remaining</span>
+              <strong className="text-green-600">{pkg.rentalDaysRemaining || pkg.rentalDaysTotal}</strong>
+            </div>
+          </>
+        )}
+        
+        {/* Accommodation Nights */}
+        {includesAccommodation && (
+          <>
+            {(includesLessons || includesRental) && <div className="border-t border-slate-200 my-2" />}
+            <div className="flex justify-between">
+              <span>🏨 Nights Total</span>
+              <strong>{pkg.accommodationNightsTotal}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Used</span>
+              <strong>{pkg.accommodationNightsUsed || 0}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span>Remaining</span>
+              <strong className="text-orange-600">{pkg.accommodationNightsRemaining || pkg.accommodationNightsTotal}</strong>
+            </div>
+          </>
+        )}
+        
+        <div className="border-t border-slate-200 my-2" />
         <div className="flex justify-between">
-          <span>Expires</span>
-          <strong>{pkg.expiresAt.split('T')[0]}</strong>
+          <span>Status</span>
+          <Tag color={pkg.status === 'active' ? 'blue' : pkg.status === 'used_up' ? 'gold' : 'default'}>{pkg.status}</Tag>
         </div>
-      )}
-      {pkg.expiryWarning && <Tag color="volcano">Expires soon</Tag>}
-    </div>
-  </Card>
-);
+        {pkg.expiresAt && (
+          <div className="flex justify-between">
+            <span>Expires</span>
+            <strong>{pkg.expiresAt.split('T')[0]}</strong>
+          </div>
+        )}
+        {pkg.expiryWarning && <Tag color="volcano">Expires soon</Tag>}
+      </div>
+    </Card>
+  );
+};
 
 const SessionCard = ({ session }) => {
   // Format date to readable format (e.g., "Jan 19, 2026")
