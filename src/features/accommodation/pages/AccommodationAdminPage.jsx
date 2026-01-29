@@ -1,3 +1,4 @@
+
 /* eslint-disable complexity */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -14,6 +15,7 @@ import {
   Tooltip,
   Tabs,
   Badge,
+  Modal,
   message,
 } from 'antd';
 import {
@@ -141,7 +143,43 @@ function AccommodationAdminPage() {
       message.error('Failed to cancel booking');
     }
   };
+  // Delete booking with confirmation and better error handling
+  const [deletingIds, setDeletingIds] = useState(new Set());
 
+  const handleDeleteBooking = (bookingId) => {
+    Modal.confirm({
+      title: 'Delete booking',
+      content: 'Are you sure you want to permanently delete this booking?',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        if (deletingIds.has(bookingId)) return;
+        setDeletingIds(prev => new Set(prev).add(bookingId));
+        try {
+          await accommodationApi.deleteBooking(bookingId);
+          message.success('Booking deleted');
+          await loadBookings();
+        } catch (err) {
+          const status = err?.response?.status;
+          if (status === 404) {
+            message.warning('Booking not found or already deleted');
+          } else if (status === 403) {
+            message.error('Not authorized to delete this booking');
+          } else {
+            message.error('Failed to delete booking');
+            console.error('Delete booking error', err);
+          }
+        } finally {
+          setDeletingIds(prev => {
+            const next = new Set(prev);
+            next.delete(bookingId);
+            return next;
+          });
+        }
+      }
+    });
+  };
   // Table columns
   const columns = [
     {
@@ -281,6 +319,18 @@ function AccommodationAdminPage() {
               </Button>
             </Tooltip>
           )}
+          <Tooltip title="Delete booking">
+            <Button
+              size="small"
+              danger
+              loading={deletingIds.has(record.id)}
+              disabled={deletingIds.has(record.id)}
+              icon={<CloseCircleOutlined />}
+              onClick={() => handleDeleteBooking(record.id)}
+            >
+              Delete
+            </Button>
+          </Tooltip>
         </Space>
       ),
     },

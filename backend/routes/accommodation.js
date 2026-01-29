@@ -356,21 +356,30 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 router.post('/bookings', authenticateJWT, async (req, res) => {
 	const client = await pool.connect();
 	try {
-		await client.query('BEGIN');
-		const { 
-			unit_id, 
-			check_in_date, 
-			check_out_date, 
-			guests_count = 1,
-			guest_id: requestedGuestId,
-			notes 
-		} = req.body;
-		
+		   await client.query('BEGIN');
+		   const { 
+			   unit_id, 
+			   check_in_date, 
+			   check_out_date, 
+			   guests_count = 1,
+			   guest_id: requestedGuestId,
+			   notes 
+		   } = req.body;
+
+		   // DEBUG LOG
+		   console.log('[BOOKING] req.user:', req.user);
+		   console.log('[BOOKING] requestedGuestId:', requestedGuestId);
 		// Staff (admin, manager, front_desk) can book for any user
 		// Regular users can only book for themselves
-		const staffRoles = ['admin', 'manager', 'front_desk'];
-		const isStaff = staffRoles.includes(req.user.user_role);
-		const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
+			 // Staff (admin, manager, front_desk) can book for any user
+			 // Regular users can only book for themselves
+			 const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
+			 const isStaff = (
+				 userRole === 'admin' ||
+				 userRole === 'manager' ||
+				 userRole.startsWith('front_desk')
+			 );
+			 const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
 		
 		if (!unit_id || !check_in_date || !check_out_date) {
 			return res.status(400).json({ error: 'unit_id, check_in_date, and check_out_date are required' });
@@ -429,9 +438,9 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		const { rows } = await client.query(
 			`INSERT INTO accommodation_bookings 
 			(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $3, NOW(), NOW())
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, NOW(), NOW())
 			RETURNING *`,
-			[id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null]
+			[id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id]
 		);
 		
 		await client.query('COMMIT');
@@ -531,6 +540,34 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
 		res.json(booking);
 	} catch (err) {
 		res.status(500).json({ error: 'Failed to get booking', details: err.message });
+	}
+});
+
+// Delete a booking by ID (admin, manager, front_desk)
+router.delete('/bookings/:id', authenticateJWT, async (req, res) => {
+	try {
+		const { id } = req.params;
+		console.log('[ACCOMMODATION DELETE] user:', req.user?.id, 'role:', req.user?.role || req.user?.user_role);
+		// Normalize role and determine staff
+		const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
+		const isStaff = (
+			userRole === 'admin' ||
+			userRole === 'manager' ||
+			userRole.startsWith('front_desk')
+		);
+		const { rows } = await pool.query(
+			`DELETE FROM accommodation_bookings WHERE id = $1 AND ($2 = TRUE OR created_by = $3) RETURNING *`,
+			[id, isStaff, req.user.id]
+		);
+		if (rows.length === 0) {
+			console.log('[ACCOMMODATION DELETE] not found or unauthorized', { id, isStaff, user: req.user.id });
+			return res.status(404).json({ error: 'Booking not found or not authorized to delete' });
+		}
+		console.log('[ACCOMMODATION DELETE] deleted booking', rows[0].id);
+		res.json({ success: true, deleted: rows[0] });
+	} catch (err) {
+		console.error('[ACCOMMODATION DELETE] error', err);
+		res.status(500).json({ error: 'Failed to delete booking', details: err.message });
 	}
 });
 

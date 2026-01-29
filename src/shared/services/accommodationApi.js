@@ -1,3 +1,10 @@
+/**
+ * Delete a booking
+ */
+export const deleteBooking = async (id) => {
+  const response = await apiClient.delete(`/accommodation/bookings/${id}`);
+  return response.data;
+};
 import apiClient from './apiClient';
 
 /**
@@ -150,6 +157,7 @@ export const accommodationApi = {
   confirmBooking,
   completeBooking,
   cancelBooking,
+  deleteBooking,
 };
 
 export default accommodationApi;
