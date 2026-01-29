@@ -22,7 +22,10 @@ import {
   Empty,
   Drawer,
   Row,
-  Col
+  Col,
+  Divider,
+  Avatar,
+  Image
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -39,7 +42,10 @@ import {
   FileOutlined,
   FilePdfOutlined,
   FileImageOutlined,
-  FileWordOutlined
+  FileWordOutlined,
+  UserOutlined,
+  MailOutlined,
+  PrinterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as formService from '../services/formService';
@@ -49,6 +55,8 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const STATUS_CONFIG = {
+  draft: { color: 'default', icon: <ClockCircleOutlined />, label: 'Draft' },
+  submitted: { color: 'blue', icon: <CheckCircleOutlined />, label: 'Submitted' },
   pending: { color: 'gold', icon: <ClockCircleOutlined />, label: 'Pending' },
   processed: { color: 'green', icon: <CheckCircleOutlined />, label: 'Processed' },
   archived: { color: 'default', icon: <InboxOutlined />, label: 'Archived' }
@@ -64,7 +72,7 @@ const FormResponsesPage = () => {
   const [submissions, setSubmissions] = useState([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [filters, setFilters] = useState({
-    status: undefined,
+    status: 'submitted', // Default to showing only submitted forms
     search: '',
     dateRange: null
   });
@@ -160,6 +168,340 @@ const FormResponsesPage = () => {
     }
   };
 
+  // Export individual submission as PDF
+  const handleExportPDF = async (submission) => {
+    try {
+      message.loading('Generating PDF...', 0);
+      
+      // Get full submission details with form fields
+      const fullSubmission = await formService.getFormSubmission(submission.id);
+      
+      // Generate and download PDF
+      await generateSubmissionPDF(fullSubmission, form);
+      
+      message.destroy();
+      message.success('PDF generated successfully');
+    } catch (err) {
+      message.destroy();
+      logger.error('Error generating PDF:', err);
+      message.error('Failed to generate PDF');
+    }
+  };
+
+  // Generate PDF for submission
+  const generateSubmissionPDF = async (submission, formTemplate) => {
+    // Create a printable HTML content
+    const data = submission.submission_data || {};
+    const fields = submission.form_fields || [];
+    
+    // Categorize files
+    const profilePic = findProfilePicture(data);
+    const cvFile = findCVFile(data);
+    const otherFiles = findOtherFiles(data, profilePic, cvFile);
+    
+    // Get submitter info
+    const submitterName = data.full_name || data.name || data.first_name || 'Anonymous';
+    const submitterEmail = data.email || data.email_address || '';
+    const submitterPhone = data.phone || data.phone_number || data.mobile || '';
+    
+    // Build HTML for PDF
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Form Submission #${submission.id}</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+            line-height: 1.6;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #1890ff;
+          }
+          .header h1 {
+            color: #1890ff;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+          }
+          .header .submission-id {
+            color: #666;
+            font-size: 14px;
+          }
+          .profile-section {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 40px;
+            align-items: flex-start;
+          }
+          .profile-pic {
+            flex-shrink: 0;
+          }
+          .profile-pic img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 3px solid #e8e8e8;
+          }
+          .profile-info {
+            flex-grow: 1;
+          }
+          .profile-info h2 {
+            margin: 0 0 15px 0;
+            color: #1890ff;
+            font-size: 24px;
+          }
+          .profile-info .info-item {
+            margin: 8px 0;
+            font-size: 14px;
+          }
+          .profile-info .info-item strong {
+            color: #666;
+            min-width: 100px;
+            display: inline-block;
+          }
+          .cv-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #52c41a;
+          }
+          .cv-section h3 {
+            margin: 0 0 15px 0;
+            color: #52c41a;
+            font-size: 18px;
+          }
+          .cv-section a {
+            color: #1890ff;
+            text-decoration: none;
+            font-weight: 500;
+          }
+          .section {
+            margin-bottom: 30px;
+          }
+          .section h3 {
+            color: #1890ff;
+            font-size: 20px;
+            margin: 0 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e8e8e8;
+          }
+          .field-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 6px;
+          }
+          .field-label {
+            font-weight: 600;
+            color: #595959;
+            margin-bottom: 5px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .field-value {
+            color: #262626;
+            font-size: 15px;
+            word-wrap: break-word;
+          }
+          .field-value.empty {
+            color: #bfbfbf;
+            font-style: italic;
+          }
+          .file-list {
+            margin-top: 10px;
+          }
+          .file-item {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-size: 13px;
+          }
+          .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #e8e8e8;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+          }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class=\"header\">
+          <h1>${formTemplate?.name || 'Form Submission'}</h1>
+          <div class=\"submission-id\">Submission #${submission.id} | Submitted on ${dayjs(submission.created_at).format('MMMM D, YYYY at h:mm A')}</div>
+        </div>
+    `;
+    
+    // Profile section with picture
+    html += '<div class=\"profile-section\">';
+    if (profilePic) {
+      html += `
+        <div class=\"profile-pic\">
+          <img src=\"${profilePic}\" alt=\"Profile Picture\" />
+        </div>
+      `;
+    }
+    html += `
+      <div class=\"profile-info\">
+        <h2>${submitterName}</h2>
+        ${submitterEmail ? `<div class=\"info-item\"><strong>Email:</strong> ${submitterEmail}</div>` : ''}
+        ${submitterPhone ? `<div class=\"info-item\"><strong>Phone:</strong> ${submitterPhone}</div>` : ''}
+        <div class=\"info-item\"><strong>Status:</strong> <span style=\"color: #1890ff;\">${submission.status || 'Submitted'}</span></div>
+      </div>
+    </div>`;
+    
+    // CV section
+    if (cvFile) {
+      html += `
+        <div class=\"cv-section\">
+          <h3>📄 Curriculum Vitae / Resume</h3>
+          <div><a href=\"${cvFile.url}\" target=\"_blank\">${cvFile.name || 'View CV'}</a></div>
+          ${cvFile.size ? `<div style=\"color: #666; font-size: 12px; margin-top: 5px;\">File size: ${(cvFile.size / 1024).toFixed(1)} KB</div>` : ''}
+        </div>
+      `;
+    }
+    
+    // Form responses organized by step
+    const stepGroups = {};
+    fields.forEach(field => {
+      const stepTitle = field.step_title || 'General Information';
+      if (!stepGroups[stepTitle]) {
+        stepGroups[stepTitle] = [];
+      }
+      stepGroups[stepTitle].push(field);
+    });
+    
+    Object.entries(stepGroups).forEach(([stepTitle, stepFields]) => {
+      html += `<div class=\"section\"><h3>${stepTitle}</h3>`;
+      
+      stepFields.forEach(field => {
+        const value = data[field.field_name];
+        const formattedValue = formatValueForPDF(value, field.field_type);
+        
+        html += `
+          <div class=\"field-group\">
+            <div class=\"field-label\">${field.field_label}</div>
+            <div class=\"field-value ${!value ? 'empty' : ''}\">${formattedValue}</div>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+    });
+    
+    // Other files section
+    if (otherFiles.length > 0) {
+      html += '<div class=\"section\"><h3>📎 Additional Files</h3><div class=\"file-list\">';
+      otherFiles.forEach(file => {
+        html += `<div class=\"file-item\">📁 ${file.name || 'File'} ${file.size ? `(${(file.size / 1024).toFixed(1)} KB)` : ''}</div>`;
+      });
+      html += '</div></div>';
+    }
+    
+    html += `
+        <div class=\"footer\">
+          Generated on ${dayjs().format('MMMM D, YYYY at h:mm A')} | ${formTemplate?.name || 'Form Submission'}
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Open in new window and trigger print
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    // Wait for images to load, then print
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 1000);
+  };
+
+  // Helper to find profile picture
+  const findProfilePicture = (data) => {
+    const profileFields = ['profile_picture', 'profile_pic', 'photo', 'picture', 'avatar'];
+    for (const field of profileFields) {
+      const value = data[field];
+      if (value) {
+        if (Array.isArray(value) && value[0]?.url) return value[0].url;
+        if (value.url) return value.url;
+        if (typeof value === 'string' && value.startsWith('http')) return value;
+      }
+    }
+    return null;
+  };
+
+  // Helper to find CV file
+  const findCVFile = (data) => {
+    const cvFields = ['cv', 'resume', 'curriculum_vitae', 'cv_file', 'resume_file'];
+    for (const field of cvFields) {
+      const value = data[field];
+      if (value) {
+        if (Array.isArray(value) && value[0]?.url) return value[0];
+        if (value.url) return value;
+      }
+    }
+    return null;
+  };
+
+  // Helper to find other files
+  const findOtherFiles = (data, excludeProfilePic, excludeCV) => {
+    const files = [];
+    Object.entries(data).forEach(([key, value]) => {
+      if (Array.isArray(value) && value[0]?.url) {
+        value.forEach(file => {
+          if (excludeProfilePic !== file.url && excludeCV?.url !== file.url) {
+            files.push(file);
+          }
+        });
+      } else if (value?.url && value.url !== excludeProfilePic && value.url !== excludeCV?.url) {
+        files.push(value);
+      }
+    });
+    return files;
+  };
+
+  // Helper to format values for PDF
+  const formatValueForPDF = (value, fieldType) => {
+    if (value === null || value === undefined || value === '') return '<em>Not provided</em>';
+    
+    if (Array.isArray(value)) {
+      // Skip file arrays as they're handled separately
+      if (value[0]?.url) return '<em>See attachments section</em>';
+      return value.join(', ');
+    }
+    
+    if (typeof value === 'object') {
+      if (value.url) return '<em>See attachments section</em>';
+      return Object.entries(value)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ') || '<em>Not provided</em>';
+    }
+    
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    
+    return String(value);
+  };
+
   const handleExport = async (format) => {
     try {
       setExporting(true);
@@ -186,8 +528,17 @@ const FormResponsesPage = () => {
     }
   };
 
-  const showDetail = (submission) => {
-    setDetailDrawer({ visible: true, submission });
+  const showDetail = async (submission) => {
+    try {
+      // Fetch full submission data with form fields
+      const fullSubmission = await formService.getFormSubmission(submission.id);
+      setDetailDrawer({ visible: true, submission: fullSubmission });
+    } catch (err) {
+      logger.error('Error fetching submission details:', err);
+      message.error('Failed to load submission details');
+      // Fallback to basic submission data
+      setDetailDrawer({ visible: true, submission });
+    }
   };
 
   // Get appropriate icon for file type
@@ -298,6 +649,30 @@ const FormResponsesPage = () => {
       render: (id) => <Text code>#{id}</Text>
     },
     {
+      title: 'Submitter',
+      key: 'submitter',
+      width: 200,
+      render: (_, record) => {
+        const data = record.submission_data || {};
+        const name = data.full_name || data.name || data.first_name || record.user_name || 'Anonymous';
+        const email = data.email || data.email_address || record.user_email || '';
+        
+        return (
+          <div className="flex items-start gap-2">
+            <Avatar size="small" icon={<UserOutlined />} />
+            <div className="flex-1 min-w-0">
+              <Text strong className="block" ellipsis>{name}</Text>
+              {email && (
+                <Text type="secondary" className="text-xs block" ellipsis>
+                  {email}
+                </Text>
+              )}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
       title: 'Submitted',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -358,6 +733,13 @@ const FormResponsesPage = () => {
           <Dropdown
             menu={{
               items: [
+                {
+                  key: 'pdf',
+                  label: 'Export as PDF',
+                  icon: <PrinterOutlined />,
+                  onClick: () => handleExportPDF(record)
+                },
+                { type: 'divider' },
                 {
                   key: 'process',
                   label: 'Mark as Processed',
@@ -471,6 +853,8 @@ const FormResponsesPage = () => {
               allowClear
               className="w-full"
               options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'submitted', label: 'Submitted' },
                 { value: 'pending', label: 'Pending' },
                 { value: 'processed', label: 'Processed' },
                 { value: 'archived', label: 'Archived' }
@@ -539,9 +923,21 @@ const FormResponsesPage = () => {
 
       {/* Detail Drawer */}
       <Drawer
-        title={`Submission #${detailDrawer.submission?.id}`}
+        title={
+          <div className="flex items-center justify-between">
+            <span>Submission #{detailDrawer.submission?.id}</span>
+            <Button
+              type="primary"
+              size="small"
+              icon={<PrinterOutlined />}
+              onClick={() => handleExportPDF(detailDrawer.submission)}
+            >
+              Export PDF
+            </Button>
+          </div>
+        }
         placement="right"
-        width={500}
+        width={600}
         open={detailDrawer.visible}
         onClose={() => setDetailDrawer({ visible: false, submission: null })}
         extra={
@@ -552,66 +948,186 @@ const FormResponsesPage = () => {
           </Space>
         }
       >
-        {detailDrawer.submission && (
-          <div className="space-y-6">
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="Submitted">
-                {dayjs(detailDrawer.submission.created_at).format('MMMM D, YYYY HH:mm:ss')}
-              </Descriptions.Item>
-              <Descriptions.Item label="Session ID">
-                <Text code>{detailDrawer.submission.session_id}</Text>
-              </Descriptions.Item>
-            </Descriptions>
+        {detailDrawer.submission && (() => {
+          const data = detailDrawer.submission.submission_data || {};
+          const fields = detailDrawer.submission.form_fields || [];
+          const submitterName = data.full_name || data.name || data.first_name || 'Anonymous';
+          const submitterEmail = data.email || data.email_address || '';
+          const submitterPhone = data.phone || data.phone_number || data.mobile || '';
+          
+          // Categorize files
+          const profilePic = findProfilePicture(data);
+          const cvFile = findCVFile(data);
+          
+          // Group fields by step
+          const stepGroups = {};
+          fields.forEach(field => {
+            const stepTitle = field.step_title || 'General Information';
+            if (!stepGroups[stepTitle]) {
+              stepGroups[stepTitle] = [];
+            }
+            stepGroups[stepTitle].push(field);
+          });
+          
+          return (
+            <div className="space-y-6">
+              {/* Submitter Profile */}
+              <Card size="small" className="bg-blue-50">
+                <div className="flex items-start gap-4">
+                  {profilePic ? (
+                    <Image
+                      src={profilePic}
+                      alt="Profile"
+                      width={80}
+                      height={80}
+                      className="rounded-lg object-cover"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <Avatar size={80} icon={<UserOutlined />} />
+                  )}
+                  <div className="flex-1">
+                    <Title level={5} className="!mb-2">{submitterName}</Title>
+                    {submitterEmail && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <MailOutlined className="text-gray-400" />
+                        <Text type="secondary">{submitterEmail}</Text>
+                      </div>
+                    )}
+                    {submitterPhone && (
+                      <div className="flex items-center gap-2">
+                        <UserOutlined className="text-gray-400" />
+                        <Text type="secondary">{submitterPhone}</Text>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
 
-            <div>
-              <Title level={5}>Submission Data</Title>
+              {/* CV/Resume Section */}
+              {cvFile && (
+                <Card size="small" className="bg-green-50">
+                  <Title level={5} className="!mb-2 flex items-center gap-2">
+                    <FilePdfOutlined /> CV / Resume
+                  </Title>
+                  <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                    {getFileIcon(cvFile)}
+                    <div className="flex-1 min-w-0">
+                      <Text ellipsis className="block">{cvFile.name || 'Resume.pdf'}</Text>
+                      {cvFile.size && (
+                        <Text type="secondary" className="text-xs">
+                          {(cvFile.size / 1024).toFixed(1)} KB
+                        </Text>
+                      )}
+                    </div>
+                    <Space>
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<EyeOutlined />}
+                        href={cvFile.url}
+                        target="_blank"
+                      />
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        href={cvFile.url}
+                        download={cvFile.name || 'download'}
+                      />
+                    </Space>
+                  </div>
+                </Card>
+              )}
+
+              {/* Submission Info */}
               <Descriptions column={1} size="small" bordered>
-                {Object.entries(detailDrawer.submission.submission_data || {}).map(([key, value]) => (
-                  <Descriptions.Item
-                    key={key}
-                    label={key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  >
-                    {formatValue(value)}
-                  </Descriptions.Item>
-                ))}
+                <Descriptions.Item label="Submitted On">
+                  {dayjs(detailDrawer.submission.created_at).format('MMMM D, YYYY HH:mm:ss')}
+                </Descriptions.Item>
+                <Descriptions.Item label="Session ID">
+                  <Text code>{detailDrawer.submission.session_id}</Text>
+                </Descriptions.Item>
               </Descriptions>
+
+              <Divider orientation="left">Form Responses</Divider>
+
+              {/* Organized by steps */}
+              {Object.entries(stepGroups).map(([stepTitle, stepFields]) => (
+                <div key={stepTitle}>
+                  <Title level={5} className="!mb-3">{stepTitle}</Title>
+                  <Descriptions column={1} size="small" bordered className="mb-6">
+                    {stepFields.map(field => {
+                      const value = data[field.field_name];
+                      // Skip file fields shown in special sections
+                      if (field.field_type === 'FILE' || field.field_type === 'IMAGE') {
+                        if (['profile_picture', 'profile_pic', 'photo', 'picture', 'avatar', 'cv', 'resume', 'curriculum_vitae'].includes(field.field_name)) {
+                          return null;
+                        }
+                      }
+                      
+                      return (
+                        <Descriptions.Item
+                          key={field.field_name}
+                          label={field.field_label}
+                        >
+                          {formatValue(value)}
+                        </Descriptions.Item>
+                      );
+                    })}
+                  </Descriptions>
+                </div>
+              ))}
+
+              {/* Metadata */}
+              {detailDrawer.submission.metadata && (
+                <div>
+                  <Divider orientation="left">Technical Details</Divider>
+                  <Descriptions column={1} size="small">
+                    {detailDrawer.submission.metadata.user_agent && (
+                      <Descriptions.Item label="Browser">
+                        <Text type="secondary" ellipsis>
+                          {detailDrawer.submission.metadata.user_agent}
+                        </Text>
+                      </Descriptions.Item>
+                    )}
+                    {detailDrawer.submission.metadata.referrer && (
+                      <Descriptions.Item label="Referrer">
+                        {detailDrawer.submission.metadata.referrer}
+                      </Descriptions.Item>
+                    )}
+                    {detailDrawer.submission.metadata.ip_address && (
+                      <Descriptions.Item label="IP Address">
+                        {detailDrawer.submission.metadata.ip_address}
+                      </Descriptions.Item>
+                    )}
+                  </Descriptions>
+                </div>
+              )}
+
+              {/* Actions */}
+              <Space className="w-full justify-center">
+                <Button
+                  type="primary"
+                  icon={<CheckCircleOutlined />}
+                  onClick={() => {
+                    handleStatusChange(detailDrawer.submission.id, 'processed');
+                    setDetailDrawer({ visible: false, submission: null });
+                  }}
+                  disabled={detailDrawer.submission.status === 'processed'}
+                >
+                  Mark as Processed
+                </Button>
+                <Button
+                  icon={<PrinterOutlined />}
+                  onClick={() => handleExportPDF(detailDrawer.submission)}
+                >
+                  Export as PDF
+                </Button>
+              </Space>
             </div>
-
-            {detailDrawer.submission.metadata && (
-              <div>
-                <Title level={5}>Metadata</Title>
-                <Descriptions column={1} size="small">
-                  {detailDrawer.submission.metadata.user_agent && (
-                    <Descriptions.Item label="Browser">
-                      <Text type="secondary" ellipsis>
-                        {detailDrawer.submission.metadata.user_agent}
-                      </Text>
-                    </Descriptions.Item>
-                  )}
-                  {detailDrawer.submission.metadata.referrer && (
-                    <Descriptions.Item label="Referrer">
-                      {detailDrawer.submission.metadata.referrer}
-                    </Descriptions.Item>
-                  )}
-                </Descriptions>
-              </div>
-            )}
-
-            <Space className="w-full justify-center">
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={() => {
-                  handleStatusChange(detailDrawer.submission.id, 'processed');
-                  setDetailDrawer({ visible: false, submission: null });
-                }}
-                disabled={detailDrawer.submission.status === 'processed'}
-              >
-                Mark as Processed
-              </Button>
-            </Space>
-          </div>
-        )}
+          );
+        })()}
       </Drawer>
     </div>
   );

@@ -27,7 +27,8 @@ import {
   Drawer,
   Descriptions,
   Divider,
-  Collapse
+  Collapse,
+  Image
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -54,7 +55,14 @@ import {
   RightOutlined,
   UserOutlined,
   InboxOutlined,
-  MessageOutlined
+  MessageOutlined,
+  FileImageOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileOutlined,
+  PrinterOutlined,
+  MailOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as quickLinksService from '../services/quickLinksService';
@@ -69,6 +77,199 @@ const SERVICE_TYPES = [
   { value: 'rental', label: 'Rentals', icon: <CarOutlined />, color: 'orange' },
   { value: 'shop', label: 'Shop', icon: <ShoppingCartOutlined />, color: 'purple' }
 ];
+
+// Helper functions for file handling
+const findProfilePicture = (data) => {
+  const profileFields = ['profile_picture', 'profile_pic', 'photo', 'picture', 'avatar'];
+  for (const field of profileFields) {
+    const value = data[field];
+    if (value) {
+      if (Array.isArray(value) && value[0]?.url) return value[0].url;
+      if (value.url) return value.url;
+      if (typeof value === 'string' && value.startsWith('http')) return value;
+    }
+  }
+  return null;
+};
+
+const findCVFile = (data) => {
+  const cvFields = ['cv', 'resume', 'curriculum_vitae', 'cv_file', 'resume_file'];
+  for (const field of cvFields) {
+    const value = data[field];
+    if (value) {
+      if (Array.isArray(value) && value[0]?.url) return value[0];
+      if (value.url) return value;
+    }
+  }
+  return null;
+};
+
+const getFileIcon = (file) => {
+  const type = file?.type || '';
+  const name = file?.name || '';
+  if (type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(name)) {
+    return <FileImageOutlined style={{ color: '#52c41a', fontSize: 20 }} />;
+  }
+  if (type === 'application/pdf' || name.endsWith('.pdf')) {
+    return <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />;
+  }
+  if (type.includes('word') || /\.(doc|docx)$/i.test(name)) {
+    return <FileWordOutlined style={{ color: '#1890ff', fontSize: 20 }} />;
+  }
+  return <FileOutlined style={{ fontSize: 20 }} />;
+};
+
+// Helper to ensure file URL is absolute
+const getAbsoluteFileUrl = (url) => {
+  if (!url) return '';
+  // If already absolute, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // If relative, prepend API base URL or current origin
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+};
+
+const formatSubmissionValue = (value) => {
+  if (value === null || value === undefined || value === '') return <span className="text-gray-400 italic">Not provided</span>;
+  
+  // Check if it's a file array
+  if (Array.isArray(value) && value[0]?.url) {
+    return value.map((file, idx) => {
+      const fileUrl = getAbsoluteFileUrl(file.url);
+      return (
+        <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded border mt-1">
+          {getFileIcon(file)}
+          <div className="flex-1 min-w-0">
+            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline block truncate">
+              {file.name || 'View file'}
+            </a>
+            {file.size && <span className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</span>}
+          </div>
+          <Space size="small">
+            <Button type="link" size="small" icon={<EyeOutlined />} href={fileUrl} target="_blank" />
+            <Button type="link" size="small" icon={<DownloadOutlined />} href={fileUrl} download={file.name} />
+          </Space>
+        </div>
+      );
+    });
+  }
+  
+  // Check if it's a single file object
+  if (value?.url) {
+    const fileUrl = getAbsoluteFileUrl(value.url);
+    return (
+      <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
+        {getFileIcon(value)}
+        <div className="flex-1 min-w-0">
+          <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline block truncate">
+            {value.name || 'View file'}
+          </a>
+          {value.size && <span className="text-xs text-gray-500">{(value.size / 1024).toFixed(1)} KB</span>}
+        </div>
+        <Space size="small">
+          <Button type="link" size="small" icon={<EyeOutlined />} href={fileUrl} target="_blank" />
+          <Button type="link" size="small" icon={<DownloadOutlined />} href={fileUrl} download={value.name} />
+        </Space>
+      </div>
+    );
+  }
+  
+  // Check if it's a date string
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+    return dayjs(value).format('MMMM D, YYYY');
+  }
+  
+  // Handle arrays
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-gray-400 italic">Not provided</span>;
+    return value.map(v => humanizeValue(v)).join(', ');
+  }
+  
+  // Handle booleans
+  if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
+  
+  // Handle objects
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+  
+  // Humanize string values (convert snake_case, handle enums)
+  return humanizeValue(value);
+};
+
+// Helper to convert technical values to human-readable format
+const humanizeValue = (value) => {
+  if (!value) return '';
+  
+  const str = String(value);
+  
+  // Handle specific enum mappings
+  const enumMappings = {
+    // Hours ranges
+    'under_500': 'Under 500 hours',
+    '500_1000': '500-1000 hours',
+    '1000_2000': '1000-2000 hours',
+    '2000_3000': '2000-3000 hours',
+    'over_3000': 'Over 3000 hours',
+    
+    // Experience levels
+    'absolute_beginners': 'Absolute Beginners',
+    'independent_advance': 'Independent/Advanced',
+    'advanced_safety': 'Advanced Safety',
+    'strong_wind': 'Strong Wind',
+    'light_wind': 'Light Wind',
+    'flat_water': 'Flat Water',
+    'choppy_waves': 'Choppy/Waves',
+    'gusty_thermal': 'Gusty/Thermal Winds',
+    
+    // Work arrangements
+    'full_season': 'Full Season',
+    'high_volume': 'High Volume',
+    'occasional': 'Occasional',
+    'premium_clientele': 'Premium Clientele',
+    'duotone_pro_center': 'Duotone Pro Center',
+    
+    // Teaching tools
+    'radio_helmets': 'Radio Helmets',
+    'progression_plans': 'Progression Plans',
+    'video_analysis': 'Video Analysis',
+    'lesson_debriefing': 'Lesson Debriefing',
+    
+    // Certifications
+    'iko': 'IKO',
+    'vdws': 'VDWS',
+    'bksa': 'BKSA',
+    'us1': 'US Level 1',
+    'us2': 'US Level 2',
+    'us3': 'US Level 3',
+    'us4': 'US Level 4',
+    
+    // Languages
+    'english': 'English',
+    'turkish': 'Turkish',
+    'german': 'German',
+    'french': 'French',
+    'spanish': 'Spanish',
+    'italian': 'Italian',
+    'portuguese': 'Portuguese',
+    'dutch': 'Dutch',
+    'russian': 'Russian'
+  };
+  
+  // Check if we have a direct mapping
+  if (enumMappings[str.toLowerCase()]) {
+    return enumMappings[str.toLowerCase()];
+  }
+  
+  // Convert snake_case to Title Case
+  return str
+    .replace(/_/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, s => s.toUpperCase())
+    .trim();
+};
 
 const FORM_CATEGORIES = [
   { value: 'registration', label: 'Registration', color: 'blue' },
@@ -226,7 +427,10 @@ const QuickLinksPage = ({ embedded = false }) => {
   const fetchFormSubmissions = useCallback(async () => {
     setFormSubmissionsLoading(true);
     try {
-      const data = await formService.getFormSubmissions({ limit: 100 });
+      const data = await formService.getFormSubmissions({ 
+        limit: 100,
+        status: 'submitted' // Only show submitted forms, not drafts
+      });
       setFormSubmissions(data.submissions || []);
     } catch {
       // Silently fail
@@ -822,10 +1026,19 @@ const QuickLinksPage = ({ embedded = false }) => {
                     type="primary" 
                     size="small"
                     icon={<EyeOutlined />}
-                    onClick={() => {
-                      setSelectedSubmission(record);
-                      setInstructorNotes(record.notes || '');
-                      setSubmissionDetailVisible(true);
+                    onClick={async () => {
+                      try {
+                        // Fetch full submission with form fields
+                        const fullSubmission = await formService.getFormSubmission(record.id);
+                        setSelectedSubmission(fullSubmission);
+                        setInstructorNotes(fullSubmission.notes || '');
+                        setSubmissionDetailVisible(true);
+                      } catch (err) {
+                        // Fallback to basic data
+                        setSelectedSubmission(record);
+                        setInstructorNotes(record.notes || '');
+                        setSubmissionDetailVisible(true);
+                      }
                     }}
                   >
                     View
@@ -1584,6 +1797,64 @@ const QuickLinksPage = ({ embedded = false }) => {
               </div>
             </Card>
 
+            {/* Profile & CV Section */}
+            {(() => {
+              const data = selectedSubmission.submission_data || {};
+              const profilePic = findProfilePicture(data);
+              const cvFile = findCVFile(data);
+              
+              return (
+                <>
+                  {profilePic && (
+                    <Card size="small" className="bg-blue-50">
+                      <div className="flex items-center gap-3">
+                        <Image
+                          src={getAbsoluteFileUrl(profilePic)}
+                          alt="Profile"
+                          width={60}
+                          height={60}
+                          className="rounded-lg object-cover"
+                          style={{ objectFit: 'cover' }}
+                        />
+                        <Text strong>Profile Picture</Text>
+                      </div>
+                    </Card>
+                  )}
+                  {cvFile && (
+                    <Card size="small" className="bg-green-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getFileIcon(cvFile)}
+                          <div>
+                            <Text strong className="block">CV / Resume</Text>
+                            <Text type="secondary" className="text-xs">
+                              {cvFile.name || 'Resume.pdf'} {cvFile.size && `(${(cvFile.size / 1024).toFixed(1)} KB)`}
+                            </Text>
+                          </div>
+                        </div>
+                        <Space>
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EyeOutlined />}
+                            href={getAbsoluteFileUrl(cvFile.url)}
+                            target="_blank"
+                          />
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<DownloadOutlined />}
+                            href={getAbsoluteFileUrl(cvFile.url)}
+                            download={cvFile.name || 'download'}
+                          />
+                        </Space>
+                      </div>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
+
             {/* Collapsible Sections */}
             <Collapse 
               defaultActiveKey={['responses', 'notes']} 
@@ -1592,45 +1863,147 @@ const QuickLinksPage = ({ embedded = false }) => {
                 {
                   key: 'responses',
                   label: <Text strong>Form Responses ({Object.keys(selectedSubmission.submission_data || {}).length} fields)</Text>,
-                  children: (
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                      {Object.entries(selectedSubmission.submission_data || {}).map(([key, value]) => {
-                        const formattedKey = key
-                          .replace(/_/g, ' ')
-                          .replace(/([A-Z])/g, ' $1')
-                          .replace(/^./, str => str.toUpperCase())
-                          .trim();
-                        
-                        let displayValue = value;
-                        if (Array.isArray(value)) {
-                          displayValue = value.join(', ');
-                        } else if (typeof value === 'boolean') {
-                          displayValue = value ? '✓ Yes' : '✗ No';
-                        } else if (typeof value === 'object' && value !== null) {
-                          // Check if it's a file/image (base64)
-                          if (value.base64 || value.dataUrl) {
-                            displayValue = `📎 ${value.name || 'File uploaded'}`;
-                          } else {
-                            displayValue = JSON.stringify(value, null, 2);
-                          }
+                  children: (() => {
+                    const data = selectedSubmission.submission_data || {};
+                    const fields = selectedSubmission.form_fields || [];
+                    
+                    // If we have form fields structure, organize by steps
+                    if (fields.length > 0) {
+                      const stepGroups = {};
+                      fields.forEach(field => {
+                        const stepTitle = field.step_title || 'General Information';
+                        if (!stepGroups[stepTitle]) {
+                          stepGroups[stepTitle] = [];
                         }
-
-                        return (
-                          <div key={key} className="bg-white rounded border p-2 hover:bg-gray-50 transition-colors">
-                            <Text type="secondary" className="text-xs uppercase tracking-wide block">
-                              {formattedKey}
-                            </Text>
-                            <Text className="block whitespace-pre-wrap text-sm">
-                              {displayValue || <span className="text-gray-400 italic">Not provided</span>}
-                            </Text>
-                          </div>
-                        );
-                      })}
-                      {Object.keys(selectedSubmission.submission_data || {}).length === 0 && (
-                        <Empty description="No form data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                      )}
-                    </div>
-                  )
+                        stepGroups[stepTitle].push(field);
+                      });
+                      
+                      return (
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                          {Object.entries(stepGroups).map(([stepTitle, stepFields]) => (
+                            <div key={stepTitle}>
+                              <Text strong className="block mb-2 text-blue-600">{stepTitle}</Text>
+                              <div className="space-y-2">
+                                {(() => {
+                                  const rendered = new Set();
+                                  
+                                  return stepFields.map((field, index) => {
+                                    // Skip if already rendered
+                                    if (rendered.has(field.field_name)) return null;
+                                    
+                                    const value = data[field.field_name];
+                                    
+                                    // Skip profile pic and CV shown above
+                                    if (['profile_picture', 'profile_pic', 'photo', 'picture', 'avatar', 'cv', 'resume', 'curriculum_vitae'].includes(field.field_name)) {
+                                      return null;
+                                    }
+                                    
+                                    // Check if this is a section header
+                                    if (field.field_type === 'SECTION_HEADER' || field.field_type === 'section_header') {
+                                      // Find the next data field with empty label (skip other headers)
+                                      let dataField = null;
+                                      for (let i = index + 1; i < stepFields.length; i++) {
+                                        const candidate = stepFields[i];
+                                        const hasLabel = candidate.field_label && candidate.field_label.trim().length > 0;
+                                        const isLayoutField = ['SECTION_HEADER', 'section_header', 'PARAGRAPH', 'paragraph'].includes(candidate.field_type);
+                                        
+                                        if (!isLayoutField && !hasLabel && !rendered.has(candidate.field_name)) {
+                                          dataField = candidate;
+                                          break;
+                                        }
+                                      }
+                                      
+                                      // If we found a matching data field, render them together
+                                      if (dataField) {
+                                        rendered.add(dataField.field_name);
+                                        const dataValue = data[dataField.field_name];
+                                        const hasValue = dataValue && dataValue !== '' && (!Array.isArray(dataValue) || dataValue.length > 0);
+                                        
+                                        return (
+                                          <div key={field.field_name} className="mt-4 pt-3 border-t border-gray-300">
+                                            <Text strong className="text-base text-gray-800 block mb-2">🎯 {field.field_label}</Text>
+                                            <div className="bg-white rounded border p-3 hover:bg-gray-50 transition-colors">
+                                              <Text className="block whitespace-pre-wrap">
+                                                {hasValue ? formatSubmissionValue(dataValue) : <span className="text-gray-400 italic">Not answered</span>}
+                                              </Text>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // Otherwise just show the header
+                                      return (
+                                        <div key={field.field_name} className="mt-4 mb-2 pt-3 border-t border-gray-300">
+                                          <Text strong className="text-base text-gray-800">🎯 {field.field_label}</Text>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Render PARAGRAPH as descriptive text
+                                    if (field.field_type === 'PARAGRAPH' || field.field_type === 'paragraph') {
+                                      return (
+                                        <div key={field.field_name} className="mb-2">
+                                          <Text type="secondary" className="text-sm">{field.field_label}</Text>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    const hasValue = value && value !== '' && (!Array.isArray(value) || value.length > 0);
+                                    const hasLabel = field.field_label && field.field_label.trim().length > 0;
+                                    
+                                    return (
+                                      <div key={field.field_name} className="bg-white rounded border p-3 hover:bg-gray-50 transition-colors">
+                                        {hasLabel && (
+                                          <Text type="secondary" className="text-xs uppercase tracking-wide block mb-1">
+                                            {field.field_label}
+                                          </Text>
+                                        )}
+                                        <Text className="block whitespace-pre-wrap">
+                                          {hasValue ? formatSubmissionValue(value) : <span className="text-gray-400 italic">Not answered</span>}
+                                        </Text>
+                                      </div>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    
+                    // Fallback to raw data display
+                    return (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                        {Object.entries(data).map(([key, value]) => {
+                          // Skip empty values
+                          if (!value || value === '' || (Array.isArray(value) && value.length === 0)) {
+                            return null;
+                          }
+                          
+                          const formattedKey = key
+                            .replace(/_/g, ' ')
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, str => str.toUpperCase())
+                            .trim();
+                          
+                          return (
+                            <div key={key} className="bg-white rounded border p-2 hover:bg-gray-50 transition-colors">
+                              <Text type="secondary" className="text-xs uppercase tracking-wide block">
+                                {formattedKey}
+                              </Text>
+                              <Text className="block whitespace-pre-wrap text-sm">
+                                {formatSubmissionValue(value)}
+                              </Text>
+                            </div>
+                          );
+                        })}
+                        {Object.keys(data).length === 0 && (
+                          <Empty description="No form data" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        )}
+                      </div>
+                    );
+                  })()
                 },
                 {
                   key: 'notes',
