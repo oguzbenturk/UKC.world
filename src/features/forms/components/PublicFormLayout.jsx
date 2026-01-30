@@ -371,20 +371,35 @@ const PublicFormLayout = ({
                 padding: '0 4px', // Small padding for mobile
               }}
             >
-              {theme.content.form_title && (
-                <Title 
-                  level={1}
-                  style={{ 
-                    color: theme.colors.titleColor || '#fff',
-                    marginBottom: 8,
-                    fontWeight: 600,
-                    textShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  }}
-                  className="text-xl sm:text-2xl md:text-4xl" // Responsive font size
-                >
-                  {theme.content.form_title}
-                </Title>
+                  {theme.content.form_title && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <Title 
+                    level={1}
+                    style={{ 
+                      color: theme.colors.titleColor || '#fff',
+                      marginBottom: 6,
+                      fontWeight: 700,
+                      textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      textAlign: 'center'
+                    }}
+                    className="text-xl sm:text-2xl md:text-4xl"
+                  >
+                    {theme.content.form_title}
+                  </Title>
+                  {theme.content.form_subtitle && (
+                    <div style={{
+                      color: theme.colors.titleColor || '#fff',
+                      marginBottom: 8,
+                      fontWeight: 700,
+                      textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      textAlign: 'center'
+                    }} className="text-xl sm:text-2xl md:text-4xl">
+                      {theme.content.form_subtitle}
+                    </div>
+                  )}
+                </div>
               )}
+
               {theme.content.form_description && (
                 <Text 
                   style={{ 
@@ -393,6 +408,7 @@ const PublicFormLayout = ({
                     textShadow: '0 1px 4px rgba(0,0,0,0.3)',
                     display: 'block',
                     lineHeight: 1.6,
+                    textAlign: 'center'
                   }}
                   className="text-sm sm:text-base md:text-lg" // Responsive font size
                 >

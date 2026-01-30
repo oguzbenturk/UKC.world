@@ -163,6 +163,7 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
       backgroundBlur: currentTheme.background.blur,
       backgroundFit: currentTheme.background.image_fit || 'cover',
       formTitle: currentTheme.content.form_title,
+      formSubtitle: currentTheme.content.form_subtitle,
       formDescription: currentTheme.content.form_description,
       showTitle: currentTheme.content.show_title,
       titleColor: currentTheme.colors.titleColor,
@@ -221,6 +222,7 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
       },
       content: {
         form_title: allValues.formTitle ?? currentTheme.content.form_title,
+        form_subtitle: allValues.formSubtitle ?? currentTheme.content.form_subtitle,
         form_description: allValues.formDescription ?? currentTheme.content.form_description,
         show_title: allValues.showTitle !== undefined ? allValues.showTitle : currentTheme.content.show_title,
       },
@@ -583,6 +585,10 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
 
           <Form.Item label="Form Title" name="formTitle">
             <Input placeholder="e.g., Instructor Application" />
+          </Form.Item>
+
+          <Form.Item label="Form Subtitle" name="formSubtitle">
+            <Input placeholder="e.g., Location - Urla" />
           </Form.Item>
 
           <Form.Item label="Form Description" name="formDescription">

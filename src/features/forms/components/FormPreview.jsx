@@ -359,15 +359,28 @@ const FormPreview = ({
   const isFirstStep = currentStep === 0;
 
   // Handle step navigation
+  const scrollToTop = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      window.scrollTo(0, 0);
+    }
+  };
+
   const nextStep = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
+      // Auto-scroll to top when moving to the next step
+      scrollToTop();
     }
   };
 
   const prevStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+      // Auto-scroll to top when moving backward as well
+      scrollToTop();
     }
   };
 
