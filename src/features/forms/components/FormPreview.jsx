@@ -5,7 +5,7 @@
 
 /* eslint-disable complexity */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Form, 
   Input, 
@@ -353,26 +353,140 @@ const FormPreview = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [form] = Form.useForm();
+  const containerRef = useRef(null);
+
+  // Temporary visual highlight for debugging invalid fields
+  const highlightElement = (el) => {
+    if (!el || !el.style) return;
+    const prev = {
+      boxShadow: el.style.boxShadow,
+      outline: el.style.outline,
+      transition: el.style.transition
+    };
+    try {
+      el.style.boxShadow = '0 0 0 6px rgba(255,0,0,0.12)';
+      el.style.outline = '2px solid rgba(255,0,0,0.7)';
+      el.style.transition = 'box-shadow 200ms ease, outline 200ms ease';
+    } catch (e) {}
+
+    setTimeout(() => {
+      try {
+        el.style.boxShadow = prev.boxShadow || '';
+        el.style.outline = prev.outline || '';
+        el.style.transition = prev.transition || '';
+      } catch (e) {}
+    }, 1800);
+  };
 
   const activeStep = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  // Scroll to top whenever step changes
+  useEffect(() => {
+    console.debug('[FormPreview] step change -> scrollToTop start', { currentStep, containerExists: !!containerRef.current });
+    try {
+      if (containerRef.current && containerRef.current.scrollIntoView) {
+        const rect = containerRef.current.getBoundingClientRect();
+        console.debug('[FormPreview] container rect before scroll', rect);
+        containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => {
+          console.debug('[FormPreview] after scroll positions', {
+            windowScrollY: window.scrollY || window.pageYOffset,
+            bodyScrollTop: document.body.scrollTop,
+            docScrollTop: document.documentElement.scrollTop,
+            containerRect: containerRef.current ? containerRef.current.getBoundingClientRect() : null
+          });
+        }, 700);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        setTimeout(() => {
+          console.debug('[FormPreview] after window.scroll positions', {
+            windowScrollY: window.scrollY || window.pageYOffset,
+            bodyScrollTop: document.body.scrollTop,
+            docScrollTop: document.documentElement.scrollTop,
+          });
+        }, 300);
+      }
+    } catch (e) {
+      console.error('[FormPreview] scroll error', e);
+      window.scrollTo(0, 0);
+    }
+  }, [currentStep]);
+
   // Handle step navigation
   const scrollToTop = () => {
-    if (typeof window === 'undefined') return;
+    console.debug('[FormPreview] scrollToTop called', { currentStep });
     try {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (containerRef.current && containerRef.current.scrollIntoView) {
+        containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+      }
     } catch (e) {
+      console.error('[FormPreview] scroll error', e);
       window.scrollTo(0, 0);
     }
   };
 
-  const nextStep = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+  const nextStep = async () => {
+    if (currentStep >= steps.length - 1) return;
+
+    // Collect field names for the active step to validate only relevant fields
+    const fieldNames = (activeStep?.fields || [])
+      .map(f => f.field_name)
+      .filter(Boolean);
+
+    try {
+      // Validate current step fields; this will throw with errorFields if invalid
+      await form.validateFields(fieldNames);
+      setCurrentStep((s) => s + 1);
       // Auto-scroll to top when moving to the next step
       scrollToTop();
+    } catch (validationError) {
+      // Scroll to top first so user can see the error
+      scrollToTop();
+      
+      // validationError.errorFields is an array of { name: [fieldName], errors: [...] }
+      const firstErr = validationError?.errorFields?.[0];
+      const fieldName = firstErr?.name?.[0];
+
+      // User feedback
+      message.error('Please fix the errors in this step before continuing');
+
+      // Delay field scrolling to allow container/window scroll to finish
+      setTimeout(() => {
+        try {
+          if (fieldName) {
+            console.debug('[FormPreview] validation failed, scrolling to field', { fieldName });
+            form.scrollToField(fieldName, { behavior: 'smooth', block: 'center' });
+
+            const el = document.querySelector(`[name=\"${fieldName}\"]`);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              console.debug('[FormPreview] field element rect before scroll', rect, { docScrollY: window.scrollY || window.pageYOffset });
+              try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { console.debug('el.scrollIntoView failed', e); }
+              if (typeof el.focus === 'function') el.focus();
+              highlightElement(el);
+
+              setTimeout(() => {
+                const rectAfter = el.getBoundingClientRect();
+                console.debug('[FormPreview] field rect after scroll', rectAfter, { windowScrollY: window.scrollY || window.pageYOffset });
+              }, 500);
+            } else {
+              console.debug('[FormPreview] could not find field DOM node for', fieldName);
+            }
+          } else {
+            console.debug('[FormPreview] validation failed but no field name found', validationError);
+          }
+        } catch (e) {
+          console.error('[FormPreview] error while scrolling to field', e);
+        }
+      }, 350);
     }
   };
 
@@ -478,7 +592,7 @@ const FormPreview = ({
   // Embedded mode - used inside PublicFormLayout, no outer Card wrapper
   if (embedded) {
     return (
-      <div className="form-preview">
+      <div className="form-preview" ref={containerRef}>
         {/* Header */}
         {template && (
           <div className="text-center p-6 border-b">
@@ -548,7 +662,7 @@ const FormPreview = ({
 
   // Standard mode - with Card wrapper
   return (
-    <div className="form-preview max-w-2xl mx-auto p-4">
+    <div className="form-preview max-w-2xl mx-auto p-4" ref={containerRef}>
       {/* Header */}
       {template && (
         <div className="text-center mb-6">

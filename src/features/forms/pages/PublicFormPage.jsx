@@ -7,7 +7,7 @@
  * Service quick links are redirected to PublicQuickBooking page
  */
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Form, 
@@ -43,9 +43,9 @@ const { Title, Paragraph, Text } = Typography;
 /**
  * Maps user profile fields to form field types for auto-fill
  */
+
 const getAutoFillValue = (field, user) => {
   if (!user) return null;
-  
   // Map by field type
   switch (field.field_type) {
     case FIELD_TYPES.EMAIL:
@@ -57,10 +57,8 @@ const getAutoFillValue = (field, user) => {
     default:
       break;
   }
-  
   // Map by field name patterns
   const fieldName = (field.field_name || '').toLowerCase();
-  
   if (fieldName.includes('email')) {
     return user.email || null;
   }
@@ -79,7 +77,6 @@ const getAutoFillValue = (field, user) => {
   if (fieldName.includes('country') || fieldName.includes('nationality')) {
     return user.nationality || user.country || null;
   }
-  
   return null;
 };
 
@@ -110,6 +107,102 @@ const PublicFormPage = () => {
   const [resumeEmailModalVisible, setResumeEmailModalVisible] = useState(false);
   const [resumeEmail, setResumeEmail] = useState('');  
   const [sendingResumeEmail, setSendingResumeEmail] = useState(false);
+
+  // Ref for the form container (non-branded theme)
+  const formContainerRef = useRef(null);
+
+  // Scroll the viewport so the form container sits a bit below the top (offset)
+  const scrollToFormStart = (offset = 140) => {
+    if (!formContainerRef.current) return;
+    const rect = formContainerRef.current.getBoundingClientRect();
+    const top = rect.top + window.scrollY - offset;
+    const scrollTarget = Math.max(0, Math.round(top));
+    window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+  };
+
+  function getScrollableParent(element) {
+    let parent = element.parentElement;
+    while (parent) {
+      const overflowY = window.getComputedStyle(parent).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return window;
+  }
+
+  const scrollToFormHeader = (offset = 28, maxWaitMs = 1000) => {
+    console.log('[Form Scroll] scrollToFormHeader called, currentStep:', currentStep);
+    const headerSelector = '.ant-typography.ant-typography-secondary';
+    const header = document.querySelector(headerSelector);
+    if (header) {
+      const scrollParent = getScrollableParent(header);
+      const rect = header.getBoundingClientRect();
+      let scrollTarget;
+      if (scrollParent === window) {
+        const top = rect.top + window.scrollY - offset;
+        scrollTarget = Math.max(0, Math.round(top));
+        console.log('[Form Scroll] Scrolling window to:', scrollTarget);
+        window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+      } else {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const top = rect.top - parentRect.top + scrollParent.scrollTop - offset;
+        scrollTarget = Math.max(0, Math.round(top));
+        console.log('[Form Scroll] Scrolling container', scrollParent, 'to:', scrollTarget);
+        scrollParent.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+      }
+      return true;
+    } else {
+      const allHeaders = document.querySelectorAll(headerSelector);
+      console.log('[Form Scroll] Header not found immediately. All matching elements:', allHeaders);
+    }
+    // If not found, observe DOM for changes
+    const observer = new MutationObserver((mutations, obs) => {
+      const headerNow = document.querySelector(headerSelector);
+      if (headerNow) {
+        const scrollParent = getScrollableParent(headerNow);
+        const rect = headerNow.getBoundingClientRect();
+        let scrollTarget;
+        if (scrollParent === window) {
+          const top = rect.top + window.scrollY - offset;
+          scrollTarget = Math.max(0, Math.round(top));
+          console.log('[Form Scroll] Scrolling window to:', scrollTarget);
+          window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        } else {
+          const parentRect = scrollParent.getBoundingClientRect();
+          const top = rect.top - parentRect.top + scrollParent.scrollTop - offset;
+          scrollTarget = Math.max(0, Math.round(top));
+          console.log('[Form Scroll] Scrolling container', scrollParent, 'to:', scrollTarget);
+          scrollParent.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        }
+        obs.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    // Stop observing after maxWaitMs
+    setTimeout(() => observer.disconnect(), maxWaitMs);
+    return true;
+  };
+
+  // Scroll to form start whenever the current step changes (DOM will have updated)
+  useLayoutEffect(() => {
+    console.log('[Form Scroll] useLayoutEffect for currentStep fired:', currentStep);
+    if (!formContainerRef.current) {
+      console.log('[Form Scroll] formContainerRef.current is NOT set');
+      return;
+    } else {
+      console.log('[Form Scroll] formContainerRef.current IS set:', formContainerRef.current);
+    }
+    // Give the browser a frame to render updated DOM, then scroll
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // Try header first, fallback to container top
+        const didScrollHeader = scrollToFormHeader(28);
+        if (!didScrollHeader) scrollToFormStart(140);
+      }, 50);
+    });
+  }, [currentStep]);
 
   // Fetch form template by link code
   useEffect(() => {
@@ -282,7 +375,48 @@ const PublicFormPage = () => {
     try {
       await form.validateFields(fieldsToValidate);
       return true;
-    } catch {
+    } catch (err) {
+      // Scroll to first error field if present
+      if (err && err.errorFields && err.errorFields.length > 0) {
+        const firstError = err.errorFields[0];
+        let fieldNameArr = Array.isArray(firstError.name) ? firstError.name : [firstError.name];
+        // Try to build selectors for AntD Form.Item and input descendants
+        let selectorCandidates = [];
+        // Try name attribute (simple fields)
+        if (fieldNameArr.length === 1) {
+          selectorCandidates.push(`[name="${fieldNameArr[0]}"]`);
+        }
+        // Try AntD data-name attribute (array fields)
+        selectorCandidates.push(`[data-name='${JSON.stringify(fieldNameArr)}']`);
+        // Try input/textarea/select inside Form.Item label
+        selectorCandidates.push(
+          `.ant-form-item [name="${fieldNameArr.join('.')}"]`,
+          `.ant-form-item input[name$='${fieldNameArr[fieldNameArr.length-1]}']`,
+          `.ant-form-item textarea[name$='${fieldNameArr[fieldNameArr.length-1]}']`,
+          `.ant-form-item select[name$='${fieldNameArr[fieldNameArr.length-1]}']`
+        );
+        // Try by aria-label
+        selectorCandidates.push(`[aria-label="${fieldNameArr[fieldNameArr.length-1]}"]`);
+        // Try by id
+        selectorCandidates.push(`#${fieldNameArr.join('_')}`);
+
+        let el = null;
+        for (const sel of selectorCandidates) {
+          el = document.querySelector(sel);
+          if (el) break;
+        }
+        // Fallback: scroll to parent .ant-form-item if found
+        if (!el && selectorCandidates.length > 0) {
+          const formItem = document.querySelector('.ant-form-item-has-error');
+          if (formItem) el = formItem;
+        }
+        if (el && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Optionally, focus the field
+          const focusable = el.querySelector('input,textarea,select') || el;
+          if (typeof focusable.focus === 'function') focusable.focus();
+        }
+      }
       return false;
     }
   };
@@ -353,17 +487,15 @@ const PublicFormPage = () => {
     if (isValid) {
       // Save draft when navigating to next step
       if (formTemplate?.settings?.allow_save_progress) {
-        handleSaveDraft();
+        await handleSaveDraft();
       }
       setCurrentStep(prev => prev + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   // Handle previous step
   const handlePrevious = () => {
     setCurrentStep(prev => prev - 1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Handle form submission
@@ -565,7 +697,7 @@ const PublicFormPage = () => {
   );
 
   return (
-    <>
+    <div ref={formContainerRef}>
       {hasBrandedTheme ? (
         <PublicFormLayout 
           themeConfig={formTemplate.theme_config}
@@ -576,152 +708,11 @@ const PublicFormPage = () => {
       ) : (
         <div className="min-h-screen bg-gray-50 py-8 px-4">
           <div className="max-w-3xl mx-auto">
-            <Card 
-              className="mb-4"
-              style={{ borderTop: `4px solid ${token.colorPrimary}` }}
-            >
-              <Title level={3} className="mb-2">
-                {formTemplate.form_name}
-              </Title>
-              {formTemplate.description && (
-                <Paragraph type="secondary">
-                  {formTemplate.description}
-                </Paragraph>
-              )}
-              
-              {/* Multi-step progress */}
-              {steps.length > 1 && (
-                <div className="mt-4">
-                  <Steps
-                    current={currentStep}
-                    size="small"
-                    items={steps.map((step, index) => ({
-                      title: step.step_name,
-                      status: index < currentStep ? 'finish' : 
-                              index === currentStep ? 'process' : 'wait',
-                    }))}
-                  />
-                </div>
-              )}
-            </Card>
-
-            {/* Step Content */}
-            <Card className="mb-4">
-              {currentStepData && (
-                <>
-                  {/* Step header */}
-                  {steps.length > 1 && (
-                    <div className="mb-6">
-                      <Title level={4} className="mb-1">
-                        {currentStepData.step_name}
-                      </Title>
-                      {currentStepData.step_description && (
-                        <Text type="secondary">
-                          {currentStepData.step_description}
-                        </Text>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Form fields */}
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onValuesChange={handleValuesChange}
-                    onFinish={handleSubmit}
-                    requiredMark="optional"
-                  >
-                    <Row gutter={[16, 16]}>
-                      {currentStepData.fields?.map(field => (
-                        <DynamicField
-                          key={field.id || field.field_name}
-                          field={field}
-                          form={form}
-                          allValues={formValues}
-                          disabled={submitting}
-                        />
-                      ))}
-                    </Row>
-
-                    {/* Navigation buttons */}
-                    <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-4 border-t border-gray-200">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {!isFirstStep && (
-                          <Button 
-                            size="large"
-                            icon={<ArrowLeftOutlined />}
-                            onClick={handlePrevious}
-                            disabled={submitting}
-                            className="w-full sm:w-auto"
-                          >
-                            Previous
-                          </Button>
-                        )}
-                        {/* Save Progress button */}
-                        {formTemplate.settings?.allow_save_progress && (
-                          <>
-                            <Button
-                              size="large"
-                              icon={<SaveOutlined />}
-                              onClick={handleSaveDraft}
-                              loading={savingDraft}
-                              className="w-full sm:w-auto"
-                            >
-                              {lastSaved ? 'Saved ✓' : 'Save Progress'}
-                            </Button>
-                            <Button
-                              size="large"
-                              icon={<MailOutlined />}
-                              onClick={() => setResumeEmailModalVisible(true)}
-                              className="w-full sm:w-auto"
-                            >
-                              Email Resume Link
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <div className="w-full sm:w-auto">
-                        {isLastStep ? (
-                          <Button 
-                            type="primary" 
-                            size="large"
-                            icon={<CheckCircleOutlined />}
-                            htmlType="submit"
-                            loading={submitting}
-                            className="w-full sm:w-auto"
-                          >
-                            {formTemplate.settings?.submit_button_text || 'Submit'}
-                          </Button>
-                        ) : (
-                          <Button 
-                            type="primary" 
-                            size="large"
-                            icon={<ArrowRightOutlined />}
-                            onClick={handleNext}
-                            disabled={submitting}
-                            className="w-full sm:w-auto"
-                          >
-                            Next
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </Form>
-                </>
-              )}
-            </Card>
-
-            {/* Footer */}
-            <div className="text-center text-gray-500 text-sm">
-              <Text type="secondary">
-                {formTemplate.settings?.footer_text || 'Powered by UKC.world'}
-              </Text>
-            </div>
+            {formContent}
           </div>
         </div>
       )}
-
-      {/* Resume Email Modal */}
+      {/* Resume Email Modal and any other modals/footers */}
       <Modal
         title="Send Resume Link"
         open={resumeEmailModalVisible}
@@ -747,7 +738,7 @@ const PublicFormPage = () => {
           />
         </div>
       </Modal>
-    </>
+    </div>
   );
 };
 
