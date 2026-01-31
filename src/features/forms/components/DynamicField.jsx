@@ -615,28 +615,35 @@ const FileUploadField = ({ field, disabled, value, onChange }) => {
   const acceptTypes = field.options?.accept || 'image/*,.pdf,.doc,.docx';
 
   return (
-    <Dragger
-      name="file"
-      multiple={field.options?.multiple || false}
-      accept={acceptTypes}
-      maxCount={field.options?.max_files || 1}
-      disabled={disabled || uploading}
-      fileList={fileList}
-      onChange={handleChange}
-      customRequest={customUpload}
-    >
-      <p className="ant-upload-drag-icon">
-        <InboxOutlined />
-      </p>
-      <p className="ant-upload-text">
-        {uploading ? 'Uploading...' : 'Click or drag file to upload'}
-      </p>
-      <p className="ant-upload-hint">
-        {acceptTypes.includes('pdf') 
-          ? 'Accepted: Images, PDF, Word documents' 
-          : `Accepted: ${acceptTypes}`}
-      </p>
-    </Dragger>
+    <div>
+      <Dragger
+        name="file"
+        multiple={field.options?.multiple || false}
+        accept={acceptTypes}
+        maxCount={field.options?.max_files || 1}
+        disabled={disabled || uploading}
+        fileList={fileList}
+        onChange={handleChange}
+        customRequest={customUpload}
+      >
+        <p className="ant-upload-drag-icon">
+          <InboxOutlined />
+        </p>
+        <p className="ant-upload-text">
+          {uploading ? 'Uploading...' : 'Click or drag file to upload'}
+        </p>
+        <p className="ant-upload-hint">
+          {acceptTypes.includes('pdf') 
+            ? 'Accepted: Images, PDF, Word documents' 
+            : `Accepted: ${acceptTypes}`}
+        </p>
+      </Dragger>
+      {field.help_text && (
+        <div style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+          {field.help_text}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -768,7 +775,7 @@ const ImageUploadField = ({ field, disabled, value, onChange }) => {
   );
 
   return (
-    <>
+    <div>
       <Upload
         listType="picture-card"
         fileList={fileList}
@@ -792,7 +799,12 @@ const ImageUploadField = ({ field, disabled, value, onChange }) => {
           src={previewImage}
         />
       )}
-    </>
+      {field.help_text && (
+        <div style={{ marginTop: 8, color: '#666', fontSize: 13 }}>
+          {field.help_text}
+        </div>
+      )}
+    </div>
   );
 };
 

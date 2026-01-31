@@ -7,22 +7,19 @@
  * Service quick links are redirected to PublicQuickBooking page
  */
 
-import { useState, useEffect, useContext, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useContext, useRef, useLayoutEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
-  Form, 
-  Card, 
-  Button, 
-  Steps, 
+  Form,
+  Button,
+  Steps,
   Row,
   Typography,
   Spin,
-  Result,
-  Progress,
   App,
-  theme,
   Modal,
-  Input
+  Input,
+  Result
 } from 'antd';
 import { 
   ArrowLeftOutlined, 
@@ -85,7 +82,7 @@ const PublicFormPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { token } = theme.useToken();
+  // const { token } = theme.useToken();
   const { message } = App.useApp();
   
   // Try to get authenticated user (may not exist if not logged in)
@@ -132,8 +129,7 @@ const PublicFormPage = () => {
     return window;
   }
 
-  const scrollToFormHeader = (offset = 28, maxWaitMs = 1000) => {
-    console.log('[Form Scroll] scrollToFormHeader called, currentStep:', currentStep);
+  const scrollToFormHeader = useCallback((offset = 28, maxWaitMs = 1000) => {
     const headerSelector = '.ant-typography.ant-typography-secondary';
     const header = document.querySelector(headerSelector);
     if (header) {
@@ -143,19 +139,14 @@ const PublicFormPage = () => {
       if (scrollParent === window) {
         const top = rect.top + window.scrollY - offset;
         scrollTarget = Math.max(0, Math.round(top));
-        console.log('[Form Scroll] Scrolling window to:', scrollTarget);
         window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
       } else {
         const parentRect = scrollParent.getBoundingClientRect();
         const top = rect.top - parentRect.top + scrollParent.scrollTop - offset;
         scrollTarget = Math.max(0, Math.round(top));
-        console.log('[Form Scroll] Scrolling container', scrollParent, 'to:', scrollTarget);
         scrollParent.scrollTo({ top: scrollTarget, behavior: 'smooth' });
       }
       return true;
-    } else {
-      const allHeaders = document.querySelectorAll(headerSelector);
-      console.log('[Form Scroll] Header not found immediately. All matching elements:', allHeaders);
     }
     // If not found, observe DOM for changes
     const observer = new MutationObserver((mutations, obs) => {
@@ -167,13 +158,11 @@ const PublicFormPage = () => {
         if (scrollParent === window) {
           const top = rect.top + window.scrollY - offset;
           scrollTarget = Math.max(0, Math.round(top));
-          console.log('[Form Scroll] Scrolling window to:', scrollTarget);
           window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         } else {
           const parentRect = scrollParent.getBoundingClientRect();
           const top = rect.top - parentRect.top + scrollParent.scrollTop - offset;
           scrollTarget = Math.max(0, Math.round(top));
-          console.log('[Form Scroll] Scrolling container', scrollParent, 'to:', scrollTarget);
           scrollParent.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         }
         obs.disconnect();
@@ -183,16 +172,12 @@ const PublicFormPage = () => {
     // Stop observing after maxWaitMs
     setTimeout(() => observer.disconnect(), maxWaitMs);
     return true;
-  };
+  }, []);
 
   // Scroll to form start whenever the current step changes (DOM will have updated)
   useLayoutEffect(() => {
-    console.log('[Form Scroll] useLayoutEffect for currentStep fired:', currentStep);
     if (!formContainerRef.current) {
-      console.log('[Form Scroll] formContainerRef.current is NOT set');
       return;
-    } else {
-      console.log('[Form Scroll] formContainerRef.current IS set:', formContainerRef.current);
     }
     // Give the browser a frame to render updated DOM, then scroll
     requestAnimationFrame(() => {
@@ -202,7 +187,7 @@ const PublicFormPage = () => {
         if (!didScrollHeader) scrollToFormStart(140);
       }, 50);
     });
-  }, [currentStep]);
+  }, [currentStep, scrollToFormHeader]);
 
   // Fetch form template by link code
   useEffect(() => {
@@ -215,26 +200,18 @@ const PublicFormPage = () => {
         try {
           const quickLinkResponse = await apiClient.get(`/quick-links/public/${linkCode}`);
           const quickLink = quickLinkResponse.data;
-          
-          console.log('Quick link data:', quickLink);
-          
           // If it's a service link, redirect to the PublicQuickBooking page
           // This page handles the registration form without requiring authentication
           if (quickLink.service_type && quickLink.service_id) {
-            console.log('Service quick link detected, redirecting to registration form:', quickLink.service_type, quickLink.service_id);
             setRedirecting(true);
             setLoading(false);
             navigate(`/quick/${linkCode}`, { replace: true });
             return;
           }
-          
-          console.log('Not a service link, continuing with form fetch');
-          
           // If it's a form link, continue with form fetching below
           // Fall through to the form fetch logic
-        } catch (quickLinkErr) {
+        } catch {
           // If quick link fetch fails, try as a regular form
-          console.log('Quick link fetch failed, trying as form:', quickLinkErr.message);
         }
 
         const response = await apiClient.get(`/public/forms/${linkCode}`);
@@ -360,9 +337,9 @@ const PublicFormPage = () => {
   const isFirstStep = currentStep === 0;
 
   // Calculate progress
-  const progressPercent = steps.length > 0 
-    ? Math.round(((currentStep + 1) / steps.length) * 100) 
-    : 0;
+  // const progressPercent = steps.length > 0 
+  //   ? Math.round(((currentStep + 1) / steps.length) * 100) 
+  //   : 0;
 
   // Handle form value changes
   const handleValuesChange = (changedValues, allValues) => {
@@ -379,9 +356,9 @@ const PublicFormPage = () => {
       // Scroll to first error field if present
       if (err && err.errorFields && err.errorFields.length > 0) {
         const firstError = err.errorFields[0];
-        let fieldNameArr = Array.isArray(firstError.name) ? firstError.name : [firstError.name];
+        const fieldNameArr = Array.isArray(firstError.name) ? firstError.name : [firstError.name];
         // Try to build selectors for AntD Form.Item and input descendants
-        let selectorCandidates = [];
+        const selectorCandidates = [];
         // Try name attribute (simple fields)
         if (fieldNameArr.length === 1) {
           selectorCandidates.push(`[name="${fieldNameArr[0]}"]`);
@@ -424,20 +401,17 @@ const PublicFormPage = () => {
   // Save progress as draft
   const handleSaveDraft = async () => {
     if (!formTemplate?.session_id) return;
-    
     try {
       setSavingDraft(true);
-      const allValues = form.getFieldsValue(true);
-      
+      // Use accumulated formValues for all steps
       await apiClient.post(`/public/forms/${linkCode}/save-draft`, {
         session_id: formTemplate.session_id,
-        submission_data: allValues,
+        submission_data: formValues,
         current_step: currentStep,
         metadata: {
           saved_at: new Date().toISOString()
         }
       });
-      
       setLastSaved(new Date());
       message.success('Progress saved', 1);
     } catch (err) {
@@ -506,13 +480,10 @@ const PublicFormPage = () => {
 
       setSubmitting(true);
 
-      // Collect all form values
-      const allValues = form.getFieldsValue(true);
-
-      // Add metadata
+      // Use accumulated formValues for all steps
       const submissionData = {
         session_id: formTemplate.session_id,
-        submission_data: allValues,
+        submission_data: formValues,
         metadata: {
           submitted_at: new Date().toISOString(),
           user_agent: navigator.userAgent,
@@ -531,7 +502,7 @@ const PublicFormPage = () => {
           state: { 
             submissionId: response.data.submission_id,
             formName: formTemplate.form_name,
-            submittedData: allValues,
+            submittedData: formValues,
             formSettings: formTemplate.settings,
             themeConfig: formTemplate.theme_config,
             successMessage: response.data.message,
