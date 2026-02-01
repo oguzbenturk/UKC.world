@@ -46,6 +46,7 @@ import ProductCard from '../components/ProductCard';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const { Option } = Select;
 const { Search } = Input;
@@ -487,6 +488,183 @@ const Products = () => {
     setSelectedProduct(null);
   };
 
+  const columns = [
+    {
+      title: 'Product',
+      key: 'product',
+      width: '35%',
+      render: (_, product) => (
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-slate-100">
+             {product.image_url ? (
+               <Image
+                 src={product.image_url}
+                 alt={product.name}
+                 width={48}
+                 height={48}
+                 className="object-cover"
+                 preview={false}
+                 fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIGZpbGw9IiNFMkU4RjAiLz48cGF0aCBkPSJNMjQgMjBMMjAgMjhIMjhMMjQgMjBaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
+               />
+             ) : (
+               <div className="w-full h-full flex items-center justify-center">
+                 <InboxOutlined className="text-slate-400 text-xl" />
+               </div>
+             )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-slate-900 truncate">
+                {product.name}
+              </span>
+              {product.is_featured && (
+                <StarFilled className="text-amber-500 text-sm" />
+              )}
+            </div>
+            {product.subcategory && (
+              <span className="text-xs text-slate-500 capitalize">
+                {product.subcategory.replace(/-/g, ' ')}
+              </span>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'SKU',
+      dataIndex: 'sku',
+      key: 'sku',
+      responsive: ['md'],
+      render: (sku) => <span className="text-sm text-slate-600 font-mono">{sku || '—'}</span>
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      responsive: ['lg'],
+      render: (cat) => <Tag color="blue" className="capitalize">{cat || 'Other'}</Tag>
+    },
+    {
+      title: 'Brand',
+      dataIndex: 'brand',
+      key: 'brand',
+      responsive: ['lg'],
+      render: (brand) => <span className="text-sm text-slate-600">{brand || '—'}</span>
+    },
+    {
+      title: 'Price',
+      dataIndex: 'price',
+      key: 'price',
+      align: 'right',
+      render: (price) => <span className="font-semibold text-slate-900">{formatCurrency(price)}</span>
+    },
+    {
+      title: 'Stock',
+      dataIndex: 'stock_quantity',
+      key: 'stock',
+      align: 'center',
+      responsive: ['md'],
+      render: (stock, product) => (
+        <Badge 
+          count={stock}
+          showZero
+          overflowCount={999}
+          style={{ 
+            backgroundColor: product.is_low_stock ? '#ff4d4f' : 
+              product.stock_quantity === 0 ? '#d9d9d9' : '#52c41a'
+          }}
+        />
+      )
+    },
+    {
+       title: 'Status',
+       dataIndex: 'status',
+       key: 'status',
+       align: 'center',
+       render: (status) => (
+         <Tag color={
+            status === 'active' ? 'green' :
+            status === 'inactive' ? 'orange' :
+            status === 'discontinued' ? 'red' : 'default'
+         }>
+           {status?.charAt(0).toUpperCase() + status?.slice(1) || 'Active'}
+         </Tag>
+       )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      render: (_, product) => (
+        <div className="flex items-center justify-center gap-1">
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={(e) => { e.stopPropagation(); handleProductEdit(product); }}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(e) => { e.stopPropagation(); handleProductDelete(product); }}
+            />
+          </Tooltip>
+        </div>
+      )
+    }
+  ];
+
+  const ProductMobileCard = ({ record, selected, onSelect }) => (
+     <Card className={`mb-3 border-slate-200 ${selected ? 'border-blue-400 bg-blue-50' : ''}`} styles={{ body: { padding: 12 } }}>
+         <div className="flex gap-3">
+             <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+               <Checkbox 
+                 checked={selected}
+                 onChange={(e) => onSelect?.(record, e.target.checked)}
+               />
+             </div>
+             <div className="flex-1 overflow-hidden" onClick={() => handleProductEdit(record)}>
+                 <div className="flex justify-between items-start gap-2">
+                     <div className="flex items-center gap-2 overflow-hidden">
+                         <div className="w-10 h-10 rounded bg-slate-100 flex-shrink-0 overflow-hidden">
+                             {record.image_url ? (
+                               <img src={record.image_url} alt="" className="w-full h-full object-cover" />
+                             ) : <InboxOutlined className="text-slate-400 m-auto h-full block text-center leading-10" />}
+                         </div>
+                         <div className="min-w-0">
+                             <div className="font-medium truncate text-slate-900">{record.name}</div>
+                             <div className="text-xs text-slate-500 font-mono">{record.sku}</div>
+                         </div>
+                     </div>
+                     <div className="font-semibold text-slate-900 whitespace-nowrap">{formatCurrency(record.price)}</div>
+                 </div>
+                 
+                 <div className="mt-3 flex flex-wrap gap-2 items-center justify-between">
+                    <div className="flex gap-2">
+                        <Tag className="m-0" color="blue">{record.category}</Tag>
+                        <Tag className="m-0" color={
+                             record.status === 'active' ? 'green' :
+                             record.status === 'inactive' ? 'orange' : 'default'
+                        }>{record.status}</Tag>
+                    </div>
+                    <Badge 
+                      count={record.stock_quantity} 
+                      showZero 
+                      style={{ 
+                         backgroundColor: record.is_low_stock ? '#ff4d4f' : record.stock_quantity === 0 ? '#d9d9d9' : '#52c41a' 
+                      }} 
+                    />
+                 </div>
+               </div>
+         </div>
+     </Card>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       {/* Header Section */}
@@ -696,159 +874,25 @@ const Products = () => {
               </Row>
             ) : (
               /* List/Table View */
-              <Card className="rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left">
-                          <Checkbox
-                            checked={isAllSelected}
-                            indeterminate={isPartiallySelected}
-                            onChange={(e) => handleSelectAll(e.target.checked)}
-                          />
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                          Product
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden md:table-cell">
-                          SKU
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">
-                          Category
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">
-                          Brand
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                          Price
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider hidden md:table-cell">
-                          Stock
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider hidden md:table-cell">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                      {products.map((product, idx) => (
-                        <tr 
-                          key={product.id}
-                          className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors`}
-                        >
-                          <td className="px-4 py-3">
-                            <Checkbox
-                              checked={selectedProductIds.includes(product.id)}
-                              onChange={(e) => handleSelectProduct(product.id, e.target.checked)}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-slate-100">
-                                {product.image_url ? (
-                                  <Image
-                                    src={product.image_url}
-                                    alt={product.name}
-                                    width={48}
-                                    height={48}
-                                    className="object-cover"
-                                    preview={false}
-                                    fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIGZpbGw9IiNFMkU4RjAiLz48cGF0aCBkPSJNMjQgMjBMMjAgMjhIMjhMMjQgMjBaIiBmaWxsPSIjOTRBM0I4Ii8+PC9zdmc+"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <InboxOutlined className="text-slate-400 text-xl" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-slate-900 truncate">
-                                    {product.name}
-                                  </span>
-                                  {product.is_featured && (
-                                    <StarFilled className="text-amber-500 text-sm" />
-                                  )}
-                                </div>
-                                {product.subcategory && (
-                                  <span className="text-xs text-slate-500 capitalize">
-                                    {product.subcategory.replace(/-/g, ' ')}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <span className="text-sm text-slate-600 font-mono">
-                              {product.sku || '—'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 hidden lg:table-cell">
-                            <Tag color="blue" className="capitalize">
-                              {product.category || 'Other'}
-                            </Tag>
-                          </td>
-                          <td className="px-4 py-3 hidden lg:table-cell">
-                            <span className="text-sm text-slate-600">
-                              {product.brand || '—'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="font-semibold text-slate-900">
-                              {formatCurrency(product.price)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center hidden md:table-cell">
-                            <Badge 
-                              count={product.stock_quantity}
-                              showZero
-                              overflowCount={999}
-                              style={{ 
-                                backgroundColor: product.is_low_stock ? '#ff4d4f' : 
-                                  product.stock_quantity === 0 ? '#d9d9d9' : '#52c41a'
-                              }}
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center hidden md:table-cell">
-                            <Tag color={
-                              product.status === 'active' ? 'green' :
-                              product.status === 'inactive' ? 'orange' :
-                              product.status === 'discontinued' ? 'red' : 'default'
-                            }>
-                              {product.status?.charAt(0).toUpperCase() + product.status?.slice(1) || 'Active'}
-                            </Tag>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-1">
-                              <Tooltip title="Edit">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<EditOutlined />}
-                                  onClick={() => handleProductEdit(product)}
-                                />
-                              </Tooltip>
-                              <Tooltip title="Delete">
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  danger
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleProductDelete(product)}
-                                />
-                              </Tooltip>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <UnifiedResponsiveTable
+                columns={columns}
+                dataSource={products}
+                rowKey="id"
+                loading={loading}
+                pagination={false}
+                rowSelection={{
+                  selectedRowKeys: selectedProductIds,
+                  onChange: (keys) => setSelectedProductIds(keys),
+                  preserveSelectedRowKeys: true
+                }}
+                mobileCardRenderer={(props) => (
+                  <ProductMobileCard 
+                    {...props} 
+                    selected={selectedProductIds.includes(props.record.id)}
+                    onSelect={(record, checked) => handleSelectProduct(record.id, checked)}
+                  />
+                )}
+              />
             )}
             
             {/* Pagination */}

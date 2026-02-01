@@ -29,7 +29,7 @@ import ServiceForm from '../components/ServiceForm';
 import ServiceDetailModal from '../components/ServiceDetailModal';
 import RentalPackageManager from '../components/RentalPackageManager';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
 // Helper functions moved outside to reduce component complexity
 const getEquipmentInitials = (name) => {
@@ -391,6 +391,50 @@ function RentalServices() {
   // Helper functions for equipment display
   // local helpers moved to top-level
 
+  const RentalMobileCard = ({ record, onEdit, onView, onDelete }) => {
+    const color = getCategoryColor(record.category);
+    const equipColor = getEquipmentColor(record.name);
+    const initials = getEquipmentInitials(record.name);
+    
+    // Price logic duplicate from columns
+    const baseCurrency = record.currency || businessCurrency || 'EUR';
+    const targetCurrency = userCurrency || baseCurrency;
+    const convertedPrice = convertCurrency ? convertCurrency(record.price || 0, baseCurrency, targetCurrency) : (record.price || 0);
+
+    return (
+      <Card styles={{ body: { padding: 12 } }} className="mb-3 border-slate-200 shadow-sm border">
+        <div className="flex justify-between items-start">
+           <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm ${equipColor}`}>
+                 {initials}
+              </div>
+              <div className="min-w-0">
+                 <div className="font-medium text-slate-900 truncate">{record.name}</div>
+                 <div className="text-xs text-slate-500 truncate">{record.brand || '-'}</div>
+              </div>
+           </div>
+           <div className="text-right flex-shrink-0">
+             <div className="font-semibold text-slate-900">{formatCurrency(Number(convertedPrice), targetCurrency)}</div>
+             <div className="text-xs text-slate-500">
+               {formatDurationDisplay(record.duration).short ? `/ ${formatDurationDisplay(record.duration).short}` : ''}
+             </div>
+           </div>
+        </div>
+        
+        <div className="mt-3 flex items-center justify-between">
+            <Tag color={color}>{record.category}</Tag>
+            <Space>
+               <Button size="small" icon={<EyeOutlined />} onClick={() => onView(record)} />
+               <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} />
+               {canDeleteServices && (
+                 <Button size="small" danger icon={<DeleteOutlined />} onClick={() => onDelete(record)} />
+               )}
+            </Space>
+        </div>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -494,38 +538,43 @@ function RentalServices() {
         </div>
       </div>
 
-      <UnifiedTable density="comfortable">
-        <Table
-          columns={columns}
-          dataSource={filteredServices.map(service => ({
-            ...service,
-            key: service.id
-          }))}
-          pagination={{
-            total: filteredServices.length,
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental services`,
-          }}
-          loading={loading}
-          locale={{
-            emptyText: (
-              <Empty 
-                description="No rental services found"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
+      <UnifiedResponsiveTable
+        density="comfortable"
+        columns={columns}
+        dataSource={filteredServices}
+        rowKey="id"
+        pagination={{
+          total: filteredServices.length,
+          pageSize: 10,
+          showSizeChanger: true,
+          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental services`,
+        }}
+        loading={loading}
+        locale={{
+          emptyText: (
+            <Empty 
+              description="No rental services found"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            >
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => setFormDrawerVisible(true)}
               >
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => setFormDrawerVisible(true)}
-                >
-                  Add First Rental Service
-                </Button>
-              </Empty>
-            )
-          }}
-        />
-      </UnifiedTable>
+                Add First Rental Service
+              </Button>
+            </Empty>
+          )
+        }}
+        mobileCardRenderer={(props) => (
+          <RentalMobileCard 
+             {...props} 
+             onView={() => handleView(props.record)}
+             onEdit={() => handleEdit(props.record)}
+             onDelete={() => handleDelete(props.record)} 
+          />
+        )}
+      />
 
       {/* Service Form Drawer */}
       <Drawer

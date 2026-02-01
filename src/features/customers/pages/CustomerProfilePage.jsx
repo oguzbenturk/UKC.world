@@ -29,6 +29,7 @@ const BookingDetailModal = lazy(() => import('../components/BookingDetailModal')
 const RentalDetailModal = lazy(() => import('../components/RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('../components/TransactionDetailModal'));
 const MemberPurchasesSection = lazy(() => import('../../members/components/MemberPurchasesSection'));
+const CustomerShopHistory = lazy(() => import('../components/CustomerShopHistory'));
 import UserForm from '@/shared/components/ui/UserForm';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -2567,6 +2568,32 @@ function CustomerProfilePage() {
                         ) : (
                           <Empty description="No rental history found" />
                         )
+                      )
+                    },
+                    {
+                      key: "purchases",
+                      label: (
+                        <span>
+                          <CrownOutlined /> Memberships
+                        </span>
+                      ),
+                      children: (
+                        <Suspense fallback={<div className="p-12 text-center"><Spin /></div>}>
+                          <MemberPurchasesSection userId={id} isAdminView={true} />
+                        </Suspense>
+                      )
+                    },
+                    {
+                      key: "shop",
+                      label: (
+                        <span>
+                          <GiftOutlined /> Shop Orders
+                        </span>
+                      ),
+                      children: (
+                        <Suspense fallback={<div className="p-12 text-center"><Spin /></div>}>
+                          <CustomerShopHistory userId={id} />
+                        </Suspense>
                       )
                     },
                     // Package History tab removed

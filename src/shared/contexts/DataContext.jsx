@@ -8,8 +8,6 @@ import { AuthContext } from './AuthContext';
 import { apiCallManager } from '../utils/apiCallManager';
 import { hasPermission, ROLES } from '../utils/roleUtils';
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 // eslint-disable-next-line react-refresh/only-export-components
 export const DataContext = createContext(null);
 
@@ -254,42 +252,36 @@ export function SafeDataProvider({ children }) {
     try {
       fetchingRef.current = true;
       setLoading(true);
-      setError(null);      // Stagger the requests to avoid rate limiting with longer delays
-      // Use API call manager to prevent duplicate calls
-      const usersData = await apiCallManager.execute('getUsersWithStudentRole', 
-        () => DataService.getUsersWithStudentRole(), 10000);
+      setError(null);
+
+      // OPTIMIZED: Load all data in parallel for faster dashboard loading
+      // Group 1: Core data (users, instructors, equipment, bookings) - load in parallel
+      const [usersData, instructorsData, equipmentData, bookingsData] = await Promise.all([
+        apiCallManager.execute('getUsersWithStudentRole', 
+          () => DataService.getUsersWithStudentRole(), 10000),
+        apiCallManager.execute('getInstructors',
+          () => DataService.getInstructors(), 10000),
+        apiCallManager.execute('getEquipment',
+          () => DataService.getEquipment(), 10000),
+        apiCallManager.execute('getBookings',
+          () => DataService.getBookings(), 5000)
+      ]);
+
+      // Update state immediately after first batch
       setUsersWithStudentRole(usersData);
-
-      // Add longer delay between requests to prevent rate limiting
-      await delay(1500); // Increased delay
-
-      const instructorsData = await apiCallManager.execute('getInstructors',
-        () => DataService.getInstructors(), 10000);
       setInstructors(instructorsData);
-
-      await delay(1500); // Increased delay
-
-      const equipmentData = await apiCallManager.execute('getEquipment',
-        () => DataService.getEquipment(), 10000);
       setEquipment(equipmentData);
-
-      await delay(1500); // Increased delay
-
-      const bookingsData = await apiCallManager.execute('getBookings',
-        () => DataService.getBookings(), 5000); // Shorter cache for bookings as they change more frequently
       setBookings(bookingsData);
 
-      await delay(800);
-      await loadServicesData();
+      // Group 2: Secondary data (services, rentals, payments, summary) - load in parallel
+      // These depend on user role but can still be parallelized
+      await Promise.all([
+        loadServicesData(),
+        loadRentalsData(),
+        loadPaymentsData(),
+        loadDashboardSummary()
+      ]);
 
-      await delay(800);
-      await loadRentalsData();
-
-      await delay(800);
-      await loadPaymentsData();
-
-      await delay(600);
-      await loadDashboardSummary();
     } catch (err) {
       console.error("Error fetching data:", err);
       setError(err.message || "Failed to fetch data");

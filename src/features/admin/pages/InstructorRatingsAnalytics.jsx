@@ -5,7 +5,6 @@ import {
 	Avatar,
 	Button,
 	Card,
-	Divider,
 	Empty,
 	List,
 	Row,
@@ -40,6 +39,7 @@ import {
 	FilePdfOutlined,
 	ReloadOutlined
 } from '@ant-design/icons';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useInstructorRatingsAnalytics } from '../hooks/useInstructorRatingsAnalytics';
@@ -127,6 +127,52 @@ const MetricCard = ({ title, description, icon, accent = 'slate', statisticProps
 		</div>
 	);
 };
+
+const LeaderboardMobileCard = ({ record }) => {
+  const isBenchmark = record.benchmarkHit;
+  const isTop3 = record.rank <= 3;
+  
+  return (
+    <Card 
+      size="small" 
+      className={`mb-3 shadow-sm ${isBenchmark ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'} ${isTop3 ? 'border-l-4 border-l-amber-400' : ''}`}
+    >
+      <div className="flex justify-between items-start mb-2">
+         <div className="flex items-center gap-2">
+            <Avatar style={{ backgroundColor: isTop3 ? '#f59e0b' : '#1890ff' }}>{record.rank}</Avatar>
+            <div className="font-semibold text-lg">{record.instructorName}</div>
+         </div>
+         <div className="flex flex-col items-end">
+            <Tag color="blue" className="mr-0 mb-1">{record.averageRating} Avg</Tag>
+            {isBenchmark && <Tag color="gold" className="mr-0">Top Tier</Tag>}
+         </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2 mb-2 text-sm">
+         <div className="text-gray-500">Ratings: <span className="text-gray-900 font-medium">{record.totalRatings}</span></div>
+         <div className="text-gray-500 text-right">5★ Share: <span className="text-gray-900 font-medium">{formatPercent(record.fiveStarShare)}</span></div>
+      </div>
+      
+      <div className="border-t pt-2 mt-1 grid grid-cols-3 gap-1 text-xs text-center">
+         <div>
+           <div className="text-gray-500">Lesson</div>
+           <div className="font-medium">{Number(record.breakdown?.lesson?.average || 0).toFixed(2)}</div>
+         </div>
+         <div className="border-l border-r border-gray-100">
+           <div className="text-gray-500">Rental</div>
+           <div className="font-medium">{Number(record.breakdown?.rental?.average || 0).toFixed(2)}</div>
+         </div>
+         <div>
+           <div className="text-gray-500">Accomm</div>
+           <div className="font-medium">{Number(record.breakdown?.accommodation?.average || 0).toFixed(2)}</div>
+         </div>
+      </div>
+
+      <div className="text-xs text-gray-400 mt-2 text-right">Last rated: {record.lastRatingAt || 'Never'}</div>
+    </Card>
+  );
+};
+
 
 const InstructorRatingsAnalytics = () => {
 	const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -440,11 +486,10 @@ const InstructorRatingsAnalytics = () => {
 	const sanitizedColumns = columns.filter(Boolean);
 
 	return (
-		<div className="space-y-6 p-6 max-w-7xl mx-auto">
+		<div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
 			<Card
 				variant="borderless"
-				className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-				styles={{ body: { padding: 32 } }}
+				className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-8"
 			>
 				<div className="pointer-events-none absolute -top-20 right-8 h-44 w-44 rounded-full bg-indigo-100" />
 				<div className="pointer-events-none absolute -bottom-24 left-16 h-48 w-48 rounded-full bg-purple-50" />
@@ -452,7 +497,7 @@ const InstructorRatingsAnalytics = () => {
 					<Space direction="vertical" size={16} className="w-full">
 						<Space size={12} align="center" className="w-full justify-between">\n							<div className="space-y-2">
 								<Title level={2} className="!mb-0 text-slate-900 flex items-center gap-3">
-									<StarFilled className="text-amber-500" />
+									<StarFilled className="text-amber-500 flex-shrink-0" />
 									Instructor Ratings Analytics
 								</Title>
 								<Text className="text-slate-600 text-base">
@@ -479,10 +524,10 @@ const InstructorRatingsAnalytics = () => {
 				/>
 			)}
 
-			<div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+			<div className="grid gap-6 2xl:grid-cols-[3fr_1fr]">
 				<div className="space-y-6">
 					<Card
-						className="rounded-2xl border border-slate-200 shadow-sm"
+						className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 						loading={isLoading}
 					>
 						<Space direction="vertical" size={12} className="w-full">
@@ -507,7 +552,7 @@ const InstructorRatingsAnalytics = () => {
 					</Card>
 
 					<Card
-						className="rounded-2xl border border-slate-200 shadow-sm"
+						className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 					>
 						<Space direction="vertical" size={12} className="w-full">
 							<Title level={4} style={{ margin: 0 }}>Service breakdown</Title>
@@ -536,7 +581,7 @@ const InstructorRatingsAnalytics = () => {
 				</div>
 
 				<Card
-					className="rounded-2xl border border-slate-200 shadow-sm"
+					className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 				>
 					<Space direction="vertical" size={16} className="w-full">
 						<Space size={10} align="center">
@@ -559,12 +604,11 @@ const InstructorRatingsAnalytics = () => {
 				</Card>
 			</div>
 
-			<div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-				<Card
-					className="rounded-2xl border border-slate-200 shadow-sm"
-				>
-					<Space direction="vertical" size={12} className="w-full">
-						<Title level={4} style={{ margin: 0 }}>Instructor leaderboard</Title>
+			<Card
+				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
+			>
+				<Space direction="vertical" size={12} className="w-full">
+					<Title level={4} style={{ margin: 0 }}>Instructor leaderboard</Title>
 						<Text type="secondary">
 							{totalRatings
 								? 'Use the leaderboard to spot consistently high performers and areas needing support.'
@@ -584,14 +628,14 @@ const InstructorRatingsAnalytics = () => {
 					) : (
 							<>
 								<Row gutter={[16, 16]} className="mb-6">
-									<Col xs={24} md={12} lg={6}>
+									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
 											<Text strong>Sort by</Text>
 											<Select
 												value={filters.sortBy}
 												onChange={handleSortChange}
 												optionLabelProp="title"
-												popupMatchSelectWidth
+												popupMatchSelectWidth={false}
 												className="w-full"
 											>
 												{SORT_OPTIONS.map((option) => (
@@ -602,7 +646,7 @@ const InstructorRatingsAnalytics = () => {
 											</Select>
 										</Space>
 									</Col>
-									<Col xs={24} sm={12} lg={6}>
+									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
 											<Text strong>Benchmark highlight</Text>
 											<Space size={8} align="center">
@@ -611,13 +655,13 @@ const InstructorRatingsAnalytics = () => {
 													onChange={handleBenchmarkToggle}
 													aria-label="Toggle benchmark highlight"
 												/>
-												<Text type="secondary">
-													{filters.highlightBenchmark ? 'Showing top performer badges' : 'Hidden from leaderboard'}
+												<Text type="secondary" className="truncate" title={filters.highlightBenchmark ? 'Showing top performer badges' : 'Hidden from leaderboard'}>
+													{filters.highlightBenchmark ? 'Showing badges' : 'Hidden'}
 												</Text>
 											</Space>
 										</Space>
 									</Col>
-									<Col xs={24} sm={12} lg={6}>
+									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
 											<Text strong>Auto refresh</Text>
 											<Space size={8} align="center">
@@ -626,11 +670,11 @@ const InstructorRatingsAnalytics = () => {
 													onChange={handleAutoRefreshToggle}
 													aria-label="Auto refresh"
 												/>
-												<Text type="secondary">Refreshes every 60 seconds</Text>
+												<Text type="secondary">Every 60s</Text>
 											</Space>
 										</Space>
 									</Col>
-									<Col xs={24} lg={6}>
+									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
 											<Text strong>Actions</Text>
 											<Space size={8} wrap>
@@ -642,7 +686,7 @@ const InstructorRatingsAnalytics = () => {
 													onClick={handleExportPdf}
 													disabled={!tableData.length}
 												>
-													Export PDF
+													Export
 												</Button>
 											</Space>
 										</Space>
@@ -654,7 +698,7 @@ const InstructorRatingsAnalytics = () => {
 									</Text>
 									<Text type="secondary">Benchmark performers are highlighted in amber.</Text>
 								</div>
-							<Table
+							<UnifiedResponsiveTable
 								columns={sanitizedColumns}
 								dataSource={tableData}
 								size="middle"
@@ -663,7 +707,7 @@ const InstructorRatingsAnalytics = () => {
 									showSizeChanger: false,
 									showTotal: (total) => `${total} instructor${total === 1 ? '' : 's'}`
 								}}
-								scroll={{ x: true }}
+								scroll={{ x: 1200 }}
 								rowClassName={(record) => {
 									const classes = [];
 									if (record.benchmarkHit) {
@@ -674,61 +718,51 @@ const InstructorRatingsAnalytics = () => {
 									}
 									return classes.join(' ');
 								}}
+								mobileCardRenderer={(props) => <LeaderboardMobileCard {...props} />}
 							/>
 						</>
 					)}
-				</Card>
+			</Card>
 
-				<Card
-					className="rounded-2xl border border-slate-200 shadow-sm"
-				>
-					<Space direction="vertical" size={16} className="w-full">
-						<Space size={10} align="center">
-							<CrownFilled style={{ color: '#f59e0b' }} />
-							<Text strong>Top performers</Text>
-						</Space>
-						{!topPerformers.length ? (
-							<Empty description="No instructors ranked yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-						) : (
-							<List
-								dataSource={topPerformers}
-								split={false}
-								renderItem={(item, index) => (
-									<List.Item style={{ padding: '12px 0' }}>
-										<List.Item.Meta
-											avatar={
-												<Avatar style={{ backgroundColor: '#2563eb' }}>
-													{item.instructorName?.[0] ?? '?'}
-												</Avatar>
-											}
-											title={
-												<Space size={8} align="center">
-													<Text strong>
-														#{item.rank} {item.instructorName}
-													</Text>
-													{index === 0 && <Tag color="gold">Champion</Tag>}
-												</Space>
-											}
-											description={
-												<Text type="secondary">
-													Avg {item.averageRating} · {item.totalRatings} ratings · {formatPercent(item.fiveStarShare)} five-star
-												</Text>
-											}
-										/>
-									</List.Item>
-								)}
-							/>
-						)}
-						{hasRatings && (
-							<Divider plain style={{ margin: 0 }}>
-								<Text type="secondary" style={{ fontSize: 12 }}>
-									Celebrate your top 3 instructors this week
-								</Text>
-							</Divider>
-						)}
+			<Card
+				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
+			>
+				<Space direction="vertical" size={16} className="w-full">
+					<Space size={10} align="center">
+						<CrownFilled style={{ color: '#f59e0b' }} />
+						<Text strong>Top performers</Text>
 					</Space>
-				</Card>
-			</div>
+					{!topPerformers.length ? (
+						<Empty description="No instructors ranked yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+					) : (
+						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{topPerformers.map((item, index) => (
+								<div
+									key={item.key}
+									className={`flex items-center gap-3 p-3 rounded-xl border ${
+										index === 0
+											? 'bg-amber-50 border-amber-200'
+											: 'bg-slate-50 border-slate-200'
+									}`}
+								>
+									<Avatar style={{ backgroundColor: index === 0 ? '#f59e0b' : '#2563eb' }}>
+										{item.instructorName?.[0] ?? '?'}
+									</Avatar>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2">
+											<Text strong className="truncate">#{item.rank} {item.instructorName}</Text>
+											{index === 0 && <Tag color="gold" className="m-0 flex-shrink-0">Champion</Tag>}
+										</div>
+										<Text type="secondary" className="text-xs">
+											Avg {item.averageRating} · {item.totalRatings} ratings · {formatPercent(item.fiveStarShare)} 5★
+										</Text>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</Space>
+			</Card>
 		</div>
 	);
 };

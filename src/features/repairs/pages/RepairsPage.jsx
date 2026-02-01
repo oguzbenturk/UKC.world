@@ -6,9 +6,40 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import SparePartsOrders from '@/features/admin/pages/SparePartsOrders';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+
+const RepairMobileCard = ({ record, onAction, isAdmin }) => (
+  <Card size="small" className="mb-2">
+    <div className="flex justify-between items-start mb-2">
+      <Space>
+        {record.photos && parsePhotos(record.photos)[0] ? (
+            <Avatar shape="square" src={parsePhotos(record.photos)[0]} />
+        ) : (
+            <Avatar shape="square" icon={<ToolOutlined />} />
+        )}
+        <div>
+          <div className="font-medium">{record.item_name}</div>
+          <div className="text-xs text-gray-500 capitalize">{record.equipment_type} • {record.location}</div>
+        </div>
+      </Space>
+      <Tag color={record.priority === 'urgent' ? 'red' : record.priority === 'high' ? 'orange' : 'blue'}>
+        {record.priority}
+      </Tag>
+    </div>
+    <div className="flex justify-between items-center mt-3">
+        <Tag color={record.status === 'completed' ? 'green' : record.status === 'pending' ? 'orange' : 'blue'}>
+            {record.status?.toUpperCase().replace('_', ' ')}
+        </Tag>
+        <Space>
+            <Button size="small" icon={<MessageOutlined />} onClick={() => onAction('view', record)}>View</Button>
+            {isAdmin && <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)}>Edit</Button>}
+        </Space>
+    </div>
+  </Card>
+);
 
 /**
  * Safely parse photos field which may be JSON string, array, or plain string path
@@ -534,11 +565,21 @@ const RepairsPage = () => {
         </Title>
         <Spin spinning={loading}>
           {repairs.length > 0 ? (
-            <Table
+            <UnifiedResponsiveTable
               dataSource={repairs}
               columns={columns}
               rowKey="id"
               pagination={{ pageSize: 10 }}
+              mobileCardRenderer={(props) => (
+                 <RepairMobileCard 
+                    {...props} 
+                    isAdmin={user?.role === 'admin' || user?.role === 'manager'}
+                    onAction={(action, record) => {
+                       if (action === 'view') handleViewDetails(record);
+                       if (action === 'edit') handleEditStatus(record);
+                    }} 
+                 />
+              )}
             />
           ) : (
             <Empty

@@ -45,6 +45,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '@/shared/services/apiClient';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -471,6 +472,67 @@ const VoucherManagement = () => {
     }
   ];
 
+  const VoucherMobileCard = ({ record }) => {
+    const config = VOUCHER_TYPES[record.voucher_type];
+    
+    // Status logic from columns
+    const now = dayjs();
+    const validFrom = record.valid_from ? dayjs(record.valid_from) : null;
+    const validUntil = record.valid_until ? dayjs(record.valid_until) : null;
+    
+    let status = 'active';
+    if (validFrom && validFrom.isAfter(now)) status = 'pending';
+    if (validUntil && validUntil.isBefore(now)) status = 'expired';
+
+    return (
+      <Card styles={{ body: { padding: 12 } }} className="mb-3 border-slate-200 shadow-sm border">
+         <div className="flex justify-between items-start">
+             <div>
+                <div className="flex items-center gap-2 mb-1">
+                   {config?.icon && <span style={{ color: config.color }}>{config.icon}</span>}
+                   <Tag color={record.is_active ? 'blue' : 'default'} style={{ fontFamily: 'monospace', margin: 0 }}>
+                      {record.code}
+                   </Tag>
+                </div>
+                <div className="font-medium text-slate-800">{record.name}</div>
+             </div>
+             <div className="text-right">
+                <div className="font-bold text-lg">
+                   {record.voucher_type === 'percentage' 
+                      ? `${record.discount_value}%` 
+                      : `${record.discount_value} ${record.currency || 'EUR'}`}
+                </div>
+                <Tag color={status === 'active' ? 'green' : status === 'pending' ? 'orange' : 'red'}>
+                   {status.toUpperCase()}
+                </Tag>
+             </div>
+         </div>
+         
+         <div className="my-2 border-t pt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+             <div>
+               <div>Valid Until:</div>
+               <div className="text-slate-700 font-medium">{formatDate(record.valid_until)}</div>
+             </div>
+             <div>
+               <div>Usage:</div>
+               <div className="text-slate-700 font-medium">{record.total_uses || 0} / {record.max_total_uses || '∞'}</div>
+             </div>
+         </div>
+         
+         <div className="flex justify-end gap-2 border-t pt-2">
+            <Button size="small" icon={<EyeOutlined />} onClick={() => openViewDrawer(record)} />
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+            <Popconfirm
+              title="Deactivate?"
+              onConfirm={() => handleDeleteVoucher(record.id)}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+         </div>
+      </Card>
+    );
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
@@ -561,21 +623,19 @@ const VoucherManagement = () => {
       </Card>
 
       {/* Vouchers Table */}
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={vouchers}
-          rowKey="id"
-          loading={loading}
-          pagination={{
+      <UnifiedResponsiveTable
+        columns={columns}
+        dataSource={vouchers}
+        rowKey="id"
+        loading={loading}
+        pagination={{
             ...pagination,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} vouchers`
-          }}
-          onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
+        }}
+        onChange={(pag) => setPagination(pag)}
+        mobileCardRenderer={(props) => <VoucherMobileCard {...props} />}
+      />
 
       {/* Create/Edit Modal */}
       <Modal

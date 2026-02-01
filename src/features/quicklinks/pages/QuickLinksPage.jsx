@@ -650,7 +650,7 @@ const QuickLinksPage = ({ embedded = false }) => {
   const FormsTab = () => (
     <div className="space-y-6">
       {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Title level={4} className="!mb-1">Your Forms</Title>
           <Text type="secondary">Create custom forms for applications, waivers, surveys, and feedback</Text>
@@ -659,6 +659,7 @@ const QuickLinksPage = ({ embedded = false }) => {
           type="primary" 
           icon={<PlusOutlined />} 
           size="large"
+          className="w-full sm:w-auto"
           onClick={() => setCreateFormModalVisible(true)}
         >
           Create New Form
@@ -798,15 +799,16 @@ const QuickLinksPage = ({ embedded = false }) => {
   const LinksTab = () => (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Title level={4} className="!mb-1">Active Links</Title>
           <Text type="secondary">All your shareable links - copy and send to customers</Text>
         </div>
-        <Space>
+        <Space className="w-full sm:w-auto">
           <Button 
             type="primary"
             icon={<PlusOutlined />} 
+            className="flex-1 sm:flex-none"
             onClick={() => {
               setSelectedFormForLink(null);
               createLinkForm.resetFields();
@@ -829,6 +831,7 @@ const QuickLinksPage = ({ embedded = false }) => {
         <Table
           dataSource={links}
           rowKey="id"
+          scroll={{ x: 1000 }}
           loading={loading}
           pagination={{ pageSize: 10 }}
           locale={{
@@ -931,7 +934,7 @@ const QuickLinksPage = ({ embedded = false }) => {
   const FormAnswersTab = () => (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Title level={4} className="!mb-1">Form Answers</Title>
           <Text type="secondary">Submissions from your custom forms</Text>
@@ -939,6 +942,7 @@ const QuickLinksPage = ({ embedded = false }) => {
         <Button 
           icon={<ReloadOutlined />} 
           onClick={fetchFormSubmissions}
+          className="w-full sm:w-auto"
         >
           Refresh
         </Button>
@@ -949,6 +953,7 @@ const QuickLinksPage = ({ embedded = false }) => {
         <Table
           dataSource={formSubmissions}
           rowKey="id"
+          scroll={{ x: 1000 }}
           loading={formSubmissionsLoading}
           pagination={{ pageSize: 15 }}
           locale={{
@@ -1069,7 +1074,7 @@ const QuickLinksPage = ({ embedded = false }) => {
   const RegistrationsTab = () => (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <Title level={4} className="!mb-1">Link Registrations</Title>
           <Text type="secondary">Service registrations from your shareable links</Text>
@@ -1077,6 +1082,7 @@ const QuickLinksPage = ({ embedded = false }) => {
         <Button 
           icon={<ReloadOutlined />} 
           onClick={() => fetchAllRegistrations(links)}
+          className="w-full sm:w-auto"
         >
           Refresh
         </Button>
@@ -1087,6 +1093,7 @@ const QuickLinksPage = ({ embedded = false }) => {
         <Table
           dataSource={allRegistrations}
           rowKey="id"
+          scroll={{ x: 1000 }}
           loading={registrationsLoading}
           pagination={{ pageSize: 15 }}
           locale={{
@@ -1182,32 +1189,32 @@ const QuickLinksPage = ({ embedded = false }) => {
 
       {/* Quick Stats - only show when not embedded */}
       {!embedded && (
-        <Row gutter={16} className="mb-6">
-          <Col xs={6}>
-            <Card className="text-center">
+        <Row gutter={[16, 16]} className="mb-6">
+          <Col xs={12} sm={6}>
+            <Card className="text-center h-full">
               <div className="text-2xl font-bold text-indigo-600">{allFormTemplates.length}</div>
               <Text type="secondary">Forms</Text>
             </Card>
           </Col>
-          <Col xs={6}>
-            <Card className="text-center">
+          <Col xs={12} sm={6}>
+            <Card className="text-center h-full">
               <div className="text-2xl font-bold text-green-600">{links.length}</div>
               <Text type="secondary">Links</Text>
             </Card>
           </Col>
-          <Col xs={6}>
-            <Card className="text-center">
+          <Col xs={12} sm={6}>
+            <Card className="text-center h-full">
               <div className="text-2xl font-bold text-blue-600">{formSubmissions.length}</div>
               <Text type="secondary">Answers</Text>
             </Card>
           </Col>
-          <Col xs={6}>
-            <Card className="text-center">
+          <Col xs={12} sm={6}>
+            <Card className="text-center h-full">
               <div className="text-2xl font-bold text-orange-600">{allRegistrations.length}</div>
               <Text type="secondary">Registrations</Text>
-          </Card>
-        </Col>
-      </Row>
+            </Card>
+          </Col>
+        </Row>
       )}
 
       {/* Main Tabs */}

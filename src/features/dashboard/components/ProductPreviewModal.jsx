@@ -314,13 +314,16 @@ const ProductPreviewModal = ({
                     </div>
                 </div>
 
-                {/* Thumbnail Gallery - Centered */}
+                {/* Thumbnail Gallery - Horizontally scrollable on mobile */}
                 {hasMultipleImages && (
                     <div 
-                        className="flex justify-center gap-2 px-4 py-3" 
+                        className="flex gap-2 px-4 py-3 overflow-x-auto justify-start sm:justify-center" 
                         style={{ 
                             background: 'linear-gradient(to bottom, #f8f9fa, #fff)',
-                            borderBottom: '1px solid #f0f0f0'
+                            borderBottom: '1px solid #f0f0f0',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                            WebkitOverflowScrolling: 'touch'
                         }}
                     >
                         {allImages.map((img, index) => {
@@ -334,7 +337,8 @@ const ProductPreviewModal = ({
                                         border: 'none',
                                         background: 'none',
                                         cursor: 'pointer',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        flexShrink: 0
                                     }}
                                 >
                                     <div
@@ -353,6 +357,7 @@ const ProductPreviewModal = ({
                                         <img
                                             src={img}
                                             alt={`${product.name} ${index + 1}`}
+                                            loading="eager"
                                             style={{ 
                                                 width: '100%', 
                                                 height: '100%', 

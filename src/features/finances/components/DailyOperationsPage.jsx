@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs';
 import { getDailyOperations } from '../services/dailyOperationsService.js';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
@@ -256,6 +257,53 @@ export default function DailyOperationsPage() {
     }
   ];
 
+  const PaymentMobileCard = ({ record }) => (
+    <div className="p-3 border rounded-lg mb-3 shadow-sm bg-white">
+       <div className="flex justify-between items-start">
+         <div>
+            <div className="font-semibold text-slate-800">{record.customer_name || 'Guest'}</div>
+            <div className="text-xs text-slate-500">{record.customer_email}</div>
+         </div>
+         <div className="text-right">
+            <div className="font-bold text-emerald-600">{formatCurrency(record.amount)}</div>
+            <Tag>{record.method}</Tag>
+         </div>
+       </div>
+       <div className="mt-2 text-xs flex justify-between items-center text-slate-500 border-t pt-2">
+           <span>{dayjs(record.created_at).format('HH:mm')}</span>
+           <span>{record.reference_number}</span>
+       </div>
+    </div>
+  );
+
+  const MobileRentalCard = ({ record }) => {
+    const statusColors = {
+      active: 'blue', in_progress: 'processing', completed: 'green', closed: 'green', pending: 'orange', cancelled: 'red'
+    };
+    const paymentColors = {
+      paid: 'green', closed: 'green', pending: 'orange', partial: 'gold', unpaid: 'red'
+    };
+    
+    return (
+     <div className="p-3 border rounded-lg mb-3 shadow-sm bg-white">
+        <div className="flex justify-between items-start">
+           <div>
+              <div className="font-semibold text-slate-800">{record.equipment_name || 'Rental'}</div>
+              <div className="text-xs text-slate-500">{record.customer_name}</div>
+           </div>
+           <Tag color={statusColors[record.status] || 'default'}>{record.status}</Tag>
+        </div>
+        <div className="mt-2 flex justify-between items-center">
+            <Tag color={paymentColors[record.payment_status] || 'default'}>{record.payment_status}</Tag>
+            <div className="font-bold">{formatCurrency(record.total_price)}</div>
+        </div>
+        <div className="mt-2 text-xs text-slate-500 border-t pt-2 flex justify-between">
+           <span>{dayjs(record.start_time).format('HH:mm')} - {dayjs(record.end_time).format('HH:mm')}</span>
+        </div>
+     </div>
+    );
+  };
+
   const dateLabel = date.format('dddd, MMMM D, YYYY');
   const isToday = date.isSame(dayjs(), 'day');
 
@@ -361,12 +409,11 @@ export default function DailyOperationsPage() {
             </div>
           }
         >
-          <Table
+          <UnifiedResponsiveTable
             dataSource={incomeTransactions}
             columns={paymentColumns}
-            size="small"
+            rowKey="id"
             pagination={{ pageSize: 10, showSizeChanger: true }}
-            scroll={{ x: 600 }}
             locale={{
               emptyText: (
                 <Empty 
@@ -375,6 +422,7 @@ export default function DailyOperationsPage() {
                 />
               )
             }}
+            mobileCardRenderer={(props) => <PaymentMobileCard {...props} />}
           />
         </Card>
       )}
@@ -391,12 +439,11 @@ export default function DailyOperationsPage() {
             </div>
           }
         >
-          <Table
+          <UnifiedResponsiveTable
             dataSource={dayRentals}
             columns={rentalColumns}
-            size="small"
+            rowKey="id"
             pagination={{ pageSize: 10, showSizeChanger: true }}
-            scroll={{ x: 700 }}
             locale={{
               emptyText: (
                 <Empty 
@@ -405,6 +452,7 @@ export default function DailyOperationsPage() {
                 />
               )
             }}
+            mobileCardRenderer={(props) => <MobileRentalCard {...props} />}
           />
         </Card>
       )}

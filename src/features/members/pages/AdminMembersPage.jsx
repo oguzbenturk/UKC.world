@@ -214,7 +214,7 @@ const AdminMembersPage = () => {
     return (
       <Card 
         className="rounded-2xl border border-slate-200 shadow-sm mb-3"
-        bodyStyle={{ padding: 16 }}
+        styles={{ body: { padding: 16 } }}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -292,7 +292,7 @@ const AdminMembersPage = () => {
       {/* Stats */}
       <Row gutter={[12, 12]} className="mb-4 md:mb-6">
         <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" bodyStyle={{ padding: isMobile ? 12 : 20 }}>
+          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
             <Statistic
               title={<span className="text-xs md:text-sm">Total Members</span>}
               value={stats?.total || 0}
@@ -302,7 +302,7 @@ const AdminMembersPage = () => {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" bodyStyle={{ padding: isMobile ? 12 : 20 }}>
+          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
             <Statistic
               title={<span className="text-xs md:text-sm">Active</span>}
               value={stats?.active || 0}
@@ -312,7 +312,7 @@ const AdminMembersPage = () => {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" bodyStyle={{ padding: isMobile ? 12 : 20 }}>
+          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
             <Statistic
               title={<span className="text-xs md:text-sm">Pending</span>}
               value={stats?.pending || 0}
@@ -322,7 +322,7 @@ const AdminMembersPage = () => {
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" bodyStyle={{ padding: isMobile ? 12 : 20 }}>
+          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
             <Statistic
               title={<span className="text-xs md:text-sm">Expired</span>}
               value={stats?.expired || 0}
@@ -334,7 +334,7 @@ const AdminMembersPage = () => {
       </Row>
 
       {/* Filters */}
-      <Card className="rounded-xl border border-slate-200 shadow-sm mb-4" bodyStyle={{ padding: isMobile ? 12 : 16 }}>
+      <Card className="rounded-xl border border-slate-200 shadow-sm mb-4" styles={{ body: { padding: isMobile ? 12 : 16 } }}>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
             placeholder="Search name or email..."

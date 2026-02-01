@@ -2,10 +2,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/formatters';
 import {
-  ChevronUpIcon,
-  ChevronDownIcon,
   MagnifyingGlassIcon as SearchIcon,
 } from '@heroicons/react/24/solid';
+import { Tag, Badge } from 'antd'; // Add likely needed components
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const DEFAULT_SYSTEM_LABEL = 'System automation';
 
@@ -144,8 +144,6 @@ const findFirstIdentifier = (candidates) =>
   candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== '');
 
 function TransactionHistory({ transactions = [], customerDirectory }) {
-  const [sortField, setSortField] = useState('date');
-  const [sortDirection, setSortDirection] = useState('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [dateRange, setDateRange] = useState({
@@ -249,23 +247,11 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
     return sorted;
   }, [transactions]);
 
-  // Handle sort
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Filter and sort transactions
-  const filteredAndSortedTransactions = useMemo(() => {
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const startDate = dateRange.start ? new Date(dateRange.start) : null;
     const endDate = dateRange.end ? new Date(dateRange.end) : null;
-
-    const comparator = createTransactionComparator(sortField, sortDirection, resolveCustomerName);
 
     return transactions
       .filter((transaction) => {
@@ -282,9 +268,8 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
         }
 
         return true;
-      })
-      .sort(comparator);
-  }, [transactions, sortField, sortDirection, searchTerm, selectedTypes, dateRange, resolveCustomerName]);
+      });
+  }, [transactions, searchTerm, selectedTypes, dateRange, resolveCustomerName]);
 
   const handleTypeToggle = (type) => {
     setSelectedTypes(prev => 
@@ -293,6 +278,97 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
         : [...prev, type]
     );
   };
+
+  const columns = [
+    {
+      title: 'Date',
+      key: 'date',
+      sorter: createTransactionComparator('date', 'asc', resolveCustomerName),
+      render: (_, record) => <span>{safeFormatDate(deriveTransactionDate(record), 'MMM d, yyyy') || '—'}</span>
+    },
+    {
+      title: 'Type',
+      key: 'category',
+      sorter: createTransactionComparator('category', 'asc', resolveCustomerName),
+      render: (_, record) => {
+        const category = getTransactionCategory(record);
+        const colorMap = {
+           lesson: 'blue', rental: 'green', package: 'purple',
+           refund: 'gold', credit: 'cyan', charge: 'magenta',
+           payment: 'geekblue', other: 'default'
+        };
+        const color = colorMap[category] || 'default';
+        return <Tag color={color}>{toTitleCase(category)}</Tag>;
+      }
+    },
+    {
+       title: 'Description',
+       dataIndex: 'description',
+       key: 'description',
+       sorter: createTransactionComparator('description', 'asc', resolveCustomerName),
+       render: (text) => <span className="text-slate-700">{text}</span>
+    },
+    {
+       title: 'Customer',
+       key: 'customer',
+       sorter: createTransactionComparator('customer', 'asc', resolveCustomerName),
+       render: (_, record) => resolveCustomerName(record)
+    },
+    {
+       title: 'Amount',
+       key: 'amount',
+       sorter: createTransactionComparator('amount', 'asc', resolveCustomerName),
+       render: (_, record) => (
+         <span className={`font-medium ${record.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatCurrency(record.amount, record.currency)}
+         </span>
+       )
+    },
+    {
+        title: 'Created By',
+        key: 'createdByLabel',
+        sorter: createTransactionComparator('createdByLabel', 'asc', resolveCustomerName),
+        render: (_, record) => <span className="text-xs text-slate-500">{record.createdByLabel || DEFAULT_SYSTEM_LABEL}</span>
+    },
+    {
+        title: 'Status',
+        dataIndex: 'status',
+        key: 'status',
+        sorter: createTransactionComparator('status', 'asc', resolveCustomerName),
+        render: (status) => (
+            <Badge 
+               status={status === 'completed' ? 'success' : status === 'pending' ? 'warning' : 'error'}
+               text={toTitleCase(status)}
+            />
+        )
+    }
+  ];
+
+  const TransactionMobileCard = ({ record, onClick }) => (
+    <div className="p-4 border rounded-lg mb-3 shadow-sm bg-white cursor-pointer hover:border-blue-300 transition-colors" onClick={onClick}>
+        <div className="flex justify-between items-start mb-2">
+           <div className="flex items-center gap-2">
+               <span className="font-semibold text-slate-800">{safeFormatDate(deriveTransactionDate(record), 'MMM d, yyyy')}</span>
+               <Tag className="m-0" color="blue">{toTitleCase(getTransactionCategory(record))}</Tag>
+           </div>
+           <span className={`font-bold ${record.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(record.amount, record.currency)}
+           </span>
+        </div>
+        <div className="text-sm text-slate-600 mb-2 line-clamp-2">{record.description}</div>
+        <div className="flex justify-between items-center border-t pt-2 max-w-full">
+             <div className="text-xs text-slate-500 truncate max-w-[60%] flex items-center gap-1">
+                <span>{resolveCustomerName(record)}</span>
+             </div>
+             <div className="flex-shrink-0">
+               <Badge 
+                  status={record.status === 'completed' ? 'success' : record.status === 'pending' ? 'warning' : 'error'} 
+                  text={toTitleCase(record.status)}
+               />
+             </div>
+        </div>
+    </div>
+  );
   
   return (
     <div className="bg-white rounded-lg shadow">
@@ -348,109 +424,18 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
       </div>
 
       {/* Transactions Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {[
-                { field: 'date', label: 'Date' },
-                { field: 'category', label: 'Type' },
-                { field: 'description', label: 'Description' },
-                { field: 'customer', label: 'Customer' },
-                { field: 'amount', label: 'Amount' },
-                { field: 'createdByLabel', label: 'Created By' },
-                { field: 'status', label: 'Status' }
-              ].map(({ field, label }) => (
-                <th
-                  key={field}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort(field)}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>{label}</span>
-                    <div className="flex flex-col">
-                      <ChevronUpIcon className={`h-3 w-3 ${
-                        sortField === field && sortDirection === 'asc'
-                          ? 'text-blue-500'
-                          : 'text-gray-400'
-                      }`} />
-                      <ChevronDownIcon className={`h-3 w-3 ${
-                        sortField === field && sortDirection === 'desc'
-                          ? 'text-blue-500'
-                          : 'text-gray-400'
-                      }`} />
-                    </div>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredAndSortedTransactions.map((transaction) => (
-              <tr
-                key={transaction.id}
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => setSelectedTransaction(transaction)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {safeFormatDate(deriveTransactionDate(transaction), 'MMM d, yyyy') || '—'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {(() => {
-                    const category = getTransactionCategory(transaction);
-                    const colorMap = {
-                      lesson: 'bg-blue-100 text-blue-800',
-                      rental: 'bg-green-100 text-green-800',
-                      package: 'bg-purple-100 text-purple-800',
-                      refund: 'bg-yellow-100 text-yellow-800',
-                      credit: 'bg-cyan-100 text-cyan-800',
-                      charge: 'bg-rose-100 text-rose-800',
-                      payment: 'bg-indigo-100 text-indigo-800',
-                      other: 'bg-gray-100 text-gray-800'
-                    };
-                    const badgeColor = colorMap[category] || colorMap.other;
-                    return (
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}`}>
-                        {toTitleCase(category)}
-                      </span>
-                    );
-                  })()}
-                  {transaction.type && transaction.type.toLowerCase() !== getTransactionCategory(transaction) && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {toTitleCase(transaction.type)}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {transaction.description}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {resolveCustomerName(transaction)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {formatCurrency(transaction.amount, transaction.currency)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {transaction.createdByLabel || DEFAULT_SYSTEM_LABEL}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    {
-                      completed: 'bg-green-100 text-green-800',
-                      pending: 'bg-yellow-100 text-yellow-800',
-                      failed: 'bg-red-100 text-red-800'
-                    }[transaction.status]
-                  }`}>
-                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <UnifiedResponsiveTable
+        columns={columns}
+        dataSource={filteredTransactions}
+        rowKey="id"
+        pagination={{ pageSize: 15 }}
+        onRow={(record) => ({
+          onClick: () => setSelectedTransaction(record)
+        })}
+        mobileCardRenderer={(props) => (
+           <TransactionMobileCard {...props} onClick={() => setSelectedTransaction(props.record)} />
+        )}
+      />
 
       {/* Transaction Details Modal */}
       {selectedTransaction && (

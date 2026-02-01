@@ -349,6 +349,50 @@ router.get('/:id', authenticateJWT, async (req, res) => {
   }
 });
 
+// Admin: Get specific user's orders
+router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const ordersResult = await pool.query(`
+      SELECT 
+        o.*,
+        (SELECT COUNT(*) FROM shop_order_items WHERE order_id = o.id) as item_count,
+        (SELECT json_agg(json_build_object(
+          'id', oi.id,
+          'product_name', oi.product_name,
+          'product_image', oi.product_image,
+          'quantity', oi.quantity,
+          'unit_price', oi.unit_price,
+          'total_price', oi.total_price,
+          'selected_size', oi.selected_size,
+          'selected_color', oi.selected_color
+        )) FROM shop_order_items oi WHERE oi.order_id = o.id) as items
+      FROM shop_orders o
+      WHERE o.user_id = $1
+      ORDER BY o.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
+
+    const countResult = await pool.query(`
+      SELECT COUNT(*) FROM shop_orders WHERE user_id = $1
+    `, [userId]);
+
+    res.json({
+      orders: ordersResult.rows,
+      total: parseInt(countResult.rows[0].count),
+      page: parseInt(page),
+      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+    });
+
+  } catch (error) {
+    logger.error('Error fetching user orders:', error);
+    res.status(500).json({ error: 'Failed to fetch user orders' });
+  }
+});
+
 // Admin: Get all orders
 router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {

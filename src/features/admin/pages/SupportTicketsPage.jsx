@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
-  Table,
   Tag,
   Button,
   Space,
@@ -12,19 +11,132 @@ import {
   Statistic,
   Row,
   Col,
-  Typography
+  Typography,
+  Collapse
 } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   MessageOutlined,
-  SyncOutlined
+  SyncOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import axios from 'axios';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const { TextArea } = Input;
-const { Title } = Typography;
+const { Title, Text } = Typography;
+const { Panel } = Collapse;
+
+const getPriorityColor = (priority) => {
+  const colors = {
+    urgent: 'red',
+    high: 'orange',
+    normal: 'blue',
+    low: 'default'
+  };
+  return colors[priority] || 'default';
+};
+
+const getStatusColor = (status) => {
+  const colors = {
+    open: 'orange',
+    in_progress: 'blue',
+    resolved: 'green',
+    closed: 'default'
+  };
+  return colors[status] || 'default';
+};
+
+const getStatusIcon = (status) => {
+  const icons = {
+    open: <ExclamationCircleOutlined />,
+    in_progress: <SyncOutlined spin />,
+    resolved: <CheckCircleOutlined />,
+    closed: <ClockCircleOutlined />
+  };
+  return icons[status] || null;
+};
+
+const SupportTicketMobileCard = ({ record, onUpdateStatus, onAddNote }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card 
+      size="small" 
+      className="mb-3 border-gray-100 shadow-sm"
+      actions={[
+        record.status === 'open' && (
+          <Button key="start" type="link" size="small" onClick={() => onUpdateStatus(record.id, 'in_progress')}>Start</Button>
+        ),
+        ['open', 'in_progress'].includes(record.status) && (
+          <Button key="resolve" type="link" size="small" className="text-green-600" onClick={() => onUpdateStatus(record.id, 'resolved')}>Resolve</Button>
+        ),
+        record.status === 'resolved' && (
+          <Button key="close" type="link" size="small" onClick={() => onUpdateStatus(record.id, 'closed')}>Close</Button>
+        ),
+        <Button key="note" type="link" size="small" icon={<MessageOutlined />} onClick={() => onAddNote(record)}>Note</Button>
+      ].filter(Boolean)}
+    >
+      <div className="flex justify-between items-start mb-2">
+         <Space direction="vertical" size={0}>
+            <Text strong className="text-lg">{record.student_name}</Text>
+            <Text type="secondary" className="text-xs">{record.student_email}</Text>
+         </Space>
+         <div className="flex flex-col items-end gap-1">
+            <Tag color={getPriorityColor(record.priority)}>{record.priority?.toUpperCase()}</Tag>
+            <Tag icon={getStatusIcon(record.status)} color={getStatusColor(record.status)}>
+              {record.status?.replace('_', ' ').toUpperCase()}
+            </Tag>
+         </div>
+      </div>
+      
+      <div className="mb-2">
+        <Text strong>{record.subject}</Text>
+      </div>
+
+      <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
+         <Tag>{record.channel}</Tag>
+         <span>{new Date(record.created_at).toLocaleString()}</span>
+      </div>
+
+       <Button 
+        type="text" 
+        size="small" 
+        block 
+        onClick={() => setExpanded(!expanded)}
+        className="text-gray-500 bg-gray-50 text-xs"
+        icon={<DownOutlined rotate={expanded ? 180 : 0}/>}
+      >
+        {expanded ? 'Hide Details' : 'Show Details'}
+      </Button>
+
+      {expanded && (
+        <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
+          <div className="mb-2">
+            <strong>Message:</strong>
+            <div className="mt-1 p-2 bg-white rounded border border-gray-100">
+               {record.message}
+            </div>
+          </div>
+          {record.metadata?.notes && record.metadata.notes.length > 0 && (
+            <div>
+              <strong>Internal Notes:</strong>
+              {record.metadata.notes.map((n, i) => (
+                <div key={i} className="mt-1 p-2 bg-yellow-50 rounded border border-yellow-100 text-xs">
+                   <div className="text-gray-400 mb-1">{new Date(n.timestamp).toLocaleString()}</div>
+                   <div>{n.note}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+};
+
 
 /**
  * SupportTicketsPage - Admin/Manager support ticket management
@@ -103,36 +215,6 @@ const SupportTicketsPage = () => {
     } catch {
       message.error('Failed to add note');
     }
-  };
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      urgent: 'red',
-      high: 'orange',
-      normal: 'blue',
-      low: 'default'
-    };
-    return colors[priority] || 'default';
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      open: 'orange',
-      in_progress: 'blue',
-      resolved: 'green',
-      closed: 'default'
-    };
-    return colors[status] || 'default';
-  };
-
-  const getStatusIcon = (status) => {
-    const icons = {
-      open: <ExclamationCircleOutlined />,
-      in_progress: <SyncOutlined spin />,
-      resolved: <CheckCircleOutlined />,
-      closed: <ClockCircleOutlined />
-    };
-    return icons[status] || null;
   };
 
   const columns = [
@@ -326,7 +408,7 @@ const SupportTicketsPage = () => {
 
       {/* Tickets Table */}
       <Card>
-        <Table
+        <UnifiedResponsiveTable
           dataSource={tickets}
           columns={columns}
           rowKey="id"
@@ -370,6 +452,16 @@ const SupportTicketsPage = () => {
               </div>
             )
           }}
+          mobileCardRenderer={(props) => (
+            <SupportTicketMobileCard 
+              {...props} 
+              onUpdateStatus={updateTicketStatus}
+              onAddNote={(record) => {
+                  setSelectedTicket(record);
+                  setIsNoteModalOpen(true);
+              }}
+            />
+          )}
         />
       </Card>
 

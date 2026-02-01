@@ -25,11 +25,44 @@ import {
   InboxOutlined
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import apiClient from '@/shared/services/apiClient';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
+
+const OrderMobileCard = ({ record, onAction }) => (
+    <Card size="small" className="mb-2">
+      <div className="flex justify-between items-start mb-2">
+         <Space>
+           <Avatar icon={<UserOutlined />} size="small" /> 
+           <div>
+              <div className="font-medium">{record.order_number}</div>
+              <div className="text-xs text-gray-500">{record.first_name} {record.last_name}</div>
+           </div>
+         </Space>
+         <Tag color={statusConfig[record.status]?.color || 'default'}>
+            {statusConfig[record.status]?.label || record.status}
+         </Tag>
+      </div>
+      <div className="flex justify-between items-center mt-3">
+         <div>
+            <div className="text-xs text-gray-500">{new Date(record.created_at).toLocaleDateString()}</div>
+             <Tag className="mt-1" color={record.payment_status === 'completed' ? 'green' : 'gold'}>
+                {record.payment_status}
+             </Tag>
+         </div>
+         <div className="text-right">
+             <div className="text-lg font-semibold text-blue-600">
+                €{Number(record.total_amount).toFixed(2)}
+             </div>
+             <Button size="small" type="link" onClick={() => onAction('view', record)}>
+                View Details
+             </Button>
+         </div>
+      </div>
+    </Card>
+);
 
 const statusConfig = {
   pending: { color: 'gold', icon: <ClockCircleOutlined />, label: 'Pending' },
@@ -408,10 +441,11 @@ const OrderManagement = ({ embedded = false }) => {
             setPagination(p => ({ ...p, current: 1 }));
           }}
           items={tabItems}
+          tabBarStyle={{ overflowX: 'auto' }}
         />
 
         {/* Orders Table */}
-        <Table
+        <UnifiedResponsiveTable
           columns={columns}
           dataSource={orders}
           rowKey="id"
@@ -425,6 +459,13 @@ const OrderManagement = ({ embedded = false }) => {
           locale={{
             emptyText: <Empty description="No orders found" />
           }}
+          mobileCardRenderer={(props) => (
+             <OrderMobileCard 
+                {...props} 
+                onAction={(action, record) => handleViewOrder(record)} 
+             />
+          )}
+
         />
       </Card>
 

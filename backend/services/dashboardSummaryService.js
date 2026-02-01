@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { cacheService } from './cacheService.js';
 
 const UPCOMING_LESSON_STATUSES = ['pending', 'scheduled', 'confirmed', 'in_progress'];
 const ACTIVE_LESSON_STATUSES = ['in_progress', 'active'];
@@ -50,6 +51,20 @@ function toSqlTextArray(values) {
 export async function getDashboardSummary({ startDate, endDate } = {}) {
   const startDateOnly = normalizeDateOnly(startDate);
   const endDateOnly = normalizeDateOnly(endDate);
+  
+  // Generate cache key based on date range
+  const cacheKey = `dashboard:summary:${startDateOnly || 'all'}:${endDateOnly || 'all'}`;
+  
+  // Try cache first (cache for 2 minutes for real-time feel while reducing DB load)
+  try {
+    const cached = await cacheService.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+  } catch {
+    // Cache miss or error, continue to fetch from DB
+  }
+
   const startTimestamp = normalizeTimestamp(startDate);
   const endTimestamp = normalizeTimestamp(endDate, { endOfDay: true });
 
@@ -225,7 +240,7 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
 
   const rangeProvided = Boolean(startDateOnly || endDateOnly);
 
-  return {
+  const result = {
     timeframe: {
       range: rangeProvided ? 'custom' : 'lifetime',
       start: startDateOnly || null,
@@ -239,4 +254,13 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     equipment,
     customers
   };
+
+  // Cache for 2 minutes (120 seconds) - balances freshness with performance
+  try {
+    await cacheService.set(cacheKey, result, 120);
+  } catch {
+    // Cache write failed, continue anyway
+  }
+
+  return result;
 }

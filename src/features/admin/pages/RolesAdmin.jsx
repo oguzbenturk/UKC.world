@@ -1,13 +1,70 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, Form, Input, Modal, Row, Select, Space, Table, Typography, Popconfirm, Checkbox, Collapse, Tag, Divider, Switch, Tooltip, List, Avatar, Empty } from 'antd';
-import { InfoCircleOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Form, Input, Modal, Row, Select, Space, Typography, Popconfirm, Checkbox, Collapse, Tag, Divider, Switch, Tooltip, List, Avatar, Empty } from 'antd';
+import { InfoCircleOutlined, UserOutlined, SwapOutlined, EditOutlined, UserAddOutlined, DeleteOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 import rolesService from '../../../shared/services/rolesService';
 import usersService from '../../../shared/services/usersService';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { hasPermission, ROLES } from '../../../shared/utils/roleUtils';
 
 const { Title, Paragraph, Text } = Typography;
+
+const RoleMobileCard = ({ 
+  record, 
+  canManage, 
+  protectedRoles, 
+  onViewUsers, 
+  onEdit, 
+  onAssign, 
+  onDelete 
+}) => {
+  const perms = record.permissions;
+  let permTag = <Tag>No permissions</Tag>;
+  if (perms && perms['*'] === true) {
+    permTag = <Tag color="gold">Full Access</Tag>;
+  } else if (perms && Object.keys(perms).length > 0) {
+    const count = Object.values(perms).filter(v => v === true).length;
+    permTag = <Tag color="blue">{count} permission{count !== 1 ? 's' : ''}</Tag>;
+  }
+
+  const isProtected = protectedRoles.has(record.name);
+  const hasUsers = (record.user_count || 0) > 0;
+
+  return (
+      <Card 
+        size="small" 
+        className="mb-3 border-gray-100 shadow-sm"
+        actions={[
+          <Button key="view" type="link" size="small" icon={<UserOutlined />} onClick={() => onViewUsers(record)} disabled={!hasUsers}>
+             Users ({record.user_count || 0})
+          </Button>,
+          <Button key="edit" type="link" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} disabled={!canManage}>Edit</Button>,
+          <Button key="assign" type="link" size="small" icon={<UserAddOutlined />} onClick={() => onAssign(record)} disabled={!canManage}>Assign</Button>,
+          <Popconfirm
+            key="delete"
+            title="Delete role"
+            description="Are you sure you want to delete this role?"
+            okText="Delete"
+            okButtonProps={{ danger: true }}
+            cancelText="Cancel"
+            onConfirm={() => onDelete(record)}
+            disabled={!canManage || isProtected || hasUsers}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} disabled={!canManage || isProtected || hasUsers}>Delete</Button>
+          </Popconfirm>
+        ]}
+      >
+        <div className="flex justify-between items-start mb-2">
+           <Text strong className="text-lg">{record.name}</Text>
+           {permTag}
+        </div>
+        <div className="mb-2">
+           {record.description ? <Text type="secondary">{record.description}</Text> : <Text type="secondary" italic>No description</Text>}
+        </div>
+      </Card>
+  );
+};
 
 // Permission categories and their actions
 const PERMISSION_CATEGORIES = {
@@ -502,12 +559,23 @@ const RolesAdmin = () => {
         </Col>
         <Col span={24}>
           <Card styles={{ body: { padding: 0 } }}>
-            <Table
+            <UnifiedResponsiveTable
               rowKey="id"
               columns={columns}
               dataSource={roles}
               loading={loading}
               pagination={{ pageSize: 10 }}
+              mobileCardRenderer={(props) => (
+                <RoleMobileCard 
+                  {...props}
+                  canManage={canManage}
+                  protectedRoles={protectedRoles}
+                  onViewUsers={onViewUsers}
+                  onEdit={onEdit}
+                  onAssign={onAssign}
+                  onDelete={onDelete}
+                />
+              )}
             />
           </Card>
         </Col>

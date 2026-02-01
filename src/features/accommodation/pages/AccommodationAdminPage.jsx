@@ -29,6 +29,7 @@ import {
   TeamOutlined,
   EnvironmentOutlined,
   SyncOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -36,9 +37,42 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import accommodationApi from '@/shared/services/accommodationApi';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
+
+// Mobile card renderer
+const AccommodationMobileCard = ({ record, onAction }) => (
+  <Card size="small" className="mb-2">
+    <div className="flex justify-between items-start mb-2">
+       <div>
+          <div className="font-medium">{record.guest_first_name} {record.guest_last_name}</div>
+          <div className="text-xs text-gray-500">
+             <EnvironmentOutlined /> {record.room_name || record.room_type}
+          </div>
+       </div>
+       <Tag color={record.status === 'confirmed' ? 'blue' : record.status === 'completed' ? 'green' : record.status === 'cancelled' ? 'default' : 'orange'}>
+          {record.status}
+       </Tag>
+    </div>
+    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+        <div>
+           <span className="text-gray-400">Check In:</span><br/>
+           {dayjs(record.check_in_date).format('MMM D')}
+        </div>
+        <div className="text-right">
+           <span className="text-gray-400">Total:</span><br/>
+           <span className="font-semibold text-orange-600">€{record.total_price}</span>
+        </div>
+    </div>
+    <div className="flex justify-end gap-2 border-t pt-2">
+       {record.status === 'pending' && <Button size="small" type="primary" onClick={() => onAction('confirm', record)}>Confirm</Button>}
+       {record.status === 'confirmed' && <Button size="small" onClick={() => onAction('complete', record)}>Complete</Button>}
+       <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('details', record)}>Details</Button>
+    </div>
+  </Card>
+);
 
 // Helper to compute booking stats
 const computeBookingStats = (bookings) => {
@@ -479,13 +513,22 @@ function AccommodationAdminPage() {
               className="py-12"
             />
           ) : (
-            <Table
+            <UnifiedResponsiveTable
               dataSource={filteredBookings}
               columns={columns}
               rowKey="id"
               pagination={{ pageSize: 20, showSizeChanger: true }}
-              scroll={{ x: 1200 }}
               className="mt-4"
+              mobileCardRenderer={(props) => (
+                 <AccommodationMobileCard 
+                    {...props} 
+                    onAction={(action, record) => {
+                       if (action === 'confirm') handleConfirmBooking(record.id);
+                       if (action === 'complete') handleCompleteBooking(record.id);
+                       if (action === 'details') handleViewDetails(record);
+                    }} 
+                 />
+              )}
             />
           )}
         </Card>

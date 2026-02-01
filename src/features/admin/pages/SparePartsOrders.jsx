@@ -1,10 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Modal, Form, Input, Select } from 'antd';
+import { Button, Modal, Form, Input, Select, Result, Card, Tag, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import { listSpareParts, createSparePart, updateSparePart, deleteSparePart } from '../api/sparePartsApi';
+import { useAuth } from '@/shared/hooks/useAuth';
+
+const SparePartMobileCard = ({ record, onAction }) => (
+  <Card size="small" className="mb-2">
+    <div className="flex justify-between items-start mb-2">
+       <div>
+          <div className="font-medium">{record.partName}</div>
+          <div className="text-xs text-gray-500">Supplier: {record.supplier || '—'}</div>
+       </div>
+       <Tag className="capitalize">{record.status}</Tag>
+    </div>
+    <div className="flex justify-between items-center">
+       <div className="text-sm">Qty: {record.quantity}</div>
+       <Space size="small">
+          {record.status !== 'ordered' && <Button size="small" onClick={() => onAction('ordered', record)}>Ordered</Button>}
+          {record.status !== 'received' && <Button size="small" onClick={() => onAction('received', record)}>Recv</Button>}
+          <Button size="small" danger onClick={() => onAction('delete', record)}>Del</Button>
+       </Space>
+    </div>
+  </Card>
+);
 
 export default function SparePartsOrders() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -12,7 +35,12 @@ export default function SparePartsOrders() {
   const [q, setQ] = useState('');
   const [form] = Form.useForm();
 
+  const isAuthorized = user && ['admin', 'manager'].includes(user.role);
+
   const load = useCallback(async () => {
+    // Skip loading if not authorized
+    if (!isAuthorized) return; 
+    
     try {
       setLoading(true);
       const data = await listSpareParts({ status: status || undefined, q: q || undefined });
@@ -22,9 +50,19 @@ export default function SparePartsOrders() {
     } finally {
       setLoading(false);
     }
-  }, [status, q]);
+  }, [status, q, isAuthorized]);
 
   useEffect(() => { load(); }, [load]);
+
+  if (!isAuthorized) {
+    return (
+      <Result
+        status="403"
+        title="403"
+        subTitle="Sorry, you are not authorized to access this page."
+      />
+    );
+  }
 
   const onCreate = async (values) => {
     try {
@@ -122,52 +160,43 @@ export default function SparePartsOrders() {
           <Button onClick={load} disabled={loading}>Apply</Button>
         </div>
       </div>
-      <UnifiedTable title="Orders" density="comfortable">
-        <div className="overflow-auto">
-          <table className="min-w-full text-left border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="border-b px-3 py-2">Part</th>
-                <th className="border-b px-3 py-2">Quantity</th>
-                <th className="border-b px-3 py-2">Supplier</th>
-                <th className="border-b px-3 py-2">Status</th>
-                <th className="border-b px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td className="px-3 py-8 text-center text-gray-500" colSpan={5}>Loading...</td>
-                </tr>
-              )}
-              {orders.map((o) => (
-                <tr key={o.id} className="odd:bg-white even:bg-slate-50">
-                  <td className="border-b px-3 py-2">{o.partName}</td>
-                  <td className="border-b px-3 py-2">{o.quantity}</td>
-                  <td className="border-b px-3 py-2">{o.supplier || '—'}</td>
-                  <td className="border-b px-3 py-2 capitalize">{o.status}</td>
-                  <td className="border-b px-3 py-2">
-                    <div className="flex gap-2">
-                      {o.status !== 'ordered' && (
-                        <Button size="small" onClick={() => updateStatus(o, 'ordered')} disabled={loading}>Mark Ordered</Button>
-                      )}
-                      {o.status !== 'received' && (
-                        <Button size="small" onClick={() => updateStatus(o, 'received')} disabled={loading}>Mark Received</Button>
-                      )}
-                      <Button size="small" danger onClick={() => onDelete(o)} disabled={loading}>Delete</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {!loading && orders.length === 0 && (
-                <tr>
-                  <td className="px-3 py-8 text-center text-gray-500" colSpan={5}>No orders yet</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </UnifiedTable>
+      <UnifiedResponsiveTable 
+        title="Orders" 
+        density="comfortable"
+        loading={loading}
+        dataSource={orders}
+        rowKey="id"
+        columns={[
+          { title: 'Part', dataIndex: 'partName', key: 'partName' },
+          { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
+          { title: 'Supplier', dataIndex: 'supplier', key: 'supplier', render: (val) => val || '—' },
+          { title: 'Status', dataIndex: 'status', key: 'status', render: (val) => <Tag className="capitalize">{val}</Tag> },
+          { 
+             title: 'Actions', 
+             key: 'actions', 
+             render: (_, o) => (
+                <div className="flex gap-2">
+                  {o.status !== 'ordered' && (
+                    <Button size="small" onClick={() => updateStatus(o, 'ordered')} disabled={loading}>Mark Ordered</Button>
+                  )}
+                  {o.status !== 'received' && (
+                    <Button size="small" onClick={() => updateStatus(o, 'received')} disabled={loading}>Mark Received</Button>
+                  )}
+                  <Button size="small" danger onClick={() => onDelete(o)} disabled={loading}>Delete</Button>
+                </div>
+             )
+          }
+        ]}
+        mobileCardRenderer={(props) => (
+           <SparePartMobileCard 
+              {...props} 
+              onAction={(action, record) => {
+                 if (action === 'delete') onDelete(record);
+                 else updateStatus(record, action);
+              }} 
+           />
+        )}
+      />
 
       <Modal title="New Spare Part Order" open={open} onCancel={() => setOpen(false)} onOk={() => form.submit()} okText="Create">
   <Form form={form} layout="vertical" onFinish={onCreate}>

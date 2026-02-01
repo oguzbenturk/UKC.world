@@ -10,12 +10,12 @@ import {
   Select,
   Space,
   Statistic,
-  Table,
   Tag,
   Typography
 } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 import AdminWaiverViewer from '../components/AdminWaiverViewer';
 import waiverAdminApi from '../api/waiverAdminApi';
 
@@ -53,6 +53,64 @@ const STATUS_TAG = {
 };
 
 const formatDateTime = (value) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '—');
+
+const WaiverMobileCard = ({ record, onView }) => {
+  const meta = STATUS_TAG[record.status] || STATUS_TAG.missing;
+  const isFamily = record.subjectType !== 'user';
+  
+  return (
+    <Card 
+      size="small" 
+      className="mb-3 border-gray-100 shadow-sm"
+      actions={[
+        <Button key="view" block type="primary" ghost onClick={() => onView(record)}>View Details</Button>
+      ]}
+    >
+      <div className="flex justify-between items-start mb-3">
+        <Space direction="vertical" size={0} className="w-full">
+          <div className="flex justify-between w-full">
+             <Text strong className="text-lg">{record.name}</Text>
+             <Tag color={meta.color}>{meta.label}</Tag>
+          </div>
+          <Text type="secondary">{isFamily ? 'Family Member' : 'Student'}</Text>
+        </Space>
+      </div>
+
+      <div className="flex flex-col gap-2 mb-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Signed:</span>
+          <span>{formatDateTime(record.signedAt)}</span>
+        </div>
+        
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Version:</span>
+          <Space>
+            <span>{record.waiverVersion || '—'}</span>
+            {record.latestVersion && record.latestVersion !== record.waiverVersion && (
+              <Tag color="orange">New: {record.latestVersion}</Tag>
+            )}
+          </Space>
+        </div>
+
+        {isFamily && (
+          <div className="flex justify-between text-sm border-t pt-2 mt-1">
+            <span className="text-gray-500">Parent:</span>
+            <div className="text-right">
+              {record.parent ? (
+                 <Space direction="vertical" size={0} align="end">
+                  <Text>{record.parent.name || '—'}</Text>
+                  {record.parent.email && <Text type="secondary" className="text-xs">{record.parent.email}</Text>}
+                </Space>
+              ) : (
+                <Text type="secondary">No record</Text>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+};
 
 const DEFAULT_PAGINATION = {
   page: 1,
@@ -467,7 +525,7 @@ const WaiverManagement = () => {
 
         <Col span={24}>
           <Card>
-            <Table
+            <UnifiedResponsiveTable
               rowKey={(record) => record.subjectId}
               columns={columns}
               dataSource={rows}
@@ -479,6 +537,12 @@ const WaiverManagement = () => {
                 showSizeChanger: true
               }}
               onChange={handleTableChange}
+              mobileCardRenderer={(props) => (
+                <WaiverMobileCard 
+                  {...props} 
+                  onView={(record) => setViewer({ open: true, record })} 
+                />
+              )}
             />
           </Card>
         </Col>

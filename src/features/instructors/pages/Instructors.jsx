@@ -1,13 +1,45 @@
 // src/pages/Instructors.jsx
 import { useState } from 'react';
-import { Button, Card } from 'antd';
+import { Button, Card, Tag, Space, Avatar } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { PlusOutlined } from '@ant-design/icons';
-import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useData } from '@/shared/hooks/useData';
 import EnhancedInstructorDetailModal from '../components/EnhancedInstructorDetailModal';
-// import InstructorCard from '../components/InstructorCard';
+
+const InstructorMobileCard = ({ record, onAction, isAdmin }) => (
+  <Card size="small" className="mb-2">
+    <div className="flex justify-between items-start mb-2">
+       <Space>
+         <Avatar icon={<UserOutlined />} size="small" src={record.avatar_url} /> 
+         <div>
+            <div className="font-medium">{record.name}</div>
+            <div className="text-xs text-gray-500">{record.email}</div>
+         </div>
+       </Space>
+       <Tag color={record.status === 'active' ? 'green' : 'default'}>
+          {record.status || 'active'}
+       </Tag>
+    </div>
+    <div className="mb-2">
+      <div className="text-xs text-gray-500">Specializations:</div>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {(record.specializations || []).map(s => (
+          <Tag key={s} bordered={false} className="mr-0">{s}</Tag>
+        ))}
+        {(!record.specializations || record.specializations.length === 0) && <span className="text-gray-400 text-xs">—</span>}
+      </div>
+    </div>
+    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+        <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('open', record)}>Open</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)}>Edit</Button>
+        {isAdmin && (
+           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => onAction('delete', record)}>Delete</Button>
+        )}
+    </div>
+  </Card>
+);
 
 function Instructors() {
   const { user } = useAuth();
@@ -156,50 +188,57 @@ function Instructors() {
           <p className="text-gray-600">No instructors found</p>
         </div>
       ) : (
-        <UnifiedTable title="Instructors" density="comfortable">
-          <div className="overflow-auto">
-            <table className="min-w-full text-left border-separate border-spacing-0">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 bg-white border-b px-3 py-2">Name</th>
-                  <th className="border-b px-3 py-2">Email</th>
-                  <th className="border-b px-3 py-2">Specializations</th>
-                  <th className="border-b px-3 py-2">Status</th>
-                  <th className="border-b px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInstructors.map(instructor => (
-                  <tr key={instructor.id} className="odd:bg-white even:bg-slate-50">
-                    <td className="sticky left-0 bg-inherit z-10 border-b px-3 py-2 font-medium">{instructor.name}</td>
-                    <td className="border-b px-3 py-2">{instructor.email}</td>
-                    <td className="border-b px-3 py-2">{(instructor.specializations || []).join(', ') || '—'}</td>
-                    <td className="border-b px-3 py-2 capitalize">{instructor.status || 'active'}</td>
-                    <td className="border-b px-3 py-2">
-                      <div className="flex gap-2">
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setSelectedInstructor(instructor);
-                            setIsDetailOpen(true);
-                          }}
-                        >
-                          Open
-                        </Button>
-                        <Button size="small" onClick={() => (window.location.href = `/instructors/edit/${instructor.id}`)}>
-                          Edit
-                        </Button>
-                        {isAdmin && (
-                          <Button size="small" danger onClick={() => handleDeleteInstructor(instructor.id)}>Delete</Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </UnifiedTable>
+        <UnifiedResponsiveTable 
+          title="Instructors" 
+          density="comfortable"
+          dataSource={filteredInstructors}
+          rowKey="id"
+          mobileCardRenderer={(props) => (
+             <InstructorMobileCard 
+                {...props} 
+                isAdmin={isAdmin}
+                onAction={(action, record) => {
+                   if (action === 'open') {
+                      setSelectedInstructor(record);
+                      setIsDetailOpen(true);
+                   } else if (action === 'edit') {
+                      window.location.href = `/instructors/edit/${record.id}`;
+                   } else if (action === 'delete') {
+                      handleDeleteInstructor(record.id);
+                   }
+                }} 
+             />
+          )}
+          columns={[
+            { title: 'Name', dataIndex: 'name', key: 'name', fixed: 'left', render: (text) => <span className="font-medium">{text}</span> },
+            { title: 'Email', dataIndex: 'email', key: 'email' },
+            { title: 'Specializations', dataIndex: 'specializations', key: 'specializations', render: (val) => (val || []).join(', ') || '—' },
+            { title: 'Status', dataIndex: 'status', key: 'status', render: (val) => <Tag color={val === 'active' ? 'green' : 'default'} className="capitalize">{val || 'active'}</Tag> },
+            { 
+               title: 'Actions', 
+               key: 'actions', 
+               render: (_, instructor) => (
+                  <div className="flex gap-2">
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setSelectedInstructor(instructor);
+                        setIsDetailOpen(true);
+                      }}
+                    >
+                      Open
+                    </Button>
+                    <Button size="small" onClick={() => (window.location.href = `/instructors/edit/${instructor.id}`)}>
+                      Edit
+                    </Button>
+                    {isAdmin && (
+                      <Button size="small" danger onClick={() => handleDeleteInstructor(instructor.id)}>Delete</Button>
+                    )}
+                  </div>
+               )
+            }
+          ]}
+        />
       )}
       
 
