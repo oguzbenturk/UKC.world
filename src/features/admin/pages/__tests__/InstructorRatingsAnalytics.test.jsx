@@ -192,7 +192,7 @@ describe('InstructorRatingsAnalytics page', () => {
   it('generates a PDF export with current filters', async () => {
     renderComponent();
 
-    const pdfButton = screen.getByRole('button', { name: /export pdf/i });
+    const pdfButton = screen.getByRole('button', { name: /file-pdf export/i });
     expect(pdfButton).toBeEnabled();
 
     await userEvent.click(pdfButton);
