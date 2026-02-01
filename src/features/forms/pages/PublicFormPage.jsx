@@ -584,6 +584,7 @@ const PublicFormPage = () => {
               onValuesChange={handleValuesChange}
               onFinish={handleSubmit}
               requiredMark="optional"
+              noValidate // Disable browser validation to allow permissive inputs
             >
               <Row gutter={[16, 16]}>
                 {currentStepData.fields?.map(field => (

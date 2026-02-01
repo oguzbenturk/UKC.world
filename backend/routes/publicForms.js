@@ -88,7 +88,7 @@ router.post('/:code/submit', formSubmissionRateLimit, async (req, res) => {
     const { quick_link, form_template } = result;
 
     // Validate submission data against form template
-    const validationErrors = formSubmissionService.validateSubmission(form_template, submission_data);
+    const validationErrors = await formSubmissionService.validateSubmission(submission_data, form_template.id);
     if (validationErrors.length > 0) {
       return res.status(400).json({ 
         error: 'Validation failed',

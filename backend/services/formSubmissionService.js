@@ -472,6 +472,8 @@ export async function validateSubmission(submissionData, formTemplateId) {
     // Type-specific validations
     switch (field.field_type) {
       case 'email':
+        // Accept any string if it's not empty (per user request to allow every email)
+        /* 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           errors.push({
             field: field.field_name,
@@ -479,9 +481,12 @@ export async function validateSubmission(submissionData, formTemplateId) {
             type: 'format'
           });
         }
+        */
         break;
 
       case 'phone':
+        // Accept any string (per user request to allow every phone number)
+        /*
         if (!/^\+?[\d\s\-()]{7,20}$/.test(value)) {
           errors.push({
             field: field.field_name,
@@ -489,6 +494,7 @@ export async function validateSubmission(submissionData, formTemplateId) {
             type: 'format'
           });
         }
+        */
         break;
 
       case 'url':
