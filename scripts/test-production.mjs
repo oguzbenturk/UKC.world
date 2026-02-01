@@ -553,7 +553,7 @@ async function phase4_RentalSystem() {
 async function phase5_Accommodation() {
   section('🏨 PHASE 5: Accommodation');
 
-  const accomRes = await api('/api/accommodation');
+  const accomRes = await api('/api/accommodation/bookings');
   if (accomRes.ok) {
     const bookings = Array.isArray(accomRes.data) ? accomRes.data : (accomRes.data?.bookings || []);
     pass('Accommodation list', `Found ${bookings.length} bookings`);
@@ -709,8 +709,14 @@ async function phase9_FormsCompliance() {
     skip('Form templates', `Status: ${formsRes.status}`);
   }
 
-  // Test 9.2: Waivers - Admin-only endpoint, skip for standard tests
-  skip('Waivers', 'Admin-only endpoint (use /api/admin/waivers)');
+  // Test 9.2: Waivers - Use admin endpoint
+  const waiversRes = await api('/api/admin/waivers?page=1&pageSize=10');
+  if (waiversRes.ok) {
+    const data = waiversRes.data?.data || [];
+    pass('Waivers endpoint', `Found ${data.length} waivers`);
+  } else {
+    skip('Waivers', `Status: ${waiversRes.status}`);
+  }
 
   // Test 9.3: GDPR/Consents
   const consentsRes = await api('/api/user-consents/me');
@@ -743,17 +749,19 @@ async function phase10_Reporting() {
   }
 
   // Test 10.2: Instructor commissions
-  // Need to get user's instructor ID first
-  const profileRes = await api('/api/auth/me');
-  if (profileRes.ok && profileRes.data?.id) {
-    const commissionsRes = await api(`/api/instructor-commissions/instructors/${profileRes.data.id}/commissions`);
+  // Get first instructor from instructor list
+  const instructorsRes = await api('/api/instructors');
+  if (instructorsRes.ok && Array.isArray(instructorsRes.data) && instructorsRes.data.length > 0) {
+    const firstInstructor = instructorsRes.data[0];
+    const commissionsRes = await api(`/api/instructor-commissions/instructors/${firstInstructor.id}/commissions`);
     if (commissionsRes.ok) {
-      pass('Instructor commissions endpoint');
+      const commissions = Array.isArray(commissionsRes.data) ? commissionsRes.data : [];
+      pass('Instructor commissions endpoint', `Found ${commissions.length} commission records`);
     } else {
       skip('Instructor commissions', `Status: ${commissionsRes.status}`);
     }
   } else {
-    skip('Instructor commissions', 'Could not get user profile');
+    skip('Instructor commissions', 'No instructors available');
   }
 
   // Test 10.3: Audit logs
@@ -1064,18 +1072,22 @@ async function phase14_Commissions() {
   section('💼 PHASE 14: Commissions & Payouts');
 
   // Test 14.1: Instructor commissions
-  const commissionsRes = await api('/api/instructor-commissions');
-  if (commissionsRes.ok) {
-    const data = commissionsRes.data;
-    pass('Instructor commissions endpoint');
-    
-    if (verbose && data) {
-      log(`    Commission data available`, colors.dim);
+  const instructorsRes = await api('/api/instructors');
+  if (instructorsRes.ok && Array.isArray(instructorsRes.data) && instructorsRes.data.length > 0) {
+    const firstInstructor = instructorsRes.data[0];
+    const commissionsRes = await api(`/api/instructor-commissions/instructors/${firstInstructor.id}/commissions`);
+    if (commissionsRes.ok) {
+      const data = commissionsRes.data;
+      pass('Instructor commissions endpoint');
+      
+      if (verbose && data) {
+        log(`    Commission data available`, colors.dim);
+      }
+    } else {
+      skip('Instructor commissions', `Status: ${commissionsRes.status}`);
     }
-  } else if (commissionsRes.status === 404) {
-    skip('Instructor commissions endpoint');
   } else {
-    skip('Instructor commissions', `Status: ${commissionsRes.status}`);
+    skip('Instructor commissions endpoint', 'No instructors available');
   }
 
   // Test 14.2: Check bookings for commission calculations
@@ -1419,9 +1431,14 @@ async function phase16_PaymentProcessing() {
         const currentBalance = parseFloat(walletRes.data?.available) || 0;
         pass('Wallet balance check', `Current: €${currentBalance}`);
 
-        // Note: We won't actually create a real transaction in production tests
-        // This would require admin endpoints and could affect real data
-        log('    ℹ️  Skipping wallet transaction creation (use test environment)', colors.dim);
+        // Test wallet transaction endpoint availability (without creating real transaction)
+        // Check if we can access the transactions endpoint
+        const transactionsRes = await api('/api/wallet/transactions?limit=1');
+        if (transactionsRes.ok) {
+          pass('Wallet transactions endpoint', 'Accessible');
+        } else {
+          skip('Wallet transactions', `Status: ${transactionsRes.status}`);
+        }
       }
     }
   }
@@ -1432,8 +1449,8 @@ async function phase16_PaymentProcessing() {
     body: { type: 'test' }
   });
 
-  if (webhookRes.status === 400 || webhookRes.status === 401 || webhookRes.status === 200) {
-    pass('Payment webhook endpoint exists', 'Accessible');
+  if (webhookRes.status === 400 || webhookRes.status === 401 || webhookRes.status === 200 || webhookRes.status === 202) {
+    pass('Payment webhook endpoint', `Status: ${webhookRes.status}`);
   } else if (webhookRes.status === 404) {
     skip('Payment webhook endpoint', 'Not found');
   } else {
