@@ -416,24 +416,36 @@ function PackageManagementInner() {
   // Package card for card view
   const PackageCard = ({ pkg }) => {
     const config = getPackageTypeConfig(pkg.packageType);
+    
+    // Map abstract colors to hex for icons
+    const getColor = (c) => {
+        const map = {
+            blue: '#1890ff',
+            green: '#52c41a',
+            orange: '#fa8c16',
+            purple: '#722ed1',
+            cyan: '#13c2c2',
+            magenta: '#eb2f96',
+            gold: '#faad14'
+        };
+        return map[c] || '#1890ff';
+    };
+    
+    const accentColor = getColor(config.color);
+
     return (
       <Card
         hoverable
         className="rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 h-full"
         styles={{ body: { padding: 0 } }}
       >
-        {/* Card Header with Color Band */}
-        <div 
-          className="p-4 rounded-t-xl" 
-          style={{ 
-            background: `linear-gradient(135deg, ${config.color === 'blue' ? '#3b82f6' : config.color === 'green' ? '#10b981' : config.color === 'orange' ? '#f97316' : config.color === 'purple' ? '#a855f7' : config.color === 'cyan' ? '#06b6d4' : config.color === 'magenta' ? '#ec4899' : '#eab308'} 0%, ${config.color === 'blue' ? '#1e40af' : config.color === 'green' ? '#059669' : config.color === 'orange' ? '#ea580c' : config.color === 'purple' ? '#7c3aed' : config.color === 'cyan' ? '#0891b2' : config.color === 'magenta' ? '#be185d' : '#ca8a04'} 100%)`
-          }}
-        >
+        {/* Card Header - Uniform Style */}
+        <div className="p-4 rounded-t-xl bg-slate-50 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="text-2xl text-white">{config.icon}</div>
+            <div className="text-2xl" style={{ color: accentColor }}>{config.icon}</div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-white text-base mb-1 truncate">{pkg.name}</h3>
-              <Tag color="white" className="!text-xs border-0" style={{ color: config.color === 'blue' ? '#1e40af' : config.color === 'green' ? '#059669' : config.color === 'orange' ? '#ea580c' : config.color === 'purple' ? '#7c3aed' : config.color === 'cyan' ? '#0891b2' : config.color === 'magenta' ? '#be185d' : '#ca8a04' }}>
+              <h3 className="font-bold text-slate-800 text-base mb-1 truncate">{pkg.name}</h3>
+              <Tag color={config.color} className="!text-xs border-0 font-medium">
                 {config.label}
               </Tag>
             </div>
@@ -441,61 +453,72 @@ function PackageManagementInner() {
         </div>
 
         {/* Card Body */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 flex flex-col h-[calc(100%-80px)]">
           {pkg.description && (
-            <Text type="secondary" className="text-sm line-clamp-2 block">
+            <div className="mb-4 text-slate-600 text-sm line-clamp-2 min-h-[40px]">
               {pkg.description}
-            </Text>
+            </div>
           )}
           
-          {/* Package Features */}
-          <div className="space-y-2">
-            <Text strong className="text-xs text-slate-500 uppercase tracking-wide block">What's Included</Text>
-            <div className="flex flex-wrap gap-2">
+          {/* Package Features List */}
+          <div className="flex-1 space-y-3">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Includes</div>
+            
+            <div className="space-y-2">
               {(pkg.includesLessons && pkg.totalHours > 0) && (
-                <Tag color="blue" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
-                  <BookOutlined className="mr-1.5" />
-                  {pkg.totalHours} Hours Lessons
-                </Tag>
+                 <div className="flex items-start gap-3 text-slate-700 text-sm">
+                    <div className="mt-0.5 w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                       <BookOutlined className="text-xs" />
+                    </div>
+                    <span><span className="font-semibold">{pkg.totalHours} Hours</span> Lessons</span>
+                 </div>
               )}
+              
               {(pkg.includesRental && (pkg.rentalDaysTotal > 0 || pkg.rentalDays > 0 || pkg.rental_days_total > 0)) && (
-                <Tag color="green" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
-                  <CarOutlined className="mr-1.5" />
-                  {pkg.rentalDaysTotal || pkg.rentalDays || pkg.rental_days_total} Days Rental
-                </Tag>
+                 <div className="flex items-start gap-3 text-slate-700 text-sm">
+                    <div className="mt-0.5 w-5 h-5 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+                       <CarOutlined className="text-xs" />
+                    </div>
+                    <span><span className="font-semibold">{pkg.rentalDaysTotal || pkg.rentalDays || pkg.rental_days_total} Days</span> Rental ({pkg.rentalServiceName})</span>
+                 </div>
               )}
+              
               {(pkg.includesAccommodation && (pkg.accommodationNightsTotal > 0 || pkg.accommodationNights > 0 || pkg.accommodation_nights_total > 0)) && (
-                <Tag color="orange" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
-                  <HomeOutlined className="mr-1.5" />
-                  {pkg.accommodationNightsTotal || pkg.accommodationNights || pkg.accommodation_nights_total} Nights Stay
-                </Tag>
+                 <div className="flex items-start gap-3 text-slate-700 text-sm">
+                    <div className="mt-0.5 w-5 h-5 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                       <HomeOutlined className="text-xs" />
+                    </div>
+                    <span><span className="font-semibold">{pkg.accommodationNightsTotal || pkg.accommodationNights || pkg.accommodation_nights_total} Nights</span> Stay ({pkg.accommodationUnitName})</span>
+                 </div>
               )}
+
               {!pkg.includesLessons && !pkg.includesRental && !pkg.includesAccommodation && (
-                <Text type="secondary" className="text-sm italic">No specific items configured</Text>
+                <div className="flex items-center gap-2 text-slate-400 text-sm italic py-2">
+                   <InfoCircleOutlined /> No items configured
+                </div>
               )}
             </div>
           </div>
 
-          <Divider className="!my-3" />
+          <Divider className="my-4 border-slate-100" />
 
           {/* Price */}
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline justify-between mb-4">
             <div>
-              <div className="text-2xl font-bold text-slate-900">
+              <div className="text-2xl font-bold text-slate-800 tracking-tight">
                 {formatCurrency(pkg.price)}
               </div>
-              <Text type="secondary" className="text-sm">Total package price</Text>
+              <div className="text-xs text-slate-400 font-medium uppercase tracking-wide">Total Price</div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          <div className="grid grid-cols-2 gap-3 mt-auto">
             <Button
-              type="primary"
+              type="default" 
               icon={<EditOutlined />}
               onClick={() => handleEdit(pkg)}
-              size="middle"
-              className="flex-1"
+              className="w-full !rounded-lg border-slate-200 hover:border-slate-300 hover:text-slate-700"
             >
               Edit
             </Button>
@@ -510,7 +533,7 @@ function PackageManagementInner() {
               <Button
                 danger
                 icon={<DeleteOutlined />}
-                size="middle"
+                className="w-full !rounded-lg"
               >
                 Delete
               </Button>
@@ -601,32 +624,34 @@ function PackageManagementInner() {
         </div>
       </Card>
 
-      {/* Filter Card */}
-      <Card className="rounded-xl sm:rounded-2xl border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <Text strong className="whitespace-nowrap text-xs sm:text-sm">Filter by type:</Text>
-          <Select
-            mode="multiple"
-            allowClear
-            placeholder="All package types"
-            value={selectedTypes}
-            onChange={setSelectedTypes}
-            options={filterOptions}
-            size="middle"
-            style={{ minWidth: 200, maxWidth: '100%' }}
-            className="flex-1 text-xs sm:text-sm"
-            maxTagCount="responsive"
-          />
-          <Badge count={filteredPackages.length} showZero color="blue" className="shrink-0">
-            <Text type="secondary" className="whitespace-nowrap text-xs sm:text-sm">
-              of {packages.length} total
-            </Text>
-          </Badge>
+      {/* Content Card with integrated Filter Toolbar */}
+      <Card className="rounded-xl sm:rounded-2xl border-slate-200 shadow-sm" styles={{ body: { padding: 0 } }}>
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+           <div className="flex items-center gap-3 w-full sm:w-auto">
+             <Text strong className="text-slate-500 uppercase tracking-wide text-xs whitespace-nowrap">Filter Packages</Text>
+             <Select
+                mode="multiple"
+                allowClear
+                placeholder="All Types"
+                value={selectedTypes}
+                onChange={setSelectedTypes}
+                options={filterOptions}
+                size="middle"
+                style={{ minWidth: 240 }}
+                className="flex-1 sm:flex-none"
+                maxTagCount="responsive"
+                variant="filled"
+              />
+           </div>
+           
+           <div className="flex items-center gap-2">
+             <Badge count={filteredPackages.length} showZero color="#94a3b8">
+                <span className="text-slate-500 text-sm px-2">Total Packages</span>
+             </Badge>
+           </div>
         </div>
-      </Card>
 
-      {/* Content Card */}
-      <Card className="rounded-xl sm:rounded-2xl border-slate-200 shadow-sm">
+        <div className="p-6">
         {loading ? (
           <div className="flex justify-center p-8">
             <Spin size="large" />
@@ -640,7 +665,7 @@ function PackageManagementInner() {
             scroll={{ x: 800 }}
           />
         ) : (
-          <Row gutter={[12, 12]}>
+          <Row gutter={[20, 20]}>
             {filteredPackages.map(pkg => (
               <Col key={pkg.id} xs={24} sm={12} lg={8} xl={6}>
                 <PackageCard pkg={pkg} />
@@ -648,14 +673,16 @@ function PackageManagementInner() {
             ))}
             {filteredPackages.length === 0 && (
               <Col span={24}>
-                <div className="text-center py-12 sm:py-16">
-                  <div className="text-4xl sm:text-5xl md:text-6xl mb-4">📦</div>
-                  <Text type="secondary" className="text-sm sm:text-base">No packages found. Create your first package!</Text>
+                <div className="text-center py-16 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                  <div className="text-6xl mb-4 opacity-50">📦</div>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">No packages found</h3>
+                  <Text type="secondary">Clear filters or create your first package to get started.</Text>
                 </div>
               </Col>
             )}
           </Row>
         )}
+        </div>
       </Card>
 
       {/* Create/Edit Modal */}

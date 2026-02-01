@@ -906,12 +906,33 @@ const PropertiesPanel = ({
     }
   }, [field, form]);
 
+  // Debounce ref for rich text updates
+  const updateTimeoutRef = useRef(null);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle form changes - for most fields, defer to blur
-  // But for complex editors like RichHTMLEditor, save immediately
+  // But for complex editors like RichHTMLEditor, save with debounce
   const handleValuesChange = (changedValues, _allValues) => {
-    // If default_value changed (from RichHTMLEditor), save immediately
+    // If default_value changed (from RichHTMLEditor), save with debounce
     if (changedValues.default_value !== undefined && field && onUpdate) {
-      onUpdate(field.id, { default_value: changedValues.default_value });
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
+      const targetId = field.id;
+      const values = { default_value: changedValues.default_value };
+      
+      updateTimeoutRef.current = setTimeout(() => {
+        onUpdate(targetId, values);
+      }, 1000); // 1s debounce to prevent flooding API from Safari
     }
   };
 

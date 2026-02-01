@@ -2662,6 +2662,7 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       FROM users u
       LEFT JOIN bookings b ON u.id = b.instructor_user_id ${dateFilter.replace('date', 'b.date')} AND b.deleted_at IS NULL
       WHERE u.role_id IN (SELECT id FROM roles WHERE name = 'instructor')
+      AND u.deleted_at IS NULL
       GROUP BY u.id, u.name
       ORDER BY total_revenue DESC
     `;

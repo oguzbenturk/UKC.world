@@ -38,6 +38,8 @@ import {
   DndContext, 
   closestCenter,
   PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   DragOverlay
@@ -46,7 +48,8 @@ import {
   arrayMove,
   SortableContext,
   useSortable,
-  verticalListSortingStrategy
+  rectSortingStrategy,
+  sortableKeyboardCoordinates
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FIELD_CATEGORIES, WIDTH_OPTIONS, FIELD_TYPES } from '../constants/fieldTypes';
@@ -350,7 +353,7 @@ const FieldItem = ({
         style={style}
         className={`
           field-item group relative p-3 rounded-lg border-2 bg-white
-          transition-all cursor-move
+          transition-all
           ${isSelected 
             ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm' 
             : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
@@ -359,13 +362,14 @@ const FieldItem = ({
         `}
         onClick={() => onSelect(field.id)}
         {...attributes}
-        {...listeners}
       >
-      {/* Drag Handle */}
+      {/* Drag Handle - Now Interactive for better Touch/Safari support */}
       <div 
-        className="absolute left-1 top-3 opacity-30 group-hover:opacity-100 cursor-grab active:cursor-grabbing pointer-events-none"
+        className="absolute left-1 top-3 z-10 p-1 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100 touch-none"
+        {...listeners}
+        onClick={(e) => e.stopPropagation()} // Prevent selecting field when dragging handle
       >
-        <HolderOutlined className="text-gray-400" />
+        <HolderOutlined className="text-gray-400 text-lg" />
       </div>
 
       {/* Actions Menu */}
@@ -475,12 +479,21 @@ const StepPanel = ({
   const [descriptionValue, setDescriptionValue] = useState(step.description || '');
   const [activeId, setActiveId] = useState(null);
 
-  // Setup sensors for drag and drop
+  // Setup sensors for drag and drop - Robust config for Safari & Touch
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // 5px movement required to activate drag
+        distance: 8,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
 
@@ -644,7 +657,7 @@ const StepPanel = ({
             >
               <SortableContext
                 items={step.fields.map(f => f.id)}
-                strategy={verticalListSortingStrategy}
+                strategy={rectSortingStrategy}
               >
                 <Row gutter={[16, 16]} style={{ width: '100%', margin: 0 }}>
                   {step.fields

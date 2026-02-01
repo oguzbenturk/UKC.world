@@ -161,47 +161,49 @@ const getPaymentDisplay = (payment) => {
     };
 };
 
-// Modern gradient and accent styles
+// Clean accent styles
 const accentStyles = {
-    blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 text-blue-600 border-blue-200/50",
-    emerald: "bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-emerald-600 border-emerald-200/50",
-    indigo: "bg-gradient-to-br from-indigo-50 to-indigo-100/50 text-indigo-600 border-indigo-200/50",
-    orange: "bg-gradient-to-br from-amber-50 to-amber-100/50 text-amber-600 border-amber-200/50",
-    violet: "bg-gradient-to-br from-violet-50 to-violet-100/50 text-violet-600 border-violet-200/50"
+    blue: "bg-white border-blue-100/50 hover:border-blue-200 shadow-sm hover:shadow-md",
+    emerald: "bg-white border-emerald-100/50 hover:border-emerald-200 shadow-sm hover:shadow-md",
+    indigo: "bg-white border-indigo-100/50 hover:border-indigo-200 shadow-sm hover:shadow-md",
+    orange: "bg-white border-orange-100/50 hover:border-gray-200 shadow-sm hover:shadow-md",
+    violet: "bg-white border-violet-100/50 hover:border-violet-200 shadow-sm hover:shadow-md"
 };
 
 const iconBgStyles = {
-    blue: "bg-blue-100/60 text-blue-600",
-    emerald: "bg-emerald-100/60 text-emerald-600",
-    indigo: "bg-indigo-100/60 text-indigo-600",
-    orange: "bg-amber-100/60 text-amber-600",
-    violet: "bg-violet-100/60 text-violet-600"
+    blue: "bg-blue-50 text-blue-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    indigo: "bg-indigo-50 text-indigo-600",
+    orange: "bg-orange-50 text-orange-600",
+    violet: "bg-violet-50 text-violet-600"
 };
 
 const LessonSummaryCard = ({ summary = {}, timeframeLabel, generatedLabel }) => {
     const metrics = [
-        { label: "Total lessons", value: formatNumber(summary.total), icon: "📚" },
-        { label: "Completed", value: formatNumber(summary.completed), icon: "✓" },
-        { label: "Upcoming", value: formatNumber(summary.upcoming), icon: "⏰" },
-        { label: "Lesson hours", value: formatHours(summary.totalHours), icon: "⏱" },
+        { label: "Total lessons", value: formatNumber(summary.total), icon: <CalendarOutlined /> },
+        { label: "Completed", value: formatNumber(summary.completed), icon: <CheckCircleOutlined /> },
+        { label: "Upcoming", value: formatNumber(summary.upcoming), icon: <ClockCircleOutlined /> },
+        { label: "Lesson hours", value: formatHours(summary.totalHours), icon: <ClockCircleOutlined /> },
         {
             label: "Completion",
             value: `${((Number(summary.completionRate) || 0) * 100).toFixed(1)}%`,
-            icon: "📈"
+            icon: <LineChartOutlined />
         },
-        { label: "Avg duration", value: formatHours(summary.averageDuration), icon: "⌛" }
+        { label: "Avg duration", value: formatHours(summary.averageDuration), icon: <ClockCircleOutlined /> }
     ];
 
     return (
         <Card
             title={
-                <Space direction="vertical" size={4}>
-                    <Space size={8}>
-                        <LineChartOutlined style={{ color: '#3b82f6' }} />
-                        <Text strong>Lesson overview</Text>
-                    </Space>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{timeframeLabel}</Text>
-                </Space>
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                        <LineChartOutlined style={{ fontSize: 18 }} />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-slate-800 m-0">Lesson Overview</h4>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{timeframeLabel}</Text>
+                    </div>
+                </div>
             }
             extra={
                 generatedLabel ? (
@@ -210,26 +212,23 @@ const LessonSummaryCard = ({ summary = {}, timeframeLabel, generatedLabel }) => 
                     </Text>
                 ) : null
             }
-            className="dashboard-card rounded-2xl border border-blue-200/30 shadow-sm bg-gradient-to-br from-blue-50/50 to-white"
+            className="dashboard-card rounded-2xl border-slate-200 shadow-sm h-full"
             bodyStyle={{ padding: 24 }}
         >
-            <Row gutter={[16, 16]}>
+            <div className="grid grid-cols-2 gap-4">
                 {metrics.map((metric) => (
-                    <Col span={12} key={metric.label}>
-                        <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-blue-50/50 transition-colors">
-                            <span style={{ fontSize: 18 }}>{metric.icon}</span>
-                            <div className="flex flex-col gap-1">
-                                <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
-                                    {metric.label}
-                                </Text>
-                                <Text strong style={{ fontSize: 18, color: '#3b82f6' }}>
-                                    {metric.value}
-                                </Text>
-                            </div>
+                    <div key={metric.label} className="flex flex-col gap-1 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                        <Text type="secondary" className="text-xs uppercase tracking-wide font-medium text-slate-500">
+                            {metric.label}
+                        </Text>
+                        <div className="flex items-center gap-2">
+                             <Text strong className="text-lg text-slate-800">
+                                {metric.value}
+                            </Text>
                         </div>
-                    </Col>
+                    </div>
                 ))}
-            </Row>
+            </div>
         </Card>
     );
 };
@@ -250,51 +249,46 @@ const RentalSummaryCard = ({ summary = {} }) => {
 
     return (
         <Card 
-            className="dashboard-card rounded-2xl border border-emerald-200/30 shadow-sm bg-gradient-to-br from-emerald-50/50 to-white" 
+            className="dashboard-card rounded-2xl border-slate-200 shadow-sm h-full" 
             bodyStyle={{ padding: 24 }}
         >
-            <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Space size={8}>
-                    <ToolOutlined style={{ color: '#10b981', fontSize: 18 }} />
-                    <Text strong className="text-lg">Rental summary</Text>
-                </Space>
-                <Row gutter={[16, 16]}>
-                    {metrics.map((metric) => (
-                        <Col span={12} key={metric.label}>
-                            <div className="flex items-start gap-2 p-2 rounded-lg hover:bg-emerald-50/50 transition-colors">
-                                <span style={{ fontSize: 16 }}>{metric.icon}</span>
-                                <div className="flex flex-col gap-1">
-                                    <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
-                                        {metric.label}
-                                    </Text>
-                                    <Text strong style={{ fontSize: 16, color: '#10b981' }}>
-                                        {metric.value}
-                                    </Text>
-                                </div>
-                            </div>
-                        </Col>
-                    ))}
-                </Row>
-                <Divider style={{ margin: "8px 0" }} />
-                <Space direction="vertical" size={10} style={{ width: "100%" }}>
-                    {revenueMetrics.map((metric) => (
-                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50/50 transition-colors" key={metric.label}>
-                            <div className="flex items-center gap-2">
-                                <span style={{ fontSize: 14 }}>{metric.icon}</span>
-                                <Text type="secondary" style={{ fontSize: 13 }}>{metric.label}</Text>
-                            </div>
-                            <Text strong style={{ color: '#10b981' }}>{metric.value}</Text>
-                        </div>
-                    ))}
-                </Space>
-            </Space>
+             <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                    <ToolOutlined style={{ fontSize: 18 }} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 m-0">Rental Summary</h4>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                {metrics.map((metric) => (
+                    <div key={metric.label} className="flex flex-col gap-1 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                         <Text type="secondary" className="text-xs uppercase tracking-wide font-medium text-slate-500">
+                             {metric.label}
+                        </Text>
+                        <Text strong className="text-lg text-slate-800">
+                            {metric.value}
+                        </Text>
+                    </div>
+                ))}
+            </div>
+            
+            <div className="space-y-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                {revenueMetrics.map((metric) => (
+                    <div className="flex items-center justify-between" key={metric.label}>
+                         <Text type="secondary" className="text-xs font-medium text-slate-500">{metric.label}</Text>
+                         <Text strong className="text-emerald-600 font-mono">{metric.value}</Text>
+                    </div>
+                ))}
+            </div>
         </Card>
     );
 };
 
 const FinancialSummaryCard = ({ summary = {} }) => {
     const netClass = (summary.net ?? 0) >= 0 ? "text-emerald-600" : "text-rose-600";
-    const netIcon = (summary.net ?? 0) >= 0 ? "📈" : "📉";
+    const bgClass = (summary.net ?? 0) >= 0 ? "bg-emerald-50" : "bg-rose-50";
+    const netIcon = (summary.net ?? 0) >= 0 ? <LineChartOutlined /> : <LineChartOutlined className="rotate-180" />; 
+    
     const metrics = [
         { label: "Income", value: formatCurrency(summary.income), icon: "📥" },
         { label: "Expenses", value: formatCurrency(summary.expenses), icon: "📤" },
@@ -305,44 +299,43 @@ const FinancialSummaryCard = ({ summary = {} }) => {
 
     return (
         <Card 
-            className="dashboard-card rounded-2xl border border-violet-200/30 shadow-sm bg-gradient-to-br from-violet-50/50 to-white" 
+            className="dashboard-card rounded-2xl border-slate-200 shadow-sm h-full" 
             bodyStyle={{ padding: 24 }}
         >
-            <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Space size={8}>
-                    <DollarCircleOutlined style={{ color: '#a855f7', fontSize: 18 }} />
-                    <Text strong className="text-lg">Financial snapshot</Text>
-                </Space>
-                <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                    {metrics.slice(0, 2).map((metric) => (
-                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-violet-50/50 transition-colors" key={metric.label}>
-                            <div className="flex items-center gap-2">
-                                <span style={{ fontSize: 14 }}>{metric.icon}</span>
-                                <Text type="secondary" style={{ fontSize: 13 }}>{metric.label}</Text>
-                            </div>
-                            <Text strong style={{ color: '#a855f7' }}>{metric.value}</Text>
+             <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-violet-50 rounded-lg text-violet-600">
+                    <DollarCircleOutlined style={{ fontSize: 18 }} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 m-0">Financial Snapshot</h4>
+            </div>
+
+             <div className="space-y-4">
+                 <div className="grid grid-cols-2 gap-3">
+                     {metrics.slice(0, 2).map((metric) => (
+                        <div key={metric.label} className="flex flex-col gap-1 p-3 rounded-xl bg-slate-50">
+                            <Text type="secondary" className="text-xs uppercase tracking-wide font-medium text-slate-500">{metric.label}</Text>
+                            <Text strong className="text-slate-800 font-mono text-base">{metric.value}</Text>
                         </div>
-                    ))}
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-violet-100/40 to-transparent">
-                        <div className="flex items-center gap-2">
-                            <span style={{ fontSize: 16 }}>{netIcon}</span>
-                            <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>Net</Text>
-                        </div>
-                        <span className={`text-base font-bold ${netClass}`}>
-                            {formatCurrency(summary.net)}
-                        </span>
+                     ))}
+                 </div>
+
+                 <div className={`flex flex-col gap-1 p-4 rounded-xl ${bgClass} border border-transparent`}>
+                    <Text type="secondary" className="text-xs uppercase tracking-wide font-medium text-slate-500">Net Revenue</Text>
+                    <div className="flex items-center justify-between">
+                         <Text strong className={`text-2xl font-mono ${netClass}`}>{formatCurrency(summary.net)}</Text>
+                         <div className={`text-xl ${netClass}`}>{netIcon}</div>
                     </div>
+                </div>
+
+                <div className="pt-2 space-y-2">
                     {metrics.slice(2).map((metric) => (
-                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-violet-50/50 transition-colors" key={metric.label}>
-                            <div className="flex items-center gap-2">
-                                <span style={{ fontSize: 14 }}>{metric.icon}</span>
-                                <Text type="secondary" style={{ fontSize: 13 }}>{metric.label}</Text>
-                            </div>
-                            <Text strong style={{ color: '#a855f7' }}>{metric.value}</Text>
+                        <div className="flex items-center justify-between py-1 border-b border-slate-50 last:border-0" key={metric.label}>
+                             <Text type="secondary" className="text-sm text-slate-500">{metric.label}</Text>
+                             <Text strong className="text-slate-700 font-mono">{metric.value}</Text>
                         </div>
                     ))}
-                </Space>
-            </Space>
+                </div>
+             </div>
         </Card>
     );
 };
@@ -353,21 +346,21 @@ const DashboardSummaryGrid = ({ summary, timeframeLabel, generatedLabel }) => {
     }
 
     return (
-        <Row gutter={[20, 20]}>
-            <Col xs={24} lg={8}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div>
                 <LessonSummaryCard
                     summary={summary.lessons}
                     timeframeLabel={timeframeLabel}
                     generatedLabel={generatedLabel}
                 />
-            </Col>
-            <Col xs={24} lg={8}>
+            </div>
+            <div>
                 <RentalSummaryCard summary={summary.rentals} />
-            </Col>
-            <Col xs={24} lg={8}>
+            </div>
+            <div>
                 <FinancialSummaryCard summary={summary.revenue} />
-            </Col>
-        </Row>
+            </div>
+        </div>
     );
 };
 
@@ -618,7 +611,7 @@ function Dashboard() {
     }, [recentPayments]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-50 to-slate-50 px-4 pb-20 pt-6">
+        <div className="min-h-screen bg-slate-50 px-4 pb-20 pt-6">
             <style>{`
                 @keyframes slideInDown {
                     from {
@@ -654,50 +647,39 @@ function Dashboard() {
                     animation: slideInUp 0.5s ease-out;
                 }
                 .dashboard-card {
-                    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-                    backdrop-filter: blur(10px);
-                    -webkit-backdrop-filter: blur(10px);
+                    transition: all 0.3s ease-out;
                 }
                 .dashboard-card:hover {
-                    transform: translateY(-8px);
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
                 }
                 .highlight-card {
                     position: relative;
                     overflow: hidden;
                 }
-                .highlight-card::before {
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    right: -50%;
-                    width: 100%;
-                    height: 100%;
-                    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-                    pointer-events: none;
-                }
             `}</style>
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
                 {/* Hero Section */}
                 <Card
-                    className="dashboard-card animate-slide-in-down rounded-3xl border border-white/20 bg-gradient-to-br from-white/80 to-white/40 shadow-lg"
+                    className="dashboard-card animate-slide-in-down rounded-3xl border border-slate-100 bg-white shadow-lg"
                     bodyStyle={{ padding: "32px 40px" }}
                 >
                     <Row gutter={[24, 24]} align="middle">
                         <Col xs={24} lg={16}>
                             <Space direction="vertical" size={16} style={{ width: "100%" }}>
                                 <div className="flex items-center gap-3">
-                                    <StarOutlined className="text-2xl bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent" />
-                                    <Tag bordered={false} color="geekblue" style={{ fontSize: 12, fontWeight: 600 }}>
+                                    <div className="p-2 bg-indigo-50 rounded-full text-indigo-600">
+                                        <StarOutlined className="text-xl" />
+                                    </div>
+                                    <Tag bordered={false} className="bg-slate-100 text-slate-600 font-semibold border-0">
                                         Welcome Dashboard
                                     </Tag>
                                 </div>
                                 <div>
-                                    <Title level={1} style={{ margin: 0, background: 'linear-gradient(135deg, #1e293b 0%, #3b82f6 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                    <Title level={1} style={{ margin: 0, color: '#0f172a' }}>
                                         Welcome back{user?.first_name ? `, ${user.first_name}` : ""}
                                     </Title>
                                 </div>
-                                <Text type="secondary" style={{ fontSize: 15, lineHeight: 1.6 }}>
+                                <Text className="text-slate-500 text-base leading-relaxed">
                                     {heroSubtitle}
                                 </Text>
                                 <Space wrap size={12}>
@@ -705,15 +687,9 @@ function Dashboard() {
                                         <Button 
                                             type="primary" 
                                             icon={<CalendarOutlined />}
-                                            style={{ 
-                                                borderRadius: 14, 
-                                                height: 48, 
-                                                paddingInline: 24,
-                                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                                                border: 'none',
-                                                fontWeight: 600,
-                                                fontSize: 14
-                                            }}
+                                            size="large"
+                                            className="bg-slate-900 border-none hover:bg-slate-800 shadow-xl shadow-slate-200"
+                                            style={{ borderRadius: 12, height: 48, paddingInline: 24 }}
                                         >
                                             Manage bookings
                                         </Button>
@@ -721,15 +697,10 @@ function Dashboard() {
                                     {canViewFinance && (
                                         <Link to="/finance">
                                             <Button
+                                                size="large"
                                                 icon={<DollarCircleOutlined />}
-                                                style={{ 
-                                                    borderRadius: 14, 
-                                                    height: 48, 
-                                                    paddingInline: 24,
-                                                    fontWeight: 600,
-                                                    fontSize: 14,
-                                                    borderColor: '#e2e8f0'
-                                                }}
+                                                className="border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                                                style={{ borderRadius: 12, height: 48, paddingInline: 24 }}
                                             >
                                                 Finance overview
                                             </Button>
@@ -739,48 +710,46 @@ function Dashboard() {
                             </Space>
                         </Col>
                         <Col xs={24} lg={8}>
-                            <Card
-                                className="dashboard-card rounded-2xl border border-indigo-200/40 bg-gradient-to-br from-indigo-50/80 to-indigo-100/30"
-                                bodyStyle={{ padding: 24 }}
-                            >
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                 <Space direction="vertical" size={14} style={{ width: "100%" }}>
-                                    <div>
-                                        <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>Active team</Text>
-                                        <Title level={2} style={{ margin: "8px 0 0", color: '#3b82f6' }}>
-                                            {formatNumber(stats.instructors)}
-                                        </Title>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>instructors on board</Text>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <Text type="secondary" className="text-xs uppercase tracking-wide font-bold text-slate-400">Active Team</Text>
+                                            <div className="text-3xl font-bold text-indigo-600 mt-1">
+                                                {formatNumber(stats.instructors)}
+                                            </div>
+                                            <Text className="text-slate-400 text-xs">instructors on board</Text>
+                                        </div>
+                                        <div className="h-10 w-10 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-full">
+                                            <TeamOutlined />
+                                        </div>
                                     </div>
-                                    <Divider style={{ margin: "12px 0" }} />
-                                    <Row gutter={12}>
-                                        <Col span={12}>
-                                            <div>
-                                                <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>Equipment</Text>
-                                                <div className="text-xl font-bold text-slate-900 mt-1">
-                                                    {formatNumber(stats.equipment)}
-                                                </div>
+                                    <div className="h-px bg-slate-200 my-2" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Text className="text-xs font-semibold text-slate-500 block mb-1">Equipment</Text>
+                                            <div className="text-lg font-bold text-slate-800">
+                                                {formatNumber(stats.equipment)}
                                             </div>
-                                        </Col>
-                                        <Col span={12}>
-                                            <div>
-                                                <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>Customers</Text>
-                                                <div className="text-xl font-bold text-slate-900 mt-1">
-                                                    {formatNumber(stats.users)}
-                                                </div>
+                                        </div>
+                                        <div>
+                                            <Text className="text-xs font-semibold text-slate-500 block mb-1">Customers</Text>
+                                            <div className="text-lg font-bold text-slate-800">
+                                                {formatNumber(stats.users)}
                                             </div>
-                                        </Col>
-                                    </Row>
-                                    <Link to="/services">
+                                        </div>
+                                    </div>
+                                     <Link to="/services">
                                         <Button 
                                             type="link" 
                                             icon={<ArrowRightOutlined />}
-                                            style={{ padding: 0, fontWeight: 600, color: '#3b82f6' }}
+                                            className="p-0 h-auto font-semibold text-indigo-600 hover:text-indigo-700 mt-2"
                                         >
                                             Explore services
                                         </Button>
                                     </Link>
                                 </Space>
-                            </Card>
+                            </div>
                         </Col>
                     </Row>
                 </Card>
@@ -793,44 +762,34 @@ function Dashboard() {
                             const iconClass = iconBgStyles[item.accent] || iconBgStyles.blue;
                             return (
                                 <Col key={item.key} xs={24} sm={12} lg={6}>
-                                    <Link to={item.link} className="block h-full">
-                                        <Card
-                                            hoverable
-                                            className={`dashboard-card highlight-card h-full rounded-2xl border ${bgClass.split(' ')[4]} shadow-sm`}
-                                            bodyStyle={{ padding: 20 }}
-                                            style={{
-                                                background: bgClass.split(' ').slice(0, 4).join(' '),
-                                                animationDelay: `${idx * 80}ms`
-                                            }}
+                                    <Link to={item.link} className="block h-full group">
+                                        <div
+                                            className={`dashboard-card h-full rounded-2xl p-5 border transition-all duration-300 ${bgClass}`}
+                                            style={{ animationDelay: `${idx * 80}ms` }}
                                         >
-                                            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                                            <div className="flex flex-col h-full justify-between gap-4">
                                                 <div className="flex items-start justify-between">
                                                     <div>
                                                         <Text 
-                                                            type="secondary" 
-                                                            style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                                                            className="text-slate-500 text-xs font-bold uppercase tracking-wider"
                                                         >
                                                             {item.title}
                                                         </Text>
-                                                        <Title 
-                                                            level={3} 
-                                                            style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 700 }}
-                                                        >
+                                                        <div className="text-3xl font-bold text-slate-800 mt-2 group-hover:scale-105 transition-transform origin-left">
                                                             {item.value}
-                                                        </Title>
+                                                        </div>
                                                     </div>
-                                                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconClass}`} style={{ fontSize: 20 }}>
+                                                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClass} transition-transform group-hover:rotate-6`}>
                                                         {item.icon}
                                                     </div>
                                                 </div>
                                                 {item.meta && (
-                                                    <>
-                                                        <Divider style={{ margin: "8px 0" }} />
+                                                    <div className="pt-3 border-t border-slate-100 mt-auto">
                                                         {item.meta}
-                                                    </>
+                                                    </div>
                                                 )}
-                                            </Space>
-                                        </Card>
+                                            </div>
+                                        </div>
                                     </Link>
                                 </Col>
                             );
@@ -839,120 +798,109 @@ function Dashboard() {
                 </div>
 
                 {/* Activity Sections */}
-                <Row gutter={[16, 16]}>
-                    <Col xs={24} lg={12}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card
+                        title={
+                            <div className="flex items-center gap-2">
+                                <ClockCircleOutlined style={{ color: '#3b82f6' }} />
+                                <span className="font-bold text-slate-800">Upcoming bookings</span>
+                            </div>
+                        }
+                        extra={
+                            <Link to="/bookings">
+                                <Button type="text" className="text-slate-500 hover:text-blue-600 text-xs font-medium">View all</Button>
+                            </Link>
+                        }
+                        className="dashboard-card rounded-2xl border-slate-200 shadow-sm bg-white h-full"
+                        bodyStyle={{ padding: 0 }}
+                    >
+                        {upcomingBookingItems.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                                {upcomingBookingItems.map((item, idx) => (
+                                    <div 
+                                        key={item.key}
+                                        className="px-6 py-4 hover:bg-slate-50 transition-colors flex items-center justify-between group"
+                                        style={{ animationDelay: `${idx * 50}ms` }}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform">
+                                                <CalendarOutlined />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-slate-700 text-sm mb-0.5">{item.student}</div>
+                                                <div className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full inline-block">{item.service}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="font-bold text-slate-700 text-sm">{item.dayLabel}</div>
+                                            <div className="text-xs text-slate-400">{item.timeLabel}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="py-16 text-center">
+                                <ClockCircleOutlined style={{ fontSize: 40, color: '#cbd5e1', marginBottom: 12 }} />
+                                <Empty description="No upcoming bookings" />
+                            </div>
+                        )}
+                    </Card>
+
+                    {canViewFinance && (
                         <Card
                             title={
-                                <Space size={8}>
-                                    <ClockCircleOutlined style={{ color: '#3b82f6' }} />
-                                    <Text strong>Upcoming bookings</Text>
-                                </Space>
+                                <div className="flex items-center gap-2">
+                                    <DollarCircleOutlined style={{ color: '#10b981' }} />
+                                    <span className="font-bold text-slate-800">Recent payments</span>
+                                </div>
                             }
                             extra={
-                                <Link to="/bookings">
-                                    <Button type="text" icon={<ArrowRightOutlined />} style={{ fontSize: 12 }}>View all</Button>
+                                <Link to="/finance">
+                                    <Button type="text" className="text-slate-500 hover:text-emerald-600 text-xs font-medium">View all</Button>
                                 </Link>
                             }
-                            className="dashboard-card rounded-2xl border border-slate-200/50 shadow-sm bg-white/80 backdrop-blur"
+                            className="dashboard-card rounded-2xl border-slate-200 shadow-sm bg-white h-full"
                             bodyStyle={{ padding: 0 }}
                         >
-                            {upcomingBookingItems.length > 0 ? (
-                                <List
-                                    dataSource={upcomingBookingItems}
-                                    renderItem={(item, idx) => (
-                                        <List.Item 
-                                            className="px-6 py-4 border-b border-slate-100/50 last:border-b-0 hover:bg-slate-50/50 transition-colors"
+                            {paymentItems.length > 0 ? (
+                                <div className="divide-y divide-slate-100">
+                                    {paymentItems.map((item, idx) => (
+                                        <div 
+                                            key={item.key}
+                                            className="px-6 py-4 hover:bg-slate-50 transition-colors flex items-center justify-between group"
                                             style={{ animationDelay: `${idx * 50}ms` }}
                                         >
-                                            <div className="flex w-full items-center justify-between">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100/60 text-blue-600">
-                                                        <CalendarOutlined />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <Text strong style={{ fontSize: 14 }}>{item.student}</Text>
-                                                        <div className="text-sm text-slate-500">{item.service}</div>
-                                                    </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${item.direction === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                                    {item.direction === 'income' ? '↓' : '↑'}
                                                 </div>
-                                                <Space size={6} wrap={false}>
-                                                    <Tag bordered={false} color="blue" style={{ borderRadius: 6 }}>
-                                                        {item.dayLabel}
-                                                    </Tag>
-                                                    <Tag bordered={false} color="geekblue" style={{ borderRadius: 6 }}>
-                                                        {item.timeLabel}
-                                                    </Tag>
-                                                </Space>
+                                                <div>
+                                                     <div className="font-bold text-slate-700 text-sm mb-0.5">{item.description}</div>
+                                                     <div className="text-xs text-slate-500">{item.participantName}</div>
+                                                </div>
                                             </div>
-                                        </List.Item>
-                                    )}
-                                />
+                                            <div className="text-right">
+                                                <div className={`text-sm font-bold font-mono ${item.directionClass}`}>
+                                                    {item.sign}{formatCurrency(item.amountDisplay, item.currency)}
+                                                </div>
+                                                <div className="text-xs text-slate-400">{item.formattedDate}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             ) : (
                                 <div className="py-16 text-center">
-                                    <ClockCircleOutlined style={{ fontSize: 40, color: '#cbd5e1', marginBottom: 12 }} />
-                                    <Empty description="No upcoming bookings" />
+                                    <DollarCircleOutlined style={{ fontSize: 40, color: '#cbd5e1', marginBottom: 12 }} />
+                                    <Empty description="No recent payments" />
                                 </div>
                             )}
                         </Card>
-                    </Col>
-                    {canViewFinance && (
-                        <Col xs={24} lg={12}>
-                            <Card
-                                title={
-                                    <Space size={8}>
-                                        <DollarCircleOutlined style={{ color: '#10b981' }} />
-                                        <Text strong>Recent payments</Text>
-                                    </Space>
-                                }
-                                extra={
-                                    <Link to="/finance">
-                                        <Button type="text" icon={<ArrowRightOutlined />} style={{ fontSize: 12 }}>View all</Button>
-                                    </Link>
-                                }
-                                className="dashboard-card rounded-2xl border border-slate-200/50 shadow-sm bg-white/80 backdrop-blur"
-                                bodyStyle={{ padding: 0 }}
-                            >
-                                {paymentItems.length > 0 ? (
-                                    <List
-                                        dataSource={paymentItems}
-                                        renderItem={(item, idx) => (
-                                            <List.Item 
-                                                className="px-6 py-4 border-b border-slate-100/50 last:border-b-0 hover:bg-slate-50/50 transition-colors"
-                                                style={{ animationDelay: `${idx * 50}ms` }}
-                                            >
-                                                <div className="flex w-full items-center justify-between">
-                                                    <div className="flex items-center gap-3 flex-1">
-                                                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.direction === 'income' ? 'bg-emerald-100/60 text-emerald-600' : 'bg-rose-100/60 text-rose-600'}`}>
-                                                            {item.direction === 'income' ? '↓' : '↑'}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <Text strong style={{ fontSize: 14 }}>{item.description}</Text>
-                                                            <div className="text-sm text-slate-500">{item.participantName}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className={`text-base font-bold ${item.directionClass}`}>
-                                                            {item.sign}{formatCurrency(item.amountDisplay, item.currency)}
-                                                        </div>
-                                                        <div className="text-xs text-slate-500">{item.formattedDate}</div>
-                                                    </div>
-                                                </div>
-                                            </List.Item>
-                                        )}
-                                    />
-                                ) : (
-                                    <div className="py-16 text-center">
-                                        <DollarCircleOutlined style={{ fontSize: 40, color: '#cbd5e1', marginBottom: 12 }} />
-                                        <Empty description="No recent payments" />
-                                    </div>
-                                )}
-                            </Card>
-                        </Col>
                     )}
-                </Row>
+                </div>
 
                 {/* Summary Grid */}
                 {dashboardSummary && (
-                    <div className="animate-fade-in">
+                    <div className="animate-fade-in pb-8">
                         <DashboardSummaryGrid
                             summary={dashboardSummary}
                             timeframeLabel={summaryTimeframeLabel}

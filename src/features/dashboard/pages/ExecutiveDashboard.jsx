@@ -89,6 +89,7 @@ const DashboardHeader = memo(({
 
   // Dropdown menu items for quick presets
   const presetMenuItems = [
+    { key: 'today', label: 'Today' },
     { key: 'week', label: 'This Week' },
     { key: 'month', label: 'This Month' },
     { key: 'year', label: 'This Year' },
@@ -116,94 +117,93 @@ const DashboardHeader = memo(({
   return (
     <div className="space-y-6">
       {/* Top Bar: Title + Controls */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 md:p-5">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
         {/* Title Row */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-50 border border-sky-100 text-[10px] font-bold uppercase tracking-wider text-sky-700">
-                Executive Dashboard
-              </span>
-              <span className="text-slate-500 text-xs font-medium">
-                {windowDays} Days
-              </span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
+                <LineChart style={{ width: 24, height: 24 }} />
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              Operational Health
-            </h1>
+            <div>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight m-0">
+                  Operational Health
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-slate-500 text-sm font-normal">
+                    Performance Overview • {windowDays} Days analyzed
+                  </span>
+                </div>
+            </div>
           </div>
           
-          {/* Settings Button */}
-          <Tooltip title="Customize">
-            <Button
-              shape="circle"
-              icon={<SettingOutlined />}
-              onClick={onCustomizeToggle}
-              className={
-                customizeMode
-                  ? '!h-10 !w-10 !rounded-lg !bg-sky-500 !text-white !border-sky-500 hover:!bg-sky-600'
-                  : '!h-10 !w-10 !rounded-lg !border-slate-200 !text-slate-700 hover:!border-sky-400 hover:!text-sky-600 hover:!bg-sky-50'
-              }
-            />
-          </Tooltip>
-        </div>
+          {/* Controls Group */}
+          <div className="flex items-center gap-3">
+             <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200">
+                <input
+                  type="date"
+                  value={start.format('YYYY-MM-DD')}
+                  onChange={handleStartDateChange}
+                  max={end.format('YYYY-MM-DD')}
+                  className="bg-transparent border-0 text-slate-600 text-sm font-medium focus:ring-0 px-3 cursor-pointer"
+                />
+                <span className="text-slate-400 text-xs px-1">➜</span>
+                <input
+                  type="date"
+                  value={end.format('YYYY-MM-DD')}
+                  onChange={handleEndDateChange}
+                  min={start.format('YYYY-MM-DD')}
+                  max={moment().format('YYYY-MM-DD')}
+                  className="bg-transparent border-0 text-slate-600 text-sm font-medium focus:ring-0 px-3 cursor-pointer"
+                />
+             </div>
 
-        {/* Date Controls Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          {/* Native Date Range Inputs - Mobile Friendly */}
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-            <input
-              type="date"
-              value={start.format('YYYY-MM-DD')}
-              onChange={handleStartDateChange}
-              max={end.format('YYYY-MM-DD')}
-              className="flex-1 sm:w-[140px] h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 cursor-pointer"
-            />
-            <span className="text-slate-400 text-sm">to</span>
-            <input
-              type="date"
-              value={end.format('YYYY-MM-DD')}
-              onChange={handleEndDateChange}
-              min={start.format('YYYY-MM-DD')}
-              max={moment().format('YYYY-MM-DD')}
-              className="flex-1 sm:w-[140px] h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 cursor-pointer"
-            />
+              <Dropdown
+                menu={{ items: presetMenuItems, onClick: handlePresetClick }}
+                trigger={['click']}
+              >
+                <Button className="h-10 px-4 rounded-lg border-slate-200 hover:border-sky-500 hover:text-sky-600 font-medium">
+                  {windowDays > 300 ? 'This Year' : windowDays > 25 ? 'This Month' : 'Custom'} <DownOutlined className="text-xs ml-2 opacity-50" />
+                </Button>
+              </Dropdown>
+
+              <Tooltip title="Customize Dashboard">
+                <Button
+                  icon={<SettingOutlined />}
+                  onClick={onCustomizeToggle}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg border-slate-200 transition-colors
+                    ${customizeMode ? 'bg-sky-50 text-sky-600 border-sky-200' : 'hover:bg-slate-50 text-slate-400 hover:text-slate-600'}
+                  `}
+                />
+              </Tooltip>
           </div>
-
-          {/* Quick Presets Dropdown */}
-          <Dropdown
-            menu={{ items: presetMenuItems, onClick: handlePresetClick }}
-            trigger={['click']}
-          >
-            <Button
-              className="!h-10 !rounded-lg !border-slate-200 !text-slate-600 hover:!border-sky-400 hover:!text-sky-600 hover:!bg-sky-50"
-            >
-              Quick Select <DownOutlined className="ml-1 text-xs" />
-            </Button>
-          </Dropdown>
         </div>
+
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+      {/* Stats Cards - Highlight Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {highlightStats.map((stat) => (
           <div
             key={stat.label}
-            className="relative group overflow-hidden rounded-2xl bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/60 p-5 shadow-sm hover:shadow-md transition-all duration-200"
+            className="group relative overflow-hidden rounded-2xl bg-white border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
           >
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`h-2 w-2 rounded-full ${stat.dotClass}`} />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                {stat.label}
-              </span>
+            <div className="flex flex-col gap-1 relative z-10">
+              <div className="flex items-center gap-2 mb-2">
+                 <div className={`h-2 w-2 rounded-full ${stat.dotClass}`} />
+                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {stat.label}
+                 </span>
+              </div>
+              <div className="text-4xl font-bold text-slate-800 tracking-tight">
+                {stat.value}
+              </div>
+              <div className="text-sm font-medium text-slate-500 bg-slate-50 self-start px-2 py-1 rounded mt-2">
+                {stat.helper}
+              </div>
             </div>
-            <div className="text-3xl font-bold text-slate-900 mb-1">
-              {stat.value}
-            </div>
-            <div className="text-sm text-slate-500 font-medium">
-              {stat.helper}
-            </div>
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-gradient-to-br from-sky-100/30 to-transparent rounded-full blur-2xl group-hover:scale-110 transition-transform duration-500" />
+            
+            {/* Subtle decorative background blob */}
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-sky-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700 opacity-60" />
           </div>
         ))}
       </div>
@@ -477,7 +477,9 @@ export default function ExecutiveDashboard() {
     const endDate = moment();
     let startDate;
 
-    if (preset === 'week') {
+    if (preset === 'today') {
+        startDate = moment();
+    } else if (preset === 'week') {
       startDate = moment().startOf('week');
     } else if (preset === 'month') {
       startDate = moment().startOf('month');
