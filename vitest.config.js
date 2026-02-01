@@ -10,7 +10,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: [
       'src/**/*.{test,spec}.{js,jsx,ts,tsx}',
-      'backend/**/*.{test,spec}.{js,mjs}',
+      // Exclude backend tests - they use Jest
+      // 'backend/**/*.{test,spec}.{js,mjs}',
       'tests/security/**/*.test.js',
       'tests/integration/**/*.test.js'
     ],
