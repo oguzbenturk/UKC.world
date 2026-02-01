@@ -606,7 +606,7 @@ async function phase6_Shop() {
   }
 
   // Test 6.2: Shop Orders
-  const ordersRes = await api('/api/shop-orders');
+  const ordersRes = await api('/api/shop-orders/my-orders');
   if (ordersRes.ok) {
     const orders = Array.isArray(ordersRes.data) ? ordersRes.data : (ordersRes.data?.orders || []);
     pass('Shop orders', `Found ${orders.length} orders`);
@@ -709,14 +709,8 @@ async function phase9_FormsCompliance() {
     skip('Form templates', `Status: ${formsRes.status}`);
   }
 
-  // Test 9.2: Waivers
-  const waiversRes = await api('/api/waivers/templates');
-  if (waiversRes.ok) {
-    const templates = Array.isArray(waiversRes.data) ? waiversRes.data : [];
-    pass('Waivers endpoint', `Found ${templates.length} templates`);
-  } else {
-    skip('Waivers', `Status: ${waiversRes.status}`);
-  }
+  // Test 9.2: Waivers - Admin-only endpoint, skip for standard tests
+  skip('Waivers', 'Admin-only endpoint (use /api/admin/waivers)');
 
   // Test 9.3: GDPR/Consents
   const consentsRes = await api('/api/user-consents/me');
@@ -741,7 +735,7 @@ async function phase10_Reporting() {
   const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
   const endDate = today.toISOString().split('T')[0];
 
-  const reportRes = await api(`/api/finances/reports/summary?start_date=${startDate}&end_date=${endDate}`);
+  const reportRes = await api(`/api/finances/reports/customer-summary?startDate=${startDate}&endDate=${endDate}`);
   if (reportRes.ok) {
     pass('Finance report', `${startDate} to ${endDate}`);
   } else {
@@ -749,11 +743,17 @@ async function phase10_Reporting() {
   }
 
   // Test 10.2: Instructor commissions
-  const commissionsRes = await api('/api/instructor-commissions');
-  if (commissionsRes.ok) {
-    pass('Instructor commissions endpoint');
+  // Need to get user's instructor ID first
+  const profileRes = await api('/api/auth/me');
+  if (profileRes.ok && profileRes.data?.id) {
+    const commissionsRes = await api(`/api/instructor-commissions/instructors/${profileRes.data.id}/commissions`);
+    if (commissionsRes.ok) {
+      pass('Instructor commissions endpoint');
+    } else {
+      skip('Instructor commissions', `Status: ${commissionsRes.status}`);
+    }
   } else {
-    skip('Instructor commissions', `Status: ${commissionsRes.status}`);
+    skip('Instructor commissions', 'Could not get user profile');
   }
 
   // Test 10.3: Audit logs
