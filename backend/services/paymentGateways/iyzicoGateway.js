@@ -62,7 +62,8 @@ export async function initiateDeposit({
     const user = await getUserDetails(userId);
     const conversationId = referenceCode || `TRX-${Date.now()}`;
     const baseUrl = process.env.BACKEND_API_URL || 'http://localhost:4000';
-    const callbackUrl = `${baseUrl}/api/payment-gateways/iyzico/callback`;
+    // Use a route in finances.js that will handle the POST and redirect to frontend
+    const callbackUrl = metadata.callbackUrl || `${baseUrl}/api/finances/callback/iyzico`;
 
     // Ensure currency
     const pCurrency = (currency || 'EUR').toUpperCase(); // Default to EUR if not provided
@@ -163,4 +164,45 @@ export async function initiateDeposit({
       });
     });
   });
+}
+
+/**
+ * Verify payment using Iyzico token from callback
+ */
+export async function verifyPayment(token) {
+    return new Promise((resolve, reject) => {
+        if (!iyzipay) {
+             // Mock verification for dev
+             if (token && token.startsWith('mock-')) {
+                 return resolve({
+                     status: 'success',
+                     paymentId: token,
+                     paidPrice: 100, // Mock amount
+                     currency: 'EUR'
+                 });
+             }
+             return reject(new Error('Iyzico not configured'));
+        }
+
+        iyzipay.checkoutForm.retrieve({
+            locale: Iyzipay.LOCALE.TR,
+            token: token
+        }, function (err, result) {
+            if (err || result.status !== 'success') {
+                return reject(new Error(err?.message || result?.errorMessage || 'Verification failed'));
+            }
+            
+            if (result.paymentStatus !== 'SUCCESS') {
+                 return reject(new Error('Payment not successful'));
+            }
+
+            resolve({
+                status: 'success',
+                paymentId: result.paymentId,
+                paidPrice: result.paidPrice,
+                currency: result.currency,
+                raw: result
+            });
+        });
+    });
 }

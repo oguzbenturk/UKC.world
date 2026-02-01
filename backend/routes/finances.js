@@ -21,6 +21,7 @@ import {
   LEDGER_COMPLETED_BOOKING_STATUSES,
   LEDGER_NEGATIVE_STATUSES
 } from '../services/serviceRevenueLedger.js';
+import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -2979,5 +2980,101 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 export const __testables = {
   calculateUserBalance
 };
+
+// ===========================================================================================
+// DEPOSITS (IYZICO)
+// ===========================================================================================
+
+/**
+ * @route POST /api/finances/deposit
+ * @desc Initiate a wallet deposit via Iyzico
+ * @access Private
+ */
+router.post('/deposit', authenticateJWT, async (req, res) => {
+  try {
+    const { amount, currency } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const gatewayResult = await initiateDeposit({
+      amount,
+      currency,
+      userId,
+      metadata: { 
+          source: 'student_wallet',
+          userId: userId
+      }
+    });
+
+    res.json(gatewayResult);
+
+  } catch (error) {
+    logger.error('Deposit initiation failed', error);
+    res.status(500).json({ error: 'Failed to initiate deposit' });
+  }
+});
+
+/**
+ * @route POST /api/finances/callback/iyzico
+ * @desc Handle Iyzico callback (Checkout Form)
+ * @access Public (Callback from Iyzico)
+ */
+router.post('/callback/iyzico', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { token } = req.body; 
+
+    if (!token) {
+        throw new Error('No token provided in callback');
+    }
+
+    // Verify payment with Iyzico
+    const payment = await verifyPayment(token);
+    
+    // Retrieve buyer ID from payment details
+    // Iyzico returns buyer details in raw result
+    const raw = payment.raw || {};
+    // Safely attempt to get user ID
+    // Note: buyer.id should be what we sent. 
+    // If for some reason it's missing, we log error.
+    const targetUserId = raw.buyer?.id;
+
+    if (!targetUserId) {
+        logger.error('Iyzico Callback: Could not identify user from buyer.id', { raw });
+        throw new Error('Could not identify user');
+    }
+
+    // Record the transaction
+    await recordWalletTransaction({
+        userId: targetUserId,
+        amount: payment.paidPrice,
+        currency: payment.currency,
+        type: 'payment',
+        direction: 'credit',
+        description: 'Wallet Top-up (Iyzico)',
+        paymentMethod: 'iyzico',
+        referenceNumber: payment.paymentId,
+        metadata: {
+            iyzicoPaymentId: payment.paymentId,
+            conversationId: raw.conversationId,
+            token: token
+        },
+        status: 'completed',
+        authorId: null 
+    });
+
+    // Redirect to frontend
+    // Use env var or default to production domain
+    const frontendUrl = process.env.FRONTEND_URL || 'https://plannivo.ukc.world'; 
+    res.redirect(`${frontendUrl}/dashboard?payment=success&amount=${payment.paidPrice}`);
+
+  } catch (error) {
+    logger.error('Iyzico Callback Failed', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://plannivo.ukc.world';
+    res.redirect(`${frontendUrl}/dashboard?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
+  }
+});
 
 export default router;
