@@ -25,7 +25,7 @@ RUN mkdir -p /var/www/uploads
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/nginx.conf
+COPY infrastructure/nginx.conf /etc/nginx/conf.d/nginx.conf
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
