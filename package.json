@@ -24,6 +24,8 @@
     "test:quick": "node scripts/run-all-tests.js --quick",
     "test:api-only": "node scripts/run-all-tests.js --api",
     "test:integrity": "node scripts/check-integrity.mjs",
+    "test:production": "node scripts/test-production.mjs",
+    "test:production:verbose": "node scripts/test-production.mjs --verbose",
     "preview": "vite preview",
     "migrate:up": "node backend/migrate.js up",
     "migrate:status": "node backend/migrate.js status",
