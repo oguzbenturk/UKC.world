@@ -401,7 +401,7 @@ if [ -f docker-compose.production.yml ]; then
   # Build images first
   echo "Building Docker images..."
   docker build -t plannivo_backend -f backend/Dockerfile.production backend/
-  docker build -t plannivo_frontend -f Dockerfile .
+  docker build -t plannivo_frontend -f infrastructure/Dockerfile .
 
   # Stop and remove old containers (ignore errors if they don't exist)
   echo "Stopping old containers..."
