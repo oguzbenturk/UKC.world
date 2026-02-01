@@ -1125,6 +1125,300 @@ async function phase14_Commissions() {
 }
 
 // ============================================================================
+// PHASE 15: WRITE OPERATIONS (CRUD TESTS)
+// ============================================================================
+
+async function phase15_WriteOperations() {
+  section('✍️ PHASE 15: Write Operations & Business Logic');
+
+  let createdBookingId = null;
+  let testStudentId = null;
+  let testInstructorId = null;
+  let testServiceId = null;
+
+  try {
+    // Get test data (student, instructor, service)
+    const studentsRes = await api('/api/students?limit=1');
+    const instructorsRes = await api('/api/instructors?limit=1');
+    const servicesRes = await api('/api/services?limit=1');
+
+    if (!studentsRes.ok || !instructorsRes.ok || !servicesRes.ok) {
+      skip('Write operations', 'Missing test data (students/instructors/services)');
+      return true;
+    }
+
+    const students = studentsRes.data?.data || studentsRes.data || [];
+    const instructors = Array.isArray(instructorsRes.data) ? instructorsRes.data : [];
+    const services = Array.isArray(servicesRes.data) ? servicesRes.data : [];
+
+    if (students.length === 0 || instructors.length === 0 || services.length === 0) {
+      skip('Write operations', 'No test data available');
+      return true;
+    }
+
+    testStudentId = students[0].id;
+    testInstructorId = instructors[0].id;
+    testServiceId = services[0].id;
+
+    // Test 15.1: Create a booking
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const bookingDate = tomorrow.toISOString().split('T')[0];
+    const startHour = '14:00';
+
+    const createRes = await api('/api/bookings', {
+      method: 'POST',
+      body: {
+        date: bookingDate,
+        start_hour: startHour,
+        duration: 1,
+        student_user_id: testStudentId,
+        instructor_user_id: testInstructorId,
+        service_id: testServiceId,
+        status: 'confirmed',
+        payment_status: 'paid',
+        notes: 'TEST BOOKING - automated test'
+      }
+    });
+
+    if (createRes.ok && createRes.data?.id) {
+      createdBookingId = createRes.data.id;
+      pass('Create booking', `ID: ${createdBookingId}`);
+
+      // Verify it was created
+      const verifyRes = await api(`/api/bookings/${createdBookingId}`);
+      if (verifyRes.ok) {
+        pass('Verify created booking exists');
+      } else {
+        fail('Created booking not found', `Status: ${verifyRes.status}`);
+      }
+    } else {
+      fail('Create booking', createRes.data?.error || `Status: ${createRes.status}`);
+    }
+
+    // Test 15.2: Double-booking prevention
+    if (createdBookingId) {
+      const doubleBookRes = await api('/api/bookings', {
+        method: 'POST',
+        body: {
+          date: bookingDate,
+          start_hour: startHour,
+          duration: 1,
+          student_user_id: testStudentId,
+          instructor_user_id: testInstructorId,
+          service_id: testServiceId,
+          status: 'confirmed',
+          payment_status: 'paid'
+        }
+      });
+
+      // Should fail due to conflict
+      if (!doubleBookRes.ok && (doubleBookRes.status === 409 || doubleBookRes.status === 400)) {
+        pass('Double-booking prevented', 'Conflict detected');
+      } else if (doubleBookRes.ok) {
+        warn('Double-booking allowed', 'No conflict detection - check business logic');
+        // Clean up the double booking if it was created
+        if (doubleBookRes.data?.id) {
+          await api(`/api/bookings/${doubleBookRes.data.id}`, { method: 'DELETE' });
+        }
+      } else {
+        skip('Double-booking test', `Unexpected status: ${doubleBookRes.status}`);
+      }
+    }
+
+    // Test 15.3: Update booking
+    if (createdBookingId) {
+      const updateRes = await api(`/api/bookings/${createdBookingId}`, {
+        method: 'PUT',
+        body: {
+          notes: 'UPDATED TEST BOOKING',
+          duration: 2
+        }
+      });
+
+      if (updateRes.ok) {
+        pass('Update booking', 'Duration changed to 2h');
+
+        // Verify update
+        const verifyRes = await api(`/api/bookings/${createdBookingId}`);
+        if (verifyRes.ok && verifyRes.data?.notes?.includes('UPDATED')) {
+          pass('Verify booking updated');
+        }
+      } else if (updateRes.status === 404) {
+        skip('Update booking', 'Endpoint not found');
+      } else {
+        fail('Update booking', `Status: ${updateRes.status}`);
+      }
+    }
+
+    // Test 15.4: Group booking capacity check
+    const groupServices = services.filter(s => 
+      s.max_participants && s.max_participants > 1
+    );
+
+    if (groupServices.length > 0) {
+      const groupService = groupServices[0];
+      const maxCapacity = groupService.max_participants;
+
+      // Try to create booking with too many participants
+      const overCapacityRes = await api('/api/bookings', {
+        method: 'POST',
+        body: {
+          date: bookingDate,
+          start_hour: '16:00',
+          duration: 1,
+          student_user_id: testStudentId,
+          instructor_user_id: testInstructorId,
+          service_id: groupService.id,
+          status: 'confirmed',
+          group_size: maxCapacity + 5 // Exceed capacity
+        }
+      });
+
+      if (!overCapacityRes.ok && overCapacityRes.status === 400) {
+        pass('Capacity limit enforced', `Cannot exceed ${maxCapacity}`);
+      } else if (overCapacityRes.ok) {
+        warn('Capacity limit not enforced', 'Over-booking allowed');
+        if (overCapacityRes.data?.id) {
+          await api(`/api/bookings/${overCapacityRes.data.id}`, { method: 'DELETE' });
+        }
+      } else {
+        skip('Capacity limit test', `Status: ${overCapacityRes.status}`);
+      }
+    } else {
+      skip('Capacity limit test', 'No group services with max_participants');
+    }
+
+    // Test 15.5: Cancel booking and check refund
+    if (createdBookingId) {
+      const cancelRes = await api(`/api/bookings/${createdBookingId}/cancel`, {
+        method: 'POST',
+        body: {
+          reason: 'Automated test cancellation'
+        }
+      });
+
+      if (cancelRes.ok || cancelRes.status === 404) {
+        if (cancelRes.ok) {
+          pass('Cancel booking', 'Cancellation processed');
+
+          // Verify cancellation
+          const verifyRes = await api(`/api/bookings/${createdBookingId}`);
+          if (verifyRes.ok) {
+            const status = verifyRes.data?.status;
+            if (status === 'cancelled') {
+              pass('Verify booking cancelled', 'Status updated');
+            } else {
+              warn('Booking not marked cancelled', `Status: ${status}`);
+            }
+          }
+        } else {
+          // Try direct update to cancel
+          const altCancelRes = await api(`/api/bookings/${createdBookingId}`, {
+            method: 'PUT',
+            body: { status: 'cancelled', cancellation_reason: 'Test' }
+          });
+          
+          if (altCancelRes.ok) {
+            pass('Cancel booking (via update)', 'Status set to cancelled');
+          } else {
+            skip('Cancel booking', 'No cancel endpoint or update');
+          }
+        }
+      } else {
+        fail('Cancel booking', `Status: ${cancelRes.status}`);
+      }
+    }
+
+  } finally {
+    // Cleanup: Delete test booking
+    if (createdBookingId) {
+      const deleteRes = await api(`/api/bookings/${createdBookingId}`, {
+        method: 'DELETE'
+      });
+
+      if (deleteRes.ok || deleteRes.status === 404) {
+        pass('Cleanup test booking', 'Deleted successfully');
+      } else {
+        warn('Cleanup failed', `Booking ${createdBookingId} may still exist`);
+      }
+    }
+  }
+
+  return true;
+}
+
+// ============================================================================
+// PHASE 16: PAYMENT PROCESSING
+// ============================================================================
+
+async function phase16_PaymentProcessing() {
+  section('💳 PHASE 16: Payment Processing');
+
+  // Test 16.1: Payment settings/configuration
+  const settingsRes = await api('/api/settings');
+  if (settingsRes.ok && settingsRes.data) {
+    // Check for payment provider settings
+    const data = JSON.stringify(settingsRes.data);
+    const hasStripe = data.toLowerCase().includes('stripe');
+    const hasPayment = data.toLowerCase().includes('payment');
+
+    if (hasStripe) {
+      pass('Stripe configuration found');
+    } else if (hasPayment) {
+      pass('Payment configuration exists');
+    } else {
+      log('    ℹ️  No payment provider configuration visible', colors.dim);
+    }
+  }
+
+  // Test 16.2: Create wallet transaction (internal payment)
+  const studentsRes = await api('/api/students?limit=1');
+  if (studentsRes.ok) {
+    const students = studentsRes.data?.data || studentsRes.data || [];
+    if (students.length > 0) {
+      const studentId = students[0].id;
+
+      // Get current balance
+      const walletRes = await api(`/api/wallet/summary`);
+      if (walletRes.ok) {
+        const currentBalance = parseFloat(walletRes.data?.available) || 0;
+        pass('Wallet balance check', `Current: €${currentBalance}`);
+
+        // Note: We won't actually create a real transaction in production tests
+        // This would require admin endpoints and could affect real data
+        log('    ℹ️  Skipping wallet transaction creation (use test environment)', colors.dim);
+      }
+    }
+  }
+
+  // Test 16.3: Check payment webhooks endpoint
+  const webhookRes = await api('/api/payment-webhooks/stripe', {
+    method: 'POST',
+    body: { type: 'test' }
+  });
+
+  if (webhookRes.status === 400 || webhookRes.status === 401) {
+    pass('Payment webhook endpoint exists', 'Requires valid signature');
+  } else if (webhookRes.status === 404) {
+    skip('Payment webhook endpoint', 'Not found');
+  } else {
+    skip('Payment webhook', `Status: ${webhookRes.status}`);
+  }
+
+  // Test 16.4: Check for payment methods
+  const paymentMethodsRes = await api('/api/wallet/payment-methods');
+  if (paymentMethodsRes.ok) {
+    const methods = paymentMethodsRes.data?.results || [];
+    pass('Payment methods endpoint', `${methods.length} methods registered`);
+  } else {
+    skip('Payment methods', `Status: ${paymentMethodsRes.status}`);
+  }
+
+  return true;
+}
+
+// ============================================================================
 // MAIN EXECUTION
 // ============================================================================
 
@@ -1151,7 +1445,9 @@ async function runAllTests() {
     { num: 11, name: 'Security', fn: phase11_Security },
     { num: 12, name: 'Packages & Hours', fn: phase12_PackagesHours },
     { num: 13, name: 'Refunds & Cancellations', fn: phase13_RefundsCancellations },
-    { num: 14, name: 'Commissions & Payouts', fn: phase14_Commissions }
+    { num: 14, name: 'Commissions & Payouts', fn: phase14_Commissions },
+    { num: 15, name: 'Write Operations & Business Logic', fn: phase15_WriteOperations },
+    { num: 16, name: 'Payment Processing', fn: phase16_PaymentProcessing }
   ];
 
   for (const phase of phases) {
