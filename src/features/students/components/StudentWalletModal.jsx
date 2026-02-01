@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
-import { Modal, Tag, Spin, Alert } from 'antd';
-import { WalletIcon } from '@heroicons/react/24/outline';
+import { useCallback, useState } from 'react';
+import { Modal, Tag, Spin, Alert, Button, InputNumber, message, Space, Divider } from 'antd';
+import { WalletIcon, CreditCardIcon, ArrowLeftIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletTransactions } from '@/shared/hooks/useWalletTransactions';
+import apiClient from '@/shared/services/apiClient';
 
 // Storage currency is always EUR (base currency)
 const STORAGE_CURRENCY = 'EUR';
@@ -196,17 +197,28 @@ const TRANSACTION_LIMIT = 3;
 
 const StudentWalletModal = ({ open, onClose, currency, balance }) => {
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
+  const [view, setView] = useState('summary'); // 'summary' | 'deposit'
+  const [depositAmount, setDepositAmount] = useState(100);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Reset view when closed
+  if (!open && view !== 'summary') {
+      // Defer state update to avoid render loop if strictly controlled, but here it's fine or handle in useEffect
+  }
   
+  // UseEffect to reset view on close
+  // eslint-disable-next-line
+  useCallback(() => { if(!open) setView('summary'); }, [open]);
+
   // Query transactions in storage currency (EUR)
   const storageCurrency = businessCurrency || STORAGE_CURRENCY;
   const transactionsQuery = useWalletTransactions({
     currency: storageCurrency,
-    enabled: open,
+    enabled: open && view === 'summary',
     limit: TRANSACTION_LIMIT,
   });
 
   const numericBalance = typeof balance === 'number' && Number.isFinite(balance) ? balance : 0;
-
   const resolvedCurrencyCode = userCurrency || currency?.code || storageCurrency;
   
   // Show dual currency when storage differs from display
@@ -217,6 +229,36 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
     : formatCurrency(numericBalance, resolvedCurrencyCode);
   const currencyDisplay = currency?.symbol || resolvedCurrencyCode;
 
+  const handleDeposit = async () => {
+      if (!depositAmount || depositAmount <= 0) {
+          message.error('Please enter a valid amount');
+          return;
+      }
+      setIsProcessing(true);
+      try {
+          const response = await apiClient.post('/finances/deposit', {
+              amount: depositAmount,
+              currency: resolvedCurrencyCode,
+              method: 'card',
+              gateway: 'iyzico',
+              autoComplete: false
+          });
+
+           if (response.gatewaySession?.paymentPageUrl) {
+               window.location.href = response.gatewaySession.paymentPageUrl;
+           } else if (response.paymentPageUrl) {
+               window.location.href = response.paymentPageUrl;
+           } else {
+               message.error('Failed to initiate payment. No redirect URL provided.');
+           }
+      } catch (err) {
+          console.error(err);
+          message.error(err.response?.data?.error || 'Failed to initiate deposit');
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   const transactions = Array.isArray(transactionsQuery.data?.results)
     ? transactionsQuery.data.results
     : [];
@@ -225,23 +267,14 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
     (transaction) => resolveTransactionAmount(transaction, formatCurrency, resolvedCurrencyCode, convertCurrency, storageCurrency),
     [formatCurrency, resolvedCurrencyCode, convertCurrency, storageCurrency]
   );
-
   const resolveLabel = useCallback((transaction) => resolveTransactionLabel(transaction), []);
-
   const formatDate = useCallback((value) => formatTransactionDate(value), []);
-
   const lastCreditTransaction = transactions.find((transaction) => transaction.direction === 'credit');
   const latestActivity = transactions[0];
   const latestActivityDate = latestActivity
     ? formatDate(latestActivity.transaction_date || latestActivity.created_at)
     : null;
-
-  const quickStats = buildQuickStats({
-    lastCreditTransaction,
-    latestActivity,
-    formatDate,
-    resolveLabel,
-  });
+  const quickStats = buildQuickStats({ lastCreditTransaction, latestActivity, formatDate, resolveLabel });
 
   return (
     <Modal
@@ -259,69 +292,121 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
       }}
     >
       <div className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white/70 shadow-2xl backdrop-blur-xl">
+        
+        {/* HEADER */}
         <header className="relative overflow-hidden bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-700 text-white">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{
-              backgroundImage:
-                'radial-gradient(circle at 8% 16%, rgba(186,230,253,0.35), transparent 55%), radial-gradient(circle at 92% 84%, rgba(129,140,248,0.55), transparent 65%)'
-            }}
+          <div className="pointer-events-none absolute inset-0 opacity-60"
+            style={{ backgroundImage: 'radial-gradient(circle at 8% 16%, rgba(186,230,253,0.35), transparent 55%), radial-gradient(circle at 92% 84%, rgba(129,140,248,0.55), transparent 65%)' }}
             aria-hidden
           />
-          <div className="relative flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur">
-                  <WalletIcon className="h-6 w-6" aria-hidden />
-                </span>
-                <div className="space-y-1">
-                  <p className="text-[11px] uppercase tracking-[0.4em] text-white/60">Wallet</p>
-                  <p className="text-3xl font-semibold leading-tight">{formattedBalance}</p>
-                  <p className="max-w-xs text-sm text-white/70">
-                    Add balance anytime and pay for lessons or rentals in a single tap. Your wallet keeps every transaction in sync.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      window.dispatchEvent(new CustomEvent('wallet:addFunds'));
-                    }}
-                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30 active:scale-95"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Add Funds
-                  </button>
+          
+          <div className="relative flex flex-col gap-5 p-6 transition-all duration-300">
+             {view === 'deposit' ? (
+                 <div className="flex items-center gap-3">
+                     <button onClick={() => setView('summary')} className="p-2 rounded-full hover:bg-white/20 transition cursor-pointer">
+                        <ArrowLeftIcon className="w-5 h-5 text-white" />
+                     </button>
+                     <h2 className="text-xl font-semibold text-white">Add Funds to Wallet</h2>
+                 </div>
+             ) : (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur">
+                        <WalletIcon className="h-6 w-6" aria-hidden />
+                        </span>
+                        <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.4em] text-white/60">Wallet Balance</p>
+                        <p className="text-3xl font-semibold leading-tight">{formattedBalance}</p>
+                        <p className="max-w-xs text-sm text-white/70">
+                            Add balance anytime and pay for lessons or rentals in a single tap.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setView('deposit')}
+                            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30 active:scale-95 cursor-pointer"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Add Funds
+                        </button>
+                        </div>
+                    </div>
+                     <div className="grid gap-3 rounded-2xl border border-white/15 bg-white/10 p-4 sm:grid-cols-3">
+                        {quickStats.map(({ label, value, hint }) => (
+                            <QuickStat key={label} label={label} value={value} hint={hint} />
+                        ))}
+                    </div>
                 </div>
-              </div>
-
-              <div className="grid gap-3 rounded-2xl border border-white/15 bg-white/10 p-4 sm:grid-cols-3">
-                {quickStats.map(({ label, value, hint }) => (
-                  <QuickStat key={label} label={label} value={value} hint={hint} />
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1.5 text-right text-white/80">
-              {latestActivityDate ? (
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Updated {latestActivityDate}</span>
-              ) : (
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">No activity yet</span>
-              )}
-            </div>
+             )}
           </div>
         </header>
 
-        <div className="space-y-6 bg-gradient-to-br from-white via-white to-slate-50 p-6">
-          <TransactionsPanel
-            transactionsQuery={transactionsQuery}
-            transactions={transactions}
-            currencyDisplay={currencyDisplay}
-            resolveLabel={resolveLabel}
-            formatDate={formatDate}
-            renderTransactionAmount={renderTransactionAmount}
-            limit={TRANSACTION_LIMIT}
-          />
+        {/* CONTENT */}
+        <div className="space-y-6 bg-gradient-to-br from-white via-white to-slate-50 p-6 min-h-[300px]">
+          {view === 'deposit' ? (
+              <div className="flex flex-col gap-6 animate-fadeIn">
+                  <Alert 
+                    message="Secure Payment via Iyzico" 
+                    description="You will be redirected to our secure payment partner to complete the transaction." 
+                    type="info" 
+                    showIcon 
+                  />
+                  
+                  <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Select Amount ({resolvedCurrencyCode})</label>
+                      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                          {[100, 300, 500, 1000, 2000].map(amt => (
+                              <button
+                                key={amt}
+                                onClick={() => setDepositAmount(amt)}
+                                className={`px-4 py-2 rounded-xl border text-sm font-medium transition cursor-pointer ${depositAmount === amt ? 'bg-sky-600 text-white border-sky-600' : 'bg-white border-slate-200 text-slate-600 hover:border-sky-300'}`}
+                              >
+                                  {formatCurrency(amt, resolvedCurrencyCode)}
+                              </button>
+                          ))}
+                      </div>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        size="large"
+                        value={depositAmount}
+                        onChange={setDepositAmount}
+                        prefix={currencyDisplay}
+                        min={1}
+                      />
+                  </div>
+
+                  <Divider />
+
+                  <Button 
+                    type="primary" 
+                    size="large" 
+                    block 
+                    loading={isProcessing}
+                    onClick={handleDeposit}
+                    className="h-12 bg-sky-600 hover:bg-sky-500 rounded-xl font-semibold flex items-center justify-center gap-2"
+                  >
+                      <CreditCardIcon className="w-5 h-5" />
+                      Pay {formatCurrency(depositAmount, resolvedCurrencyCode)}
+                  </Button>
+                  
+                  {/* Bank Transfer Note */}
+                  <div className="text-center text-xs text-slate-400 mt-2 flex items-center justify-center gap-1">
+                       <BanknotesIcon className="w-3 h-3" />
+                       Bank transfers are processed automatically via Iyzico.
+                  </div>
+              </div>
+          ) : (
+            <TransactionsPanel
+                transactionsQuery={transactionsQuery}
+                transactions={transactions}
+                currencyDisplay={currencyDisplay}
+                resolveLabel={resolveLabel}
+                formatDate={formatDate}
+                renderTransactionAmount={renderTransactionAmount}
+                limit={TRANSACTION_LIMIT}
+            />
+          )}
         </div>
       </div>
     </Modal>

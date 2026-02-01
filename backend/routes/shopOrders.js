@@ -8,6 +8,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import socketService from '../services/socketService.js';
 import { getBalance, recordTransaction } from '../services/walletService.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = express.Router();
 
@@ -173,6 +174,45 @@ router.post('/', authenticateJWT, async (req, res) => {
         SET stock_quantity = stock_quantity - $1, updated_at = NOW()
         WHERE id = $2
       `, [item.quantity, item.product_id]);
+    }
+
+    // Process credit_card payment via Iyzico
+    if (payment_method === 'credit_card') {
+       try {
+           // Map items for Iyzico
+           // Check if total matches sum of items to avoid Iyzico error (Basket price equal to price)
+           // Iyzico requires sum of basket items price to equal total price.
+           const iyzicoItems = validatedItems.map(i => ({
+               id: String(i.product_id),
+               name: i.product_name,
+               category1: 'Shop',
+               category2: 'Retail',
+               itemType: 'PHYSICAL',
+               price: parseFloat(i.total_price).toFixed(2)
+           }));
+
+           const gatewayResult = await initiateDeposit({
+               amount: totalAmount,
+               currency: 'EUR', 
+               userId: userId,
+               referenceCode: order.order_number,
+               items: iyzicoItems
+           });
+
+           await client.query('COMMIT'); 
+           
+           const completeOrder = await getOrderWithItems(order.id, client);
+           
+           return res.status(201).json({
+              success: true,
+              paymentPageUrl: gatewayResult.paymentPageUrl,
+              order: completeOrder
+           });
+       } catch (err) {
+           await client.query('ROLLBACK');
+           logger.error('Iyzico Payment Init Failed', err);
+           return res.status(500).json({ error: 'Failed to initiate payment gateway' });
+       }
     }
 
     // Process wallet payment

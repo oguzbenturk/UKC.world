@@ -67,6 +67,12 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         use_wallet: paymentMethod === 'wallet'
       });
 
+      // Handle Redirect (Iyzico)
+      if (response.data.paymentPageUrl) {
+        window.location.href = response.data.paymentPageUrl;
+        return;
+      }
+
       if (response.data.success) {
         setSuccess(true);
         setOrderDetails(response.data.order);
@@ -228,7 +234,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                       <Text strong>Credit/Debit Card</Text>
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        Secure payment via Stripe
+                        Secure payment via Iyzico
                       </Text>
                     </div>
                   </Space>
