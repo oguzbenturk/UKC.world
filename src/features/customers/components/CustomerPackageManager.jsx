@@ -607,25 +607,55 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   };
 
   const getStatusColor = (pkg) => {
-    if (pkg.packageType === 'lesson-only') {
-      return pkg.remainingHours === 0 ? 'blue' : 'green';
-    } else if (pkg.packageType === 'accommodation-only') {
-      return pkg.remainingNights === 0 ? 'blue' : 'green';
-    } else if (pkg.packageType === 'combo') {
-      return (pkg.remainingHours === 0 && pkg.remainingNights === 0) ? 'blue' : 'green';
+    const remainingHours = pkg.remainingHours !== undefined ? pkg.remainingHours : pkg.remaining_hours;
+    const remainingNights = pkg.accommodationNightsRemaining !== undefined ? pkg.accommodationNightsRemaining : pkg.accommodation_nights_remaining;
+    const remainingRentalDays = pkg.rentalDaysRemaining !== undefined ? pkg.rentalDaysRemaining : pkg.rental_days_remaining;
+    
+    // Check what resources this package has
+    const hasLessons = (pkg.totalHours || pkg.total_hours || 0) > 0;
+    const hasAccommodation = (pkg.accommodationNightsTotal || pkg.accommodation_nights_total || 0) > 0;
+    const hasRental = (pkg.rentalDaysTotal || pkg.rental_days_total || 0) > 0;
+    
+    // If no tracked resources at all, check package type or name to determine if it should be "Active"
+    const hasNoTrackedResources = !hasLessons && !hasAccommodation && !hasRental;
+    if (hasNoTrackedResources) {
+      // Package with no tracking is considered active (e.g., rental/accommodation without proper tracking setup)
+      return 'green';
     }
-    return 'green';
+    
+    // Check if all tracked resources are exhausted
+    let allExhausted = true;
+    if (hasLessons && (remainingHours === undefined || remainingHours > 0)) allExhausted = false;
+    if (hasAccommodation && (remainingNights === undefined || remainingNights > 0)) allExhausted = false;
+    if (hasRental && (remainingRentalDays === undefined || remainingRentalDays > 0)) allExhausted = false;
+    
+    return allExhausted ? 'blue' : 'green';
   };
 
   const getStatusText = (pkg) => {
-    if (pkg.packageType === 'lesson-only') {
-      return pkg.remainingHours === 0 ? 'Completed' : 'Active';
-    } else if (pkg.packageType === 'accommodation-only') {
-      return pkg.remainingNights === 0 ? 'Completed' : 'Active';
-    } else if (pkg.packageType === 'combo') {
-      return (pkg.remainingHours === 0 && pkg.remainingNights === 0) ? 'Completed' : 'Active';
+    const remainingHours = pkg.remainingHours !== undefined ? pkg.remainingHours : pkg.remaining_hours;
+    const remainingNights = pkg.accommodationNightsRemaining !== undefined ? pkg.accommodationNightsRemaining : pkg.accommodation_nights_remaining;
+    const remainingRentalDays = pkg.rentalDaysRemaining !== undefined ? pkg.rentalDaysRemaining : pkg.rental_days_remaining;
+    
+    // Check what resources this package has
+    const hasLessons = (pkg.totalHours || pkg.total_hours || 0) > 0;
+    const hasAccommodation = (pkg.accommodationNightsTotal || pkg.accommodation_nights_total || 0) > 0;
+    const hasRental = (pkg.rentalDaysTotal || pkg.rental_days_total || 0) > 0;
+    
+    // If no tracked resources at all, check package type or name to determine if it should be "Active"
+    const hasNoTrackedResources = !hasLessons && !hasAccommodation && !hasRental;
+    if (hasNoTrackedResources) {
+      // Package with no tracking is considered active (e.g., rental/accommodation without proper tracking setup)
+      return 'Active';
     }
-    return 'Active';
+    
+    // Check if all tracked resources are exhausted
+    let allExhausted = true;
+    if (hasLessons && (remainingHours === undefined || remainingHours > 0)) allExhausted = false;
+    if (hasAccommodation && (remainingNights === undefined || remainingNights > 0)) allExhausted = false;
+    if (hasRental && (remainingRentalDays === undefined || remainingRentalDays > 0)) allExhausted = false;
+    
+    return allExhausted ? 'Completed' : 'Active';
   };
 
   const columns = [
@@ -658,29 +688,44 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       render: (_, record) => (
         <div className="space-y-2">
           {/* Lesson Hours Progress */}
-          {(record.packageType === 'lesson-only' || record.packageType === 'combo') && (
+          {((record.totalHours || record.total_hours || 0) > 0) && (
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span>Hours: {record.usedHours}/{record.totalHours}</span>
-                <span>{record.remainingHours} left</span>
+                <span>Hours: {record.usedHours || record.used_hours || 0}/{record.totalHours || record.total_hours}</span>
+                <span>{record.remainingHours !== undefined ? record.remainingHours : record.remaining_hours} left</span>
               </div>
               <Progress 
-                percent={Math.round((record.usedHours / record.totalHours) * 100)}
+                percent={Math.round(((record.usedHours || record.used_hours || 0) / (record.totalHours || record.total_hours)) * 100)}
                 size="small"
                 strokeColor="var(--brand-success)"
               />
             </div>
           )}
 
-          {/* Accommodation Nights Progress */}
-          {(record.packageType === 'accommodation-only' || record.packageType === 'combo') && (
+          {/* Rental Days Progress */}
+          {((record.rentalDaysTotal || record.rental_days_total || 0) > 0) && (
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span>Nights: {record.usedNights}/{record.accommodationNights}</span>
-                <span>{record.remainingNights} left</span>
+                <span>Rental: {record.rentalDaysUsed || record.rental_days_used || 0}/{record.rentalDaysTotal || record.rental_days_total}</span>
+                <span>{record.rentalDaysRemaining !== undefined ? record.rentalDaysRemaining : record.rental_days_remaining} left</span>
               </div>
               <Progress 
-                percent={Math.round((record.usedNights / record.accommodationNights) * 100)}
+                percent={Math.round(((record.rentalDaysUsed || record.rental_days_used || 0) / (record.rentalDaysTotal || record.rental_days_total)) * 100)}
+                size="small"
+                strokeColor="#52c41a"
+              />
+            </div>
+          )}
+
+          {/* Accommodation Nights Progress */}
+          {((record.accommodationNightsTotal || record.accommodation_nights_total || 0) > 0) && (
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>Nights: {record.accommodationNightsUsed || record.accommodation_nights_used || 0}/{record.accommodationNightsTotal || record.accommodation_nights_total}</span>
+                <span>{record.accommodationNightsRemaining !== undefined ? record.accommodationNightsRemaining : record.accommodation_nights_remaining} left</span>
+              </div>
+              <Progress 
+                percent={Math.round(((record.accommodationNightsUsed || record.accommodation_nights_used || 0) / (record.accommodationNightsTotal || record.accommodation_nights_total)) * 100)}
                 size="small"
                 strokeColor="var(--brand-primary)"
               />
@@ -770,7 +815,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
 
   const renderRentalProgress = (record) => {
     // Support both camelCase and snake_case field names from API
-    const rentalDaysTotal = record.rentalDaysTotal || record.rental_days_total;
+    const rentalDaysTotal = record.rentalDaysTotal || record.rental_days_total || 0;
     const rentalDaysUsed = record.rentalDaysUsed || record.rental_days_used || 0;
     const rentalDaysRemaining = record.rentalDaysRemaining !== undefined ? record.rentalDaysRemaining : record.rental_days_remaining;
     
@@ -791,9 +836,13 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
 
   const renderNightProgress = (record) => {
     // Support both camelCase and snake_case field names from API
-    const accommodationNights = record.accommodationNights || record.accommodation_nights;
-    const usedNights = record.usedNights || record.used_nights || 0;
-    const remainingNights = record.remainingNights !== undefined ? record.remainingNights : record.remaining_nights;
+    const accommodationNights = record.accommodationNightsTotal || record.accommodation_nights_total || 0;
+    const usedNights = record.accommodationNightsUsed || record.accommodation_nights_used || 0;
+    const remainingNights = record.accommodationNightsRemaining !== undefined 
+      ? record.accommodationNightsRemaining 
+      : (record.accommodation_nights_remaining !== undefined 
+        ? record.accommodation_nights_remaining 
+        : (accommodationNights - usedNights));
     
     // Show night progress if package has accommodation data
     if (accommodationNights > 0) {
@@ -801,7 +850,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         <div>
           <div className="flex justify-between text-xs mb-1">
             <span>🏨 Nights: {usedNights}/{accommodationNights}</span>
-            <span>{remainingNights !== undefined ? remainingNights : (accommodationNights - usedNights)} left</span>
+            <span>{remainingNights} left</span>
           </div>
           <Progress percent={Math.round((usedNights / accommodationNights) * 100)} size="small" strokeColor="#fa8c16" />
         </div>
@@ -830,6 +879,18 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         const title = getPackageTitle(record);
         const statusText = getStatusText(record);
         const statusColor = getStatusColor(record);
+        
+        // Check if package has any tracking data
+        const hasLessonTracking = (record.totalHours || record.total_hours || 0) > 0;
+        const hasRentalTracking = (record.rentalDaysTotal || record.rental_days_total || 0) > 0;
+        const hasAccommodationTracking = (record.accommodationNightsTotal || record.accommodation_nights_total || 0) > 0;
+        const hasAnyTracking = hasLessonTracking || hasRentalTracking || hasAccommodationTracking;
+        
+        // Determine package type from name if not explicitly set
+        const packageName = (title || '').toLowerCase();
+        const isRentalPackage = packageName.includes('rental') || record.packageType === 'rental' || record.includes_rental;
+        const isAccommodationPackage = packageName.includes('stay') || packageName.includes('accommodation') || record.packageType === 'accommodation' || record.includes_accommodation;
+        
         return (
           <Card key={record.id} className="shadow-sm" hoverable>
             <div className="flex justify-between items-start mb-2">
@@ -837,9 +898,19 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
               <Tag color={statusColor}>{statusText}</Tag>
             </div>
             <div className="space-y-2 text-sm">
+              {/* Show tracking progress if available */}
               {renderLessonProgress(record)}
               {renderRentalProgress(record)}
               {renderNightProgress(record)}
+              
+              {/* If no tracking data but package appears to be rental/accommodation, show a note */}
+              {!hasAnyTracking && (isRentalPackage || isAccommodationPackage) && (
+                <div className="text-xs text-gray-500 italic">
+                  {isRentalPackage && !hasRentalTracking && '🏄 Rental package'}
+                  {isRentalPackage && isAccommodationPackage && ' + '}
+                  {isAccommodationPackage && !hasAccommodationTracking && '🏨 Stay package'}
+                </div>
+              )}
             </div>
             <div className="mt-3 flex justify-between items-center">
               <div className="text-xs text-gray-500">{formatCurrency(record.price || 0, record.currency || businessCurrency || 'EUR')}</div>

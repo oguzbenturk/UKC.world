@@ -341,7 +341,7 @@ function MembershipSettings() {
     return (
       <Card 
         className="mb-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-        bodyStyle={{ padding: 12 }}
+        styles={{ body: { padding: 12 } }}
       >
         <div className="flex gap-3">
           {/* Icon/Badge */}

@@ -97,19 +97,20 @@ function Instructors() {
   };
   
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 max-w-7xl mx-auto">
       <Card
         variant="borderless"
-        className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-        styles={{ body: { padding: 32 } }}
+        className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-white shadow-sm"
+        styles={{ body: { padding: '16px' } }}
+        classNames={{ body: 'sm:!p-8' }}
       >
         <div className="pointer-events-none absolute -top-20 right-8 h-44 w-44 rounded-full bg-blue-100" />
         <div className="pointer-events-none absolute -bottom-24 left-16 h-48 w-48 rounded-full bg-sky-50" />
-        <div className="relative space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="space-y-2 max-w-2xl">
-              <h1 className="text-3xl font-bold text-slate-900">Instructors</h1>
-              <p className="text-slate-600 text-base">
+        <div className="relative space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+            <div className="space-y-1 sm:space-y-2 max-w-2xl">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900">Instructors</h1>
+              <p className="text-slate-600 text-sm sm:text-base">
                 Manage your team of instructors. Track their specializations, status, and performance.
               </p>
             </div>
@@ -118,9 +119,11 @@ function Instructors() {
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={() => (window.location.href = '/instructors/new')}
-                size="large"
+                size="middle"
+                className="w-full sm:w-auto shrink-0"
               >
-                Add Instructor
+                <span className="hidden sm:inline">Add Instructor</span>
+                <span className="sm:hidden">Add</span>
               </Button>
             )}
           </div>

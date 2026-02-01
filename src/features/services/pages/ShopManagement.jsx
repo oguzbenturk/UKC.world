@@ -36,9 +36,12 @@ const ShopManagement = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 24 }}>
-        <ShoppingOutlined style={{ marginRight: 12 }} />
+    <div className="p-3 sm:p-6">
+      <Title 
+        level={3} 
+        className="!text-lg sm:!text-xl md:!text-2xl !mb-4 sm:!mb-6"
+      >
+        <ShoppingOutlined className="mr-2 sm:mr-3" />
         Shop Management
       </Title>
       
@@ -47,8 +50,8 @@ const ShopManagement = () => {
           activeKey={activeTab}
           onChange={setActiveTab}
           items={tabItems}
-          size="large"
-          style={{ marginTop: -12 }}
+          size="middle"
+          className="-mt-3"
         />
       </Card>
     </div>

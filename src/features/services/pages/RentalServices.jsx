@@ -11,7 +11,8 @@ import {
   Typography,
   Dropdown,
   Modal,
-  Card
+  Card,
+  Space
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
@@ -444,29 +445,30 @@ function RentalServices() {
   }
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 max-w-7xl mx-auto">
       <Card
         variant="borderless"
-        className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-        styles={{ body: { padding: 32 } }}
+        className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-white shadow-sm"
+        styles={{ body: { padding: '16px' } }}
+        classNames={{ body: 'sm:!p-8' }}
       >
         <div className="pointer-events-none absolute -top-20 right-8 h-44 w-44 rounded-full bg-blue-100" />
         <div className="pointer-events-none absolute -bottom-24 left-16 h-48 w-48 rounded-full bg-sky-50" />
-        <div className="relative space-y-4">
-          <div className="space-y-3 max-w-2xl">
-            <Title level={2} className="!mb-0 text-slate-900">Rental Packages</Title>
-            <p className="text-slate-600 text-base">
+        <div className="relative space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3 max-w-2xl">
+            <Title level={2} className="!mb-0 text-slate-900 !text-lg sm:!text-xl md:!text-2xl">Rental Packages</Title>
+            <p className="text-slate-600 text-xs sm:text-sm md:text-base leading-relaxed">
               Fine-tune the equipment bundles your team can book in seconds. Keep pricing transparent, durations consistent, and gear easy to find.
             </p>
           </div>
           {rentalCategories.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-sm text-slate-600">
+            <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-slate-600">
               <span className="font-medium text-slate-500">Active categories</span>
               {rentalCategories.map((cat) => (
                 <Tag
                   key={cat.id || cat.name}
                   color="geekblue"
-                  className="!border-0 !rounded-full !bg-blue-50 !text-blue-600"
+                  className="!border-0 !rounded-full !bg-blue-50 !text-blue-600 !text-xs"
                 >
                   {cat.name}
                 </Tag>
@@ -496,15 +498,15 @@ function RentalServices() {
         />
       )}
 
-      <div className="bg-white border border-slate-200/60 shadow-sm rounded-2xl p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="bg-white border border-slate-200/60 shadow-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col gap-3 sm:gap-4">
         <Input
           placeholder="Search rental packages..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          size="large"
+          size="middle"
           allowClear
-          className="w-full lg:max-w-lg"
+          className="w-full"
         />
         <div className="flex flex-wrap gap-2">
           {CATEGORY_FILTERS.map(({ key, label }) => (
@@ -512,28 +514,32 @@ function RentalServices() {
               key={key}
               type={categoryFilter === key ? 'primary' : 'default'}
               onClick={() => setCategoryFilter(key)}
-              size="middle"
+              size="small"
+              className="text-xs sm:text-sm"
             >
               {label}
             </Button>
           ))}
         </div>
-        <div className="flex gap-2 w-full lg:w-auto">
+        <div className="flex gap-2 w-full">
           <Button
             icon={<GiftOutlined />}
-            size="large"
+            size="middle"
             onClick={() => setPackageManagerVisible(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+            className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500 flex-1 sm:flex-none"
           >
-            Manage Packages
+            <span className="hidden sm:inline">Manage Packages</span>
+            <span className="sm:hidden">Packages</span>
           </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            size="large"
+            size="middle"
             onClick={() => setFormDrawerVisible(true)}
+            className="flex-1 sm:flex-none"
           >
-            Add Rental Service
+            <span className="hidden sm:inline">Add Rental Service</span>
+            <span className="sm:hidden">Add</span>
           </Button>
         </div>
       </div>

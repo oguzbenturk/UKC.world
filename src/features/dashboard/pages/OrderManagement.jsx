@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+import apiClient from '@/shared/services/apiClient';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -373,25 +374,41 @@ const OrderManagement = ({ embedded = false }) => {
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <Alert
-          message="Low Stock Warning"
-          description={
-            <Space wrap>
-              {lowStockProducts.slice(0, 5).map(p => (
-                <Tag key={p.id} color="red">
-                  {p.name}: {p.stock_quantity} left
-                </Tag>
-              ))}
-              {lowStockProducts.length > 5 && (
-                <Tag>+{lowStockProducts.length - 5} more</Tag>
-              )}
-            </Space>
-          }
-          type="warning"
-          showIcon
-          icon={<WarningOutlined />}
-          style={{ marginBottom: 24 }}
-        />
+        <div className="mb-4 sm:mb-6">
+          <Alert
+            message={<span className="text-sm sm:text-base font-medium">Low Stock Warning</span>}
+            description={
+              <div className="mt-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {lowStockProducts.slice(0, 5).map(p => (
+                    <Tag 
+                      key={p.id} 
+                      color="red" 
+                      className="!text-xs !py-0.5 !px-2 !mb-0"
+                      style={{ fontSize: '11px', lineHeight: '18px' }}
+                    >
+                      <span className="truncate inline-block max-w-[200px] sm:max-w-none">
+                        {p.name}: {p.stock_quantity} left
+                      </span>
+                    </Tag>
+                  ))}
+                  {lowStockProducts.length > 5 && (
+                    <Tag 
+                      className="!text-xs !py-0.5 !px-2"
+                      style={{ fontSize: '11px', lineHeight: '18px' }}
+                    >
+                      +{lowStockProducts.length - 5} more
+                    </Tag>
+                  )}
+                </div>
+              </div>
+            }
+            type="warning"
+            showIcon
+            icon={<WarningOutlined className="!text-base sm:!text-lg" />}
+            className="!p-3 sm:!p-4"
+          />
+        </div>
       )}
 
       {/* Main Card */}

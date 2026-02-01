@@ -62,11 +62,14 @@ import {
   FileOutlined,
   PrinterOutlined,
   MailOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  FilterOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import * as quickLinksService from '../services/quickLinksService';
 import * as formService from '../../forms/services/formService';
+import usersService from '@/shared/services/usersService';
+import rolesService from '@/shared/services/rolesService';
 
 const { Text, Title, Paragraph } = Typography;
 const { Option } = Select;
@@ -292,6 +295,28 @@ const QuickLinksPage = ({ embedded = false }) => {
   const [registrationsLoading, setRegistrationsLoading] = useState(false);
   const [formSubmissions, setFormSubmissions] = useState([]);
   const [formSubmissionsLoading, setFormSubmissionsLoading] = useState(false);
+  const [submissionFilters, setSubmissionFilters] = useState({ status: 'all', formId: null, search: '' });
+  
+  // Create User from Submission
+  const [createUserModalVisible, setCreateUserModalVisible] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserForm] = Form.useForm();
+  
+  const [roles, setRoles] = useState([]);
+
+  // Fetch roles
+  useEffect(() => {
+    // Only fetch if we are an admin/manager who can create users
+    const fetchRoles = async () => {
+        try {
+            const data = await rolesService.list();
+            setRoles(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error('Failed to fetch roles', e);
+        }
+    };
+    fetchRoles();
+  }, []);
   
   // Service items for link configuration
   const [accommodations, setAccommodations] = useState([]);
@@ -336,20 +361,22 @@ const QuickLinksPage = ({ embedded = false }) => {
   // Helper to extract submitter name from submission data
   const getSubmitterName = (record) => {
     const data = record.submission_data || {};
-    // Try common field names for name
-    const firstName = data.first_name || data.firstName || data.firstname || '';
-    const lastName = data.last_name || data.lastName || data.lastname || data.surname || '';
+    // Use the robust findFieldValue logic since we share the same data source
+    const firstName = findFieldValue(data, ['first_name', 'firstName', 'firstname', 'fname', 'given_name']);
+    const lastName = findFieldValue(data, ['last_name', 'lastName', 'lastname', 'lname', 'surname', 'family_name']);
+    
     if (firstName || lastName) {
-      return `${firstName} ${lastName}`.trim();
+        return `${firstName} ${lastName}`.trim();
     }
-    // Try full name field
-    if (data.name || data.full_name || data.fullName) {
-      return data.name || data.full_name || data.fullName;
-    }
+    
+    // Try separate full name field
+    const fullName = findFieldValue(data, ['name', 'full_name', 'fullName', 'fullname', 'your_name', 'yourname', 'complete_name']);
+    if (fullName) return fullName;
+
     // Fall back to email
-    if (data.email) {
-      return data.email;
-    }
+    const email = findFieldValue(data, ['email', 'email_address', 'e-mail', 'mail']);
+    if (email) return email;
+
     // Last resort
     return record.submitted_by_name || record.user_name || 'Anonymous';
   };
@@ -357,7 +384,7 @@ const QuickLinksPage = ({ embedded = false }) => {
   // Helper to get submitter email
   const getSubmitterEmail = (record) => {
     const data = record.submission_data || {};
-    return data.email || data.email_address || record.submitted_by_email || '';
+    return findFieldValue(data, ['email', 'email_address', 'e-mail', 'mail']) || record.submitted_by_email || '';
   };
 
   // Fetch all form templates
@@ -426,17 +453,22 @@ const QuickLinksPage = ({ embedded = false }) => {
   const fetchFormSubmissions = useCallback(async () => {
     setFormSubmissionsLoading(true);
     try {
-      const data = await formService.getFormSubmissions({ 
+      const filters = { 
         limit: 100,
-        status: 'submitted' // Only show submitted forms, not drafts
-      });
+        ...submissionFilters
+      };
+      
+      // Handle 'all' status
+      if (filters.status === 'all') delete filters.status;
+      
+      const data = await formService.getFormSubmissions(filters);
       setFormSubmissions(data.submissions || []);
     } catch {
       // Silently fail
     } finally {
       setFormSubmissionsLoading(false);
     }
-  }, []);
+  }, [submissionFilters]);
 
   // Delete a form submission
   const handleDeleteSubmission = async (submissionId) => {
@@ -448,6 +480,101 @@ const QuickLinksPage = ({ embedded = false }) => {
       message.error('Failed to delete submission');
     }
   };
+
+  // Helper to safely find field values case-insensitively
+  const findFieldValue = (data, possibleKeys) => {
+    const dataKeys = Object.keys(data);
+    for (const key of possibleKeys) {
+      // 1. Direct match
+      if (data[key]) return data[key];
+      
+      // 2. Case-insensitive match
+      const foundKey = dataKeys.find(k => k.toLowerCase() === key.toLowerCase());
+      if (foundKey && data[foundKey]) return data[foundKey];
+    }
+    return '';
+  };
+
+  // Open Create User Modal
+  const handleOpenCreateUserModal = (submission) => {
+    setSelectedSubmission(submission);
+    
+    // Auto-map fields
+    const data = submission.submission_data || {};
+    const formName = (submission.form_name || '').toLowerCase();
+    
+    let role = 'student'; // Default
+    if (formName.includes('instructor')) role = 'instructor';
+    
+    // 1. Try to find explicit first/last names
+    let firstName = findFieldValue(data, ['first_name', 'firstName', 'firstname', 'fname', 'given_name']);
+    let lastName = findFieldValue(data, ['last_name', 'lastName', 'lastname', 'lname', 'surname', 'family_name']);
+    
+    // 2. If one or both missing, try to parse from full name fields
+    if (!firstName || !lastName) {
+      const fullName = findFieldValue(data, ['name', 'full_name', 'fullName', 'fullname', 'your_name', 'yourname', 'complete_name']);
+      
+      if (fullName) {
+        const parts = fullName.trim().split(/\s+/);
+        if (parts.length === 1) {
+          if (!firstName) firstName = parts[0];
+        } else if (parts.length > 1) {
+          const lastPart = parts.pop();
+          const firstPart = parts.join(' ');
+          
+          if (!lastName) lastName = lastPart;
+          if (!firstName) firstName = firstPart;
+        }
+      }
+    }
+
+    createUserForm.setFieldsValue({
+      first_name: firstName,
+      last_name: lastName,
+      email: findFieldValue(data, ['email', 'email_address', 'e-mail', 'mail']),
+      phone: findFieldValue(data, ['phone', 'phoneNumber', 'mobile', 'cell', 'tel', 'phone_number']),
+      password: Math.random().toString(36).slice(-8), // Suggest a random password
+      role: role
+    });
+    
+    setCreateUserModalVisible(true);
+  };
+
+  const handleCreateUser = async () => {
+    try {
+      const values = await createUserForm.validateFields();
+      setCreatingUser(true);
+      
+      // Map role name to role ID
+      const roleName = values.role;
+      const roleObj = roles.find(r => r.name === roleName);
+      
+      if (!roleObj) {
+        throw new Error(`Role '${roleName}' not found in the system.`);
+      }
+
+      const payload = {
+        ...values,
+        role_id: roleObj.id,
+        // Add metadata
+        source: 'form_submission', 
+        submission_id: selectedSubmission?.id
+      };
+      delete payload.role; // Remove role name, backend expects role_id
+
+      await usersService.create(payload);
+      
+      message.success('User created successfully');
+      setCreateUserModalVisible(false);
+      createUserForm.resetFields();
+    } catch (error) {
+      console.error(error);
+      message.error(error.message || error.error || 'Failed to create user');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
 
   useEffect(() => {
     fetchAllFormTemplates();
@@ -463,7 +590,7 @@ const QuickLinksPage = ({ embedded = false }) => {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       // Fetch accommodations
-      const accomResponse = await fetch('/api/accommodation', { headers });
+      const accomResponse = await fetch('/api/accommodation/units', { headers });
       if (accomResponse.ok) {
         const accomData = await accomResponse.json();
         setAccommodations(accomData.accommodations || accomData || []);
@@ -948,6 +1075,51 @@ const QuickLinksPage = ({ embedded = false }) => {
         </Button>
       </div>
 
+      {/* Filters */}
+      <Card size="small" className="bg-gray-50">
+        <div className="flex flex-wrap gap-4 items-center">
+            <span className="text-gray-500"><FilterOutlined /> Filters:</span>
+            <Input.Search
+                placeholder="Search submitter..."
+                allowClear
+                className="w-full sm:w-64"
+                onSearch={(value) => setSubmissionFilters(prev => ({ ...prev, search: value }))}
+            />
+            
+            <Select 
+                placeholder="Status"
+                className="w-full sm:w-40"
+                value={submissionFilters.status}
+                onChange={(value) => setSubmissionFilters(prev => ({ ...prev, status: value }))}
+            >
+                <Option value="all">All Statuses</Option>
+                <Option value="submitted">Submitted</Option>
+                <Option value="pending">Pending</Option>
+                <Option value="reviewed">Reviewed</Option>
+                <Option value="approved">Approved</Option>
+                <Option value="rejected">Rejected</Option>
+            </Select>
+            
+            <Select 
+                placeholder="Filter by Form"
+                allowClear
+                className="w-full sm:w-64"
+                value={submissionFilters.formId}
+                onChange={(value) => setSubmissionFilters(prev => ({ ...prev, formId: value }))}
+                loading={formTemplatesLoading}
+                dropdownMatchSelectWidth={false}
+            >
+                {allFormTemplates.map(t => (
+                    <Option key={t.id} value={t.id}>{t.name}</Option>
+                ))}
+            </Select>
+
+            <Button onClick={() => setSubmissionFilters({ status: 'all', formId: null, search: '' })}>
+                Reset
+            </Button>
+        </div>
+      </Card>
+
       {/* Form Answers Table */}
       <Card>
         <Table
@@ -958,7 +1130,7 @@ const QuickLinksPage = ({ embedded = false }) => {
           pagination={{ pageSize: 15 }}
           locale={{
             emptyText: (
-              <Empty description="No form submissions yet. Share your forms to receive answers." />
+              <Empty description="No form submissions found matching your filters." />
             )
           }}
           columns={[
@@ -998,7 +1170,8 @@ const QuickLinksPage = ({ embedded = false }) => {
                   pending: { color: 'orange', text: 'Pending Review' },
                   reviewed: { color: 'blue', text: 'Reviewed' },
                   approved: { color: 'green', text: 'Approved' },
-                  rejected: { color: 'red', text: 'Rejected' }
+                  rejected: { color: 'red', text: 'Rejected' },
+                  submitted: { color: 'cyan', text: 'Submitted' }
                 };
                 const c = config[status] || config.pending;
                 return <Tag color={c.color}>{c.text}</Tag>;
@@ -1023,7 +1196,7 @@ const QuickLinksPage = ({ embedded = false }) => {
             {
               title: 'Actions',
               key: 'actions',
-              width: 150,
+              width: 200,
               render: (_, record) => (
                 <Space size="small">
                   <Button 
@@ -1046,6 +1219,14 @@ const QuickLinksPage = ({ embedded = false }) => {
                     }}
                   >
                     View
+                  </Button>
+                  <Button 
+                    size="small"
+                    icon={<UserOutlined />}
+                    onClick={() => handleOpenCreateUserModal(record)}
+                    title="Create User Account"
+                  >
+                    User
                   </Button>
                   <Popconfirm
                     title="Delete submission"
@@ -2088,6 +2269,85 @@ const QuickLinksPage = ({ embedded = false }) => {
           </div>
         )}
       </Drawer>
+
+      {/* Create User Modal */}
+      <Modal
+        title="Create User Account"
+        open={createUserModalVisible}
+        onCancel={() => setCreateUserModalVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form
+          form={createUserForm}
+          layout="vertical"
+          onFinish={handleCreateUser}
+        >
+          <div className="grid grid-cols-2 gap-4">
+             <Form.Item
+                name="first_name"
+                label="First Name"
+                rules={[{ required: true, message: 'Required' }]}
+             >
+                <Input placeholder="John" />
+             </Form.Item>
+             <Form.Item
+                name="last_name"
+                label="Last Name"
+                rules={[{ required: true, message: 'Required' }]}
+             >
+                <Input placeholder="Doe" />
+             </Form.Item>
+          </div>
+          
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+                { required: true, message: 'Required' },
+                { type: 'email', message: 'Invalid email' }
+            ]}
+          >
+            <Input placeholder="john@example.com" prefix={<MailOutlined />} />
+          </Form.Item>
+
+          <Form.Item
+            name="phone"
+            label="Phone"
+          >
+            <Input placeholder="+1234567890" />
+          </Form.Item>
+          
+          <Form.Item
+            name="role"
+            label="Role"
+            rules={[{ required: true, message: 'Required' }]}
+          >
+             <Select>
+                <Option value="student">Student / Customer</Option>
+                <Option value="instructor">Instructor</Option>
+             </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="password"
+            label="Initial Password"
+            rules={[{ required: true, message: 'Required' }]}
+            help="Share this password with the user."
+          >
+             <Input.Password placeholder="secret" />
+          </Form.Item>
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={() => setCreateUserModalVisible(false)}>
+                Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" loading={creatingUser}>
+                Create Account
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };

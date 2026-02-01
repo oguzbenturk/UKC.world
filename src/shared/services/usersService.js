@@ -9,6 +9,14 @@ export const usersService = {
   async get(id) {
     const { data } = await apiClient.get(`/users/${id}`);
     return withAuditFields(data);
+  },
+  async create(payload) {
+    const { data } = await apiClient.post('/users', payload);
+    return withAuditFields(data);
+  },
+  async update(id, payload) {
+    const { data } = await apiClient.patch(`/users/${id}`, payload);
+    return withAuditFields(data);
   }
 };
 

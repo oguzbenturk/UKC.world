@@ -52,6 +52,28 @@ const buildValidationRules = (field) => {
   // Custom validation rules from field config
   const validationRules = field.validation_rules || {};
 
+  // SPECIAL HANDLING: Phone and Email specific overrides to prevent blocking valid inputs
+  // The user requested ability to accept "every email every phone number"
+  
+  // Phone: Ignore strict patterns, just ensure it has some digits if required
+  if (field.field_type === FIELD_TYPES.PHONE) {
+    // No pattern validation for phone numbers - allow local formats
+  } 
+  // Email: Use a very permissive regex instead of strict patterns
+  else if (field.field_type === FIELD_TYPES.EMAIL) {
+    rules.push({
+      type: 'email',
+      message: 'Please enter a valid email address',
+    });
+  }
+  // All other fields: functionality as normal
+  else if (validationRules.pattern) {
+    rules.push({
+      pattern: validationRules.pattern,
+      message: validationRules.pattern_message || 'Invalid format',
+    });
+  }
+
   // Min length
   if (validationRules.min_length) {
     rules.push({
@@ -65,14 +87,6 @@ const buildValidationRules = (field) => {
     rules.push({
       max: validationRules.max_length,
       message: validationRules.max_message || `Maximum ${validationRules.max_length} characters allowed`,
-    });
-  }
-
-  // Pattern
-  if (validationRules.pattern) {
-    rules.push({
-      pattern: validationRules.pattern,
-      message: validationRules.pattern_message || 'Invalid format',
     });
   }
 

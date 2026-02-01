@@ -666,15 +666,15 @@ const Products = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-3 sm:p-6">
       {/* Header Section */}
-      <div className="mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Product Management</h1>
-            <p className="text-sm text-slate-500 mt-1">Manage your shop inventory and product catalog</p>
+            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-slate-900">Product Management</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage your shop inventory and product catalog</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Segmented
               value={viewMode}
               onChange={setViewMode}
@@ -682,19 +682,25 @@ const Products = () => {
                 { value: 'grid', icon: <AppstoreOutlined /> },
                 { value: 'list', icon: <UnorderedListOutlined /> }
               ]}
+              className="shrink-0"
             />
             <Button
               icon={<ReloadOutlined />}
               onClick={() => loadProducts()}
+              size="middle"
+              className="shrink-0"
             >
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setFormDrawerVisible(true)}
+              size="middle"
+              className="shrink-0"
             >
-              Add Product
+              <span className="hidden sm:inline">Add Product</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
         </div>

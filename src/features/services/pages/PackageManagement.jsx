@@ -419,49 +419,104 @@ function PackageManagementInner() {
     return (
       <Card
         hoverable
-        style={{ marginBottom: 16 }}
-        actions={[
-          <EditOutlined key="edit" onClick={() => handleEdit(pkg)} />,
-          <Popconfirm
-            key="delete"
-            title="Delete Package"
-            description="Are you sure you want to delete this package?"
-            onConfirm={() => handleDelete(pkg.id)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <DeleteOutlined style={{ color: '#ff4d4f' }} />
-          </Popconfirm>
-        ]}
+        className="rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 h-full"
+        styles={{ body: { padding: 0 } }}
       >
-        <Card.Meta
-          title={
-            <Space>
-              <span>{pkg.name}</span>
-              <Tag color={config.color}>{config.label}</Tag>
-            </Space>
-          }
-          description={
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              {pkg.description && <Text type="secondary">{pkg.description}</Text>}
-              <Space wrap>
-                {pkg.includesLessons && pkg.totalHours > 0 && (
-                  <Tag color="blue">{pkg.totalHours}h Lessons</Tag>
-                )}
-                {pkg.includesRental && pkg.rentalDays > 0 && (
-                  <Tag color="green">{pkg.rentalDays}d Rental</Tag>
-                )}
-                {pkg.includesAccommodation && pkg.accommodationNights > 0 && (
-                  <Tag color="orange">{pkg.accommodationNights}n Stay</Tag>
-                )}
-              </Space>
-              <Text strong style={{ fontSize: 16 }}>
-                {formatCurrency(pkg.price, pkg.currency)}
-              </Text>
-            </Space>
-          }
-        />
+        {/* Card Header with Color Band */}
+        <div 
+          className="p-4 rounded-t-xl" 
+          style={{ 
+            background: `linear-gradient(135deg, ${config.color === 'blue' ? '#3b82f6' : config.color === 'green' ? '#10b981' : config.color === 'orange' ? '#f97316' : config.color === 'purple' ? '#a855f7' : config.color === 'cyan' ? '#06b6d4' : config.color === 'magenta' ? '#ec4899' : '#eab308'} 0%, ${config.color === 'blue' ? '#1e40af' : config.color === 'green' ? '#059669' : config.color === 'orange' ? '#ea580c' : config.color === 'purple' ? '#7c3aed' : config.color === 'cyan' ? '#0891b2' : config.color === 'magenta' ? '#be185d' : '#ca8a04'} 100%)`
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="text-2xl text-white">{config.icon}</div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-white text-base mb-1 truncate">{pkg.name}</h3>
+              <Tag color="white" className="!text-xs border-0" style={{ color: config.color === 'blue' ? '#1e40af' : config.color === 'green' ? '#059669' : config.color === 'orange' ? '#ea580c' : config.color === 'purple' ? '#7c3aed' : config.color === 'cyan' ? '#0891b2' : config.color === 'magenta' ? '#be185d' : '#ca8a04' }}>
+                {config.label}
+              </Tag>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Body */}
+        <div className="p-4 space-y-3">
+          {pkg.description && (
+            <Text type="secondary" className="text-sm line-clamp-2 block">
+              {pkg.description}
+            </Text>
+          )}
+          
+          {/* Package Features */}
+          <div className="space-y-2">
+            <Text strong className="text-xs text-slate-500 uppercase tracking-wide block">What's Included</Text>
+            <div className="flex flex-wrap gap-2">
+              {(pkg.includesLessons && pkg.totalHours > 0) && (
+                <Tag color="blue" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
+                  <BookOutlined className="mr-1.5" />
+                  {pkg.totalHours} Hours Lessons
+                </Tag>
+              )}
+              {(pkg.includesRental && (pkg.rentalDaysTotal > 0 || pkg.rentalDays > 0 || pkg.rental_days_total > 0)) && (
+                <Tag color="green" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
+                  <CarOutlined className="mr-1.5" />
+                  {pkg.rentalDaysTotal || pkg.rentalDays || pkg.rental_days_total} Days Rental
+                </Tag>
+              )}
+              {(pkg.includesAccommodation && (pkg.accommodationNightsTotal > 0 || pkg.accommodationNights > 0 || pkg.accommodation_nights_total > 0)) && (
+                <Tag color="orange" className="!text-sm !px-3 !py-1 !m-0 !font-medium">
+                  <HomeOutlined className="mr-1.5" />
+                  {pkg.accommodationNightsTotal || pkg.accommodationNights || pkg.accommodation_nights_total} Nights Stay
+                </Tag>
+              )}
+              {!pkg.includesLessons && !pkg.includesRental && !pkg.includesAccommodation && (
+                <Text type="secondary" className="text-sm italic">No specific items configured</Text>
+              )}
+            </div>
+          </div>
+
+          <Divider className="!my-3" />
+
+          {/* Price */}
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-2xl font-bold text-slate-900">
+                {formatCurrency(pkg.price)}
+              </div>
+              <Text type="secondary" className="text-sm">Total package price</Text>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(pkg)}
+              size="middle"
+              className="flex-1"
+            >
+              Edit
+            </Button>
+            <Popconfirm
+              title="Delete Package"
+              description="Are you sure you want to delete this package?"
+              onConfirm={() => handleDelete(pkg.id)}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="middle"
+              >
+                Delete
+              </Button>
+            </Popconfirm>
+          </div>
+        </div>
       </Card>
     );
   };
@@ -481,32 +536,75 @@ function PackageManagementInner() {
   const filteredPackages = getFilteredPackages();
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <Title level={2} className="!mb-1">Package Management</Title>
-          <Text type="secondary">Create and manage all service packages</Text>
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 max-w-7xl mx-auto">
+      {/* Header Card */}
+      <Card
+        variant="borderless"
+        className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200 bg-white shadow-sm"
+        styles={{ body: { padding: '16px' } }}
+        classNames={{ body: 'sm:!p-8' }}
+      >
+        <div className="pointer-events-none absolute -top-20 right-8 h-44 w-44 rounded-full bg-purple-100" />
+        <div className="pointer-events-none absolute -bottom-24 left-16 h-48 w-48 rounded-full bg-blue-50" />
+        <div className="relative space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+            <div className="space-y-1 sm:space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <GiftOutlined className="text-xl sm:text-2xl text-purple-600" />
+                <Title level={2} className="!mb-0 text-slate-900 !text-lg sm:!text-xl md:!text-2xl">Package Management</Title>
+              </div>
+              <p className="text-slate-600 text-xs sm:text-sm md:text-base">
+                Create and manage all service packages - lessons, rentals, accommodation, and combos
+              </p>
+            </div>
+            <Space size="small" className="shrink-0 w-full sm:w-auto">
+              <Button
+                icon={viewMode === 'table' ? <AppstoreOutlined /> : <TableOutlined />}
+                onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
+                size="middle"
+                className="flex-1 sm:flex-none"
+              >
+                <span className="hidden sm:inline">{viewMode === 'table' ? 'Cards' : 'Table'}</span>
+              </Button>
+              <Button 
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => openCreateModal(selectedTypes.length === 1 ? selectedTypes[0] : 'lesson')}
+                size="middle"
+                className="flex-1 sm:flex-none"
+              >
+                <span className="hidden sm:inline">Create Package</span>
+                <span className="sm:hidden">Create</span>
+              </Button>
+            </Space>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 pt-2">
+            {PACKAGE_TYPES.slice(0, 4).map(type => {
+              const count = packages.filter(p => p.packageType === type.value).length;
+              return (
+                <div key={type.value} className="bg-slate-50 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className={`text-lg sm:text-xl ${type.color === 'blue' ? 'text-blue-600' : type.color === 'green' ? 'text-green-600' : type.color === 'orange' ? 'text-orange-600' : 'text-purple-600'}`}>
+                      {type.icon}
+                    </div>
+                    <div>
+                      <div className="text-lg sm:text-xl font-bold text-slate-900">{count}</div>
+                      <div className="text-xs text-slate-500 truncate">{type.label.split(' ')[0]}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <Space>
-          <Button
-            icon={viewMode === 'table' ? <AppstoreOutlined /> : <TableOutlined />}
-            onClick={() => setViewMode(viewMode === 'table' ? 'cards' : 'table')}
-          >
-            {viewMode === 'table' ? 'Card View' : 'Table View'}
-          </Button>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={() => openCreateModal(selectedTypes.length === 1 ? selectedTypes[0] : 'lesson')}
-          >
-            Create Package
-          </Button>
-        </Space>
-      </div>
+      </Card>
 
-      <Card>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-          <Text strong className="whitespace-nowrap">Filter by type:</Text>
+      {/* Filter Card */}
+      <Card className="rounded-xl sm:rounded-2xl border-slate-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <Text strong className="whitespace-nowrap text-xs sm:text-sm">Filter by type:</Text>
           <Select
             mode="multiple"
             allowClear
@@ -514,15 +612,21 @@ function PackageManagementInner() {
             value={selectedTypes}
             onChange={setSelectedTypes}
             options={filterOptions}
+            size="middle"
             style={{ minWidth: 200, maxWidth: '100%' }}
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
             maxTagCount="responsive"
           />
-          <Text type="secondary" className="whitespace-nowrap">
-            Showing {filteredPackages.length} of {packages.length} packages
-          </Text>
+          <Badge count={filteredPackages.length} showZero color="blue" className="shrink-0">
+            <Text type="secondary" className="whitespace-nowrap text-xs sm:text-sm">
+              of {packages.length} total
+            </Text>
+          </Badge>
         </div>
+      </Card>
 
+      {/* Content Card */}
+      <Card className="rounded-xl sm:rounded-2xl border-slate-200 shadow-sm">
         {loading ? (
           <div className="flex justify-center p-8">
             <Spin size="large" />
@@ -536,7 +640,7 @@ function PackageManagementInner() {
             scroll={{ x: 800 }}
           />
         ) : (
-          <Row gutter={[16, 16]}>
+          <Row gutter={[12, 12]}>
             {filteredPackages.map(pkg => (
               <Col key={pkg.id} xs={24} sm={12} lg={8} xl={6}>
                 <PackageCard pkg={pkg} />
@@ -544,8 +648,9 @@ function PackageManagementInner() {
             ))}
             {filteredPackages.length === 0 && (
               <Col span={24}>
-                <div className="text-center py-8 text-gray-500">
-                  No packages found. Create your first package!
+                <div className="text-center py-12 sm:py-16">
+                  <div className="text-4xl sm:text-5xl md:text-6xl mb-4">📦</div>
+                  <Text type="secondary" className="text-sm sm:text-base">No packages found. Create your first package!</Text>
                 </div>
               </Col>
             )}
