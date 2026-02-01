@@ -3033,25 +3033,47 @@ router.post('/callback/iyzico', express.urlencoded({ extended: true }), async (r
     // Verify payment with Iyzico
     const payment = await verifyPayment(token);
     
-    // Retrieve buyer ID from payment details
-    // Iyzico returns buyer details in raw result
+    // Retrieve user ID from basketId (format: USR_{userId}_TRX_{timestamp})
     const raw = payment.raw || {};
-    // Safely attempt to get user ID
-    // Note: buyer.id should be what we sent. 
-    // If for some reason it's missing, we log error.
-    const targetUserId = raw.buyer?.id;
+    const basketId = raw.basketId || '';
+    
+    let targetUserId = null;
+    
+    // Try to extract from basketId first (our new format)
+    if (basketId.startsWith('USR_')) {
+        const match = basketId.match(/^USR_([^_]+)_TRX_/);
+        if (match && match[1]) {
+            targetUserId = match[1];
+        }
+    }
+    
+    // Fallback to buyer.id if basketId parsing failed
+    if (!targetUserId) {
+        targetUserId = raw.buyer?.id;
+    }
 
     if (!targetUserId) {
-        logger.error('Iyzico Callback: Could not identify user from buyer.id', { raw });
+        logger.error('Iyzico Callback: Could not identify user from basketId or buyer.id', { 
+            basketId, 
+            buyerId: raw.buyer?.id,
+            raw 
+        });
         throw new Error('Could not identify user');
     }
+
+    logger.info('Iyzico Callback: User identified', { 
+        userId: targetUserId, 
+        basketId,
+        amount: payment.paidPrice,
+        currency: payment.currency
+    });
 
     // Record the transaction
     await recordWalletTransaction({
         userId: targetUserId,
         amount: payment.paidPrice,
+        transactionType: 'deposit',
         currency: payment.currency,
-        type: 'payment',
         direction: 'credit',
         description: 'Wallet Top-up (Iyzico)',
         paymentMethod: 'iyzico',
@@ -3062,17 +3084,17 @@ router.post('/callback/iyzico', express.urlencoded({ extended: true }), async (r
             token: token
         },
         status: 'completed',
-        authorId: null 
+        createdBy: null 
     });
 
     // Redirect to frontend
-    // Use env var or default to production domain
-    const frontendUrl = process.env.FRONTEND_URL || 'https://plannivo.ukc.world'; 
-    res.redirect(`${frontendUrl}/dashboard?payment=success&amount=${payment.paidPrice}`);
+    // Use env var or default to localhost for development
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'; 
+    res.redirect(`${frontendUrl}/dashboard?payment=success&amount=${payment.paidPrice}&currency=${payment.currency}`);
 
   } catch (error) {
     logger.error('Iyzico Callback Failed', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'https://plannivo.ukc.world';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/dashboard?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
   }
 });

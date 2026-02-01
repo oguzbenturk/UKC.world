@@ -354,6 +354,109 @@ app.use('/api/students', authenticateJWT, familyRouter); // Family management ro
 app.use('/api/students', authenticateJWT, studentsRouter);
 app.use('/api/waivers', waiversRouter); // Liability waiver routes (template endpoints allow public access)
 app.use('/api/student', authenticateJWT, studentPortalRouter);
+
+// Iyzico callback - MUST be before authenticateJWT middleware for /api/finances
+// This is called by Iyzico's servers after payment completion
+import { verifyPayment } from './services/paymentGateways/iyzicoGateway.js';
+import { recordTransaction as recordWalletTransactionDirect } from './services/walletService.js';
+app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { token } = req.body;
+    logger.info('Iyzico callback received', { token, body: req.body });
+
+    if (!token) {
+      throw new Error('No token provided in callback');
+    }
+
+    // Verify payment with Iyzico
+    const payment = await verifyPayment(token);
+    logger.info('Iyzico payment verified', { 
+      paymentId: payment.paymentId,
+      paidPrice: payment.paidPrice,
+      currency: payment.currency,
+      basketId: payment.raw?.basketId
+    });
+
+    // Get user ID from basketId (format: USR_{userId}_TRX_{timestamp})
+    const raw = payment.raw || {};
+    const basketId = raw.basketId || '';
+    const userIdMatch = basketId.match(/^USR_([^_]+)_TRX_/);
+    const targetUserId = userIdMatch ? userIdMatch[1] : null;
+
+    if (!targetUserId) {
+      logger.error('Iyzico Callback: Could not identify user from basketId', { basketId, raw });
+      throw new Error('Could not identify user');
+    }
+    
+    logger.info('User identified from basketId', { targetUserId, basketId });
+
+    // Get the amount and currency from the verified payment
+    // We sent EUR to Iyzico, so we should get EUR back
+    const paidAmount = parseFloat(payment.paidPrice);
+    const paidCurrency = payment.currency || 'EUR';
+    
+    // Credit the wallet with the actual paid amount in the paid currency
+    // The wallet service will handle any necessary conversion to EUR
+    let creditAmount = paidAmount;
+    let creditCurrency = paidCurrency;
+    
+    // Only convert if not already EUR (wallet uses EUR)
+    if (paidCurrency !== 'EUR') {
+      try {
+        const CurrencyService = (await import('./services/currencyService.js')).default;
+        creditAmount = await CurrencyService.convertCurrency(paidAmount, paidCurrency, 'EUR');
+        creditCurrency = 'EUR';
+        logger.info('Converted payment to EUR for wallet', { 
+          paidAmount, 
+          paidCurrency, 
+          creditAmount 
+        });
+      } catch (convErr) {
+        logger.warn('Currency conversion failed, using original amount', { error: convErr.message });
+        // Fall back to original amount - wallet will handle
+        creditAmount = paidAmount;
+        creditCurrency = paidCurrency;
+      }
+    }
+
+    // Record the wallet transaction
+    await recordWalletTransactionDirect({
+      userId: targetUserId,
+      amount: creditAmount,
+      currency: creditCurrency,
+      type: 'payment',
+      direction: 'credit',
+      description: 'Wallet Top-up (Iyzico)',
+      paymentMethod: 'iyzico',
+      referenceNumber: payment.paymentId,
+      metadata: {
+        iyzicoPaymentId: payment.paymentId,
+        conversationId: raw.conversationId,
+        token: token,
+        originalPaidAmount: paidAmount,
+        originalPaidCurrency: paidCurrency
+      },
+      status: 'completed',
+      authorId: null
+    });
+
+    logger.info('Wallet credited successfully', { 
+      userId: targetUserId, 
+      amount: creditAmount, 
+      currency: creditCurrency 
+    });
+
+    // Redirect to frontend
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/dashboard?payment=success&amount=${creditAmount}&currency=${creditCurrency}`);
+
+  } catch (error) {
+    logger.error('Iyzico Callback Failed', { error: error.message, stack: error.stack });
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/dashboard?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
+  }
+});
+
 app.use('/api/finances', authenticateJWT, triggerFinancialReconciliation, financesRouter);
 app.use('/api/rentals', authenticateJWT, triggerFinancialReconciliation, rentalsRouter);
 app.use('/api/events', authenticateJWT, eventsRouter);

@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Modal, Tag, Spin, Alert, Button, InputNumber, message, Space, Divider } from 'antd';
+import { useCallback, useState, useEffect } from 'react';
+import { Modal, Tag, Spin, Alert, Button, InputNumber, Space, Divider, App } from 'antd';
 import { WalletIcon, CreditCardIcon, ArrowLeftIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletTransactions } from '@/shared/hooks/useWalletTransactions';
@@ -197,9 +197,46 @@ const TRANSACTION_LIMIT = 3;
 
 const StudentWalletModal = ({ open, onClose, currency, balance }) => {
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
-  const [view, setView] = useState('summary'); // 'summary' | 'deposit'
+  const { message } = App.useApp();
+  const [view, setView] = useState('summary'); // 'summary' | 'deposit' | 'checkout'
   const [depositAmount, setDepositAmount] = useState(100);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutFormHtml, setCheckoutFormHtml] = useState(null);
+
+  // Execute Iyzico script when checkout form is present
+  useEffect(() => {
+    if (view === 'checkout' && checkoutFormHtml) {
+      // Small timeout to ensure DOM is ready
+      const timer = setTimeout(() => {
+          try {
+            // Find the script tag within the HTML string
+            // Iyzico sends <script type="text/javascript"> ...code... </script>
+            // We use a regex to extract the content
+            const scriptContentMatch = checkoutFormHtml.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+            
+            if (scriptContentMatch && scriptContentMatch[1]) {
+                const scriptContent = scriptContentMatch[1];
+                
+                // Create a new script element
+                const scriptEl = document.createElement('script');
+                scriptEl.type = 'text/javascript';
+                scriptEl.text = scriptContent;
+                scriptEl.id = 'iyzico-script-loader';
+                
+                // Remove existing if any
+                const existing = document.getElementById('iyzico-script-loader');
+                if (existing) existing.remove();
+                
+                document.body.appendChild(scriptEl);
+            }
+          } catch (e) {
+              console.error('Failed to execute Iyzico script', e);
+          }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [view, checkoutFormHtml]);
 
   // Reset view when closed
   if (!open && view !== 'summary') {
@@ -208,7 +245,7 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
   
   // UseEffect to reset view on close
   // eslint-disable-next-line
-  useCallback(() => { if(!open) setView('summary'); }, [open]);
+  useCallback(() => { if(!open) { setView('summary'); setCheckoutFormHtml(null); } }, [open]);
 
   // Query transactions in storage currency (EUR)
   const storageCurrency = businessCurrency || STORAGE_CURRENCY;
@@ -244,12 +281,24 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
               autoComplete: false
           });
 
-           if (response.gatewaySession?.paymentPageUrl) {
-               window.location.href = response.gatewaySession.paymentPageUrl;
-           } else if (response.paymentPageUrl) {
-               window.location.href = response.paymentPageUrl;
+           // apiClient returns axios response, data is in response.data
+           const data = response.data || response;
+           
+           // Debug log
+           console.log('Iyzico deposit response:', data);
+           console.log('paymentPageUrl:', data.paymentPageUrl);
+           
+           // Prefer redirect to Iyzico's hosted payment page (avoids CSP issues)
+           if (data.paymentPageUrl) {
+               console.log('Redirecting to:', data.paymentPageUrl);
+               window.location.href = data.paymentPageUrl;
+           } else if (data.checkoutFormContent) {
+               // Fallback: embed form (may have CSP issues in some environments)
+               setCheckoutFormHtml(data.checkoutFormContent);
+               setView('checkout');
            } else {
-               message.error('Failed to initiate payment. No redirect URL provided.');
+               console.error('No paymentPageUrl or checkoutFormContent in response:', data);
+               message.error('Failed to initiate payment. No checkout form provided.');
            }
       } catch (err) {
           console.error(err);
@@ -344,7 +393,28 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
 
         {/* CONTENT */}
         <div className="space-y-6 bg-gradient-to-br from-white via-white to-slate-50 p-6 min-h-[300px]">
-          {view === 'deposit' ? (
+          {view === 'checkout' && checkoutFormHtml ? (
+              <div className="flex flex-col gap-4 animate-fadeIn">
+                  <div className="flex items-center gap-3 mb-2">
+                     <button onClick={() => { setView('deposit'); setCheckoutFormHtml(null); }} className="p-2 rounded-full hover:bg-slate-100 transition cursor-pointer">
+                        <ArrowLeftIcon className="w-5 h-5 text-slate-600" />
+                     </button>
+                     <h3 className="text-lg font-semibold text-slate-800">Complete Payment</h3>
+                  </div>
+                  <Alert 
+                    message="Enter your card details below" 
+                    description="Your payment is secured by Iyzico. We never store your card information." 
+                    type="info" 
+                    showIcon 
+                  />
+                  {/* Iyzico Checkout Form - renders the payment form HTML */}
+                  <div 
+                    id="iyzipay-checkout-form" 
+                    className="iyzico-checkout-container"
+                    dangerouslySetInnerHTML={{ __html: checkoutFormHtml }} 
+                  />
+              </div>
+          ) : view === 'deposit' ? (
               <div className="flex flex-col gap-6 animate-fadeIn">
                   <Alert 
                     message="Secure Payment via Iyzico" 

@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useCallback, lazy, Suspense } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     Card,
     Row,
@@ -14,7 +14,8 @@ import {
     Segmented,
     Modal,
     Spin,
-    Collapse
+    Collapse,
+    notification
 } from "antd";
 import {
     ArrowRightOutlined,
@@ -760,6 +761,38 @@ function Dashboard() {
     const [showAccommodationModal, setShowAccommodationModal] = useState(false);
     const [showShopSaleModal, setShowShopSaleModal] = useState(false);
     const [showMembershipModal, setShowMembershipModal] = useState(false);
+
+    // Handle payment callback notifications from URL params
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    useEffect(() => {
+        const paymentStatus = searchParams.get('payment');
+        const amount = searchParams.get('amount');
+        const currency = searchParams.get('currency') || 'EUR';
+        const reason = searchParams.get('reason');
+        
+        if (paymentStatus === 'success') {
+            notification.success({
+                message: 'Payment Successful! 🎉',
+                description: `Your wallet has been credited with ${currency} ${parseFloat(amount || 0).toFixed(2)}`,
+                duration: 6,
+                placement: 'topRight'
+            });
+            // Clear the URL params
+            setSearchParams({});
+            // Refresh data to update wallet balance
+            refreshData?.();
+        } else if (paymentStatus === 'failed') {
+            notification.error({
+                message: 'Payment Failed',
+                description: reason || 'Your payment could not be processed. Please try again.',
+                duration: 8,
+                placement: 'topRight'
+            });
+            // Clear the URL params
+            setSearchParams({});
+        }
+    }, [searchParams, setSearchParams, refreshData]);
 
     // Analytics panel expansion state - persisted in localStorage
     const ANALYTICS_PREFS_KEY = 'dashboard_analytics_expanded_panels';
