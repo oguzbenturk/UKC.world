@@ -1140,7 +1140,7 @@ async function phase15_WriteOperations() {
     // Get test data (student, instructor, service)
     const studentsRes = await api('/api/students?limit=1');
     const instructorsRes = await api('/api/instructors?limit=1');
-    const servicesRes = await api('/api/services?limit=1');
+    const servicesRes = await api('/api/services');
 
     if (!studentsRes.ok || !instructorsRes.ok || !servicesRes.ok) {
       skip('Write operations', 'Missing test data (students/instructors/services)');
@@ -1253,37 +1253,70 @@ async function phase15_WriteOperations() {
 
     // Test 15.4: Group booking capacity check
     const groupServices = services.filter(s => 
-      s.max_participants && s.max_participants > 1
+      s.maxParticipants && s.maxParticipants > 1
     );
 
     if (groupServices.length > 0) {
       const groupService = groupServices[0];
-      const maxCapacity = groupService.max_participants;
+      const maxCapacity = groupService.maxParticipants;
+      
+      // Create bookings to fill the capacity
+      const capacityTestTime = '16:00';
+      const capacityTestDate = bookingDate;
+      const testBookingIds = [];
 
-      // Try to create booking with too many participants
-      const overCapacityRes = await api('/api/bookings', {
-        method: 'POST',
-        body: {
-          date: bookingDate,
-          start_hour: '16:00',
-          duration: 1,
-          student_user_id: testStudentId,
-          instructor_user_id: testInstructorId,
-          service_id: groupService.id,
-          status: 'confirmed',
-          group_size: maxCapacity + 5 // Exceed capacity
+      try {
+        // Fill capacity
+        for (let i = 0; i < maxCapacity; i++) {
+          const fillRes = await api('/api/bookings', {
+            method: 'POST',
+            body: {
+              date: capacityTestDate,
+              start_hour: capacityTestTime,
+              duration: 1,
+              student_user_id: testStudentId,
+              instructor_user_id: testInstructorId,
+              service_id: groupService.id,
+              status: 'confirmed',
+              payment_status: 'paid',
+              notes: `CAPACITY TEST ${i + 1}`
+            }
+          });
+          
+          if (fillRes.ok && fillRes.data?.id) {
+            testBookingIds.push(fillRes.data.id);
+          }
         }
-      });
 
-      if (!overCapacityRes.ok && overCapacityRes.status === 400) {
-        pass('Capacity limit enforced', `Cannot exceed ${maxCapacity}`);
-      } else if (overCapacityRes.ok) {
-        warn('Capacity limit not enforced', 'Over-booking allowed');
-        if (overCapacityRes.data?.id) {
-          await api(`/api/bookings/${overCapacityRes.data.id}`, { method: 'DELETE' });
+        // Now try to exceed capacity
+        const overCapacityRes = await api('/api/bookings', {
+          method: 'POST',
+          body: {
+            date: capacityTestDate,
+            start_hour: capacityTestTime,
+            duration: 1,
+            student_user_id: testStudentId,
+            instructor_user_id: testInstructorId,
+            service_id: groupService.id,
+            status: 'confirmed',
+            payment_status: 'paid',
+            notes: 'CAPACITY EXCEEDED TEST'
+          }
+        });
+
+        if (!overCapacityRes.ok && overCapacityRes.status === 409) {
+          pass('Capacity limit enforced', `Blocked at ${maxCapacity} bookings`);
+        } else if (overCapacityRes.ok) {
+          testBookingIds.push(overCapacityRes.data.id);
+          fail('Capacity exceeded', `Should reject after ${maxCapacity}`);
+        } else {
+          skip('Capacity test', `Unexpected status: ${overCapacityRes.status}`);
         }
-      } else {
-        skip('Capacity limit test', `Status: ${overCapacityRes.status}`);
+      } finally {
+        // Cleanup all test bookings
+        for (const id of testBookingIds) {
+          await api(`/api/bookings/${id}`, { method: 'DELETE' });
+        }
       }
     } else {
       skip('Capacity limit test', 'No group services with max_participants');

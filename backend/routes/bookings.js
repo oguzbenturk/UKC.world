@@ -859,13 +859,42 @@ router.post('/',
     let finalAmount = parseFloat(amount) || 0;
     let usedPackageId = null;
 
-    // Fetch service name to match customer package type (private vs group etc.)
+    // Fetch service name and capacity limits
     let bookingServiceName = null;
+    let maxParticipants = null;
     if (service_id) {
       try {
-        const sres = await client.query('SELECT name FROM services WHERE id = $1', [service_id]);
+        const sres = await client.query('SELECT name, max_participants FROM services WHERE id = $1', [service_id]);
         bookingServiceName = sres.rows[0]?.name || null;
+        maxParticipants = sres.rows[0]?.max_participants || null;
       } catch {}
+    }
+    
+    // Check capacity limits for group bookings
+    if (maxParticipants !== null && maxParticipants > 0) {
+      // Count existing confirmed bookings for this instructor/date/time
+      const capacityCheck = await client.query(`
+        SELECT COUNT(*) as booking_count
+        FROM bookings
+        WHERE instructor_user_id = $1
+          AND date = $2
+          AND start_hour = $3
+          AND duration = $4
+          AND status IN ('confirmed', 'completed')
+          AND deleted_at IS NULL
+      `, [instructor_user_id, date, parseFloat(start_hour), parseFloat(bookingDuration)]);
+      
+      const currentBookings = parseInt(capacityCheck.rows[0]?.booking_count || 0);
+      
+      if (currentBookings >= maxParticipants) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'capacity_exceeded',
+          message: `This time slot is at full capacity (${maxParticipants} participants). Please choose a different time.`,
+          maxCapacity: maxParticipants,
+          currentBookings
+        });
+      }
     }
     
     // Check user's choice: use package or pay individually
@@ -1327,6 +1356,29 @@ router.post('/',
     res.status(201).json(response);
   } catch (err) {
     await client.query('ROLLBACK');
+    
+    // Handle PostgreSQL constraint violations
+    if (err.code === '23505') {
+      if (err.constraint === 'idx_bookings_no_overlap') {
+        logger.warn('Double-booking attempted', {
+          instructor: req.body?.instructor_user_id,
+          date: req.body?.date,
+          startHour: req.body?.start_hour,
+          duration: req.body?.duration
+        });
+        return res.status(409).json({
+          error: 'booking_conflict',
+          message: 'This time slot is already booked for this instructor. Please choose a different time.'
+        });
+      }
+      // Handle other unique constraint violations
+      logger.warn('Unique constraint violation during booking creation', { constraint: err.constraint });
+      return res.status(409).json({
+        error: 'conflict',
+        message: 'A booking with these details already exists.'
+      });
+    }
+    
     const errorMessage = err?.message || '';
     if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('wallet')) {
       logger.warn('Booking creation failed due to wallet balance issue', {
