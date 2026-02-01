@@ -29,12 +29,212 @@ import {
   Slider,
   Image
 } from 'antd';
-import { UploadOutlined, InboxOutlined, PlusOutlined } from '@ant-design/icons';
+import { UploadOutlined, InboxOutlined, PlusOutlined, GlobalOutlined } from '@ant-design/icons';
 import { FIELD_TYPES, WIDTH_OPTIONS } from '../constants/fieldTypes';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
+
+// Comprehensive list of ALL countries with flags and phone codes
+const COUNTRIES = [
+  { code: 'AF', name: 'Afghanistan', flag: '🇦🇫', phone: '+93' },
+  { code: 'AL', name: 'Albania', flag: '🇦🇱', phone: '+355' },
+  { code: 'DZ', name: 'Algeria', flag: '🇩🇿', phone: '+213' },
+  { code: 'AD', name: 'Andorra', flag: '🇦🇩', phone: '+376' },
+  { code: 'AO', name: 'Angola', flag: '🇦🇴', phone: '+244' },
+  { code: 'AG', name: 'Antigua and Barbuda', flag: '🇦🇬', phone: '+1-268' },
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷', phone: '+54' },
+  { code: 'AM', name: 'Armenia', flag: '🇦🇲', phone: '+374' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺', phone: '+61' },
+  { code: 'AT', name: 'Austria', flag: '🇦🇹', phone: '+43' },
+  { code: 'AZ', name: 'Azerbaijan', flag: '🇦🇿', phone: '+994' },
+  { code: 'BS', name: 'Bahamas', flag: '🇧🇸', phone: '+1-242' },
+  { code: 'BH', name: 'Bahrain', flag: '🇧🇭', phone: '+973' },
+  { code: 'BD', name: 'Bangladesh', flag: '🇧🇩', phone: '+880' },
+  { code: 'BB', name: 'Barbados', flag: '🇧🇧', phone: '+1-246' },
+  { code: 'BY', name: 'Belarus', flag: '🇧🇾', phone: '+375' },
+  { code: 'BE', name: 'Belgium', flag: '🇧🇪', phone: '+32' },
+  { code: 'BZ', name: 'Belize', flag: '🇧🇿', phone: '+501' },
+  { code: 'BJ', name: 'Benin', flag: '🇧🇯', phone: '+229' },
+  { code: 'BT', name: 'Bhutan', flag: '🇧🇹', phone: '+975' },
+  { code: 'BO', name: 'Bolivia', flag: '🇧🇴', phone: '+591' },
+  { code: 'BA', name: 'Bosnia and Herzegovina', flag: '🇧🇦', phone: '+387' },
+  { code: 'BW', name: 'Botswana', flag: '🇧🇼', phone: '+267' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷', phone: '+55' },
+  { code: 'BN', name: 'Brunei', flag: '🇧🇳', phone: '+673' },
+  { code: 'BG', name: 'Bulgaria', flag: '🇧🇬', phone: '+359' },
+  { code: 'BF', name: 'Burkina Faso', flag: '🇧🇫', phone: '+226' },
+  { code: 'BI', name: 'Burundi', flag: '🇧🇮', phone: '+257' },
+  { code: 'CV', name: 'Cabo Verde', flag: '🇨🇻', phone: '+238' },
+  { code: 'KH', name: 'Cambodia', flag: '🇰🇭', phone: '+855' },
+  { code: 'CM', name: 'Cameroon', flag: '🇨🇲', phone: '+237' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦', phone: '+1' },
+  { code: 'CF', name: 'Central African Republic', flag: '🇨🇫', phone: '+236' },
+  { code: 'TD', name: 'Chad', flag: '🇹🇩', phone: '+235' },
+  { code: 'CL', name: 'Chile', flag: '🇨🇱', phone: '+56' },
+  { code: 'CN', name: 'China', flag: '🇨🇳', phone: '+86' },
+  { code: 'CO', name: 'Colombia', flag: '🇨🇴', phone: '+57' },
+  { code: 'KM', name: 'Comoros', flag: '🇰🇲', phone: '+269' },
+  { code: 'CG', name: 'Congo', flag: '🇨🇬', phone: '+242' },
+  { code: 'CD', name: 'Congo (DRC)', flag: '🇨🇩', phone: '+243' },
+  { code: 'CR', name: 'Costa Rica', flag: '🇨🇷', phone: '+506' },
+  { code: 'CI', name: 'Côte d\'Ivoire', flag: '🇨🇮', phone: '+225' },
+  { code: 'HR', name: 'Croatia', flag: '🇭🇷', phone: '+385' },
+  { code: 'CU', name: 'Cuba', flag: '🇨🇺', phone: '+53' },
+  { code: 'CY', name: 'Cyprus', flag: '🇨🇾', phone: '+357' },
+  { code: 'CZ', name: 'Czech Republic', flag: '🇨🇿', phone: '+420' },
+  { code: 'DK', name: 'Denmark', flag: '🇩🇰', phone: '+45' },
+  { code: 'DJ', name: 'Djibouti', flag: '🇩🇯', phone: '+253' },
+  { code: 'DM', name: 'Dominica', flag: '🇩🇲', phone: '+1-767' },
+  { code: 'DO', name: 'Dominican Republic', flag: '🇩🇴', phone: '+1-809' },
+  { code: 'EC', name: 'Ecuador', flag: '🇪🇨', phone: '+593' },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬', phone: '+20' },
+  { code: 'SV', name: 'El Salvador', flag: '🇸🇻', phone: '+503' },
+  { code: 'GQ', name: 'Equatorial Guinea', flag: '🇬🇶', phone: '+240' },
+  { code: 'ER', name: 'Eritrea', flag: '🇪🇷', phone: '+291' },
+  { code: 'EE', name: 'Estonia', flag: '🇪🇪', phone: '+372' },
+  { code: 'SZ', name: 'Eswatini', flag: '🇸🇿', phone: '+268' },
+  { code: 'ET', name: 'Ethiopia', flag: '🇪🇹', phone: '+251' },
+  { code: 'FJ', name: 'Fiji', flag: '🇫🇯', phone: '+679' },
+  { code: 'FI', name: 'Finland', flag: '🇫🇮', phone: '+358' },
+  { code: 'FR', name: 'France', flag: '🇫🇷', phone: '+33' },
+  { code: 'GA', name: 'Gabon', flag: '🇬🇦', phone: '+241' },
+  { code: 'GM', name: 'Gambia', flag: '🇬🇲', phone: '+220' },
+  { code: 'GE', name: 'Georgia', flag: '🇬🇪', phone: '+995' },
+  { code: 'DE', name: 'Germany', flag: '🇩🇪', phone: '+49' },
+  { code: 'GH', name: 'Ghana', flag: '🇬🇭', phone: '+233' },
+  { code: 'GR', name: 'Greece', flag: '🇬🇷', phone: '+30' },
+  { code: 'GD', name: 'Grenada', flag: '🇬🇩', phone: '+1-473' },
+  { code: 'GT', name: 'Guatemala', flag: '🇬🇹', phone: '+502' },
+  { code: 'GN', name: 'Guinea', flag: '🇬🇳', phone: '+224' },
+  { code: 'GW', name: 'Guinea-Bissau', flag: '🇬🇼', phone: '+245' },
+  { code: 'GY', name: 'Guyana', flag: '🇬🇾', phone: '+592' },
+  { code: 'HT', name: 'Haiti', flag: '🇭🇹', phone: '+509' },
+  { code: 'HN', name: 'Honduras', flag: '🇭🇳', phone: '+504' },
+  { code: 'HU', name: 'Hungary', flag: '🇭🇺', phone: '+36' },
+  { code: 'IS', name: 'Iceland', flag: '🇮🇸', phone: '+354' },
+  { code: 'IN', name: 'India', flag: '🇮🇳', phone: '+91' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩', phone: '+62' },
+  { code: 'IR', name: 'Iran', flag: '🇮🇷', phone: '+98' },
+  { code: 'IQ', name: 'Iraq', flag: '🇮🇶', phone: '+964' },
+  { code: 'IE', name: 'Ireland', flag: '🇮🇪', phone: '+353' },
+  { code: 'IL', name: 'Israel', flag: '🇮🇱', phone: '+972' },
+  { code: 'IT', name: 'Italy', flag: '🇮🇹', phone: '+39' },
+  { code: 'JM', name: 'Jamaica', flag: '🇯🇲', phone: '+1-876' },
+  { code: 'JP', name: 'Japan', flag: '🇯🇵', phone: '+81' },
+  { code: 'JO', name: 'Jordan', flag: '🇯🇴', phone: '+962' },
+  { code: 'KZ', name: 'Kazakhstan', flag: '🇰🇿', phone: '+7' },
+  { code: 'KE', name: 'Kenya', flag: '🇰🇪', phone: '+254' },
+  { code: 'KI', name: 'Kiribati', flag: '🇰🇮', phone: '+686' },
+  { code: 'KP', name: 'North Korea', flag: '🇰🇵', phone: '+850' },
+  { code: 'KR', name: 'South Korea', flag: '🇰🇷', phone: '+82' },
+  { code: 'KW', name: 'Kuwait', flag: '🇰🇼', phone: '+965' },
+  { code: 'KG', name: 'Kyrgyzstan', flag: '🇰🇬', phone: '+996' },
+  { code: 'LA', name: 'Laos', flag: '🇱🇦', phone: '+856' },
+  { code: 'LV', name: 'Latvia', flag: '🇱🇻', phone: '+371' },
+  { code: 'LB', name: 'Lebanon', flag: '🇱🇧', phone: '+961' },
+  { code: 'LS', name: 'Lesotho', flag: '🇱🇸', phone: '+266' },
+  { code: 'LR', name: 'Liberia', flag: '🇱🇷', phone: '+231' },
+  { code: 'LY', name: 'Libya', flag: '🇱🇾', phone: '+218' },
+  { code: 'LI', name: 'Liechtenstein', flag: '🇱🇮', phone: '+423' },
+  { code: 'LT', name: 'Lithuania', flag: '🇱🇹', phone: '+370' },
+  { code: 'LU', name: 'Luxembourg', flag: '🇱🇺', phone: '+352' },
+  { code: 'MG', name: 'Madagascar', flag: '🇲🇬', phone: '+261' },
+  { code: 'MW', name: 'Malawi', flag: '🇲🇼', phone: '+265' },
+  { code: 'MY', name: 'Malaysia', flag: '🇲🇾', phone: '+60' },
+  { code: 'MV', name: 'Maldives', flag: '🇲🇻', phone: '+960' },
+  { code: 'ML', name: 'Mali', flag: '🇲🇱', phone: '+223' },
+  { code: 'MT', name: 'Malta', flag: '🇲🇹', phone: '+356' },
+  { code: 'MH', name: 'Marshall Islands', flag: '🇲🇭', phone: '+692' },
+  { code: 'MR', name: 'Mauritania', flag: '🇲🇷', phone: '+222' },
+  { code: 'MU', name: 'Mauritius', flag: '🇲🇺', phone: '+230' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽', phone: '+52' },
+  { code: 'FM', name: 'Micronesia', flag: '🇫🇲', phone: '+691' },
+  { code: 'MD', name: 'Moldova', flag: '🇲🇩', phone: '+373' },
+  { code: 'MC', name: 'Monaco', flag: '🇲🇨', phone: '+377' },
+  { code: 'MN', name: 'Mongolia', flag: '🇲🇳', phone: '+976' },
+  { code: 'ME', name: 'Montenegro', flag: '🇲🇪', phone: '+382' },
+  { code: 'MA', name: 'Morocco', flag: '🇲🇦', phone: '+212' },
+  { code: 'MZ', name: 'Mozambique', flag: '🇲🇿', phone: '+258' },
+  { code: 'MM', name: 'Myanmar', flag: '🇲🇲', phone: '+95' },
+  { code: 'NA', name: 'Namibia', flag: '🇳🇦', phone: '+264' },
+  { code: 'NR', name: 'Nauru', flag: '🇳🇷', phone: '+674' },
+  { code: 'NP', name: 'Nepal', flag: '🇳🇵', phone: '+977' },
+  { code: 'NL', name: 'Netherlands', flag: '🇳🇱', phone: '+31' },
+  { code: 'NZ', name: 'New Zealand', flag: '🇳🇿', phone: '+64' },
+  { code: 'NI', name: 'Nicaragua', flag: '🇳🇮', phone: '+505' },
+  { code: 'NE', name: 'Niger', flag: '🇳🇪', phone: '+227' },
+  { code: 'NG', name: 'Nigeria', flag: '🇳🇬', phone: '+234' },
+  { code: 'MK', name: 'North Macedonia', flag: '🇲🇰', phone: '+389' },
+  { code: 'NO', name: 'Norway', flag: '🇳🇴', phone: '+47' },
+  { code: 'OM', name: 'Oman', flag: '🇴🇲', phone: '+968' },
+  { code: 'PK', name: 'Pakistan', flag: '🇵🇰', phone: '+92' },
+  { code: 'PW', name: 'Palau', flag: '🇵🇼', phone: '+680' },
+  { code: 'PS', name: 'Palestine', flag: '🇵🇸', phone: '+970' },
+  { code: 'PA', name: 'Panama', flag: '🇵🇦', phone: '+507' },
+  { code: 'PG', name: 'Papua New Guinea', flag: '🇵🇬', phone: '+675' },
+  { code: 'PY', name: 'Paraguay', flag: '🇵🇾', phone: '+595' },
+  { code: 'PE', name: 'Peru', flag: '🇵🇪', phone: '+51' },
+  { code: 'PH', name: 'Philippines', flag: '🇵🇭', phone: '+63' },
+  { code: 'PL', name: 'Poland', flag: '🇵🇱', phone: '+48' },
+  { code: 'PT', name: 'Portugal', flag: '🇵🇹', phone: '+351' },
+  { code: 'QA', name: 'Qatar', flag: '🇶🇦', phone: '+974' },
+  { code: 'RO', name: 'Romania', flag: '🇷🇴', phone: '+40' },
+  { code: 'RU', name: 'Russia', flag: '🇷🇺', phone: '+7' },
+  { code: 'RW', name: 'Rwanda', flag: '🇷🇼', phone: '+250' },
+  { code: 'KN', name: 'Saint Kitts and Nevis', flag: '🇰🇳', phone: '+1-869' },
+  { code: 'LC', name: 'Saint Lucia', flag: '🇱🇨', phone: '+1-758' },
+  { code: 'VC', name: 'Saint Vincent and the Grenadines', flag: '🇻🇨', phone: '+1-784' },
+  { code: 'WS', name: 'Samoa', flag: '🇼🇸', phone: '+685' },
+  { code: 'SM', name: 'San Marino', flag: '🇸🇲', phone: '+378' },
+  { code: 'ST', name: 'São Tomé and Príncipe', flag: '🇸🇹', phone: '+239' },
+  { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦', phone: '+966' },
+  { code: 'SN', name: 'Senegal', flag: '🇸🇳', phone: '+221' },
+  { code: 'RS', name: 'Serbia', flag: '🇷🇸', phone: '+381' },
+  { code: 'SC', name: 'Seychelles', flag: '🇸🇨', phone: '+248' },
+  { code: 'SL', name: 'Sierra Leone', flag: '🇸🇱', phone: '+232' },
+  { code: 'SG', name: 'Singapore', flag: '🇸🇬', phone: '+65' },
+  { code: 'SK', name: 'Slovakia', flag: '🇸🇰', phone: '+421' },
+  { code: 'SI', name: 'Slovenia', flag: '🇸🇮', phone: '+386' },
+  { code: 'SB', name: 'Solomon Islands', flag: '🇸🇧', phone: '+677' },
+  { code: 'SO', name: 'Somalia', flag: '🇸🇴', phone: '+252' },
+  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', phone: '+27' },
+  { code: 'SS', name: 'South Sudan', flag: '🇸🇸', phone: '+211' },
+  { code: 'ES', name: 'Spain', flag: '🇪🇸', phone: '+34' },
+  { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰', phone: '+94' },
+  { code: 'SD', name: 'Sudan', flag: '🇸🇩', phone: '+249' },
+  { code: 'SR', name: 'Suriname', flag: '🇸🇷', phone: '+597' },
+  { code: 'SE', name: 'Sweden', flag: '🇸🇪', phone: '+46' },
+  { code: 'CH', name: 'Switzerland', flag: '🇨🇭', phone: '+41' },
+  { code: 'SY', name: 'Syria', flag: '🇸🇾', phone: '+963' },
+  { code: 'TW', name: 'Taiwan', flag: '🇹🇼', phone: '+886' },
+  { code: 'TJ', name: 'Tajikistan', flag: '🇹🇯', phone: '+992' },
+  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', phone: '+255' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭', phone: '+66' },
+  { code: 'TL', name: 'Timor-Leste', flag: '🇹🇱', phone: '+670' },
+  { code: 'TG', name: 'Togo', flag: '🇹🇬', phone: '+228' },
+  { code: 'TO', name: 'Tonga', flag: '🇹🇴', phone: '+676' },
+  { code: 'TT', name: 'Trinidad and Tobago', flag: '🇹🇹', phone: '+1-868' },
+  { code: 'TN', name: 'Tunisia', flag: '🇹🇳', phone: '+216' },
+  { code: 'TR', name: 'Turkey', flag: '🇹🇷', phone: '+90' },
+  { code: 'TM', name: 'Turkmenistan', flag: '🇹🇲', phone: '+993' },
+  { code: 'TV', name: 'Tuvalu', flag: '🇹🇻', phone: '+688' },
+  { code: 'UG', name: 'Uganda', flag: '🇺🇬', phone: '+256' },
+  { code: 'UA', name: 'Ukraine', flag: '🇺🇦', phone: '+380' },
+  { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', phone: '+971' },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', phone: '+44' },
+  { code: 'US', name: 'United States', flag: '🇺🇸', phone: '+1' },
+  { code: 'UY', name: 'Uruguay', flag: '🇺🇾', phone: '+598' },
+  { code: 'UZ', name: 'Uzbekistan', flag: '🇺🇿', phone: '+998' },
+  { code: 'VU', name: 'Vanuatu', flag: '🇻🇺', phone: '+678' },
+  { code: 'VA', name: 'Vatican City', flag: '🇻🇦', phone: '+39' },
+  { code: 'VE', name: 'Venezuela', flag: '🇻🇪', phone: '+58' },
+  { code: 'VN', name: 'Vietnam', flag: '🇻🇳', phone: '+84' },
+  { code: 'YE', name: 'Yemen', flag: '🇾🇪', phone: '+967' },
+  { code: 'ZM', name: 'Zambia', flag: '🇿🇲', phone: '+260' },
+  { code: 'ZW', name: 'Zimbabwe', flag: '🇿🇼', phone: '+263' },
+];
 
 // Get column span from width value
 const getColSpan = (width) => {
@@ -49,13 +249,27 @@ const renderTextInput = (field, commonProps, type = 'text') => (
 
 // Render select/dropdown fields
 const renderSelectField = (field, commonProps, isMulti = false) => {
-  // Filter out options with empty value or label
-  const validOptions = (field.options || [])
-    .filter(opt => opt.value && opt.label)
-    .map(opt => ({
-      value: opt.value,
-      label: opt.label,
+  // Check if this is a nationality field - use comprehensive COUNTRIES list
+  const isNationality = field.field_name?.toLowerCase().includes('nationality') || 
+                        field.field_label?.toLowerCase().includes('nationality');
+  
+  let validOptions;
+  
+  if (isNationality) {
+    // Use comprehensive COUNTRIES list for nationality fields
+    validOptions = COUNTRIES.map(country => ({
+      value: country.name,
+      label: `${country.flag} ${country.name}`,
     }));
+  } else {
+    // Filter out options with empty value or label for other SELECT fields
+    validOptions = (field.options || [])
+      .filter(opt => opt.value && opt.label)
+      .map(opt => ({
+        value: opt.value,
+        label: opt.label,
+      }));
+  }
 
   return (
     <Select
@@ -63,6 +277,12 @@ const renderSelectField = (field, commonProps, isMulti = false) => {
       mode={isMulti ? 'multiple' : undefined}
       options={validOptions}
       className="w-full"
+      showSearch
+      optionFilterProp="label"
+      filterOption={(input, option) =>
+        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+      }
+      suffixIcon={isNationality ? <GlobalOutlined /> : undefined}
     />
   );
 };
@@ -135,6 +355,26 @@ const renderField = (field) => {
   // Select fields
   if (fieldType === FIELD_TYPES.SELECT) return renderSelectField(field, commonProps);
   if (fieldType === FIELD_TYPES.MULTISELECT) return renderSelectField(field, commonProps, true);
+  if (fieldType === FIELD_TYPES.COUNTRY) {
+    // Country field - use full COUNTRIES list
+    return (
+      <Select
+        {...commonProps}
+        showSearch
+        optionFilterProp="children"
+        filterOption={(input, option) =>
+          (option?.children?.toString() || '').toLowerCase().includes(input.toLowerCase())
+        }
+        className="w-full"
+      >
+        {COUNTRIES.map((country) => (
+          <Select.Option key={country.code} value={country.name}>
+            {country.flag} {country.name}
+          </Select.Option>
+        ))}
+      </Select>
+    );
+  }
 
   // Choice fields
   if (fieldType === FIELD_TYPES.RADIO) return renderChoiceField(field);
@@ -384,41 +624,21 @@ const FormPreview = ({
 
   // Scroll to top whenever step changes
   useEffect(() => {
-    console.debug('[FormPreview] step change -> scrollToTop start', { currentStep, containerExists: !!containerRef.current });
     try {
       if (containerRef.current && containerRef.current.scrollIntoView) {
-        const rect = containerRef.current.getBoundingClientRect();
-        console.debug('[FormPreview] container rect before scroll', rect);
         containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setTimeout(() => {
-          console.debug('[FormPreview] after scroll positions', {
-            windowScrollY: window.scrollY || window.pageYOffset,
-            bodyScrollTop: document.body.scrollTop,
-            docScrollTop: document.documentElement.scrollTop,
-            containerRect: containerRef.current ? containerRef.current.getBoundingClientRect() : null
-          });
-        }, 700);
       } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         document.body.scrollTop = 0;
         document.documentElement.scrollTop = 0;
-        setTimeout(() => {
-          console.debug('[FormPreview] after window.scroll positions', {
-            windowScrollY: window.scrollY || window.pageYOffset,
-            bodyScrollTop: document.body.scrollTop,
-            docScrollTop: document.documentElement.scrollTop,
-          });
-        }, 300);
       }
     } catch (e) {
-      console.error('[FormPreview] scroll error', e);
       window.scrollTo(0, 0);
     }
   }, [currentStep]);
 
   // Handle step navigation
   const scrollToTop = () => {
-    console.debug('[FormPreview] scrollToTop called', { currentStep });
     try {
       if (containerRef.current && containerRef.current.scrollIntoView) {
         containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -428,7 +648,6 @@ const FormPreview = ({
         document.documentElement.scrollTop = 0;
       }
     } catch (e) {
-      console.error('[FormPreview] scroll error', e);
       window.scrollTo(0, 0);
     }
   };
@@ -462,29 +681,17 @@ const FormPreview = ({
       setTimeout(() => {
         try {
           if (fieldName) {
-            console.debug('[FormPreview] validation failed, scrolling to field', { fieldName });
             form.scrollToField(fieldName, { behavior: 'smooth', block: 'center' });
 
             const el = document.querySelector(`[name=\"${fieldName}\"]`);
             if (el) {
-              const rect = el.getBoundingClientRect();
-              console.debug('[FormPreview] field element rect before scroll', rect, { docScrollY: window.scrollY || window.pageYOffset });
-              try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { console.debug('el.scrollIntoView failed', e); }
+              try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
               if (typeof el.focus === 'function') el.focus();
               highlightElement(el);
-
-              setTimeout(() => {
-                const rectAfter = el.getBoundingClientRect();
-                console.debug('[FormPreview] field rect after scroll', rectAfter, { windowScrollY: window.scrollY || window.pageYOffset });
-              }, 500);
-            } else {
-              console.debug('[FormPreview] could not find field DOM node for', fieldName);
             }
-          } else {
-            console.debug('[FormPreview] validation failed but no field name found', validationError);
           }
         } catch (e) {
-          console.error('[FormPreview] error while scrolling to field', e);
+          // Scroll error - ignore
         }
       }, 350);
     }

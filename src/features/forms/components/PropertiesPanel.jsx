@@ -978,7 +978,25 @@ const PropertiesPanel = ({
           size="small"
           onValuesChange={handleValuesChange}
           onBlur={handleFieldBlur}
+          className="properties-form"
         >
+          <style>
+            {`
+              .properties-form .ant-form-item-label > label {
+                white-space: normal !important;
+                word-break: break-word !important;
+                display: block !important;
+                width: 100% !important;
+                min-width: 0 !important;
+              }
+              .properties-form .ant-form-item {
+                margin-bottom: 16px;
+              }
+              .properties-form .ant-form-item-label {
+                padding-bottom: 4px;
+              }
+            `}
+          </style>
           <Collapse 
             defaultActiveKey={['basic', 'appearance']} 
             ghost

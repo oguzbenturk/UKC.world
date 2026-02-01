@@ -817,6 +817,28 @@
 .ant-form-item-label > label {
   font-weight: 500;
   color: #2d3748;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Prevent vertical text in form builder */
+.live-preview-container .ant-form-item,
+.form-preview .ant-form-item,
+.dynamic-field-item {
+  min-width: 0;
+}
+
+.live-preview-container .ant-col,
+.form-preview .ant-col {
+  min-width: 0;
+}
+
+.live-preview-container .ant-form-item-label,
+.form-preview .ant-form-item-label {
+  overflow: visible;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* Help text styling */

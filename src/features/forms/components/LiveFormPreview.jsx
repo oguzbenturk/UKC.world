@@ -6,7 +6,7 @@
 
 /* eslint-disable complexity */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   Steps, 
@@ -94,10 +94,10 @@ const SelectableFieldWrapper = ({ field, selectedFieldId, onSelectField, childre
   };
 
   return (
-    <Col {...colProps}>
+    <Col {...colProps} style={{ minWidth: 0 }}>
       <div
         ref={setNodeRef}
-        style={style}
+        style={{ ...style, minWidth: 0, width: '100%' }}
         className={`
           group relative transition-all rounded-lg p-2
           ${isSelected 
@@ -117,8 +117,8 @@ const SelectableFieldWrapper = ({ field, selectedFieldId, onSelectField, childre
           <HolderOutlined className="text-gray-400 text-lg" />
         </div>
         {/* Field content - allow normal interactions */}
-        <div className="relative z-10">
-          {children}
+        <div className="relative z-10" style={{ minWidth: 0, width: '100%', overflow: 'hidden' }}>
+          {React.cloneElement(children, { skipColWrapper: true })}
         </div>
       </div>
     </Col>
@@ -152,14 +152,14 @@ const LiveFormPreview = ({
   const isLastStep = validCurrentStep === steps.length - 1;
   const isFirstStep = validCurrentStep === 0;
 
-  // Setup sensors for drag and drop
-  const sensors = useSensors(
+  // Setup sensors for drag and drop - only when reordering is enabled
+  const sensors = onReorderFields ? useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 5, // 5px movement required to activate drag
       },
     })
-  );
+  ) : null;
 
   // Handle drag start
   const handleDragStart = (event) => {
@@ -312,6 +312,23 @@ const LiveFormPreview = ({
 
   return (
     <div className="live-preview-container min-h-screen bg-gray-50 py-8 px-4 overflow-y-auto">
+      <style>
+        {`
+          .live-preview-container .ant-form-item-label > label {
+            white-space: normal !important;
+            word-break: break-word !important;
+            display: inline-block !important;
+            width: auto !important;
+            min-width: 0 !important;
+          }
+          .live-preview-container .ant-col {
+            min-width: 0;
+          }
+          .live-preview-container .ant-form-vertical .ant-form-item-label {
+            padding-bottom: 4px;
+          }
+        `}
+      </style>
       <div className="max-w-3xl mx-auto">
         {/* Main form card - matching PublicFormPage simple layout */}
         <Card 
@@ -369,40 +386,66 @@ const LiveFormPreview = ({
                 onValuesChange={handleValuesChange}
                 requiredMark="optional"
               >
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={currentStepData.fields?.map(f => f.id) || []}
-                    strategy={verticalListSortingStrategy}
+                {sensors && onReorderFields ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
                   >
-                    <Row gutter={[16, 16]}>
-                      {currentStepData.fields?.length > 0 ? (
-                        currentStepData.fields
-                          .sort((a, b) => a.order_index - b.order_index)
-                          .map(field => renderFieldWithSelection(field))
-                      ) : (
-                        <Col span={24}>
-                          <div className="w-full text-center py-8">
-                            <Text type="secondary" className="text-sm">
-                              No fields in this step yet
-                            </Text>
+                    <SortableContext
+                      items={currentStepData.fields?.map(f => f.id) || []}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <Row gutter={[16, 16]}>
+                        {currentStepData.fields?.length > 0 ? (
+                          currentStepData.fields
+                            .sort((a, b) => a.order_index - b.order_index)
+                            .map(field => renderFieldWithSelection(field))
+                        ) : (
+                          <Col span={24}>
+                            <div className="w-full text-center py-8">
+                              <Text type="secondary" className="text-sm">
+                                No fields in this step yet
+                              </Text>
+                            </div>
+                          </Col>
+                        )}
+                      </Row>
+                    </SortableContext>
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="bg-white shadow-lg rounded-lg p-3 border-2 border-blue-500">
+                          Dragging field...
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
+                ) : (
+                  <Row gutter={[16, 16]}>
+                    {currentStepData.fields?.length > 0 ? (
+                      currentStepData.fields
+                        .sort((a, b) => a.order_index - b.order_index)
+                        .map(field => (
+                          <div key={field.id} onClick={() => onSelectField?.(field.id)} style={{ width: '100%' }}>
+                            <DynamicField
+                              field={field}
+                              form={form}
+                              allValues={formValues}
+                            />
                           </div>
-                        </Col>
-                      )}
-                    </Row>
-                  </SortableContext>
-                  <DragOverlay>
-                    {activeId ? (
-                      <div className="bg-white shadow-lg rounded-lg p-3 border-2 border-blue-500">
-                        Dragging field...
-                      </div>
-                    ) : null}
-                  </DragOverlay>
-                </DndContext>
+                        ))
+                    ) : (
+                      <Col span={24}>
+                        <div className="w-full text-center py-8">
+                          <Text type="secondary" className="text-sm">
+                            No fields in this step yet
+                          </Text>
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
+                )}
 
                 {/* Navigation buttons - matching PublicFormPage */}
                 <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-4 border-t border-gray-200">

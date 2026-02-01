@@ -53,6 +53,17 @@ import { FIELD_CATEGORIES, WIDTH_OPTIONS, FIELD_TYPES } from '../constants/field
 
 const { Text, Title } = Typography;
 
+// Get column props for builder - force full width on mobile/tablet for better UX
+const getBuilderColProps = (width) => {
+  const widthOption = WIDTH_OPTIONS.find(w => w.value === width);
+  const span = widthOption?.span || 24;
+  return {
+    xs: 24, // Stack items on mobile for better touch targets and readability
+    sm: 24, 
+    md: span
+  };
+};
+
 // Get icon for field type
 const getFieldIcon = (fieldType) => {
   for (const category of FIELD_CATEGORIES) {
@@ -72,12 +83,6 @@ const getFieldTypeLabel = (fieldType) => {
     if (field) return field.label;
   }
   return fieldType;
-};
-
-// Get column span based on width
-const getColSpan = (width) => {
-  const widthOption = WIDTH_OPTIONS.find(w => w.value === width);
-  return widthOption?.span || 24; // Default to full width
 };
 
 // Field Item Component with Inline Editing and Sortable DnD
@@ -339,7 +344,7 @@ const FieldItem = ({
   };
 
   return (
-    <Col span={getColSpan(field.width)}>
+    <Col {...getBuilderColProps(field.width)} style={{ minWidth: 0 }}>
       <div
         ref={setNodeRef}
         style={style}
@@ -546,6 +551,7 @@ const StepPanel = ({
         step-panel mb-4 
         ${isSelected ? 'ring-2 ring-blue-200' : ''}
       `}
+      style={{ width: '100%' }}
       title={
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -640,7 +646,7 @@ const StepPanel = ({
                 items={step.fields.map(f => f.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <Row gutter={[16, 16]}>
+                <Row gutter={[16, 16]} style={{ width: '100%', margin: 0 }}>
                   {step.fields
                     .sort((a, b) => a.order_index - b.order_index)
                     .map(field => (
@@ -744,6 +750,7 @@ const FormCanvas = ({
   return (
     <div 
       className="form-canvas h-full overflow-y-auto p-4 bg-gray-100"
+      style={{ width: '100%', minWidth: 0 }}
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
     >
