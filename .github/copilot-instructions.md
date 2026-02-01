@@ -78,15 +78,14 @@ Migrations live in `backend/db/migrations/` as numbered `.sql` files (e.g., `132
 
 | Purpose | File |
 |---------|------|
-| API docs | [API_MANIFEST.md](API_MANIFEST.md) |
-| DB pool/queries | [backend/db.js](backend/db.js) |
-| Auth flow | [backend/routes/auth.js](backend/routes/auth.js) |
-| Role authorization | [backend/middlewares/authorize.js](backend/middlewares/authorize.js) |
-| Frontend API client | [src/shared/services/apiClient.js](src/shared/services/apiClient.js) |
-| Auth context | [src/shared/contexts/AuthContext.jsx](src/shared/contexts/AuthContext.jsx) |
-| Real-time service | [src/shared/services/realTimeService.js](src/shared/services/realTimeService.js) |
-| Booking routes (large) | [backend/routes/bookings.js](backend/routes/bookings.js) |
-| Cache service | [backend/services/cacheService.js](backend/services/cacheService.js) |
+| DB pool/queries | `backend/db.js` |
+| Auth flow | `backend/routes/auth.js` |
+| Role authorization | `backend/middlewares/authorize.js` |
+| Frontend API client | `src/shared/services/apiClient.js` |
+| Auth context | `src/shared/contexts/AuthContext.jsx` |
+| Real-time service | `src/shared/services/realTimeService.js` |
+| Booking routes | `backend/routes/bookings.js` |
+| Cache service | `backend/services/cacheService.js` |
 
 ## Environment Variables
 
