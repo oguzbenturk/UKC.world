@@ -1,8 +1,11 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit'; // Phase 2: Rate Limit
+import { body, validationResult } from 'express-validator'; // Phase 2: Validation
 import { pool } from '../db.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { logPaymentEvent, sendPaymentAlert } from '../services/alertService.js'; // Phase 3: Monitoring
 import {
   getBalance,
   fetchTransactions,
@@ -29,7 +32,53 @@ import {
   finalizeWithdrawal,
   listWithdrawalRequests
 } from '../services/walletService.js';
+import { refundPayment as iyzicoRefund } from '../services/paymentGateways/iyzicoGateway.js';
 import { resolveActorId } from '../utils/auditUtils.js';
+
+// Phase 2: Rate Limiting (with Phase 3 alert on exceed)
+const depositLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 5, // Max 5 istek
+  message: { error: 'Çok fazla ödeme isteği. Lütfen 1 dakika bekleyin.' },
+  keyGenerator: (req) => req.user?.id || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    // Rate limit aşıldığında alert gönder
+    const clientIp = getClientIp(req);
+    const userId = req.user?.id;
+    
+    logPaymentEvent('rate_limit_exceeded', {
+      userId,
+      clientIp,
+      endpoint: '/wallet/deposit',
+      status: 'blocked'
+    });
+    
+    // 3+ kez aşıldığında Slack alert
+    sendPaymentAlert('rate_limit_exceeded', {
+      userId,
+      clientIp,
+      endpoint: '/wallet/deposit'
+    });
+    
+    res.status(options.statusCode).json(options.message);
+  }
+});
+
+// Phase 2: IP Extraction Helper
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = forwarded 
+    ? forwarded.split(',')[0].trim() 
+    : req.socket?.remoteAddress || req.connection?.remoteAddress;
+  
+  if (process.env.NODE_ENV === 'production' && (!ip || ip === '::1')) {
+    logger.warn('Invalid client IP detected', { forwarded, ip });
+  }
+  
+  return ip || '127.0.0.1';
+}
 
 const router = express.Router();
 
@@ -237,8 +286,17 @@ router.get('/bank-accounts', authenticateJWT, async (req, res) => {
   }
 });
 
-router.post('/deposit', authenticateJWT, async (req, res) => {
+router.post('/deposit', authenticateJWT, depositLimiter, [
+  body('amount').isFloat({ min: 10, max: 50000 }).withMessage('Tutar 10-50000 arasında olmalıdır'),
+  body('currency').isIn(['TRY', 'EUR', 'USD', 'GBP']).withMessage('Geçersiz para birimi'),
+  body('gateway').optional().isIn(['stripe', 'iyzico', 'paytr', 'binance_pay']).withMessage('Geçersiz ödeme yöntemi')
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -258,8 +316,12 @@ router.post('/deposit', authenticateJWT, async (req, res) => {
       bankAccountId,
       bankReference,
       paymentMethodId,
-      verification
+      verification,
+      idempotencyKey
     } = req.body || {};
+
+    // IP Extraction for gateways
+    const clientIp = getClientIp(req);
 
     if (amount === undefined || amount === null) {
       return res.status(400).json({ error: 'amount is required' });
@@ -272,6 +334,7 @@ router.post('/deposit', authenticateJWT, async (req, res) => {
     const result = await createDepositRequest({
       userId,
       amount,
+      clientIp,
       currency,
       method,
       metadata,
@@ -281,17 +344,17 @@ router.post('/deposit', authenticateJWT, async (req, res) => {
       autoComplete,
       gateway,
       gatewayTransactionId,
-      initiatedBy: resolveActorId(req),
       bankAccountId,
       bankReference,
       paymentMethodId,
-      verification
+      verification,
+      idempotencyKey
     });
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error('Failed to create wallet deposit:', error);
-    res.status(500).json({ error: error.message || 'Failed to create wallet deposit' });
+    logger.error('Failed to create deposit request:', error);
+    res.status(500).json({ error: error.message || 'Failed to create deposit request' });
   }
 });
 
@@ -871,6 +934,325 @@ router.post(
     } catch (error) {
       logger.error('Failed to reject withdrawal:', error);
       res.status(500).json({ error: error.message || 'Failed to reject withdrawal' });
+    }
+  }
+);
+
+// ===========================================================================================
+// IYZICO REFUND ENDPOINTS
+// ===========================================================================================
+
+/**
+ * POST /wallet/admin/refund
+ * Process a refund for an Iyzico payment
+ * 
+ * Required: transactionId (wallet_transactions ID that contains Iyzico payment info)
+ * Optional: amount (for partial refund), reason
+ * 
+ * Flow:
+ * 1. Find original transaction with Iyzico payment info
+ * 2. Call Iyzico refund API
+ * 3. Create refund transaction in wallet
+ * 4. Update original transaction status
+ */
+router.post(
+  '/admin/refund',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager', 'owner']),
+  [
+    body('transactionId').isUUID().withMessage('Valid transaction ID required'),
+    body('amount').optional().isFloat({ min: 0.01 }).withMessage('Amount must be positive'),
+    body('reason').optional().isString().trim().isLength({ max: 500 })
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { transactionId, amount: requestedAmount, reason = 'Admin refund' } = req.body;
+    const adminId = resolveActorId(req);
+
+    try {
+      // 1. Find original Iyzico payment transaction
+      const txResult = await pool.query(
+        `SELECT id, user_id, amount, currency, metadata, status, direction
+         FROM wallet_transactions 
+         WHERE id = $1`,
+        [transactionId]
+      );
+
+      if (txResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      const originalTx = txResult.rows[0];
+
+      // Validate it's an Iyzico payment
+      if (!originalTx.metadata?.gateway || originalTx.metadata.gateway !== 'iyzico') {
+        return res.status(400).json({ error: 'This transaction is not an Iyzico payment' });
+      }
+
+      if (!originalTx.metadata?.paymentId) {
+        return res.status(400).json({ error: 'Original payment ID not found in transaction' });
+      }
+
+      // Check if already refunded
+      if (originalTx.metadata?.refunded) {
+        return res.status(400).json({ error: 'This transaction has already been refunded' });
+      }
+
+      // Determine refund amount
+      const originalAmount = Math.abs(parseFloat(originalTx.amount));
+      const refundAmount = requestedAmount ? Math.min(requestedAmount, originalAmount) : originalAmount;
+      const isPartialRefund = refundAmount < originalAmount;
+
+      // 2. Call Iyzico Refund API
+      // paymentTransactionId varsa direkt kullan, yoksa token ile checkoutForm.retrieve yap
+      let iyzicoResult;
+      try {
+        iyzicoResult = await iyzicoRefund({
+          paymentTransactionId: originalTx.metadata.paymentTransactionId || null,
+          paymentId: originalTx.metadata.paymentId,
+          token: originalTx.metadata.token || null, // Token ile paymentTransactionId bulunabilir
+          amount: refundAmount,
+          currency: originalTx.currency
+        });
+      } catch (iyzicoError) {
+        logger.error('Iyzico refund failed', { 
+          error: iyzicoError.message, 
+          transactionId,
+          paymentId: originalTx.metadata.paymentId,
+          paymentTransactionId: originalTx.metadata.paymentTransactionId,
+          token: originalTx.metadata.token
+        });
+        return res.status(400).json({ 
+          error: 'Iyzico refund failed', 
+          details: iyzicoError.message 
+        });
+      }
+
+      // 3. Create refund transaction in wallet (debit - removes money from wallet)
+      // Amount is NEGATIVE because money is being taken from wallet (refunded to card)
+      const refundTx = await recordTransaction({
+        userId: originalTx.user_id,
+        amount: -refundAmount, // Negative to deduct from wallet
+        transactionType: 'iyzico_refund',
+        currency: originalTx.currency,
+        status: 'completed',
+        direction: 'debit',
+        description: `Iyzico refund: ${reason}${isPartialRefund ? ' (partial)' : ''}`,
+        metadata: {
+          originalTransactionId: transactionId,
+          originalPaymentId: originalTx.metadata.paymentId,
+          iyzicoRefundId: iyzicoResult.refundId,
+          refundReason: reason,
+          isPartialRefund,
+          gateway: 'iyzico'
+        },
+        createdBy: adminId
+      });
+
+      // 4. Update original transaction metadata
+      await pool.query(
+        `UPDATE wallet_transactions 
+         SET metadata = metadata || $1::jsonb, updated_at = NOW()
+         WHERE id = $2`,
+        [
+          JSON.stringify({
+            refunded: true,
+            refundedAt: new Date().toISOString(),
+            refundedBy: adminId,
+            refundAmount,
+            refundTransactionId: refundTx.id,
+            iyzicoRefundId: iyzicoResult.refundId,
+            isPartialRefund
+          }),
+          transactionId
+        ]
+      );
+
+      // Log the refund event
+      logPaymentEvent('iyzico_refund_processed', {
+        userId: originalTx.user_id,
+        amount: refundAmount,
+        currency: originalTx.currency,
+        originalTransactionId: transactionId,
+        refundTransactionId: refundTx.id,
+        iyzicoRefundId: iyzicoResult.refundId,
+        adminId,
+        reason
+      });
+
+      // Send alert for refunds
+      sendPaymentAlert('refund_processed', {
+        userId: originalTx.user_id,
+        amount: refundAmount,
+        currency: originalTx.currency,
+        reason,
+        adminId
+      });
+
+      res.json({
+        success: true,
+        message: isPartialRefund ? 'Partial refund processed successfully' : 'Full refund processed successfully',
+        refund: {
+          refundTransactionId: refundTx.id,
+          iyzicoRefundId: iyzicoResult.refundId,
+          amount: refundAmount,
+          currency: originalTx.currency,
+          isPartialRefund,
+          originalAmount
+        }
+      });
+
+    } catch (error) {
+      logger.error('Failed to process refund:', error);
+      res.status(500).json({ error: error.message || 'Failed to process refund' });
+    }
+  }
+);
+
+/**
+ * GET /wallet/admin/refundable-transactions
+ * List Iyzico transactions that can be refunded
+ */
+router.get(
+  '/admin/refundable-transactions',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager', 'owner']),
+  async (req, res) => {
+    try {
+      const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
+      const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+      const userId = req.query.userId;
+
+      let query = `
+        SELECT 
+          wt.id,
+          wt.user_id,
+          wt.amount,
+          wt.currency,
+          wt.created_at,
+          wt.metadata,
+          wt.description,
+          u.name as user_name,
+          u.email as user_email
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        WHERE wt.metadata->>'gateway' = 'iyzico'
+          AND wt.direction = 'credit'
+          AND wt.status = 'completed'
+          AND (wt.metadata->>'refunded')::boolean IS NOT TRUE
+      `;
+      const params = [];
+
+      if (userId) {
+        params.push(userId);
+        query += ` AND wt.user_id = $${params.length}`;
+      }
+
+      query += ` ORDER BY wt.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      params.push(limit, offset);
+
+      const result = await pool.query(query, params);
+
+      // Get total count
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM wallet_transactions wt
+        WHERE wt.metadata->>'gateway' = 'iyzico'
+          AND wt.direction = 'credit'
+          AND wt.status = 'completed'
+          AND (wt.metadata->>'refunded')::boolean IS NOT TRUE
+      `;
+      const countParams = [];
+      if (userId) {
+        countParams.push(userId);
+        countQuery += ` AND wt.user_id = $1`;
+      }
+      const countResult = await pool.query(countQuery, countParams);
+
+      res.json({
+        transactions: result.rows.map(row => ({
+          id: row.id,
+          userId: row.user_id,
+          userName: row.user_name,
+          userEmail: row.user_email,
+          amount: parseFloat(row.amount),
+          currency: row.currency,
+          createdAt: row.created_at,
+          description: row.description,
+          paymentId: row.metadata?.paymentId,
+          token: row.metadata?.token
+        })),
+        pagination: {
+          limit,
+          offset,
+          total: parseInt(countResult.rows[0].total, 10)
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to fetch refundable transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch refundable transactions' });
+    }
+  }
+);
+
+/**
+ * GET /wallet/admin/refund-history
+ * List all refund transactions
+ */
+router.get(
+  '/admin/refund-history',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager', 'owner']),
+  async (req, res) => {
+    try {
+      const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
+      const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+
+      const result = await pool.query(`
+        SELECT 
+          wt.id,
+          wt.user_id,
+          wt.amount,
+          wt.currency,
+          wt.created_at,
+          wt.metadata,
+          wt.description,
+          u.name as user_name,
+          u.email as user_email,
+          admin.name as admin_name
+        FROM wallet_transactions wt
+        JOIN users u ON wt.user_id = u.id
+        LEFT JOIN users admin ON wt.created_by = admin.id
+        WHERE wt.transaction_type = 'iyzico_refund'
+        ORDER BY wt.created_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+
+      res.json({
+        refunds: result.rows.map(row => ({
+          id: row.id,
+          userId: row.user_id,
+          userName: row.user_name,
+          userEmail: row.user_email,
+          amount: Math.abs(parseFloat(row.amount)),
+          currency: row.currency,
+          createdAt: row.created_at,
+          description: row.description,
+          adminName: row.admin_name,
+          originalTransactionId: row.metadata?.originalTransactionId,
+          iyzicoRefundId: row.metadata?.iyzicoRefundId,
+          reason: row.metadata?.refundReason,
+          isPartialRefund: row.metadata?.isPartialRefund
+        })),
+        pagination: { limit, offset }
+      });
+    } catch (error) {
+      logger.error('Failed to fetch refund history:', error);
+      res.status(500).json({ error: 'Failed to fetch refund history' });
     }
   }
 );

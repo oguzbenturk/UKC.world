@@ -2387,7 +2387,8 @@ export async function createDepositRequest({
   bankAccountId,
   bankReference,
   paymentMethodId,
-  verification
+  verification,
+  idempotencyKey
 } = {}) {
   if (!userId) {
     throw new Error('createDepositRequest requires userId');
@@ -2441,6 +2442,23 @@ export async function createDepositRequest({
 
   try {
     await client.query('BEGIN');
+
+    // Phase 2: Idempotency Check
+    if (referenceCode) {
+      const existing = await client.query(
+        `SELECT id, status FROM wallet_deposit_requests 
+         WHERE user_id = $1 AND reference_code = $2 
+         FOR UPDATE`, // Row-level lock
+        [userId, referenceCode]
+      );
+      
+      if (existing.rows.length > 0) {
+        const existingStatus = existing.rows[0].status;
+        if (existingStatus === 'completed' || existingStatus === 'processing' || existingStatus === 'pending') {
+          throw new Error('Bu refarans kodu ile işlem zaten mevcut (Idempotency Check)');
+        }
+      }
+    }
 
     const baseMetadata = ensurePlainObject(metadata);
     baseMetadata.method = normalizedMethod;

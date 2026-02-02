@@ -359,6 +359,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
           { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
           { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
+          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'UndoOutlined', dotColor: '#ef4444' },
           { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
         ]
@@ -476,6 +477,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         { to: '/finance/shop', label: 'Shop' },
         { to: '/finance/daily-operations', label: 'Daily Operations' },
         { to: '/finance/expenses', label: 'Expenses' }
+        // Note: Refunds only visible to admin/manager/owner - not in this menu
       ]
     }),
     // Marketing - Rose (requires marketing or admin permissions)

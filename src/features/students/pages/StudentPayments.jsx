@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, Button, Card, Empty, Pagination, Table, Tag } from 'antd';
-import { ArrowRightOutlined, DownloadOutlined, ReloadOutlined, WalletOutlined } from '@ant-design/icons';
-import { useOutletContext } from 'react-router-dom';
+import { ArrowRightOutlined, DownloadOutlined, ReloadOutlined, WalletOutlined, PlusOutlined } from '@ant-design/icons';
+import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useStudentInvoices } from '../hooks/useStudentDashboard';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { getWalletBalance } from '../utils/getWalletBalance';
+import { WalletDepositModal } from '@/features/finances';
 
 const statusColors = {
   completed: 'green',
@@ -172,9 +173,46 @@ const StudentPayments = () => {
   const outletContext = useOutletContext() ?? {};
   const overview = outletContext?.overview;
   const [page, setPage] = useState(1);
+  const [depositModalVisible, setDepositModalVisible] = useState(false);
   const { data, isLoading, error, refetch } = useStudentInvoices({ page, limit: 10 });
   const { formatCurrency, businessCurrency, userCurrency, convertCurrency } = useCurrency();
   const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Handle payment result from Iyzico callback
+  useEffect(() => {
+    const paymentResult = searchParams.get('payment');
+    const amount = searchParams.get('amount');
+    const currency = searchParams.get('currency');
+    
+    if (paymentResult === 'success') {
+      notification.success({
+        message: 'Payment Successful!',
+        description: amount && currency 
+          ? `Your deposit of ${amount} ${currency} has been processed successfully.`
+          : 'Your deposit has been processed successfully.',
+        duration: 6,
+        placement: 'topRight'
+      });
+      // Refresh wallet data
+      refetch();
+      // Clear the query params
+      navigate('/student/payments', { replace: true });
+    } else if (paymentResult === 'failed') {
+      const reason = searchParams.get('reason');
+      const errorMsg = reason ? `Reason: ${decodeURIComponent(reason)}` : 'Your payment could not be processed. Please try again.';
+      
+      notification.error({
+        message: 'Payment Failed',
+        description: errorMsg,
+        duration: 10,
+        placement: 'topRight'
+      });
+      // Clear the query params
+      navigate('/student/payments', { replace: true });
+    }
+  }, [searchParams, notification, navigate, refetch]);
 
   // Storage currency is always EUR (base currency)
   const storageCurrency = businessCurrency || 'EUR';
@@ -313,6 +351,14 @@ const StudentPayments = () => {
             <p className="text-sm text-white/80">Need a receipt or want to top up? Jump into your wallet or refresh the table.</p>
             <Button
               type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setDepositModalVisible(true)}
+              className="h-11 rounded-2xl border-0 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-medium shadow-[0_10px_25px_rgba(251,191,36,0.35)] transition hover:from-amber-500 hover:to-orange-600"
+            >
+              Add Funds
+            </Button>
+            <Button
+              type="primary"
               icon={<WalletOutlined />}
               onClick={openWallet}
               className="h-11 rounded-2xl border-0 bg-white text-emerald-600 shadow-[0_10px_25px_rgba(15,90,70,0.35)] transition hover:bg-slate-100"
@@ -364,6 +410,21 @@ const StudentPayments = () => {
           </div>
         )}
       </Card>
+
+      {/* Iyzico Para Yükleme Modal */}
+      <WalletDepositModal
+        visible={depositModalVisible}
+        onClose={() => setDepositModalVisible(false)}
+        onSuccess={() => {
+          setDepositModalVisible(false);
+          refetch(); // Refresh list after payment
+          notification.success({
+            message: 'Funds Added',
+            description: 'The amount has been successfully added to your wallet.',
+            placement: 'bottomRight'
+          });
+        }}
+      />
     </div>
   );
 };

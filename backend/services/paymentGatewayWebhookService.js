@@ -641,10 +641,21 @@ function normalizeStripeEvent({ payload, rawBody, signature }) {
 
 function normalizeIyzicoEvent({ payload }) {
 	const body = ensurePlainObject(payload);
-	const meta = ensurePlainObject(body.metadata);
+	
+	// Webhook olaylarını normalize et
+	let eventType = body.eventType || body.type || 'payment';
+	let status = 'unknown';
+	
+	if (body.status === 'SUCCESS' || body.paymentStatus === 'SUCCESS') {
+		status = 'success';
+	} else if (body.status === 'FAILURE' || body.paymentStatus === 'FAILURE') {
+		status = 'failed';
+	} else if (body.status) {
+		status = body.status.toLowerCase();
+	}
 
-	const status = body.status || body.paymentStatus || body.state || null;
-	const transactionId = body.paymentId || body.payment_id || body.transactionId || null;
+	const meta = ensurePlainObject(body.metadata);
+	const transactionId = body.paymentId || body.payment_id || body.transactionId || body.token || null;
 	const depositId = meta.depositId || meta.walletDepositId || body.depositId || null;
 	const referenceCode = meta.referenceCode || body.referenceCode || body.basketId || null;
 
@@ -652,7 +663,7 @@ function normalizeIyzicoEvent({ payload }) {
 		provider: 'iyzico',
 		payload: body,
 		rawEvent: body,
-		eventType: body.eventType || body.type || null,
+		eventType,
 		externalId: body.eventId || body.paymentId || body.conversationId || null,
 		transactionId,
 		depositId,
@@ -663,7 +674,12 @@ function normalizeIyzicoEvent({ payload }) {
 		verification: meta.verification || null,
 		metadata: {
 			conversationId: body.conversationId || null,
-			installment: body.installment || null
+			installment: body.installment || null,
+			cardAssociation: body.cardAssociation,
+			cardFamily: body.cardFamily,
+			lastFourDigits: body.lastFourDigits,
+			mdStatus: body.mdStatus,
+			basketId: body.basketId
 		},
 		failureReason: body.errorMessage || body.errorCode || null
 	};

@@ -15,6 +15,7 @@ import {
 } from '../services/walletService.js';
 import { fetchCustomerPackagesByIds, forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { fetchRentalsByIds, forceDeleteRental } from '../services/rentalCleanupService.js';
+import { verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 import {
   syncServiceRevenueLedger,
   getServiceLedgerTotals,
@@ -30,6 +31,158 @@ const CREDIT_TRANSACTION_TYPES = new Set(['payment', 'credit', 'refund', 'bookin
 const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'service_payment', 'rental_payment', 'package_purchase']);
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
+
+/**
+ * Iyzico Callback - Kullanıcı ödeme sonrası buraya yönlendirilir
+ * POST: Iyzico sends payment result here
+ * GET: User browser redirect after payment
+ */
+router.post('/callback/iyzico', async (req, res) => {
+  const { token } = req.body;
+  
+  if (!token) {
+    logger.warn('Iyzico callback: Token eksik');
+    // Return HTML page that redirects to frontend
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0;url=${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?payment=error&reason=missing_token">
+          <title>Redirecting...</title>
+        </head>
+        <body>
+          <p>Redirecting to your wallet...</p>
+          <script>window.location.href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?payment=error&reason=missing_token";</script>
+        </body>
+      </html>
+    `);
+  }
+  
+  try {
+    const result = await verifyPayment(token);
+    
+    if (result.success) {
+      // Başarılı - Return HTML that redirects to frontend
+      const params = new URLSearchParams({
+        payment: 'success',
+        amount: result.amount,
+        currency: result.currency
+      });
+      
+      const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`;
+      
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+            <title>Payment Successful</title>
+            <style>
+              body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0fdf4; }
+              .container { text-align: center; padding: 2rem; }
+              .success { color: #16a34a; font-size: 48px; }
+              h1 { color: #166534; }
+              p { color: #4b5563; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success">✓</div>
+              <h1>Payment Successful!</h1>
+              <p>Redirecting to your wallet...</p>
+            </div>
+            <script>window.location.href="${redirectUrl}";</script>
+          </body>
+        </html>
+      `);
+    } else {
+      // Başarısız
+      const params = new URLSearchParams({
+        payment: 'failed',
+        reason: result.error || 'payment_failed'
+      });
+      
+      const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`;
+      
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+            <title>Payment Failed</title>
+            <style>
+              body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fef2f2; }
+              .container { text-align: center; padding: 2rem; }
+              .error { color: #dc2626; font-size: 48px; }
+              h1 { color: #991b1b; }
+              p { color: #4b5563; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="error">✗</div>
+              <h1>Payment Failed</h1>
+              <p>Redirecting back...</p>
+            </div>
+            <script>window.location.href="${redirectUrl}";</script>
+          </body>
+        </html>
+      `);
+    }
+    
+  } catch (error) {
+    logger.error('Iyzico callback error', { error: error.message, token });
+    const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?payment=error`;
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0;url=${redirectUrl}">
+          <title>Error</title>
+        </head>
+        <body>
+          <p>Redirecting...</p>
+          <script>window.location.href="${redirectUrl}";</script>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// GET handler for direct browser access
+router.get('/callback/iyzico', async (req, res) => {
+  const { token, payment, amount, currency, reason } = req.query;
+  
+  // If already has payment result, redirect to frontend
+  if (payment) {
+    const params = new URLSearchParams({ payment, amount, currency, reason }).toString();
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`);
+  }
+  
+  // If has token, verify it
+  if (token) {
+    try {
+      const result = await verifyPayment(token);
+      const params = new URLSearchParams({
+        payment: result.success ? 'success' : 'failed',
+        amount: result.amount || '',
+        currency: result.currency || '',
+        reason: result.error || ''
+      });
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`);
+    } catch (error) {
+      logger.error('Iyzico GET callback error', { error: error.message, token });
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?payment=error`);
+    }
+  }
+  
+  // No token - just redirect to payments page
+  res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments`);
+});
 
 function resolveWalletAmount(transactionType, rawAmount) {
   const numeric = Number.parseFloat(rawAmount);

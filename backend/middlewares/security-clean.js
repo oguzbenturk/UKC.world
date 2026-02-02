@@ -108,6 +108,23 @@ export const formSubmissionRateLimit = rateLimit({
   skipSuccessfulRequests: false // Count all attempts
 });
 
+// Rate limiting for payment callbacks (Iyzico, etc.)
+export const paymentCallbackRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: process.env.NODE_ENV === 'development' ? 50 : 10, // 10 callbacks per minute per IP
+  message: {
+    error: 'Too many payment callback requests.',
+    retryAfter: '1 minute'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit per IP and token combination
+    const token = req.body?.token || req.query?.token || 'unknown';
+    return `payment_callback_${req.ip}_${token}`;
+  }
+});
+
 // Input validation middleware
 export const validateInput = (validations) => {
   return async (req, res, next) => {

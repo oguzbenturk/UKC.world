@@ -115,6 +115,26 @@ export const passwordResetRateLimit = rateLimit({
   keyGenerator: (req) => `pwd_reset_${req.ip}_${req.body?.email || 'unknown'}`
 });
 
+// Rate limiting for payment callbacks (Iyzico, etc.) - prevents brute force attacks
+export const paymentCallbackRateLimit = rateLimit({
+  windowMs: parsePositiveInt(process.env.PAYMENT_CALLBACK_RATE_LIMIT_WINDOW_MS, 60 * 1000), // 1 minute
+  max: () => {
+    const fallback = CURRENT_ENV === 'production' ? 10 : 50;
+    return parsePositiveInt(process.env.PAYMENT_CALLBACK_RATE_LIMIT_MAX, fallback);
+  },
+  message: {
+    error: 'Too many payment callback requests.',
+    retryAfter: '1 minute'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit per IP and token combination
+    const token = req.body?.token || req.query?.token || 'unknown';
+    return `payment_callback_${req.ip}_${token}`;
+  }
+});
+
 // Input validation middleware
 export const validateInput = (validations) => {
   return async (req, res, next) => {

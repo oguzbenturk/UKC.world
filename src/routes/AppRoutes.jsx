@@ -129,6 +129,8 @@ import FinanceAccommodation from '../features/finances/pages/FinanceAccommodatio
 import FinanceEvents from '../features/finances/pages/FinanceEvents';
 import FinanceDailyOperations from '../features/finances/pages/FinanceDailyOperations';
 import ExpensesPage from '../features/finances/pages/ExpensesPage';
+import PaymentCallback from '../features/finances/pages/PaymentCallback';
+import PaymentRefunds from '../features/finances/pages/PaymentRefunds';
 
 // Shop Order Management
 import OrderManagement from '../features/dashboard/pages/OrderManagement';
@@ -234,6 +236,10 @@ const AppRoutes = () => {
     <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />
+  
+  {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
+  <Route path="/payment/callback" element={<PaymentCallback />} />
+  
   {/* Default route: guests go to /guest (Academy preview), authenticated users go to their role-based dashboard */}
   <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/guest"} replace />} />
   
@@ -430,6 +436,10 @@ const AppRoutes = () => {
         <Route path="/finance/daily-operations" element={<FinanceDailyOperations />} />
         <Route path="/finance/payment-history" element={<FinanceDailyOperations />} />
         <Route path="/finance/expenses" element={<ExpensesPage />} />
+      </Route>
+      {/* Admin-only finance routes (refunds) */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MANAGER]} />}>
+        <Route path="/finance/refunds" element={<PaymentRefunds />} />
       </Route>
         {/* User profile and settings routes - all authenticated users can access */}
       <Route element={<ProtectedRoute allowedRoles={[]} />}>
