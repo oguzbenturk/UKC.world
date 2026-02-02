@@ -298,3 +298,114 @@ export async function verifyPayment(token) {
         });
     });
 }
+
+/**
+ * İade işlemi (Admin)
+ * Iyzico checkout form ödemeleri için refund
+ * 
+ * ÖNEMLİ: Iyzico'da refund için paymentTransactionId gerekli.
+ * Checkout form ödemelerinde bu ID, checkoutForm.retrieve ile token sorgulanarak alınır.
+ * 
+ * @param {string} paymentTransactionId - Iyzico payment transaction ID (varsa direkt kullan)
+ * @param {string} paymentId - Iyzico payment ID
+ * @param {string} token - Checkout form token (paymentTransactionId yoksa bununla sorgula)
+ * @param {number} amount - İade tutarı
+ * @param {string} currency - Para birimi
+ */
+export async function refundPayment({ paymentTransactionId, paymentId, token, amount, currency }) {
+  if (!iyzipay) {
+    throw new Error('Iyzico is not configured');
+  }
+
+  // Eğer paymentTransactionId yoksa, token ile checkout form'u sorgula
+  let actualPaymentTransactionId = paymentTransactionId;
+  
+  if (!actualPaymentTransactionId && token) {
+    // Token ile checkoutForm.retrieve yap
+    const paymentDetails = await new Promise((resolve, reject) => {
+      iyzipay.checkoutForm.retrieve({ token }, (err, result) => {
+        if (err) {
+          logger.error('Failed to retrieve checkout form for refund', { error: err.message, token });
+          return reject(new Error('Ödeme detayları alınamadı'));
+        }
+        if (result.status !== 'success') {
+          logger.error('Checkout form retrieve failed', { error: result.errorMessage, token });
+          return reject(new Error(result.errorMessage || 'Ödeme detayları alınamadı'));
+        }
+        resolve(result);
+      });
+    });
+
+    // itemTransactions'dan paymentTransactionId al
+    if (paymentDetails.itemTransactions && paymentDetails.itemTransactions.length > 0) {
+      actualPaymentTransactionId = paymentDetails.itemTransactions[0].paymentTransactionId;
+      logger.info('Retrieved paymentTransactionId from checkout form', { 
+        paymentTransactionId: actualPaymentTransactionId, 
+        token 
+      });
+    } else {
+      throw new Error('Payment transaction ID not found in checkout form details');
+    }
+  }
+
+  if (!actualPaymentTransactionId) {
+    throw new Error('Payment transaction ID is required for refund. Token or paymentTransactionId must be provided.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = {
+      paymentTransactionId: actualPaymentTransactionId,
+      price: amount.toFixed(2),
+      currency: currency || 'TRY',
+      ip: '127.0.0.1'
+    };
+
+    logger.info('Processing Iyzico refund', { 
+      paymentTransactionId: actualPaymentTransactionId, 
+      amount, 
+      currency 
+    });
+
+    iyzipay.refund.create(request, (err, result) => {
+      if (err || result.status !== 'success') {
+        logger.error('Iyzico refund error', { 
+          error: err?.message || result?.errorMessage,
+          errorCode: result?.errorCode,
+          paymentTransactionId: actualPaymentTransactionId 
+        });
+        
+        logPaymentEvent('refund_failed', {
+          amount,
+          currency: currency || 'TRY',
+          status: 'failed',
+          transactionId: actualPaymentTransactionId,
+          error: result?.errorMessage || err?.message
+        });
+        
+        return reject(new Error(result?.errorMessage || err?.message || 'İade işlemi başarısız'));
+      }
+      
+      logPaymentEvent('refund_completed', {
+        amount: parseFloat(result.price),
+        currency: currency || 'TRY',
+        status: 'success',
+        transactionId: result.paymentId,
+        originalTransactionId: actualPaymentTransactionId
+      });
+      
+      sendPaymentAlert('refund_processed', {
+        amount: parseFloat(result.price),
+        currency: currency || 'TRY',
+        transactionId: result.paymentId
+      });
+      
+      resolve({
+        refundId: result.paymentId,
+        paymentTransactionId: actualPaymentTransactionId,
+        amount: parseFloat(result.price),
+        currency: result.currency,
+        status: 'success'
+      });
+    });
+  });
+}
