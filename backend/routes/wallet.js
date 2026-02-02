@@ -1136,11 +1136,12 @@ router.get(
           wt.created_at,
           wt.metadata,
           wt.description,
+          wt.payment_method,
           u.name as user_name,
           u.email as user_email
         FROM wallet_transactions wt
         JOIN users u ON wt.user_id = u.id
-        WHERE wt.metadata->>'gateway' = 'iyzico'
+        WHERE wt.payment_method = 'iyzico'
           AND wt.direction = 'credit'
           AND wt.status = 'completed'
           AND (wt.metadata->>'refunded')::boolean IS NOT TRUE
@@ -1161,7 +1162,7 @@ router.get(
       let countQuery = `
         SELECT COUNT(*) as total
         FROM wallet_transactions wt
-        WHERE wt.metadata->>'gateway' = 'iyzico'
+        WHERE wt.payment_method = 'iyzico'
           AND wt.direction = 'credit'
           AND wt.status = 'completed'
           AND (wt.metadata->>'refunded')::boolean IS NOT TRUE

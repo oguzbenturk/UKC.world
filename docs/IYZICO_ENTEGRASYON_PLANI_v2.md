@@ -25,8 +25,8 @@ npm install iyzipay
 # backend/.env
 
 # Sandbox (Test)
-IYZICO_API_KEY=sandbox-xxx
-IYZICO_SECRET_KEY=sandbox-yyy  
+IYZICO_API_KEY=sandbox-VCCnjIPSZMaGZ6GAHYdrBlhzXaFb7WZ6
+IYZICO_SECRET_KEY=sandbox-W8hOEybjBUWLfKWrnKIVYF58xzd4jzTR
 IYZICO_BASE_URL=https://sandbox-api.iyzipay.com
 
 # Feature Flag

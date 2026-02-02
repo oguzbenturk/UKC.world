@@ -358,7 +358,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
           { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
           { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
-          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'UndoOutlined', dotColor: '#ef4444' },
           { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
         ]
@@ -521,7 +520,8 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
           { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
+          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
+          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' }
         ]
       })
     ];
@@ -537,7 +537,8 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
           { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' }
+          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
+          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' }
         ]
       })
     ];
