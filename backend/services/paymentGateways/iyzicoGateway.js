@@ -72,74 +72,36 @@ export async function initiateDeposit({
     const callbackUrl = metadata.callbackUrl || `${baseUrl}/api/finances/callback/iyzico`;
 
     // Iyzico supports multiple currencies directly: TRY, EUR, USD, GBP, NOK, CHF
-    // We determine the initialization currency based on the USER'S COUNTRY
-    // - Turkey -> Must use TRY (Local cards require TRY)
-    // - Other/Null -> Use Source Currency (EUR/USD) to avoid DCC bad rates
+    // IMPORTANT: We respect the user's preferred currency choice
+    // Users can pay in any supported currency regardless of their country
+    // Note: Turkish local cards may require TRY, but users with foreign cards should use their preferred currency
     
     const sourceCurrency = (currency || 'EUR').toUpperCase();
     const originalAmount = parseFloat(amount);
     
-    let iyzicoCurrency = Iyzipay.CURRENCY.EUR;
-    let priceStr = originalAmount.toFixed(2);
-    let initializationCurrency = sourceCurrency;
-
-    // Check user country
-    const country = (userData?.country || '').toLowerCase();
-    const isTurkey = ['turkey', 'türkiye', 'tr', 'turkiye'].includes(country);
-
-    if (isTurkey) {
-        // Force TRY for Turkish users to support local cards
-        initializationCurrency = 'TRY';
-        iyzicoCurrency = Iyzipay.CURRENCY.TRY;
-        
-        // Convert amount if source isn't TRY
-        if (sourceCurrency !== 'TRY') {
-             try {
-                const amountInTry = await CurrencyService.convertCurrency(amount, sourceCurrency, 'TRY');
-                priceStr = amountInTry.toFixed(2);
-                logger.info('Converted to TRY for Turkish user', { 
-                    user: userData?.email, 
-                    country: userData?.country,
-                    from: amount,
-                    to: amountInTry 
-                });
-            } catch (convErr) {
-                logger.error('Currency conversion failed for Turkey', convErr);
-                // Fallback to original (might fail with "Local card..." error if EUR)
-                priceStr = originalAmount.toFixed(2);
-            }
-        } else {
-             priceStr = originalAmount.toFixed(2);
-        }
-    } else {
-        // Foreign user - Keep original currency (e.g. EUR)
-        // This avoids "910 USD" DCC issues for foreign cards
-        const currencyMap = {
-            'TRY': Iyzipay.CURRENCY.TRY,
-            'EUR': Iyzipay.CURRENCY.EUR,
-            'USD': Iyzipay.CURRENCY.USD,
-            'GBP': Iyzipay.CURRENCY.GBP,
-            'NOK': Iyzipay.CURRENCY.NOK,
-            'CHF': Iyzipay.CURRENCY.CHF
-        };
-        iyzicoCurrency = currencyMap[sourceCurrency] || Iyzipay.CURRENCY.EUR;
-        priceStr = originalAmount.toFixed(2);
-        
-        logger.info('Using Foreign Currency for Outsider/Foreigner', {
-            user: userData?.email,
-            country: userData?.country,
-            currency: initializationCurrency
-        });
-    }
+    // Currency mapping
+    const currencyMap = {
+        'TRY': Iyzipay.CURRENCY.TRY,
+        'EUR': Iyzipay.CURRENCY.EUR,
+        'USD': Iyzipay.CURRENCY.USD,
+        'GBP': Iyzipay.CURRENCY.GBP,
+        'NOK': Iyzipay.CURRENCY.NOK,
+        'CHF': Iyzipay.CURRENCY.CHF
+    };
+    
+    // Use the user's preferred currency (from their profile or the request)
+    const iyzicoCurrency = currencyMap[sourceCurrency] || Iyzipay.CURRENCY.EUR;
+    const priceStr = originalAmount.toFixed(2);
+    const initializationCurrency = sourceCurrency;
 
     logger.info('Iyzico payment initialization', { 
         amount: priceStr, 
         currency: initializationCurrency,
         iyzicoCurrency: iyzicoCurrency,
-        userCountry: userData?.country
+        userCountry: userData?.country,
+        userEmail: userData?.email
     });
-    
-    // Create Buyer Object
+
     
     // Create Buyer Object
     // Split name strictly for Iyzico (Name Surname)

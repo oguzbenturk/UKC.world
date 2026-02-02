@@ -147,9 +147,10 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
   // Set default country code and currency when modal opens
   useEffect(() => {
     if (visible && allowedCurrencies.length > 0) {
-      const defaultCurrency = allowedCurrencies.includes(businessCurrency) 
-        ? businessCurrency 
-        : allowedCurrencies[0];
+      // Default to EUR first if available, otherwise businessCurrency, otherwise first in list
+      const defaultCurrency = allowedCurrencies.includes('EUR')
+        ? 'EUR'
+        : (allowedCurrencies.includes(businessCurrency) ? businessCurrency : allowedCurrencies[0]);
       
       form.setFieldsValue({ 
         country_code: '+90',

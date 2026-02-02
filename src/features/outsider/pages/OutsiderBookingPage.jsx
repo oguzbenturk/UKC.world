@@ -105,6 +105,38 @@ const OutsiderBookingPage = () => {
   // Query wallet in storage currency (EUR) 
   const { data: walletSummary, refetch: refetchWallet } = useWalletSummary({ currency: storageCurrency });
 
+  // Handle payment success from Iyzico callback redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const paymentStatus = searchParams.get('payment');
+    const amount = searchParams.get('amount');
+    const currency = searchParams.get('currency');
+
+    if (paymentStatus === 'success' && amount) {
+      notification.success({
+        message: '💰 Wallet Deposit Successful!',
+        description: `${amount} ${currency} has been added to your wallet. You can now book lessons and packages.`,
+        duration: 6,
+      });
+      
+      // Refresh wallet balance
+      refetchWallet();
+      
+      // Clean up URL
+      navigate(location.pathname, { replace: true });
+    } else if (paymentStatus === 'failed') {
+      const reason = searchParams.get('reason') || 'Payment processing failed';
+      notification.error({
+        message: 'Payment Failed',
+        description: decodeURIComponent(reason),
+        duration: 5,
+      });
+      
+      // Clean up URL
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate, notification, refetchWallet]);
+
   // Package categories
   const PACKAGE_CATEGORIES = [
     { key: 'lesson', label: 'Lessons', icon: '🎓', description: 'Kitesurfing & water sports lesson packages' },

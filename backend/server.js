@@ -424,7 +424,7 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
       userId: targetUserId,
       amount: creditAmount,
       currency: creditCurrency,
-      type: 'payment',
+      transactionType: 'payment',
       direction: 'credit',
       description: 'Wallet Top-up (Iyzico)',
       paymentMethod: 'iyzico',
@@ -446,14 +446,34 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
       currency: creditCurrency 
     });
 
-    // Redirect to frontend
+    // Get user role to determine redirect path
+    const userResult = await pool.query(
+      'SELECT r.name as role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1',
+      [targetUserId]
+    );
+    const userRole = userResult.rows[0]?.role_name?.toLowerCase() || 'outsider';
+    
+    // Redirect based on user role
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/dashboard?payment=success&amount=${creditAmount}&currency=${creditCurrency}`);
+    let redirectPath = '/student/payments'; // default for students
+    
+    if (userRole === 'outsider') {
+      // Outsiders go to book page with success notification
+      redirectPath = '/book';
+    } else if (userRole === 'student') {
+      redirectPath = '/student/payments';
+    } else {
+      // Staff roles go to finance page
+      redirectPath = '/finance';
+    }
+    
+    res.redirect(`${frontendUrl}${redirectPath}?payment=success&amount=${creditAmount}&currency=${creditCurrency}`);
 
   } catch (error) {
     logger.error('Iyzico Callback Failed', { error: error.message, stack: error.stack });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/dashboard?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
+    // Redirect to a generic error page that all roles can access
+    res.redirect(`${frontendUrl}/book?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
   }
 });
 
