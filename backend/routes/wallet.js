@@ -989,11 +989,22 @@ router.post(
       const originalTx = txResult.rows[0];
 
       // Validate it's an Iyzico payment
-      if (!originalTx.metadata?.gateway || originalTx.metadata.gateway !== 'iyzico') {
+      // Check both new (gateway) and old formats (paymentMethod, iyzicoPaymentId)
+      const isIyzicoPayment = 
+        originalTx.metadata?.gateway === 'iyzico' || 
+        originalTx.payment_method === 'iyzico' ||
+        originalTx.metadata?.iyzicoPaymentId;
+      
+      if (!isIyzicoPayment) {
         return res.status(400).json({ error: 'This transaction is not an Iyzico payment' });
       }
 
-      if (!originalTx.metadata?.paymentId) {
+      // Get payment ID from metadata (new or old format)
+      const paymentId = originalTx.metadata?.paymentId || 
+                       originalTx.metadata?.iyzicoPaymentId || 
+                       originalTx.reference_number;
+      
+      if (!paymentId) {
         return res.status(400).json({ error: 'Original payment ID not found in transaction' });
       }
 
@@ -1012,9 +1023,9 @@ router.post(
       let iyzicoResult;
       try {
         iyzicoResult = await iyzicoRefund({
-          paymentTransactionId: originalTx.metadata.paymentTransactionId || null,
-          paymentId: originalTx.metadata.paymentId,
-          token: originalTx.metadata.token || null, // Token ile paymentTransactionId bulunabilir
+          paymentTransactionId: originalTx.metadata?.paymentTransactionId || null,
+          paymentId: paymentId,  // Use the extracted paymentId
+          token: originalTx.metadata?.token || null, // Token ile paymentTransactionId bulunabilir
           amount: refundAmount,
           currency: originalTx.currency
         });
@@ -1022,9 +1033,9 @@ router.post(
         logger.error('Iyzico refund failed', { 
           error: iyzicoError.message, 
           transactionId,
-          paymentId: originalTx.metadata.paymentId,
-          paymentTransactionId: originalTx.metadata.paymentTransactionId,
-          token: originalTx.metadata.token
+          paymentId: paymentId,
+          paymentTransactionId: originalTx.metadata?.paymentTransactionId,
+          token: originalTx.metadata?.token
         });
         return res.status(400).json({ 
           error: 'Iyzico refund failed', 
@@ -1044,7 +1055,7 @@ router.post(
         description: `Iyzico refund: ${reason}${isPartialRefund ? ' (partial)' : ''}`,
         metadata: {
           originalTransactionId: transactionId,
-          originalPaymentId: originalTx.metadata.paymentId,
+          originalPaymentId: paymentId,  // Use the extracted paymentId
           iyzicoRefundId: iyzicoResult.refundId,
           refundReason: reason,
           isPartialRefund,

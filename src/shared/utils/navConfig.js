@@ -184,8 +184,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
         subItems: [
           { to: '/student/dashboard', label: 'Dashboard' },
-          { to: '/student/schedule', label: 'My Lessons' },
-          { to: '/student/courses', label: 'My Packages' }
+          { to: '/student/schedule', label: 'My Lessons' }
         ]
       }),
       // 3. Rental - Orange

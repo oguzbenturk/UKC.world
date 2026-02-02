@@ -1018,3 +1018,30 @@
   pointer-events: auto !important;
   cursor: pointer !important;
 }
+
+@layer components {
+  .legal-document {
+    @apply text-gray-700 text-sm;
+  }
+  .legal-document h2 {
+    @apply text-lg font-bold mb-3 mt-4 text-gray-900;
+  }
+  .legal-document h3 {
+    @apply text-base font-semibold mb-2 mt-3 text-gray-800;
+  }
+  .legal-document h4 {
+    @apply text-sm font-semibold mb-1 mt-2 text-gray-800;
+  }
+  .legal-document ul {
+    @apply list-disc list-outside ml-5 mb-3 space-y-1;
+  }
+  .legal-document li {
+    @apply pl-1;
+  }
+  .legal-document p {
+    @apply mb-3 leading-relaxed;
+  }
+  .legal-document strong {
+    @apply font-semibold;
+  }
+}

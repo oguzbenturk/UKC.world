@@ -430,7 +430,9 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
       paymentMethod: 'iyzico',
       referenceNumber: payment.paymentId,
       metadata: {
-        iyzicoPaymentId: payment.paymentId,
+        gateway: 'iyzico',  // Required for refund validation
+        paymentId: payment.paymentId,  // Required for refund
+        iyzicoPaymentId: payment.paymentId,  // Keep for backward compatibility
         conversationId: raw.conversationId,
         token: token,
         originalPaidAmount: paidAmount,

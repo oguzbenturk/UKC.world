@@ -10,48 +10,6 @@ import { getPreferredCurrency } from '../utils/getPreferredCurrency';
 import { getWalletBalance } from '../utils/getWalletBalance';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
-import WaiverModal from '@/features/compliance/components/WaiverModal';
-import * as waiverApi from '@/features/compliance/services/waiverApi';
-
-const DEFAULT_WAIVER_MODAL_STATE = {
-  open: false,
-  userId: null,
-  userType: 'user',
-  origin: null,
-  participantName: null,
-};
-
-const useInitialWaiverPrompt = ({ user, initialWaiverCheckDone, setInitialWaiverCheckDone, openWaiverModal }) => {
-  useEffect(() => {
-    if (!user?.id || initialWaiverCheckDone) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const runCheck = async () => {
-      try {
-        const needsWaiver = await waiverApi.needsToSignWaiver(String(user.id), 'user');
-        if (!cancelled && needsWaiver) {
-          const participantName = user?.first_name
-            ? `${user.first_name} ${user?.last_name ?? ''}`.trim()
-            : user?.name ?? null;
-          openWaiverModal({ userId: user.id, userType: 'user', origin: 'initial', participantName });
-        }
-      } finally {
-        if (!cancelled) {
-          setInitialWaiverCheckDone(true);
-        }
-      }
-    };
-
-    runCheck();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.first_name, user?.last_name, user?.name, initialWaiverCheckDone, openWaiverModal, setInitialWaiverCheckDone]);
-};
 
 const StudentPortalDisabled = () => (
   <div className="mx-auto max-w-4xl px-4 py-10">
@@ -132,9 +90,6 @@ const StudentLayout = () => {
   // Query wallet in storage currency (EUR)
   const { data: walletSummary } = useWalletSummary({ currency: storageCurrency });
   const { notification } = App.useApp();
-  const [waiverModalState, setWaiverModalState] = useState(() => ({ ...DEFAULT_WAIVER_MODAL_STATE }));
-  const waiverResolverRef = useRef(null);
-  const [initialWaiverCheckDone, setInitialWaiverCheckDone] = useState(false);
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const showHeroNav = normalizedPath === '/student/dashboard';
   const currency = useMemo(() => {
@@ -197,79 +152,11 @@ const StudentLayout = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  const openWaiverModal = useCallback(({ userId, userType = 'user', origin = null, participantName = null }) => {
-    if (!userId) {
-      return;
-    }
-    setWaiverModalState({
-      open: true,
-      userId: String(userId),
-      userType: userType === 'family_member' ? 'family_member' : 'user',
-      origin,
-      participantName,
-    });
-  }, []);
 
-  const ensureWaiverSignature = useCallback(async ({ userId, userType = 'user', participantName = null } = {}) => {
-    if (!userId) {
-      return false;
-    }
 
-    return new Promise((resolve) => {
-      waiverResolverRef.current = resolve;
-      openWaiverModal({ userId, userType, origin: 'booking', participantName });
-    });
-  }, [openWaiverModal]);
 
-  // DISABLED: Waiver is now included in unified consent modal
-  // useInitialWaiverPrompt({
-  //   user,
-  //   initialWaiverCheckDone,
-  //   setInitialWaiverCheckDone,
-  //   openWaiverModal,
-  // });
 
-  // Mark waiver check as done immediately since it's handled by consent modal
-  useEffect(() => {
-    if (user?.id && !initialWaiverCheckDone) {
-      setInitialWaiverCheckDone(true);
-    }
-  }, [user?.id, initialWaiverCheckDone, setInitialWaiverCheckDone]);
 
-  const resetWaiverState = useCallback(() => {
-    setWaiverModalState({ ...DEFAULT_WAIVER_MODAL_STATE });
-  }, []);
-
-  const handleWaiverSuccess = useCallback(() => {
-    const { participantName } = waiverModalState;
-    resetWaiverState();
-    notification.success({
-      message: 'Waiver Signed Successfully!',
-      description: participantName
-        ? `Thanks for signing the liability waiver for ${participantName}. You can continue with your booking now.`
-        : 'Thank you for completing the liability waiver. You can now book lessons and rent equipment.',
-      placement: 'bottomRight',
-      duration: 5,
-    });
-    waiverResolverRef.current?.(true);
-    waiverResolverRef.current = null;
-    refetch();
-  }, [notification, refetch, resetWaiverState, waiverModalState]);
-
-  const handleWaiverCancel = useCallback(() => {
-    const { origin } = waiverModalState;
-    resetWaiverState();
-    waiverResolverRef.current?.(false);
-    waiverResolverRef.current = null;
-    notification.warning({
-      message: origin === 'booking' ? 'Booking Blocked' : 'Waiver Not Signed',
-      description: origin === 'booking'
-        ? 'Please sign the liability waiver to finish submitting your booking request.'
-        : 'You must sign the liability waiver to book lessons or rent equipment. You can return to it from your profile any time.',
-      placement: 'bottomRight',
-      duration: 6,
-    });
-  }, [notification, resetWaiverState, waiverModalState]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -341,17 +228,7 @@ const StudentLayout = () => {
         open={bookingOpen}
         onClose={handleBookingClose}
         initialData={bookingInitialData}
-        ensureWaiverSignature={ensureWaiverSignature}
       />
-      {waiverModalState.open ? (
-        <WaiverModal
-          open={waiverModalState.open}
-          userId={waiverModalState.userId}
-          userType={waiverModalState.userType}
-          onSuccess={handleWaiverSuccess}
-          onCancel={handleWaiverCancel}
-        />
-      ) : null}
     </div>
   );
 };

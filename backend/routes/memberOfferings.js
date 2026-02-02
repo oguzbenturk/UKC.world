@@ -92,7 +92,7 @@ router.post(
   '/:offeringId/purchase',
   authenticateJWT,
   [
-    body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer']).withMessage('Invalid payment method'),
+    body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer', 'pay_later']).withMessage('Invalid payment method'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -171,9 +171,33 @@ router.post(
             offeringName: offering.name
           }
         });
+      } else if (paymentMethod === 'cash' || paymentMethod === 'pay_later') {
+        // For cash/pay_later payments, create negative balance (pay at center)
+        // This allows the customer to owe money that they'll pay in person
+        const currency = 'EUR';
+        const price = parseFloat(offering.price);
+        
+        await recordTransaction({
+          client, // Pass the existing transaction client
+          userId,
+          amount: price,
+          currency,
+          transactionType: 'payment',
+          direction: 'debit',
+          availableDelta: -price, // Create negative balance
+          description: `Purchase (Pay at Center): ${offering.name}`,
+          metadata: {
+            offeringId,
+            offeringName: offering.name,
+            paymentPending: true
+          },
+          allowNegative: true // Allow negative balance for pay at center
+        });
+        
+        paymentStatus = 'pending'; // Set as pending until payment received
       } else {
-        // For cash/card/transfer payments, set as pending until admin confirms
-        paymentStatus = paymentMethod === 'cash' ? 'pending' : 'pending';
+        // For card/transfer payments, set as pending until admin confirms
+        paymentStatus = 'pending';
       }
 
       // Create the purchase record

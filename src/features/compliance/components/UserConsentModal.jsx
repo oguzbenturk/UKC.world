@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Checkbox, Switch, Typography, Space, Divider, Alert, Button, Spin } from 'antd';
+import { Checkbox, Switch, Typography, Space, Divider, Alert, Button, Spin, Collapse } from 'antd';
+import { InfoCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import apiClient from '../../../shared/services/apiClient';
 
 const { Title, Paragraph, Text } = Typography;
@@ -130,19 +131,30 @@ const UserConsentModal = ({
               To keep using Plannivo you need to accept our latest Terms of Service and Privacy Policy.
             </Paragraph>
 
-            {/* Terms of Service Preview */}
-            {documents?.terms?.content && (
-              <div className="my-4 p-4 border rounded bg-gray-50 max-h-60 overflow-y-auto">
-                <div dangerouslySetInnerHTML={{ __html: documents.terms.content }} />
-              </div>
-            )}
-
-            {/* Privacy Policy Preview */}
-            {documents?.privacy?.content && (
-              <div className="my-4 p-4 border rounded bg-gray-50 max-h-60 overflow-y-auto">
-                <div dangerouslySetInnerHTML={{ __html: documents.privacy.content }} />
-              </div>
-            )}
+            <Collapse
+              className="my-4 bg-gray-50 border border-gray-200 rounded-lg"
+              ghost
+              items={[
+                ...(documents?.terms?.content ? [{
+                  key: 'terms',
+                  label: <span className="font-medium flex items-center gap-2"><FileTextOutlined /> Terms of Service Preview</span>,
+                  children: (
+                    <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      <div dangerouslySetInnerHTML={{ __html: documents.terms.content }} />
+                    </div>
+                  )
+                }] : []),
+                ...(documents?.privacy?.content ? [{
+                  key: 'privacy',
+                  label: <span className="font-medium flex items-center gap-2"><FileTextOutlined /> Privacy Policy Preview</span>,
+                  children: (
+                    <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      <div dangerouslySetInnerHTML={{ __html: documents.privacy.content }} />
+                    </div>
+                  )
+                }] : [])
+              ]}
+            />
 
             <Alert
               message="You can update marketing preferences anytime from your profile."
@@ -164,9 +176,21 @@ const UserConsentModal = ({
                 Select All
               </Button>
             </div>
-            <Paragraph type="secondary">
-              {marketingDescription}
-            </Paragraph>
+            
+            <Collapse 
+              ghost 
+              items={[{
+                key: '1',
+                label: <span className="text-gray-500 flex items-center gap-2"><InfoCircleOutlined /> Why we ask for this? (Click to read details)</span>,
+                children: (
+                  <div 
+                    className="prose prose-sm max-w-none text-gray-600 mb-4 bg-gray-50 p-4 rounded-lg"
+                    dangerouslySetInnerHTML={{ __html: marketingDescription }} 
+                  />
+                )
+              }]}
+            />
+
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 <div>

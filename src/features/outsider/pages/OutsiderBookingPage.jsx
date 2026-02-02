@@ -18,8 +18,6 @@ import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
-import WaiverModal from '@/features/compliance/components/WaiverModal';
-import * as waiverApi from '@/features/compliance/services/waiverApi';
 import { usePageSEO } from '@/shared/utils/seo';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
@@ -33,14 +31,6 @@ const PROCESSOR_OPTIONS = [
   { value: 'revolut', label: 'Revolut' },
   { value: 'paypal', label: 'PayPal' }
 ];
-
-const DEFAULT_WAIVER_MODAL_STATE = {
-  open: false,
-  userId: null,
-  userType: 'user',
-  origin: null,
-  participantName: null,
-};
 
 // Stable empty object reference to prevent re-renders
 const EMPTY_BOOKING_DATA = {};
@@ -83,11 +73,6 @@ const OutsiderBookingPage = () => {
   const queryClient = useQueryClient();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
-  const [pendingAutoOpen, setPendingAutoOpen] = useState(false); // Track if we should auto-open after waiver check
-  const [waiverModalState, setWaiverModalState] = useState(() => ({ ...DEFAULT_WAIVER_MODAL_STATE }));
-  const [initialWaiverCheckDone, setInitialWaiverCheckDone] = useState(false);
-  const [needsWaiver, setNeedsWaiver] = useState(false);
-  const [checkingWaiver, setCheckingWaiver] = useState(true);
   const [showPackages, setShowPackages] = useState(false);
   const [selectedPackageCategory, setSelectedPackageCategory] = useState(null);
   const [purchasingPackageId, setPurchasingPackageId] = useState(null);
@@ -98,7 +83,6 @@ const OutsiderBookingPage = () => {
   const [processorForm] = Form.useForm();
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
   const [appliedVoucher, setAppliedVoucher] = useState(null);
-  const waiverResolverRef = useRef(null);
   
   // Storage currency is always EUR (base currency)
   const storageCurrency = businessCurrency || 'EUR';
@@ -582,49 +566,7 @@ const OutsiderBookingPage = () => {
     description: 'Book your first kitesurfing lesson and start your water sports journey with Plannivo.'
   });
 
-  // Check if user needs to sign waiver on mount
-  useEffect(() => {
-    if (!user?.id || initialWaiverCheckDone) {
-      setCheckingWaiver(false);
-      return;
-    }
 
-    let cancelled = false;
-
-    const runCheck = async () => {
-      try {
-        const needs = await waiverApi.needsToSignWaiver(String(user.id), 'user');
-        if (!cancelled) {
-          setNeedsWaiver(needs);
-          if (needs) {
-            const participantName = user?.first_name
-              ? `${user.first_name} ${user?.last_name ?? ''}`.trim()
-              : user?.name ?? null;
-            setWaiverModalState({
-              open: true,
-              userId: String(user.id),
-              userType: 'user',
-              origin: 'initial',
-              participantName,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to check waiver status:', error);
-      } finally {
-        if (!cancelled) {
-          setInitialWaiverCheckDone(true);
-          setCheckingWaiver(false);
-        }
-      }
-    };
-
-    runCheck();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.first_name, user?.last_name, user?.name, initialWaiverCheckDone]);
 
   // Handle incoming navigation state from lesson info pages
   useEffect(() => {
@@ -640,85 +582,14 @@ const OutsiderBookingPage = () => {
       }
       
       setBookingInitialData(initialData);
-      
-      // Mark that we should auto-open after waiver check completes
-      setPendingAutoOpen(true);
+      setBookingOpen(true);
       
       // Clear the navigation state to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Auto-open booking wizard after waiver check completes (if pending)
-  useEffect(() => {
-    if (pendingAutoOpen && !checkingWaiver && !needsWaiver) {
-      setBookingOpen(true);
-      setPendingAutoOpen(false);
-    }
-  }, [pendingAutoOpen, checkingWaiver, needsWaiver]);
 
-  const openWaiverModal = useCallback(({ userId, userType = 'user', origin = null, participantName = null }) => {
-    if (!userId) return;
-    setWaiverModalState({
-      open: true,
-      userId: String(userId),
-      userType: userType === 'family_member' ? 'family_member' : 'user',
-      origin,
-      participantName,
-    });
-  }, []);
-
-  const ensureWaiverSignature = useCallback(async ({ userId, userType = 'user', participantName = null } = {}) => {
-    if (!userId) return false;
-
-    return new Promise((resolve) => {
-      waiverResolverRef.current = resolve;
-      openWaiverModal({ userId, userType, origin: 'booking', participantName });
-    });
-  }, [openWaiverModal]);
-
-  const resetWaiverState = useCallback(() => {
-    setWaiverModalState({ ...DEFAULT_WAIVER_MODAL_STATE });
-  }, []);
-
-  const handleWaiverSuccess = useCallback(() => {
-    const { participantName, origin } = waiverModalState;
-    resetWaiverState();
-    setNeedsWaiver(false);
-    
-    notification.success({
-      message: 'Waiver Signed Successfully',
-      description: participantName
-        ? `Waiver for ${participantName} has been recorded.`
-        : 'Your waiver has been signed. You can now book your first lesson!',
-      duration: 4,
-    });
-
-    // Resolve waiver promise if it was from booking flow
-    if (origin === 'booking' && waiverResolverRef.current) {
-      waiverResolverRef.current(true);
-      waiverResolverRef.current = null;
-    }
-  }, [waiverModalState, resetWaiverState, notification]);
-
-  const handleWaiverCancel = useCallback(() => {
-    const { origin, participantName } = waiverModalState;
-    resetWaiverState();
-
-    if (origin === 'booking') {
-      notification.warning({
-        message: 'Waiver Required',
-        description: participantName
-          ? `You must sign the waiver for ${participantName} before booking.`
-          : 'You must sign the liability waiver to book lessons.',
-        duration: 5,
-      });
-      if (waiverResolverRef.current) {
-        waiverResolverRef.current(false);
-        waiverResolverRef.current = null;
-      }
-    }
-  }, [waiverModalState, resetWaiverState, notification]);
 
   const handleBookingOpen = () => {
     // Check if user is a guest (not authenticated)
@@ -727,19 +598,6 @@ const OutsiderBookingPage = () => {
         title: 'Sign In to Book Your First Lesson',
         message: 'Create a free account or sign in to book your lesson with us',
         returnUrl: '/book'
-      });
-      return;
-    }
-    
-    if (needsWaiver) {
-      const participantName = user?.first_name
-        ? `${user.first_name} ${user?.last_name ?? ''}`.trim()
-        : user?.name ?? null;
-      openWaiverModal({ 
-        userId: user.id, 
-        userType: 'user', 
-        origin: 'booking', 
-        participantName 
       });
       return;
     }
@@ -784,16 +642,6 @@ const OutsiderBookingPage = () => {
     ? Number(walletSummary.available) 
     : 0;
 
-  if (checkingWaiver) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50">
-        <Spin size="large">
-          <div className="p-8 text-center text-slate-500">Checking your account...</div>
-        </Spin>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-sky-50 dark:from-slate-900 dark:to-slate-800">
       {/* Main Content */}
@@ -810,22 +658,18 @@ const OutsiderBookingPage = () => {
             <Paragraph className="text-slate-600 max-w-lg mx-auto mb-6">
               {isGuest 
                 ? 'Discover the world of kite surfing with expert instructors. Sign in to book your first lesson and start your adventure!'
-                : `You're just one step away from booking your first lesson. 
-                  ${needsWaiver 
-                    ? ' Please sign the liability waiver first, then you can book your lesson.'
-                    : ' Click the button below to choose your preferred time and instructor.'
-                  }`
+                : "You're just one step away from booking your first lesson. Click the button below to choose your preferred time and instructor."
               }
             </Paragraph>
             
             <Button 
               type="primary" 
               size="large"
-              icon={needsWaiver ? <CheckCircleOutlined /> : <CalendarOutlined />}
+              icon={<CalendarOutlined />}
               onClick={handleBookingOpen}
               className="h-12 px-8 text-lg rounded-xl"
             >
-              {needsWaiver ? 'Sign Waiver & Book Lesson' : 'Book Your First Lesson'}
+              Book Your First Lesson
             </Button>
 
             {/* Buy Package Button */}
@@ -1053,20 +897,8 @@ const OutsiderBookingPage = () => {
         studentId={user?.id}
         walletBalance={walletBalance}
         currency={currency}
-        ensureWaiverSignature={ensureWaiverSignature}
         initialData={bookingInitialData}
       />
-
-      {/* Waiver Modal - only render when userId is present */}
-      {waiverModalState.userId && (
-        <WaiverModal
-          open={waiverModalState.open}
-          userId={waiverModalState.userId}
-          userType={waiverModalState.userType}
-          onSuccess={handleWaiverSuccess}
-          onCancel={handleWaiverCancel}
-        />
-      )}
 
       {/* Package Purchase Modal */}
       <Modal

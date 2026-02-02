@@ -398,13 +398,6 @@ const buildPayLaterSummary = ({ formattedFinalAmount }) => ({
   ]
 });
 
-const WAIVER_ERROR_CODES = new Set([
-  'WAIVER_REQUIRED',
-  'FAMILY_WAIVER_REQUIRED',
-  'WAIVER_EXPIRED',
-  'WAIVER_VERSION_OUTDATED'
-]);
-
 const getServerMessage = (error) => {
   if (error?.response?.data?.message) {
     return error.response.data.message;
@@ -419,53 +412,15 @@ const getServerMessage = (error) => {
 };
 
 const parseBookingError = (error) => {
-  const serverMessage = getServerMessage(error);
-  const code = error?.response?.data?.code;
-  const normalized = typeof serverMessage === 'string' ? serverMessage.toLowerCase() : '';
-  const requiresWaiver = WAIVER_ERROR_CODES.has(code) || normalized.includes('waiver');
-  return { serverMessage, requiresWaiver };
+  return getServerMessage(error);
 };
 
-const submitBookingWithWaiverRetry = async ({
-  payload,
-  mutation,
-  ensureWaiverSignature,
-  waiverContext,
-  messageApi,
-}) => {
-  const { participantId, userType, participantName } = waiverContext;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      await mutation.mutateAsync(payload);
-      return;
-    } catch (error) {
-      const { serverMessage, requiresWaiver } = parseBookingError(error);
-
-      const canAttemptWaiver = attempt === 0
-        && requiresWaiver
-        && typeof ensureWaiverSignature === 'function'
-        && participantId;
-
-      if (canAttemptWaiver) {
-        if (typeof mutation.reset === 'function') {
-          mutation.reset();
-        }
-        const waiverSigned = await ensureWaiverSignature({
-          userId: participantId,
-          userType,
-          participantName,
-        });
-        if (waiverSigned) {
-          continue;
-        }
-        messageApi.warning(serverMessage || 'Waiver signature is required before you can book.');
-        return;
-      }
-
-      messageApi.error(serverMessage || 'Failed to create booking');
-      return;
-    }
+const submitBooking = async ({ payload, mutation, messageApi }) => {
+  try {
+    await mutation.mutateAsync(payload);
+  } catch (error) {
+    const serverMessage = parseBookingError(error);
+    messageApi.error(serverMessage || 'Failed to create booking');
   }
 };
 
@@ -534,7 +489,7 @@ const createBookingPayload = ({
 const EMPTY_INITIAL_DATA = {};
 
 // eslint-disable-next-line complexity
-const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA, ensureWaiverSignature }) => {
+const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA }) => {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -943,7 +898,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
       setSelectedBuyCategory(null);
       setPurchasePaymentMethod('wallet');
       setPurchaseProcessor(null);
-      purchaseProcessorForm.resetFields();
+      try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
       setAccommodationDates({ checkIn: null, checkOut: null });
       setAccommodationDateModal(null);
       
@@ -1759,7 +1714,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
     setPaymentMethod(value);
     previousPaymentMethodRef.current = value;
     setProcessorModal(null);
-    processorForm.resetFields();
+    try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
     if (value !== 'package') {
       setSelectedPackageId(null);
     } else if (packagesWithBalance.length === 1) {
@@ -1773,7 +1728,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
   const handleProcessorModalCancel = () => {
     const fallback = processorInfo.method ? `processor:${processorInfo.method}` : previousPaymentMethodRef.current || 'wallet';
     setProcessorModal(null);
-    processorForm.resetFields();
+    try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
     setPaymentMethod(fallback);
   };
 
@@ -1791,7 +1746,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
       setPaymentMethod(nextValue);
       previousPaymentMethodRef.current = nextValue;
       setProcessorModal(null);
-      processorForm.resetFields();
+      try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
     } catch {
       // Leave modal open so the user can correct validation errors
     }
@@ -2389,19 +2344,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
       currency: serviceCurrency,
     });
 
-    const waiverContext = {
-      participantId: participantType === 'family'
-        ? (selectedFamilyId ? String(selectedFamilyId) : null)
-        : String(studentId),
-      userType: participantType === 'family' ? 'family_member' : 'user',
-      participantName: participantLabel,
-    };
-
-    await submitBookingWithWaiverRetry({
+    await submitBooking({
       payload,
       mutation,
-      ensureWaiverSignature,
-      waiverContext,
       messageApi: message,
     });
   };
@@ -2475,11 +2420,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
                     <div className="flex flex-wrap gap-0.5">
                       {age !== null && <Tag className="text-xs">{age} years</Tag>}
                       {member.relationship && <Tag color="blue" className="text-xs">{member.relationship}</Tag>}
-                      {member.waiver_status && (
-                        <Tag color={member.waiver_status === 'signed' ? 'green' : 'orange'} className="text-xs">
-                          {member.waiver_status === 'signed' ? '✓ Waiver' : 'Pending'}
-                        </Tag>
-                      )}
                     </div>
                   </div>
                   {isSelected && (
@@ -2703,7 +2643,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
                 setSelectedBuyCategory(null);
                 setPurchasePaymentMethod('wallet');
                 setPurchaseProcessor(null);
-                purchaseProcessorForm.resetFields();
+                try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
               }}
             />
             <Title level={5} className="mb-0">Buy Lesson Packages</Title>
@@ -2722,7 +2662,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA,
                       setPurchasePaymentMethod(e.target.value);
                       if (e.target.value !== 'external') {
                         setPurchaseProcessor(null);
-                        purchaseProcessorForm.resetFields();
+                        try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
                       }
                     }}
                     className="w-full"
@@ -3744,7 +3684,6 @@ StudentBookingWizard.propTypes = {
     durationHours: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     preferredCategory: PropTypes.string,
   }),
-  ensureWaiverSignature: PropTypes.func,
 };
 
 export default StudentBookingWizard;

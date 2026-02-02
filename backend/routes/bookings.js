@@ -6,7 +6,6 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { bookingService } from '../services/bookingService.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
 import { v4 as uuidv4 } from 'uuid';
-import { requireWaiver, checkFamilyMemberWaiver } from '../middlewares/waiverCheck.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { queueRatingReminder } from '../services/ratingService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
@@ -802,8 +801,6 @@ router.get('/:id', async (req, res) => {
 router.post('/', 
   authenticateJWT, 
   authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student', 'outsider']),
-  requireWaiver,
-  checkFamilyMemberWaiver,
   async (req, res) => {
   const client = await pool.connect();
   

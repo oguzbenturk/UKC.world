@@ -1,11 +1,14 @@
 /**
  * WalletDepositModal Component
  * Cüzdana para yükleme modal'ı - Iyzico entegrasyonu
+ * 
+ * Supports separate display currency (user's preferred) and payment currency (card currency).
+ * User enters amount in their preferred currency but can pay with any supported card currency.
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { Modal, Form, InputNumber, Select, Button, Alert, Steps, Result } from 'antd';
-import { WalletOutlined, CreditCardOutlined, CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Modal, Form, InputNumber, Select, Button, Alert, Steps, Result, Divider, Typography } from 'antd';
+import { WalletOutlined, CreditCardOutlined, CheckCircleOutlined, LoadingOutlined, SwapOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
@@ -13,8 +16,9 @@ import IyzicoCheckout from './IyzicoCheckout';
 
 const { Option } = Select;
 const { Step } = Steps;
+const { Text } = Typography;
 
-// Minimum ve maximum deposit tutarları
+// Minimum ve maximum deposit tutarları (in each currency)
 const DEPOSIT_LIMITS = {
   TRY: { min: 10, max: 50000 },
   EUR: { min: 1, max: 5000 },
@@ -22,28 +26,42 @@ const DEPOSIT_LIMITS = {
   GBP: { min: 1, max: 5000 }
 };
 
+// Supported payment currencies
+const PAYMENT_CURRENCIES = ['TRY', 'EUR', 'USD', 'GBP'];
+
 export function WalletDepositModal({ visible, onClose, onSuccess }) {
   const [form] = Form.useForm();
-  const { formatCurrency, businessCurrency, userCurrency } = useCurrency();
+  const { formatCurrency, businessCurrency, userCurrency, convertCurrency } = useCurrency();
   const { user } = useAuth();
   
-  // Get user's preferred currency or fallback to userCurrency from context
-  const defaultCurrency = user?.preferred_currency || userCurrency || businessCurrency || 'EUR';
+  // Get user's preferred currency for DISPLAY (what they see in wallet)
+  const displayCurrency = user?.preferred_currency || userCurrency || businessCurrency || 'EUR';
   
   // State
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [iyzicoData, setIyzicoData] = useState(null);
-  const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency);
+  const [selectedDisplayCurrency, setSelectedDisplayCurrency] = useState(displayCurrency);
+  const [paymentCurrency, setPaymentCurrency] = useState(displayCurrency); // What card will be charged
+  const [depositAmount, setDepositAmount] = useState(null); // Amount in display currency
   
-  // Update selected currency when user changes
-  useEffect(() => {
-    if (visible && defaultCurrency) {
-      setSelectedCurrency(defaultCurrency);
-      form.setFieldsValue({ currency: defaultCurrency });
+  // Calculate payment amount when display amount or currencies change
+  const paymentAmount = useMemo(() => {
+    if (!depositAmount || selectedDisplayCurrency === paymentCurrency) {
+      return depositAmount;
     }
-  }, [visible, defaultCurrency, form]);
+    return convertCurrency(depositAmount, selectedDisplayCurrency, paymentCurrency);
+  }, [depositAmount, selectedDisplayCurrency, paymentCurrency, convertCurrency]);
+  
+  // Update currencies when modal opens
+  useEffect(() => {
+    if (visible && displayCurrency) {
+      setSelectedDisplayCurrency(displayCurrency);
+      setPaymentCurrency(displayCurrency);
+      setDepositAmount(null);
+    }
+  }, [visible, displayCurrency]);
 
   // Reset state when modal closes
   const handleClose = useCallback(() => {
@@ -51,20 +69,30 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
     setLoading(false);
     setError(null);
     setIyzicoData(null);
+    setDepositAmount(null);
     form.resetFields();
     onClose?.();
   }, [form, onClose]);
 
   // Form submit - Iyzico payment initiation
+  // Send PAYMENT currency to gateway (what card will be charged)
   const handleSubmit = useCallback(async (values) => {
     setLoading(true);
     setError(null);
 
     try {
+      // Send payment in the selected payment currency
       const response = await apiClient.post('/wallet/deposit', {
-        amount: values.amount,
-        currency: values.currency,
-        gateway: 'iyzico'
+        amount: paymentAmount, // Amount in payment currency
+        currency: paymentCurrency, // Currency to charge the card
+        gateway: 'iyzico',
+        metadata: {
+          // Store display currency info for reference
+          displayCurrency: selectedDisplayCurrency,
+          displayAmount: depositAmount,
+          paymentCurrency: paymentCurrency,
+          paymentAmount: paymentAmount
+        }
       });
 
       // Response structure: { deposit, transaction, gatewaySession }
@@ -86,7 +114,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paymentAmount, paymentCurrency, selectedDisplayCurrency, depositAmount]);
 
   // Ödeme başarılı
   const handlePaymentSuccess = useCallback(() => {
@@ -101,13 +129,19 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
     setIyzicoData(null);
   }, []);
 
-  // Currency değiştiğinde limitleri güncelle
-  const handleCurrencyChange = useCallback((currency) => {
-    setSelectedCurrency(currency);
-    form.setFieldsValue({ amount: null });
-  }, [form]);
+  // Payment currency change - only affects what card is charged
+  const handlePaymentCurrencyChange = useCallback((currency) => {
+    setPaymentCurrency(currency);
+  }, []);
 
-  const limits = DEPOSIT_LIMITS[selectedCurrency] || DEPOSIT_LIMITS.EUR;
+  // Amount change handler
+  const handleAmountChange = useCallback((value) => {
+    setDepositAmount(value);
+  }, []);
+
+  const limits = DEPOSIT_LIMITS[selectedDisplayCurrency] || DEPOSIT_LIMITS.EUR;
+  const paymentLimits = DEPOSIT_LIMITS[paymentCurrency] || DEPOSIT_LIMITS.EUR;
+  const showConversionPreview = paymentCurrency !== selectedDisplayCurrency && depositAmount > 0;
 
   // Step 1: Tutar Seçimi
   const renderAmountStep = () => (
@@ -116,7 +150,6 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
       layout="vertical"
       onFinish={handleSubmit}
       initialValues={{
-        currency: selectedCurrency,
         amount: null
       }}
     >
@@ -133,32 +166,19 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
       )}
 
       <Form.Item
-        name="currency"
-        label="Currency"
-        rules={[{ required: true, message: 'Please select a currency' }]}
-      >
-        <Select size="large" onChange={handleCurrencyChange}>
-          <Option value="TRY">🇹🇷 Turkish Lira (TRY)</Option>
-          <Option value="EUR">🇪🇺 Euro (EUR)</Option>
-          <Option value="USD">🇺🇸 US Dollar (USD)</Option>
-          <Option value="GBP">🇬🇧 British Pound (GBP)</Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item
         name="amount"
-        label="Amount to Deposit"
+        label={`Amount to Deposit (${selectedDisplayCurrency})`}
         rules={[
           { required: true, message: 'Please enter an amount' },
           { 
             type: 'number', 
             min: limits.min, 
-            message: `Minimum ${formatCurrency(limits.min, selectedCurrency)}` 
+            message: `Minimum ${formatCurrency(limits.min, selectedDisplayCurrency)}` 
           },
           { 
             type: 'number', 
             max: limits.max, 
-            message: `Maximum ${formatCurrency(limits.max, selectedCurrency)}` 
+            message: `Maximum ${formatCurrency(limits.max, selectedDisplayCurrency)}` 
           }
         ]}
       >
@@ -169,7 +189,8 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
           max={limits.max}
           precision={2}
           placeholder={`${limits.min} - ${limits.max}`}
-          addonAfter={selectedCurrency}
+          addonAfter={selectedDisplayCurrency}
+          onChange={handleAmountChange}
         />
       </Form.Item>
 
@@ -177,17 +198,64 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
       <div className="mb-4">
         <span className="text-gray-500 text-sm mb-2 block">Quick Select:</span>
         <div className="flex flex-wrap gap-2">
-          {getQuickAmounts(selectedCurrency).map((amount) => (
+          {getQuickAmounts(selectedDisplayCurrency).map((amount) => (
             <Button
               key={amount}
               size="small"
-              onClick={() => form.setFieldsValue({ amount })}
+              onClick={() => {
+                form.setFieldsValue({ amount });
+                setDepositAmount(amount);
+              }}
             >
-              {formatCurrency(amount, selectedCurrency)}
+              {formatCurrency(amount, selectedDisplayCurrency)}
             </Button>
           ))}
         </div>
       </div>
+
+      <Divider className="my-4">
+        <SwapOutlined /> Payment Method
+      </Divider>
+
+      <Form.Item
+        label="Pay with (your card's currency)"
+        tooltip="Select the currency your bank card uses. This helps avoid extra conversion fees."
+      >
+        <Select 
+          size="large" 
+          value={paymentCurrency}
+          onChange={handlePaymentCurrencyChange}
+          getPopupContainer={(triggerNode) => triggerNode.parentElement}
+          popupMatchSelectWidth={true}
+        >
+          <Option value="TRY">🇹🇷 Turkish Lira (TRY)</Option>
+          <Option value="EUR">🇪🇺 Euro (EUR)</Option>
+          <Option value="USD">🇺🇸 US Dollar (USD)</Option>
+          <Option value="GBP">🇬🇧 British Pound (GBP)</Option>
+        </Select>
+      </Form.Item>
+
+      {/* Conversion Preview */}
+      {showConversionPreview && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<SwapOutlined />}
+          message="Currency Conversion"
+          description={
+            <div className="mt-1">
+              <Text>You want <Text strong>{formatCurrency(depositAmount, selectedDisplayCurrency)}</Text> in your wallet.</Text>
+              <br />
+              <Text>Your card will be charged <Text strong className="text-blue-600">{formatCurrency(paymentAmount, paymentCurrency)}</Text>.</Text>
+              <br />
+              <Text type="secondary" className="text-xs mt-1 block">
+                Exchange rates are approximate. Final amount may vary slightly.
+              </Text>
+            </div>
+          }
+          className="mb-4"
+        />
+      )}
 
       <Form.Item className="mb-0 mt-6">
         <Button
@@ -196,10 +264,14 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
           size="large"
           block
           loading={loading}
+          disabled={!depositAmount || depositAmount < limits.min}
           icon={<CreditCardOutlined />}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          Continue to Payment
+          {paymentAmount && paymentCurrency 
+            ? `Pay ${formatCurrency(paymentAmount, paymentCurrency)}`
+            : 'Continue to Payment'
+          }
         </Button>
       </Form.Item>
 

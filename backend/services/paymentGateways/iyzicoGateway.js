@@ -1,6 +1,7 @@
 import Iyzipay from 'iyzipay';
 import { pool } from '../../db.js';
 import { logger } from '../../middlewares/errorHandler.js';
+import { logPaymentEvent, sendPaymentAlert } from '../alertService.js';
 import CurrencyService from '../currencyService.js';
 
 const config = {
@@ -314,18 +315,45 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
     throw new Error('Payment transaction ID is required for refund. Token or paymentTransactionId must be provided.');
   }
 
+  // Iyzico requires TRY currency for refunds
+  // Convert from source currency to TRY if needed
+  let refundAmount = amount;
+  let refundCurrency = currency || 'TRY';
+  
+  if (refundCurrency !== 'TRY') {
+    try {
+      refundAmount = await CurrencyService.convertCurrency(amount, refundCurrency, 'TRY');
+      logger.info('Converted refund amount to TRY', {
+        originalAmount: amount,
+        originalCurrency: refundCurrency,
+        convertedAmount: refundAmount,
+        convertedCurrency: 'TRY'
+      });
+      refundCurrency = 'TRY';
+    } catch (conversionError) {
+      logger.error('Currency conversion failed for Iyzico refund', {
+        error: conversionError.message,
+        amount,
+        fromCurrency: refundCurrency
+      });
+      throw new Error('Failed to convert currency for refund. Iyzico requires TRY.');
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const request = {
       paymentTransactionId: actualPaymentTransactionId,
-      price: amount.toFixed(2),
-      currency: currency || 'TRY',
+      price: refundAmount.toFixed(2),
+      currency: Iyzipay.CURRENCY.TRY,  // Always use TRY
       ip: '127.0.0.1'
     };
 
     logger.info('Processing Iyzico refund', { 
       paymentTransactionId: actualPaymentTransactionId, 
-      amount, 
-      currency 
+      originalAmount: amount,
+      originalCurrency: currency,
+      refundAmount: refundAmount,
+      refundCurrency: 'TRY'
     });
 
     iyzipay.refund.create(request, (err, result) => {
@@ -349,7 +377,9 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
       
       logPaymentEvent('refund_completed', {
         amount: parseFloat(result.price),
-        currency: currency || 'TRY',
+        currency: 'TRY',
+        originalAmount: amount,
+        originalCurrency: currency,
         status: 'success',
         transactionId: result.paymentId,
         originalTransactionId: actualPaymentTransactionId
@@ -357,7 +387,9 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
       
       sendPaymentAlert('refund_processed', {
         amount: parseFloat(result.price),
-        currency: currency || 'TRY',
+        currency: 'TRY',
+        originalAmount: amount,
+        originalCurrency: currency,
         transactionId: result.paymentId
       });
       
@@ -366,6 +398,8 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
         paymentTransactionId: actualPaymentTransactionId,
         amount: parseFloat(result.price),
         currency: result.currency,
+        originalAmount: amount,
+        originalCurrency: currency,
         status: 'success'
       });
     });

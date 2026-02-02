@@ -68,8 +68,8 @@ const NotificationList = ({
   const renderTimestamp = Date.now();
 
   return (
-    <div className={`notification-list max-h-[60vh] overflow-y-auto ${className || ''}`}>
-      <div className="space-y-2">
+    <div className={`notification-list ${className || ''}`} style={{ maxHeight: '450px', overflowY: 'auto' }}>
+      <div className="p-2 space-y-2">
         {notifications.map((item) => {
           const isUnread = !item.readAt;
           const isMarking = markReadLoadingId === item.id;
@@ -96,78 +96,83 @@ const NotificationList = ({
           return (
             <div
               key={`${item.id}-${renderTimestamp}`}
-              className={`rounded-lg transition-colors duration-200 ${
+              className={`border rounded-lg overflow-hidden transition-all ${
                 isUnread
-                  ? 'bg-sky-50 border border-sky-200/60 dark:bg-slate-800/40 dark:border-slate-700/40'
-                  : 'bg-white border border-slate-100 dark:bg-slate-900 dark:border-slate-800'
-              } p-3 ${isCompactClickable ? 'cursor-pointer active:bg-sky-100 dark:active:bg-slate-700' : ''}`}
+                  ? 'bg-blue-50 border-blue-200 shadow-sm'
+                  : 'bg-white border-gray-200 hover:border-gray-300'
+              } ${isCompactClickable ? 'cursor-pointer hover:shadow-md' : ''}`}
               onClick={handleItemClick}
               onKeyDown={handleItemKeyDown}
               role={isCompactClickable ? 'button' : undefined}
               tabIndex={isCompactClickable ? 0 : undefined}
             >
-              {/* Header row with title and New tag */}
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+              {/* Blue accent line for unread */}
+              {isUnread && <div className="h-1 bg-blue-500"></div>}
+              
+              <div className="p-3">
+                {/* Title with NEW badge */}
+                <div className="flex items-start gap-2 mb-2">
                   {isUnread && (
-                    <Tag color="red" bordered={false} className="uppercase tracking-wide text-[10px] leading-tight px-1.5 py-0 m-0 shrink-0">
-                      New
-                    </Tag>
+                    <span className="inline-block bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded">
+                      NEW
+                    </span>
                   )}
-                  <Text strong className="text-slate-800 dark:text-slate-100 text-sm leading-tight break-words">
+                  <Text strong className="text-gray-900 text-sm leading-snug">
                     {item.title || 'Notification'}
                   </Text>
                 </div>
-              </div>
 
-              {/* Message content */}
-              <Paragraph className="mb-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed !mb-2">
-                {item.message}
-              </Paragraph>
+                {/* Message */}
+                <Paragraph className="text-sm text-gray-700 mb-2 leading-relaxed">
+                  {item.message}
+                </Paragraph>
 
-              {/* Action buttons for booking requests */}
-              {item.data?.actions && item.data?.status === 'pending' && onAction && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {item.data.actions.map((action) => (
+                {/* Action buttons */}
+                {item.data?.actions && item.data?.status === 'pending' && onAction && (
+                  <div className="flex gap-2 mb-2">
+                    {item.data.actions.map((action) => (
+                      <Button
+                        key={action.key}
+                        size="small"
+                        type={action.type === 'primary' ? 'primary' : 'default'}
+                        danger={action.type === 'danger'}
+                        icon={
+                          action.key === 'approve' 
+                            ? <CheckCircleIcon className="h-4 w-4" /> 
+                            : action.key === 'cancel' 
+                              ? <XCircleIcon className="h-4 w-4" /> 
+                              : null
+                        }
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onAction?.(item, action.key);
+                        }}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-500">
+                    {getRelativeTime(item.createdAt)}
+                  </span>
+                  {onMarkRead && isUnread && (
                     <Button
-                      key={action.key}
-                      size="middle"
-                      type={action.type === 'primary' ? 'primary' : 'default'}
-                      danger={action.type === 'danger'}
-                      icon={
-                        action.key === 'approve' 
-                          ? <CheckCircleIcon className="h-4 w-4" /> 
-                          : action.key === 'cancel' 
-                            ? <XCircleIcon className="h-4 w-4" /> 
-                            : null
-                      }
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onAction?.(item, action.key);
-                      }}
-                      className="h-9 text-xs font-medium"
+                      size="small"
+                      type="link"
+                      onClick={handleMarkReadClick}
+                      loading={isMarking}
+                      className="text-xs p-0 h-auto"
                     >
-                      {action.label}
+                      Mark as read
                     </Button>
-                  ))}
+                  )}
                 </div>
-              )}
-
-              {/* Footer row with mark as read button */}
-              {onMarkRead && isUnread && (
-                <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-700/50">
-                  <Button
-                    size="small"
-                    type="link"
-                    onClick={handleMarkReadClick}
-                    loading={isMarking}
-                    className="text-xs p-0 h-auto"
-                  >
-                    Mark as read
-                  </Button>
-                </div>
-              )}
+              </div>
 
               {/* CTA button for non-compact mode */}
               {!compact && item.data?.cta && (

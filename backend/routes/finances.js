@@ -2689,17 +2689,89 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       logger.debug('Rentals table not available for metrics', e);
     }
     
-    // Instructor performance metrics
+    // Instructor performance metrics - calculate actual instructor earnings (commission)
     const instructorMetricsQuery = `
       SELECT 
         u.id,
         u.name as instructor_name,
         COUNT(b.id) as total_lessons,
         COUNT(CASE WHEN b.status = 'completed' THEN 1 END) as completed_lessons,
-        COALESCE(SUM(CASE WHEN b.status = 'completed' THEN b.final_amount ELSE 0 END), 0) as total_revenue,
-        COALESCE(AVG(CASE WHEN b.status = 'completed' THEN b.final_amount END), 0) as average_lesson_value
+        COALESCE(SUM(
+          CASE 
+            WHEN b.status = 'completed' THEN
+              CASE 
+                -- Package bookings with fixed hourly rate commission
+                WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+                -- Package bookings with percentage commission
+                WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
+                  ((cp.purchase_price / cp.total_hours) * b.duration) * 
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
+                  (cp.purchase_price / sp.sessions_count) * 
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                -- Standalone bookings with fixed hourly rate
+                WHEN bcc.commission_type = 'fixed' THEN 
+                  COALESCE(bcc.commission_value, 0) * b.duration
+                WHEN isc.commission_type = 'fixed' THEN 
+                  COALESCE(isc.commission_value, 0) * b.duration
+                WHEN idc.commission_type = 'fixed' THEN 
+                  COALESCE(idc.commission_value, 0) * b.duration
+                -- Standalone bookings with percentage commission
+                WHEN bcc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
+                WHEN isc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
+                WHEN idc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
+                -- Fallback: 50% of lesson amount
+                ELSE 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+              END
+            ELSE 0
+          END
+        ), 0) as total_revenue,
+        COALESCE(AVG(
+          CASE 
+            WHEN b.status = 'completed' THEN
+              CASE 
+                -- Package bookings with fixed hourly rate commission
+                WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+                -- Package bookings with percentage commission
+                WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
+                  ((cp.purchase_price / cp.total_hours) * b.duration) * 
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
+                  (cp.purchase_price / sp.sessions_count) * 
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                -- Standalone bookings with fixed hourly rate
+                WHEN bcc.commission_type = 'fixed' THEN 
+                  COALESCE(bcc.commission_value, 0) * b.duration
+                WHEN isc.commission_type = 'fixed' THEN 
+                  COALESCE(isc.commission_value, 0) * b.duration
+                WHEN idc.commission_type = 'fixed' THEN 
+                  COALESCE(idc.commission_value, 0) * b.duration
+                -- Standalone bookings with percentage commission
+                WHEN bcc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
+                WHEN isc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
+                WHEN idc.commission_type = 'percentage' THEN 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
+                -- Fallback: 50% of lesson amount
+                ELSE 
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+              END
+          END
+        ), 0) as average_lesson_value
       FROM users u
       LEFT JOIN bookings b ON u.id = b.instructor_user_id ${dateFilter.replace('date', 'b.date')} AND b.deleted_at IS NULL
+      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
+      LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
+      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
       WHERE u.role_id IN (SELECT id FROM roles WHERE name = 'instructor')
       AND u.deleted_at IS NULL
       GROUP BY u.id, u.name

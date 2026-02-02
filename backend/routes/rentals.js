@@ -311,7 +311,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
 /**
  * Create a new rental
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), requireWaiver, checkFamilyMemberWaiver, async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   const client = await pool.connect();
   
   try {

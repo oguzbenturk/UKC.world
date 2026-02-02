@@ -279,36 +279,35 @@ const NotificationBell = () => {
   );
 
   const popoverContent = (
-    <div>
-      <div className="flex items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-200 dark:border-slate-700">
-        <div className="min-w-0">
-          <p className="text-base font-semibold text-slate-800 dark:text-slate-100 mb-0">Notifications</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-0">
-            {unreadCount ? `${unreadCount} unread` : 'All caught up'}
-          </p>
+    <div style={{ width: '380px', maxWidth: '90vw' }}>
+      <div className="px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-base font-semibold text-gray-900">Notifications</h3>
+          <span className="text-sm text-gray-600">
+            {unreadCount > 0 ? `${unreadCount} unread` : 'All read'}
+          </span>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button
-            size="small"
-            type="link"
-            onClick={handleMarkAll}
-            disabled={!unreadCount}
-            loading={markAllNotificationsStatus.isPending}
-            className="text-xs"
-          >
-            Mark all read
-          </Button>
-          <Button
-            size="small"
-            type="link"
-            danger
-            onClick={handleClearAll}
-            disabled={!notifications?.length}
-            loading={clearAllNotificationsStatus.isPending}
-            className="text-xs"
-          >
-            Clear all
-          </Button>
+        <div className="flex gap-2">
+          {unreadCount > 0 && (
+            <Button
+              size="small"
+              onClick={handleMarkAll}
+              loading={markAllNotificationsStatus.isPending}
+              className="flex-1"
+            >
+              Mark all read
+            </Button>
+          )}
+          {notifications?.length > 0 && (
+            <Button
+              size="small"
+              onClick={handleClearAll}
+              loading={clearAllNotificationsStatus.isPending}
+              className="flex-1"
+            >
+              Clear all
+            </Button>
+          )}
         </div>
       </div>
 
