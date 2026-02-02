@@ -15,7 +15,6 @@ import {
 } from '../services/walletService.js';
 import { fetchCustomerPackagesByIds, forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { fetchRentalsByIds, forceDeleteRental } from '../services/rentalCleanupService.js';
-import { verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 import {
   syncServiceRevenueLedger,
   getServiceLedgerTotals,
