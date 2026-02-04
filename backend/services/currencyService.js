@@ -99,6 +99,74 @@ class CurrencyService {
   }
 
   /**
+   * Convert any currency to TRY (for payment gateway processing)
+   * @param {number} amount - Amount to convert
+   * @param {string} fromCurrency - Source currency code (EUR, USD, GBP, etc.)
+   * @returns {Promise<{amount: number, rate: number}>} Converted TRY amount and exchange rate used
+   */
+  static async convertToTRY(amount, fromCurrency) {
+    try {
+      const upperCurrency = fromCurrency.toUpperCase();
+      
+      // If already TRY, return as-is
+      if (upperCurrency === 'TRY') {
+        return {
+          amount: parseFloat(amount),
+          rate: 1.0
+        };
+      }
+
+      // Get current exchange rate
+      const { rows } = await pool.query(
+        'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
+        ['TRY']
+      );
+
+      if (!rows.length || !rows[0].exchange_rate) {
+        throw new Error('TRY exchange rate not found in database');
+      }
+
+      const tryRate = parseFloat(rows[0].exchange_rate);
+      const numericAmount = parseFloat(amount);
+      
+      // Convert: amount * TRY_rate = TRY amount
+      // Example: 50 EUR × 32.5 = 1625 TRY
+      const convertedAmount = numericAmount * tryRate;
+
+      return {
+        amount: Math.round(convertedAmount * 100) / 100, // Round to 2 decimals
+        rate: tryRate
+      };
+    } catch (error) {
+      logger.error('Error converting to TRY:', { amount, fromCurrency, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get current exchange rate for a currency
+   * @param {string} currencyCode - Currency code
+   * @returns {Promise<number>} Exchange rate
+   */
+  static async getExchangeRate(currencyCode) {
+    try {
+      const { rows } = await pool.query(
+        'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
+        [currencyCode.toUpperCase()]
+      );
+
+      if (!rows.length) {
+        throw new Error(`Exchange rate not found for ${currencyCode}`);
+      }
+
+      return parseFloat(rows[0].exchange_rate);
+    } catch (error) {
+      logger.error('Error getting exchange rate:', { currencyCode, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
    * Update exchange rate
    */
   static async updateExchangeRate(currencyCode, newRate) {

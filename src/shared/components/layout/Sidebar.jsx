@@ -517,10 +517,26 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                       ) : (
                         // Expanded view for items with subItems
                         <>
-                          <button 
-                            onClick={() => toggleExpanded(item.label)}
-                            className={`${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`}
-                          >
+                          
+                          {(() => {
+                            const Component = item.isDirectLink ? NavLink : 'button';
+                            const props = item.isDirectLink 
+                              ? { 
+                                  to: item.to, 
+                                  onClick: (e) => {
+                                      // If we want to toggle expansion too
+                                      toggleExpanded(item.label);
+                                  },
+                                  className: ({ isActive }) => `${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isActive || isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`
+                                }
+                              : {
+                                  onClick: () => toggleExpanded(item.label),
+                                  className: `${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`
+                                };
+                                
+                            return (
+                              <Component {...props}>
+
                             {item.customStyle?.centered ? (
                               // Centered item (like Shop at top)
                               <span className="text-base font-semibold tracking-widest" style={{ color: item.customStyle.textColor }}>
@@ -551,7 +567,10 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                                 className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} 
                               />
                             )}
-                          </button>
+                          
+                              </Component>
+                            );
+                          })()}
                           {expandedItems[item.label] && (
                             <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
                               {item.subItems.map(subItem => {

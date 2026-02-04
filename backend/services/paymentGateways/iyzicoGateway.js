@@ -72,33 +72,54 @@ export async function initiateDeposit({
     // Use a route in finances.js that will handle the POST and redirect to frontend
     const callbackUrl = metadata.callbackUrl || `${baseUrl}/api/finances/callback/iyzico`;
 
-    // Iyzico supports multiple currencies directly: TRY, EUR, USD, GBP, NOK, CHF
-    // IMPORTANT: We respect the user's preferred currency choice
-    // Users can pay in any supported currency regardless of their country
-    // Note: Turkish local cards may require TRY, but users with foreign cards should use their preferred currency
+    // PAYMENT GATEWAY STRATEGY:
+    // - Display to user: Their preferred currency (EUR, USD, GBP, etc.)
+    // - Send to Iyzico: Always TRY (Turkish Lira) - required for Turkish merchant account
+    // - Customer's card: Can be any currency - their bank will handle conversion
+    // - You receive: Always TRY in your Turkish bank account
+    //
+    // Example flow:
+    // User sees: "Pay €50.00"
+    // We convert: €50 × 32.5 = ₺1,625
+    // Iyzico charges: ₺1,625 (customer sees this on payment page)
+    // Customer's bank: Converts ₺1,625 to their card currency (€, $, £, etc.)
+    // Customer's statement: Shows charge in their card's currency
+    // Your Turkish account: Receives ₺1,625
     
-    const sourceCurrency = (currency || 'EUR').toUpperCase();
-    const originalAmount = parseFloat(amount);
+    const displayCurrency = (currency || 'EUR').toUpperCase();
+    const displayAmount = parseFloat(amount);
     
-    // Currency mapping
-    const currencyMap = {
-        'TRY': Iyzipay.CURRENCY.TRY,
-        'EUR': Iyzipay.CURRENCY.EUR,
-        'USD': Iyzipay.CURRENCY.USD,
-        'GBP': Iyzipay.CURRENCY.GBP,
-        'NOK': Iyzipay.CURRENCY.NOK,
-        'CHF': Iyzipay.CURRENCY.CHF
-    };
+    // Convert to TRY for gateway processing
+    let gatewayAmount;
+    let exchangeRate;
     
-    // Use the user's preferred currency (from their profile or the request)
-    const iyzicoCurrency = currencyMap[sourceCurrency] || Iyzipay.CURRENCY.EUR;
-    const priceStr = originalAmount.toFixed(2);
-    const initializationCurrency = sourceCurrency;
+    try {
+        const conversion = await CurrencyService.convertToTRY(displayAmount, displayCurrency);
+        gatewayAmount = conversion.amount;
+        exchangeRate = conversion.rate;
+        
+        logger.info('Currency conversion for Iyzico', {
+            displayCurrency,
+            displayAmount,
+            gatewayAmount,
+            exchangeRate,
+            conversionFormula: `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} TRY`
+        });
+    } catch (error) {
+        logger.error('Failed to convert currency to TRY', { displayCurrency, displayAmount, error: error.message });
+        throw new Error('Para birimi dönüşümü başarısız oldu. Lütfen daha sonra tekrar deneyin.');
+    }
+    
+    // Always use TRY for Iyzico (Turkish merchant requirement)
+    const iyzicoCurrency = Iyzipay.CURRENCY.TRY;
+    const priceStr = gatewayAmount.toFixed(2);
 
     logger.info('Iyzico payment initialization', { 
-        amount: priceStr, 
-        currency: initializationCurrency,
-        iyzicoCurrency: iyzicoCurrency,
+        displayAmount: displayAmount.toFixed(2),
+        displayCurrency,
+        gatewayAmount: priceStr,
+        gatewayCurrency: 'TRY',
+        exchangeRate,
         userCountry: userData?.country,
         userEmail: userData?.email
     });
@@ -153,7 +174,9 @@ export async function initiateDeposit({
       basketItems: items.length > 0 ? items : [
         {
           id: 'WALLET-TOPUP',
-          name: 'Wallet Deposit',
+          name: displayCurrency !== 'TRY' 
+            ? `Wallet Deposit (${displayAmount.toFixed(2)} ${displayCurrency})` 
+            : 'Wallet Deposit',
           category1: 'General',
           category2: 'Finance',
           itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
@@ -162,7 +185,13 @@ export async function initiateDeposit({
       ]
     };
 
-    logger.info('Initiating Iyzico Checkout', { conversationId, price: priceStr });
+    logger.info('Initiating Iyzico Checkout', { 
+      conversationId, 
+      gatewayPrice: priceStr,
+      gatewayCurrency: 'TRY',
+      displayPrice: displayAmount.toFixed(2),
+      displayCurrency 
+    });
 
     iyzipay.checkoutFormInitialize.create(request, (err, result) => {
       if (err) {
@@ -194,15 +223,27 @@ export async function initiateDeposit({
             paymentPageUrl: result.paymentPageUrl,
             checkoutFormContent: result.checkoutFormContent
         },
-        // Include original amount info for proper wallet crediting
-        originalAmount: originalAmount,
-        originalCurrency: sourceCurrency,
+        // Display currency - what user sees in their wallet
+        displayAmount: displayAmount,
+        displayCurrency: displayCurrency,
+        // Gateway currency - what's sent to Iyzico
+        gatewayAmount: gatewayAmount,
+        gatewayCurrency: 'TRY',
+        // Exchange rate for audit trail
+        exchangeRate: exchangeRate,
         metadata: {
           token: result.token,
           pageUrl: result.paymentPageUrl,
           provider: 'iyzico',
-          originalAmount: originalAmount,
-          originalCurrency: sourceCurrency
+          // Display info (for wallet crediting)
+          displayAmount: displayAmount,
+          displayCurrency: displayCurrency,
+          // Gateway info (for reconciliation)
+          gatewayAmount: gatewayAmount,
+          gatewayCurrency: 'TRY',
+          exchangeRate: exchangeRate,
+          conversionNote: `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} TRY`,
+          customerNote: 'Ödeme TRY olarak işlenecektir. Kartınıza bankanızın kuru uygulanarak yansıyacaktır.'
         }
       });
     });

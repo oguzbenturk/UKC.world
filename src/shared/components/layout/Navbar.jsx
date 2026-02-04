@@ -319,11 +319,10 @@ export const Navbar = ({ toggleSidebar, theme, onToggleTheme }) => {
                     if (!activeItem) return null;
 
                     // Determine what to display
-                    // If we have a sub-item, show the sub-item label
-                    // Otherwise show the main item label
-                    const displayLabel = activeSubItem?.label || activeItem.label;
-                    const dotColor = activeSubItem?.dotColor || activeItem.customStyle?.dotColor || '#2d6a3e';
-                    const textColor = activeSubItem?.dotColor || activeItem.customStyle?.textColor || '#64748b';
+                    // Always show the main item label (Parent Category) per user request
+                    const displayLabel = activeItem.label;
+                    const dotColor = activeItem.customStyle?.dotColor || '#2d6a3e';
+                    const textColor = activeItem.customStyle?.textColor || '#64748b';
 
                     return (
                       <div className="flex items-center max-w-[120px] sm:max-w-[200px] md:max-w-none overflow-hidden">

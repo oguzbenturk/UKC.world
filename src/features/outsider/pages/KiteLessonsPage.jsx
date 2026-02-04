@@ -1,280 +1,432 @@
-/**
- * KiteLessonsPage
- * 
- * Informational page about kitesurfing lessons.
- * Shows lesson packages, pricing, and what's included.
- * Opens booking wizard directly on this page without navigation.
- */
-
 import { useState } from 'react';
-import { Card, Typography, Button, Row, Col, Tag, Divider, Space, List } from 'antd';
+import { Button, Modal, Tag } from 'antd';
 import {
   RocketOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
   TeamOutlined,
-  SafetyOutlined,
-  ThunderboltOutlined,
-  CheckCircleOutlined,
-  CalendarOutlined
+  TrophyOutlined,
+  SafetyCertificateOutlined,
+  StarFilled,
+  InfoCircleOutlined,
+  ThunderboltFilled,
+  CloseOutlined
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
-
-const { Title, Paragraph, Text } = Typography;
 
 const KiteLessonsPage = () => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingInitialData, setBookingInitialData] = useState({});
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState('6h');
 
   usePageSEO({
     title: 'Kite Lessons | UKC Academy',
-    description: 'Learn kitesurfing with our experienced instructors. From beginner to advanced, we have packages for everyone.'
+    description: 'Professional kitesurfing lessons with IKO certified instructors. Choose your package and start your journey today.'
   });
 
-  // Convert EUR prices to user currency
+  const packages = [
+    {
+      id: 'beginner-private',
+      name: 'Beginner Private',
+      subtitle: '1-on-1 Instruction',
+      icon: <SafetyCertificateOutlined />,
+      featured: false,
+      color: 'blue',
+      gradient: 'from-blue-600 to-blue-400',
+      shadow: 'shadow-blue-500/20',
+      border: 'hover:border-blue-500/50',
+      image: '/Images/ukc/kite-header.jpg.png',
+      description: 'The fastest way to learn. Get 100% personalized attention from a dedicated IKO instructor focusing entirely on your progression speed and comfort level.',
+      highlights: [
+        'Dedicated private instructor',
+        'Radio helmet communication',
+        'Latest Duotone equipment included',
+        'Personalized progression plan',
+        'IKO certification card',
+        'Instant video feedback'
+      ],
+      durations: [
+        { hours: '4h', price: 280, label: 'Intro', sessions: '2 x 2hr', tag: 'Basic' },
+        { hours: '6h', price: 420, label: 'Standard', sessions: '3 x 2hr', tag: 'Popular' },
+        { hours: '8h', price: 560, label: 'Plus', sessions: '4 x 2hr', tag: 'Recommended' },
+        { hours: '10h', price: 650, label: 'Pro', sessions: '5 x 2hr', tag: 'Best Value' }
+      ],
+      badges: ['IKO Certified', 'Radio Helmet']
+    },
+    {
+      id: 'group-course',
+      name: 'Group Course',
+      subtitle: 'Semi-Private (2 Students)',
+      icon: <TeamOutlined />,
+      featured: true,
+      color: 'cyan',
+      gradient: 'from-cyan-500 to-blue-500',
+      shadow: 'shadow-cyan-500/20',
+      border: 'hover:border-cyan-500/50',
+      image: '/Images/ukc/kite-header.jpg.png',
+      description: 'Learn with a friend or meet a new kite buddy! This semi-private format offers a perfect balance of instruction and rest/observation time.',
+      highlights: [
+        'Max 2 students per instructor',
+        'Shared kite & board',
+        'Learn by watching others',
+        'Fun social environment',
+        'More affordable rate',
+        'Full gear included'
+      ],
+      durations: [
+        { hours: '4h', price: 180, label: 'Intro', sessions: '2 x 2hr', perPerson: true, tag: 'Starter' },
+        { hours: '6h', price: 270, label: 'Standard', sessions: '3 x 2hr', perPerson: true, tag: 'Popular' },
+        { hours: '8h', price: 360, label: 'Plus', sessions: '4 x 2hr', perPerson: true, tag: 'Value' },
+        { hours: '10h', price: 450, label: 'Pro', sessions: '5 x 2hr', perPerson: true, tag: 'Complete' }
+      ],
+      badges: ['Best Seller', 'Social Fun']
+    },
+    {
+      id: 'advanced-coaching',
+      name: 'Advanced Coaching',
+      subtitle: 'Pro Level Training',
+      icon: <TrophyOutlined />,
+      featured: false,
+      color: 'yellow',
+      gradient: 'from-yellow-500 to-amber-500',
+      shadow: 'shadow-yellow-500/20',
+      border: 'hover:border-yellow-500/50',
+      image: '/Images/ukc/kite-header.jpg.png',
+      description: 'Already riding? Take your skills to the next level with our senior instructors. Master jumps, transitions, unhooked tricks, or wave riding.',
+      highlights: [
+        'Senior Level 3 Instructor',
+        'Advanced video analysis',
+        'Trick progression roadmap',
+        'Downwinder support',
+        'Competition preparation',
+        'Equipment tuning clinic'
+      ],
+      durations: [
+        { hours: '4h', price: 320, label: 'Fix It', sessions: '4 x 1hr', tag: 'Tune-up' },
+        { hours: '6h', price: 480, label: 'Progress', sessions: '6 x 1hr', tag: 'Core' },
+        { hours: '8h', price: 640, label: 'Mastery', sessions: '8 x 1hr', tag: 'Advanced' },
+        { hours: '10h', price: 750, label: 'Pro Camp', sessions: '10 x 1hr', tag: 'Intensive' }
+      ],
+      badges: ['Expert Only', 'Video Analysis']
+    },
+    {
+      id: 'supervision',
+      name: 'Supervision',
+      subtitle: 'Independent Practice',
+      icon: <RocketOutlined />,
+      featured: false,
+      color: 'green',
+      gradient: 'from-green-500 to-emerald-600',
+      shadow: 'shadow-green-500/20',
+      border: 'hover:border-green-500/50',
+      image: '/Images/ukc/kite-header.jpg.png',
+      description: 'Practice independently with peace of mind. Our beach crew will help you launch/land and keep an eye on you while you rip.',
+      highlights: [
+        'Launch & Land assistance',
+        'Safety boat rescue cover',
+        'School zone access',
+        'Gear storage included',
+        'Daily weather briefing',
+        'Emergency equipment access'
+      ],
+      durations: [
+        { hours: '4h', price: 240, label: 'Half Day', sessions: '4h Slot', tag: 'Quick' },
+        { hours: '6h', price: 360, label: 'Full Day', sessions: 'Daily', tag: 'Standard' },
+        { hours: '8h', price: 480, label: 'Weekend', sessions: '2 Days', tag: 'Weekend' },
+        { hours: '10h', price: 600, label: 'Week', sessions: '5 Days', tag: 'Holiday' }
+      ],
+      badges: ['Safety First', 'Rental Available']
+    }
+  ];
+
+  const handleCardClick = (pkg) => {
+    setSelectedPackage(pkg);
+    setSelectedDuration(pkg.durations[1].hours); // Default to 6h
+    setModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setTimeout(() => {
+      setSelectedPackage(null);
+      setSelectedDuration('6h');
+    }, 300);
+  };
+
+  const getCurrentPrice = () => {
+    if (!selectedPackage) return 0;
+    const duration = selectedPackage.durations.find(d => d.hours === selectedDuration);
+    return duration ? duration.price : 0;
+  };
+
   const formatPrice = (eurPrice) => {
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
     return formatCurrency(converted, userCurrency);
   };
 
-  const handleBookService = () => {
-    // Open booking wizard on this page with lesson category pre-selected
-    setBookingInitialData({ serviceCategory: 'lesson' });
-    setBookingOpen(true);
+  const getThemeColor = (pkg) => {
+    const colors = {
+      blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500', soft: 'bg-blue-500/10' },
+      cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500', border: 'border-cyan-500', soft: 'bg-cyan-500/10' },
+      yellow: { text: 'text-yellow-400', bg: 'bg-yellow-500', border: 'border-yellow-500', soft: 'bg-yellow-500/10' },
+      green: { text: 'text-green-400', bg: 'bg-green-500', border: 'border-green-500', soft: 'bg-green-500/10' }
+    };
+    return colors[pkg?.color] || colors.blue;
   };
-
-  const handleBookingClose = () => {
-    setBookingOpen(false);
-    setBookingInitialData({});
-  };
-
-  const packages = [
-    {
-      key: 'beginner',
-      title: 'Beginner Package',
-      subtitle: 'Private Lessons',
-      icon: <RocketOutlined className="text-4xl text-green-500" />,
-      description: 'Perfect for first-timers! Our experienced instructors will guide you through the basics of kitesurfing, from kite control to your first water start.',
-      options: [
-        { hours: 6, price: 420, sessions: '3 x 2hr sessions' },
-        { hours: 10, price: 650, sessions: '5 x 2hr sessions' },
-        { hours: 12, price: 720, sessions: '6 x 2hr sessions' }
-      ],
-      included: [
-        'All equipment provided',
-        'Safety briefing',
-        'Kite control fundamentals',
-        'Body dragging techniques',
-        'Water start introduction',
-        'Radio helmet communication'
-      ],
-      color: 'green'
-    },
-    {
-      key: 'group',
-      title: 'Group Package',
-      subtitle: 'Semi-Private Lessons (2 students)',
-      icon: <TeamOutlined className="text-4xl text-blue-500" />,
-      description: 'Learn with a friend! Share the experience and cost with semi-private lessons. Great for couples or friends who want to progress together.',
-      options: [
-        { hours: 6, price: 280, sessions: '3 x 2hr sessions', perPerson: true },
-        { hours: 9, price: 420, sessions: '3 x 3hr sessions', perPerson: true }
-      ],
-      included: [
-        'All equipment provided',
-        'Maximum 2 students per instructor',
-        'Shared kite time',
-        'Safety briefing',
-        'Progress tracking'
-      ],
-      color: 'blue'
-    },
-    {
-      key: 'supervision',
-      title: 'Supervision',
-      subtitle: 'For Independent Practice',
-      icon: <SafetyOutlined className="text-4xl text-orange-500" />,
-      description: 'Already know the basics? Get supervised practice time with an instructor watching over you for safety and occasional tips.',
-      options: [
-        { hours: 1, price: 60, sessions: '1hr session' },
-        { hours: 4, price: 200, sessions: '4 x 1hr sessions' }
-      ],
-      included: [
-        'Safety supervision',
-        'Rescue support if needed',
-        'Occasional tips and corrections',
-        'Use of school zone'
-      ],
-      color: 'orange'
-    },
-    {
-      key: 'advanced',
-      title: 'Advanced Coaching',
-      subtitle: 'Take Your Skills Further',
-      icon: <ThunderboltOutlined className="text-4xl text-purple-500" />,
-      description: 'Ready to progress? Work on transitions, jumps, wave riding, and more advanced techniques with personalized coaching.',
-      options: [
-        { hours: 1, price: 80, sessions: '1hr session' },
-        { hours: 4, price: 280, sessions: '4 x 1hr sessions' }
-      ],
-      included: [
-        'Video analysis available',
-        'Trick progression',
-        'Wave riding techniques',
-        'Jump training',
-        'Personalized feedback'
-      ],
-      color: 'purple'
-    }
-  ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <Title level={1} className="!mb-4">
-          🪁 Kite Lessons
-        </Title>
-        <Paragraph className="text-lg text-gray-600 max-w-3xl mx-auto">
-          Learn to kitesurf in one of Turkey's best spots! Our IKO-certified instructors 
-          will take you from your first kite flight to riding the waves. With consistent 
-          thermal winds and shallow waters, Urla is the perfect place to learn.
-        </Paragraph>
-        <Button
-          type="primary"
-          size="large"
-          icon={<CalendarOutlined />}
-          onClick={handleBookService}
-          className="mt-4"
-        >
-          Book a Service
-        </Button>
+    <div className="bg-[#0f1013] min-h-screen text-white font-sans selection:bg-blue-500/30">
+      
+      {/* Modern Hero Section */}
+      <div className="relative py-24 overflow-hidden">
+        {/* Abstract Background */}
+        <div className="absolute top-0 left-0 w-full h-full">
+           <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]"></div>
+           <div className="absolute bottom-[0%] left-[-10%] w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[100px]"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          <Tag className="mb-4 !bg-blue-500/10 !border-blue-500/30 !text-blue-400 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider">
+            UKC Academy
+          </Tag>
+          <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-6 tracking-tight">
+            Kite <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Lessons</span>
+          </h1>
+          <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            Choose your perfect learning path. From total beginner to pro-level coaching, our IKO certified team is ready.
+          </p>
+        </div>
       </div>
 
-      <Divider />
-
-      {/* Why Learn With Us */}
-      <div className="mb-12">
-        <Title level={2} className="text-center mb-8">Why Learn With Us?</Title>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🏆</div>
-              <Title level={4}>IKO Certified</Title>
-              <Text type="secondary">All instructors are IKO certified with years of experience</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🌊</div>
-              <Title level={4}>Perfect Conditions</Title>
-              <Text type="secondary">Consistent thermal winds and flat, shallow waters</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🎒</div>
-              <Title level={4}>All Gear Included</Title>
-              <Text type="secondary">Latest Duotone and Core equipment provided</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">📻</div>
-              <Title level={4}>Radio Helmets</Title>
-              <Text type="secondary">Clear communication with instructors while in the water</Text>
-            </Card>
-          </Col>
-        </Row>
-      </div>
-
-      {/* Lesson Packages */}
-      <Title level={2} className="text-center mb-8">Our Packages</Title>
-      <Row gutter={[24, 24]}>
-        {packages.map((pkg) => (
-          <Col xs={24} lg={12} key={pkg.key}>
-            <Card 
-              className="h-full hover:shadow-lg transition-shadow"
-              title={
-                <div className="flex items-center gap-4">
-                  {pkg.icon}
-                  <div>
-                    <div className="text-xl font-semibold">{pkg.title}</div>
-                    <div className="text-sm text-gray-500 font-normal">{pkg.subtitle}</div>
-                  </div>
-                </div>
-              }
+      {/* Modern Card Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {packages.map((pkg) => (
+            <div
+              key={pkg.id}
+              onClick={() => handleCardClick(pkg)}
+              className={`group relative bg-[#1a1d26] rounded-3xl border border-white/5 transition-all duration-500 cursor-pointer hover:-translate-y-2 hover:shadow-2xl ${pkg.shadow} ${pkg.border}`}
             >
-              <Paragraph>{pkg.description}</Paragraph>
-              
-              <div className="mb-4">
-                <Text strong className="block mb-2">Pricing Options:</Text>
-                <Space direction="vertical" className="w-full">
-                  {pkg.options.map((opt) => (
-                    <div key={`${pkg.key}-${opt.hours}`} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                      <div>
-                        <Text strong>{opt.hours} hours</Text>
-                        <Text type="secondary" className="ml-2">({opt.sessions})</Text>
-                      </div>
-                      <Tag color={pkg.color} className="text-base px-3 py-1">
-                        {formatPrice(opt.price)}
-                        {opt.perPerson && <span className="text-xs ml-1">/person</span>}
-                      </Tag>
-                    </div>
-                  ))}
-                </Space>
-              </div>
-
-              <div className="mb-4">
-                <Text strong className="block mb-2">What's Included:</Text>
-                <List
-                  size="small"
-                  dataSource={pkg.included}
-                  renderItem={(item) => (
-                    <List.Item className="!py-1 !px-0 border-none">
-                      <CheckCircleOutlined className="text-green-500 mr-2" />
-                      {item}
-                    </List.Item>
-                  )}
+              {/* Image Overlay */}
+              <div className="h-48 relative rounded-t-3xl overflow-hidden">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                  style={{ backgroundImage: `url('${pkg.image}')` }}
                 />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a1d26]/50 to-[#1a1d26]"></div>
+                
+                {/* Floating Icon */}
+                <div className={`absolute -bottom-6 left-6 w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg border-4 border-[#1a1d26] z-10 ${pkg.gradient} text-white`}>
+                  {pkg.icon}
+                </div>
+
+                {/* Popular Badge */}
+                {pkg.featured && (
+                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
+                    <StarFilled className="text-yellow-500" /> POPULAR
+                  </div>
+                )}
               </div>
 
-              <Button
-                type="primary"
-                block
-                icon={<CalendarOutlined />}
-                onClick={handleBookService}
-              >
-                Book {pkg.title}
-              </Button>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+              {/* Card Content */}
+              <div className="pt-10 px-6 pb-6">
+                <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{pkg.name}</h3>
+                <p className="text-sm text-gray-500 mb-6 font-medium uppercase tracking-wide">{pkg.subtitle}</p>
 
-      {/* Bottom CTA */}
-      <div className="text-center mt-12 p-8 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl">
-        <Title level={3}>Ready to Start Your Kite Journey?</Title>
-        <Paragraph className="text-gray-600 mb-4">
-          Contact us to discuss which package is right for you, or book directly online.
-        </Paragraph>
-        <Button
-          type="primary"
-          size="large"
-          icon={<RocketOutlined />}
-          onClick={handleBookService}
-        >
-          Book Your First Lesson
-        </Button>
+                {/* Features Preview */}
+                <div className="space-y-3 mb-6">
+                  {pkg.badges.map((badge, idx) => (
+                     <div key={idx} className="flex items-center gap-2 text-sm text-gray-300">
+                        <CheckOutlined className={`${getThemeColor(pkg).text}`} /> {badge}
+                     </div>
+                  ))}
+                </div>
+
+                {/* Price Tag */}
+                <div className="flex items-end justify-between border-t border-white/5 pt-4 mt-auto">
+                    <div>
+                        <p className="text-xs text-gray-500 mb-1">Starting from</p>
+                        <p className="text-2xl font-bold text-white">
+                          {formatPrice(pkg.durations[0].price)}
+                        </p>
+                    </div>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${getThemeColor(pkg).soft} group-hover:bg-white group-hover:text-black`}>
+                        <RocketOutlined />
+                    </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Booking Wizard Modal */}
-      <StudentBookingWizard
-        open={bookingOpen}
-        onClose={handleBookingClose}
-        initialData={bookingInitialData}
-      />
+      {/* Deluxe Modal */}
+      {selectedPackage && (
+        <Modal
+          open={modalVisible}
+          onCancel={handleModalClose}
+          footer={null}
+          width={900}
+          centered
+          className="deluxe-modal"
+          closeIcon={<div className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"><CloseOutlined /></div>}
+          styles={{
+            content: { 
+                backgroundColor: '#13151a', 
+                border: '1px solid rgba(255,255,255,0.08)',
+                padding: 0,
+                borderRadius: '24px',
+                overflow: 'hidden',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }
+          }}
+        >
+          <div className="flex flex-col md:flex-row h-full">
+            {/* Left Column: Visuals & Info */}
+            <div className="md:w-2/5 bg-[#0f1013] relative overflow-hidden flex flex-col">
+               {/* Background Header Image */}
+               <div className="h-48 relative shrink-0">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url('${selectedPackage.image}')` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f1013]"></div>
+                  <div className="absolute bottom-4 left-6 z-10">
+                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 ${getThemeColor(selectedPackage).soft} ${getThemeColor(selectedPackage).text}`}>
+                        {selectedPackage.subtitle}
+                     </div>
+                     <h2 className="text-3xl font-extrabold text-white leading-tight">{selectedPackage.name}</h2>
+                  </div>
+               </div>
+               
+               {/* Description & Highlights */}
+               <div className="p-6 md:p-8 flex-grow overflow-y-auto">
+                  <p className="text-gray-400 mb-8 leading-relaxed text-sm">
+                    {selectedPackage.description}
+                  </p>
+                  
+                  <h4 className="text-white font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
+                    <ThunderboltFilled className="text-yellow-500" /> What's Included
+                  </h4>
+                  <ul className="space-y-3">
+                    {selectedPackage.highlights.map((h, i) => (
+                        <li key={i} className="flex items-start gap-3 text-sm text-gray-300">
+                           <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${getThemeColor(selectedPackage).soft}`}>
+                             <CheckOutlined className={`text-xs ${getThemeColor(selectedPackage).text}`} />
+                           </div>
+                           {h}
+                        </li>
+                    ))}
+                  </ul>
+               </div>
+            </div>
+
+            {/* Right Column: Configuration */}
+            <div className="md:w-3/5 bg-[#13151a] p-6 md:p-8 flex flex-col h-full relative">
+                <div className="mb-6">
+                    <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                        <ClockCircleOutlined className="text-gray-500" /> Choose Duration
+                    </h3>
+                    
+                    {/* Visual Duration Selectors */}
+                    <div className="grid grid-cols-2 gap-3">
+                        {selectedPackage.durations.map((dur) => {
+                            const isSelected = selectedDuration === dur.hours;
+                            const theme = getThemeColor(selectedPackage);
+                            return (
+                                <div
+                                    key={dur.hours}
+                                    onClick={() => setSelectedDuration(dur.hours)}
+                                    className={`
+                                        relative cursor-pointer rounded-xl p-4 border-2 transition-all duration-300
+                                        ${isSelected 
+                                            ? `${theme.border} ${theme.soft}` 
+                                            : 'border-white/5 bg-[#1a1d26] hover:border-white/10 hover:bg-[#20242e]'}
+                                    `}
+                                >
+                                    {isSelected && (
+                                        <div className={`absolute top-2 right-2 w-4 h-4 rounded-full ${theme.bg} flex items-center justify-center`}>
+                                            <CheckOutlined className="text-white text-[10px]" />
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+                                            {dur.hours}
+                                        </span>
+                                        {dur.tag && (
+                                            <span className={`text-[10px] px-2 py-0.5 rounded border ${isSelected ? 'border-white/20 text-white' : 'border-white/5 text-gray-600'}`}>
+                                                {dur.tag}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mb-1">
+                                        <span className="text-xl font-bold text-white">{formatPrice(dur.price)}</span>
+                                        {dur.perPerson && <span className="text-[10px] text-gray-500 ml-1">/pp</span>}
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 font-medium">{dur.sessions}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Sticky Bottom Summary */}
+                <div className="mt-auto bg-[#0f1013] rounded-2xl p-5 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Total Price</p>
+                            <p className="text-gray-500 text-xs">{selectedPackage.durations.find(d => d.hours === selectedDuration)?.sessions}</p>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-3xl font-bold text-white tracking-tight">
+                                {formatPrice(getCurrentPrice())}
+                            </span>
+                            {selectedPackage.durations.find(d => d.hours === selectedDuration)?.perPerson && (
+                                <p className="text-[10px] text-gray-500">per person</p>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <Button
+                        block
+                        size="large"
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        className={`!h-14 !rounded-xl !text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 ${selectedPackage.gradient}`}
+                    >
+                        Book Now
+                    </Button>
+                    <p className="text-center text-gray-600 text-[10px] mt-3 flex items-center justify-center gap-1">
+                        <InfoCircleOutlined /> No payment required today. Secure your spot now.
+                    </p>
+                </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <style jsx global>{`
+        .deluxe-modal .ant-modal-content {
+           padding: 0;
+           background: transparent;
+        }
+        /* Custom Scrollbar for content */
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1); 
+          border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2); 
+        }
+      `}</style>
     </div>
   );
 };

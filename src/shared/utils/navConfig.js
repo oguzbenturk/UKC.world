@@ -116,6 +116,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/academy', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
+        isDirectLink: true,
         subItems: [
           { to: '/academy/kite-lessons', label: 'Kite Lessons' },
           { to: '/academy/foil-lessons', label: 'Foil Lessons' },

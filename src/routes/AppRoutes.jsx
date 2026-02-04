@@ -71,6 +71,7 @@ import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage'
 import GuestLandingPage from '../features/outsider/pages/GuestLandingPage';
 import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPage';
 import KiteLessonsPage from '../features/outsider/pages/KiteLessonsPage';
+import AcademyLandingPage from '../features/outsider/pages/AcademyLandingPage';
 import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
 import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
 import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
@@ -240,8 +241,8 @@ const AppRoutes = () => {
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
   <Route path="/payment/callback" element={<PaymentCallback />} />
   
-  {/* Default route: guests go to /guest (Academy preview), authenticated users go to their role-based dashboard */}
-  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/guest"} replace />} />
+  {/* Default route: guests go to /academy (Academy preview), authenticated users go to their role-based dashboard */}
+  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/academy"} replace />} />
   
   {/* Public route for group booking invitations */}
   <Route path="/group-invitation/:token" element={<GroupInvitationPage />} />
@@ -291,7 +292,7 @@ const AppRoutes = () => {
       <Route path="/services/events" element={<EventsPage />} />
       
       {/* Guest landing page - welcome page for Duotone Pro Center */}
-      <Route path="/guest" element={<GuestLandingPage />} />
+      <Route path="/academy" element={<AcademyLandingPage />} />
       {/* Legacy booking page - keep for direct access if needed */}
       <Route path="/book" element={<OutsiderBookingPage />} />
       <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />

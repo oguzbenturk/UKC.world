@@ -43,10 +43,10 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const [iyzicoData, setIyzicoData] = useState(null);
   const [selectedDisplayCurrency, setSelectedDisplayCurrency] = useState(displayCurrency);
-  const [paymentCurrency, setPaymentCurrency] = useState(displayCurrency); // What card will be charged
+  const [paymentCurrency, setPaymentCurrency] = useState(displayCurrency); // Currency to send to gateway
   const [depositAmount, setDepositAmount] = useState(null); // Amount in display currency
   
-  // Calculate payment amount when display amount or currencies change
+  // Calculate payment amount in selected payment currency
   const paymentAmount = useMemo(() => {
     if (!depositAmount || selectedDisplayCurrency === paymentCurrency) {
       return depositAmount;
@@ -75,7 +75,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
   }, [form, onClose]);
 
   // Form submit - Iyzico payment initiation
-  // Send PAYMENT currency to gateway (what card will be charged)
+  // Send payment in selected payment currency
   const handleSubmit = useCallback(async (values) => {
     setLoading(true);
     setError(null);
@@ -84,7 +84,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
       // Send payment in the selected payment currency
       const response = await apiClient.post('/wallet/deposit', {
         amount: paymentAmount, // Amount in payment currency
-        currency: paymentCurrency, // Currency to charge the card
+        currency: paymentCurrency, // Currency to charge
         gateway: 'iyzico',
         metadata: {
           // Store display currency info for reference
@@ -129,7 +129,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
     setIyzicoData(null);
   }, []);
 
-  // Payment currency change - only affects what card is charged
+  // Payment currency change handler
   const handlePaymentCurrencyChange = useCallback((currency) => {
     setPaymentCurrency(currency);
   }, []);
@@ -140,7 +140,6 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
   }, []);
 
   const limits = DEPOSIT_LIMITS[selectedDisplayCurrency] || DEPOSIT_LIMITS.EUR;
-  const paymentLimits = DEPOSIT_LIMITS[paymentCurrency] || DEPOSIT_LIMITS.EUR;
   const showConversionPreview = paymentCurrency !== selectedDisplayCurrency && depositAmount > 0;
 
   // Step 1: Tutar Seçimi
@@ -218,8 +217,8 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
       </Divider>
 
       <Form.Item
-        label="Pay with (your card's currency)"
-        tooltip="Select the currency your bank card uses. This helps avoid extra conversion fees."
+        label="Pay with (card currency)"
+        tooltip="Select the currency your card uses. This determines what currency is sent to the payment gateway."
       >
         <Select 
           size="large" 
@@ -248,6 +247,10 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
               <br />
               <Text>Your card will be charged <Text strong className="text-blue-600">{formatCurrency(paymentAmount, paymentCurrency)}</Text>.</Text>
               <br />
+              <Text type="secondary" className="text-xs">
+                💳 Note: Payment gateway will process in {paymentCurrency}. Your bank may apply additional conversion.
+              </Text>
+              <br />
               <Text type="secondary" className="text-xs mt-1 block">
                 Exchange rates are approximate. Final amount may vary slightly.
               </Text>
@@ -268,7 +271,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
           icon={<CreditCardOutlined />}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          {paymentAmount && paymentCurrency 
+          {paymentAmount && paymentCurrency
             ? `Pay ${formatCurrency(paymentAmount, paymentCurrency)}`
             : 'Continue to Payment'
           }
@@ -277,6 +280,10 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
 
       <div className="mt-4 text-center text-sm text-gray-500">
         🔒 Secure payment • Protected by iyzico
+        <br />
+        <span className="text-xs">
+          Payment processed in {paymentCurrency} • Currency conversion may apply
+        </span>
       </div>
     </Form>
   );
