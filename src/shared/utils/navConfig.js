@@ -140,6 +140,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/stay', 'Stay', 'HomeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
+        isDirectLink: true,
         subItems: [
           { to: '/stay/book-accommodation', label: 'Book Accommodation' },
           { to: '/stay/home', label: 'Home' },
@@ -148,6 +149,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/experience', 'Experience', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
+        isDirectLink: true,
         subItems: [
           { to: '/experience/kite-packages', label: 'Kite Packages' },
           { to: '/experience/wing-packages', label: 'Wing Packages' },

@@ -78,6 +78,8 @@ import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
 import RentalStandardPage from '../features/outsider/pages/RentalStandardPage';
 import RentalPremiumPage from '../features/outsider/pages/RentalPremiumPage';
 import RentalLandingPage from '../features/outsider/pages/RentalLandingPage';
+import StayLandingPage from '../features/outsider/pages/StayLandingPage';
+import ExperienceLandingPage from '../features/outsider/pages/ExperienceLandingPage';
 // Stay pages
 import StayBookingPage from '../features/outsider/pages/StayBookingPage';
 import StayHotelPage from '../features/outsider/pages/StayHotelPage';
@@ -242,8 +244,11 @@ const AppRoutes = () => {
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
   <Route path="/payment/callback" element={<PaymentCallback />} />
   
-  {/* Default route: guests go to /academy (Academy preview), authenticated users go to their role-based dashboard */}
-  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : "/academy"} replace />} />
+  {/* Default route: guests see the UKC Landing Page */}
+  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <PublicHome />} />
+
+  {/* Guest Portal Main Page */}
+  <Route path="/guest" element={<GuestLandingPage />} />
   
   {/* Public route for group booking invitations */}
   <Route path="/group-invitation/:token" element={<GroupInvitationPage />} />
@@ -274,11 +279,13 @@ const AppRoutes = () => {
       <Route path="/rental/standard" element={<RentalStandardPage />} />
       <Route path="/rental/premium" element={<RentalPremiumPage />} />
       
+      <Route path="/stay" element={<StayLandingPage />} />
       {/* Stay pages - explore accommodation */}
       <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
       <Route path="/stay/hotel" element={<StayHotelPage />} />
       <Route path="/stay/home" element={<StayHomePage />} />
       
+      <Route path="/experience" element={<ExperienceLandingPage />} />
       {/* Experience pages - browse packages */}
       <Route path="/experience/book-package" element={<ExperienceBookPackagePage />} />
       <Route path="/experience/kite-packages" element={<ExperienceKitePackagesPage />} />

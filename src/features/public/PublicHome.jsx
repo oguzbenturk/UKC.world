@@ -1,64 +1,79 @@
-import { useEffect } from 'react';
-import { Button, Typography, Row, Col, Card } from 'antd';
-import { useAuth } from '@/shared/hooks/useAuth';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePageSEO } from '@/shared/utils/seo';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
 
-const { Title, Paragraph } = Typography;
-
-export default function PublicHome() {
-  const { isAuthenticated } = useAuth();
+const PublicHome = () => {
   const navigate = useNavigate();
 
-  usePageSEO({
-    title: 'Plannivo | Lesson, Rentals, and Operations Platform',
-    description: 'Plannivo helps schools and rental shops manage lessons, rentals, customers, payments, and operations in one fast, modern app.',
-    path: 'https://plannivo.com/'
-  });
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/admin/dashboard', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
   return (
-    <main className="min-h-dvh bg-white">
-      <section className="bg-slate-900 text-white py-16">
-        <div className="max-w-6xl mx-auto px-4">
-          <Title level={1} style={{ color: 'white', marginBottom: 8 }}>Plannivo</Title>
-          <Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, maxWidth: 720 }}>
-            Manage lessons, rentals, customers, payments, and daily operations in one modern platform.
-          </Paragraph>
-          <div className="mt-6 flex gap-3">
-            <Button type="primary" size="large" onClick={() => navigate('/login')}>Sign In</Button>
-          </div>
+    <div className="relative h-screen min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-[#0f1013] text-white font-sans">
+      
+      {/* Background Image with Dark Gradient Overlay */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/50 to-black/80 z-10" />
+        {/* Using a high impact action shot */}
+        <img 
+          src="/Images/ukc/kite-header.jpg.png" 
+          alt="UKC World Kitesurfing"
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      {/* Content Container - pb-32 added to lift content up and avoid overlapping footer */}
+      <div className="relative z-20 flex flex-col items-center justify-center text-center px-4 max-w-5xl mx-auto w-full pb-32">
+        
+        {/* Main Brand Title */}
+        <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl">
+          UKC<span className="text-yellow-500">.</span>WORLD
+        </h1>
+        
+        {/* Subtitle / Designation */}
+        <h2 className="text-xl md:text-3xl font-light tracking-[0.3em] text-gray-200 mb-8 uppercase border-b border-yellow-500/50 pb-4 inline-block">
+          Duotone Pro Center
+        </h2>
+
+        {/* Powered By */}
+        <p className="text-sm md:text-base text-gray-400 tracking-widest font-medium mb-12 uppercase opacity-80">
+          Powered by UKC
+        </p>
+
+        {/* Description / Services Quick View */}
+        <p className="max-w-2xl text-lg md:text-xl text-gray-300 font-light leading-relaxed mb-12 drop-shadow-lg">
+          Experience the ultimate watersports destination. Offering premium Kite, Wing, and Foil lessons, 
+          top-tier Duotone equipment rentals, and luxury accommodation in the heart of Urla.
+        </p>
+
+        {/* The "Visible Enough" Button */}
+        <div className="group relative">
+          <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+          <button
+            onClick={() => navigate('/guest')}
+            className="relative bg-black text-white text-xl md:text-2xl font-bold py-6 px-12 md:px-16 rounded-lg leading-none flex items-center gap-4 hover:bg-neutral-900 transition-all duration-300 transform hover:scale-[1.02] border border-yellow-500/30"
+          >
+            <span>ENTER THE WORLD</span>
+            <ArrowRightIcon className="w-8 h-8 text-yellow-500 group-hover:translate-x-2 transition-transform duration-300" />
+          </button>
         </div>
-      </section>
-      <section className="py-14">
-        <div className="max-w-6xl mx-auto px-4">
-          <Row gutter={[16,16]}>
-            <Col xs={24} md={8}>
-              <Card variant="outlined" className="h-full">
-                <Title level={4}>Lesson Management</Title>
-                <Paragraph>Schedule, track, and manage lesson bookings with package hours support and instructor workflows.</Paragraph>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card variant="outlined" className="h-full">
-                <Title level={4}>Rentals</Title>
-                <Paragraph>Streamlined rental checkouts, returns, and inventory tracking with clear customer history.</Paragraph>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card variant="outlined" className="h-full">
-                <Title level={4}>Finance</Title>
-                <Paragraph>Integrated balances, payments, refunds, and booking-linked transactions for clean accounting.</Paragraph>
-              </Card>
-            </Col>
-          </Row>
-        </div>
-      </section>
-    </main>
+
+      </div>
+
+      {/* Footer Info / Decor */}
+      <div className="absolute bottom-8 w-full text-center z-20">
+         <div className="flex justify-center gap-8 text-xs md:text-sm tracking-widest text-gray-500 font-medium">
+            <span>LESSONS</span>
+            <span className="text-yellow-500">•</span>
+            <span>RENTALS</span>
+            <span className="text-yellow-500">•</span>
+            <span>SHOP</span>
+            <span className="text-yellow-500">•</span>
+            <span>STAY</span>
+            <span className="text-yellow-500">•</span>
+            <span>EXPERIENCE</span>
+         </div>
+      </div>
+
+    </div>
   );
-}
+};
+
+export default PublicHome;
