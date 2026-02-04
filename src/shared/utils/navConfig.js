@@ -126,6 +126,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/rental', 'Rental', 'CubeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' }, // turuncu (orange)
+        isDirectLink: true,
         subItems: [
           { to: '/rental/standard', label: 'Standard Equipment' },
           { to: '/rental/premium', label: 'Premium Equipment' }

@@ -77,6 +77,7 @@ import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
 import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
 import RentalStandardPage from '../features/outsider/pages/RentalStandardPage';
 import RentalPremiumPage from '../features/outsider/pages/RentalPremiumPage';
+import RentalLandingPage from '../features/outsider/pages/RentalLandingPage';
 // Stay pages
 import StayBookingPage from '../features/outsider/pages/StayBookingPage';
 import StayHotelPage from '../features/outsider/pages/StayHotelPage';
@@ -293,6 +294,7 @@ const AppRoutes = () => {
       
       {/* Guest landing page - welcome page for Duotone Pro Center */}
       <Route path="/academy" element={<AcademyLandingPage />} />
+      <Route path="/rental" element={<RentalLandingPage />} />
       {/* Legacy booking page - keep for direct access if needed */}
       <Route path="/book" element={<OutsiderBookingPage />} />
       <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />

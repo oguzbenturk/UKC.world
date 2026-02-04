@@ -180,7 +180,7 @@ const KiteLessonsPage = () => {
     <div className="bg-[#0f1013] min-h-screen text-white font-sans selection:bg-blue-500/30">
       
       {/* Modern Hero Section */}
-      <div className="relative py-24 overflow-hidden">
+      <div className="relative py-12 overflow-hidden">
         {/* Abstract Background */}
         <div className="absolute top-0 left-0 w-full h-full">
            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]"></div>
@@ -188,13 +188,13 @@ const KiteLessonsPage = () => {
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <Tag className="mb-4 !bg-blue-500/10 !border-blue-500/30 !text-blue-400 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider">
+          <Tag className="mb-2 !bg-blue-500/10 !border-blue-500/30 !text-blue-400 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider">
             UKC Academy
           </Tag>
-          <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-6 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
             Kite <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Lessons</span>
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
             Choose your perfect learning path. From total beginner to pro-level coaching, our IKO certified team is ready.
           </p>
         </div>
@@ -407,7 +407,7 @@ const KiteLessonsPage = () => {
         </Modal>
       )}
 
-      <style jsx global>{`
+      <style>{`
         .deluxe-modal .ant-modal-content {
            padding: 0;
            background: transparent;

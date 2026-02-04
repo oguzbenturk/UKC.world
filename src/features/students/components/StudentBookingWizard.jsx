@@ -526,7 +526,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const [purchaseProcessor, setPurchaseProcessor] = useState(null);
   const [purchaseProcessorForm] = Form.useForm();
   
-  // Suppress form warning on unmount by using a ref to track mounted state
+  // Track mounted state for cleanup operations
   const isComponentMounted = useRef(false);
   useEffect(() => {
     isComponentMounted.current = true;
@@ -534,6 +534,23 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       isComponentMounted.current = false;
     };
   }, []);
+
+  // Reset purchase form when buy packages mode is opened
+  useEffect(() => {
+    if (showBuyPackages && purchaseProcessorForm) {
+      // Delay slightly to ensure form is connected to DOM
+      const t = setTimeout(() => {
+        if (isComponentMounted.current) {
+          try {
+            purchaseProcessorForm.resetFields();
+          } catch (e) {
+            // Ignore if still not mounted
+          }
+        }
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [showBuyPackages, purchaseProcessorForm]);
   
   // Accommodation date selection for package purchase
   const [accommodationDateModal, setAccommodationDateModal] = useState(null); // null or package object
@@ -589,12 +606,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       // Reset group booking states
       setSelectedGroupParticipants([]);
       setParticipantSearchQuery('');
-      // Delay form reset to avoid "not connected" warning
-      setTimeout(() => {
-        if (isComponentMounted.current) {
-          try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
-        }
-      }, 0);
       return;
     }
 

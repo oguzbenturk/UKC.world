@@ -93,7 +93,7 @@ const AppLayoutWithAuth = () => {
   const [forceShowApp, setForceShowApp] = useState(false);
   const { isAuthenticated, loading, user, error, consent, requiresConsent, updateConsent, consentLoading } = useAuth();
   const { message: messageApi } = AntdApp.useApp();
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
 
   const consentSnapshot = consent || {
     latestTermsVersion: 'current',
@@ -277,7 +277,7 @@ const AppLayoutWithAuth = () => {
   return (
     <div className="flex flex-col min-h-dvh">
       {consentModal}
-  <Navbar toggleSidebar={toggleSidebar} toggleSidebarCollapsed={toggleSidebarCollapsed} theme={theme} onToggleTheme={toggleTheme} />
+  <Navbar toggleSidebar={toggleSidebar} toggleSidebarCollapsed={toggleSidebarCollapsed} />
   <NotificationRealtimeBridge />
   <WalletModalManager />
       <div className="flex flex-1 overflow-hidden">
