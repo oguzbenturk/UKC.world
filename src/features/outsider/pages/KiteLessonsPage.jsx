@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Modal, Tag } from 'antd';
 import {
   RocketOutlined,
@@ -14,19 +14,21 @@ import {
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import apiClient from '@/shared/services/apiClient';
 
 const KiteLessonsPage = () => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('6h');
+  const [dynamicPackages, setDynamicPackages] = useState([]);
 
   usePageSEO({
     title: 'Kite Lessons | UKC Academy',
-    description: 'Professional kitesurfing lessons with IKO certified instructors. Choose your package and start your journey today.'
+    description: 'Professional kitesurfing lessons with experienced instructors. Choose your package and start your journey today.'
   });
 
-  const packages = [
+  const fallbackPackages = [
     {
       id: 'beginner-private',
       name: 'Beginner Private',
@@ -38,14 +40,14 @@ const KiteLessonsPage = () => {
       shadow: 'shadow-blue-500/20',
       border: 'hover:border-blue-500/50',
       image: '/Images/ukc/kite-header.jpg.png',
-      description: 'The fastest way to learn. Get 100% personalized attention from a dedicated IKO instructor focusing entirely on your progression speed and comfort level.',
+      description: 'The fastest way to learn. Get 100% personalized attention from a dedicated instructor focusing entirely on your progression speed and comfort level.',
       highlights: [
         'Dedicated private instructor',
         'Radio helmet communication',
         'Latest Duotone equipment included',
         'Personalized progression plan',
-        'IKO certification card',
-        'Instant video feedback'
+        'Step-by-step progression tracking',
+        'Personal session recap'
       ],
       durations: [
         { hours: '4h', price: 280, label: 'Intro', sessions: '2 x 2hr', tag: 'Basic' },
@@ -53,7 +55,7 @@ const KiteLessonsPage = () => {
         { hours: '8h', price: 560, label: 'Plus', sessions: '4 x 2hr', tag: 'Recommended' },
         { hours: '10h', price: 650, label: 'Pro', sessions: '5 x 2hr', tag: 'Best Value' }
       ],
-      badges: ['IKO Certified', 'Radio Helmet']
+      badges: ['Private Focus', 'Radio Helmet']
     },
     {
       id: 'group-course',
@@ -97,7 +99,7 @@ const KiteLessonsPage = () => {
       description: 'Already riding? Take your skills to the next level with our senior instructors. Master jumps, transitions, unhooked tricks, or wave riding.',
       highlights: [
         'Senior Level 3 Instructor',
-        'Advanced video analysis',
+        'Advanced performance feedback',
         'Trick progression roadmap',
         'Downwinder support',
         'Competition preparation',
@@ -109,7 +111,7 @@ const KiteLessonsPage = () => {
         { hours: '8h', price: 640, label: 'Mastery', sessions: '8 x 1hr', tag: 'Advanced' },
         { hours: '10h', price: 750, label: 'Pro Camp', sessions: '10 x 1hr', tag: 'Intensive' }
       ],
-      badges: ['Expert Only', 'Video Analysis']
+      badges: ['Expert Only', 'Progress Coaching']
     },
     {
       id: 'supervision',
@@ -127,7 +129,6 @@ const KiteLessonsPage = () => {
         'Launch & Land assistance',
         'Safety boat rescue cover',
         'School zone access',
-        'Gear storage included',
         'Daily weather briefing',
         'Emergency equipment access'
       ],
@@ -141,9 +142,102 @@ const KiteLessonsPage = () => {
     }
   ];
 
+  const parseHours = (hoursText) => Number(String(hoursText || '').replace('h', '')) || 0;
+
+  const detectPackageBucket = (pkg) => {
+    const text = [
+      pkg.name,
+      pkg.description,
+      pkg.lessonServiceName,
+      pkg.lessonCategoryTag,
+      pkg.levelTag,
+      pkg.lessonServiceType
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    if (text.includes('supervision')) return 'supervision';
+    if (text.includes('group') || text.includes('semi-private') || text.includes('semi private')) return 'group-course';
+    if (text.includes('advanced') || text.includes('premium') || text.includes('coaching') || text.includes('pro')) return 'advanced-coaching';
+    return 'beginner-private';
+  };
+
+  const toDuration = (pkg) => {
+    const hours = Math.round(Number(pkg.totalHours) || 0);
+    const price = Number(pkg.price) || 0;
+    if (!hours || !price) return null;
+
+    const groupLike = String(pkg.lessonCategoryTag || pkg.lessonServiceType || '').toLowerCase();
+    return {
+      hours: `${hours}h`,
+      price,
+      label: pkg.name || `${hours}h`,
+      sessions: pkg.sessionsCount ? `${pkg.sessionsCount} sessions` : `${hours}h package`,
+      tag: pkg.levelTag ? String(pkg.levelTag).replace(/(^\w|[-_]\w)/g, (m) => m.replace(/[-_]/, '').toUpperCase()) : undefined,
+      perPerson: groupLike.includes('group') || groupLike.includes('semi')
+    };
+  };
+
+  const mergeApiPackagesWithCards = (apiPackages = []) => {
+    const grouped = {
+      'beginner-private': [],
+      'group-course': [],
+      'advanced-coaching': [],
+      supervision: []
+    };
+
+    apiPackages.forEach((pkg) => {
+      if (pkg.includesLessons === false) return;
+      const duration = toDuration(pkg);
+      if (!duration) return;
+      const bucket = detectPackageBucket(pkg);
+      grouped[bucket].push(duration);
+    });
+
+    return fallbackPackages.map((card) => {
+      const durations = grouped[card.id] || [];
+      if (durations.length === 0) return card;
+
+      const uniqueByHours = new Map();
+      durations.forEach((d) => {
+        const existing = uniqueByHours.get(d.hours);
+        if (!existing || d.price < existing.price) uniqueByHours.set(d.hours, d);
+      });
+
+      const sortedDurations = Array.from(uniqueByHours.values())
+        .sort((a, b) => parseHours(a.hours) - parseHours(b.hours));
+
+      return {
+        ...card,
+        durations: sortedDurations,
+      };
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await apiClient.get('/services/packages/public');
+        const apiPackages = Array.isArray(response.data) ? response.data : [];
+        if (!apiPackages.length || cancelled) return;
+        const merged = mergeApiPackagesWithCards(apiPackages);
+        if (!cancelled) setDynamicPackages(merged);
+      } catch {
+        // keep static fallback packages
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const packages = dynamicPackages.length > 0 ? dynamicPackages : fallbackPackages;
+
   const handleCardClick = (pkg) => {
     setSelectedPackage(pkg);
-    setSelectedDuration(pkg.durations[1].hours); // Default to 6h
+    setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || '6h');
     setModalVisible(true);
   };
 
@@ -195,7 +289,7 @@ const KiteLessonsPage = () => {
             Kite <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Lessons</span>
           </h1>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Choose your perfect learning path. From total beginner to pro-level coaching, our IKO certified team is ready.
+            Choose your perfect learning path. From total beginner to pro-level coaching, our experienced team is ready.
           </p>
         </div>
       </div>

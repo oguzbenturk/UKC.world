@@ -1,341 +1,136 @@
-/**
- * WingLessonsPage
- * 
- * Informational page about wing foiling/wing surfing lessons.
- * Shows lesson packages, pricing, and what's included.
- * Opens booking wizard directly on this page without navigation.
- */
-
-import { useState } from 'react';
-import { Card, Typography, Button, Row, Col, Tag, Divider, Space, List } from 'antd';
 import {
   ThunderboltOutlined,
-  TeamOutlined,
-  CheckCircleOutlined,
-  CalendarOutlined,
   RocketOutlined,
-  StarOutlined
+  StarOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
-import { usePageSEO } from '@/shared/utils/seo';
-import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
+import AcademyServicePackagesPage from '../components/AcademyServicePackagesPage';
 
-const { Title, Paragraph, Text } = Typography;
+const wingPackages = [
+  {
+    id: 'wing-beginner',
+    name: 'Wing Beginner',
+    subtitle: 'Introduction Track',
+    icon: <RocketOutlined />,
+    featured: true,
+    color: 'cyan',
+    gradient: 'from-cyan-500 to-blue-500',
+    shadow: 'shadow-cyan-500/20',
+    border: 'hover:border-cyan-500/50',
+    image: '/Images/ukc/wing-header.png',
+    description: 'Start your wing journey with structured sessions focused on safe control and steady progression on water.',
+    highlights: [
+      'Wing handling fundamentals',
+      'Board balance & stance',
+      'Safe water starts',
+      'First controlled rides',
+      'Progress tracking',
+      'All training gear included'
+    ],
+    durations: [
+      { hours: '3h', price: 180, label: 'Intro', sessions: '3 x 1hr', tag: 'Starter' },
+      { hours: '6h', price: 340, label: 'Core', sessions: '6 x 1hr', tag: 'Popular' },
+      { hours: '8h', price: 440, label: 'Boost', sessions: '8 x 1hr', tag: 'Progress' },
+      { hours: '10h', price: 540, label: 'Complete', sessions: '10 x 1hr', tag: 'Value' }
+    ],
+    badges: ['Beginner Friendly', 'Structured Plan']
+  },
+  {
+    id: 'wing-intermediate',
+    name: 'Wing Intermediate',
+    subtitle: 'Ride & Improve',
+    icon: <ThunderboltOutlined />,
+    featured: false,
+    color: 'blue',
+    gradient: 'from-blue-600 to-indigo-500',
+    shadow: 'shadow-blue-500/20',
+    border: 'hover:border-blue-500/50',
+    image: '/Images/ukc/wing-header.png',
+    description: 'Build consistency and confidence with better control, efficiency, and upwind performance.',
+    highlights: [
+      'Water start consistency',
+      'Speed & direction control',
+      'Upwind riding skills',
+      'Transition basics',
+      'Technique correction',
+      'Session-by-session goals'
+    ],
+    durations: [
+      { hours: '4h', price: 260, label: 'Core', sessions: '4 x 1hr', tag: 'Popular' },
+      { hours: '6h', price: 380, label: 'Plus', sessions: '6 x 1hr', tag: 'Recommended' },
+      { hours: '8h', price: 500, label: 'Advanced', sessions: '8 x 1hr', tag: 'Strong' },
+      { hours: '10h', price: 620, label: 'Master', sessions: '10 x 1hr', tag: 'Intensive' }
+    ],
+    badges: ['Performance Focus', 'Technique First']
+  },
+  {
+    id: 'wing-advanced',
+    name: 'Wing Advanced',
+    subtitle: 'Transitions & Style',
+    icon: <StarOutlined />,
+    featured: false,
+    color: 'purple',
+    gradient: 'from-purple-600 to-fuchsia-500',
+    shadow: 'shadow-purple-500/20',
+    border: 'hover:border-purple-500/50',
+    image: '/Images/ukc/wing-header.png',
+    description: 'Develop advanced flow with clean transitions, stronger control in variable conditions, and style progression.',
+    highlights: [
+      'Tack & jibe refinement',
+      'Timing and body mechanics',
+      'Efficiency in gusty wind',
+      'Downwind technique intro',
+      'Advanced drills',
+      'Personalized progression plan'
+    ],
+    durations: [
+      { hours: '4h', price: 320, label: 'Refine', sessions: '4 x 1hr', tag: 'Core' },
+      { hours: '6h', price: 470, label: 'Flow', sessions: '6 x 1hr', tag: 'Popular' },
+      { hours: '8h', price: 620, label: 'Elite', sessions: '8 x 1hr', tag: 'Advanced' },
+      { hours: '10h', price: 760, label: 'Pro', sessions: '10 x 1hr', tag: 'Top' }
+    ],
+    badges: ['Advanced Riders', 'High Progression']
+  },
+  {
+    id: 'wing-complete',
+    name: 'Complete Wing Course',
+    subtitle: 'Zero to Confident',
+    icon: <TeamOutlined />,
+    featured: false,
+    color: 'green',
+    gradient: 'from-green-500 to-emerald-600',
+    shadow: 'shadow-green-500/20',
+    border: 'hover:border-green-500/50',
+    image: '/Images/ukc/wing-header.png',
+    description: 'Full curriculum package designed to move you from first session to consistent independent riding.',
+    highlights: [
+      'Beginner to intermediate roadmap',
+      'Step-based milestones',
+      'Long-term coaching plan',
+      'Equipment setup guidance',
+      'All sessions coordinated',
+      'Best value bundle'
+    ],
+    durations: [
+      { hours: '10h', price: 580, label: 'Complete', sessions: '10 x 1hr', tag: 'Best Value' },
+      { hours: '12h', price: 680, label: 'Extended', sessions: '12 x 1hr', tag: 'Recommended' },
+      { hours: '14h', price: 780, label: 'Pro Track', sessions: '14 x 1hr', tag: 'Intensive' },
+      { hours: '16h', price: 880, label: 'Elite Track', sessions: '16 x 1hr', tag: 'Full Journey' }
+    ],
+    badges: ['Full Journey', 'Mentored Program']
+  }
+];
 
-const WingLessonsPage = () => {
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingInitialData, setBookingInitialData] = useState({});
-
-  usePageSEO({
-    title: 'Wing Lessons | UKC Academy',
-    description: 'Learn wing foiling - the hottest new water sport! Combine the thrill of foiling with the simplicity of a handheld wing.'
-  });
-
-  // Convert EUR prices to user currency
-  const formatPrice = (eurPrice) => {
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
-  };
-
-  const handleBookService = () => {
-    // Open booking wizard on this page with lesson category pre-selected
-    setBookingInitialData({ serviceCategory: 'lesson' });
-    setBookingOpen(true);
-  };
-
-  const handleBookingClose = () => {
-    setBookingOpen(false);
-    setBookingInitialData({});
-  };
-
-  const packages = [
-    {
-      key: 'wing-beginner',
-      title: 'Wing Beginner',
-      subtitle: 'Introduction to Wing Foiling',
-      icon: <RocketOutlined className="text-4xl text-teal-500" />,
-      description: 'Start your wing foiling journey! Learn wing handling on land, then progress to the water. Perfect for complete beginners or those wanting to add wing to their skill set.',
-      options: [
-        { hours: 3, price: 180, sessions: '3 x 1hr sessions' },
-        { hours: 6, price: 340, sessions: '6 x 1hr sessions' }
-      ],
-      included: [
-        'All wing & foil equipment',
-        'Land-based wing handling',
-        'Body dragging with wing',
-        'SUP foil board practice',
-        'First flight attempts',
-        'Safety & self-rescue'
-      ],
-      color: 'teal'
-    },
-    {
-      key: 'wing-intermediate',
-      title: 'Wing Intermediate',
-      subtitle: 'Get Up and Riding',
-      icon: <ThunderboltOutlined className="text-4xl text-blue-500" />,
-      description: 'Already comfortable with the wing? Focus on getting up on the foil and staying up! Work on water starts, flight control, and upwind riding.',
-      options: [
-        { hours: 1, price: 70, sessions: '1hr session' },
-        { hours: 4, price: 260, sessions: '4 x 1hr sessions' }
-      ],
-      included: [
-        'Foil water starts',
-        'Flight height control',
-        'Speed management',
-        'Upwind technique',
-        'Tacking introduction',
-        'Equipment tuning tips'
-      ],
-      color: 'blue'
-    },
-    {
-      key: 'wing-advanced',
-      title: 'Wing Advanced',
-      subtitle: 'Tricks & Transitions',
-      icon: <StarOutlined className="text-4xl text-purple-500" />,
-      description: 'Take your wing foiling to the next level! Master transitions, learn to tack and jibe on the foil, and start working on your first tricks.',
-      options: [
-        { hours: 1, price: 90, sessions: '1hr coaching' },
-        { hours: 4, price: 320, sessions: '4 x 1hr sessions' }
-      ],
-      included: [
-        'Tacking on foil',
-        'Jibing technique',
-        'Duck jibes',
-        'Downwind runs',
-        'Wave riding intro',
-        'Video analysis'
-      ],
-      color: 'purple'
-    },
-    {
-      key: 'wing-package',
-      title: 'Complete Wing Course',
-      subtitle: 'Zero to Hero Package',
-      icon: <TeamOutlined className="text-4xl text-green-500" />,
-      description: 'The full wing foiling package! From never touching a wing to confidently riding and transitioning. Perfect for dedicated learners.',
-      options: [
-        { hours: 10, price: 580, sessions: 'Full course package' }
-      ],
-      included: [
-        'Land training session',
-        '4 x beginner sessions',
-        '4 x intermediate sessions',
-        '2 x coaching sessions',
-        'All equipment included',
-        'Progress certification',
-        'Video highlights'
-      ],
-      color: 'green'
-    }
-  ];
-
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <Title level={1} className="!mb-4">
-          🦅 Wing Lessons
-        </Title>
-        <Paragraph className="text-lg text-gray-600 max-w-3xl mx-auto">
-          Wing foiling is the hottest new water sport! Combine the freedom of foiling 
-          with the simplicity of a handheld wing. No lines, no harness—just you, 
-          the wing, and the water. It's easier to learn than kitesurfing and 
-          incredibly addictive!
-        </Paragraph>
-        <Button
-          type="primary"
-          size="large"
-          icon={<CalendarOutlined />}
-          onClick={handleBookService}
-          className="mt-4"
-        >
-          Book a Service
-        </Button>
-      </div>
-
-      <Divider />
-
-      {/* Why Wing Foiling */}
-      <div className="mb-12">
-        <Title level={2} className="text-center mb-8">Why Learn Wing Foiling?</Title>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🎯</div>
-              <Title level={4}>Easy to Learn</Title>
-              <Text type="secondary">Faster learning curve than kitesurfing</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🎒</div>
-              <Title level={4}>Ultra Portable</Title>
-              <Text type="secondary">Compact gear fits in a small bag</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🛡️</div>
-              <Title level={4}>Super Safe</Title>
-              <Text type="secondary">No lines means fewer hazards</Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card className="text-center h-full">
-              <div className="text-4xl mb-4">🌊</div>
-              <Title level={4}>Versatile</Title>
-              <Text type="secondary">Works in waves, flat water, and light wind</Text>
-            </Card>
-          </Col>
-        </Row>
-      </div>
-
-      {/* Lesson Packages */}
-      <Title level={2} className="text-center mb-8">Our Wing Packages</Title>
-      <Row gutter={[24, 24]}>
-        {packages.map((pkg) => (
-          <Col xs={24} md={12} lg={6} key={pkg.key}>
-            <Card 
-              className="h-full hover:shadow-lg transition-shadow"
-              title={
-                <div className="flex items-center gap-3">
-                  {pkg.icon}
-                  <div>
-                    <div className="text-lg font-semibold">{pkg.title}</div>
-                    <div className="text-xs text-gray-500 font-normal">{pkg.subtitle}</div>
-                  </div>
-                </div>
-              }
-            >
-              <Paragraph className="text-sm">{pkg.description}</Paragraph>
-              
-              <div className="mb-4">
-                <Text strong className="block mb-2">Pricing:</Text>
-                <Space direction="vertical" className="w-full">
-                  {pkg.options.map((opt) => (
-                    <div key={`${pkg.key}-${opt.hours}`} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg">
-                      <div>
-                        <Text strong className="text-sm">{opt.hours}hr{opt.hours > 1 ? 's' : ''}</Text>
-                        <Text type="secondary" className="ml-1 text-xs">({opt.sessions})</Text>
-                      </div>
-                      <Tag color={pkg.color} className="px-2 py-0">
-                        {formatPrice(opt.price)}
-                      </Tag>
-                    </div>
-                  ))}
-                </Space>
-              </div>
-
-              <div className="mb-4">
-                <Text strong className="block mb-2">Included:</Text>
-                <List
-                  size="small"
-                  dataSource={pkg.included}
-                  renderItem={(item) => (
-                    <List.Item className="!py-0.5 !px-0 border-none text-sm">
-                      <CheckCircleOutlined className="text-green-500 mr-1" />
-                      {item}
-                    </List.Item>
-                  )}
-                />
-              </div>
-
-              <Button
-                type="primary"
-                block
-                size="small"
-                icon={<CalendarOutlined />}
-                onClick={handleBookService}
-              >
-                Book Now
-              </Button>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* Comparison Section */}
-      <div className="mt-12 p-6 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
-        <Title level={3} className="text-center mb-6">Wing vs Kite: What's Right for You?</Title>
-        <Row gutter={[24, 24]}>
-          <Col xs={24} md={12}>
-            <Card title="🦅 Choose Wing If...">
-              <List
-                size="small"
-                dataSource={[
-                  'You want a faster learning curve',
-                  'You prefer simpler, more portable gear',
-                  "Safety is a top priority",
-                  'You want to foil in lighter winds',
-                  "You're already a foiler wanting variety"
-                ]}
-                renderItem={(item) => (
-                  <List.Item className="!py-1 border-none">
-                    <CheckCircleOutlined className="text-teal-500 mr-2" />
-                    {item}
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} md={12}>
-            <Card title="🪁 Choose Kite If...">
-              <List
-                size="small"
-                dataSource={[
-                  'You want to jump and do big air tricks',
-                  'You prefer higher speeds and power',
-                  'You want to ride on a twin-tip board',
-                  'You love the feeling of being powered by the kite',
-                  'You want more style options (waves, freestyle, racing)'
-                ]}
-                renderItem={(item) => (
-                  <List.Item className="!py-1 border-none">
-                    <CheckCircleOutlined className="text-green-500 mr-2" />
-                    {item}
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </div>
-
-      {/* Bottom CTA */}
-      <div className="text-center mt-12 p-8 bg-gradient-to-r from-purple-50 to-teal-50 rounded-xl">
-        <Title level={3}>Ready to Spread Your Wings?</Title>
-        <Paragraph className="text-gray-600 mb-4">
-          Start your wing foiling adventure today. No experience necessary—we'll take you from zero to flying!
-        </Paragraph>
-        <Space>
-          <Button
-            type="primary"
-            size="large"
-            icon={<RocketOutlined />}
-            onClick={handleBookService}
-          >
-            Start with Beginner Course
-          </Button>
-          <Button
-            size="large"
-            onClick={handleBookService}
-          >
-            Get Complete Package
-          </Button>
-        </Space>
-      </div>
-
-      {/* Booking Wizard Modal */}
-      <StudentBookingWizard
-        open={bookingOpen}
-        onClose={handleBookingClose}
-        initialData={bookingInitialData}
-      />
-    </div>
-  );
-};
+const WingLessonsPage = () => (
+  <AcademyServicePackagesPage
+    seoTitle="Wing Lessons | UKC Academy"
+    seoDescription="Learn wing foiling with structured packages from beginner to advanced."
+    headline="Wing"
+    accentWord="Lessons"
+    subheadline="Choose your wing progression path. From first rides to advanced transitions, our team supports every step."
+    packages={wingPackages}
+    dynamicServiceKey="wing"
+  />
+);
 
 export default WingLessonsPage;

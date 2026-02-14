@@ -74,6 +74,7 @@ import KiteLessonsPage from '../features/outsider/pages/KiteLessonsPage';
 import AcademyLandingPage from '../features/outsider/pages/AcademyLandingPage';
 import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
 import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
+import EFoilLessonsPage from '../features/outsider/pages/EFoilLessonsPage';
 import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
 import RentalStandardPage from '../features/outsider/pages/RentalStandardPage';
 import RentalPremiumPage from '../features/outsider/pages/RentalPremiumPage';
@@ -273,6 +274,7 @@ const AppRoutes = () => {
       <Route path="/academy/kite-lessons" element={<KiteLessonsPage />} />
       <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
       <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
+      <Route path="/academy/efoil-lessons" element={<EFoilLessonsPage />} />
       <Route path="/academy/premium-lessons" element={<PremiumLessonsPage />} />
       
       {/* Rental pages - browse equipment */}

@@ -38,7 +38,7 @@ const GuestLandingPage = () => {
       path: '/academy/kite-lessons',
       tagline: 'IKO Certified Instructors',
       description: 'Learn to kite with the best. From beginner to advanced.',
-      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'Premium Lessons'],
+      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'E-Foil Lessons', 'Premium Lessons'],
       size: 'large'
     },
     {

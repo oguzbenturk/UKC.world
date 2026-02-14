@@ -89,15 +89,26 @@ function PackageManagementInner() {
   const { userCurrency, formatCurrency } = useCurrency();
 
   // Derived data - filter services by category
-  const lessonServices = allServices.filter(s => 
-    s.category === 'lesson' || 
-    s.category === 'lessons' || 
-    s.category === 'kitesurfing' || 
-    s.category === 'wingfoil' ||
-    s.serviceType === 'lesson' ||
-    s.serviceType === 'private' ||
-    s.serviceType === 'group'
-  ).filter(s => s.category !== 'rentals' && s.category !== 'rental'); // Exclude rental services
+  const lessonServices = allServices.filter(s => {
+    // Include if category suggests it's a lesson
+    const isLessonCategory = s.category === 'lesson' || 
+                             s.category === 'lessons' || 
+                             s.category === 'kitesurfing' || 
+                             s.category === 'wingfoil';
+    
+    // Include if service type suggests it's a lesson
+    const isLessonType = s.serviceType === 'lesson' ||
+                         s.serviceType === 'private' ||
+                         s.serviceType === 'group' ||
+                         s.serviceType === 'semi-private';
+    
+    // Exclude if explicitly a rental
+    const isNotRental = s.category !== 'rentals' && 
+                        s.category !== 'rental' && 
+                        s.serviceType !== 'rental';
+    
+    return (isLessonCategory || isLessonType) && isNotRental;
+  });
   
   const rentalServices = allServices.filter(s => 
     s.category === 'rental' || 
@@ -470,7 +481,11 @@ function PackageManagementInner() {
                     <div className="mt-0.5 w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                        <BookOutlined className="text-xs" />
                     </div>
-                    <span><span className="font-semibold">{pkg.totalHours} Hours</span> Lessons</span>
+                    <span>
+                      <span className="font-semibold">{pkg.totalHours} Hours</span> 
+                      {pkg.lessonServiceName && ` - ${pkg.lessonServiceName}`}
+                      {!pkg.lessonServiceName && ' Lessons'}
+                    </span>
                  </div>
               )}
               
@@ -479,7 +494,11 @@ function PackageManagementInner() {
                     <div className="mt-0.5 w-5 h-5 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
                        <CarOutlined className="text-xs" />
                     </div>
-                    <span><span className="font-semibold">{pkg.rentalDaysTotal || pkg.rentalDays || pkg.rental_days_total} Days</span> Rental ({pkg.rentalServiceName})</span>
+                    <span>
+                      <span className="font-semibold">{pkg.rentalDaysTotal || pkg.rentalDays || pkg.rental_days_total} Days</span> 
+                      {pkg.rentalServiceName && ` - ${pkg.rentalServiceName}`}
+                      {!pkg.rentalServiceName && ' Rental'}
+                    </span>
                  </div>
               )}
               
@@ -488,7 +507,11 @@ function PackageManagementInner() {
                     <div className="mt-0.5 w-5 h-5 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                        <HomeOutlined className="text-xs" />
                     </div>
-                    <span><span className="font-semibold">{pkg.accommodationNightsTotal || pkg.accommodationNights || pkg.accommodation_nights_total} Nights</span> Stay ({pkg.accommodationUnitName})</span>
+                    <span>
+                      <span className="font-semibold">{pkg.accommodationNightsTotal || pkg.accommodationNights || pkg.accommodation_nights_total} Nights</span> 
+                      {pkg.accommodationUnitName && ` - ${pkg.accommodationUnitName}`}
+                      {!pkg.accommodationUnitName && ' Stay'}
+                    </span>
                  </div>
               )}
 
@@ -767,12 +790,15 @@ function PackageManagementInner() {
                       tooltip="Select which lesson service this package includes"
                     >
                       <Select 
-                        placeholder="Select lesson type"
+                        placeholder={servicesLoading ? "Loading services..." : lessonServices.length === 0 ? "No lesson services found" : "Select lesson type"}
                         showSearch
                         optionFilterProp="children"
+                        loading={servicesLoading}
+                        disabled={servicesLoading || lessonServices.length === 0}
                         filterOption={(input, option) =>
                           (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                         }
+                        notFoundContent={servicesLoading ? <Spin size="small" /> : "No lesson services available"}
                       >
                         {lessonServices.map(service => (
                           <Option key={service.id} value={service.id}>
@@ -820,10 +846,13 @@ function PackageManagementInner() {
                       tooltip="Select which rental service is included in the package"
                     >
                       <Select 
-                        placeholder="Select rental service"
+                        placeholder={servicesLoading ? "Loading services..." : "Select rental service"}
                         allowClear
                         showSearch
+                        loading={servicesLoading}
+                        disabled={servicesLoading}
                         optionFilterProp="children"
+                        notFoundContent={servicesLoading ? <Spin size="small" /> : "No rental services available"}
                         filterOption={(input, option) =>
                           (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
                         }

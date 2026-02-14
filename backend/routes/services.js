@@ -139,8 +139,15 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
     const { packageType } = req.query;
     
     let query = `
-      SELECT p.*
+      SELECT 
+        p.*,
+        ls.name as linked_lesson_service_name,
+        rs.name as linked_rental_service_name,
+        au.name as linked_accommodation_unit_name
       FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
+      LEFT JOIN accommodation_units au ON au.id = p.accommodation_unit_id
       WHERE 1=1
     `;
     const queryParams = [];
@@ -158,6 +165,16 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
     // Fetch prices for all packages in parallel
     const packagesWithPrices = await Promise.all(rows.map(async row => {
       const prices = await getPackagePrices(row.id);
+      
+      // Determine lesson service name from JOIN or fallback to stored name
+      const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
+      
+      // Determine rental service name from JOIN or fallback to stored name
+      const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
+      
+      // Determine accommodation name from JOIN or fallback to stored name
+      const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+      
       return {
         id: row.id,
         name: row.name,
@@ -168,7 +185,7 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) }],
         sessionsCount: row.sessions_count,
         totalHours: parseFloat(row.total_hours) || 0,
-        lessonServiceName: row.lesson_service_name || 'Unknown Service',
+        lessonServiceName: lessonServiceName,
         disciplineTag: row.discipline_tag || null,
         lessonCategoryTag: row.lesson_category_tag || null,
         levelTag: row.level_tag || null,
@@ -186,8 +203,8 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         accommodationUnitId: row.accommodation_unit_id || null,
         rentalServiceId: row.rental_service_id || null,
         equipmentName: row.equipment_name || null,
-        accommodationUnitName: row.accommodation_unit_name || null,
-        rentalServiceName: row.rental_service_name || null,
+        accommodationUnitName: accommodationUnitName,
+        rentalServiceName: rentalServiceName,
         pricePerHour: row.total_hours ? Math.round(parseFloat(row.price) / parseFloat(row.total_hours)) : 0,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -199,6 +216,86 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
   } catch (error) {
   logger.error('Error fetching packages:', error);
     res.status(500).json({ error: 'Failed to fetch packages' });
+  }
+});
+
+// Public lesson packages endpoint (no auth)
+// Used by guest-facing academy pages (e.g. /academy/kite-lessons)
+router.get('/packages/public', async (req, res) => {
+  try {
+    const { category } = req.query;
+
+    let query = `
+      SELECT 
+        p.*,
+        ls.name as linked_lesson_service_name,
+        ls.service_type as linked_lesson_service_type,
+        ls.discipline_tag as linked_discipline_tag,
+        ls.lesson_category_tag as linked_lesson_category_tag,
+        ls.level_tag as linked_level_tag,
+        rs.name as linked_rental_service_name,
+        au.name as linked_accommodation_unit_name
+      FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
+      LEFT JOIN accommodation_units au ON au.id = p.accommodation_unit_id
+      WHERE (p.includes_lessons = true OR p.package_type IN ('lesson', 'lesson_rental', 'accommodation_lesson', 'all_inclusive'))
+    `;
+
+    const queryParams = [];
+
+    if (category) {
+      queryParams.push(category);
+      query += ` AND (p.discipline_tag = $${queryParams.length} OR p.lesson_category_tag = $${queryParams.length})`;
+    }
+
+    query += ' ORDER BY p.total_hours ASC NULLS LAST, p.price ASC';
+
+    const { rows } = await pool.query(query, queryParams);
+
+    const packagesWithPrices = await Promise.all(rows.map(async (row) => {
+      const prices = await getPackagePrices(row.id);
+
+      const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
+      const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
+      const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        price: parseFloat(row.price),
+        currency: row.currency || 'EUR',
+        prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) }],
+        sessionsCount: row.sessions_count,
+        totalHours: parseFloat(row.total_hours) || 0,
+        lessonServiceName,
+        lessonServiceType: row.linked_lesson_service_type || null,
+        // Inherit discipline info from linked service when package's own tags are null
+        disciplineTag: row.discipline_tag || row.linked_discipline_tag || null,
+        lessonCategoryTag: row.lesson_category_tag || row.linked_lesson_category_tag || null,
+        levelTag: row.level_tag || row.linked_level_tag || null,
+        packageType: row.package_type || 'lesson',
+        includesAccommodation: row.includes_accommodation || false,
+        includesRental: row.includes_rental || false,
+        includesLessons: row.includes_lessons !== false,
+        accommodationNights: row.accommodation_nights || 0,
+        rentalDays: row.rental_days || 0,
+        lessonServiceId: row.lesson_service_id || null,
+        rentalServiceId: row.rental_service_id || null,
+        accommodationUnitId: row.accommodation_unit_id || null,
+        equipmentName: row.equipment_name || null,
+        accommodationUnitName,
+        rentalServiceName,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    }));
+
+    res.json(packagesWithPrices);
+  } catch (error) {
+    logger.error('Error fetching public lesson packages:', error);
+    res.status(500).json({ error: 'Failed to fetch public packages' });
   }
 });
 
@@ -223,6 +320,13 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
     const pType = packageType || 'lesson';
     const needsLessonService = pType === 'lesson' || includesLessons === true;
     const hasLessonService = lessonServiceId || (lessonServiceName && lessonServiceName !== 'Unknown Service');
+
+    const normalizeDisciplineTag = (tag) => {
+      const value = String(tag || '').trim().toLowerCase();
+      if (!value) return null;
+      if (value === 'foil') return 'kite_foil';
+      return value;
+    };
     
     if (needsLessonService && !hasLessonService) {
       return res.status(400).json({ 
@@ -232,6 +336,22 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
     
     // Start transaction
     await client.query('BEGIN');
+
+    let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
+    let resolvedLessonCategoryTag = lessonCategoryTag || null;
+    let resolvedLevelTag = levelTag || null;
+
+    if (lessonServiceId) {
+      const linkedService = await client.query(
+        `SELECT discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1`,
+        [lessonServiceId]
+      );
+      if (linkedService.rows.length > 0) {
+        resolvedDisciplineTag = resolvedDisciplineTag || linkedService.rows[0].discipline_tag || null;
+        resolvedLessonCategoryTag = resolvedLessonCategoryTag || linkedService.rows[0].lesson_category_tag || null;
+        resolvedLevelTag = resolvedLevelTag || linkedService.rows[0].level_tag || null;
+      }
+    }
     
     // Determine primary price/currency (for backwards compatibility)
     // If prices array provided, use first entry as primary; otherwise use price/currency
@@ -281,9 +401,9 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       primaryCurrency.toUpperCase(),
       parseFloat(totalHours) || 0,
       lessonServiceName || null,
-      disciplineTag || null,
-      lessonCategoryTag || null,
-      levelTag || null,
+      resolvedDisciplineTag,
+      resolvedLessonCategoryTag,
+      resolvedLevelTag,
       pType,
       includesAccommodation || false,
       includesRental || false,
@@ -1245,6 +1365,13 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
     const pType = packageType || 'lesson';
     const needsLessonService = pType === 'lesson' || includesLessons === true;
     const hasLessonService = lessonServiceId || (lessonServiceName && lessonServiceName !== 'Unknown Service');
+
+    const normalizeDisciplineTag = (tag) => {
+      const value = String(tag || '').trim().toLowerCase();
+      if (!value) return null;
+      if (value === 'foil') return 'kite_foil';
+      return value;
+    };
     
     if (needsLessonService && !hasLessonService) {
       return res.status(400).json({ 
@@ -1253,6 +1380,22 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
     }
     
     await client.query('BEGIN');
+
+    let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
+    let resolvedLessonCategoryTag = lessonCategoryTag || null;
+    let resolvedLevelTag = levelTag || null;
+
+    if (lessonServiceId) {
+      const linkedService = await client.query(
+        `SELECT discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1`,
+        [lessonServiceId]
+      );
+      if (linkedService.rows.length > 0) {
+        resolvedDisciplineTag = resolvedDisciplineTag || linkedService.rows[0].discipline_tag || null;
+        resolvedLessonCategoryTag = resolvedLessonCategoryTag || linkedService.rows[0].lesson_category_tag || null;
+        resolvedLevelTag = resolvedLevelTag || linkedService.rows[0].level_tag || null;
+      }
+    }
     
     // Determine primary price/currency (for backwards compatibility)
     let primaryPrice = price;
@@ -1282,9 +1425,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
       parseInt(sessionsCount) || 0,
       parseFloat(totalHours) || 0,
       lessonServiceName || null,
-      disciplineTag || null,
-      lessonCategoryTag || null,
-      levelTag || null,
+      resolvedDisciplineTag,
+      resolvedLessonCategoryTag,
+      resolvedLevelTag,
       pType,
       includesAccommodation || false,
       includesRental || false,

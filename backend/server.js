@@ -277,6 +277,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// SSL Validation Route (Temporary)
+app.get('/.well-known/pki-validation/9FC3BB605A825CE70C42BA4D56C4C617.txt', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.send(`A8DA30DD9C85AE7EB0909106D299513DF01A24560DC8B3B11592F72E1182BA2E
+comodoca.com
+d1213e0723b000d`);
+});
+
 // Serve uploaded files (avatars, images) statically
 // Diagnostic wrapper for static uploads to help investigate 404 issues in production
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
@@ -517,7 +525,14 @@ app.get('/api/services/categories/list', async (req, res) => {
   }
 });
 
-app.use('/api/services', authenticateJWT, servicesRouter);
+app.use('/api/services', (req, res, next) => {
+  // Keep guest-facing package catalog public for academy pages
+  if (req.method === 'GET' && req.path === '/packages/public') {
+    return next();
+  }
+
+  return authenticateJWT(req, res, next);
+}, servicesRouter);
 app.use('/api/products', productsRouter); // Auth handled per-route for guest browsing
 app.use('/api/shop/products', productsRouter); // Alias - auth handled per-route
 app.use('/api/ratings', authenticateJWT, ratingsRouter);

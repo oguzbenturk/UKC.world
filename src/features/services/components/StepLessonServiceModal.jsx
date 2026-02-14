@@ -6,6 +6,13 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 const { Option } = Select;
 
+const DISCIPLINE_OPTIONS = [
+  { value: 'kite', label: '🪁 Kitesurfing', color: 'blue' },
+  { value: 'wing', label: '🦅 Wing Foiling', color: 'purple' },
+  { value: 'kite_foil', label: '🏄 Kite Foiling', color: 'cyan' },
+  { value: 'efoil', label: '⚡ E-Foil', color: 'green' },
+];
+
 // A lightweight, step-based creator for Lesson services inspired by StepBookingModal
 export default function StepLessonServiceModal({ open, onClose, onCreated }) {
   const [form] = Form.useForm();
@@ -24,7 +31,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
   );
 
   const fieldsPerStep = {
-    basics: ['name', 'duration'],
+    basics: ['name', 'disciplineTag', 'duration'],
     capacity: ['maxParticipants'],
     pricing: ['currency', 'price'],
   };
@@ -34,6 +41,10 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
     const duration = values.duration != null ? parseFloat(values.duration) : undefined;
     const price = values.price != null ? parseFloat(values.price) : undefined;
     const maxParticipants = values.maxParticipants != null ? parseInt(values.maxParticipants, 10) : undefined;
+    const serviceType = maxParticipants > 1 ? 'group' : 'private';
+
+    // Derive lessonCategoryTag from participants + serviceType
+    const lessonCategoryTag = maxParticipants > 1 ? 'group' : 'private';
 
     return {
       name: (values.name || '').trim(),
@@ -45,8 +56,10 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
       price,
       currency: values.currency || businessCurrency || 'EUR',
       description: values.description || '',
-      serviceType: maxParticipants > 1 ? 'group' : 'private',
+      serviceType,
       isPackage: false,
+      disciplineTag: values.disciplineTag || null,
+      lessonCategoryTag,
     };
   };
 
@@ -133,14 +146,29 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
           <>
             <Form.Item
               name="name"
-        label="Service Name"
-        rules={[{ required: true, message: 'Please enter service name' }]}
+              label="Service Name"
+              rules={[{ required: true, message: 'Please enter service name' }]}
             >
-        <Input placeholder="Add Service Name" />
+              <Input placeholder="e.g. Private Kitesurfing Lesson" />
+            </Form.Item>
+
+            <Form.Item
+              name="disciplineTag"
+              label="Discipline"
+              rules={[{ required: true, message: 'Please select a discipline' }]}
+              extra="This determines which academy page shows this service"
+            >
+              <Select placeholder="Select discipline">
+                {DISCIPLINE_OPTIONS.map((d) => (
+                  <Option key={d.value} value={d.value}>
+                    {d.label}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Row gutter={16}>
-        <Col span={12}>
+              <Col span={12}>
                 <Form.Item
                   name="duration"
                   label="Duration (Hours)"
@@ -149,7 +177,6 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
                   <InputNumber min={0.5} max={24} step={0.5} style={{ width: '100%' }} />
                 </Form.Item>
               </Col>
-        {/* Level removed as per request */}
             </Row>
           </>
         )}

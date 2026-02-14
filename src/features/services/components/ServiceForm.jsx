@@ -21,6 +21,13 @@ import MultiCurrencyPriceInput from '@/shared/components/ui/MultiCurrencyPriceIn
 const { Option } = Select;
 const { TextArea } = Input;
 
+const DISCIPLINE_OPTIONS = [
+  { value: 'kite', label: '🪁 Kitesurfing' },
+  { value: 'wing', label: '🦅 Wing Foiling' },
+  { value: 'kite_foil', label: '🏄 Kite Foiling' },
+  { value: 'efoil', label: '⚡ E-Foil' },
+];
+
 const COLORS = [
   { label: 'Slate', value: '#64748b' },
   { label: 'Gray', value: '#6b7280' },
@@ -126,6 +133,8 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         currency: primaryCurrency,
         price: primaryPrice,
         prices: prices.filter(p => p.price != null && p.price > 0), // Only send valid prices
+        disciplineTag: values.disciplineTag || null,
+        lessonCategoryTag: values.lessonCategoryTag || (serviceType === 'group' ? 'group' : 'private'),
       };
 
       // Calculate savings for package if applicable
@@ -202,7 +211,9 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         max_participants: initialValues.max_participants || initialValues.maxParticipants || 1,
         category: initialValues.category || defaultCategory || 'lesson',
         currency: initialValues.currency || selectedCurrency,
-        color: '#64748b'
+        color: '#64748b',
+        disciplineTag: initialValues.disciplineTag || undefined,
+        lessonCategoryTag: initialValues.lessonCategoryTag || undefined
       }}
     >
       <div className="space-y-6">
@@ -219,6 +230,22 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
           >
             <Input placeholder={isLessonCategory ? "e.g. Private Kitesurfing Lesson" : "e.g. 2025 Duotone Rebel 9m"} allowClear />
           </Form.Item>
+          {isLessonCategory && (
+            <Form.Item
+              name="disciplineTag"
+              label="Discipline"
+              rules={[{ required: true, message: 'Please select a discipline' }]}
+              extra="Determines which academy page shows this service"
+            >
+              <Select placeholder="Select discipline" allowClear>
+                {DISCIPLINE_OPTIONS.map((d) => (
+                  <Option key={d.value} value={d.value}>
+                    {d.label}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
           <Row gutter={16} className="gap-y-4">
             <Col xs={24} md={12}>
               <Form.Item

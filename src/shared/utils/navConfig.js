@@ -121,6 +121,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/academy/kite-lessons', label: 'Kite Lessons' },
           { to: '/academy/foil-lessons', label: 'Foil Lessons' },
           { to: '/academy/wing-lessons', label: 'Wing Lessons' },
+          { to: '/academy/efoil-lessons', label: 'E-Foil Lessons' },
           { to: '/academy/premium-lessons', label: 'Premium Lessons' }
         ]
       }),

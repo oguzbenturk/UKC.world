@@ -47,7 +47,7 @@ const ExperienceLandingPage = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY + window.innerHeight / 2;
+      const scrollPosition = window.scrollY + window.innerHeight / 3;
       
       for (const section of sections) {
         const element = document.getElementById(section.id);
@@ -62,16 +62,14 @@ const ExperienceLandingPage = () => {
     };
 
     window.addEventListener('scroll', handleScroll);
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
     if (element) {
-      window.scrollTo({
-        top: element.offsetTop - 80, // Offset for sticky header
-        behavior: 'smooth'
-      });
+      element.scrollIntoView({ behavior: 'smooth' });
       setActiveSection(id);
     }
   };

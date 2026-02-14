@@ -11,17 +11,15 @@ import {
   CloudOutlined,
   GlobalOutlined,
   ThunderboltOutlined,
+  CrownOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 
 const AcademyLandingPage = () => {
   const navigate = useNavigate();
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingInitialData, setBookingInitialData] = useState({});
   const [activeSection, setActiveSection] = useState('kite-section');
 
   usePageSEO({
@@ -31,7 +29,7 @@ const AcademyLandingPage = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['kite-section', 'foil-section', 'wing-section', 'efoil-section'];
+      const sections = ['kite-section', 'foil-section', 'wing-section', 'efoil-section', 'premium-section'];
       
       const scrollPosition = window.scrollY + window.innerHeight / 3;
 
@@ -51,16 +49,6 @@ const AcademyLandingPage = () => {
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const handleBookService = (category = 'lesson') => {
-    setBookingInitialData({ serviceCategory: category });
-    setBookingOpen(true);
-  };
-
-  const handleBookingClose = () => {
-    setBookingOpen(false);
-    setBookingInitialData({});
-  };
 
   // Helper to scroll to packages
   const scrollToPackages = () => {
@@ -119,6 +107,16 @@ const AcademyLandingPage = () => {
                   }`}
                 >
                 <ThunderboltOutlined /> E-FOIL
+                </button>
+                <button 
+                  onClick={() => scrollToSection('premium-section')}
+                  className={`flex items-center gap-2 text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
+                    activeSection === 'premium-section' 
+                      ? 'text-amber-400 font-bold border-b-2 border-amber-400 pb-1 hover:text-amber-300' 
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                <CrownOutlined /> PREMIUM
                 </button>
             </div>
             </div>
@@ -190,7 +188,7 @@ const AcademyLandingPage = () => {
                 type="primary" 
                 size="large" 
                 className="!bg-purple-600 !border-purple-600 hover:!bg-purple-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-purple-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('wing')}
+                onClick={() => navigate('/academy/wing-lessons')}
                 >
                 Book Wing Lesson
                 </Button>
@@ -231,7 +229,7 @@ const AcademyLandingPage = () => {
                 type="primary" 
                 size="large" 
                 className="!bg-cyan-600 !border-cyan-600 hover:!bg-cyan-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-cyan-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('foil')}
+                onClick={() => navigate('/academy/foil-lessons')}
                 >
                 Book Foil Lesson
                 </Button>
@@ -272,7 +270,7 @@ const AcademyLandingPage = () => {
                 type="primary" 
                 size="large" 
                 className="!bg-green-600 !border-green-600 hover:!bg-green-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-green-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('efoil')}
+                onClick={() => navigate('/academy/efoil-lessons')}
                 >
                 Book E-Foil Session
                 </Button>
@@ -285,6 +283,44 @@ const AcademyLandingPage = () => {
                 Learn More <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
+        </div>
+      </div>
+
+      {/* Premium Banner Container */}
+      <div id="premium-section" className="relative min-h-[500px] flex flex-col group">
+        <div
+          className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
+          style={{
+            backgroundImage: "url('/Images/ukc/kite-header.jpg.png')",
+            backgroundPosition: 'center center'
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0f1013]" />
+        </div>
+
+        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+          <h1 className="text-4xl md:text-5xl font-bold mb-8 tracking-tight text-white drop-shadow-xl">
+            PREMIUM LESSONS
+          </h1>
+
+          <div className="flex flex-wrap gap-4">
+            <Button
+              type="primary"
+              size="large"
+              className="!bg-amber-600 !border-amber-600 hover:!bg-amber-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-amber-900/40 hover:-translate-y-1 transition-transform"
+              onClick={() => navigate('/academy/premium-lessons')}
+            >
+              Book Premium Lesson
+            </Button>
+            <Button
+              ghost
+              size="large"
+              className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+              onClick={scrollToPackages}
+            >
+              Learn More <RightOutlined className="text-xs ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -304,12 +340,6 @@ const AcademyLandingPage = () => {
          </div>
        </div>
 
-      {/* Booking Wizard Modal */}
-      <StudentBookingWizard
-        open={bookingOpen}
-        onClose={handleBookingClose}
-        initialData={bookingInitialData}
-      />
     </div>
   );
 };

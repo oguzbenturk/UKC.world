@@ -11,7 +11,8 @@ import {
   Tag,
   Modal,
   Table,
-  Segmented
+  Segmented,
+  Tabs
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -57,6 +58,7 @@ function LessonServices() {
   const [searchText, setSearchText] = useState('');
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+  const [disciplineTab, setDisciplineTab] = useState('all');
   
   const [formDrawerVisible, setFormDrawerVisible] = useState(false);
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
@@ -103,10 +105,23 @@ function LessonServices() {
       const lessonCategoryNames = lessonCats.map(cat => cat.name.toLowerCase());
       
       // Filter lesson and accommodation services
-      const lessonServices = servicesData.filter(service => 
-        lessonCategoryNames.includes(service.category?.toLowerCase()) ||
-        service.category === 'lesson' // fallback for old data
-      );
+      const lessonServices = servicesData.filter(service => {
+        const category = service.category?.toLowerCase();
+        const serviceType = (service.serviceType || service.service_type || '').toLowerCase();
+
+        const matchesLessonCategory =
+          lessonCategoryNames.includes(category) ||
+          category === 'lesson' ||
+          category === 'lessons' ||
+          category === 'kitesurfing' ||
+          category === 'wingfoil';
+
+        const matchesLessonType = ['lesson', 'private', 'group', 'semi-private'].includes(serviceType);
+
+        const isRental = category === 'rental' || category === 'rentals' || serviceType === 'rental';
+
+        return (matchesLessonCategory || matchesLessonType) && !isRental;
+      });
       const accommodationServices = servicesData.filter(service => 
         service.category === 'accommodation'
       );
@@ -125,6 +140,24 @@ function LessonServices() {
   // Filter services when search changes
   useEffect(() => {
     let result = [...services];
+
+    const inferDiscipline = (service) => {
+      const explicit = String(service.disciplineTag || '').toLowerCase();
+      if (explicit) return explicit;
+
+      const text = `${service.name || ''} ${service.description || ''}`.toLowerCase();
+      if (text.includes('e-foil') || text.includes('efoil')) return 'efoil';
+      if (text.includes('wing')) return 'wing';
+      if (text.includes('kite foil') || text.includes('foil')) return 'kite_foil';
+      if (text.includes('premium')) return 'premium';
+      if (text.includes('kite')) return 'kite';
+      return 'untagged';
+    };
+
+    // Apply discipline tab filter
+    if (disciplineTab !== 'all') {
+      result = result.filter((service) => inferDiscipline(service) === disciplineTab);
+    }
     
     // Apply search filter
     if (searchText) {
@@ -137,7 +170,25 @@ function LessonServices() {
     }
     
     setFilteredServices(result);
-  }, [services, searchText]);
+  }, [services, searchText, disciplineTab]);
+
+  const getServiceDiscipline = (service) => {
+    const explicit = String(service.disciplineTag || '').toLowerCase();
+    if (explicit) return explicit;
+
+    const text = `${service.name || ''} ${service.description || ''}`.toLowerCase();
+    if (text.includes('e-foil') || text.includes('efoil')) return 'efoil';
+    if (text.includes('wing')) return 'wing';
+    if (text.includes('kite foil') || text.includes('foil')) return 'kite_foil';
+    if (text.includes('premium')) return 'premium';
+    if (text.includes('kite')) return 'kite';
+    return 'untagged';
+  };
+
+  const getTabCount = (key) => {
+    if (key === 'all') return services.length;
+    return services.filter((service) => getServiceDiscipline(service) === key).length;
+  };
 
   const handleServiceCreated = async (newService) => {
     // Check if it's a lesson service or has lesson-related category
@@ -287,6 +338,22 @@ function LessonServices() {
         </div>
       </div>
 
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-2">
+        <Tabs
+          activeKey={disciplineTab}
+          onChange={setDisciplineTab}
+          items={[
+            { key: 'all', label: `All (${getTabCount('all')})` },
+            { key: 'kite', label: `Kite (${getTabCount('kite')})` },
+            { key: 'wing', label: `Wing (${getTabCount('wing')})` },
+            { key: 'kite_foil', label: `Kite Foil (${getTabCount('kite_foil')})` },
+            { key: 'efoil', label: `E-Foil (${getTabCount('efoil')})` },
+            { key: 'premium', label: `Premium (${getTabCount('premium')})` },
+            { key: 'untagged', label: `Untagged (${getTabCount('untagged')})` },
+          ]}
+        />
+      </div>
+
       {/* Categories Info Alert */}
       {lessonCategories.length === 0 && !loading && (
         <Alert
@@ -389,7 +456,7 @@ function LessonServices() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-base truncate">{service.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Tag color="green">{service.category || 'Lesson'}</Tag>
                           <Tag 
                             color={isPrivate ? 'purple' : 'blue'} 
@@ -397,6 +464,15 @@ function LessonServices() {
                           >
                             {isPrivate ? 'Private' : 'Group'}
                           </Tag>
+                          {service.disciplineTag && (
+                            <Tag color="orange">
+                              {service.disciplineTag === 'kite' ? '🪁 Kite' :
+                               service.disciplineTag === 'wing' ? '🦅 Wing' :
+                               service.disciplineTag === 'kite_foil' ? '🏄 Foil' :
+                               service.disciplineTag === 'efoil' ? '⚡ E-Foil' :
+                               service.disciplineTag}
+                            </Tag>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -454,6 +530,19 @@ function LessonServices() {
               dataIndex: 'category',
               key: 'category',
               render: (cat) => <Tag color="green">{cat || 'Lesson'}</Tag>
+            },
+            {
+              title: 'Discipline',
+              dataIndex: 'disciplineTag',
+              key: 'discipline',
+              render: (tag) => tag ? (
+                <Tag color="orange">
+                  {tag === 'kite' ? '🪁 Kite' :
+                   tag === 'wing' ? '🦅 Wing' :
+                   tag === 'kite_foil' ? '🏄 Foil' :
+                   tag === 'efoil' ? '⚡ E-Foil' : tag}
+                </Tag>
+              ) : <span className="text-gray-400">—</span>
             },
             {
               title: 'Type',
