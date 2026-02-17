@@ -642,7 +642,7 @@ Content Security Policy is completely disabled in development. While acceptable 
 
 ---
 
-- [ ] ### SEC-030: Nginx CSP is Overly Permissive
+- [x] ### SEC-030: Nginx CSP is Overly Permissive
 **Severity:** HIGH
 **File:** `infrastructure/nginx.conf:58`
 
@@ -661,7 +661,7 @@ This CSP provides no meaningful protection against XSS attacks.
 
 ---
 
-- [ ] ### SEC-031: Inconsistent X-Frame-Options Between Backend and Nginx
+- [x] ### SEC-031: Inconsistent X-Frame-Options Between Backend and Nginx
 **Severity:** LOW
 **File:** `backend/middlewares/security.js:180` vs `infrastructure/nginx.conf:54`
 
@@ -778,7 +778,7 @@ Rate limits can be overridden via environment variables (`AUTH_RATE_LIMIT_MAX`, 
 
 ---
 
-- [ ] ### SEC-038: CORS Allows Requests With No Origin
+- [x] ### SEC-038: CORS Allows Requests With No Origin
 **Severity:** MEDIUM
 **File:** `backend/middlewares/security.js:196`
 
@@ -788,7 +788,7 @@ if (!origin) return callback(null, true);
 
 Requests without an `Origin` header are allowed. This includes server-to-server requests and some mobile app requests, but also tools like `curl` and Postman. This bypasses CORS protection for direct API attacks.
 
-**Recommendation:** This is standard practice (CORS only protects browsers), but be aware that CORS is not a security boundary against non-browser clients. API authentication is the actual protection layer.
+**Resolution:** ACCEPTED RISK - This is standard practice. CORS only protects browsers; non-browser clients bypass CORS naturally. API authentication (JWT) is the actual protection layer against direct API attacks.
 
 ---
 
@@ -892,11 +892,13 @@ A one-time SSL validation response is permanently hardcoded in the server. This 
 
 ---
 
-- [ ] ### SEC-045: No CSRF Protection
+- [x] ### SEC-045: No CSRF Protection
 **Severity:** MEDIUM
 **File:** Application-wide
 
 The application uses JWT Bearer tokens for authentication (not cookies), which provides natural CSRF protection for API requests. However, if cookies are ever added (e.g., for httpOnly token storage as recommended in SEC-006), CSRF protection must be implemented.
+
+**Resolution:** NOT REQUIRED - JWT tokens are sent via Authorization header, not cookies. CSRF attacks only affect cookie-based authentication. If httpOnly cookies are implemented in future (SEC-006), CSRF middleware must be added at that time.
 
 **Recommendation:** When migrating to httpOnly cookies, implement CSRF tokens (e.g., `csurf` middleware or double-submit cookie pattern).
 
