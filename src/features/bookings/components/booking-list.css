@@ -1,0 +1,797 @@
+/* Clean & Minimal Booking List Design */
+
+:root {
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --success: #059669;
+  --success-light: #ecfdf5;
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --info: #0891b2;
+  --info-light: #f0fdfa;
+  /* Dedicated completed state (distinct from confirmed green & info teal) */
+  --completed: #6d28d9; /* violet-700 */
+  --completed-light: #ede9fe; /* violet-100 */
+  --neutral: #64748b;
+  --neutral-light: #f8fafc;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --surface: #ffffff;
+  --radius: 8px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --transition: all 0.15s ease;
+}
+
+/* Ensure row selection checkboxes are always visible and properly sized */
+.ant-table-selection-column {
+  display: table-cell !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  padding: 4px 8px !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.ant-table-thead .ant-table-selection-column,
+.ant-table-tbody .ant-table-selection-column {
+  display: table-cell !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.ant-checkbox-wrapper {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  justify-content: center !important;
+}
+
+.ant-checkbox {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: scale(0.9) !important;
+}
+
+.ant-checkbox-inner {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 3px !important;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner::after {
+  width: 5px !important;
+  height: 8px !important;
+}
+
+/* Force table to show selection column in all cases */
+.table-card .ant-table-wrapper {
+  overflow-x: auto;
+}
+
+.table-card .ant-table-content {
+  min-width: fit-content;
+}
+
+.table-card .ant-table-thead > tr > th:first-child,
+.table-card .ant-table-tbody > tr > td:first-child {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 2 !important;
+  background: white !important;
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.08) !important;
+  width: 40px !important;
+  min-width: 40px !important;
+}
+
+/* Mobile viewport adjustment for keyboard */
+.bookings-page {
+  background: #fafafa;
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile */
+  padding: 1rem;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  .bookings-page {
+    padding: 1.5rem;
+  }
+}
+
+/* Ensure body and html handle mobile keyboard properly */
+body {
+  overflow-x: hidden;
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+  /* Ensure viewport adjusts to keyboard */
+  .bookings-page {
+    min-height: calc(100vh - env(keyboard-inset-height, 0px));
+    min-height: calc(100dvh - env(keyboard-inset-height, 0px));
+  }
+}
+
+/* Clean filter card */
+.filters-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .filters-card {
+    margin-bottom: 1.5rem;
+  }
+}
+
+.filters-card .ant-card-body {
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .filters-card .ant-card-body {
+    padding: 1.5rem;
+  }
+}
+
+/* Bottom search bar */
+.search-bottom {
+  background: rgba(248, 250, 252, 0.5);
+  border-top: 1px solid var(--border-light);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.search-bottom .ant-input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-bottom .ant-input:hover,
+.search-bottom .ant-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.search-bottom .ant-tag {
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: var(--primary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Simplified inputs */
+.filters-card .ant-input,
+.filters-card .ant-picker {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.filters-card .ant-input:hover,
+.filters-card .ant-picker:hover,
+.filters-card .ant-input:focus,
+.filters-card .ant-picker:focus,
+.filters-card .ant-picker.ant-picker-focused {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* ===== Date Range Picker Mobile Fix ===== */
+/* Make the RangePicker dropdown responsive on mobile */
+.ant-picker-dropdown,
+.booking-date-picker-dropdown {
+  max-width: 100vw !important;
+}
+
+.ant-picker-dropdown .ant-picker-panels,
+.booking-date-picker-dropdown .ant-picker-panels {
+  flex-wrap: wrap !important;
+}
+
+@media (max-width: 640px) {
+  /* Stack panels vertically on mobile */
+  .ant-picker-dropdown .ant-picker-panels,
+  .booking-date-picker-dropdown .ant-picker-panels {
+    flex-direction: column !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-panel-container,
+  .booking-date-picker-dropdown .ant-picker-panel-container {
+    max-width: 100vw !important;
+    overflow-x: auto !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-panel,
+  .booking-date-picker-dropdown .ant-picker-panel {
+    width: 280px !important;
+    max-width: calc(100vw - 32px) !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-date-panel,
+  .booking-date-picker-dropdown .ant-picker-date-panel,
+  .ant-picker-dropdown .ant-picker-year-panel,
+  .booking-date-picker-dropdown .ant-picker-year-panel,
+  .ant-picker-dropdown .ant-picker-month-panel,
+  .booking-date-picker-dropdown .ant-picker-month-panel,
+  .ant-picker-dropdown .ant-picker-decade-panel,
+  .booking-date-picker-dropdown .ant-picker-decade-panel {
+    width: 280px !important;
+  }
+  
+  /* Hide the second panel on mobile for ALL panel types */
+  .ant-picker-dropdown .ant-picker-panels > *:nth-child(2),
+  .booking-date-picker-dropdown .ant-picker-panels > *:nth-child(2) {
+    display: none !important;
+  }
+  
+  /* Center the dropdown */
+  .booking-date-picker-dropdown {
+    left: 16px !important;
+    right: 16px !important;
+    transform: none !important;
+  }
+  
+  /* Smaller date cells on mobile */
+  .ant-picker-dropdown .ant-picker-cell,
+  .booking-date-picker-dropdown .ant-picker-cell {
+    padding: 2px 0 !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-cell-inner,
+  .booking-date-picker-dropdown .ant-picker-cell-inner {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    font-size: 13px !important;
+  }
+  
+  /* Year/Month panel cells - make them fit */
+  .ant-picker-dropdown .ant-picker-year-panel .ant-picker-cell-inner,
+  .ant-picker-dropdown .ant-picker-month-panel .ant-picker-cell-inner,
+  .ant-picker-dropdown .ant-picker-decade-panel .ant-picker-cell-inner,
+  .booking-date-picker-dropdown .ant-picker-year-panel .ant-picker-cell-inner,
+  .booking-date-picker-dropdown .ant-picker-month-panel .ant-picker-cell-inner,
+  .booking-date-picker-dropdown .ant-picker-decade-panel .ant-picker-cell-inner {
+    width: auto !important;
+    padding: 0 8px !important;
+    min-width: 60px !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-header,
+  .booking-date-picker-dropdown .ant-picker-header {
+    padding: 0 8px !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-header button,
+  .booking-date-picker-dropdown .ant-picker-header button {
+    font-size: 13px !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-content th,
+  .booking-date-picker-dropdown .ant-picker-content th {
+    width: 32px !important;
+    font-size: 12px !important;
+  }
+  
+  /* Year panel content - 3 columns */
+  .ant-picker-dropdown .ant-picker-year-panel .ant-picker-content,
+  .ant-picker-dropdown .ant-picker-decade-panel .ant-picker-content,
+  .booking-date-picker-dropdown .ant-picker-year-panel .ant-picker-content,
+  .booking-date-picker-dropdown .ant-picker-decade-panel .ant-picker-content {
+    width: 100% !important;
+  }
+  
+  /* Make picker input more compact on mobile */
+  .filters-card .ant-picker-range {
+    width: 100% !important;
+  }
+  
+  .filters-card .ant-picker-input > input {
+    font-size: 12px !important;
+  }
+  
+  .filters-card .ant-picker-range-separator {
+    padding: 0 4px !important;
+  }
+}
+
+/* Tablet: show both panels but smaller */
+@media (min-width: 641px) and (max-width: 768px) {
+  .ant-picker-dropdown .ant-picker-panel {
+    width: 260px !important;
+  }
+  
+  .ant-picker-dropdown .ant-picker-cell-inner {
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+  }
+}
+
+/* Subtle filter chips */
+.filter-chips .ant-tag {
+  background: var(--neutral-light);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+}
+
+/* Clean quick actions */
+.quick-actions .ant-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  transition: var(--transition);
+}
+
+.quick-actions .ant-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Soft status chips */
+.status-chips .ant-tag {
+  background: var(--neutral-light);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.status-chips .ant-tag.ant-tag-checkable-checked {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Clean utilities */
+.filters-utilities .ant-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  height: 36px;
+  transition: var(--transition);
+}
+
+.filters-utilities .ant-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Minimal bulk bar */
+.bulkbar {
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 1rem 1.5rem;
+}
+
+.bulkbar .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  height: 32px;
+}
+
+/* Clean table */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.table-card .ant-card-body {
+  padding: 0;
+}
+
+/* Mobile-optimized table */
+.table-card .ant-table {
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .table-card .ant-table {
+    font-size: 13px;
+  }
+  
+  .table-card .ant-table-thead > tr > th {
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  
+  .table-card .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+}
+
+.table-card .ant-card-body {
+  padding: 0;
+}
+
+.table-card .ant-table-thead > tr > th {
+  background: var(--neutral-light);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1rem 1.5rem;
+}
+
+.table-card .ant-table-tbody > tr {
+  transition: var(--transition);
+}
+
+.table-card .ant-table-tbody > tr:hover {
+  background: var(--neutral-light) !important;
+}
+
+.table-card .ant-table-tbody > tr > td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.table-card .ant-table-tbody > tr.bg-gray-50 > td {
+  background: var(--surface) !important;
+}
+
+/* Simplified user cell */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-cell .ant-avatar {
+  background: var(--neutral-light);
+  color: var(--text-secondary);
+  border: none;
+}
+
+.user-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Clean time display */
+.time-display {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Soft status badges */
+.status-badge {
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border: none;
+}
+
+.status-confirmed {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.status-pending {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.status-completed {
+  background: var(--success);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.status-cancelled {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.status-booked {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Clean action buttons */
+.action-buttons .ant-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  transition: var(--transition);
+}
+
+.action-buttons .ant-btn:hover {
+  background: var(--neutral-light);
+  color: var(--text-secondary);
+}
+
+.action-buttons .ant-btn[danger]:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+/* Clean loading */
+.ant-spin-dot-item {
+  background-color: var(--primary);
+}
+
+/* Clean pagination */
+.ant-pagination .ant-pagination-item {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.ant-pagination .ant-pagination-item a {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.ant-pagination .ant-pagination-item a:hover {
+  color: var(--text-primary);
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Active page number minimal appearance */
+.ant-pagination .ant-pagination-item-active a {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+/* Minimal prev/next buttons */
+.ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination .ant-pagination-next .ant-pagination-item-link {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-secondary) !important;
+}
+
+.ant-pagination .ant-pagination-prev:hover .ant-pagination-item-link,
+.ant-pagination .ant-pagination-next:hover .ant-pagination-item-link {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure hover state does not reintroduce styles */
+.ant-pagination .ant-pagination-item-active:hover {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .bookings-page {
+    padding: 1rem;
+  }
+  
+  .filters-card .ant-card-body {
+    padding: 1rem;
+  }
+  
+  .table-card .ant-table-thead > tr > th,
+  .table-card .ant-table-tbody > tr > td {
+    padding: 0.75rem 1rem;
+  }
+  
+  .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  
+  .status-chips {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-cell {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .action-buttons .ant-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Improved button sizing and mobile optimization */
+.filters-card .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: var(--transition);
+  min-height: 36px;
+  font-size: 13px;
+}
+
+/* Style segmented control to match button appearance */
+.filters-card .ant-segmented {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  gap: 4px;
+}
+
+.filters-card .ant-segmented .ant-segmented-item {
+  border-radius: 4px;
+  font-weight: 400;
+  transition: var(--transition);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  min-height: 24px;
+  line-height: 1.2;
+}
+
+.filters-card .ant-segmented .ant-segmented-item-selected {
+  background: var(--neutral-light);
+  color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .filters-card .ant-btn {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  
+  .filters-card .ant-segmented {
+    width: auto;
+  }
+  
+  .filters-card .ant-segmented .ant-segmented-item {
+    padding: 3px 6px;
+    min-height: 20px;
+    font-size: 11px;
+    border-radius: 3px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    transition: var(--transition);
+  }
+  
+  .filters-card .ant-segmented .ant-segmented-item-selected {
+    background: var(--neutral-light);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  
+/* Minimal dropdown button to match segmented control */
+.minimal-dropdown-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  height: 24px !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  transition: var(--transition);
+  box-shadow: none !important;
+}
+
+.minimal-dropdown-btn:hover {
+  background: var(--neutral-light) !important;
+  color: var(--text-primary) !important;
+}
+
+@media (max-width: 768px) {
+  .minimal-dropdown-btn {
+    font-size: 11px !important;
+    height: 20px !important;
+    padding: 3px 6px !important;
+  }
+}
+}
+
+/* Action buttons optimization */
+.action-buttons .ant-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  transition: var(--transition);
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .action-buttons .ant-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+.action-buttons .ant-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.action-buttons .ant-btn.ant-btn-dangerous:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Responsive grid for filters */
+@media (max-width: 768px) {
+  .filters-card .grid.grid-cols-1.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .filters-card .grid.grid-cols-1.lg\\:grid-cols-2 {
+    gap: 1.5rem;
+  }
+}

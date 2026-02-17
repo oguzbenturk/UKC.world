@@ -1,0 +1,172 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - navigation [ref=e7]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - button "Open sidebar" [ref=e11] [cursor=pointer]:
+            - generic [ref=e12]: Open sidebar
+            - img [ref=e13]
+          - link "UKC . World" [ref=e16] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e17]:
+              - generic [ref=e18]: UKC
+              - generic [ref=e19]: .
+              - generic [ref=e20]: World
+        - generic [ref=e22]:
+          - generic [ref=e23]: •
+          - generic "Dashboard" [ref=e24]
+        - generic [ref=e25]:
+          - button "Notifications" [ref=e27] [cursor=pointer]:
+            - img [ref=e28]
+          - button "Open profile menu for System Administrator" [ref=e31] [cursor=pointer]:
+            - img "System Administrator avatar" [ref=e33]
+    - generic [ref=e34]:
+      - complementary [ref=e35]:
+        - navigation [ref=e36]:
+          - list [ref=e38]:
+            - listitem [ref=e39]:
+              - link "Dashboard" [ref=e41] [cursor=pointer]:
+                - /url: /dashboard
+                - generic [ref=e42]:
+                  - img [ref=e43]
+                  - generic [ref=e45]: Dashboard
+            - listitem [ref=e46]:
+              - link "Customers" [ref=e48] [cursor=pointer]:
+                - /url: /customers
+                - generic [ref=e49]:
+                  - img [ref=e50]
+                  - generic [ref=e52]: Customers
+            - listitem [ref=e53]:
+              - link "Instructors" [ref=e55] [cursor=pointer]:
+                - /url: /instructors
+                - generic [ref=e56]:
+                  - img [ref=e57]
+                  - generic [ref=e59]: Instructors
+            - listitem [ref=e60]:
+              - button "Calendars" [ref=e62] [cursor=pointer]:
+                - generic [ref=e64]:
+                  - img [ref=e65]
+                  - generic [ref=e67]: Calendars
+                - img [ref=e68]
+            - listitem [ref=e70]:
+              - button "Services Parameters" [ref=e72] [cursor=pointer]:
+                - generic [ref=e74]:
+                  - img [ref=e75]
+                  - generic [ref=e77]: Services Parameters
+                - img [ref=e78]
+            - listitem [ref=e80]:
+              - button "Finance" [ref=e82] [cursor=pointer]:
+                - generic [ref=e84]:
+                  - img [ref=e85]
+                  - generic [ref=e87]: Finance
+                - img [ref=e88]
+            - listitem [ref=e90]:
+              - button "Marketing" [ref=e92] [cursor=pointer]:
+                - generic [ref=e94]:
+                  - img [ref=e95]
+                  - generic [ref=e97]: Marketing
+                - img [ref=e98]
+            - listitem [ref=e100]:
+              - link "Rating Analytics" [ref=e102] [cursor=pointer]:
+                - /url: /admin/ratings-analytics
+                - generic [ref=e103]:
+                  - img [ref=e104]
+                  - generic [ref=e106]: Rating Analytics
+            - listitem [ref=e107]:
+              - link "• Shop" [ref=e109] [cursor=pointer]:
+                - /url: /shop
+                - generic [ref=e110]:
+                  - generic [ref=e111]: •
+                  - generic [ref=e112]: Shop
+          - generic [ref=e113]:
+            - text: System
+            - list [ref=e114]:
+              - listitem [ref=e115]:
+                - button "Settings" [ref=e117] [cursor=pointer]:
+                  - generic [ref=e118]:
+                    - img [ref=e119]
+                    - text: Settings
+                  - img [ref=e121]
+              - listitem [ref=e123]:
+                - button "Logout" [ref=e125] [cursor=pointer]:
+                  - img [ref=e126]
+                  - text: Logout
+      - main [ref=e128]:
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e134]:
+              - generic [ref=e137]:
+                - heading "Operational Health" [level=1] [ref=e138]
+                - generic [ref=e140]: Performance Overview • 31 Days analyzed
+              - generic [ref=e141]:
+                - generic [ref=e142]:
+                  - textbox [ref=e143] [cursor=pointer]: 2026-01-02
+                  - generic [ref=e144]: ➜
+                  - textbox [ref=e145] [cursor=pointer]: 2026-02-01
+                - button "This Month down" [ref=e146] [cursor=pointer]:
+                  - generic [ref=e147]: This Month
+                  - img "down" [ref=e148]:
+                    - img [ref=e149]
+                - button "setting" [ref=e151] [cursor=pointer]:
+                  - img "setting" [ref=e153]:
+                    - img [ref=e154]
+            - generic [ref=e158]:
+              - generic [ref=e161]: Bookings completed
+              - generic [ref=e162]: "21"
+              - generic [ref=e163]: 91.3% completion rate
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - generic [ref=e169] [cursor=pointer]:
+                - generic [ref=e170]:
+                  - paragraph [ref=e171]: Completed Bookings
+                  - paragraph [ref=e172]: "21"
+                - generic [ref=e173]: Out of 23 total
+              - generic [ref=e176]:
+                - generic [ref=e177]:
+                  - paragraph [ref=e178]: Completed Rentals
+                  - paragraph [ref=e179]: "1"
+                - generic [ref=e180]: Rental agreements completed
+            - generic [ref=e181]:
+              - generic [ref=e185]:
+                - paragraph [ref=e186]: Avg. Booking Value
+                - paragraph [ref=e187]: €172.86
+              - generic [ref=e190]:
+                - generic [ref=e191]:
+                  - paragraph [ref=e192]: Customers with Debt
+                  - paragraph [ref=e193]: "5"
+                - generic [ref=e194]: Customers with outstanding balance
+            - generic [ref=e197]:
+              - heading "Revenue Trend" [level=3] [ref=e199]
+              - generic [ref=e202]:
+                - img [ref=e203]:
+                  - generic [ref=e208]:
+                    - generic [ref=e210]: 2026-01-16
+                    - generic [ref=e212]: 2026-01-20
+                    - generic [ref=e214]: 2026-01-29
+                  - generic [ref=e216]:
+                    - generic [ref=e218]: €0
+                    - generic [ref=e220]: €3000
+                    - generic [ref=e222]: €6000
+                    - generic [ref=e224]: €9000
+                    - generic [ref=e226]: €12000
+                - list [ref=e241]:
+                  - listitem [ref=e242]:
+                    - img [ref=e243]
+                    - text: Revenue
+            - generic [ref=e247]:
+              - heading "Top Instructors by Revenue" [level=3] [ref=e249]
+              - img [ref=e253]:
+                - generic [ref=e258]:
+                  - generic [ref=e260]: €0
+                  - generic [ref=e262]: €350
+                  - generic [ref=e264]: €700
+                  - generic [ref=e266]: €1400
+                - generic [ref=e268]:
+                  - generic [ref=e270]: OguzhanBentürk
+                  - generic [ref=e272]: Pierre Aygün
+                  - generic [ref=e274]: Berke Horasanlı
+  - generic [ref=e282]: Oguzhan Bentürk
+```

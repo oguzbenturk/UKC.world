@@ -1,0 +1,40 @@
+# Development Docker Compose - Only Database and Redis
+# Use this for local development on your machine
+services:
+  db-dev:
+    image: postgres:15-alpine
+    container_name: plannivo-dev-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: plannivo_dev
+      POSTGRES_USER: plannivo
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./ksprodb.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plannivo -d plannivo_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis-dev:
+    image: redis:7-alpine
+    container_name: plannivo-dev-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:

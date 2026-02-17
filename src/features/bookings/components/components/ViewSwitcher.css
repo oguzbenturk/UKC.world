@@ -1,0 +1,53 @@
+/* ViewSwitcher Component Styles */
+.view-switcher-dropdown .ant-dropdown-menu {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+}
+
+.view-switcher-dropdown .ant-dropdown-menu-item {
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 2px 0;
+}
+
+.view-switcher-dropdown .ant-dropdown-menu-item:hover {
+  background-color: #f0f9ff;
+  color: #2563eb;
+}
+
+.view-switcher-dropdown .ant-dropdown-menu-item-active {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+/* Compact view switcher styles */
+.view-switcher-compact .ant-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.view-switcher-compact .ant-btn:hover {
+  transform: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .view-switcher-dropdown .ant-btn {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .view-switcher-dropdown .ant-btn-large {
+    height: 36px;
+  }
+  
+  .view-switcher-compact .ant-btn {
+    width: 32px;
+    height: 32px;
+  }
+}

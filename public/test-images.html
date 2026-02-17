@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test UKC Images</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1e293b; color: white; }
+        img { width: 50px; height: 50px; object-fit: contain; background: white; padding: 10px; margin: 10px; border: 2px solid #555; }
+        img.success { border-color: #10b981; }
+        img.error { border-color: #ef4444; }
+        .test { margin: 20px 0; padding: 10px; background: #334155; border-radius: 8px; }
+        pre { background: #0f172a; padding: 10px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>UKC Images Test</h1>
+    <p>Testing multiple path variations...</p>
+    <pre id="log"></pre>
+    
+    <div class="test">
+        <h3>Try 1: /images/ukc/academy.png</h3>
+        <img id="test1" src="/images/ukc/academy.png">
+    </div>
+    
+    <div class="test">
+        <h3>Try 2: /Images/ukc/academy.png (capital I)</h3>
+        <img id="test2" src="/Images/ukc/academy.png">
+    </div>
+    
+    <div class="test">
+        <h3>Try 3: ./images/ukc/academy.png (relative)</h3>
+        <img id="test3" src="./images/ukc/academy.png">
+    </div>
+    
+    <div class="test">
+        <h3>Try 4: images/ukc/academy.png (no leading slash)</h3>
+        <img id="test4" src="images/ukc/academy.png">
+    </div>
+    
+    <script>
+        const log = (msg) => {
+            document.getElementById('log').textContent += msg + '\n';
+            console.log(msg);
+        };
+        
+        for (let i = 1; i <= 4; i++) {
+            const img = document.getElementById(`test${i}`);
+            img.onload = () => {
+                img.className = 'success';
+                log(`✓ Test ${i} SUCCESS: ${img.src}`);
+            };
+            img.onerror = () => {
+                img.className = 'error';
+                log(`✗ Test ${i} FAILED: ${img.src}`);
+            };
+        }
+        
+        // Also try fetch
+        setTimeout(() => {
+            log('\n--- Testing with fetch API ---');
+            const paths = [
+                '/images/ukc/academy.png',
+                '/Images/ukc/academy.png',
+                './images/ukc/academy.png',
+                'images/ukc/academy.png'
+            ];
+            paths.forEach((path, i) => {
+                fetch(path)
+                    .then(r => log(`Fetch test ${i+1}: ${r.status} ${r.statusText} - ${path}`))
+                    .catch(e => log(`Fetch test ${i+1}: ERROR - ${e.message} - ${path}`));
+            });
+        }, 1000);
+    </script>
+</body>
+</html>

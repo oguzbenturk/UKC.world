@@ -1,0 +1,524 @@
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Bars3Icon, UserCircleIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { Avatar, Modal } from 'antd';
+import { message } from '@/shared/utils/antdStatic';
+import { useAuth } from '../../hooks/useAuth';
+import { useAuthModal } from '../../contexts/AuthModalContext';
+import RealTimeStatusIndicator from '../realtime/RealTimeStatusIndicator';
+import NotificationBell from '@/features/notifications/components/NotificationBell';
+import StudentWalletTriggerButton from '@/features/students/components/StudentWalletTriggerButton';
+import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
+import { getNavItemsForRole } from '@/shared/utils/navConfig';
+import { APP_VERSION } from '@/shared/constants/version';
+
+const profileImageCandidateKeys = [
+  'profile_image_url',
+  'profileImageUrl',
+  'avatar_url',
+  'avatarUrl',
+  'avatar',
+  'photoUrl',
+  'photo_url',
+  'imageUrl',
+  'image_url'
+];
+
+const getUserProfileImage = (currentUser) => {
+  if (!currentUser) {
+    return null;
+  }
+
+  for (const key of profileImageCandidateKeys) {
+    const candidate = currentUser?.[key];
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const getUserDisplayName = (currentUser) => {
+  if (!currentUser) {
+    return 'Profile';
+  }
+
+  const preferredKeys = ['full_name', 'name', 'displayName'];
+  for (const key of preferredKeys) {
+    const value = currentUser?.[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  const composed = [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(' ');
+  if (composed) {
+    return composed;
+  }
+
+  if (typeof currentUser?.email === 'string') {
+    return currentUser.email.split('@')[0];
+  }
+
+  return 'Profile';
+};
+
+const resolveWalletBalance = (summary, user) => {
+  const extracted = getWalletBalance(summary, user);
+  return typeof extracted === 'number' && Number.isFinite(extracted) ? extracted : undefined;
+};
+
+export const Navbar = ({ toggleSidebar }) => { 
+  // Mobile NavLinks menu is no longer used (only sidebar toggle remains)
+  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const { logout, user, isAuthenticated } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
+  const location = useLocation();
+  
+  // Storage currency is always EUR (base currency)
+  const storageCurrency = businessCurrency || 'EUR';
+  // Query wallet in storage currency (EUR)
+  const { data: walletSummary } = useWalletSummary({ enabled: isAuthenticated, currency: storageCurrency });
+  const navigate = useNavigate();
+  
+  // Get raw balance in storage currency (EUR)
+  const rawWalletBalance = isAuthenticated ? resolveWalletBalance(walletSummary, user) : undefined;
+  
+  // Determine display currency: user's preferred currency, NOT wallet's storage currency
+  // Priority: user.preferred_currency > userCurrency (from context) > storageCurrency
+  const displayCurrency = (() => {
+    // First check user's preferred_currency from user object
+    if (user?.preferred_currency) {
+      return user.preferred_currency;
+    }
+    // Then check userCurrency from CurrencyContext (already resolved)
+    if (userCurrency) {
+      return userCurrency;
+    }
+    // Default to storage currency
+    return storageCurrency;
+  })();
+  
+  // For wallet display, we need the symbol
+  const preferredCurrency = displayCurrency 
+    ? { code: displayCurrency, symbol: getCurrencySymbol(displayCurrency) }
+    : undefined;
+  
+  // Convert balance from EUR to user's display currency
+  const walletBalance = (() => {
+    if (!isAuthenticated || rawWalletBalance === undefined || rawWalletBalance === null) {
+      return undefined;
+    }
+    // Convert from storage currency (EUR) to display currency
+    if (convertCurrency && displayCurrency !== storageCurrency) {
+      return convertCurrency(rawWalletBalance, storageCurrency, displayCurrency);
+    }
+    return rawWalletBalance;
+  })();
+
+  const profileImage = getUserProfileImage(user);
+  const displayName = getUserDisplayName(user);
+
+  const handleWalletClick = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('wallet:open'));
+      window.dispatchEvent(new CustomEvent('studentWallet:open'));
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 8);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // const toggleMobileMenu = () => {
+  //   setIsMobileMenuOpen(!isMobileMenuOpen);
+  // };
+
+  const toggleProfileDropdown = () => { // Function to toggle profile dropdown
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
+  // Add a function to close the dropdown when clicking outside (optional but good UX)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only close if clicking outside the dropdown container
+      // Use 'click' instead of 'mousedown' to allow NavLink clicks to complete
+      if (isProfileDropdownOpen && !event.target.closest('.profile-dropdown-container')) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    // Use 'click' event instead of 'mousedown' to prevent interfering with NavLink navigation
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isProfileDropdownOpen]);
+
+  const showLogoutConfirmation = () => {
+    setIsProfileDropdownOpen(false);
+    setIsLogoutModalVisible(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await logout();
+      setIsLogoutModalVisible(false);
+      navigate('/login');
+    } catch {
+      message.error('Logout failed');
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setIsLogoutModalVisible(false);
+  };
+
+  return (
+    <div className="dark">
+      <nav
+        className={`sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-700/40 shadow-xl transition-colors duration-200 ${
+          isScrolled
+            ? 'bg-white/85 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 dark:bg-gradient-to-r dark:from-slate-900/90 dark:to-slate-800/85'
+            : 'bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-800'
+        }`}
+      >
+          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8"> {/* Changed to max-w-full for wider layout */}
+            <div className="flex items-center h-16">
+              {/* Left Section */}
+              <div className="flex items-center flex-shrink-0">
+                {/* Mobile/Tablet Menu Toggle - visible only on screens smaller than 1200px */}
+                  <button 
+                  onClick={toggleSidebar}
+                  className="mr-2 p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500 xl:hidden transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/50"
+                  aria-expanded={false}
+                  aria-label="Open sidebar"
+                  data-sidebar-toggle="true"
+                >
+                  <span className="sr-only">Open sidebar</span>
+                  <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
+                </button>
+
+                {/* Back/Forward icons moved to Sidebar header per request */}
+              
+                {/* Logo - now always on the left */}
+                <div>
+                  <NavLink 
+                    to="/" 
+                    className="flex items-center px-3 py-1 rounded-md text-slate-800 hover:text-slate-900 hover:bg-slate-100/80 transition-colors duration-150 ease-in-out dark:text-slate-100 dark:hover:text-white dark:hover:bg-slate-800/60"
+                    onClick={(e) => {
+                      // For UKC roles on shop page, navigate to home (same as back button)
+                      if ((user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && location.pathname.startsWith('/shop')) {
+                        e.preventDefault();
+                        navigate('/');
+                      }
+                    }}
+                  >
+                    {/* Show uploaded logo if available, otherwise show UKC.World branding */}
+                    {(() => {
+                      try {
+                        const settings = JSON.parse(localStorage.getItem('systemSettings') || '{}');
+                        if (settings.branding?.logo) {
+                          return (
+                            <img 
+                              src={settings.branding.logo} 
+                              alt={settings.branding?.company_name || 'Logo'}
+                              style={{ height: '40px', objectFit: 'contain' }}
+                            />
+                          );
+                        }
+                      } catch (e) {
+                        console.error('Failed to load logo:', e);
+                      }
+                      return (
+                        <span className="flex items-baseline tracking-wide">
+                          <span className="font-bold text-slate-800 dark:text-white text-xl">UKC</span>
+                          <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
+                          <span className="font-medium text-slate-500 dark:text-slate-300 text-sm">World</span>
+                        </span>
+                      );
+                    })()}
+                  </NavLink>
+                </div>
+              </div>
+
+              {/* Center - Active Page Indicator (All Roles) */}
+              <div className="flex-grow flex items-center justify-center">
+                {(() => {
+                  try {
+                    const navItems = getNavItemsForRole(user?.role, user?.permissions);
+                    let currentPath = location.pathname;
+                    
+                    // Don't show anything on root path or login
+                    if (currentPath === '/' || currentPath === '/login') {
+                      return null;
+                    }
+                    
+                    // Map special paths to their parent sections
+                    const pathToSectionMap = {
+                      '/guest': '/academy',
+                      '/members/offerings': '/members/offerings',
+                    };
+                    
+                    // Use mapped path if available for matching
+                    const matchPath = pathToSectionMap[currentPath] || currentPath;
+                    
+                    // Find the matching nav item and sub-item
+                    let activeItem = null;
+                    let activeSubItem = null;
+                    
+                    for (const item of navItems) {
+                      // Check subitems first (more specific match)
+                      // Sort by path length descending to match most specific first
+                      if (item.subItems) {
+                        const sortedSubItems = [...item.subItems].sort((a, b) => 
+                          (b.to?.length || 0) - (a.to?.length || 0)
+                        );
+                        const matchedSub = sortedSubItems.find(sub => 
+                          matchPath === sub.to || matchPath.startsWith(sub.to + '/')
+                        );
+                        if (matchedSub) {
+                          activeItem = item;
+                          activeSubItem = matchedSub;
+                          break;
+                        }
+                      }
+                      // Check main item path
+                      if (item.to && (matchPath === item.to || matchPath.startsWith(item.to + '/'))) {
+                        activeItem = item;
+                        break;
+                      }
+                    }
+
+                    // No match found - don't show anything
+                    if (!activeItem) return null;
+
+                    // Determine what to display
+                    // Always show the main item label (Parent Category) per user request
+                    const displayLabel = activeItem.label;
+                    const dotColor = activeItem.customStyle?.dotColor || '#2d6a3e';
+                    const textColor = activeItem.customStyle?.textColor || '#64748b';
+
+                    return (
+                      <div className="flex items-center max-w-[120px] sm:max-w-[200px] md:max-w-none overflow-hidden">
+                        <span
+                          className="animate-pulse flex-shrink-0"
+                          style={{
+                            color: dotColor,
+                            fontSize: '1.25rem',
+                            marginRight: '0.25rem',
+                            lineHeight: 1
+                          }}
+                        >
+                          •
+                        </span>
+                        <span
+                          className="font-bold whitespace-nowrap text-sm sm:text-base md:text-lg lg:text-xl truncate"
+                          style={{ color: textColor, letterSpacing: '0.02em' }}
+                          title={displayLabel}
+                        >
+                          {displayLabel}
+                        </span>
+                      </div>
+                    );
+                  } catch (error) {
+                    console.error('Error rendering page indicator:', error);
+                    return null;
+                  }
+                })()}
+              </div>
+
+              {/* Right-side icons */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end flex-shrink-0">
+                {/* Subtle Plannivo link with version */}
+                <a 
+                  href="http://plannivo.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors duration-150 dark:text-slate-400 dark:hover:text-slate-300"
+                  title="Visit Plannivo.com"
+                >
+                  <span>Plannivo</span>
+                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium dark:bg-blue-900/50 dark:text-blue-300">
+                    v{APP_VERSION}
+                  </span>
+                </a>
+              
+                {/* Real-time Status Indicator - Only for authenticated users */}
+                {isAuthenticated && <NotificationBell />}
+                {isAuthenticated && (
+                  <div className="hidden md:flex">
+                    <RealTimeStatusIndicator />
+                  </div>
+                )}
+              
+                {/* Profile Dropdown Container or Sign In Button */}
+                {isAuthenticated ? (
+                  <div className="relative profile-dropdown-container z-50">
+                    <button 
+                      onClick={toggleProfileDropdown}
+                      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
+                      aria-expanded={isProfileDropdownOpen}
+                      aria-haspopup="true"
+                      type="button"
+                      aria-label={`Open profile menu for ${displayName}`}
+                    >
+                      <Avatar
+                        size={32}
+                        shape="circle"
+                        src={profileImage || undefined}
+                        alt={`${displayName} avatar`}
+                        icon={!profileImage ? <UserCircleIcon className="h-5 w-5 text-slate-500 dark:text-slate-200" /> : undefined}
+                        className="border border-slate-200 bg-slate-100 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                    </button>
+                  {isProfileDropdownOpen && (
+                    <div 
+                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-white border border-slate-200 focus:outline-none z-[60] dark:bg-slate-800 dark:border-slate-700/40"
+                      role="menu" 
+                      aria-orientation="vertical"
+                      aria-labelledby="user-menu-button"
+                      style={{ zIndex: 9999 }}
+                    >
+                      <NavLink
+                        to="/profile"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/profile');
+                        }}
+                      >
+                        My Profile
+                      </NavLink>
+                      {isAuthenticated && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleWalletClick();
+                            setIsProfileDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          role="menuitem"
+                        >
+                          <span>My Wallet</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {walletBalance !== undefined && preferredCurrency ? `${preferredCurrency.symbol}${walletBalance.toFixed(2)}` : '...'}
+                          </span>
+                        </button>
+                      )}
+                      <NavLink
+                        to="/settings"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/settings');
+                        }}
+                      >
+                        Settings
+                      </NavLink>
+                      <NavLink
+                        to="/notifications"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/notifications');
+                        }}
+                      >
+                        Notifications
+                      </NavLink>
+                      <NavLink
+                        to="/help"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/help');
+                        }}
+                      >
+                        Help & Support
+                      </NavLink>
+                      <NavLink
+                        to="/privacy/gdpr"
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/privacy/gdpr');
+                        }}
+                      >
+                        Privacy & GDPR
+                      </NavLink>
+                      <hr className="my-1 border-slate-200 dark:border-slate-700" />
+                      <button
+                        onClick={showLogoutConfirmation}
+                        className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                  </div>
+                ) : (
+                  // Sign In button for guests
+                  <button
+                    onClick={() => {
+                      openAuthModal({
+                        title: 'Sign In to UKC.World',
+                        message: 'Create an account or sign in to access all features',
+                        returnUrl: location.pathname
+                      });
+                    }}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    aria-label="Sign In"
+                  >
+                    Sign In
+                  </button>
+                )}
+
+                {/* Removed duplicate right-side hamburger to keep only sidebar toggle on the left */}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Logout Confirmation Modal */}
+        <Modal
+          title="Confirm Logout"
+          open={isLogoutModalVisible}
+          onOk={handleLogoutConfirm}
+          onCancel={handleLogoutCancel}
+          okText="Yes, Logout"
+          cancelText="Cancel"
+        >
+          <p>Are you sure you want to logout?</p>
+        </Modal>
+    </div>
+  );
+};

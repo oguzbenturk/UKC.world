@@ -1,0 +1,109 @@
+/* Duotone Equipment Showcase Styles */
+.duotone-showcase {
+  margin: 1.5rem 0;
+}
+
+.duotone-equipment-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.duotone-equipment-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.duotone-equipment-card .ant-card-cover {
+  border-radius: 12px 12px 0 0;
+}
+
+.duotone-equipment-card .ant-card-cover img {
+  border-radius: 12px 12px 0 0;
+  transition: transform 0.3s ease;
+}
+
+.duotone-equipment-card:hover .ant-card-cover img {
+  transform: scale(1.05);
+}
+
+.duotone-equipment-card .ant-card-body {
+  padding: 16px 20px;
+}
+
+.duotone-equipment-card .ant-card-actions {
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.duotone-equipment-card .ant-card-actions > li {
+  margin: 8px 0;
+}
+
+.duotone-equipment-card .ant-card-actions .ant-btn {
+  border: none;
+  background: none;
+  transition: all 0.2s ease;
+}
+
+.duotone-equipment-card .ant-card-actions .ant-btn:hover {
+  background: rgba(255, 51, 102, 0.1);
+  color: #ff3366;
+}
+
+/* Equipment category specific colors */
+.equipment-kites {
+  border-left: 4px solid #ff3366;
+}
+
+.equipment-boards {
+  border-left: 4px solid #2563eb;
+}
+
+.equipment-accessories {
+  border-left: 4px solid #10b981;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .duotone-equipment-card .ant-card-cover img {
+    height: 180px;
+  }
+  
+  .duotone-showcase .ant-row .ant-col {
+    margin-bottom: 16px;
+  }
+}
+
+/* Premium gradient effects */
+.duotone-premium-gradient {
+  background: linear-gradient(135deg, #ff3366 0%, #ff6b9d  50%, #2563eb 100%);
+  background-size: 300% 300%;
+  animation: duotoneGradient 6s ease infinite;
+}
+
+@keyframes duotoneGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Equipment modal styles */
+.duotone-modal .ant-modal-header {
+  background: linear-gradient(90deg, #ff3366, #2563eb);
+  color: white;
+}
+
+.duotone-modal .ant-modal-title {
+  color: white !important;
+}
+
+/* Tag hover effects */
+.duotone-equipment-card .ant-tag {
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.duotone-equipment-card .ant-tag:hover {
+  transform: scale(1.05);
+}

@@ -1,0 +1,98 @@
+/* Mobile Modal Scrolling Fix */
+
+/* Base scrollable container: allow scrolling on all viewports */
+.modal-scroll-container {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Force proper scrolling behavior for HeadlessUI dialogs on mobile */
+[data-headlessui-state] {
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure modal content can scroll on mobile devices */
+@media (max-width: 768px) {
+  /* Fix for mobile viewport units - keep some padding for rounded appearance */
+  .modal-mobile-fix {
+  height: calc(100vh - 2rem) !important; /* fallback */
+  height: calc(100dvh - 2rem) !important; /* Dynamic viewport height for mobile browsers */
+  max-height: calc(95vh - 2rem) !important; /* fallback */
+  max-height: calc(95dvh - 2rem) !important;
+    /* Ensure rounded corners are visible */
+    border-radius: 1.5rem !important;
+    margin: 1rem !important;
+    width: calc(100% - 2rem) !important;
+  }
+  
+  /* Prevent body scroll lock conflicts */
+  body.modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+    touch-action: none !important;
+  }
+  
+  /* Ensure the modal overlay doesn't interfere */
+  .modal-overlay {
+  overflow: hidden !important;
+  /* Allow vertical panning inside the overlay so inner content can scroll */
+  touch-action: pan-y !important;
+  }
+  
+  /* Fix for service selection scrolling */
+  .service-selection-mobile {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+  }
+  
+  /* Improve touch targets for mobile */
+  .modal-scroll-container button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  .modal-scroll-container input[type="radio"] {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  /* Prevent zoom on input focus */
+  .modal-scroll-container input,
+  .modal-scroll-container select,
+  .modal-scroll-container textarea {
+    font-size: 16px !important;
+  }
+
+  /* Ensure focused fields are scrolled into view above keyboard */
+  .modal-scroll-container input,
+  .modal-scroll-container select,
+  .modal-scroll-container textarea,
+  .modal-scroll-container [contenteditable="true"] {
+    scroll-margin-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 769px) {
+  .modal-mobile-fix {
+    height: auto !important;
+    max-height: 90vh !important;
+    border-radius: 1.5rem !important;
+  }
+}
+
+/* Fallback for older mobile browsers */
+@supports not (height: 100dvh) {
+  @media (max-width: 768px) {
+    .modal-mobile-fix {
+      height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem) !important;
+      border-radius: 1.5rem !important;
+    }
+  }
+}
