@@ -338,7 +338,7 @@ If any of this data originates from user input or database content that wasn't s
 
 ---
 
-- [ ] ### SEC-016: Weak XSS Sanitization on Backend
+- [x] ### SEC-016: Weak XSS Sanitization on Backend
 **Severity:** HIGH
 **File:** `backend/middlewares/security.js:162-175`
 
@@ -371,7 +371,7 @@ Additionally, this middleware is **commented out** in `server.js:261`:
 
 **Impact:** No server-side XSS protection is active. All user input reaches the database unsanitized.
 
-**Recommendation:** Enable a robust XSS sanitization library (like `xss` or `sanitize-html`) and apply it globally. Do not rely on regex-based sanitization.
+**RESOLUTION:** ✅ FIXED BY SEC-046 - Robust XSS sanitization with `xss` library now globally applied to req.body, req.query, req.params. Weak regex-based sanitization replaced with industry-standard library.
 
 ---
 
