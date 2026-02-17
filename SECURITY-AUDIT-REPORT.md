@@ -698,7 +698,7 @@ The unauthenticated health endpoint exposes:
 
 ---
 
-- [ ] ### SEC-033: Error Handler Exposes Stack Traces in Development
+- [x] ### SEC-033: Error Handler Exposes Stack Traces in Development
 **Severity:** MEDIUM
 **File:** `backend/middlewares/errorHandler.js:108-116`
 
@@ -734,7 +734,7 @@ The entire user object (including role, permissions, consent data, and profile i
 
 ---
 
-- [ ] ### SEC-035: Metrics Endpoint Publicly Accessible
+- [x] ### SEC-035: Metrics Endpoint Publicly Accessible
 **Severity:** MEDIUM
 **File:** `backend/server.js:548`
 
@@ -768,7 +768,7 @@ Rate limits can be overridden via environment variables (`AUTH_RATE_LIMIT_MAX`, 
 
 ---
 
-- [ ] ### SEC-037: Auth Rate Limit is 50 Per 15 Minutes in Production
+- [x] ### SEC-037: Auth Rate Limit is 50 Per 15 Minutes in Production
 **Severity:** LOW
 **File:** `backend/middlewares/security.js:92-103`
 
@@ -844,7 +844,7 @@ Neither `infrastructure/Dockerfile` nor `backend/Dockerfile.production` are visi
 
 ## 13. LOW — Miscellaneous Issues
 
-- [ ] ### SEC-042: Weak Password Policy
+- [x] ### SEC-042: Weak Password Policy
 **Severity:** LOW
 **File:** `backend/routes/auth.js:429`
 
@@ -860,7 +860,7 @@ The registration endpoint only checks password length (8 characters minimum). Th
 
 ---
 
-- [ ] ### SEC-043: Iyzico Callback Error Exposes Internal Error Message in URL
+- [x] ### SEC-043: Iyzico Callback Error Exposes Internal Error Message in URL
 **Severity:** MEDIUM
 **File:** `backend/server.js:485`
 

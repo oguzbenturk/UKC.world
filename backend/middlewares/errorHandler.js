@@ -206,7 +206,12 @@ export const globalErrorHandler = (err, req, res, next) => {
     timestamp: new Date().toISOString()
   });
 
-  if (process.env.NODE_ENV === 'development') {
+  // SEC-033 FIX: Strict environment checking - default to production mode if not explicitly set
+  const isProduction = process.env.NODE_ENV?.trim() === 'production';
+  const isDevelopment = process.env.NODE_ENV?.trim() === 'development' && !isProduction;
+  
+  // Always use production error handling unless explicitly in development
+  if (isDevelopment) {
     sendErrorDev(err, res);
   } else {
     let error = { ...err };

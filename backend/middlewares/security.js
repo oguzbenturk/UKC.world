@@ -93,10 +93,13 @@ export const apiRateLimit = rateLimit({
   skip: shouldSkipRateLimit
 });
 
+// SEC-037: Reduced auth rate limit from 50 to 20 per 15 minutes
 const defaultAuthLimit = () => {
-  const fallback = CURRENT_ENV === 'production' ? 50 : 1500;
+  const fallback = CURRENT_ENV === 'production' ? 20 : 1500;
   const parsed = parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, fallback);
-  return ensureDevMinimum(parsed, fallback);
+  // SEC-036: Hard minimum of 10 in production (cannot be overridden lower)
+  const hardMinimum = CURRENT_ENV === 'production' ? 10 : fallback;
+  return Math.max(ensureDevMinimum(parsed, fallback), hardMinimum);
 };
 
 export const authRateLimit = rateLimit({

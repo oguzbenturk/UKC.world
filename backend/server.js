@@ -517,8 +517,9 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
   } catch (error) {
     logger.error('Iyzico Callback Failed', { error: error.message, stack: error.stack });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    // Redirect to a generic error page that all roles can access
-    res.redirect(`${frontendUrl}/book?payment=failed&reason=${encodeURIComponent(error.message || 'Payment processing failed')}`);
+    // SEC-043 FIX: Use generic error code instead of exposing internal error messages
+    const errorCode = error.code || 'PAYMENT_ERROR';
+    res.redirect(`${frontendUrl}/book?payment=failed&error_code=${encodeURIComponent(errorCode)}`);
   }
 });
 
@@ -580,7 +581,8 @@ app.use('/api/debug', debugRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/notification-workers', notificationWorkersRouter);
-app.use('/api/metrics', metricsRouter);
+// SEC-035: Metrics endpoint requires admin authentication
+app.use('/api/metrics', authenticateJWT, authorizeRoles(['admin', 'super_admin']), metricsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/admin/waivers', adminWaiversRouter);
 app.use('/api/admin/support-tickets', adminSupportTicketsRouter);
