@@ -231,7 +231,7 @@ const AppLayoutWithAuth = () => {
   // If authenticated but not authorized to see navigation, show a limited view
   if (!canAccessNavigation) {
     return (
-      <main className="min-h-dvh safe-pb">
+      <main className="min-h-dvh h-dvh overflow-y-auto safe-pb">
         {consentModal}
         <div className="bg-slate-800 shadow-lg sticky top-0 z-50 p-4 flex justify-between items-center">
           <span className="flex items-baseline tracking-wide">
@@ -260,7 +260,7 @@ const AppLayoutWithAuth = () => {
   // For public form routes, render without sidebar/navbar
   if (isPublicFormRoute) {
     return (
-      <main className="min-h-dvh">
+      <main className="min-h-dvh h-dvh overflow-y-auto">
         <AppRoutes />
       </main>
     );
