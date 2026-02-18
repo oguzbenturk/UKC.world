@@ -788,52 +788,108 @@ const AcademyServicePackagesPage = ({
   const accentWordClass = accentWordClassMap[resolvedTheme] || accentWordClassMap.academy;
   const cardTitleHoverClass = cardTitleHoverClassMap[resolvedTheme] || cardTitleHoverClassMap.academy;
 
+  // Mobile-safe radial-gradient backgrounds (no CSS blur filter = no GPU freeze).
+  // CSS blur-[120-150px] on 600-950px elements is extremely GPU-intensive and
+  // freezes mobile browsers. Radial gradients are hardware-accelerated and free.
+  const mobileBgStyleMap = {
+    rental: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 90% 10%, rgba(251,146,60,0.14) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 10% 50%, rgba(251,191,36,0.10) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 60% 90%, rgba(249,115,22,0.09) 0%, transparent 70%)',
+      ].join(', '),
+    },
+    member: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 10% 10%, rgba(190,242,100,0.10) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 90% 50%, rgba(52,211,153,0.09) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 40% 90%, rgba(163,230,53,0.08) 0%, transparent 70%)',
+      ].join(', '),
+    },
+    stay: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 10% 15%, rgba(96,165,250,0.12) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 90% 50%, rgba(56,189,248,0.10) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(59,130,246,0.08) 0%, transparent 70%)',
+      ].join(', '),
+    },
+    experience: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 90% 10%, rgba(253,224,71,0.12) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 10% 50%, rgba(251,191,36,0.10) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 60% 90%, rgba(234,179,8,0.08) 0%, transparent 70%)',
+      ].join(', '),
+    },
+    premium: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 10% 15%, rgba(252,211,77,0.12) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 90% 45%, rgba(251,146,60,0.10) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(245,158,11,0.08) 0%, transparent 70%)',
+      ].join(', '),
+    },
+    academy: {
+      background: [
+        'radial-gradient(ellipse 80% 50% at 10% 15%, rgba(52,211,153,0.15) 0%, transparent 70%)',
+        'radial-gradient(ellipse 60% 60% at 85% 40%, rgba(34,197,94,0.12) 0%, transparent 70%)',
+        'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(5,150,105,0.10) 0%, transparent 70%)',
+      ].join(', '),
+    },
+  };
+
   const bgTheme = (
-    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-      {resolvedTheme === 'rental' && (
-        <>
-          <div className="absolute top-[-12%] right-[-8%] w-[900px] h-[900px] bg-orange-400/20 rounded-full blur-[150px]" />
-          <div className="absolute top-[22%] left-[-10%] w-[760px] h-[760px] bg-amber-400/16 rounded-full blur-[130px]" />
-          <div className="absolute bottom-[-8%] right-[22%] w-[680px] h-[680px] bg-orange-500/14 rounded-full blur-[120px]" />
-        </>
-      )}
-      {resolvedTheme === 'member' && (
-        <>
-          <div className="absolute top-[-12%] left-[-10%] w-[900px] h-[900px] bg-lime-300/16 rounded-full blur-[150px]" />
-          <div className="absolute top-[24%] right-[-8%] w-[780px] h-[780px] bg-emerald-400/14 rounded-full blur-[135px]" />
-          <div className="absolute bottom-[-10%] left-[24%] w-[720px] h-[720px] bg-lime-400/12 rounded-full blur-[125px]" />
-        </>
-      )}
-      {resolvedTheme === 'stay' && (
-        <>
-          <div className="absolute top-[-10%] left-[-8%] w-[860px] h-[860px] bg-blue-400/18 rounded-full blur-[145px]" />
-          <div className="absolute top-[24%] right-[-8%] w-[760px] h-[760px] bg-sky-400/15 rounded-full blur-[135px]" />
-          <div className="absolute bottom-[-10%] left-[30%] w-[680px] h-[680px] bg-blue-500/12 rounded-full blur-[120px]" />
-        </>
-      )}
-      {resolvedTheme === 'experience' && (
-        <>
-          <div className="absolute top-[-12%] right-[-8%] w-[920px] h-[920px] bg-yellow-300/18 rounded-full blur-[155px]" />
-          <div className="absolute top-[22%] left-[-10%] w-[760px] h-[760px] bg-amber-400/16 rounded-full blur-[135px]" />
-          <div className="absolute bottom-[-10%] right-[20%] w-[700px] h-[700px] bg-yellow-500/12 rounded-full blur-[120px]" />
-        </>
-      )}
-      {resolvedTheme === 'premium' && (
-        <>
-          <div className="absolute top-[-12%] left-[-10%] w-[900px] h-[900px] bg-amber-300/18 rounded-full blur-[150px]" />
-          <div className="absolute top-[20%] right-[-8%] w-[800px] h-[800px] bg-orange-400/16 rounded-full blur-[140px]" />
-          <div className="absolute bottom-[-8%] left-[30%] w-[700px] h-[700px] bg-amber-500/12 rounded-full blur-[130px]" />
-        </>
-      )}
-      {resolvedTheme === 'academy' && (
-        <>
-          <div className="absolute top-[-12%] left-[-10%] w-[950px] h-[950px] bg-emerald-400/24 rounded-full blur-[150px]" />
-          <div className="absolute top-[16%] right-[-8%] w-[860px] h-[860px] bg-green-500/20 rounded-full blur-[140px]" />
-          <div className="absolute bottom-[-8%] left-[30%] w-[760px] h-[760px] bg-emerald-600/18 rounded-full blur-[130px]" />
-          <div className="absolute top-[45%] left-[18%] w-[620px] h-[620px] bg-green-400/12 rounded-full blur-[120px]" />
-        </>
-      )}
-    </div>
+    <>
+      {/* Mobile: lightweight CSS radial gradients (no blur = no GPU freeze) */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 md:hidden"
+        style={mobileBgStyleMap[resolvedTheme] || mobileBgStyleMap.academy}
+      />
+      {/* Desktop: full blur blobs (GPU can handle it) */}
+      <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 hidden md:block">
+        {resolvedTheme === 'rental' && (
+          <>
+            <div className="absolute top-[-12%] right-[-8%] w-[900px] h-[900px] bg-orange-400/20 rounded-full blur-[150px]" />
+            <div className="absolute top-[22%] left-[-10%] w-[760px] h-[760px] bg-amber-400/16 rounded-full blur-[130px]" />
+            <div className="absolute bottom-[-8%] right-[22%] w-[680px] h-[680px] bg-orange-500/14 rounded-full blur-[120px]" />
+          </>
+        )}
+        {resolvedTheme === 'member' && (
+          <>
+            <div className="absolute top-[-12%] left-[-10%] w-[900px] h-[900px] bg-lime-300/16 rounded-full blur-[150px]" />
+            <div className="absolute top-[24%] right-[-8%] w-[780px] h-[780px] bg-emerald-400/14 rounded-full blur-[135px]" />
+            <div className="absolute bottom-[-10%] left-[24%] w-[720px] h-[720px] bg-lime-400/12 rounded-full blur-[125px]" />
+          </>
+        )}
+        {resolvedTheme === 'stay' && (
+          <>
+            <div className="absolute top-[-10%] left-[-8%] w-[860px] h-[860px] bg-blue-400/18 rounded-full blur-[145px]" />
+            <div className="absolute top-[24%] right-[-8%] w-[760px] h-[760px] bg-sky-400/15 rounded-full blur-[135px]" />
+            <div className="absolute bottom-[-10%] left-[30%] w-[680px] h-[680px] bg-blue-500/12 rounded-full blur-[120px]" />
+          </>
+        )}
+        {resolvedTheme === 'experience' && (
+          <>
+            <div className="absolute top-[-12%] right-[-8%] w-[920px] h-[920px] bg-yellow-300/18 rounded-full blur-[155px]" />
+            <div className="absolute top-[22%] left-[-10%] w-[760px] h-[760px] bg-amber-400/16 rounded-full blur-[135px]" />
+            <div className="absolute bottom-[-10%] right-[20%] w-[700px] h-[700px] bg-yellow-500/12 rounded-full blur-[120px]" />
+          </>
+        )}
+        {resolvedTheme === 'premium' && (
+          <>
+            <div className="absolute top-[-12%] left-[-10%] w-[900px] h-[900px] bg-amber-300/18 rounded-full blur-[150px]" />
+            <div className="absolute top-[20%] right-[-8%] w-[800px] h-[800px] bg-orange-400/16 rounded-full blur-[140px]" />
+            <div className="absolute bottom-[-8%] left-[30%] w-[700px] h-[700px] bg-amber-500/12 rounded-full blur-[130px]" />
+          </>
+        )}
+        {resolvedTheme === 'academy' && (
+          <>
+            <div className="absolute top-[-12%] left-[-10%] w-[950px] h-[950px] bg-emerald-400/24 rounded-full blur-[150px]" />
+            <div className="absolute top-[16%] right-[-8%] w-[860px] h-[860px] bg-green-500/20 rounded-full blur-[140px]" />
+            <div className="absolute bottom-[-8%] left-[30%] w-[760px] h-[760px] bg-emerald-600/18 rounded-full blur-[130px]" />
+            <div className="absolute top-[45%] left-[18%] w-[620px] h-[620px] bg-green-400/12 rounded-full blur-[120px]" />
+          </>
+        )}
+      </div>
+    </>
   );
 
   return (
