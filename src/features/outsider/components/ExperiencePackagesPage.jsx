@@ -330,7 +330,7 @@ const ExperiencePackagesPage = ({
   };
 
   return (
-    <div className="min-h-screen text-white font-sans relative overflow-hidden bg-[#17140b] selection:bg-yellow-400/30">
+    <div className="min-h-screen text-white font-sans relative overflow-x-hidden bg-[#17140b] selection:bg-yellow-400/30">
       <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-12%] right-[-8%] w-[920px] h-[920px] bg-yellow-300/18 rounded-full blur-[155px]" />
         <div className="absolute top-[22%] left-[-10%] w-[760px] h-[760px] bg-amber-400/16 rounded-full blur-[135px]" />

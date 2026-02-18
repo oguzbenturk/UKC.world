@@ -87,10 +87,11 @@
 .content-container {
   @apply flex-1 bg-slate-100 transition-all duration-300;
   width: calc(100% - 240px); /* Default with expanded sidebar */
-  min-height: calc(100vh - 4rem); /* fallback */
-  min-height: calc(100dvh - 4rem); /* Grow beyond viewport if content is tall */
-  overflow-y: visible;
+  min-height: 0; /* Allow flex child to shrink properly */
+  height: 100%; /* Fill parent flex container */
+  overflow-y: auto; /* This is the scroll container */
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
 }
 
 /* Content width adjustment when sidebar is collapsed */

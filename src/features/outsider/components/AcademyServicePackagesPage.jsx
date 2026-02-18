@@ -837,7 +837,7 @@ const AcademyServicePackagesPage = ({
   );
 
   return (
-    <div className={`min-h-screen text-white font-sans relative overflow-hidden ${pageBackgroundClass} ${selectionClass}`}>
+    <div className={`min-h-screen text-white font-sans relative overflow-x-hidden ${pageBackgroundClass} ${selectionClass}`}>
       {bgTheme}
       
       <div className="relative z-10 py-12">
