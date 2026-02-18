@@ -382,8 +382,10 @@ async function main() {
               console.log(`   ✓ Uploaded ${file}`);
             }
           }
-          // Restrict private key permissions on server
-          await ssh.execCommand(`chmod 600 ${remoteSslDir}/private.key`);
+          // Set permissions: private key readable by nginx container (unprivileged user uid 101)
+          // 640 + chown to root:101 allows the nginx container user to read without world-readable
+          await ssh.execCommand(`chmod 640 ${remoteSslDir}/private.key && chown root:101 ${remoteSslDir}/private.key`);
+          await ssh.execCommand(`chmod 644 ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt`);
           console.log('   ✓ SSL certificates uploaded successfully');
         }
 
@@ -473,9 +475,9 @@ if [ -f docker-compose.production.yml ]; then
   docker ps
   echo "Checking backend health..."
   for i in 1 2 3 4 5; do
-    if docker exec frontend curl -fsS http://backend:4000/api/health >/dev/null 2>&1; then
+    if docker exec backend node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" >/dev/null 2>&1; then
       echo "Backend Health: OK"; break; fi; echo "waiting backend ($i)..."; sleep 4; done
-  if ! docker exec frontend curl -fsS http://backend:4000/api/health >/dev/null 2>&1; then
+  if ! docker exec backend node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" >/dev/null 2>&1; then
     echo "Backend Health: FAIL"; docker logs backend --tail=200 || true; fi
   echo "Checking frontend health..."
   for i in 1 2 3 4 5; do
