@@ -193,7 +193,7 @@ export const Navbar = ({ toggleSidebar }) => {
   };
 
   return (
-    <div className="dark">
+    <div className="dark safe-pt">
       <nav
         className={`sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-700/40 shadow-xl transition-colors duration-200 ${
           isScrolled

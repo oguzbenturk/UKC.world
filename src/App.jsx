@@ -267,7 +267,7 @@ const AppLayoutWithAuth = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-dvh">
+    <div className="flex flex-col h-dvh">
       {consentModal}
   <Navbar toggleSidebar={toggleSidebar} toggleSidebarCollapsed={toggleSidebarCollapsed} />
   <NotificationRealtimeBridge />
