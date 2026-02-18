@@ -300,7 +300,7 @@ const KiteLessonsPage = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <Tag className="mb-2 !bg-blue-500/10 !border-blue-500/30 !text-blue-400 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider">
-            UKC Academy
+            UKC.Academy
           </Tag>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
             Kite <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Lessons</span>

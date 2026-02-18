@@ -121,7 +121,7 @@ const PremiumLessonsPage = () => (
     headline="Premium"
     accentWord="Lessons"
     subheadline="Exclusive coaching packages with admin-configurable durations and prices."
-    academyTag="UKC Premium"
+    academyTag="UKC.Premium"
     academyTheme="premium"
     packages={premiumFallbackPackages}
     dynamicServiceKey="premium"

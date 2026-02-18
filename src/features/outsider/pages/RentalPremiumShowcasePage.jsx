@@ -97,7 +97,7 @@ const RentalPremiumShowcasePage = () => (
     accentWord="Rental"
     academyTheme="rental"
     subheadline="Choose SLS or D/LAB setups for top-tier response, lighter feel and high-performance sessions."
-    academyTag="UKC Rental"
+    academyTag="UKC.Rental"
     packages={premiumRentalPackages}
   />
 );

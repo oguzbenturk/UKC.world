@@ -123,7 +123,7 @@ const RentalStandardShowcasePage = () => (
     accentWord="Rental"
     academyTheme="rental"
     subheadline="Reliable, progression-friendly equipment for daily sessions. Choose your gear and duration in one place."
-    academyTag="UKC Rental"
+    academyTag="UKC.Rental"
     packages={standardRentalPackages}
   />
 );

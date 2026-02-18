@@ -65,7 +65,7 @@ const RentalSlsShowcasePage = () => (
     accentWord="Equipment"
     academyTheme="rental"
     subheadline="Strong Light Superior setup for riders who want lighter feel, quicker response and premium performance."
-    academyTag="UKC Rental"
+    academyTag="UKC.Rental"
     packages={slsRentalPackages}
   />
 );

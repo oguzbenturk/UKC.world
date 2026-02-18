@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App, Button, Divider, Image, Modal, Space, Tag, Typography } from 'antd';
+import { App, Button, Tag } from 'antd';
 import { RocketOutlined, CalendarOutlined } from '@ant-design/icons';
+import ExperienceDetailModal from './ExperienceDetailModal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
@@ -10,8 +11,6 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import PackagePurchaseModal from './PackagePurchaseModal';
-
-const { Title, Text, Paragraph } = Typography;
 
 const normalize = (v) => String(v || '').toLowerCase();
 
@@ -217,7 +216,6 @@ const ExperiencePackagesPage = ({
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
-  const [itineraryExpanded, setItineraryExpanded] = useState(false);
 
   usePageSEO({
     title: seoTitle,
@@ -302,7 +300,6 @@ const ExperiencePackagesPage = ({
   const openPackageDetail = (pkg) => {
     setSelectedPackage(pkg);
     setDetailOpen(true);
-    setItineraryExpanded(false);
   };
 
   const requireAuthForPurchase = () => {
@@ -332,15 +329,6 @@ const ExperiencePackagesPage = ({
     }, 300);
   };
 
-  const accommodationGallery = useMemo(() => {
-    if (!selectedPackage) return [];
-
-    const fromGallery = toImageArray(selectedPackage.accommodationImages);
-    const fromCover = selectedPackage.accommodationImageUrl ? [selectedPackage.accommodationImageUrl] : [];
-    const merged = [...fromCover, ...fromGallery].filter(Boolean);
-    return Array.from(new Set(merged));
-  }, [selectedPackage]);
-
   return (
     <div className="min-h-screen text-white font-sans relative overflow-hidden bg-[#17140b] selection:bg-yellow-400/30">
       <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -352,7 +340,7 @@ const ExperiencePackagesPage = ({
       <div className="relative z-10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Tag className="mb-2 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider !bg-yellow-500/10 !border-yellow-500/30 !text-yellow-400">
-            UKC Experience
+            UKC.Experience
           </Tag>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
             {headline} <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">{accentWord}</span>
@@ -472,222 +460,13 @@ const ExperiencePackagesPage = ({
         )}
       </div>
 
-      <Modal
-        open={detailOpen}
-        onCancel={() => setDetailOpen(false)}
-        footer={null}
-        width={800}
-        destroyOnHidden
-        title={null}
-        className="experience-detail-modal"
-        style={{ top: 40 }}
-        styles={{
-          content: {
-            padding: 0,
-            background: 'transparent',
-            boxShadow: 'none'
-          },
-          body: {
-            padding: 0,
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto'
-          }
-        }}
-        closeIcon={
-          <span className="text-white text-xl hover:text-gray-300 transition-colors">✕</span>
-        }
-      >
-        {selectedPackage && (
-          <div className="overflow-hidden rounded-2xl bg-[#141722] border border-white/10">
-            <div className="relative h-80">
-              <Image
-                src={getImageUrl(selectedPackage.imageUrl) || getFallbackImageByDiscipline(disciplineKey)}
-                alt={selectedPackage.name}
-                className="w-full h-full object-cover"
-                preview={{
-                  mask: <div className="text-white">Click to view full size</div>
-                }}
-                style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#141722] via-[#141722]/35 to-transparent pointer-events-none" />
-              <div className="absolute bottom-5 left-5 right-5 pointer-events-none">
-                <Tag className="!mb-2 !bg-yellow-500/10 !border-yellow-500/30 !text-yellow-300 !rounded-full">
-                  {EXPERIENCE_TYPE_LABELS[selectedPackage.bundleType || getBundleType(selectedPackage)] || 'Experience'}
-                </Tag>
-                <Title level={3} className="!mb-1 !text-white">{selectedPackage.name}</Title>
-                <Text className="text-gray-300">{selectedPackage.description || 'Complete experience bundle package.'}</Text>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="flex flex-wrap gap-2 mb-5">
-                {(selectedPackage.includesLessons !== false) && <Tag className="!bg-emerald-500/10 !border-emerald-500/30 !text-emerald-300">Lessons included</Tag>}
-                {!!selectedPackage.includesRental && <Tag className="!bg-orange-500/10 !border-orange-500/30 !text-orange-300">Rental included</Tag>}
-                {!!selectedPackage.includesAccommodation && <Tag className="!bg-blue-500/10 !border-blue-500/30 !text-blue-300">Accommodation included</Tag>}
-              </div>
-
-              {/* Event-based packages (downwinders/camps) show event details */}
-              {(selectedPackage.packageType === 'downwinders' || selectedPackage.packageType === 'camps') ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-                  {selectedPackage.departureLocation && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Departure</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.departureLocation}</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.destinationLocation && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Destination</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.destinationLocation}</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.eventLocation && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Event Location</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.eventLocation}</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.maxParticipants && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Max Participants</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.maxParticipants} riders</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.minSkillLevel && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Skill Level Required</Text>
-                      <Paragraph className="!mb-0 !text-white capitalize">{selectedPackage.minSkillLevel}</Paragraph>
-                    </div>
-                  )}
-                  {(selectedPackage.minAge || selectedPackage.maxAge) && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Age Range</Text>
-                      <Paragraph className="!mb-0 !text-white">
-                        {selectedPackage.minAge && selectedPackage.maxAge ? `${selectedPackage.minAge} - ${selectedPackage.maxAge} years` :
-                         selectedPackage.minAge ? `${selectedPackage.minAge}+ years` :
-                         `Up to ${selectedPackage.maxAge} years`}
-                      </Paragraph>
-                    </div>
-                  )}
-                  {(selectedPackage.eventStartDate || selectedPackage.eventEndDate) && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 md:col-span-2">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Event Dates</Text>
-                      <Paragraph className="!mb-0 !text-white">
-                        {selectedPackage.eventStartDate && new Date(selectedPackage.eventStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {selectedPackage.eventStartDate && selectedPackage.eventEndDate && ' → '}
-                        {selectedPackage.eventEndDate && new Date(selectedPackage.eventEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </Paragraph>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Regular packages show service details */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-                  {selectedPackage.includesLessons && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Lesson Service</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.lessonServiceName || 'Included in package'}</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.includesAccommodation && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Accommodation Option</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.accommodationUnitName || 'Included in package'}</Paragraph>
-                    </div>
-                  )}
-                  {selectedPackage.includesRental && (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                      <Text className="text-gray-400 text-xs uppercase tracking-wide">Rental Option</Text>
-                      <Paragraph className="!mb-0 !text-white">{selectedPackage.rentalServiceName || selectedPackage.equipmentName || 'Included in package'}</Paragraph>
-                    </div>
-                  )}
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <Text className="text-gray-400 text-xs uppercase tracking-wide">Package Scope</Text>
-                    <Space wrap>
-                      {!!selectedPackage.totalHours && <Tag className="!bg-white/5 !border-white/15 !text-gray-200">{Math.round(Number(selectedPackage.totalHours))} lesson hours</Tag>}
-                      {!!selectedPackage.accommodationNights && <Tag className="!bg-white/5 !border-white/15 !text-gray-200">{selectedPackage.accommodationNights} nights</Tag>}
-                      {!!selectedPackage.rentalDays && <Tag className="!bg-white/5 !border-white/15 !text-gray-200">{selectedPackage.rentalDays} rental days</Tag>}
-                    </Space>
-                  </div>
-                </div>
-              )}
-
-              {/* Show itinerary for event packages */}
-              {(selectedPackage.packageType === 'downwinders' || selectedPackage.packageType === 'camps') && selectedPackage.itinerary && (
-                <div className="mb-5">
-                  <Text className="text-gray-300 text-sm font-semibold mb-3 block">Itinerary</Text>
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <pre className="!mb-0 !text-gray-200 whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                      {itineraryExpanded ? selectedPackage.itinerary : (() => {
-                        const text = selectedPackage.itinerary;
-                        // Find the end of Day 1 or first 300 characters
-                        const day2Index = text.toLowerCase().indexOf('day 2');
-                        if (day2Index > 0) {
-                          return text.substring(0, day2Index).trim();
-                        }
-                        return text.length > 300 ? text.substring(0, 300) + '...' : text;
-                      })()}
-                    </pre>
-                    {(selectedPackage.itinerary.toLowerCase().includes('day 2') || selectedPackage.itinerary.length > 300) && (
-                      <Button
-                        type="link"
-                        onClick={() => setItineraryExpanded(!itineraryExpanded)}
-                        className="!p-0 !mt-3 !text-yellow-500 hover:!text-yellow-400"
-                      >
-                        {itineraryExpanded ? 'Show Less' : 'Read Full Itinerary'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {accommodationGallery.length > 0 && (
-                <div className="mb-5">
-                  <Text className="text-gray-300 text-sm font-semibold">Accommodation Photos</Text>
-                  <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <Image.PreviewGroup>
-                      {accommodationGallery.map((imageUrl) => (
-                        <div key={imageUrl} className="rounded-lg overflow-hidden border border-white/10 bg-black/20 h-28 cursor-pointer hover:border-yellow-500/30 transition-colors">
-                          <Image
-                            src={imageUrl}
-                            alt="Accommodation"
-                            className="w-full h-full object-cover"
-                            preview={{
-                              mask: <div className="text-white text-xs">Click to enlarge</div>
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </Image.PreviewGroup>
-                  </div>
-                </div>
-              )}
-
-              <Divider className="!border-white/10 !my-4" />
-
-              <div className="flex items-end justify-between gap-3 flex-wrap">
-                <div>
-                  <Text className="text-gray-400 text-xs uppercase tracking-wide">Starting from</Text>
-                  <Title level={3} className="!mb-0 !text-white">
-                    {getPriceForUserCurrency(selectedPackage, userCurrency, convertCurrency, formatCurrency)}
-                  </Title>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button onClick={() => setDetailOpen(false)} className="!rounded-xl">Close</Button>
-                  <Button
-                    type="primary"
-                    className="!rounded-xl !bg-yellow-500 !border-yellow-500 hover:!bg-yellow-400 !text-black !font-semibold"
-                    onClick={() => handleOpenPurchaseModal(selectedPackage)}
-                  >
-                    Buy This Package
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ExperienceDetailModal
+        pkg={selectedPackage}
+        visible={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onBuy={handleOpenPurchaseModal}
+        disciplineKey={disciplineKey}
+      />
 
       <PackagePurchaseModal
         open={purchaseModalOpen}

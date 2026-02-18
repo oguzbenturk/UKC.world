@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Modal, Tag } from 'antd';
+import { Button, Image, Modal, Tag } from 'antd';
 import {
   CheckOutlined,
   CloseOutlined,
@@ -47,12 +47,12 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState('1night');
   const [customNights, setCustomNights] = useState(3);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   const theme = themeColors[pkg.color] || themeColors.blue;
   const pricePerNight = pkg.pricePerNight || parseFloat(unit.price_per_night || 0);
   const durations = pkg.durations || [];
-
-  // Reset state whenever the modal opens for a new unit
   useEffect(() => {
     if (visible) {
       setPhotoIndex(0);
@@ -143,12 +143,29 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
           <div className="relative shrink-0 aspect-[4/3] max-h-72 lg:max-h-80 overflow-hidden">
             {allImages.length > 0 ? (
               <>
+                {/* Hidden preview group — enables full-screen lightbox */}
+                <div className="hidden">
+                  <Image.PreviewGroup
+                    preview={{
+                      visible: previewVisible,
+                      current: previewIndex,
+                      onVisibleChange: (v) => setPreviewVisible(v),
+                      onChange: (idx) => setPreviewIndex(idx),
+                    }}
+                  >
+                    {allImages.map((src) => (
+                      <Image key={src} src={src} />
+                    ))}
+                  </Image.PreviewGroup>
+                </div>
+
                 <img
                   key={allImages[photoIndex]}
                   src={allImages[photoIndex]}
                   alt={`${pkg.name || 'Room'} – photo ${photoIndex + 1}`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 cursor-zoom-in"
                   loading="eager"
+                  onClick={() => { setPreviewIndex(photoIndex); setPreviewVisible(true); }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
                 {/* Gradient overlay */}
@@ -175,9 +192,9 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
                 {/* Dot indicators */}
                 {hasGallery && (
                   <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20">
-                    {allImages.map((_, i) => (
+                    {allImages.map((img, i) => (
                       <button
-                        key={i}
+                        key={img}
                         onClick={(e) => { e.stopPropagation(); setPhotoIndex(i); }}
                         className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIndex ? 'bg-white w-4' : 'bg-white/40'}`}
                       />
@@ -223,7 +240,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
             <div className="flex gap-2 px-4 pt-3 pb-0 overflow-x-auto scrollbar-thin">
               {allImages.map((img, i) => (
                 <button
-                  key={i}
+                  key={img}
                   onClick={() => setPhotoIndex(i)}
                   className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${i === photoIndex ? `${theme.border} opacity-100` : 'border-transparent opacity-50 hover:opacity-80'}`}
                 >

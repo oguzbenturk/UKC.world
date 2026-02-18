@@ -8,7 +8,7 @@ const StayHotelPage = () => (
     accentWord="Stay"
     academyTheme="stay"
     subheadline="Hotel accommodation cards are loaded live from configured stay packages."
-    academyTag="UKC Stay"
+    academyTag="UKC.Stay"
     dynamicServiceKey="stay_hotel"
   />
 );

@@ -29,7 +29,7 @@ const AcademyServicePackagesPage = ({
   headline,
   accentWord,
   subheadline,
-  academyTag = 'UKC Academy',
+  academyTag = 'UKC.Academy',
   academyTheme = 'auto',
   packages = [],
   dynamicServiceKey = null
@@ -622,13 +622,10 @@ const AcademyServicePackagesPage = ({
     (async () => {
       try {
         if (isStayMode) {
-          // For stay pages, fetch units AND packages together
-          const [unitsRes, packagesRes] = await Promise.all([
-            apiClient.get('/accommodation/units/public'),
-            apiClient.get('/services/packages/public'),
-          ]);
+          // For stay pages, fetch units only — no lesson packages should appear
+          const unitsRes = await apiClient.get('/accommodation/units/public');
           const units = Array.isArray(unitsRes.data) ? unitsRes.data : [];
-          const allPackages = Array.isArray(packagesRes.data) ? packagesRes.data : [];
+          const allPackages = []; // Only show 1-night + custom durations
           
           // Filter units by type (hotel vs home)
           const filteredUnits = units.filter((unit) => {

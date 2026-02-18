@@ -364,6 +364,28 @@ async function main() {
           readyTimeout: 20000,
         });
 
+        // Upload SSL certificates to server before Docker build
+        // SSL/ is gitignored for security, so it must be transferred manually each deploy
+        const localSslDir = path.join(cwd, 'SSL');
+        const remoteSslDir = `${remotePath}/SSL`;
+        const sslFiles = ['certificate.crt', 'private.key', 'ca_bundle.crt'];
+        const missingSsl = sslFiles.filter(f => !fs.existsSync(path.join(localSslDir, f)));
+        if (missingSsl.length > 0) {
+          console.warn(`⚠️  Missing SSL files locally: ${missingSsl.join(', ')} — nginx may fail to start!`);
+        } else {
+          console.log('🔐 Uploading SSL certificates to server...');
+          await ssh.execCommand(`mkdir -p ${remoteSslDir}`);
+          for (const file of sslFiles) {
+            const localFile = path.join(localSslDir, file);
+            if (fs.existsSync(localFile)) {
+              await ssh.putFile(localFile, `${remoteSslDir}/${file}`);
+              console.log(`   ✓ Uploaded ${file}`);
+            }
+          }
+          // Restrict private key permissions on server
+          await ssh.execCommand(`chmod 600 ${remoteSslDir}/private.key`);
+          console.log('   ✓ SSL certificates uploaded successfully');
+        }
 
 
         const script = `set -e
@@ -415,6 +437,13 @@ if [ -f docker-compose.production.yml ]; then
   echo "Ensuring db and redis are running..."
   docker start 04f6f53837f7_plannivo_db_1 e9fee54aad2f_plannivo_redis_1 2>/dev/null || true
   sleep 3
+
+  # Ensure db and redis have proper network aliases (lost after docker daemon restart)
+  docker network disconnect plannivo_app-network 04f6f53837f7_plannivo_db_1 2>/dev/null || true
+  docker network connect --alias db plannivo_app-network 04f6f53837f7_plannivo_db_1 2>/dev/null || true
+  docker network disconnect plannivo_app-network e9fee54aad2f_plannivo_redis_1 2>/dev/null || true
+  docker network connect --alias redis plannivo_app-network e9fee54aad2f_plannivo_redis_1 2>/dev/null || true
+  sleep 1
   
   # Start backend with proper name for nginx resolution
   echo "Starting backend..."
@@ -433,7 +462,7 @@ if [ -f docker-compose.production.yml ]; then
   echo "Starting frontend..."
   docker run -d --name frontend \\
     --network plannivo_app-network \\
-    -p 80:80 -p 443:443 \\
+    -p 80:8080 -p 443:8443 \\
     -v /root/acme-webroot:/var/www/acme:ro \\
     -v ${remotePath}/SSL:/etc/ssl/plannivo:ro \\
     -v plannivo_uploads_data:/var/www/uploads:ro \\

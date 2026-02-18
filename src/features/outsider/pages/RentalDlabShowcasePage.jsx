@@ -39,7 +39,7 @@ const RentalDlabShowcasePage = () => (
     accentWord="Equipment"
     academyTheme="rental"
     subheadline="The highest-performance rental lineup for riders who want the lightest and most responsive setup."
-    academyTag="UKC Rental"
+    academyTag="UKC.Rental"
     packages={dlabRentalPackages}
   />
 );
