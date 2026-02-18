@@ -909,6 +909,7 @@ const OutsiderBookingPage = () => {
           </div>
         }
         open={purchaseModalOpen}
+        destroyOnHidden
         onCancel={() => {
           setPurchaseModalOpen(false);
           setSelectedPackageForPurchase(null);

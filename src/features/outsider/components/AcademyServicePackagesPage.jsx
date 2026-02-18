@@ -956,6 +956,7 @@ const AcademyServicePackagesPage = ({
           footer={null}
           width={900}
           centered
+          destroyOnHidden
           className="deluxe-modal"
           closeIcon={<div className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"><CloseOutlined /></div>}
           styles={{

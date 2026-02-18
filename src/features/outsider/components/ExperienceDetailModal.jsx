@@ -78,6 +78,8 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
     if (visible) {
       setPhotoIndex(0);
       setItineraryExpanded(false);
+      setPreviewVisible(false);
+      setPreviewIndex(0);
     }
   }, [visible, pkg?.id]);
 

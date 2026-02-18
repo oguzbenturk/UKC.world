@@ -141,6 +141,7 @@ const PackagePurchaseModal = ({
       onCancel={handleClose}
       footer={null}
       width={500}
+      destroyOnHidden
     >
       {selectedPackage && (
         <div>

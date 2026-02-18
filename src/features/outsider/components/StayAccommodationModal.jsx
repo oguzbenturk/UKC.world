@@ -58,6 +58,8 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
       setPhotoIndex(0);
       setSelectedKey('1night');
       setCustomNights(3);
+      setPreviewVisible(false);
+      setPreviewIndex(0);
     }
   }, [visible, pkg.id]);
 
@@ -107,6 +109,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
   };
 
   const handleClose = () => {
+    setPreviewVisible(false);
     onClose();
   };
 
@@ -117,6 +120,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
       footer={null}
       width={1000}
       centered
+      destroyOnHidden
       className="stay-accommodation-modal"
       closeIcon={
         <div className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">

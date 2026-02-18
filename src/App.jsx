@@ -106,18 +106,9 @@ const AppLayoutWithAuth = () => {
     }
   };
 
-  useEffect(() => {
-    if (!isAuthenticated || !requiresConsent) {
-      return undefined;
-    }
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [isAuthenticated, requiresConsent]);
+  // Note: body overflow locking is handled by the UserConsentModal component itself
+  // (its fixed inset-0 overlay prevents interaction). No need to manipulate
+  // document.body.style — that conflicts with Ant Design's own scroll management.
 
   const handleConsentSubmit = async (payload) => {
     try {
