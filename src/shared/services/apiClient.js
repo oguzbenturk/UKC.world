@@ -60,11 +60,21 @@ export const resolveApiBaseUrl = () => {
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
+let inMemoryAccessToken = null;
+
+try {
+  if (typeof window !== 'undefined') {
+    inMemoryAccessToken = localStorage.getItem('token') || null;
+  }
+} catch {
+  inMemoryAccessToken = null;
+}
 
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : '/api',
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -95,16 +105,26 @@ const onRefreshFailed = (error) => {
 // Use raw axios (no interceptors) to avoid recursion
 async function refreshAuthToken(currentToken) {
   const baseUrl = resolveApiBaseUrl();
-  const url = baseUrl ? `${baseUrl}/api/auth/refresh` : '/api/auth/refresh';
+  const url = baseUrl ? `${baseUrl}/api/auth/refresh-token` : '/api/auth/refresh-token';
   const headers = currentToken ? { Authorization: `Bearer ${currentToken}` } : {};
-  const res = await axios.post(url, {}, { headers });
+  const res = await axios.post(url, {}, { headers, withCredentials: true });
   return res?.data?.token;
 }
+
+export const setAccessToken = (token) => {
+  inMemoryAccessToken = token || null;
+};
+
+export const getAccessToken = () => inMemoryAccessToken;
+
+export const clearAccessToken = () => {
+  inMemoryAccessToken = null;
+};
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = inMemoryAccessToken || localStorage.getItem('token');
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -128,7 +148,7 @@ apiClient.interceptors.response.use(
       if (error.response.status === 401) {
         const originalRequest = error.config || {};
         const reqUrl = (originalRequest.url || '').toString();
-        const hasToken = !!localStorage.getItem('token');
+        const hasToken = !!(inMemoryAccessToken || localStorage.getItem('token'));
 
         // Endpoints that may legitimately be called before auth
         // and should NOT trigger global logout/redirect on 401
@@ -152,7 +172,7 @@ apiClient.interceptors.response.use(
         // Try silent refresh once per request
         if (!originalRequest._retry) {
           originalRequest._retry = true;
-          const currentToken = localStorage.getItem('token');
+          const currentToken = inMemoryAccessToken || localStorage.getItem('token');
 
           // If a refresh is already in progress, queue this request
           if (isRefreshing) {
@@ -174,6 +194,7 @@ apiClient.interceptors.response.use(
           return refreshAuthToken(currentToken)
             .then((newToken) => {
               if (newToken) {
+                inMemoryAccessToken = newToken;
                 localStorage.setItem('token', newToken);
                 apiClient.defaults.headers.Authorization = `Bearer ${newToken}`;
                 onRefreshed(newToken);
@@ -188,6 +209,7 @@ apiClient.interceptors.response.use(
               onRefreshFailed(refreshErr);
               // eslint-disable-next-line no-console
               console.warn('🔒 Session expired and refresh failed - clearing auth and redirecting');
+              inMemoryAccessToken = null;
               localStorage.removeItem('token');
               localStorage.removeItem('user');
               localStorage.removeItem('refreshToken');
@@ -211,6 +233,7 @@ apiClient.interceptors.response.use(
         // Already retried and still 401 – proceed with logout/redirect
         // eslint-disable-next-line no-console
         console.warn('🔒 Session expired after retry - clearing auth and redirecting');
+        inMemoryAccessToken = null;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('refreshToken');

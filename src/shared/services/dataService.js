@@ -1,5 +1,5 @@
 // src/services/dataService.js
-import apiClient from './apiClient';
+import apiClient, { clearAccessToken, setAccessToken } from './apiClient';
 
 // Lightweight debug helper gated by localStorage flag to appease linters
 function dbg(...args) {
@@ -234,6 +234,7 @@ class DataService {
       
       // Store token in localStorage
       if (response.data.token) {
+        setAccessToken(response.data.token);
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
@@ -249,6 +250,7 @@ class DataService {
    * Logout current user
    */
   static logout() {
+    clearAccessToken();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   }

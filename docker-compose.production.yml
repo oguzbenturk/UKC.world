@@ -6,8 +6,8 @@ services:
       context: .
       dockerfile: infrastructure/Dockerfile
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:8080"
+      - "443:8443"
     depends_on:
       backend:
         condition: service_started
@@ -22,7 +22,7 @@ services:
       # Shared uploads volume for serving media directly
       - uploads_data:/var/www/uploads:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3

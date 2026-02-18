@@ -2,8 +2,10 @@
  * Authentication utilities for consistent token management
  */
 
+import { getAccessToken } from '../services/apiClient.js';
+
 export const getAuthToken = () => {
-  const token = localStorage.getItem('token');
+  const token = getAccessToken();
   if (!token) {
     console.error('❌ No authentication token found');
     throw new Error('Authentication required. Please log in.');
@@ -50,13 +52,12 @@ export const isTokenValid = (token) => {
 };
 
 export const ensureAuthenticated = async () => {
-  const token = localStorage.getItem('token');
+  const token = getAccessToken();
   
   if (!token || !isTokenValid(token)) {
     console.log('🔐 Token invalid or missing, attempting auto-login...');
     
     // Clear invalid token
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
     
     // Try auto-login first
@@ -65,7 +66,7 @@ export const ensureAuthenticated = async () => {
       const loginSuccess = await autoLogin();
       
       if (loginSuccess) {
-        const newToken = localStorage.getItem('token');
+        const newToken = getAccessToken();
         console.log('✅ Auto-login successful, using new token');
         return newToken;
       }

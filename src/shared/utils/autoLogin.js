@@ -4,11 +4,12 @@
  */
 
 import { getAuthHeaders, isTokenValid } from './authUtils.js';
+import { getAccessToken, setAccessToken } from '../services/apiClient.js';
 
 export const autoLogin = async () => {
   try {
     // Check if we already have a valid token
-    const existingToken = localStorage.getItem('token');
+    const existingToken = getAccessToken();
     if (existingToken && isTokenValid(existingToken)) {
       console.log('✅ Valid token found, user is already authenticated');
       return true;
@@ -36,7 +37,7 @@ export const autoLogin = async () => {
     const data = await response.json();
     
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      setAccessToken(data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       console.log('✅ Auto-login successful, user authenticated');
       return true;
@@ -51,7 +52,7 @@ export const autoLogin = async () => {
 };
 
 export const ensureAuthenticationWithAutoLogin = async () => {
-  const token = localStorage.getItem('token');
+  const token = getAccessToken();
   
   if (!token || !isTokenValid(token)) {
     console.log('🔄 Token invalid or missing, attempting auto-login...');
@@ -62,7 +63,7 @@ export const ensureAuthenticationWithAutoLogin = async () => {
     }
   }
   
-  return localStorage.getItem('token');
+  return getAccessToken();
 };
 
 /**
@@ -76,14 +77,13 @@ export const autoLoginWithRetry = async (maxRetries = 3) => {
       console.log(`🔐 Auto-login attempt ${attempt}/${maxRetries}...`);
       
       // Check if we already have a valid token
-      const existingToken = localStorage.getItem('token');
+      const existingToken = getAccessToken();
       if (existingToken && isTokenValid(existingToken)) {
         console.log('✅ Valid token found, user is already authenticated');
         return true;
       }
 
       // Clear any invalid tokens
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
 
       console.log('🔐 No valid token found, attempting auto-login...');
@@ -108,7 +108,7 @@ export const autoLoginWithRetry = async (maxRetries = 3) => {
       const data = await response.json();
       
       if (data.token && data.user) {
-        localStorage.setItem('token', data.token);
+        setAccessToken(data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         console.log(`✅ Auto-login successful on attempt ${attempt}!`);
         return true;

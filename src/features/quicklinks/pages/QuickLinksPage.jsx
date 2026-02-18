@@ -587,31 +587,31 @@ const QuickLinksPage = ({ embedded = false }) => {
   const fetchServices = async () => {
     try {
       const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
 
       // Fetch accommodations
-      const accomResponse = await fetch('/api/accommodation/units', { headers });
+      const accomResponse = await fetch('/api/accommodation/units', headers ? { headers } : {});
       if (accomResponse.ok) {
         const accomData = await accomResponse.json();
         setAccommodations(accomData.accommodations || accomData || []);
       }
 
       // Fetch lessons (from services with category=lesson)
-      const lessonResponse = await fetch('/api/services?category=lesson', { headers });
+      const lessonResponse = await fetch('/api/services?category=lesson');
       if (lessonResponse.ok) {
         const lessonData = await lessonResponse.json();
         setLessons(Array.isArray(lessonData) ? lessonData : []);
       }
 
       // Fetch rentals (from services with serviceType=rental)
-      const rentalResponse = await fetch('/api/services?serviceType=rental', { headers });
+      const rentalResponse = await fetch('/api/services?serviceType=rental');
       if (rentalResponse.ok) {
         const rentalData = await rentalResponse.json();
         setRentals(Array.isArray(rentalData) ? rentalData : []);
       }
 
       // Fetch shop products
-      const shopResponse = await fetch('/api/shop/products', { headers });
+      const shopResponse = await fetch('/api/shop/products', headers ? { headers } : {});
       if (shopResponse.ok) {
         const shopData = await shopResponse.json();
         setShopProducts(shopData.products || shopData || []);

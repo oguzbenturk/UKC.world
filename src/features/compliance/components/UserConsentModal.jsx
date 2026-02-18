@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Checkbox, Switch, Typography, Space, Divider, Alert, Button, Spin, Collapse } from 'antd';
 import { InfoCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import apiClient from '../../../shared/services/apiClient';
+import { sanitizeHtml } from '../../../shared/utils/sanitizeHtml';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -140,7 +141,7 @@ const UserConsentModal = ({
                   label: <span className="font-medium flex items-center gap-2"><FileTextOutlined /> Terms of Service Preview</span>,
                   children: (
                     <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                      <div dangerouslySetInnerHTML={{ __html: documents.terms.content }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(documents.terms.content) }} />
                     </div>
                   )
                 }] : []),
@@ -149,7 +150,7 @@ const UserConsentModal = ({
                   label: <span className="font-medium flex items-center gap-2"><FileTextOutlined /> Privacy Policy Preview</span>,
                   children: (
                     <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                      <div dangerouslySetInnerHTML={{ __html: documents.privacy.content }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(documents.privacy.content) }} />
                     </div>
                   )
                 }] : [])
@@ -185,7 +186,7 @@ const UserConsentModal = ({
                 children: (
                   <div 
                     className="prose prose-sm max-w-none text-gray-600 mb-4 bg-gray-50 p-4 rounded-lg"
-                    dangerouslySetInnerHTML={{ __html: marketingDescription }} 
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(marketingDescription) }} 
                   />
                 )
               }]}

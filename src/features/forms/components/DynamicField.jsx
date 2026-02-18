@@ -27,6 +27,7 @@ import {
 } from 'antd';
 import { InboxOutlined, PlusOutlined, GlobalOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { FIELD_TYPES } from '../constants/fieldTypes';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Paragraph, Title } = Typography;
 const { TextArea } = Input;
@@ -1210,7 +1211,7 @@ const DynamicField = React.memo(({
           <div 
             className="section-header-content"
             style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }}
           />
         )}
       </div>
@@ -1226,7 +1227,7 @@ const DynamicField = React.memo(({
     const content = (
       <div 
         className="my-3 paragraph-field-content"
-        dangerouslySetInnerHTML={{ __html: htmlContent }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }}
       />
     );
     if (skipColWrapper) return content;

@@ -25,6 +25,7 @@ import {
   PrinterOutlined
 } from '@ant-design/icons';
 import PublicFormLayout from '../components/PublicFormLayout';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -115,7 +116,7 @@ const FormSuccessPage = () => {
               </Title>
             )}
             <div 
-              dangerouslySetInnerHTML={{ __html: formSettings.success_message }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(formSettings.success_message) }}
               className="success-message-content"
             />
             {submissionId && (

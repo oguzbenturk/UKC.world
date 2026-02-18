@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Button, Steps, Card, Image, Typography, Space, Row, Col } from 'antd';
 import { CloseOutlined, ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 import './PopupDisplay.css';
 
 const { Title, Paragraph, Text } = Typography;
@@ -164,7 +165,7 @@ const PopupDisplay = ({ popup, visible, onClose, onAction }) => {
           <div style={{ marginBottom: 24 }}>
             {currentContent.htmlContent ? (
               <div 
-                dangerouslySetInnerHTML={{ __html: currentContent.bodyText }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentContent.bodyText) }}
                 style={{ color: design.textColor || '#333' }}
               />
             ) : (

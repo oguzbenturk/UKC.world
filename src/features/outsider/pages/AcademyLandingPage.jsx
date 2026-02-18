@@ -7,7 +7,6 @@ import {
   SafetyCertificateOutlined,
   TrophyOutlined,
   CheckOutlined,
-  RightOutlined,
   CloudOutlined,
   GlobalOutlined,
   ThunderboltOutlined,
@@ -54,11 +53,6 @@ const AcademyLandingPage = () => {
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Helper to scroll to packages
-  const scrollToPackages = () => {
-    document.getElementById('packages-section')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   // Helper to scroll to specific sections
   const scrollToSection = (sectionId) => {
@@ -168,14 +162,6 @@ const AcademyLandingPage = () => {
                 >
                 Book Your Lesson
                 </Button>
-                <Button
-                ghost
-                size="large"
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-lg !font-semibold !rounded-lg backdrop-blur-sm w-full sm:w-auto"
-                onClick={scrollToPackages}
-                >
-                View Packages <RightOutlined className="text-xs ml-1" />
-                </Button>
             </div>
         </div>
       </div>
@@ -214,14 +200,6 @@ const AcademyLandingPage = () => {
                 >
                 Book Wing Lesson
                 </Button>
-                <Button
-                ghost
-                size="large"
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-lg !font-semibold !rounded-lg backdrop-blur-sm w-full sm:w-auto"
-                onClick={scrollToPackages}
-                >
-                Learn More <RightOutlined className="text-xs ml-1" />
-                </Button>
             </div>
         </div>
       </div>
@@ -257,14 +235,6 @@ const AcademyLandingPage = () => {
                 onClick={() => navigate('/academy/foil-lessons')}
                 >
                 Book Foil Lesson
-                </Button>
-                <Button
-                ghost
-                size="large"
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-lg !font-semibold !rounded-lg backdrop-blur-sm w-full sm:w-auto"
-                onClick={scrollToPackages}
-                >
-                Learn More <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
         </div>
@@ -302,14 +272,6 @@ const AcademyLandingPage = () => {
                 >
                 Book E-Foil Session
                 </Button>
-                <Button
-                ghost
-                size="large"
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-lg !font-semibold !rounded-lg backdrop-blur-sm w-full sm:w-auto"
-                onClick={scrollToPackages}
-                >
-                Learn More <RightOutlined className="text-xs ml-1" />
-                </Button>
             </div>
         </div>
       </div>
@@ -345,14 +307,6 @@ const AcademyLandingPage = () => {
               onClick={() => navigate('/academy/premium-lessons')}
             >
               Book Premium Lesson
-            </Button>
-            <Button
-              ghost
-              size="large"
-              className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-12 sm:!h-14 !px-6 sm:!px-8 !text-base sm:!text-lg !font-semibold !rounded-lg backdrop-blur-sm w-full sm:w-auto"
-              onClick={scrollToPackages}
-            >
-              Learn More <RightOutlined className="text-xs ml-1" />
             </Button>
           </div>
         </div>

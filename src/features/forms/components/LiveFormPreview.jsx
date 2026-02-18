@@ -40,6 +40,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import DynamicField, { getColProps } from './DynamicField';
 import { FIELD_TYPES } from '../constants/fieldTypes';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -261,7 +262,7 @@ const LiveFormPreview = ({
         >
           <div 
             className="my-3 paragraph-field-content"
-            dangerouslySetInnerHTML={{ __html: field.default_value || field.help_text || '<p>Paragraph content...</p>' }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.default_value || field.help_text || '<p>Paragraph content...</p>') }}
           />
         </SelectableFieldWrapper>
       );
@@ -283,7 +284,7 @@ const LiveFormPreview = ({
               <div 
                 className="section-header-content"
                 style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
-                dangerouslySetInnerHTML={{ __html: field.default_value || field.help_text }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.default_value || field.help_text) }}
               />
             )}
           </div>

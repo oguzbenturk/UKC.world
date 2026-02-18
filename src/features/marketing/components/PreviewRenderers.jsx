@@ -17,6 +17,7 @@ import {
   BellFilled
 } from '@ant-design/icons';
 import CroppableImage from './CroppableImage';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Text, Title } = Typography;
 
@@ -76,7 +77,7 @@ export const EmailPreview = memo(({ preview, useTemplateMode, cropProps }) => {
             <div className="absolute inset-0 flex items-center justify-center p-4" style={{ pointerEvents: 'none' }}>
               <div 
                 className="bg-black/50 backdrop-blur-sm rounded-xl p-4 text-white max-w-[90%]"
-                dangerouslySetInnerHTML={{ __html: preview.overlayHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.overlayHtml) }}
               />
             </div>
           )}
@@ -114,7 +115,7 @@ export const EmailPreview = memo(({ preview, useTemplateMode, cropProps }) => {
           <div 
             className="prose max-w-none text-lg leading-relaxed"
             style={{ color: preview.textColor }}
-            dangerouslySetInnerHTML={{ __html: preview.html || 'Start typing to see your beautiful email come to life with rich formatting and styling...' }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.html || 'Start typing to see your beautiful email come to life with rich formatting and styling...') }}
           />
           {preview.templateImage && !useTemplateMode && (
             <div className="mt-6 rounded-xl overflow-hidden shadow-lg">
@@ -164,7 +165,7 @@ export const PopupPreview = memo(({ preview, useTemplateMode, cropProps }) => {
             <div className="absolute inset-0 flex items-center justify-center p-4" style={{ pointerEvents: 'none' }}>
               <div 
                 className="bg-black/50 backdrop-blur-sm rounded-xl p-4 text-white max-w-[90%]"
-                dangerouslySetInnerHTML={{ __html: preview.overlayHtml }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.overlayHtml) }}
               />
             </div>
           )}
@@ -201,7 +202,7 @@ export const PopupPreview = memo(({ preview, useTemplateMode, cropProps }) => {
         <div 
           className="mb-8 text-lg leading-relaxed" 
           style={{ opacity: 0.9, color: preview.textColor }}
-          dangerouslySetInnerHTML={{ __html: preview.html || 'Your popup message will appear here with a stunning design...' }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.html || 'Your popup message will appear here with a stunning design...') }}
         />
         <button 
           className="w-full py-4 px-8 rounded-2xl font-bold text-white text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl"
@@ -310,7 +311,7 @@ export const WhatsAppPreview = memo(({ preview, cropProps }) => (
           )}
           <div 
             className="text-base text-gray-800 leading-relaxed mb-3"
-            dangerouslySetInnerHTML={{ __html: formatWhatsAppText(preview.content) || '💬 Your WhatsApp message will appear here...' }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(formatWhatsAppText(preview.content) || '💬 Your WhatsApp message will appear here...') }}
           />
           <div className="flex justify-end items-center gap-2 pt-2">
             <Text className="text-xs text-gray-400">
@@ -406,7 +407,7 @@ export const QuestionPreview = memo(({
               <div 
                 className="text-2xl font-bold"
                 style={{ color: preview.textColor, marginBottom: '8px' }}
-                dangerouslySetInnerHTML={{ __html: preview.questionText }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.questionText) }}
               />
             ) : (
               <Title level={2} style={{ color: preview.textColor, marginBottom: '8px' }}>
@@ -439,7 +440,7 @@ export const QuestionPreview = memo(({
             >
               <div 
                 className="text-gray-600 text-base"
-                dangerouslySetInnerHTML={{ __html: preview.subtitle }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(preview.subtitle) }}
               />
             </div>
           )

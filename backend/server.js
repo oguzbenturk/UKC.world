@@ -19,6 +19,7 @@ ExchangeRateService.startScheduler();
 
 // Import routes
 import authRouter, { authenticateJWT } from './routes/auth.js';
+import { authorizeRoles } from './middlewares/authorize.js';
 import twoFactorRouter from './routes/twoFactor.js';
 import usersRouter from './routes/users.js';
 import bookingsRouter from './routes/bookings.js';
@@ -82,6 +83,7 @@ import {
   securityHeaders, 
   apiRateLimit, 
   authRateLimit,
+  sanitizeInput,
   securityResponseHeaders,
   configureCORS
 } from './middlewares/security.js';
@@ -306,10 +308,23 @@ app.get('/api/health', (req, res) => {
 // SEC-044 FIX: SSL validation endpoint removed - no longer needed
 // If SSL validation is needed again, use certbot's webroot method or DNS challenge
 
-// Serve uploaded files (avatars, images) statically
-// Diagnostic wrapper for static uploads to help investigate 404 issues in production
+// Serve uploaded files with access control
+// Public: images, service-images, form-backgrounds, form-logos
+// Protected: form-submissions, chat-files, voice-messages, chat-images
 const uploadsRoot = path.resolve(process.cwd(), 'uploads');
 app.use('/uploads', (req, res, next) => {
+  const protectedPrefixes = [
+    '/form-submissions/',
+    '/chat-files/',
+    '/voice-messages/',
+    '/chat-images/'
+  ];
+
+  const isProtectedPath = protectedPrefixes.some(prefix => req.path.startsWith(prefix));
+  if (isProtectedPath) {
+    return authenticateJWT(req, res, next);
+  }
+
   try {
     const fsPath = path.join(uploadsRoot, req.path); // req.path excludes '/uploads'
     // Synchronously check existence (fast path, small files); fallback to async if desired later
@@ -525,27 +540,69 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
 
 app.use('/api/finances', authenticateJWT, triggerFinancialReconciliation, financesRouter);
 app.use('/api/rentals', authenticateJWT, triggerFinancialReconciliation, rentalsRouter);
-app.use('/api/events', eventsRouter); // Has both public and protected routes
-app.use('/api/member-offerings', memberOfferingsRouter);
+app.use('/api/events', (req, res, next) => {
+  const isPublicEventsRead = req.method === 'GET' && (
+    req.path === '/public' ||
+    req.path === '/public/' ||
+    req.path.startsWith('/public/')
+  );
+
+  if (isPublicEventsRead) {
+    return next();
+  }
+
+  return authenticateJWT(req, res, next);
+}, eventsRouter);
+app.use('/api/member-offerings', authenticateJWT, memberOfferingsRouter);
 app.use('/api/repair-requests', authenticateJWT, repairRequestsRouter);
 app.use('/api/marketing', authenticateJWT, marketingRouter);
-app.use('/api/quick-links', quickLinksRouter); // Has both public and protected routes
-app.use('/api/form-templates', formTemplatesRouter); // Form builder API
-app.use('/api/form-submissions', formSubmissionsRouter); // Form submissions API
+app.use('/api/quick-links', authenticateJWT, quickLinksRouter);
+app.use('/api/form-templates', authenticateJWT, formTemplatesRouter);
+app.use('/api/form-submissions', authenticateJWT, formSubmissionsRouter);
 app.use('/api/public/forms', publicFormsRouter); // Public form access
-app.use('/api/relationships', userRelationshipsRouter); // Friend/connection management
-app.use('/api/finances/daily-operations', triggerFinancialReconciliation, financeDailyOperationsRouter);
+
+// Public accommodation units endpoint for guest browsing (showroom)
+app.get('/api/accommodation/units/public', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const params = [];
+    let where = "WHERE status = 'Available'"; // Only show available units to guests
+    
+    if (type) {
+      params.push(type);
+      where += ` AND type = $${params.length}`;
+    }
+    
+    const query = `
+      SELECT 
+        id, name, type, capacity, price_per_night, description, 
+        amenities, image_url, images
+      FROM accommodation_units
+      ${where}
+      ORDER BY name ASC
+    `;
+    
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    logger.error('Error fetching public accommodation units:', err);
+    res.status(500).json({ error: 'Failed to fetch accommodation units' });
+  }
+});
+
+app.use('/api/relationships', authenticateJWT, userRelationshipsRouter);
+app.use('/api/finances/daily-operations', authenticateJWT, triggerFinancialReconciliation, financeDailyOperationsRouter);
 app.use('/api/accommodation', authenticateJWT, accommodationRouter);
 app.use('/api/webhooks', paymentWebhooksRouter);
 app.use('/api/wallet', authenticateJWT, walletRouter);
-app.use('/api/shop-orders', shopOrdersRouter);
-app.use('/api/shop/orders', shopOrdersRouter); // Alias for QuickShopSaleModal
+app.use('/api/shop-orders', authenticateJWT, shopOrdersRouter);
+app.use('/api/shop/orders', authenticateJWT, shopOrdersRouter); // Alias for QuickShopSaleModal
 app.use('/api/business-expenses', authenticateJWT, businessExpensesRouter);
-app.use('/api/group-bookings', groupBookingsRouter);
+app.use('/api/group-bookings', authenticateJWT, groupBookingsRouter);
 app.use('/api/system', authenticateJWT, systemRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/finance-settings', financeSettingsRouter);
-app.use('/api/roles', rolesRouter);
+app.use('/api/settings', authenticateJWT, settingsRouter);
+app.use('/api/finance-settings', authenticateJWT, financeSettingsRouter);
+app.use('/api/roles', authenticateJWT, rolesRouter);
 
 // Public routes (no authentication required)
 app.get('/api/services/categories/list', async (req, res) => {
@@ -563,7 +620,16 @@ app.get('/api/services/categories/list', async (req, res) => {
 
 app.use('/api/services', (req, res, next) => {
   // Keep guest-facing package catalog public for academy pages
-  if (req.method === 'GET' && (req.path === '/packages/public' || req.path === '/')) {
+  const isPublicServiceRead = req.method === 'GET' && (
+    req.path === '/' ||
+    req.path === '/categories' ||
+    req.path === '/categories/' ||
+    req.path === '/packages/public' ||
+    req.path === '/packages/public/' ||
+    req.path.startsWith('/packages/public/')
+  );
+
+  if (isPublicServiceRead) {
     return next();
   }
 
@@ -572,28 +638,28 @@ app.use('/api/services', (req, res, next) => {
 app.use('/api/products', productsRouter); // Auth handled per-route for guest browsing
 app.use('/api/shop/products', productsRouter); // Alias - auth handled per-route
 app.use('/api/ratings', authenticateJWT, ratingsRouter);
-app.use('/api/upload', uploadRouter);
-app.use('/api/instructor-commissions', instructorCommissionsRouter);
-app.use('/api/currencies', currenciesRouter);
+app.use('/api/upload', authenticateJWT, uploadRouter);
+app.use('/api/instructor-commissions', authenticateJWT, instructorCommissionsRouter);
+app.use('/api/currencies', authenticateJWT, currenciesRouter);
 app.use('/api/popups', authenticateJWT, popupsRouter);
-app.use('/api/spare-parts', sparePartsRouter);
-app.use('/api/debug', debugRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/notification-workers', notificationWorkersRouter);
+app.use('/api/spare-parts', authenticateJWT, sparePartsRouter);
+app.use('/api/debug', authenticateJWT, debugRouter);
+app.use('/api/dashboard', authenticateJWT, dashboardRouter);
+app.use('/api/notifications', authenticateJWT, notificationsRouter);
+app.use('/api/notification-workers', authenticateJWT, notificationWorkersRouter);
 // SEC-035: Metrics endpoint requires admin authentication
 app.use('/api/metrics', authenticateJWT, authorizeRoles(['admin', 'super_admin']), metricsRouter);
-app.use('/api/audit-logs', auditLogsRouter);
-app.use('/api/admin/waivers', adminWaiversRouter);
-app.use('/api/admin/support-tickets', adminSupportTicketsRouter);
-app.use('/api/admin/financial-reconciliation', adminReconciliationRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/vouchers', vouchersRouter);
-app.use('/api/manager/commissions', managerCommissionsRouter);
+app.use('/api/audit-logs', authenticateJWT, auditLogsRouter);
+app.use('/api/admin/waivers', authenticateJWT, adminWaiversRouter);
+app.use('/api/admin/support-tickets', authenticateJWT, adminSupportTicketsRouter);
+app.use('/api/admin/financial-reconciliation', authenticateJWT, adminReconciliationRouter);
+app.use('/api/admin', authenticateJWT, adminRouter);
+app.use('/api/vouchers', authenticateJWT, vouchersRouter);
+app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars
 app.use('/api/weather', weatherRouter);
-app.use('/api/admin/financial-reconciliation', adminReconciliationRouter);
-app.use('/api/chat', chatRouter);
+app.use('/api/admin/financial-reconciliation', authenticateJWT, adminReconciliationRouter);
+app.use('/api/chat', authenticateJWT, chatRouter);
 
 // === WebSocket Test Endpoint ===
 // SEC-020 FIX: Only available in development or requires authentication

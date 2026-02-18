@@ -150,6 +150,9 @@ class CacheService {
      * @returns {number} - New value after increment
      */
     async incr(key, increment = 1, ttl = 3600) {
+        if (this.isDisabled || !this.redis) {
+            return 0;
+        }
         try {
             // Skip write operations if Redis is read-only
             if (this.isReadOnly) {
@@ -182,6 +185,10 @@ class CacheService {
      * @returns {boolean} - True if key exists
      */
     async exists(key) {
+        if (this.isDisabled || !this.redis) {
+            metricsService.recordCacheResult({ bypassed: true });
+            return false;
+        }
         try {
             const exists = await this.redis.exists(key) === 1;
             metricsService.recordCacheResult({ hit: exists });

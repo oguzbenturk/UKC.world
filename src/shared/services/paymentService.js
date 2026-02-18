@@ -41,9 +41,9 @@ class PaymentService {
       const response = await fetch('/api/payments/create-intent', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           booking_id: booking.id,
           amount: Math.round(booking.total_price * 100), // Convert to cents
@@ -122,9 +122,9 @@ class PaymentService {
       const response = await fetch('/api/payments/create-setup-intent', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           customer_id: customerId
         })
@@ -148,9 +148,7 @@ class PaymentService {
   async getPaymentMethods(customerId) {
     try {
       const response = await fetch(`/api/payments/payment-methods/${customerId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -175,9 +173,9 @@ class PaymentService {
       const response = await fetch('/api/payments/refund', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           payment_intent_id: paymentIntentId,
           amount,
@@ -210,9 +208,7 @@ class PaymentService {
       });
 
       const response = await fetch(`/api/payments/history?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {

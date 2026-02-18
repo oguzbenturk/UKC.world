@@ -12,10 +12,11 @@ RUN npm install --silent && \
 COPY . .
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage with unprivileged nginx
+FROM nginxinc/nginx-unprivileged:alpine
 
 # Install curl for health checks
+USER root
 RUN apk add --no-cache curl
 
 # Ensure mount point for shared uploads exists
@@ -30,10 +31,13 @@ COPY infrastructure/nginx.conf /etc/nginx/conf.d/nginx.conf
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Drop privileges for runtime
+USER nginx
+
+EXPOSE 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:80/ || exit 1
+  CMD curl -f http://localhost:8080/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

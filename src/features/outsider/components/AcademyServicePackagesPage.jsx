@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Modal, Tag } from 'antd';
+import StayAccommodationModal from './StayAccommodationModal';
 import {
   RocketOutlined,
+  HomeOutlined,
   CheckOutlined,
   ClockCircleOutlined,
   StarFilled,
@@ -37,6 +39,11 @@ const AcademyServicePackagesPage = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('6h');
   const [dynamicPackages, setDynamicPackages] = useState([]);
+  // For stay pages: keep raw unit objects so the gallery modal has full data
+  const [rawUnits, setRawUnits] = useState([]);
+  const [stayModalUnit, setStayModalUnit] = useState(null);
+  const [stayModalPkg, setStayModalPkg] = useState(null);
+  const [stayModalVisible, setStayModalVisible] = useState(false);
 
   usePageSEO({
     title: seoTitle,
@@ -44,10 +51,50 @@ const AcademyServicePackagesPage = ({
   });
 
   const normalize = (v) => String(v || '').toLowerCase();
+  const isStayPage = normalize(dynamicServiceKey || '').startsWith('stay');
 
   const isMatchForService = (pkg, key) => {
     if (!key) return true;
     const normKey = normalize(key);
+
+    const packageType = normalize(pkg.packageType || pkg.package_type);
+    const includesAccommodation = pkg.includesAccommodation === true || pkg.includes_accommodation === true;
+    const accommodationUnitType = normalize(pkg.accommodationUnitType || pkg.accommodation_unit_type);
+    const accommodationText = [
+      pkg.name,
+      pkg.description,
+      pkg.accommodationUnitName,
+      pkg.accommodation_unit_name,
+      pkg.packageType,
+      pkg.package_type,
+      pkg.disciplineTag,
+      pkg.lessonCategoryTag
+    ].map(normalize).join(' ');
+
+    const isAccommodationPackage =
+      includesAccommodation ||
+      packageType.includes('accommodation') ||
+      packageType === 'all_inclusive';
+
+    if (normKey === 'stay') {
+      return isAccommodationPackage;
+    }
+
+    if (normKey === 'stay_hotel') {
+      const hasTypedRule = accommodationUnitType.length > 0;
+      const isHotelByType = accommodationUnitType === 'room';
+      const isHotelLike = ['hotel', 'otel', 'burlahan'].some((token) => accommodationText.includes(token));
+      if (hasTypedRule) return isAccommodationPackage && isHotelByType;
+      return isAccommodationPackage && isHotelLike;
+    }
+
+    if (normKey === 'stay_home') {
+      const hasTypedRule = accommodationUnitType.length > 0;
+      const isHomeByType = accommodationUnitType !== 'room';
+      const isHomeLike = ['home', 'house', 'farm', 'studio', 'staff', 'villa', 'pool'].some((token) => accommodationText.includes(token));
+      if (hasTypedRule) return isAccommodationPackage && isHomeByType;
+      return isAccommodationPackage && isHomeLike;
+    }
     
     // 1. Tag based match
     const tag = normalize(pkg.disciplineTag || pkg.discipline_tag);
@@ -152,10 +199,33 @@ const AcademyServicePackagesPage = ({
       .trim();
 
   const resolveLessonCardImage = (pkg, serviceKey) => {
+    const key = normalize(serviceKey);
+    const isStayMode = key.startsWith('stay');
+
+    // For stay/accommodation pages, prioritize accommodation unit images
+    if (isStayMode) {
+      // First check for accommodation unit image URL
+      const accommodationImageUrl = pkg.accommodationImageUrl || pkg.accommodation_image_url;
+      if (accommodationImageUrl) return accommodationImageUrl;
+
+      // Then check for accommodation images array (take first image)
+      const accommodationImages = pkg.accommodationImages || pkg.accommodation_images;
+      if (Array.isArray(accommodationImages) && accommodationImages.length > 0) {
+        return accommodationImages[0];
+      }
+
+      // Fall back to package's own image
+      const packageImage = pkg.imageUrl || pkg.image_url;
+      if (packageImage) return packageImage;
+
+      // No hardcoded fallback for stay mode - force admin to upload images
+      return null;
+    }
+
+    // For non-stay modes, check package image first
     const imageFromApi = pkg.imageUrl || pkg.image_url;
     if (imageFromApi) return imageFromApi;
 
-    const key = normalize(serviceKey);
     const text = [
       pkg.name,
       pkg.description,
@@ -214,8 +284,163 @@ const AcademyServicePackagesPage = ({
     return '50% 50%';
   };
 
+  const buildAccommodationHighlights = (pkg) => {
+    const highlights = [];
+    
+    // Add accommodation unit name if available
+    const unitName = pkg.accommodationUnitName || pkg.accommodation_unit_name;
+    if (unitName) {
+      highlights.push(unitName);
+    }
+    
+    // Add accommodation nights if available
+    const nights = pkg.accommodationNights || pkg.accommodation_nights;
+    if (nights && nights > 0) {
+      highlights.push(`${nights} night${nights > 1 ? 's' : ''} available`);
+    }
+    
+    // Add unit type if available
+    const unitType = pkg.accommodationUnitType || pkg.accommodation_unit_type;
+    if (unitType) {
+      highlights.push(`${toTitle(unitType)} type`);
+    }
+    
+    // Add package type
+    const packageType = pkg.packageType || pkg.package_type;
+    if (packageType && packageType !== 'accommodation') {
+      highlights.push(toTitle(packageType));
+    }
+    
+    // Add generic helpful info
+    highlights.push('Book directly');
+    
+    // Return first 5 highlights
+    return highlights.slice(0, 5);
+  };
+
+  const buildAccommodationUnitCards = (units = [], allPackages = []) => {
+    const cardPalette = [
+      { color: 'blue', gradient: 'from-blue-600 to-blue-400', shadow: 'shadow-blue-500/20', border: 'hover:border-blue-500/50' },
+      { color: 'cyan', gradient: 'from-cyan-500 to-blue-500', shadow: 'shadow-cyan-500/20', border: 'hover:border-cyan-500/50' },
+      { color: 'purple', gradient: 'from-purple-600 to-fuchsia-500', shadow: 'shadow-purple-500/20', border: 'hover:border-purple-500/50' },
+      { color: 'green', gradient: 'from-green-500 to-emerald-600', shadow: 'shadow-green-500/20', border: 'hover:border-green-500/50' }
+    ];
+
+    return units.map((unit, idx) => {
+      const theme = cardPalette[idx % cardPalette.length];
+      const pricePerNight = parseFloat(unit.price_per_night || 0);
+      
+      // Get images
+      const imageUrl = unit.image_url;
+      const images = Array.isArray(unit.images) ? unit.images : [];
+      const primaryImage = imageUrl || (images.length > 0 ? images[0] : null);
+      
+      // Build amenities/highlights
+      const amenities = Array.isArray(unit.amenities) 
+        ? unit.amenities 
+        : (typeof unit.amenities === 'string' ? JSON.parse(unit.amenities) : []);
+      
+      const highlights = [
+        `Capacity: ${unit.capacity} guest${unit.capacity > 1 ? 's' : ''}`,
+        ...(amenities.length > 0 ? amenities.slice(0, 3) : ['Comfortable accommodation']),
+        'Available for booking'
+      ].slice(0, 5);
+
+      // Find packages linked to this unit
+      const unitPackages = allPackages.filter((p) => {
+        const pkgUnitId = p.accommodationUnitId || p.accommodation_unit_id;
+        const pkgUnitName = normalize(p.accommodationUnitName || p.accommodation_unit_name || '');
+        const isLinkedById = pkgUnitId && String(pkgUnitId) === String(unit.id);
+        const isLinkedByName = pkgUnitName && pkgUnitName === normalize(unit.name);
+        const isAccommodation = p.includesAccommodation === true || p.includes_accommodation === true ||
+          normalize(p.packageType || p.package_type).includes('accommodation');
+        return isAccommodation && (isLinkedById || isLinkedByName);
+      });
+
+      // Build durations: always start with 1 night, then add real packages, then custom
+      const seen = new Set();
+      const durations = [
+        // 1. Always: 1 night
+        {
+          key: '1night',
+          nights: 1,
+          price: pricePerNight,
+          label: '1 Night',
+          sessions: '1 night',
+          tag: 'Per Night',
+        },
+      ];
+      seen.add(1);
+
+      // 2. Real packages sorted by nights
+      const pkgDurations = unitPackages
+        .map((p) => {
+          const nights = Number(p.accommodationNights || p.accommodation_nights || 0);
+          if (!nights || nights <= 1) return null;
+          return {
+            key: `pkg-${p.id}`,
+            nights,
+            price: Number(p.price) || pricePerNight * nights,
+            label: p.name || `${nights} Nights`,
+            sessions: `${nights} nights`,
+            tag: toTitle(p.packageType || p.package_type || 'Package'),
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.nights - b.nights);
+
+      pkgDurations.forEach((d) => {
+        if (!seen.has(d.nights)) {
+          seen.add(d.nights);
+          durations.push(d);
+        }
+      });
+
+      // 3. Always: custom
+      durations.push({
+        key: 'custom',
+        nights: null,
+        price: pricePerNight,
+        label: 'Custom',
+        sessions: 'Choose nights',
+        tag: 'Flexible',
+      });
+
+      return {
+        id: unit.id,
+        name: unit.name,
+        subtitle: toTitle(unit.type || 'Accommodation'),
+        icon: <HomeOutlined />,
+        featured: idx === 0,
+        color: theme.color,
+        gradient: theme.gradient,
+        shadow: theme.shadow,
+        border: theme.border,
+        image: primaryImage,
+        pricePerNight,
+        description: unit.description || `${unit.name} - ${toTitle(unit.type)} accommodation for up to ${unit.capacity} guests.`,
+        highlights,
+        durations,
+        badges: [toTitle(unit.type), `${unit.capacity} guests`]
+      };
+    });
+  };
+
   const buildDynamicCards = (apiRows = [], serviceKey = dynamicServiceKey) => {
+    const isStayMode = normalize(serviceKey).startsWith('stay');
+
     const filtered = apiRows.filter((pkg) => {
+      if (isStayMode) {
+        const packageType = normalize(pkg.packageType || pkg.package_type);
+        const isAccommodationPackage =
+          pkg.includesAccommodation === true ||
+          pkg.includes_accommodation === true ||
+          packageType.includes('accommodation') ||
+          packageType === 'all_inclusive';
+
+        return isAccommodationPackage && isMatchForService(pkg, serviceKey);
+      }
+
       const isLessonOnlyOffer = pkg.isService || (
         (!pkg.packageType || normalize(pkg.packageType) === 'lesson') &&
         pkg.includesRental !== true &&
@@ -228,7 +453,9 @@ const AcademyServicePackagesPage = ({
 
     const groups = new Map();
     filtered.forEach((pkg) => {
-      const key = pkg.lessonServiceName || pkg.lessonServiceId || pkg.name;
+      const key = isStayMode
+        ? (pkg.accommodationUnitName || pkg.accommodation_unit_name || pkg.name)
+        : (pkg.lessonServiceName || pkg.lessonServiceId || pkg.name);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(pkg);
     });
@@ -245,14 +472,28 @@ const AcademyServicePackagesPage = ({
       const theme = cardPalette[idx % cardPalette.length];
       const durations = group
         .map((pkg) => {
-          const hours = Math.round(Number(pkg.totalHours) || 0);
+          const nightsRaw = Number(pkg.accommodationNights ?? pkg.accommodation_nights ?? 0);
+          const derivedHours = Math.round(Number(pkg.totalHours) || 0);
+          const hours = isStayMode
+            ? (nightsRaw > 0 ? nightsRaw * 24 : derivedHours)
+            : derivedHours;
+
           if (!hours) return null;
+
+          const stayNights = isStayMode
+            ? (nightsRaw > 0 ? nightsRaw : Math.max(1, Math.round(hours / 24)))
+            : null;
+
           return {
             hours: `${hours}h`,
             price: Number(pkg.price) || 0,
             label: pkg.name,
-            sessions: pkg.sessionsCount ? `${pkg.sessionsCount} sessions` : `${hours}h package`,
-            tag: pkg.levelTag ? toTitle(pkg.levelTag) : undefined,
+            sessions: isStayMode
+              ? `${stayNights} night${stayNights > 1 ? 's' : ''}`
+              : (pkg.sessionsCount ? `${pkg.sessionsCount} sessions` : `${hours}h package`),
+            tag: isStayMode
+              ? toTitle(pkg.packageType || pkg.package_type || 'Stay')
+              : (pkg.levelTag ? toTitle(pkg.levelTag) : undefined),
             perPerson: normalize(pkg.lessonCategoryTag).includes('group') || normalize(pkg.lessonCategoryTag).includes('semi')
           };
         })
@@ -274,25 +515,35 @@ const AcademyServicePackagesPage = ({
 
       return {
         id: first.id || `${serviceKey || 'lesson'}-${idx}`,
-        name: first.lessonServiceName || toTitle(serviceKey) || first.name,
-        subtitle: first.lessonCategoryTag ? toTitle(first.lessonCategoryTag) : 'Configured Package',
-        icon: <RocketOutlined />,
+        name: isStayMode
+          ? (first.accommodationUnitName || first.accommodation_unit_name || first.name)
+          : (first.lessonServiceName || toTitle(serviceKey) || first.name),
+        subtitle: isStayMode
+          ? toTitle(first.packageType || first.package_type || 'Stay')
+          : (first.lessonCategoryTag ? toTitle(first.lessonCategoryTag) : 'Configured Package'),
+        icon: isStayMode ? <HomeOutlined /> : <RocketOutlined />,
         featured: idx === 0,
         color: theme.color,
         gradient: theme.gradient,
         shadow: theme.shadow,
         border: theme.border,
         image: resolveLessonCardImage(first, serviceKey),
-        description: first.description || 'Structured lessons designed for progressive learning.',
-        highlights: [
-          'Equipment included',
-          first.levelTag ? `Level: ${toTitle(first.levelTag)}` : 'Progress-based sessions',
-          'Real-time package pricing',
-          'Durations based on configured packages',
-          'Book directly from this page'
-        ],
+        description: first.description || (isStayMode
+          ? `${first.accommodationUnitName || first.accommodation_unit_name || 'Accommodation'} available for booking.`
+          : 'Structured lessons designed for progressive learning.'),
+        highlights: isStayMode
+          ? buildAccommodationHighlights(first)
+          : [
+              'Equipment included',
+              first.levelTag ? `Level: ${toTitle(first.levelTag)}` : 'Progress-based sessions',
+              'Professional instruction',
+              'Flexible durations',
+              'Book directly'
+            ],
         durations: sortedDurations,
-        badges: [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')]
+        badges: isStayMode
+          ? [toTitle(first.packageType || first.package_type || 'Stay'), first.accommodationUnitType || 'Unit']
+          : [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')]
       };
     }).filter(Boolean);
   };
@@ -366,27 +617,58 @@ const AcademyServicePackagesPage = ({
     let cancelled = false;
     if (!dynamicServiceKey) return undefined;
 
+    const isStayMode = normalize(dynamicServiceKey).startsWith('stay');
+
     (async () => {
       try {
-        const [packagesRes, servicesRes] = await Promise.all([
-          apiClient.get('/services/packages/public'),
-          apiClient.get('/services')
-        ]);
-        
-        const packageRows = Array.isArray(packagesRes.data) ? packagesRes.data : [];
-        const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
+        if (isStayMode) {
+          // For stay pages, fetch units AND packages together
+          const [unitsRes, packagesRes] = await Promise.all([
+            apiClient.get('/accommodation/units/public'),
+            apiClient.get('/services/packages/public'),
+          ]);
+          const units = Array.isArray(unitsRes.data) ? unitsRes.data : [];
+          const allPackages = Array.isArray(packagesRes.data) ? packagesRes.data : [];
+          
+          // Filter units by type (hotel vs home)
+          const filteredUnits = units.filter((unit) => {
+            const unitType = normalize(unit.type);
+            if (normalize(dynamicServiceKey) === 'stay_hotel') {
+              return unitType === 'room';
+            }
+            if (normalize(dynamicServiceKey) === 'stay_home') {
+              return unitType !== 'room' && unitType.length > 0;
+            }
+            return true; // 'stay' shows all
+          });
+          
+          const cards = buildAccommodationUnitCards(filteredUnits, allPackages);
+          if (!cancelled) {
+            setRawUnits(filteredUnits);
+            setDynamicPackages(cards);
+          }
+        } else {
+          // For lesson pages, fetch packages and services as before
+          const [packagesRes, servicesRes] = await Promise.all([
+            apiClient.get('/services/packages/public'),
+            apiClient.get('/services')
+          ]);
+          
+          const packageRows = Array.isArray(packagesRes.data) ? packagesRes.data : [];
+          const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
 
-        // Transform services into compatible format
-        const serviceRows = rawServices
-          .filter((s) => !s.package_id && normalize(s.category) === 'lesson') // Only standalone lesson services
-          .map(transformServiceToPackage);
+          // Transform services into compatible format
+          const serviceRows = rawServices
+            .filter((s) => !s.package_id && normalize(s.category) === 'lesson') // Only standalone lesson services
+            .map(transformServiceToPackage);
 
-        const allRows = [...packageRows, ...serviceRows];
-        const mappedByService = buildDynamicCards(allRows, dynamicServiceKey);
+          const allRows = [...packageRows, ...serviceRows];
+          const mappedByService = buildDynamicCards(allRows, dynamicServiceKey);
 
-        if (!cancelled) setDynamicPackages(mappedByService);
-      } catch {
-        // Silent error
+          if (!cancelled) setDynamicPackages(mappedByService);
+        }
+      } catch (error) {
+        console.error('Error fetching dynamic content:', error);
         if (!cancelled) setDynamicPackages([]);
       }
     })();
@@ -404,9 +686,17 @@ const AcademyServicePackagesPage = ({
   }, [dynamicPackages, packages, dynamicServiceKey]);
 
   const handleCardClick = (pkg) => {
-    setSelectedPackage(pkg);
-    setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || '6h');
-    setModalVisible(true);
+    if (isStayPage) {
+      // Find the matching raw unit by card id (unit.id)
+      const unit = rawUnits.find((u) => String(u.id) === String(pkg.id)) || {};
+      setStayModalUnit(unit);
+      setStayModalPkg(pkg);
+      setStayModalVisible(true);
+    } else {
+      setSelectedPackage(pkg);
+      setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || '6h');
+      setModalVisible(true);
+    }
   };
 
   const handleModalClose = () => {
@@ -414,6 +704,14 @@ const AcademyServicePackagesPage = ({
     setTimeout(() => {
       setSelectedPackage(null);
       setSelectedDuration('6h');
+    }, 300);
+  };
+
+  const handleStayModalClose = () => {
+    setStayModalVisible(false);
+    setTimeout(() => {
+      setStayModalUnit(null);
+      setStayModalPkg(null);
     }, 300);
   };
 
@@ -562,10 +860,15 @@ const AcademyServicePackagesPage = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
         {displayPackages.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#1a1d26] p-10 text-center">
-            <h3 className="text-xl font-bold text-white mb-2">No configured packages yet</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              {normalize(dynamicServiceKey).startsWith('stay') 
+                ? 'No accommodation units available' 
+                : 'No configured packages yet'}
+            </h3>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              This page only shows live packages configured in the admin panel for this discipline.
-              Create lesson services and packages in Services → Lessons to publish them here.
+              {normalize(dynamicServiceKey).startsWith('stay')
+                ? 'No accommodation units have been added to the system yet. Check back soon or contact us for availability.'
+                : 'This page only shows live packages configured in the admin panel for this discipline. Create lesson services and packages in Services → Lessons to publish them here.'}
             </p>
           </div>
         ) : (
@@ -577,13 +880,25 @@ const AcademyServicePackagesPage = ({
                 className={`group relative isolate overflow-hidden [clip-path:inset(0_round_1.5rem)] bg-[#1a1d26] rounded-3xl border border-white/5 transition-[transform,box-shadow,border-color] duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-white/20 ${pkg.shadow || ''} ${pkg.border || ''}`}
               >
                 <div className="h-36 sm:h-40 relative rounded-t-3xl overflow-hidden">
-                  <img
-                    src={pkg.image}
-                    alt={pkg.name}
-                    className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:brightness-110 group-hover:contrast-110"
-                    style={{ objectPosition: resolveLessonCardImagePosition(pkg, dynamicServiceKey) }}
-                    loading="lazy"
-                  />
+                  {pkg.image ? (
+                    <img
+                      src={pkg.image}
+                      alt={pkg.name}
+                      className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:brightness-110 group-hover:contrast-110"
+                      style={{ objectPosition: resolveLessonCardImagePosition(pkg, dynamicServiceKey) }}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${pkg.gradient || 'from-gray-700 to-gray-900'} ${pkg.image ? 'hidden' : ''}`}>
+                    <div className="text-center px-4">
+                      <HomeOutlined className="text-5xl text-white/40 mb-2" />
+                      <p className="text-xs text-white/60">No image uploaded</p>
+                    </div>
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#1a1d26]/50 to-[#1a1d26]" />
                   <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1a1d26]" />
 
@@ -626,7 +941,18 @@ const AcademyServicePackagesPage = ({
         )}
       </div>
 
-      {selectedPackage && (
+      {/* Stay-specific gallery modal */}
+      {isStayPage && stayModalPkg && (
+        <StayAccommodationModal
+          unit={stayModalUnit}
+          pkg={stayModalPkg}
+          visible={stayModalVisible}
+          onClose={handleStayModalClose}
+        />
+      )}
+
+      {/* Generic modal for non-stay pages */}
+      {!isStayPage && selectedPackage && (
         <Modal
           open={modalVisible}
           onCancel={handleModalClose}

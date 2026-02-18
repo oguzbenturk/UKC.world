@@ -1,6 +1,6 @@
 // src/shared/services/realTimeService.js
 import { io } from 'socket.io-client';
-import { resolveApiBaseUrl } from './apiClient';
+import { getAccessToken, resolveApiBaseUrl } from './apiClient';
 // authService not used; keep service lean for silent operation
 
 class RealTimeService {  constructor() {
@@ -46,7 +46,7 @@ class RealTimeService {  constructor() {
       this.setupEventHandlers();
       // Cache user for auth on connect (since emit requires an open connection)
       try {
-        const token = localStorage.getItem('token');
+        const token = getAccessToken();
         const storedUser = localStorage.getItem('user');
         if (token && storedUser) {
           this._pendingAuthUser = JSON.parse(storedUser);
@@ -123,10 +123,12 @@ class RealTimeService {  constructor() {
    */
   authenticate(userData) {
     if (this.socket && this.isConnected) {
+      const token = getAccessToken();
+      if (!token) {
+        return;
+      }
       this.socket.emit('authenticate', {
-        id: userData.id,
-        role: userData.role,
-        name: userData.name
+        token
       });
   // Clear pending auth once sent
   this._pendingAuthUser = null;
@@ -236,9 +238,7 @@ class RealTimeService {  constructor() {
 
     try {
       const response = await fetch('/api/socket/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        credentials: 'include'
       });
       const stats = await response.json();
       

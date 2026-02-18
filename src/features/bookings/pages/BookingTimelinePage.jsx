@@ -8,6 +8,7 @@ import Timeline from 'react-calendar-timeline';
 import moment from 'moment';
 import '../components/styles/bookingCalendar.css';
 import { stripHtml } from '../utils/nameDisplay';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 import { Modal, Button } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
@@ -372,7 +373,7 @@ function BookingCalendarPage() {
                 <div
                   className="font-semibold text-sm mb-1 min-w-0 max-w-full truncate whitespace-nowrap md:whitespace-normal md:line-clamp-2"
                   title={stripHtml(userName)}
-                  dangerouslySetInnerHTML={{ __html: userName }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(userName) }}
                 />
 
                 <div className="text-xs opacity-90 mb-1 min-w-0 max-w-full truncate" title={service}>{service}</div>

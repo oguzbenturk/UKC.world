@@ -31,6 +31,7 @@ import {
 } from 'antd';
 import { UploadOutlined, InboxOutlined, PlusOutlined, GlobalOutlined } from '@ant-design/icons';
 import { FIELD_TYPES, WIDTH_OPTIONS } from '../constants/fieldTypes';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -493,7 +494,7 @@ const renderField = (field) => {
           <div 
             className="section-header-content"
             style={{ marginTop: -4, color: 'rgba(0, 0, 0, 0.45)' }}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }}
           />
         )}
       </div>
@@ -501,7 +502,7 @@ const renderField = (field) => {
   }
   if (fieldType === FIELD_TYPES.PARAGRAPH) {
     const htmlContent = field.default_value || field.help_text || 'Paragraph text';
-    return <div className="paragraph-field-content" dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+    return <div className="paragraph-field-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlContent) }} />;
   }
 
   // Toggle field (Yes/No switch)

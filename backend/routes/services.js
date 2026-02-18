@@ -143,7 +143,8 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         p.*,
         ls.name as linked_lesson_service_name,
         rs.name as linked_rental_service_name,
-        au.name as linked_accommodation_unit_name
+        au.name as linked_accommodation_unit_name,
+        au.type as linked_accommodation_unit_type
       FROM service_packages p
       LEFT JOIN services ls ON ls.id = p.lesson_service_id
       LEFT JOIN services rs ON rs.id = p.rental_service_id
@@ -174,6 +175,7 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
       
       // Determine accommodation name from JOIN or fallback to stored name
       const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+      const accommodationUnitType = row.linked_accommodation_unit_type || null;
       
       return {
         id: row.id,
@@ -204,6 +206,7 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         rentalServiceId: row.rental_service_id || null,
         equipmentName: row.equipment_name || null,
         accommodationUnitName: accommodationUnitName,
+        accommodationUnitType: accommodationUnitType,
         rentalServiceName: rentalServiceName,
         // Event-specific fields
         eventStartDate: row.event_start_date || null,
@@ -248,6 +251,7 @@ router.get('/packages/public', async (req, res) => {
         ls.level_tag as linked_level_tag,
         rs.name as linked_rental_service_name,
         au.name as linked_accommodation_unit_name,
+        au.type as linked_accommodation_unit_type,
         au.image_url as linked_accommodation_image_url,
         au.images as linked_accommodation_images
       FROM service_packages p
@@ -289,6 +293,7 @@ router.get('/packages/public', async (req, res) => {
       const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
       const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
       const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+      const accommodationUnitType = row.linked_accommodation_unit_type || null;
       const accommodationImageUrl = row.linked_accommodation_image_url || null;
       const accommodationImages = row.linked_accommodation_images || [];
 
@@ -319,6 +324,7 @@ router.get('/packages/public', async (req, res) => {
         accommodationUnitId: row.accommodation_unit_id || null,
         equipmentName: row.equipment_name || null,
         accommodationUnitName,
+        accommodationUnitType,
         accommodationImageUrl,
         accommodationImages,
         rentalServiceName,

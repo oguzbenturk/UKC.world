@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Alert, Typography, Tag } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { sanitizeHtml } from '@/shared/utils/sanitizeHtml';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -122,7 +123,7 @@ const WaiverDocument = ({
           <section style={{ marginTop: 16 }}>
           <div
             style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: '#1e293b' }}
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
           />
         </section>
 

@@ -1,4 +1,4 @@
-import apiClient from '../apiClient.js';
+import apiClient, { clearAccessToken, getAccessToken, setAccessToken } from '../apiClient.js';
 
 /**
  * Authentication Service
@@ -60,12 +60,12 @@ class AuthService {
       await apiClient.post('/auth/logout');
       
       // Clear local storage
-      localStorage.removeItem('token');
+      clearAccessToken();
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserValidation');
     } catch (error) {
       // Even if logout fails on server, clear local storage
-      localStorage.removeItem('token');
+      clearAccessToken();
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserValidation');
     }
@@ -102,7 +102,7 @@ class AuthService {
       const response = await apiClient.post('/auth/refresh-token');
       
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+        setAccessToken(response.data.token);
       }
       
       if (response.data.user) {
@@ -170,6 +170,6 @@ export default authService;
  * Helper function to get auth headers
  */
 export function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

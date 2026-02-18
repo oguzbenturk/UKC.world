@@ -2,6 +2,7 @@
 import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import authService from '../services/auth/authService';
 import consentService from '../services/consentService.js';
+import { clearAccessToken, setAccessToken } from '../services/apiClient.js';
 
 // eslint-disable-next-line
 export const AuthContext = createContext(null);
@@ -154,28 +155,6 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const isTokenValid = (token) => {
-    if (!token) return false;
-
-    try {
-      const base64Url = token.split('.')[1];
-      if (!base64Url) return false;
-
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
-          .join('')
-      );
-
-      const { exp } = JSON.parse(jsonPayload);
-      return exp * 1000 > Date.now();
-    } catch {
-      return false;
-    }
-  };
-
   useEffect(() => {
     const resetAuthState = () => {
       setUser(null);
@@ -215,20 +194,6 @@ export function AuthProvider({ children }) {
       setError(null);
 
       try {
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-          resetAuthState();
-          return;
-        }
-
-        if (!isTokenValid(token)) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          resetAuthState();
-          return;
-        }
-
         try {
           const userData = await authService.getCurrentUser();
           const normalizedUser = userData ? { ...userData } : null;
@@ -242,15 +207,15 @@ export function AuthProvider({ children }) {
         } catch {
           const fallbackSuccessful = hydrateFromStoredUser();
           if (!fallbackSuccessful) {
-            localStorage.removeItem('token');
             localStorage.removeItem('user');
+            clearAccessToken();
             resetAuthState();
           }
         }
       } catch {
         setError('Authentication check failed. Please try again.');
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
+        clearAccessToken();
         resetAuthState();
       } finally {
         setLoading(false);
@@ -293,6 +258,7 @@ export function AuthProvider({ children }) {
           userData.consent = consentData;
         }
 
+        setAccessToken(result.token);
         localStorage.setItem('token', result.token);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);

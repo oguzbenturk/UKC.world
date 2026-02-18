@@ -198,21 +198,33 @@ function sanitizeValue(value) {
 
 // SEC-046 FIX: Global input sanitization middleware
 export const sanitizeInput = () => {
+  const applySanitized = (target, sanitized) => {
+    if (!target || typeof target !== 'object' || !sanitized || typeof sanitized !== 'object') {
+      return;
+    }
+
+    for (const key of Object.keys(target)) {
+      delete target[key];
+    }
+
+    Object.assign(target, sanitized);
+  };
+
   return (req, res, next) => {
     try {
       // Sanitize request body
       if (req.body && typeof req.body === 'object') {
-        req.body = sanitizeValue(req.body);
+        applySanitized(req.body, sanitizeValue(req.body));
       }
       
       // Sanitize query parameters
       if (req.query && typeof req.query === 'object') {
-        req.query = sanitizeValue(req.query);
+        applySanitized(req.query, sanitizeValue(req.query));
       }
       
       // Sanitize route parameters
       if (req.params && typeof req.params === 'object') {
-        req.params = sanitizeValue(req.params);
+        applySanitized(req.params, sanitizeValue(req.params));
       }
       
       next();

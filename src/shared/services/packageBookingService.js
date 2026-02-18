@@ -20,9 +20,9 @@ export class PackageBookingService {
       const packagesResponse = await fetch(`/api/services/customer-packages/${customerId}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (!packagesResponse.ok) {
@@ -71,9 +71,9 @@ export class PackageBookingService {
           const usageResponse = await fetch(`/api/services/customer-packages/${pkg.id}/use-hours`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
               'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({
               hoursToUse: hoursFromThisPackage,
               bookingDate: bookingData.date,
@@ -125,9 +125,9 @@ export class PackageBookingService {
       const response = await fetch(`/api/services/customer-packages?customerId=${customerId}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {

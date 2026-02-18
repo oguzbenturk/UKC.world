@@ -297,6 +297,11 @@ class SocketService {
       return true; // Let booking handlers do detailed auth
     }
 
+    // Dashboard channel: only for admin and super_admin
+    if (channel === 'dashboard') {
+      return userRole === 'admin' || userRole === 'super_admin';
+    }
+
     // Admin/system channels: only for admin and super_admin
     if (channel.startsWith('admin:') || channel.startsWith('system:')) {
       return userRole === 'admin' || userRole === 'super_admin';

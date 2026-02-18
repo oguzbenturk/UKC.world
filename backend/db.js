@@ -205,9 +205,24 @@ try {
 
   logger.info(`Using connection string from ${connectionSource} (masked user:pass)`);
 
+  let dbHost = '';
+  try {
+    dbHost = new URL(connectionString).hostname || '';
+  } catch {
+    dbHost = process.env.DB_HOST || '';
+  }
+
+  const isLocalDbHost = /^(localhost|127\.|db$)/i.test(dbHost);
+  const explicitDbSsl = process.env.DB_SSL;
+  const dbSslEnabled = explicitDbSsl
+    ? explicitDbSsl === 'true'
+    : (process.env.NODE_ENV === 'production' && !isLocalDbHost);
+
+  const dbSslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+
   pool = new Pool({
     connectionString,
-    ssl: false, // Disable SSL for Docker PostgreSQL
+    ssl: dbSslEnabled ? { rejectUnauthorized: dbSslRejectUnauthorized } : false,
     
     // Optimization settings for better performance
     max: 40, // Maximum number of clients in pool (increased for better concurrency)

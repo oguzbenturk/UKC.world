@@ -24,6 +24,32 @@ const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '24h';
 const MAX_FAILED_LOGINS = parseInt(process.env.MAX_FAILED_LOGINS) || 5;
 const ACCOUNT_LOCK_DURATION = parseInt(process.env.ACCOUNT_LOCK_DURATION) || 1800; // 30 minutes
 
+const isProduction = process.env.NODE_ENV === 'production';
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'plannivo_auth';
+
+const getAuthCookieOptions = (maxAgeMs) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: 'lax',
+  path: '/',
+  maxAge: maxAgeMs
+});
+
+const parseCookies = (cookieHeader = '') => {
+  return cookieHeader
+    .split(';')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .reduce((acc, pair) => {
+      const idx = pair.indexOf('=');
+      if (idx <= 0) return acc;
+      const key = pair.slice(0, idx).trim();
+      const value = decodeURIComponent(pair.slice(idx + 1));
+      acc[key] = value;
+      return acc;
+    }, {});
+};
+
 // Enhanced login endpoint with 2FA support and security features
 router.post('/login', authRateLimit, async (req, res) => {
   const { email, password } = req.body;
@@ -152,7 +178,10 @@ router.post('/login', authRateLimit, async (req, res) => {
 // Middleware for JWT authentication
 export const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const bearerToken = authHeader && authHeader.split(' ')[1];
+  const cookies = parseCookies(req.headers.cookie || '');
+  const cookieToken = cookies[AUTH_COOKIE_NAME];
+  const token = bearerToken || cookieToken;
   
   // SEC-009 FIX: Debug logging only in development
   if (process.env.NODE_ENV === 'development') {
@@ -381,6 +410,10 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
     }
     
     logger.info('Token refreshed for user', { userId, newRole: user.role_name });
+
+    // SEC-006 FIX: Set httpOnly auth cookie
+    const maxAgeMs = 2 * 60 * 60 * 1000;
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
     
     res.json({
       token,
@@ -416,6 +449,14 @@ router.post('/logout', authenticateJWT, async (req, res) => {
     
     // Log logout event
     await logSecurityEvent(req.user.id, 'logout', req);
+
+    // SEC-006 FIX: Clear auth cookie
+    res.clearCookie(AUTH_COOKIE_NAME, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/'
+    });
     
     res.json({ message: 'Logout successful' });
   } catch (err) {
@@ -652,6 +693,10 @@ async function completeLogin(user, req, res) {
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRY }
     );
+
+    // SEC-006 FIX: Set httpOnly auth cookie
+    const maxAgeMs = 2 * 60 * 60 * 1000;
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
 
     // Remove sensitive data
     delete user.password_hash;

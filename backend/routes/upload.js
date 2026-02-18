@@ -12,6 +12,59 @@ import { v4 as uuidv4 } from 'uuid';
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const IMAGE_MIME_TO_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp'
+};
+
+const DOC_MIME_TO_EXT = {
+  'application/pdf': '.pdf',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'text/plain': '.txt'
+};
+
+const AUDIO_MIME_TO_EXT = {
+  'audio/webm': '.webm',
+  'audio/ogg': '.ogg',
+  'audio/mp4': '.mp4',
+  'audio/mpeg': '.mp3',
+  'audio/x-m4a': '.m4a'
+};
+
+const normalizeSafeExtension = (originalName = '', fallback = '.bin') => {
+  const ext = path.extname((originalName || '').toLowerCase());
+  return /^[a-z0-9.]+$/.test(ext) && ext.length <= 8 ? ext : fallback;
+};
+
+const validateMimeAndExtension = (file, allowedMap) => {
+  const mime = (file.mimetype || '').toLowerCase();
+  const ext = normalizeSafeExtension(file.originalname || '', '');
+  const expectedExt = allowedMap[mime];
+  if (!expectedExt) {
+    return false;
+  }
+  // Accept jpg/jpeg interchangeably
+  if ((expectedExt === '.jpg' && (ext === '.jpg' || ext === '.jpeg')) || expectedExt === ext) {
+    return true;
+  }
+  return false;
+};
+
+const requirePublicUploadToken = (req, res, next) => {
+  const configuredToken = process.env.FORM_UPLOAD_TOKEN;
+  if (!configuredToken) {
+    return res.status(503).json({ error: 'Public upload is temporarily unavailable' });
+  }
+  const providedToken = req.headers['x-form-upload-token'];
+  if (!providedToken || providedToken !== configuredToken) {
+    return res.status(401).json({ error: 'Unauthorized upload request' });
+  }
+  return next();
+};
+
 // Ensure upload directories exist
 const uploadsDir = path.join(__dirname, '../uploads');
 const imagesDir = path.join(uploadsDir, 'images');
@@ -48,7 +101,7 @@ const imageStorage = multer.diskStorage({
     cb(null, imagesDir);
   },
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname) || '.jpg';
+    const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
     const name = `image-${safeUser}-${Date.now()}${ext}`;
     cb(null, name);
@@ -61,7 +114,7 @@ const serviceImageStorage = multer.diskStorage({
     cb(null, serviceImagesDir);
   },
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname) || '.jpg';
+    const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
     const name = `service-${safeUser}-${Date.now()}${ext}`;
     cb(null, name);
@@ -69,8 +122,7 @@ const serviceImageStorage = multer.diskStorage({
 });
 
 const fileFilter = function (_req, file, cb) {
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  if (allowed.includes(file.mimetype)) {
+  if (validateMimeAndExtension(file, IMAGE_MIME_TO_EXT)) {
     cb(null, true);
   } else {
     cb(new Error('Only image uploads are allowed (JPEG, PNG, GIF, WebP)'));
@@ -95,7 +147,7 @@ const formBackgroundStorage = multer.diskStorage({
     cb(null, formBackgroundsDir);
   },
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname) || '.jpg';
+    const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
     const name = `bg-${safeUser}-${Date.now()}${ext}`;
     cb(null, name);
@@ -108,7 +160,7 @@ const formLogoStorage = multer.diskStorage({
     cb(null, formLogosDir);
   },
   filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname) || '.png';
+    const ext = normalizeSafeExtension(file.originalname, '.png');
     const safeUser = (req.user?.id || 'user').toString();
     const name = `logo-${safeUser}-${Date.now()}${ext}`;
     cb(null, name);
@@ -251,7 +303,7 @@ if (!fs.existsSync(voiceMessagesDir)) {
 const chatImageStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, chatImagesDir),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.jpg';
+    const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const name = `chat-${req.user?.id}-${Date.now()}${ext}`;
     cb(null, name);
   }
@@ -286,22 +338,18 @@ router.post('/chat-image', authenticateJWT, chatImageUpload.single('file'), (req
 const chatFileStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, chatFilesDir),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = normalizeSafeExtension(file.originalname, '.bin');
     const name = `file-${req.user?.id}-${Date.now()}${ext}`;
     cb(null, name);
   }
 });
 
 const chatFileFilter = (_req, file, cb) => {
-  const allowed = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/plain'
-  ];
-  if (allowed.includes(file.mimetype)) {
+  const spreadsheetMap = {
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx'
+  };
+  if (validateMimeAndExtension(file, { ...DOC_MIME_TO_EXT, ...spreadsheetMap })) {
     cb(null, true);
   } else {
     cb(new Error('Only PDF, Word, Excel, and text files are allowed'));
@@ -337,21 +385,14 @@ router.post('/chat-file', authenticateJWT, chatFileUpload.single('file'), (req, 
 const voiceMessageStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, voiceMessagesDir),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '.webm';
+    const ext = normalizeSafeExtension(file.originalname, '.webm');
     const name = `voice-${req.user?.id}-${Date.now()}${ext}`;
     cb(null, name);
   }
 });
 
 const voiceMessageFilter = (_req, file, cb) => {
-  const allowed = [
-    'audio/webm',
-    'audio/ogg',
-    'audio/mp4',
-    'audio/mpeg',
-    'audio/x-m4a'
-  ];
-  if (allowed.includes(file.mimetype)) {
+  if (validateMimeAndExtension(file, AUDIO_MIME_TO_EXT)) {
     cb(null, true);
   } else {
     cb(new Error('Only audio files are allowed (WebM, OGG, MP4, M4A)'));
@@ -419,7 +460,7 @@ const formSubmissionStorage = multer.diskStorage({
     cb(null, formSubmissionsDir);
   },
   filename: function (_req, file, cb) {
-    const ext = path.extname(file.originalname) || '.jpg';
+    const ext = normalizeSafeExtension(file.originalname, '.jpg');
     // Use UUID for security - no user ID since public
     const name = `form-${uuidv4()}${ext}`;
     cb(null, name);
@@ -427,14 +468,7 @@ const formSubmissionStorage = multer.diskStorage({
 });
 
 const formSubmissionFileFilter = function (_req, file, cb) {
-  // Allow images and common document types for CVs, etc.
-  const allowedMimeTypes = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
-  if (allowedMimeTypes.includes(file.mimetype)) {
+  if (validateMimeAndExtension(file, { ...IMAGE_MIME_TO_EXT, ...DOC_MIME_TO_EXT })) {
     cb(null, true);
   } else {
     cb(new Error('File type not allowed. Allowed: JPEG, PNG, GIF, WebP, PDF, DOC, DOCX'));
@@ -452,7 +486,7 @@ const formSubmissionUpload = multer({
  * No authentication required but rate limited
  * Used for profile photos, CV uploads, etc. in public forms
  */
-router.post('/form-submission', formSubmissionRateLimit, formSubmissionUpload.single('file'), (req, res) => {
+router.post('/form-submission', formSubmissionRateLimit, requirePublicUploadToken, formSubmissionUpload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -477,7 +511,7 @@ router.post('/form-submission', formSubmissionRateLimit, formSubmissionUpload.si
  * PUBLIC endpoint for multiple form submission file uploads
  * For forms that need multiple file uploads
  */
-router.post('/form-submission-multiple', formSubmissionRateLimit, formSubmissionUpload.array('files', 5), (req, res) => {
+router.post('/form-submission-multiple', formSubmissionRateLimit, requirePublicUploadToken, formSubmissionUpload.array('files', 5), (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded' });
