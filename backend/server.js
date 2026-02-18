@@ -14,9 +14,6 @@ import BackupService from './services/backupService.js';
 import ExchangeRateService from './services/exchangeRateService.js';
 import { reconciliationService } from './services/financialReconciliationService.js';
 
-// Initialize background services
-ExchangeRateService.startScheduler();
-
 // Import routes
 import authRouter, { authenticateJWT } from './routes/auth.js';
 import { authorizeRoles } from './middlewares/authorize.js';

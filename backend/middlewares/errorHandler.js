@@ -249,11 +249,36 @@ export const handleNotFound = (req, res, next) => {
 /**
  * Request Logger Middleware
  */
+const isProduction = process.env.NODE_ENV?.trim() === 'production';
+
 export const requestLogger = (req, res, next) => {
   const start = Date.now();
   
   res.on('finish', () => {
     const duration = Date.now() - start;
+    
+    // In production, only log errors and slow requests to avoid disk I/O on every request
+    if (isProduction) {
+      if (res.statusCode >= 400) {
+        logger.warn('Request error', {
+          method: req.method,
+          url: req.originalUrl,
+          status: res.statusCode,
+          duration: `${duration}ms`,
+          ip: req.ip,
+        });
+      } else if (duration > 2000) {
+        logger.warn('Slow request', {
+          method: req.method,
+          url: req.originalUrl,
+          status: res.statusCode,
+          duration: `${duration}ms`,
+        });
+      }
+      return;
+    }
+
+    // Development: log everything
     const logData = {
       method: req.method,
       url: req.originalUrl,
