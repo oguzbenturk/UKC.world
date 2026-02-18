@@ -28,13 +28,13 @@
     width: calc(100% - 2rem) !important;
   }
   
-  /* Prevent body scroll lock conflicts */
+  /* Prevent body scroll lock conflicts – avoid position:fixed which
+     breaks the flex layout chain and can leave touch permanently locked
+     if the class is not cleaned up after modal close. */
   body.modal-open {
     overflow: hidden !important;
-    position: fixed !important;
-    width: 100% !important;
-    height: 100% !important;
-    touch-action: none !important;
+    /* Do NOT use position:fixed – it detaches body from flow and
+       Ant Design's scroll-lock restore cannot undo it reliably. */
   }
   
   /* Ensure the modal overlay doesn't interfere */

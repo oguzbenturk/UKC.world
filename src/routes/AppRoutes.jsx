@@ -1,150 +1,180 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/hooks/useAuth';
 
-// Normal imports (temporarily revert lazy loading to fix the hanging issue)
+// ── Lightweight loading fallback for lazy-loaded routes ──
+const LazyFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-sky-600" />
+  </div>
+);
+
+// Helper – wraps a React.lazy() import so chunk-load failures show a retry
+// button instead of crashing (this fixes the old "hanging" issue that
+// originally caused lazy loading to be reverted to eager imports).
+const lazyWithRetry = (factory) =>
+  React.lazy(() =>
+    factory().catch(() =>
+      // If chunk fails (e.g. after deploy hash change), retry once after 1.5s
+      new Promise((resolve) => setTimeout(resolve, 1500)).then(() =>
+        factory().catch(() => ({
+          default: () => (
+            <div className="flex flex-col items-center justify-center h-64 gap-3">
+              <p className="text-slate-600">Failed to load page.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm hover:bg-sky-700"
+              >
+                Reload
+              </button>
+            </div>
+          ),
+        }))
+      )
+    )
+  );
+
+// ── Eagerly loaded pages (critical path / first paint) ──
 import Login from '../features/authentication/pages/Login';
 import ResetPassword from '../features/authentication/pages/ResetPassword';
 import PublicHome from '../features/public/PublicHome';
-import ExecutiveDashboard from '../features/dashboard/pages/ExecutiveDashboard';
-import DashboardRouter from '../features/dashboard/pages/DashboardRouter';
-import InstructorDashboard from '../features/instructor/pages/InstructorDashboard';
-import InstructorDashboardFallback from '../features/instructor/pages/InstructorDashboardFallback';
-import MyStudents from '../features/instructor/pages/MyStudents';
-import StudentDetail from '../features/instructor/pages/StudentDetail';
-import Customers from '../features/customers/pages/Customers';
-import UserDetail from '../features/customers/pages/UserDetail';
-import UserFormPage from '../features/customers/pages/UserFormPage';
-import Instructors from '../features/instructors/pages/Instructors';
-import Equipment from '../features/equipment/pages/Equipment';
-import InventoryPage from '../features/inventory/pages/InventoryPage';
-import BookingsPage from '../features/bookings/pages/BookingsPage';
-import BookingEditPage from '../features/bookings/pages/BookingEditPage';
-import BookingCalendarPage from '../features/bookings/pages/BookingCalendarPage';
-import Settings from '../features/dashboard/pages/Settings';
-import Finance from '../features/finances/pages/Finance';
-import FinanceSettingsPage from '../features/finances/pages/FinanceSettingsPage';
-import Rentals from '../features/rentals/pages/Rentals';
-import AccommodationServices from '../features/services/pages/AccommodationServices';
-import AccommodationUnitsManager from '../features/services/pages/AccommodationUnitsManager';
-import AccommodationBookingPage from '../features/accommodation/pages/AccommodationBookingPage';
-import AccommodationAdminPage from '../features/accommodation/pages/AccommodationAdminPage';
-import LessonServices from '../features/services/pages/LessonServices';
-import RentalServices from '../features/services/pages/RentalServices';
-import SalesServices from '../features/services/pages/SalesServices';
-import ShopManagement from '../features/services/pages/ShopManagement';
-import PackageManagement from '../features/services/pages/PackageManagement';
-import ShopPage from '../features/dashboard/pages/Shop';
-import UserProfilePage from '../features/authentication/pages/UserProfilePage';
-import CustomerProfilePage from '../features/customers/pages/CustomerProfilePage';
-import InstructorFormPage from '../features/instructors/pages/InstructorFormPage';
-import Categories from '../features/services/pages/Categories';
-import MembershipSettings from '../features/services/pages/MembershipSettings';
-import RolesAdmin from '../features/admin/pages/RolesAdmin';
-import SparePartsOrders from '../features/admin/pages/SparePartsOrders';
-import InstructorRatingsAnalytics from '../features/admin/pages/InstructorRatingsAnalytics';
-import MemberOfferings from '../features/members/pages/MemberOfferings';
-import WaiverManagement from '../features/admin/pages/WaiverManagement';
-import VoucherManagement from '../features/admin/pages/VoucherManagement';
-import SupportTicketsPage from '../features/admin/pages/SupportTicketsPage';
-import LegalDocumentsPage from '../features/settings/pages/LegalDocumentsPage';
-import HelpSupport from '../features/help/pages/HelpSupport';
-import DeletedBookingsPage from '../components/admin/DeletedBookingsPage';
-import StudentLayout from '../features/students/components/StudentLayout';
-import StudentDashboard from '../features/students/pages/StudentDashboard';
-import StudentSchedule from '../features/students/pages/StudentSchedule';
-import StudentCourses from '../features/students/pages/StudentCourses';
-import StudentPayments from '../features/students/pages/StudentPayments';
-import StudentSupport from '../features/students/pages/StudentSupport';
-import StudentProfile from '../features/students/pages/StudentProfile';
-import FamilyManagementPage from '../features/students/pages/FamilyManagementPage';
-import StudentFriendsPage from '../features/students/pages/StudentFriendsPage';
-import StudentPortalUnavailable from '../features/students/pages/StudentPortalUnavailable';
-import StudentBookServicePage from '../features/students/pages/StudentBookServicePage';
-import StudentBookEquipmentPage from '../features/students/pages/StudentBookEquipmentPage';
-import StudentMyRentalsPage from '../features/students/pages/StudentMyRentalsPage';
-import StudentMyAccommodationPage from '../features/students/pages/StudentMyAccommodationPage';
-import NotificationCenter from '../features/notifications/pages/NotificationCenter';
-import GdprDataManager from '../features/compliance/components/GdprDataManager';
-import PrivacyGdprPage from '../features/compliance/components/PrivacyGdprPage';
-import OutsiderBookingPage from '../features/outsider/pages/OutsiderBookingPage';
-import GuestLandingPage from '../features/outsider/pages/GuestLandingPage';
-import OutsiderPackagesPage from '../features/outsider/pages/OutsiderPackagesPage';
-import KiteLessonsPublicPage from '../features/outsider/pages/KiteLessonsPublicPage';
-import AcademyLandingPage from '../features/outsider/pages/AcademyLandingPage';
-import FoilLessonsPage from '../features/outsider/pages/FoilLessonsPage';
-import WingLessonsPage from '../features/outsider/pages/WingLessonsPage';
-import EFoilLessonsPage from '../features/outsider/pages/EFoilLessonsPage';
-import PremiumLessonsPage from '../features/outsider/pages/PremiumLessonsPage';
-import RentalStandardShowcasePage from '../features/outsider/pages/RentalStandardShowcasePage';
-import RentalPremiumShowcasePage from '../features/outsider/pages/RentalPremiumShowcasePage';
-import RentalSlsShowcasePage from '../features/outsider/pages/RentalSlsShowcasePage';
-import RentalDlabShowcasePage from '../features/outsider/pages/RentalDlabShowcasePage';
-import RentalLandingPage from '../features/outsider/pages/RentalLandingPage';
-import StayLandingPage from '../features/outsider/pages/StayLandingPage';
-import ExperienceLandingPage from '../features/outsider/pages/ExperienceLandingPage';
+
+// ── Lazy-loaded pages (code-split for fast mobile load) ──
+const ExecutiveDashboard = lazyWithRetry(() => import('../features/dashboard/pages/ExecutiveDashboard'));
+const DashboardRouter = lazyWithRetry(() => import('../features/dashboard/pages/DashboardRouter'));
+const InstructorDashboard = lazyWithRetry(() => import('../features/instructor/pages/InstructorDashboard'));
+const InstructorDashboardFallback = lazyWithRetry(() => import('../features/instructor/pages/InstructorDashboardFallback'));
+const MyStudents = lazyWithRetry(() => import('../features/instructor/pages/MyStudents'));
+const StudentDetail = lazyWithRetry(() => import('../features/instructor/pages/StudentDetail'));
+const Customers = lazyWithRetry(() => import('../features/customers/pages/Customers'));
+const UserDetail = lazyWithRetry(() => import('../features/customers/pages/UserDetail'));
+const UserFormPage = lazyWithRetry(() => import('../features/customers/pages/UserFormPage'));
+const Instructors = lazyWithRetry(() => import('../features/instructors/pages/Instructors'));
+const Equipment = lazyWithRetry(() => import('../features/equipment/pages/Equipment'));
+const InventoryPage = lazyWithRetry(() => import('../features/inventory/pages/InventoryPage'));
+const BookingsPage = lazyWithRetry(() => import('../features/bookings/pages/BookingsPage'));
+const BookingEditPage = lazyWithRetry(() => import('../features/bookings/pages/BookingEditPage'));
+const BookingCalendarPage = lazyWithRetry(() => import('../features/bookings/pages/BookingCalendarPage'));
+const Settings = lazyWithRetry(() => import('../features/dashboard/pages/Settings'));
+const Finance = lazyWithRetry(() => import('../features/finances/pages/Finance'));
+const FinanceSettingsPage = lazyWithRetry(() => import('../features/finances/pages/FinanceSettingsPage'));
+const Rentals = lazyWithRetry(() => import('../features/rentals/pages/Rentals'));
+const AccommodationUnitsManager = lazyWithRetry(() => import('../features/services/pages/AccommodationUnitsManager'));
+const AccommodationBookingPage = lazyWithRetry(() => import('../features/accommodation/pages/AccommodationBookingPage'));
+const AccommodationAdminPage = lazyWithRetry(() => import('../features/accommodation/pages/AccommodationAdminPage'));
+const LessonServices = lazyWithRetry(() => import('../features/services/pages/LessonServices'));
+const RentalServices = lazyWithRetry(() => import('../features/services/pages/RentalServices'));
+const ShopManagement = lazyWithRetry(() => import('../features/services/pages/ShopManagement'));
+const PackageManagement = lazyWithRetry(() => import('../features/services/pages/PackageManagement'));
+const ShopPage = lazyWithRetry(() => import('../features/dashboard/pages/Shop'));
+const UserProfilePage = lazyWithRetry(() => import('../features/authentication/pages/UserProfilePage'));
+const CustomerProfilePage = lazyWithRetry(() => import('../features/customers/pages/CustomerProfilePage'));
+const InstructorFormPage = lazyWithRetry(() => import('../features/instructors/pages/InstructorFormPage'));
+const Categories = lazyWithRetry(() => import('../features/services/pages/Categories'));
+const MembershipSettings = lazyWithRetry(() => import('../features/services/pages/MembershipSettings'));
+const RolesAdmin = lazyWithRetry(() => import('../features/admin/pages/RolesAdmin'));
+const SparePartsOrders = lazyWithRetry(() => import('../features/admin/pages/SparePartsOrders'));
+const InstructorRatingsAnalytics = lazyWithRetry(() => import('../features/admin/pages/InstructorRatingsAnalytics'));
+const MemberOfferings = lazyWithRetry(() => import('../features/members/pages/MemberOfferings'));
+const WaiverManagement = lazyWithRetry(() => import('../features/admin/pages/WaiverManagement'));
+const VoucherManagement = lazyWithRetry(() => import('../features/admin/pages/VoucherManagement'));
+const SupportTicketsPage = lazyWithRetry(() => import('../features/admin/pages/SupportTicketsPage'));
+const LegalDocumentsPage = lazyWithRetry(() => import('../features/settings/pages/LegalDocumentsPage'));
+const HelpSupport = lazyWithRetry(() => import('../features/help/pages/HelpSupport'));
+const DeletedBookingsPage = lazyWithRetry(() => import('../components/admin/DeletedBookingsPage'));
+const StudentLayout = lazyWithRetry(() => import('../features/students/components/StudentLayout'));
+const StudentDashboard = lazyWithRetry(() => import('../features/students/pages/StudentDashboard'));
+const StudentSchedule = lazyWithRetry(() => import('../features/students/pages/StudentSchedule'));
+const StudentCourses = lazyWithRetry(() => import('../features/students/pages/StudentCourses'));
+const StudentPayments = lazyWithRetry(() => import('../features/students/pages/StudentPayments'));
+const StudentSupport = lazyWithRetry(() => import('../features/students/pages/StudentSupport'));
+const StudentProfile = lazyWithRetry(() => import('../features/students/pages/StudentProfile'));
+const FamilyManagementPage = lazyWithRetry(() => import('../features/students/pages/FamilyManagementPage'));
+const StudentFriendsPage = lazyWithRetry(() => import('../features/students/pages/StudentFriendsPage'));
+const StudentPortalUnavailable = lazyWithRetry(() => import('../features/students/pages/StudentPortalUnavailable'));
+const StudentBookServicePage = lazyWithRetry(() => import('../features/students/pages/StudentBookServicePage'));
+const StudentBookEquipmentPage = lazyWithRetry(() => import('../features/students/pages/StudentBookEquipmentPage'));
+const StudentMyRentalsPage = lazyWithRetry(() => import('../features/students/pages/StudentMyRentalsPage'));
+const StudentMyAccommodationPage = lazyWithRetry(() => import('../features/students/pages/StudentMyAccommodationPage'));
+const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
+const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
+const OutsiderBookingPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderBookingPage'));
+const GuestLandingPage = lazyWithRetry(() => import('../features/outsider/pages/GuestLandingPage'));
+const OutsiderPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderPackagesPage'));
+const KiteLessonsPublicPage = lazyWithRetry(() => import('../features/outsider/pages/KiteLessonsPublicPage'));
+const AcademyLandingPage = lazyWithRetry(() => import('../features/outsider/pages/AcademyLandingPage'));
+const FoilLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/FoilLessonsPage'));
+const WingLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/WingLessonsPage'));
+const EFoilLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/EFoilLessonsPage'));
+const PremiumLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/PremiumLessonsPage'));
+const RentalStandardShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalStandardShowcasePage'));
+const RentalPremiumShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalPremiumShowcasePage'));
+const RentalSlsShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalSlsShowcasePage'));
+const RentalDlabShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalDlabShowcasePage'));
+const RentalLandingPage = lazyWithRetry(() => import('../features/outsider/pages/RentalLandingPage'));
+const StayLandingPage = lazyWithRetry(() => import('../features/outsider/pages/StayLandingPage'));
+const ExperienceLandingPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceLandingPage'));
 // Stay pages
-import StayBookingPage from '../features/outsider/pages/StayBookingPage';
-import StayHotelPage from '../features/outsider/pages/StayHotelPage';
-import StayHomePage from '../features/outsider/pages/StayHomePage';
+const StayBookingPage = lazyWithRetry(() => import('../features/outsider/pages/StayBookingPage'));
+const StayHotelPage = lazyWithRetry(() => import('../features/outsider/pages/StayHotelPage'));
+const StayHomePage = lazyWithRetry(() => import('../features/outsider/pages/StayHomePage'));
 // Experience pages
-import ExperienceBookPackagePage from '../features/outsider/pages/ExperienceBookPackagePage';
-import ExperienceKitePackagesPage from '../features/outsider/pages/ExperienceKitePackagesPage';
-import ExperienceWingPackagesPage from '../features/outsider/pages/ExperienceWingPackagesPage';
-import ExperienceDownwindersPage from '../features/outsider/pages/ExperienceDownwindersPage';
-import ExperienceCampsPage from '../features/outsider/pages/ExperienceCampsPage';
-import GroupInvitationPage from '../features/bookings/pages/GroupInvitationPage';
-import StudentGroupBookingsPage from '../features/bookings/pages/StudentGroupBookingsPage';
-import GroupBookingDetailPage from '../features/bookings/pages/GroupBookingDetailPage';
-import UserSettings from '../features/settings/pages/UserSettings';
-import ManagerDashboard from '../features/manager/pages/ManagerDashboard';
-import ManagerCommissionSettings from '../features/manager/pages/ManagerCommissionSettings';
-import ChatPage from '../features/chat/pages/ChatPage';
+const ExperienceBookPackagePage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceBookPackagePage'));
+const ExperienceKitePackagesPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceKitePackagesPage'));
+const ExperienceWingPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceWingPackagesPage'));
+const ExperienceDownwindersPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceDownwindersPage'));
+const ExperienceCampsPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceCampsPage'));
+const GroupInvitationPage = lazyWithRetry(() => import('../features/bookings/pages/GroupInvitationPage'));
+const StudentGroupBookingsPage = lazyWithRetry(() => import('../features/bookings/pages/StudentGroupBookingsPage'));
+const GroupBookingDetailPage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingDetailPage'));
+const UserSettings = lazyWithRetry(() => import('../features/settings/pages/UserSettings'));
+const ManagerDashboard = lazyWithRetry(() => import('../features/manager/pages/ManagerDashboard'));
+const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
+const ChatPage = lazyWithRetry(() => import('../features/chat/pages/ChatPage'));
 
 // Calendar views
-import LessonsCalendar from '../features/calendars/pages/LessonsCalendar';
-import RentalsCalendar from '../features/calendars/pages/RentalsCalendar';
-import RentalsCalendarView from '../features/rentals/pages/RentalsCalendarView';
-import EventsCalendar from '../features/calendars/pages/EventsCalendar';
-import EventsPage from '../features/events/pages/EventsPage';
+const LessonsCalendar = lazyWithRetry(() => import('../features/calendars/pages/LessonsCalendar'));
+const RentalsCalendar = lazyWithRetry(() => import('../features/calendars/pages/RentalsCalendar'));
+const RentalsCalendarView = lazyWithRetry(() => import('../features/rentals/pages/RentalsCalendarView'));
+const EventsCalendar = lazyWithRetry(() => import('../features/calendars/pages/EventsCalendar'));
+const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPage'));
 
 // Repairs
-import RepairsPage from '../features/repairs/pages/RepairsPage';
+const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
 
 // Marketing
-import MarketingPage from '../features/marketing/pages/MarketingPage';
+const MarketingPage = lazyWithRetry(() => import('../features/marketing/pages/MarketingPage'));
 
 // Quick Links
-import QuickLinksPage from '../features/quicklinks/pages/QuickLinksPage';
-import PublicQuickBooking from '../features/quicklinks/pages/PublicQuickBooking';
+const QuickLinksPage = lazyWithRetry(() => import('../features/quicklinks/pages/QuickLinksPage'));
+const PublicQuickBooking = lazyWithRetry(() => import('../features/quicklinks/pages/PublicQuickBooking'));
 
 // Form Builder
-import FormsListPage from '../features/forms/pages/FormsListPage';
-import FormBuilderPage from '../features/forms/pages/FormBuilderPage';
-import FormPreviewPage from '../features/forms/pages/FormPreviewPage';
-import PublicFormPage from '../features/forms/pages/PublicFormPage';
-import FormSuccessPage from '../features/forms/pages/FormSuccessPage';
-import FormAnalyticsPage from '../features/forms/pages/FormAnalyticsPage';
-import FormResponsesPage from '../features/forms/pages/FormResponsesPage';
+const FormsListPage = lazyWithRetry(() => import('../features/forms/pages/FormsListPage'));
+const FormBuilderPage = lazyWithRetry(() => import('../features/forms/pages/FormBuilderPage'));
+const FormPreviewPage = lazyWithRetry(() => import('../features/forms/pages/FormPreviewPage'));
+const PublicFormPage = lazyWithRetry(() => import('../features/forms/pages/PublicFormPage'));
+const FormSuccessPage = lazyWithRetry(() => import('../features/forms/pages/FormSuccessPage'));
+const FormAnalyticsPage = lazyWithRetry(() => import('../features/forms/pages/FormAnalyticsPage'));
+const FormResponsesPage = lazyWithRetry(() => import('../features/forms/pages/FormResponsesPage'));
 
 // Finance sub-pages
-import FinanceLessons from '../features/finances/pages/FinanceLessons';
-import FinanceRentals from '../features/finances/pages/FinanceRentals';
-import FinanceMembership from '../features/finances/pages/FinanceMembership';
-import FinanceShop from '../features/finances/pages/FinanceShop';
-import FinanceAccommodation from '../features/finances/pages/FinanceAccommodation';
-import FinanceEvents from '../features/finances/pages/FinanceEvents';
-import FinanceDailyOperations from '../features/finances/pages/FinanceDailyOperations';
-import ExpensesPage from '../features/finances/pages/ExpensesPage';
-import PaymentCallback from '../features/finances/pages/PaymentCallback';
-import PaymentRefunds from '../features/finances/pages/PaymentRefunds';
+const FinanceLessons = lazyWithRetry(() => import('../features/finances/pages/FinanceLessons'));
+const FinanceRentals = lazyWithRetry(() => import('../features/finances/pages/FinanceRentals'));
+const FinanceMembership = lazyWithRetry(() => import('../features/finances/pages/FinanceMembership'));
+const FinanceShop = lazyWithRetry(() => import('../features/finances/pages/FinanceShop'));
+const FinanceAccommodation = lazyWithRetry(() => import('../features/finances/pages/FinanceAccommodation'));
+const FinanceEvents = lazyWithRetry(() => import('../features/finances/pages/FinanceEvents'));
+const FinanceDailyOperations = lazyWithRetry(() => import('../features/finances/pages/FinanceDailyOperations'));
+const ExpensesPage = lazyWithRetry(() => import('../features/finances/pages/ExpensesPage'));
+const PaymentCallback = lazyWithRetry(() => import('../features/finances/pages/PaymentCallback'));
+const PaymentRefunds = lazyWithRetry(() => import('../features/finances/pages/PaymentRefunds'));
 
 // Shop Order Management
-import OrderManagement from '../features/dashboard/pages/OrderManagement';
-import ShopOrdersPage from '../features/services/pages/ShopOrdersPage';
+const ShopOrdersPage = lazyWithRetry(() => import('../features/services/pages/ShopOrdersPage'));
 
 // Admin Members
-import AdminMembersPage from '../features/members/pages/AdminMembersPage';
+const AdminMembersPage = lazyWithRetry(() => import('../features/members/pages/AdminMembersPage'));
 
 import { hasPermission, ROLES } from '../shared/utils/roleUtils';
 import { featureFlags } from '../shared/config/featureFlags';
@@ -239,7 +269,9 @@ const AppRoutes = () => {
 
     return canAccess ? <Outlet /> : <Navigate to="/login" replace />;
   };
+
   return (
+    <Suspense fallback={<LazyFallback />}>
     <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />
@@ -474,6 +506,7 @@ const AppRoutes = () => {
       {/* Catch all for non-existing routes */}
       <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/login"} replace />} />
     </Routes>
+    </Suspense>
   );
 };
 

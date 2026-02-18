@@ -268,11 +268,11 @@
   scroll-margin-bottom: calc(16px + env(safe-area-inset-bottom));
 }
 
-/* When overlays/modals are open, lock background scroll in a keyboard-safe way */
+/* When overlays/modals are open, lock background scroll.
+   Avoid position:fixed – it detaches body from the flex chain and
+   can leave touch interaction permanently frozen on mobile Safari. */
 .scroll-locked {
   overflow: hidden !important;
-  position: fixed;
-  inset: 0;
 }
 
 ::-webkit-scrollbar {
