@@ -550,8 +550,8 @@ app.use('/api/events', (req, res, next) => {
 
   return authenticateJWT(req, res, next);
 }, eventsRouter);
-app.use('/api/member-offerings', authenticateJWT, memberOfferingsRouter);
-app.use('/api/repair-requests', authenticateJWT, repairRequestsRouter);
+app.use('/api/member-offerings', memberOfferingsRouter);
+app.use('/api/repair-requests', repairRequestsRouter);
 app.use('/api/marketing', authenticateJWT, marketingRouter);
 app.use('/api/quick-links', authenticateJWT, quickLinksRouter);
 app.use('/api/form-templates', authenticateJWT, formTemplatesRouter);

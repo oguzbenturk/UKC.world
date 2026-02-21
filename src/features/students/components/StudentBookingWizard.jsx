@@ -155,76 +155,78 @@ const matchesServicePackage = (service, pkg, forPurchase = false) => {
 
   const serviceName = normalizeText(service.name);
   const packageServiceName = normalizeText(
-    pkg.lesson_service_name || pkg.lessonServiceName || pkg.lessonType || pkg.package_name || pkg.packageName || pkg.name || ''
+    pkg.lesson_service_name || pkg.lessonServiceName || ''
+  );
+  // Separate display name used for generic packages
+  const packageDisplayName = normalizeText(
+    pkg.package_name || pkg.packageName || pkg.name || ''
   );
 
-  console.log('Normalized comparison:', {
-    serviceName,
-    serviceCategory,
-    packageServiceName,
-    exactMatch: serviceName === packageServiceName,
-    forPurchase,
-    isRentalService
-  });
-
-  // Most reliable: exact match on service name vs package's lesson_service_name
+  // ── 1. Best match: exact service name vs package's lesson_service_name ──
   if (serviceName && packageServiceName && serviceName === packageServiceName) {
     return true;
   }
 
-  // Check if lesson types match (private, group, semi-private)
-  // First try to extract from service name, then fall back to service_type field
+  // ── 2. Discipline gate: if BOTH have a discipline tag, they MUST match ──
+  //    This prevents "Wing Private" from matching a "Kite Private" package.
+  const serviceDiscipline = normalizeText(service.disciplineTag || service.discipline || '');
+  const packageDiscipline = normalizeText(pkg.disciplineTag || pkg.discipline || '');
+  
+  if (serviceDiscipline && packageDiscipline && serviceDiscipline !== packageDiscipline) {
+    return false;   // hard reject — disciplines differ
+  }
+
+  // ── 3. Lesson category / type gate ──
+  //    e.g. "private" vs "group" — must match if both present
+  const serviceLessonCat = normalizeText(service.lessonCategoryTag || '');
+  const packageLessonCat = normalizeText(pkg.lessonCategoryTag || '');
+
   let serviceLessonType = extractLessonType(service.name);
   if (!serviceLessonType) {
-    // Fall back to service_type field (e.g., "private", "group")
     const serviceType = normalizeText(service.service_type || service.serviceType || '');
     if (serviceType === 'private' || serviceType === 'group' || serviceType === 'semiprivate') {
       serviceLessonType = serviceType;
     }
   }
-  const packageLessonType = extractLessonType(packageServiceName);
+  if (!serviceLessonType && serviceLessonCat) {
+    serviceLessonType = serviceLessonCat;
+  }
 
-  if (serviceLessonType && packageLessonType) {
-    // Both have a lesson type - they must match
-    if (serviceLessonType !== packageLessonType) {
-      return false;
+  const packageLessonType = extractLessonType(packageServiceName || packageDisplayName);
+  const effectivePackageLessonType = packageLessonType || packageLessonCat || null;
+
+  if (serviceLessonType && effectivePackageLessonType) {
+    if (serviceLessonType !== effectivePackageLessonType) {
+      return false;   // hard reject — lesson types differ
     }
-    // Lesson types match - this is a good match
+  }
+
+  // ── 4. Positive match: discipline matched (or one is absent) + lesson type matched ──
+  //    We need at least one positive signal to confirm the match.
+  const disciplineOk = !serviceDiscipline || !packageDiscipline || serviceDiscipline === packageDiscipline;
+  const lessonTypeOk = serviceLessonType && effectivePackageLessonType && serviceLessonType === effectivePackageLessonType;
+  const disciplineMatch = serviceDiscipline && packageDiscipline && serviceDiscipline === packageDiscipline;
+
+  // If both discipline and lessonType match → strong match
+  if (disciplineMatch && lessonTypeOk) {
     return true;
   }
 
-  // Fallback: check structured tags (disciplineTag, lessonCategoryTag, levelTag)
-  const serviceCategories = toNormalizedList(
-    service.lessonCategoryTag,
-    service.disciplineTag,
-    service.discipline
-  );
-  const packageCategories = toNormalizedList(
-    pkg.lessonCategoryTag,
-    pkg.disciplineTag,
-    pkg.discipline
-  );
-
-  // Exact match on categories (not fuzzy)
-  if (serviceCategories.length > 0 && packageCategories.length > 0) {
-    if (serviceCategories.some((sc) => packageCategories.some((pc) => sc === pc))) {
-      return true;
-    }
+  // If discipline matches and no lesson type info → match
+  if (disciplineMatch && (!serviceLessonType || !effectivePackageLessonType)) {
+    return true;
   }
 
-  // Check level tags
-  const serviceLevels = toNormalizedList(service.levelTag, service.level);
-  const packageLevels = toNormalizedList(pkg.levelTag, pkg.level);
-
-  if (serviceLevels.length > 0 && packageLevels.length > 0) {
-    if (serviceLevels.some((sl) => packageLevels.some((pl) => sl === pl))) {
-      return true;
-    }
+  // If lesson type matches and no discipline info on package → match (generic package)
+  if (lessonTypeOk && !packageDiscipline) {
+    return true;
   }
 
-  // If package has no lesson_service_name set (generic package), it can match any service
-  if (!packageServiceName || packageServiceName === normalizeText(pkg.package_name || pkg.packageName)) {
-    // This is a generic package - check if categories overlap
+  // ── 5. Generic package fallback ──
+  // If the package has NO specific lesson_service_name AND no discipline tag,
+  // it might be a generic "lesson" package that can cover any lesson service.
+  const hasSpecificName = packageServiceName && packageServiceName !== packageDisplayName;
+  if (!hasSpecificName && !packageDiscipline && !packageLessonCat) {
     const pkgCategories = toNormalizedList(pkg.category, pkg.lesson_type, pkg.lessonType);
     const svcCategories = toNormalizedList(service.category, service.lessonCategory);
     if (pkgCategories.length > 0 && svcCategories.length > 0) {

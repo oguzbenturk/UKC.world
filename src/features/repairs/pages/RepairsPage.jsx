@@ -358,7 +358,15 @@ const RepairsPage = () => {
       title: 'Submitted By',
       dataIndex: 'user_name',
       key: 'user_name',
-      render: (name) => name || 'N/A',
+      render: (name, record) => {
+        const isGuest = !record.user_id;
+        return (
+          <Space size={4}>
+            <span>{name || '—'}</span>
+            {isGuest && <Tag color="teal" className="text-xs">Guest</Tag>}
+          </Space>
+        );
+      },
     },
     {
       title: 'Priority',
@@ -717,11 +725,24 @@ const RepairsPage = () => {
                 {selectedRepair.item_name}
               </Descriptions.Item>
               <Descriptions.Item label="Submitted By">
-                {selectedRepair.user_name || 'N/A'}
+                <Space size={4}>
+                  {selectedRepair.user_name || 'Unknown'}
+                  {!selectedRepair.user_id && <Tag color="teal">Guest</Tag>}
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="Email">
                 {selectedRepair.user_email || 'N/A'}
               </Descriptions.Item>
+              {!selectedRepair.user_id && selectedRepair.guest_phone && (
+                <Descriptions.Item label="Phone">
+                  {selectedRepair.guest_phone}
+                </Descriptions.Item>
+              )}
+              {!selectedRepair.user_id && selectedRepair.tracking_token && (
+                <Descriptions.Item label="Tracking Token">
+                  <span className="font-mono text-xs text-teal-600 break-all">{selectedRepair.tracking_token}</span>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Location">
                 {selectedRepair.location || 'Not specified'}
               </Descriptions.Item>

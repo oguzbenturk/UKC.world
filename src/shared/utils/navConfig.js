@@ -131,13 +131,14 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/rental/standard', label: 'Standard Equipment' },
           { to: '/rental/sls', label: 'SLS Equipment' },
-          { to: '/rental/dlab', label: 'D/LAB Equipment' }
+          { to: '/rental/dlab', label: 'D/LAB Equipment' },
+          { to: '/rental/efoil', label: 'E-Foil Equipment' }
         ]
       }),
       item('/members/offerings', 'Member', 'UsersIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
       }),
-      item('/repairs', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
+      item('/care', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
       }),
       item('/stay', 'Stay', 'HomeIcon', {
@@ -184,51 +185,64 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
         ]
       }),
-      // 2. Academy - Light Green (Dashboard moved inside as first item)
+      // 2. Academy - Light Green
       item('/academy', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
+        isDirectLink: true,
         subItems: [
           { to: '/student/dashboard', label: 'Dashboard' },
-          { to: '/student/schedule', label: 'My Lessons' }
+          { to: '/student/schedule', label: 'My Lessons' },
+          { to: '/academy/kite-lessons', label: 'Kite Lessons' },
+          { to: '/academy/foil-lessons', label: 'Foil Lessons' },
+          { to: '/academy/wing-lessons', label: 'Wing Lessons' },
+          { to: '/academy/efoil-lessons', label: 'E-Foil Lessons' },
+          { to: '/academy/premium-lessons', label: 'Premium Lessons' }
         ]
       }),
       // 3. Rental - Orange
       item('/rental', 'Rental', 'CubeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' }, // turuncu (orange)
+        isDirectLink: true,
         subItems: [
-          { to: '/rental/book-equipment', label: 'Book Equipment' },
+          { to: '/rental/standard', label: 'Standard Equipment' },
+          { to: '/rental/sls', label: 'SLS Equipment' },
+          { to: '/rental/dlab', label: 'D/LAB Equipment' },
+          { to: '/rental/efoil', label: 'E-Foil Equipment' },
           { to: '/rental/my-rentals', label: 'My Equipment Rentals' }
         ]
       }),
       // 4. Member - Pistachio Green
       item('/members/offerings', 'Member', 'SparklesIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
+        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }, // fıstık yeşili (pistachio green)
+        isDirectLink: true,
+        subItems: [
+          { to: '/student/memberships', label: 'My Memberships' }
+        ]
       }),
       // 5. Care - Teal
-      item('/care', 'Care', 'WrenchScrewdriverIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }, // teal
-        subItems: [
-          { to: '/repairs', label: 'Equipment Repairs' }
-        ]
+      item('/repairs', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
+        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
       }),
       // 6. Stay - Blue
       item('/stay', 'Stay', 'HomeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
+        isDirectLink: true,
         subItems: [
-          { to: '/stay/hotel', label: 'Hotel' },
           { to: '/stay/home', label: 'Home' },
+          { to: '/stay/hotel', label: 'Hotel' },
           { to: '/stay/my-accommodation', label: 'My Accommodation' }
         ]
       }),
       // 7. Experience - Yellow
       item('/experience', 'Experience', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
+        isDirectLink: true,
         subItems: [
-          { to: '/student/courses', label: 'My Packages' },
           { to: '/experience/kite-packages', label: 'Kite Packages' },
           { to: '/experience/wing-packages', label: 'Wing Packages' },
           { to: '/experience/downwinders', label: 'DownWinders' },
-          { to: '/experience/camps', label: 'Camps' }
+          { to: '/experience/camps', label: 'Camps' },
+          { to: '/student/courses', label: 'My Experience' }
         ]
       }),
       // 8. Community - Sky Blue (with dot styling like others)

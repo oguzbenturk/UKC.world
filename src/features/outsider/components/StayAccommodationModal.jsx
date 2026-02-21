@@ -42,7 +42,7 @@ const toTitle = (v) =>
  *   visible     – boolean
  *   onClose     – callback
  */
-const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
+const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookNow }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState('1night');
@@ -431,6 +431,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose }) => {
               size="large"
               type="primary"
               icon={<RocketOutlined />}
+              onClick={() => onBookNow?.(pkg, selectedKey === 'custom' ? `${customNights}night` : selectedKey)}
               className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 bg-gradient-to-r ${pkg.gradient || 'from-blue-600 to-sky-500'}`}
             >
               Book Now

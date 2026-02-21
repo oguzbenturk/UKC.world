@@ -37,7 +37,6 @@ const lazyWithRetry = (factory) =>
 // ── Eagerly loaded pages (critical path / first paint) ──
 import Login from '../features/authentication/pages/Login';
 import ResetPassword from '../features/authentication/pages/ResetPassword';
-import PublicHome from '../features/public/PublicHome';
 
 // ── Lazy-loaded pages (code-split for fast mobile load) ──
 const ExecutiveDashboard = lazyWithRetry(() => import('../features/dashboard/pages/ExecutiveDashboard'));
@@ -111,7 +110,9 @@ const RentalStandardShowcasePage = lazyWithRetry(() => import('../features/outsi
 const RentalPremiumShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalPremiumShowcasePage'));
 const RentalSlsShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalSlsShowcasePage'));
 const RentalDlabShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalDlabShowcasePage'));
+const RentalEFoilShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalEFoilShowcasePage'));
 const RentalLandingPage = lazyWithRetry(() => import('../features/outsider/pages/RentalLandingPage'));
+const ContactPage = lazyWithRetry(() => import('../features/outsider/pages/ContactPage'));
 const StayLandingPage = lazyWithRetry(() => import('../features/outsider/pages/StayLandingPage'));
 const ExperienceLandingPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceLandingPage'));
 // Stay pages
@@ -141,6 +142,7 @@ const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPa
 
 // Repairs
 const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
+const CareLandingPage = lazyWithRetry(() => import('../features/outsider/pages/CareLandingPage'));
 
 // Marketing
 const MarketingPage = lazyWithRetry(() => import('../features/marketing/pages/MarketingPage'));
@@ -216,7 +218,12 @@ const AppRoutes = () => {
 
   // Show loading indicator while checking authentication
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid #1a1d2e', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
 
   const resolveLandingRoute = () => {
@@ -280,7 +287,7 @@ const AppRoutes = () => {
   <Route path="/payment/callback" element={<PaymentCallback />} />
   
   {/* Default route: guests see the UKC Landing Page */}
-  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <PublicHome />} />
+  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <Navigate to="/guest" replace />} />
 
   {/* Guest Portal Main Page */}
   <Route path="/guest" element={<GuestLandingPage />} />
@@ -315,8 +322,12 @@ const AppRoutes = () => {
       <Route path="/rental/standard" element={<RentalStandardShowcasePage />} />
       <Route path="/rental/sls" element={<RentalSlsShowcasePage />} />
       <Route path="/rental/dlab" element={<RentalDlabShowcasePage />} />
+      <Route path="/rental/efoil" element={<RentalEFoilShowcasePage />} />
       <Route path="/rental/premium" element={<RentalPremiumShowcasePage />} />
       
+      {/* .Care public page – submit & track repair requests without an account */}
+      <Route path="/care" element={<CareLandingPage />} />
+
       <Route path="/stay" element={<StayLandingPage />} />
       {/* Stay pages - explore accommodation */}
       <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
@@ -340,6 +351,7 @@ const AppRoutes = () => {
       {/* Guest landing page - welcome page for Duotone Pro Center */}
       <Route path="/academy" element={<AcademyLandingPage />} />
       <Route path="/rental" element={<RentalLandingPage />} />
+      <Route path="/contact" element={<ContactPage />} />
       {/* Legacy booking page - keep for direct access if needed */}
       <Route path="/book" element={<OutsiderBookingPage />} />
       <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
@@ -501,10 +513,10 @@ const AppRoutes = () => {
         <Route path="/settings" element={<UserSettings />} />
       </Route>
         {/* Redirect root to login or dashboard */}
-  {/* Root handled above to show PublicHome when not authenticated */}
+  {/* Root redirects to /guest for unauthenticated users */}
       
       {/* Catch all for non-existing routes */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/login"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/guest"} replace />} />
     </Routes>
     </Suspense>
   );

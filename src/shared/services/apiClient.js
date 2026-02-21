@@ -119,6 +119,13 @@ export const getAccessToken = () => inMemoryAccessToken;
 
 export const clearAccessToken = () => {
   inMemoryAccessToken = null;
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+    }
+  } catch {
+    // ignore
+  }
 };
 
 // Request interceptor to add auth token

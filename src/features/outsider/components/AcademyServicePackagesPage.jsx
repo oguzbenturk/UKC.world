@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Modal, Tag } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Button, Modal, Tag, Spin, message } from 'antd';
 import StayAccommodationModal from './StayAccommodationModal';
+import AccommodationBookingModal from './AccommodationBookingModal';
+import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import {
   RocketOutlined,
   HomeOutlined,
@@ -13,6 +16,8 @@ import {
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import apiClient from '@/shared/services/apiClient';
 
 const defaultColors = {
@@ -35,6 +40,9 @@ const AcademyServicePackagesPage = ({
   dynamicServiceKey = null
 }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const navigate = useNavigate();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('6h');
@@ -44,6 +52,16 @@ const AcademyServicePackagesPage = ({
   const [stayModalUnit, setStayModalUnit] = useState(null);
   const [stayModalPkg, setStayModalPkg] = useState(null);
   const [stayModalVisible, setStayModalVisible] = useState(false);
+  // Discipline filter (rental pages only)
+  const [disciplineFilter, setDisciplineFilter] = useState(null);
+  const [availableDisciplines, setAvailableDisciplines] = useState([]);
+  const [isLoading, setIsLoading] = useState(!!dynamicServiceKey);
+  // Booking wizard state (lessons / rentals)
+  const [bookingWizardOpen, setBookingWizardOpen] = useState(false);
+  const [bookingInitialData, setBookingInitialData] = useState({});
+  // Accommodation booking modal state (stays)
+  const [accomModalOpen, setAccomModalOpen] = useState(false);
+  const [accomBookingUnit, setAccomBookingUnit] = useState(null);
 
   usePageSEO({
     title: seoTitle,
@@ -52,6 +70,128 @@ const AcademyServicePackagesPage = ({
 
   const normalize = (v) => String(v || '').toLowerCase();
   const isStayPage = normalize(dynamicServiceKey || '').startsWith('stay');
+  const isRentalPage = normalize(dynamicServiceKey || '').startsWith('rental_');
+
+  const DISCIPLINE_META = {
+    kite:     { label: 'Kitesurfing',  color: 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30',    active: 'bg-sky-500/40 border-sky-400 text-sky-100' },
+    wing:     { label: 'Wing Foil',    color: 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30', active: 'bg-purple-500/40 border-purple-400 text-purple-100' },
+    kite_foil:{ label: 'Kite Foil',   color: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30', active: 'bg-cyan-500/40 border-cyan-400 text-cyan-100' },
+    efoil:    { label: 'E-Foil',       color: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30', active: 'bg-yellow-500/40 border-yellow-400 text-yellow-100' },
+    accessory:{ label: 'Accessories',  color: 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30', active: 'bg-orange-500/40 border-orange-400 text-orange-100' },
+  };
+
+  // The rental sport filters always available on rental pages
+  const RENTAL_DISCIPLINES = ['kite', 'wing', 'kite_foil', 'accessory'];
+
+  // Build display cards from rental services fetched from the API
+  const buildRentalCards = (services, serviceKey) => {
+    const segment = serviceKey.replace('rental_', '');
+    // Strip leading duration prefix like "4H - ", "8H – ", "1.5h - "
+    const stripDurationPrefix = (name) => name.replace(/^\d+\.?\d*[Hh]\s*[-–]\s*/u, '').trim();
+    // Further normalize: strip segment markers and generic filler words so
+    // "Standart - Full Equipment Rental Service", "Half Day Full Equipment Rental Service",
+    // and "D/LAB - Full Equipment Rental Service" all collapse to "Full Equipment Rental Service"
+    const normalizeBaseName = (name) => {
+      let n = stripDurationPrefix(name);
+      // Remove segment labels (SLS, D/LAB, D-LAB, DLAB, Standart, Standard)
+      n = n.replace(/\b(SLS|D[\s/\-]?LAB|DLAB|Standart|Standard)\b\s*[-–]?\s*/gi, '').trim();
+      // Remove leading filler like "Half Day", "Full Day"
+      n = n.replace(/^(Half\s+Day|Full\s+Day)\s*[-–]?\s*/i, '').trim();
+      return n || stripDurationPrefix(name); // fallback to original stripped name if empty
+    };
+
+    const segmentServices = services.filter(s => {
+      // must be a rental service (category stored as 'rental', 'equipment-rental', etc.)
+      const cat = normalize(s.category);
+      if (!cat.includes('rental') && !cat.includes('equipment')) return false;
+      const seg = (s.rentalSegment || '').toLowerCase();
+      const disc = (s.disciplineTag || '').toLowerCase();
+      // Accessories always appear on every rental page (discipline filter pill handles isolation)
+      if (seg === 'accessory' || disc === 'accessory') return true;
+      if (seg) return seg === segment;
+      // legacy fallback: infer segment from name when rentalSegment not stored
+      const text = (s.name || '').toLowerCase();
+      if (segment === 'sls')      return /\bsls\b/i.test(text);
+      if (segment === 'dlab')     return /\bd[\s-]?lab\b/i.test(text);
+      return !/\bsls\b/i.test(text) && !/\bd[\s-]?lab\b/i.test(text);
+    });
+
+    const groups = new Map();
+    segmentServices.forEach(s => {
+      const baseName = normalizeBaseName(s.name);
+      if (!groups.has(baseName)) groups.set(baseName, []);
+      groups.get(baseName).push(s);
+    });
+
+    const cardPalette = [
+      { color: 'blue',   gradient: 'from-blue-600 to-blue-400',      shadow: 'shadow-blue-500/20',   border: 'hover:border-blue-500/50' },
+      { color: 'cyan',   gradient: 'from-cyan-500 to-blue-500',      shadow: 'shadow-cyan-500/20',   border: 'hover:border-cyan-500/50' },
+      { color: 'purple', gradient: 'from-purple-600 to-fuchsia-500', shadow: 'shadow-purple-500/20', border: 'hover:border-purple-500/50' },
+      { color: 'green',  gradient: 'from-green-500 to-emerald-600',  shadow: 'shadow-green-500/20',  border: 'hover:border-green-500/50' },
+    ];
+
+    const SEGMENT_IMG = {
+      sls:      '/Images/ukc/evo-sls-header.jpg',
+      dlab:     '/Images/ukc/rebel-dlab-header.jpg',
+      standard: '/Images/ukc/evo-rent-standart.png',
+      efoil:    '/Images/ukc/e-foil.png',
+    };
+    const DISC_IMG = {
+      kite:     '/Images/ukc/kite-header.jpg.png',
+      wing:     '/Images/ukc/wing-header.png',
+      kite_foil:'/Images/ukc/foil-lessons-header.png',
+      efoil:    '/Images/ukc/e-foil.png',
+    };
+
+    return Array.from(groups.entries()).map(([baseName, items], idx) => {
+      const first = items[0];
+      const theme = cardPalette[idx % cardPalette.length];
+      const disc = first.disciplineTag || '';
+      const discLabel = DISCIPLINE_META[disc]?.label || '';
+
+      const durations = items
+        .map(s => {
+          const h = parseFloat(s.duration) || 1;
+          const label = h < 24 ? `${h}h` : `${h / 24}d`;
+          return {
+            hours: label,
+            price: parseFloat(s.price) || 0,
+            label: h < 24 ? `${h}h Session` : `${h / 24} Day${h / 24 > 1 ? 's' : ''}`,
+            sessions: h < 24 ? `${h} hour rental` : `${Math.round(h / 24)} day rental`,
+          };
+        })
+        .sort((a, b) => parseFloat(a.hours) - parseFloat(b.hours));
+
+      const image = first.imageUrl || DISC_IMG[disc] || SEGMENT_IMG[segment] || '/Images/ukc/evo-rent-standart.png';
+
+      // Use the service's own name — subtitle/badges already show the segment/discipline
+      const displayName = baseName;
+
+      return {
+        id: `rent-${segment}-${idx}`,
+        name: displayName,
+        subtitle: discLabel || segment.toUpperCase(),
+        disciplineTag: disc,
+        icon: <ThunderboltFilled />,
+        featured: idx === 0,
+        color: theme.color,
+        gradient: theme.gradient,
+        shadow: theme.shadow,
+        border: theme.border,
+        image,
+        description: first.description || `${baseName} — available in multiple durations.`,
+        highlights: [
+          'Equipment included',
+          `${items.length} duration option${items.length > 1 ? 's' : ''}`,
+          discLabel ? `Sport: ${discLabel}` : 'Multi-sport compatible',
+          'Daily safety checks',
+          'Book directly',
+        ],
+        durations: durations.length > 0 ? durations : [{ hours: '—', price: 0, label: 'Contact us', sessions: 'Flexible' }],
+        badges: [segment.toUpperCase(), ...(discLabel ? [discLabel] : [])],
+      };
+    }).filter(c => c.durations.length > 0);
+  };
 
   const isMatchForService = (pkg, key) => {
     if (!key) return true;
@@ -618,6 +758,7 @@ const AcademyServicePackagesPage = ({
     if (!dynamicServiceKey) return undefined;
 
     const isStayMode = normalize(dynamicServiceKey).startsWith('stay');
+    setIsLoading(true);
 
     (async () => {
       try {
@@ -644,6 +785,16 @@ const AcademyServicePackagesPage = ({
             setRawUnits(filteredUnits);
             setDynamicPackages(cards);
           }
+        } else if (normalize(dynamicServiceKey).startsWith('rental_')) {
+          // Rental segment page — fetch services and build discipline-filterable cards
+          const servicesRes = await apiClient.get('/services');
+          const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
+          const cards = buildRentalCards(rawServices, dynamicServiceKey);
+          const discs = [...new Set(cards.map(c => c.disciplineTag).filter(Boolean))];
+          if (!cancelled) {
+            setDynamicPackages(cards);
+            setAvailableDisciplines(discs);
+          }
         } else {
           // For lesson pages, fetch packages and services as before
           const [packagesRes, servicesRes] = await Promise.all([
@@ -665,8 +816,9 @@ const AcademyServicePackagesPage = ({
           if (!cancelled) setDynamicPackages(mappedByService);
         }
       } catch (error) {
-        console.error('Error fetching dynamic content:', error);
         if (!cancelled) setDynamicPackages([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     })();
 
@@ -677,10 +829,66 @@ const AcademyServicePackagesPage = ({
   }, [dynamicServiceKey]);
 
   const displayPackages = useMemo(() => {
-    if (dynamicServiceKey) return dynamicPackages;
-    if (dynamicPackages.length > 0) return dynamicPackages;
-    return packages;
-  }, [dynamicPackages, packages, dynamicServiceKey]);
+    const base = dynamicServiceKey ? dynamicPackages : (dynamicPackages.length > 0 ? dynamicPackages : packages);
+    if (!disciplineFilter) return base;
+    return base.filter(p => p.disciplineTag === disciplineFilter);
+  }, [dynamicPackages, packages, dynamicServiceKey, disciplineFilter]);
+
+  // Handle booking: auth-gate then open inline modal (wizard or accommodation picker)
+  const handleBookNow = (pkg, durationHours) => {
+    if (!user) {
+      openAuthModal({
+        title: 'Sign in to Book',
+        message: 'Create an account or sign in to book this service.',
+        mode: 'register',
+        returnUrl: window.location.pathname
+      });
+      return;
+    }
+
+    if (academyTheme === 'stay' || normalize(dynamicServiceKey || '').startsWith('stay')) {
+      // Open accommodation booking modal with the selected unit
+      const unitData = rawUnits.find(u => String(u.id) === String(pkg?.id)) || pkg || {};
+      setAccomBookingUnit(unitData);
+      setAccomModalOpen(true);
+      setStayModalVisible(false);
+    } else {
+      // Open StudentBookingWizard for lessons / rentals
+      const isRental = academyTheme === 'rental';
+      const serviceCategory = isRental ? 'rental' : 'lesson';
+
+      // Parse duration — it comes in as "6h", "1.5h", "1d", "1night", etc.
+      let parsedDurationHours = null;
+      if (durationHours) {
+        const durStr = String(durationHours);
+        if (durStr.endsWith('h')) {
+          parsedDurationHours = parseFloat(durStr);
+        } else if (durStr.endsWith('d')) {
+          parsedDurationHours = parseFloat(durStr) * 24;
+        } else {
+          parsedDurationHours = parseFloat(durStr) || null;
+        }
+      }
+
+      setBookingInitialData({
+        serviceCategory,
+        preferredCategory: dynamicServiceKey || undefined,
+        durationHours: parsedDurationHours || undefined,
+      });
+      setBookingWizardOpen(true);
+      setModalVisible(false);
+    }
+  };
+
+  const handleBookingWizardClose = () => {
+    setBookingWizardOpen(false);
+    setBookingInitialData({});
+  };
+
+  const handleAccomModalClose = () => {
+    setAccomModalOpen(false);
+    setAccomBookingUnit(null);
+  };
 
   const handleCardClick = (pkg) => {
     if (isStayPage) {
@@ -907,11 +1115,48 @@ const AcademyServicePackagesPage = ({
           <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
             {subheadline}
           </p>
+
+          {/* Discipline filter pills — always shown on rental segment pages */}
+          {isRentalPage && (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => setDisciplineFilter(null)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                  disciplineFilter === null
+                    ? 'bg-white/20 border-white/40 text-white'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                All Services
+              </button>
+              {RENTAL_DISCIPLINES.map(disc => {
+                const meta = DISCIPLINE_META[disc];
+                if (!meta) return null;
+                return (
+                  <button
+                    key={disc}
+                    onClick={() => setDisciplineFilter(disciplineFilter === disc ? null : disc)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                      disciplineFilter === disc
+                        ? meta.active
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
-        {displayPackages.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Spin size="large" />
+          </div>
+        ) : displayPackages.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#1a1d26] p-10 text-center">
             <h3 className="text-xl font-bold text-white mb-2">
               {normalize(dynamicServiceKey).startsWith('stay') 
@@ -1001,6 +1246,7 @@ const AcademyServicePackagesPage = ({
           pkg={stayModalPkg}
           visible={stayModalVisible}
           onClose={handleStayModalClose}
+          onBookNow={handleBookNow}
         />
       )}
 
@@ -1131,12 +1377,13 @@ const AcademyServicePackagesPage = ({
                   size="large"
                   type="primary"
                   icon={<RocketOutlined />}
+                  onClick={() => handleBookNow(selectedPackage, selectedDuration)}
                   className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 ${selectedPackage.gradient}`}
                 >
                   Book Now
                 </Button>
                 <p className="text-center text-gray-600 text-[10px] mt-3 flex items-center justify-center gap-1">
-                  <InfoCircleOutlined /> No payment required today. Secure your spot now.
+                  <InfoCircleOutlined /> {user ? 'Pick your date & time in the next step.' : 'Sign in to secure your spot.'}
                 </p>
               </div>
             </div>
@@ -1144,25 +1391,59 @@ const AcademyServicePackagesPage = ({
         </Modal>
       )}
 
+      {/* Contact Us Section */}
+      <div className={`py-16 sm:py-20 ${pageBackgroundClass} border-t border-white/5`}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">Not sure which package is right for you?</h2>
+          <p className="text-gray-400 mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            Our team is happy to help you pick the best option based on your experience level, goals, and schedule. Reach out — we don&apos;t bite.
+          </p>
+          <div className="flex justify-center">
+            <Button
+              type="primary"
+              size="large"
+              onClick={() => navigate('/contact')}
+              className="!bg-emerald-600 !border-none hover:!bg-emerald-500 !h-12 !rounded-lg !font-semibold !px-8"
+            >
+              Contact Us
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <style>{`
         .deluxe-modal .ant-modal-content {
            padding: 0;
            background: transparent;
         }
-        ::-webkit-scrollbar {
+        .deluxe-modal ::-webkit-scrollbar {
           width: 6px;
         }
-        ::-webkit-scrollbar-track {
+        .deluxe-modal ::-webkit-scrollbar-track {
           background: transparent;
         }
-        ::-webkit-scrollbar-thumb {
+        .deluxe-modal ::-webkit-scrollbar-thumb {
           background: rgba(255, 255, 255, 0.1);
           border-radius: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover {
+        .deluxe-modal ::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
+
+      {/* Booking Wizard — lessons & rentals */}
+      <StudentBookingWizard
+        open={bookingWizardOpen}
+        onClose={handleBookingWizardClose}
+        initialData={bookingInitialData}
+      />
+
+      {/* Accommodation Booking Modal — stays */}
+      <AccommodationBookingModal
+        open={accomModalOpen}
+        onClose={handleAccomModalClose}
+        unit={accomBookingUnit}
+      />
     </div>
   );
 };

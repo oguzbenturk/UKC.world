@@ -22,7 +22,8 @@ import {
   EditOutlined,
   EyeOutlined,
   DeleteOutlined,
-  GiftOutlined
+  GiftOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { serviceApi } from '@/shared/services/serviceApi';
@@ -35,9 +36,9 @@ import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 // Helper functions moved outside to reduce component complexity
 const getEquipmentInitials = (name) => {
   if (!name) return 'EQ';
-  const words = name.split(' ');
+  const words = name.split(' ').filter(w => w.length > 0);
   if (words.length >= 2) {
-    return words[0][0].toUpperCase() + words[1][0].toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };
@@ -76,8 +77,18 @@ const RENTAL_SEGMENTS = [
   { key: 'sls', label: 'SLS' },
   { key: 'dlab', label: 'DLAB' },
   { key: 'standard', label: 'Standard' },
+  { key: 'efoil', label: 'E-Foil' },
   { key: 'boards', label: 'Boards' },
   { key: 'accessories', label: 'Accessories' },
+];
+
+const DISCIPLINE_FILTERS = [
+  { key: 'all', label: 'All Sports' },
+  { key: 'kite', label: '🪁 Kite' },
+  { key: 'wing', label: '🦅 Wing' },
+  { key: 'kite_foil', label: '🏄 Kite Foil' },
+  { key: 'efoil', label: '⚡ E-Foil' },
+  { key: 'accessory', label: '🎒 Accessory' },
 ];
 
 const getRentalSearchText = (service) => (
@@ -85,6 +96,12 @@ const getRentalSearchText = (service) => (
 ).toLowerCase();
 
 const getRentalSegmentsForService = (service) => {
+  // Prefer the explicit DB field when available
+  if (service?.rentalSegment) {
+    return [service.rentalSegment];
+  }
+
+  // Legacy fallback: infer from the service name
   const text = getRentalSearchText(service);
   const compact = text.replace(/[^a-z0-9]/g, ' ');
 
@@ -99,13 +116,20 @@ const getRentalSegmentsForService = (service) => {
   if (isBoard) segments.push('boards');
   if (isAccessory) segments.push('accessories');
 
-  // Standard = not SLS and not DLAB and not accessory.
-  // Can include kites or boards that are regular lines.
   if (!isSls && !isDlab && !isAccessory) {
     segments.push('standard');
   }
 
   return segments;
+};
+
+const DISCIPLINE_LABELS = {
+  kite: '🪁 Kite',
+  wing: '🦅 Wing',
+  kite_foil: '🏄 Kite Foil',
+  efoil: '⚡ E-Foil',
+  premium: '💎 Premium',
+  accessory: '🎒 Accessory',
 };
 
 const isValidNumber = (value) => typeof value === 'number' && Number.isFinite(value);
@@ -165,6 +189,12 @@ const makeColumns = ({ formatCurrency, convertCurrency, userCurrency, businessCu
       const color = getCategoryColor(category);
       return <Tag color={color}>{category?.charAt(0).toUpperCase() + category?.slice(1)}</Tag>;
     },
+  },
+  {
+    title: 'Sport',
+    dataIndex: 'disciplineTag',
+    key: 'disciplineTag',
+    render: (tag) => tag ? <Tag color="purple">{DISCIPLINE_LABELS[tag] || tag}</Tag> : <span className="text-gray-400 text-xs">—</span>,
   },
   {
     title: 'Brand',
@@ -247,6 +277,7 @@ function RentalServices() {
   const [searchText, setSearchText] = useState('');
   const [error, setError] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
   
   const [formDrawerVisible, setFormDrawerVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -313,6 +344,16 @@ function RentalServices() {
     }));
   }, [services]);
 
+  const disciplineFilters = useMemo(() => {
+    const counts = DISCIPLINE_FILTERS.reduce((acc, disc) => {
+      acc[disc.key] = disc.key === 'all'
+        ? services.length
+        : services.filter((s) => s.disciplineTag === disc.key).length;
+      return acc;
+    }, {});
+    return DISCIPLINE_FILTERS.map((disc) => ({ ...disc, count: counts[disc.key] || 0 }));
+  }, [services]);
+
   // Filter services when search changes
   useEffect(() => {
     let result = [...services];
@@ -327,13 +368,18 @@ function RentalServices() {
       );
     }
 
-    // Apply category filter
+    // Apply segment filter
     if (categoryFilter !== 'all') {
       result = result.filter((service) => getRentalSegmentsForService(service).includes(categoryFilter));
     }
+
+    // Apply discipline filter
+    if (disciplineFilter !== 'all') {
+      result = result.filter((service) => service.disciplineTag === disciplineFilter);
+    }
     
     setFilteredServices(result);
-  }, [services, searchText, categoryFilter]);
+  }, [services, searchText, categoryFilter, disciplineFilter]);
 
   const handleServiceCreated = async (newService) => {
     // Check if it's a rental service or has rental-related category
@@ -445,7 +491,10 @@ function RentalServices() {
         </div>
         
         <div className="mt-3 flex items-center justify-between">
-            <Tag color={color}>{record.category}</Tag>
+            <div className="flex gap-1 flex-wrap">
+              <Tag color={color}>{record.category}</Tag>
+              {record.disciplineTag && <Tag color="purple">{DISCIPLINE_LABELS[record.disciplineTag] || record.disciplineTag}</Tag>}
+            </div>
             <Space>
                <Button size="small" icon={<EyeOutlined />} onClick={() => onView(record)} />
                <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} />
@@ -531,6 +580,7 @@ function RentalServices() {
           className="w-full"
         />
         <div className="flex flex-wrap gap-2">
+          <span className="text-xs text-slate-400 self-center font-medium mr-1">Segment:</span>
           {segmentFilters.map(({ key, label, count }) => (
             <Button
               key={key}
@@ -543,7 +593,31 @@ function RentalServices() {
             </Button>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="text-xs text-slate-400 self-center font-medium mr-1">Sport:</span>
+          {disciplineFilters.map(({ key, label, count }) => (
+            <Button
+              key={key}
+              type={disciplineFilter === key ? 'primary' : 'default'}
+              onClick={() => setDisciplineFilter(key)}
+              size="small"
+              className="text-xs sm:text-sm"
+            >
+              {label} ({count})
+            </Button>
+          ))}
+        </div>
         <div className="flex gap-2 w-full">
+          {(categoryFilter !== 'all' || disciplineFilter !== 'all' || searchText) && (
+            <Button
+              icon={<CloseCircleOutlined />}
+              size="middle"
+              onClick={() => { setCategoryFilter('all'); setDisciplineFilter('all'); setSearchText(''); }}
+              className="flex-shrink-0"
+            >
+              Clear Filters
+            </Button>
+          )}
           <Button
             icon={<GiftOutlined />}
             size="middle"
@@ -617,6 +691,7 @@ function RentalServices() {
         styles={{ body: { paddingBottom: 80 } }}
       >
         <ServiceForm
+          key={selectedService?.id ?? 'new'}
           initialValues={editMode ? selectedService : {}}
           isEditing={editMode}
           defaultCategory={rentalCategories.length > 0 ? rentalCategories[0].name.toLowerCase() : "rental"}

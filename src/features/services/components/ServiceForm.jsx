@@ -26,7 +26,17 @@ const DISCIPLINE_OPTIONS = [
   { value: 'wing', label: '🦅 Wing Foiling' },
   { value: 'kite_foil', label: '🏄 Kite Foiling' },
   { value: 'efoil', label: '⚡ E-Foil' },
+  { value: 'accessory', label: '🎒 Accessories' },
   { value: 'premium', label: '💎 Premium' },
+];
+
+const RENTAL_SEGMENT_OPTIONS = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'sls', label: 'SLS' },
+  { value: 'dlab', label: 'D/LAB' },
+  { value: 'efoil', label: 'E-Foil' },
+  { value: 'board', label: 'Board' },
+  { value: 'accessory', label: 'Accessory' },
 ];
 
 const COLORS = [
@@ -75,6 +85,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
   
   // Dynamic labels based on category
   const isLessonCategory = resolvedCategory === 'lesson' || resolvedCategory === 'lessons';
+  const isRentalCategory = resolvedCategory === 'rental' || resolvedCategory.includes('rental') || resolvedCategory.includes('equipment');
   const categoryLabel = isLessonCategory ? 'lesson' : 'service';
   const categoryLabelCapitalized = isLessonCategory ? 'Lesson' : 'Service';
 
@@ -136,6 +147,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         prices: prices.filter(p => p.price != null && p.price > 0), // Only send valid prices
         disciplineTag: values.disciplineTag || null,
         lessonCategoryTag: values.lessonCategoryTag || (serviceType === 'group' ? 'group' : 'private'),
+        rentalSegment: values.rentalSegment || null,
       };
 
       // Calculate savings for package if applicable
@@ -214,7 +226,8 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         currency: initialValues.currency || selectedCurrency,
         color: '#64748b',
         disciplineTag: initialValues.disciplineTag || undefined,
-        lessonCategoryTag: initialValues.lessonCategoryTag || undefined
+        lessonCategoryTag: initialValues.lessonCategoryTag || undefined,
+        rentalSegment: initialValues.rentalSegment || undefined,
       }}
     >
       <div className="space-y-6">
@@ -246,6 +259,37 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
                 ))}
               </Select>
             </Form.Item>
+          )}
+          {isRentalCategory && (
+            <>
+              <Form.Item
+                name="disciplineTag"
+                label="Sport / Discipline"
+                extra="Which sport is this equipment for?"
+              >
+                <Select placeholder="Select sport (optional)" allowClear>
+                  {DISCIPLINE_OPTIONS.filter(d => d.value !== 'premium').map((d) => (
+                    <Option key={d.value} value={d.value}>
+                      {d.label}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item
+                name="rentalSegment"
+                label="Equipment Class"
+                rules={[{ required: true, message: 'Please select the equipment class' }]}
+                extra="Used to group equipment in the rental catalogue"
+              >
+                <Select placeholder="Select class (SLS, D/LAB, Standard…)">
+                  {RENTAL_SEGMENT_OPTIONS.map((s) => (
+                    <Option key={s.value} value={s.value}>
+                      {s.label}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </>
           )}
           <Row gutter={16} className="gap-y-4">
             <Col xs={24} md={12}>

@@ -40,6 +40,7 @@ const RentalDlabShowcasePage = () => (
     academyTheme="rental"
     subheadline="The highest-performance rental lineup for riders who want the lightest and most responsive setup."
     academyTag="UKC.Rental"
+    dynamicServiceKey="rental_dlab"
     packages={dlabRentalPackages}
   />
 );

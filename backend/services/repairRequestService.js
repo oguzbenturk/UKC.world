@@ -39,8 +39,8 @@ export async function getRepairRequests({ status, priority, userId }, requesting
   const query = `
     SELECT 
       rr.*,
-      u.first_name || ' ' || u.last_name as user_name,
-      u.email as user_email,
+      COALESCE(u.first_name || ' ' || u.last_name, rr.guest_name) as user_name,
+      COALESCE(u.email, rr.guest_email) as user_email,
       assigned_u.first_name || ' ' || assigned_u.last_name as assigned_to_name
     FROM repair_requests rr
     LEFT JOIN users u ON rr.user_id = u.id
@@ -94,6 +94,95 @@ export async function createRepairRequest(data, userId) {
   });
 
   return result.rows[0];
+}
+
+/**
+ * Create a repair request from an unauthenticated guest user.
+ * Generates a unique tracking token so the guest can follow up without an account.
+ * @param {Object} data - Repair request data including guestName / guestEmail
+ * @returns {Promise<Object>} Created repair request with tracking_token
+ */
+export async function createGuestRepairRequest(data) {
+  const {
+    guestName,
+    guestEmail,
+    guestPhone,
+    equipmentType,
+    itemName,
+    description,
+    photos = [],
+    priority,
+    location
+  } = data;
+
+  // Generate a URL-safe random token (32 hex bytes = 64 chars)
+  const { randomBytes } = await import('crypto');
+  const trackingToken = randomBytes(32).toString('hex');
+
+  const query = `
+    INSERT INTO repair_requests (
+      guest_name, guest_email, guest_phone,
+      equipment_type, item_name, description,
+      photos, priority, location, status, tracking_token
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
+    RETURNING *
+  `;
+
+  const result = await pool.query(query, [
+    guestName || null,
+    guestEmail || null,
+    guestPhone || null,
+    equipmentType,
+    itemName,
+    description,
+    JSON.stringify(photos),
+    priority,
+    location || null,
+    trackingToken
+  ]);
+
+  logger.info('Guest repair request created', {
+    requestId: result.rows[0].id,
+    guestEmail,
+    equipmentType
+  });
+
+  return result.rows[0];
+}
+
+/**
+ * Look up a repair request by its public tracking token.
+ * Returns a safe, limited view of the request — no internal notes or admin data.
+ * @param {string} token - Tracking token
+ * @returns {Promise<Object|null>} Repair request or null
+ */
+export async function getRepairRequestByToken(token) {
+  const query = `
+    SELECT
+      rr.id,
+      rr.tracking_token,
+      rr.equipment_type,
+      rr.item_name,
+      rr.description,
+      rr.photos,
+      rr.priority,
+      rr.status,
+      rr.location,
+      rr.created_at,
+      rr.updated_at,
+      rr.guest_name,
+      rr.guest_email,
+      rr.guest_phone,
+      COALESCE(u.first_name || ' ' || u.last_name, rr.guest_name) AS submitted_by,
+      assigned_u.first_name || ' ' || assigned_u.last_name AS assigned_to_name
+    FROM repair_requests rr
+    LEFT JOIN users u ON rr.user_id = u.id
+    LEFT JOIN users assigned_u ON rr.assigned_to = assigned_u.id
+    WHERE rr.tracking_token = $1
+  `;
+
+  const result = await pool.query(query, [token]);
+  return result.rows[0] || null;
 }
 
 /**

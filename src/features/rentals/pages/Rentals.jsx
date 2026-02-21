@@ -44,6 +44,8 @@ import Rental from '@/shared/models/Rental';
 import { useData } from '@/shared/hooks/useData';
 import { serviceApi } from '@/shared/services/serviceApi';
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+dayjs.extend(isBetween);
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 import { createCreatedByAuditColumn } from '@/shared/components/tables/unifiedTableAuditPresets.jsx';
 import CalendarViewSwitcher from '@/shared/components/CalendarViewSwitcher';

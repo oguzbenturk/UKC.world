@@ -61,11 +61,13 @@ class AuthService {
       
       // Clear local storage
       clearAccessToken();
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserValidation');
     } catch (error) {
       // Even if logout fails on server, clear local storage
       clearAccessToken();
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('lastUserValidation');
     }

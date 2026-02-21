@@ -19,7 +19,6 @@ import {
 const GuestLandingPage = () => {
   const navigate = useNavigate();
 
-  // Services with size hints for bento layout - ORDER MATCHES SIDEBAR
   const services = [
     {
       title: '.Shop',
@@ -27,17 +26,15 @@ const GuestLandingPage = () => {
       color: '#ec4899',
       path: '/shop',
       tagline: 'Official Duotone Dealer',
-      description: 'Premium kites, boards, wetsuits and accessories.',
-      subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS'],
+      subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS', 'SecondWind (2nd hand)'],
       size: 'large'
     },
     {
       title: '.Academy',
       icon: AcademicCapIcon,
       color: '#4ade80',
-      path: '/academy/kite-lessons',
+      path: '/academy',
       tagline: 'IKO Certified Instructors',
-      description: 'Learn to kite with the best. From beginner to advanced.',
       subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'E-Foil Lessons', 'Premium Lessons'],
       size: 'large'
     },
@@ -45,9 +42,9 @@ const GuestLandingPage = () => {
       title: '.Rental',
       icon: CubeIcon,
       color: '#fb923c',
-      path: '/rental/standard',
-      tagline: '2024 Duotone Gear',
-      subItems: ['Standard', 'Premium'],
+      path: '/rental',
+      tagline: 'Premium Equipment',
+      subItems: ['Full Set', 'Kiteboard Only', 'Wetsuit Only', 'Harness & Bar', 'SLS Equipment', 'D/LAB Equipment', 'E-Foil Equipment'],
       size: 'small'
     },
     {
@@ -56,115 +53,108 @@ const GuestLandingPage = () => {
       color: '#93c47d',
       path: '/members/offerings',
       tagline: 'Exclusive Benefits',
-      subItems: ['Packages', 'Discounts'],
+      subItems: ['Membership Packages', 'Lesson Discounts', 'Rental Priority', 'Early Access'],
       size: 'small'
     },
     {
       title: '.Care',
       icon: WrenchScrewdriverIcon,
       color: '#14b8a6',
-      path: '/repairs',
+      path: '/care',
       tagline: 'All Brands Welcome',
-      subItems: ['Kite', 'Board', 'Bar & Lines'],
+      subItems: ['Kite Repair', 'Board Repair', 'Bar & Lines', 'Bladder Replacement', 'Full Service'],
       size: 'small'
     },
     {
       title: '.Stay',
       icon: HomeIcon,
       color: '#3b82f6',
-      path: '/stay/book-accommodation',
+      path: '/stay',
       tagline: 'Beach-side Living',
-      subItems: ['Accommodation', 'Hotel'],
+      subItems: ['Beach House', 'Hotel Rooms', 'Long-term Stay'],
       size: 'medium'
     },
     {
       title: '.Experience',
       icon: CalendarDaysIcon,
       color: '#eab308',
-      path: '/experience/kite-packages',
+      path: '/experience',
       tagline: 'Adventure Awaits',
-      subItems: ['Packages', 'DownWinders', 'Camps'],
+      subItems: ['Kite Packages', 'Wing Packages', 'DownWinders', 'Camps'],
       size: 'small'
     },
     {
       title: '.Community',
       icon: ChatBubbleLeftRightIcon,
       color: '#0ea5e9',
-      path: '/chat',
+      path: '/services/events',
       tagline: 'Join the Tribe',
-      subItems: ['Chat', 'Events'],
+      subItems: ['Live Chat', 'Events & Meetups', 'Rider Community'],
       size: 'small'
     }
   ];
 
-  // Bento card component
-  const BentoCard = ({ service, className = '' }) => (
-    <div
-      onClick={() => navigate(service.path)}
-      className={`
-        group relative overflow-hidden rounded-xl cursor-pointer
-        bg-white
-        border border-gray-200/60
-        shadow-sm
-        transition-all duration-300 ease-out
-        hover:shadow-lg hover:border-gray-300/60 hover:-translate-y-0.5
-        ${className}
-      `}
-    >
-      {/* Colored top accent bar */}
-      <div 
-        className="h-1 w-full"
+  const BentoCard = ({ service }) => {
+    const Icon = service.icon;
+    return (
+      <div
+        onClick={() => navigate(service.path)}
         style={{ backgroundColor: service.color }}
-      />
-      
-      {/* Content */}
-      <div className="h-full p-5 flex flex-col">
-        {/* Title */}
-        <h3 className="text-lg font-bold mb-0.5" style={{ color: service.color }}>
-          {service.title}
-        </h3>
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-4">{service.tagline}</p>
+        className="group relative isolate overflow-hidden rounded-3xl cursor-pointer flex flex-col transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
+      >
+        {/* Subtle dark vignette overlay so text pops */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/0 via-black/5 to-black/20 pointer-events-none" />
+        {/* Hover shimmer */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/10 pointer-events-none" />
 
-        {/* Sub-items as clean list */}
-        <ul className="space-y-1.5 mt-auto">
-          {service.subItems.map((item, i) => (
-            <li 
-              key={i} 
-              className="flex items-center gap-2 text-sm text-gray-600"
-            >
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
-              {item}
-            </li>
-          ))}
-        </ul>
+        <div className="relative z-10 p-5 flex flex-col h-full min-h-[210px]">
+          {/* Icon */}
+          <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 shadow-lg">
+            <Icon className="w-6 h-6 text-white" />
+          </div>
 
-        {/* Explore link */}
-        <div 
-          className="flex items-center gap-1.5 text-sm font-medium mt-4 pt-3 border-t border-gray-100 transition-all duration-200"
-          style={{ color: service.color }}
-        >
-          <span className="group-hover:underline">Explore</span>
-          <ArrowRightIcon className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          {/* Title */}
+          <h3 className="text-2xl font-black text-white tracking-tight leading-none mb-1">
+            {service.title}
+          </h3>
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-4">
+            {service.tagline}
+          </p>
+
+          {/* Sub-items */}
+          <ul className="space-y-1.5 flex-1">
+            {service.subItems.map((item, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm text-white/80">
+                <span className="w-1 h-1 rounded-full bg-white/60 flex-shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          {/* Explore */}
+          <div className="flex items-center gap-1.5 text-sm font-bold text-white mt-4 pt-3 border-t border-white/20">
+            <span className="group-hover:underline">Explore</span>
+            <ArrowRightIcon className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 font-sans">
       {/* Welcome Header */}
-      <div className="max-w-6xl mx-auto px-4 pt-10 pb-6 text-center">
+      <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 text-center">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
           Welcome to Duotone Pro Center Urla
         </h1>
-        <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
           Your complete kitesurfing destination in the Aegean. Explore our services below.
         </p>
       </div>
 
-      {/* Bento Grid */}
+      {/* Card Grid */}
       <div className="max-w-6xl mx-auto px-4 pb-8">
-        {/* Uniform Grid Layout */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {services.map((service, idx) => (
             <BentoCard key={idx} service={service} />
@@ -173,24 +163,24 @@ const GuestLandingPage = () => {
       </div>
 
       {/* Bottom CTA */}
-      <div className="max-w-6xl mx-auto px-4 pb-10">
-        <div className="text-center py-10 px-6 bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-blue-500/10 rounded-3xl border border-white/50">
+      <div className="max-w-6xl mx-auto px-4 pb-12">
+        <div className="text-center py-10 px-6 rounded-3xl border border-gray-100 bg-white shadow-sm">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">Ready to Ride the Wind?</h3>
-          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+          <p className="text-gray-400 mb-6 max-w-md mx-auto">
             Start your kitesurfing journey today with our expert instructors
           </p>
           <div className="flex justify-center gap-4 flex-wrap">
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               size="large"
-              className="bg-green-500 hover:bg-green-600 border-0 rounded-2xl px-8 h-14 font-semibold text-base shadow-xl shadow-green-500/25 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/30 hover:-translate-y-0.5"
-              onClick={() => navigate('/academy/kite-lessons')}
+              className="!bg-green-500 hover:!bg-green-600 !border-0 !rounded-2xl !px-8 !h-14 !font-semibold !text-base"
+              onClick={() => navigate('/academy')}
             >
               Book Your First Lesson
             </Button>
-            <Button 
+            <Button
               size="large"
-              className="rounded-2xl px-8 h-14 font-semibold text-base border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 hover:-translate-y-0.5"
+              className="!rounded-2xl !px-8 !h-14 !font-semibold !text-base !border-gray-300 !text-gray-800 hover:!border-gray-500 hover:!text-gray-900 !bg-white"
               onClick={() => navigate('/shop')}
             >
               Browse Shop

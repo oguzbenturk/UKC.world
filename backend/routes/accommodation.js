@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { v4 as uuidv4 } from 'uuid';
+import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services/walletService.js';
 
 const router = Router();
 
@@ -275,6 +276,7 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 				ab.*,
 				u.name as guest_name,
 				u.email as guest_email,
+				u.phone as guest_phone,
 				au.name as unit_name,
 				au.type as unit_type
 			 FROM accommodation_bookings ab
@@ -337,18 +339,57 @@ router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin',
 	}
 });
 
-// Cancel a booking
+// Cancel a booking — refund wallet if paid
 router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+	const client = await pool.connect();
 	try {
+		await client.query('BEGIN');
 		const { id } = req.params;
-		const { rows } = await pool.query(
-			`UPDATE accommodation_bookings SET status = 'cancelled', updated_at = NOW() WHERE id = $1 RETURNING *`,
-			[id]
+		const { rows } = await client.query(
+			`UPDATE accommodation_bookings SET status = 'cancelled', updated_by = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+			[id, req.user.id]
 		);
-		if (rows.length === 0) return res.status(404).json({ error: 'Accommodation booking not found' });
-		res.json(rows[0]);
+		if (rows.length === 0) {
+			await client.query('ROLLBACK');
+			return res.status(404).json({ error: 'Accommodation booking not found' });
+		}
+		
+		const booking = rows[0];
+		
+		// Refund wallet if payment was made
+		if (booking.payment_status === 'paid' && booking.guest_id) {
+			const refundAmount = parseFloat(booking.payment_amount || booking.total_price);
+			if (refundAmount > 0) {
+				try {
+					await releaseLockedFunds({
+						userId: booking.guest_id,
+						amount: refundAmount,
+						bookingId: booking.id,
+						currency: 'EUR',
+						client,
+						reason: 'release'
+					});
+					
+					await client.query(
+						`UPDATE accommodation_bookings SET payment_status = 'refunded' WHERE id = $1`,
+						[id]
+					);
+					booking.payment_status = 'refunded';
+					console.log(`[ACCOMMODATION] Refunded €${refundAmount.toFixed(2)} to guest ${booking.guest_id} for booking ${id}`);
+				} catch (refundErr) {
+					console.error('[ACCOMMODATION] Refund failed:', refundErr.message);
+					// Still cancel the booking, but log the refund failure
+				}
+			}
+		}
+		
+		await client.query('COMMIT');
+		res.json(booking);
 	} catch (err) {
+		await client.query('ROLLBACK');
 		res.status(500).json({ error: 'Failed to cancel accommodation booking', details: err.message });
+	} finally {
+		client.release();
 	}
 });
 
@@ -433,24 +474,50 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
 		const total_price = nights * parseFloat(unitData.price_per_night);
 		
-		// Create booking
-		const id = uuidv4();
-		const { rows } = await client.query(
-			`INSERT INTO accommodation_bookings 
-			(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, NOW(), NOW())
-			RETURNING *`,
-			[id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id]
-		);
-		
-		await client.query('COMMIT');
-		
-		// Return booking with unit details
-		const booking = rows[0];
-		booking.unit = unitData;
-		booking.nights = nights;
-		
-		res.status(201).json(booking);
+		// Deduct from guest's wallet (lock funds)
+		let walletTxId = null;
+		try {
+			const balance = await getBalance(guest_id, 'EUR');
+			if ((balance?.available || 0) < total_price) {
+				await client.query('ROLLBACK');
+				return res.status(400).json({ error: `Insufficient wallet balance. Required: €${total_price.toFixed(2)}, Available: €${(balance?.available || 0).toFixed(2)}` });
+			}
+			
+			const bookingId = uuidv4();
+			const lockResult = await lockFundsForBooking({
+				userId: guest_id,
+				amount: total_price,
+				bookingId,
+				currency: 'EUR',
+				client
+			});
+			walletTxId = lockResult?.id || null;
+			
+			// Create booking
+			const { rows } = await client.query(
+				`INSERT INTO accommodation_bookings 
+				(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, payment_status, wallet_transaction_id, payment_amount, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, 'paid', $10, $7, NOW(), NOW())
+				RETURNING *`,
+				[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, walletTxId]
+			);
+			
+			await client.query('COMMIT');
+			
+			// Return booking with unit details
+			const booking = rows[0];
+			booking.unit = unitData;
+			booking.nights = nights;
+			
+			res.status(201).json(booking);
+		} catch (walletErr) {
+			await client.query('ROLLBACK');
+			console.error('[ACCOMMODATION] Wallet deduction failed:', walletErr.message);
+			if (walletErr.message?.includes('Insufficient')) {
+				return res.status(400).json({ error: walletErr.message });
+			}
+			return res.status(500).json({ error: 'Failed to process payment from wallet', details: walletErr.message });
+		}
 	} catch (err) {
 		await client.query('ROLLBACK');
 		res.status(500).json({ error: 'Failed to create accommodation booking', details: err.message });

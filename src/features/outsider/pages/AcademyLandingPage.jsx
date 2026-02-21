@@ -149,9 +149,15 @@ const AcademyLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-8 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
                 KITE LESSONS
             </h1>
+            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+                Start your kitesurfing journey — or take it to the next level.
+            </p>
+            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                From your very first kite to carving waves and chasing jumps, our IKO-certified instructors tailor every lesson to your pace. Beginners, improvers, and advanced riders all welcome.
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
@@ -187,9 +193,15 @@ const AcademyLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-8 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
                 WING FOILING
             </h1>
+            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+                The fastest growing watersport in the world — and easier than you think.
+            </p>
+            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                Combine the simplicity of a handheld wing with the magic of foiling. Our coaches will have you gliding silently above the water in just a few sessions, no prior experience needed.
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
@@ -223,9 +235,15 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-8 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
                 KITE FOILING
             </h1>
+            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+                Take your kiting to new heights — literally.
+            </p>
+            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                Already comfortable on a kite? Kite foiling unlocks a whole new dimension — near-silent flight, incredible upwind performance, and speeds that will blow your mind. Built for experienced kiters ready to push their progression.
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
@@ -259,9 +277,15 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-8 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
                 E-FOILING
             </h1>
+            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+                No wind? No problem. Pure electric flight.
+            </p>
+            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                Experience the sensation of flying above the water on our Fliteboard e-foils — powered by a whisper-quiet electric motor. Zero wind required, zero prior experience needed. If you can balance, you can fly.
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
@@ -295,9 +319,15 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 sm:mb-8 tracking-tight text-white drop-shadow-xl">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
             PREMIUM LESSONS
           </h1>
+          <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+            Private coaching. Exclusive experience. Rapid results.
+          </p>
+          <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+            Our Premium packages pair you with our most experienced instructors for fully personalized, one-on-one sessions. Whether you're fast-tracking your progression or simply want the best possible experience on the water — this is it.
+          </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button
@@ -321,7 +351,7 @@ const AcademyLandingPage = () => {
                  <Button icon={<InfoCircleOutlined />} size="large" className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30">
                     Read FAQ
                  </Button>
-                  <Button type="primary" size="large" className="!bg-emerald-600 !border-none hover:!bg-emerald-500">
+                  <Button type="primary" size="large" className="!bg-emerald-600 !border-none hover:!bg-emerald-500" onClick={() => navigate('/contact')}>
                     Contact Us
                  </Button>
             </div>

@@ -103,6 +103,7 @@ router.get('/', async (req, res) => {
         disciplineTag: row.discipline_tag || null,
         lessonCategoryTag: row.lesson_category_tag || null,
         levelTag: row.level_tag || null,
+        rentalSegment: row.rental_segment || null,
         isPackage: isPackageResult,
         ...(isPackageResult && {
           packageName: row.package_name,
@@ -1816,6 +1817,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       disciplineTag,
       lessonCategoryTag,
       levelTag,
+      rentalSegment,
     } = req.body || {};
 
     // Resolve and validate critical fields
@@ -1925,6 +1927,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       'discipline_tag',
       'lesson_category_tag',
       'level_tag',
+      'rental_segment',
       'created_at',
       'updated_at'
     ];
@@ -1947,6 +1950,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       disciplineTag || null,
       lessonCategoryTag || null,
       levelTag || null,
+      rentalSegment || null,
       now,
       now
     ];
@@ -2022,6 +2026,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       disciplineTag: row.discipline_tag || null,
       lessonCategoryTag: row.lesson_category_tag || null,
       levelTag: row.level_tag || null,
+      rentalSegment: row.rental_segment || null,
       isPackage: isPackageResult,
       ...(isPackageResult && {
         packageName: row.package_name,
@@ -2157,8 +2162,9 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
           start_time = $9, end_time = $10, includes = $11, image_url = $12,
       package_id = $13, currency = $14,
       discipline_tag = $15, lesson_category_tag = $16, level_tag = $17,
+      rental_segment = $18,
       updated_at = NOW()
-    WHERE id = $18
+    WHERE id = $19
     `;
     
     await client.query(updateServiceQuery, [
@@ -2179,6 +2185,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       req.body?.disciplineTag || null,
       req.body?.lessonCategoryTag || null,
       req.body?.levelTag || null,
+      req.body?.rentalSegment || null,
       id
     ]);
     
@@ -2242,6 +2249,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       disciplineTag: row.discipline_tag || null,
       lessonCategoryTag: row.lesson_category_tag || null,
       levelTag: row.level_tag || null,
+      rentalSegment: row.rental_segment || null,
       isPackage: isPackageResult,
       ...(isPackageResult && {
         packageName: row.package_name,

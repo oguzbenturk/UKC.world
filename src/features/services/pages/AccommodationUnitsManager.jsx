@@ -35,7 +35,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ReloadOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  WalletOutlined
 } from '@ant-design/icons';
 import accommodationApi from '@/shared/services/accommodationApi';
 import apiClient from '@/shared/services/apiClient';
@@ -283,11 +286,15 @@ function AccommodationUnitsManager() {
     }
   };
 
-  // Cancel booking
+  // Cancel booking (with wallet refund)
   const handleCancelBooking = async (id) => {
     try {
-      await accommodationApi.cancelBooking(id);
-      message.success('Booking cancelled');
+      const result = await accommodationApi.cancelBooking(id);
+      if (result.payment_status === 'refunded') {
+        message.success('Booking cancelled — wallet refund processed');
+      } else {
+        message.success('Booking cancelled');
+      }
       loadBookings();
     } catch {
       message.error('Failed to cancel booking');
@@ -392,18 +399,45 @@ function AccommodationUnitsManager() {
   const BookingCard = ({ booking }) => {
     const unit = units.find(u => u.id === booking.unit_id);
     const colors = { pending: 'orange', confirmed: 'blue', completed: 'green', cancelled: 'red' };
+    const paymentColors = { paid: 'green', refunded: 'blue', unpaid: 'default' };
     
     return (
       <Card className="rounded-2xl border border-slate-200 shadow-sm mb-3" styles={{ body: { padding: 12 } }}>
         <div className="flex items-start justify-between mb-2">
           <div>
-            <div className="font-semibold text-slate-900">{unit?.name || 'Unknown Unit'}</div>
+            <div className="font-semibold text-slate-900">{booking.unit_name || unit?.name || 'Unknown Unit'}</div>
             <div className="text-xs text-slate-500">{booking.guests_count} guest(s)</div>
           </div>
-          <Tag color={colors[booking.status] || 'default'} className="m-0">
-            {booking.status}
-          </Tag>
+          <div className="flex flex-col items-end gap-1">
+            <Tag color={colors[booking.status] || 'default'} className="m-0">
+              {booking.status}
+            </Tag>
+            {booking.payment_status && booking.payment_status !== 'unpaid' && (
+              <Tag color={paymentColors[booking.payment_status] || 'default'} className="m-0" icon={<WalletOutlined />}>
+                {booking.payment_status}
+              </Tag>
+            )}
+          </div>
         </div>
+
+        {/* Guest info */}
+        {booking.guest_name && (
+          <div className="bg-slate-50 rounded-lg p-2 mb-2 text-xs">
+            <div className="font-medium text-slate-800 flex items-center gap-1">
+              <UserOutlined className="text-slate-400" /> {booking.guest_name}
+            </div>
+            {booking.guest_email && (
+              <div className="text-slate-500 flex items-center gap-1 mt-0.5">
+                <MailOutlined className="text-slate-400" /> {booking.guest_email}
+              </div>
+            )}
+            {booking.guest_phone && (
+              <div className="text-slate-500 flex items-center gap-1 mt-0.5">
+                <PhoneOutlined className="text-slate-400" /> {booking.guest_phone}
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-2">
           <div>
@@ -417,6 +451,12 @@ function AccommodationUnitsManager() {
             {new Date(booking.check_out_date).toLocaleDateString()}
           </div>
         </div>
+
+        {booking.notes && (
+          <div className="text-xs text-slate-500 italic mb-2 truncate" title={booking.notes}>
+            📝 {booking.notes}
+          </div>
+        )}
         
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <span className="font-semibold text-green-600">€{parseFloat(booking.total_price).toFixed(2)}</span>
@@ -432,12 +472,19 @@ function AccommodationUnitsManager() {
                 >
                   Confirm
                 </Button>
-                <Button 
-                  icon={<CloseCircleOutlined />} 
-                  size="small" 
-                  danger
-                  onClick={() => handleCancelBooking(booking.id)} 
-                />
+                <Popconfirm
+                  title="Cancel this booking?"
+                  description={booking.payment_status === 'paid' ? `€${parseFloat(booking.total_price).toFixed(2)} will be refunded to the guest's wallet.` : 'This action cannot be undone.'}
+                  onConfirm={() => handleCancelBooking(booking.id)}
+                  okText="Yes, Cancel"
+                  okType="danger"
+                >
+                  <Button 
+                    icon={<CloseCircleOutlined />} 
+                    size="small" 
+                    danger
+                  />
+                </Popconfirm>
               </>
             )}
             {booking.status === 'confirmed' && (
@@ -450,12 +497,19 @@ function AccommodationUnitsManager() {
                 >
                   Complete
                 </Button>
-                <Button 
-                  icon={<CloseCircleOutlined />} 
-                  size="small" 
-                  danger
-                  onClick={() => handleCancelBooking(booking.id)} 
-                />
+                <Popconfirm
+                  title="Cancel this booking?"
+                  description={booking.payment_status === 'paid' ? `€${parseFloat(booking.total_price).toFixed(2)} will be refunded to the guest's wallet.` : 'This action cannot be undone.'}
+                  onConfirm={() => handleCancelBooking(booking.id)}
+                  okText="Yes, Cancel"
+                  okType="danger"
+                >
+                  <Button 
+                    icon={<CloseCircleOutlined />} 
+                    size="small" 
+                    danger
+                  />
+                </Popconfirm>
               </>
             )}
           </Space>
@@ -569,19 +623,39 @@ function AccommodationUnitsManager() {
       title: 'Unit',
       key: 'unit',
       render: (_, record) => {
-        const unit = units.find(u => u.id === record.unit_id);
-        return unit?.name || record.unit_id;
+        return record.unit_name || units.find(u => u.id === record.unit_id)?.name || record.unit_id;
       },
+    },
+    {
+      title: 'Guest',
+      key: 'guest',
+      render: (_, record) => (
+        <div>
+          <div className="font-medium">{record.guest_name || '—'}</div>
+          {record.guest_email && (
+            <div className="text-xs text-gray-500">{record.guest_email}</div>
+          )}
+          {record.guest_phone && (
+            <div className="text-xs text-gray-400">{record.guest_phone}</div>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Dates',
       key: 'dates',
-      render: (_, record) => (
-        <div>
-          <div>{new Date(record.check_in_date).toLocaleDateString()}</div>
-          <div className="text-xs text-gray-500">to {new Date(record.check_out_date).toLocaleDateString()}</div>
-        </div>
-      ),
+      render: (_, record) => {
+        const checkIn = new Date(record.check_in_date);
+        const checkOut = new Date(record.check_out_date);
+        const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+        return (
+          <div>
+            <div>{checkIn.toLocaleDateString()}</div>
+            <div className="text-xs text-gray-500">to {checkOut.toLocaleDateString()}</div>
+            <div className="text-xs text-blue-500">{nights} night{nights !== 1 ? 's' : ''}</div>
+          </div>
+        );
+      },
     },
     {
       title: 'Guests',
@@ -595,6 +669,15 @@ function AccommodationUnitsManager() {
       render: (price) => <span className="font-semibold">€{parseFloat(price).toFixed(2)}</span>,
     },
     {
+      title: 'Payment',
+      key: 'payment_status',
+      render: (_, record) => {
+        const ps = record.payment_status || 'unpaid';
+        const colors = { paid: 'green', refunded: 'blue', unpaid: 'default' };
+        return <Tag icon={<WalletOutlined />} color={colors[ps] || 'default'}>{ps}</Tag>;
+      },
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -602,6 +685,14 @@ function AccommodationUnitsManager() {
         const colors = { pending: 'orange', confirmed: 'blue', completed: 'green', cancelled: 'red' };
         return <Tag color={colors[status] || 'default'}>{status}</Tag>;
       },
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      ellipsis: true,
+      width: 120,
+      render: (notes) => notes ? <span className="text-xs text-gray-500" title={notes}>{notes}</span> : '—',
     },
     {
       title: 'Actions',
@@ -618,14 +709,21 @@ function AccommodationUnitsManager() {
                   onClick={() => handleConfirmBooking(record.id)} 
                 />
               </Tooltip>
-              <Tooltip title="Cancel">
-                <Button 
-                  icon={<CloseCircleOutlined />} 
-                  size="small" 
-                  danger
-                  onClick={() => handleCancelBooking(record.id)} 
-                />
-              </Tooltip>
+              <Popconfirm
+                title="Cancel this booking?"
+                description={record.payment_status === 'paid' ? `€${parseFloat(record.total_price).toFixed(2)} will be refunded to the guest's wallet.` : 'This action cannot be undone.'}
+                onConfirm={() => handleCancelBooking(record.id)}
+                okText="Yes, Cancel"
+                okType="danger"
+              >
+                <Tooltip title="Cancel">
+                  <Button 
+                    icon={<CloseCircleOutlined />} 
+                    size="small" 
+                    danger
+                  />
+                </Tooltip>
+              </Popconfirm>
             </>
           )}
           {record.status === 'confirmed' && (
@@ -638,14 +736,21 @@ function AccommodationUnitsManager() {
                   onClick={() => handleCompleteBooking(record.id)} 
                 />
               </Tooltip>
-              <Tooltip title="Cancel">
-                <Button 
-                  icon={<CloseCircleOutlined />} 
-                  size="small" 
-                  danger
-                  onClick={() => handleCancelBooking(record.id)} 
-                />
-              </Tooltip>
+              <Popconfirm
+                title="Cancel this booking?"
+                description={record.payment_status === 'paid' ? `€${parseFloat(record.total_price).toFixed(2)} will be refunded to the guest's wallet.` : 'This action cannot be undone.'}
+                onConfirm={() => handleCancelBooking(record.id)}
+                okText="Yes, Cancel"
+                okType="danger"
+              >
+                <Tooltip title="Cancel">
+                  <Button 
+                    icon={<CloseCircleOutlined />} 
+                    size="small" 
+                    danger
+                  />
+                </Tooltip>
+              </Popconfirm>
             </>
           )}
         </Space>

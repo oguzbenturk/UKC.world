@@ -1,22 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
-import {
-  RocketOutlined,
-  SafetyCertificateOutlined,
-  TrophyOutlined,
-  RightOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
+import { RightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
-import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 
 const RentalLandingPage = () => {
   const navigate = useNavigate();
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingInitialData, setBookingInitialData] = useState({});
   const [activeSection, setActiveSection] = useState('standard-section');
 
   usePageSEO({
@@ -24,9 +13,10 @@ const RentalLandingPage = () => {
     description: 'Premium Kitesurfing, Wing, and Foil Rentals. Choose from Standard, SLS, and D-LAB equipment.'
   });
 
+
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['standard-section', 'sls-section', 'dlab-section'];
+      const sections = ['standard-section', 'sls-section', 'dlab-section', 'efoil-section'];
       
       // Determine which section is currently active based on scroll position
       // The section that occupies the middle of the screen is considered active
@@ -49,27 +39,14 @@ const RentalLandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleBookService = (category = 'rental') => {
-    setBookingInitialData({ serviceCategory: category });
-    setBookingOpen(true);
-  };
-
-  const handleBookingClose = () => {
-    setBookingOpen(false);
-    setBookingInitialData({});
-  };
-
-  // Helper to scroll to packages
-  const scrollToPackages = () => {
-    // Navigate to packages page or scroll if we had a packages section
-    // customized for rentals
-    navigate('/rental/packages'); 
-  };
-
   // Helper to scroll to specific sections
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
     setActiveSection(sectionId);
+  };
+
+  const viewDetails = (path) => {
+    navigate(path);
   };
 
   return (
@@ -78,36 +55,47 @@ const RentalLandingPage = () => {
       {/* Top Category Nav - Sticky */}
       <div className="sticky top-0 z-50 border-b border-white/10 bg-[#16110d]/80 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <div className="flex justify-between md:justify-center items-center overflow-x-auto py-3 md:py-5 space-x-4 md:space-x-12 scrollbar-hide">
+            {/* Segment tabs */}
+            <div className="flex justify-between md:justify-center items-center overflow-x-auto py-3 md:py-4 space-x-4 md:space-x-12 scrollbar-hide">
                 <button 
                   onClick={() => scrollToSection('standard-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
+                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
                     activeSection === 'standard-section' 
                       ? 'text-orange-400 font-bold border-b-2 border-orange-400 pb-1 hover:text-orange-300' 
                       : 'text-white/70 hover:text-white'
                   }`}
                 >
-                <SafetyCertificateOutlined /> STANDARD
+                STANDARD
                 </button>
                 <button 
                   onClick={() => scrollToSection('sls-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
+                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
                     activeSection === 'sls-section' 
                       ? 'text-amber-400 font-bold border-b-2 border-amber-400 pb-1 hover:text-amber-300' 
                       : 'text-white/70 hover:text-white'
                   }`}
                 >
-                <RocketOutlined /> SLS
+                SLS
                 </button>
                 <button 
                   onClick={() => scrollToSection('dlab-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
+                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
                     activeSection === 'dlab-section' 
                       ? 'text-yellow-400 font-bold border-b-2 border-yellow-400 pb-1 hover:text-yellow-300' 
                       : 'text-white/70 hover:text-white'
                   }`}
                 >
-                <TrophyOutlined /> D-LAB
+                D-LAB
+                </button>
+                <button 
+                  onClick={() => scrollToSection('efoil-section')}
+                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
+                    activeSection === 'efoil-section' 
+                      ? 'text-yellow-300 font-bold border-b-2 border-yellow-300 pb-1 hover:text-yellow-200' 
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                E-FOIL
                 </button>
             </div>
           </div>
@@ -143,18 +131,10 @@ const RentalLandingPage = () => {
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                type="primary" 
-                size="large" 
-                className="!bg-orange-600 !border-orange-600 hover:!bg-orange-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-orange-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('rental_standard')}
-                >
-                Book Standard
-                </Button>
-                <Button 
                 ghost 
                 size="large" 
                 className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
-                onClick={() => navigate('/rental/standard')}
+                onClick={() => viewDetails('/rental/standard')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
                 </Button>
@@ -190,18 +170,10 @@ const RentalLandingPage = () => {
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                type="primary" 
-                size="large" 
-                className="!bg-amber-500 !border-amber-500 hover:!bg-amber-400 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-amber-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('rental_sls')}
-                >
-                Book SLS
-                </Button>
-                <Button 
                 ghost 
                 size="large" 
                 className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
-                onClick={() => navigate('/rental/sls')}
+                onClick={() => viewDetails('/rental/sls')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
                 </Button>
@@ -215,7 +187,7 @@ const RentalLandingPage = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
           style={{ 
-             backgroundImage: "url('/Images/ukc/rebel-dlab-rent.png')", // Using wing header as placeholder for D-LAB
+             backgroundImage: "url('/Images/ukc/rebel-dlab-rent.png')",
              backgroundPosition: 'center center'
           }}
         >
@@ -237,18 +209,10 @@ const RentalLandingPage = () => {
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                type="primary" 
-                size="large" 
-                className="!bg-orange-500 !border-orange-500 hover:!bg-orange-400 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-orange-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('rental_dlab')}
-                >
-                Book D-LAB
-                </Button>
-                <Button 
                 ghost 
                 size="large" 
                 className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
-                onClick={() => navigate('/rental/dlab')}
+                onClick={() => viewDetails('/rental/dlab')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
                 </Button>
@@ -256,14 +220,69 @@ const RentalLandingPage = () => {
         </div>
       </div>
 
-      {/* Booking Wizard Modal */}
-      {bookingOpen && (
-        <StudentBookingWizard 
-          open={bookingOpen} 
-          onClose={handleBookingClose}
-          initialData={bookingInitialData}
-        />
-      )}
+      {/* E-Foil Section */}
+      <div id="efoil-section" className="relative min-h-[500px] flex flex-col group">
+        <div 
+          className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
+          style={{ 
+             backgroundImage: "url('/Images/ukc/e-foil.png')",
+             backgroundPosition: 'center center'
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#16110d]"></div>
+        </div>
+
+        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+            <span className="text-yellow-300 font-bold tracking-widest uppercase text-sm md:text-base mb-2 block">
+                Electric Hydrofoil
+            </span>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white drop-shadow-xl">
+                E-FOIL RENTAL
+            </h1>
+            <p className="text-gray-200 text-lg md:text-xl max-w-2xl mb-8 drop-shadow-md">
+                No wind required. Glide silently above the water on our premium electric hydrofoils — the most unique watersports experience on the coast.
+            </p>
+            
+            <div className="flex flex-wrap gap-4">
+                <Button 
+                ghost 
+                size="large" 
+                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+                onClick={() => viewDetails('/rental/efoil')}
+                >
+                View Details <RightOutlined className="text-xs ml-1" />
+                </Button>
+            </div>
+        </div>
+      </div>
+
+      {/* Contact Us Section */}
+      <div className="py-16 sm:py-20 border-t border-white/5">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">Not sure which rental is right for you?</h2>
+          <p className="text-gray-400 mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            Our team is on hand to help you choose the right equipment for your level and goals. Just get in touch.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+            <Button
+              icon={<InfoCircleOutlined />}
+              size="large"
+              className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30 !h-12 !rounded-lg"
+            >
+              Read FAQ
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              className="!bg-orange-600 !border-none hover:!bg-orange-500 !h-12 !rounded-lg !font-semibold"
+              href="/contact"
+            >
+              Contact Us
+            </Button>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 };

@@ -3,9 +3,10 @@ import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import authService from '../services/auth/authService';
 import consentService from '../services/consentService.js';
 import { clearAccessToken, setAccessToken } from '../services/apiClient.js';
+import { AuthContext } from './authContextInstance.js';
 
 // eslint-disable-next-line
-export const AuthContext = createContext(null);
+export { AuthContext };
 
 const DEFAULT_CONSENT = {
   latestTermsVersion: 'current',
@@ -285,7 +286,7 @@ export function AuthProvider({ children }) {
 
       const rememberedEmail = localStorage.getItem('rememberedEmail');
 
-      authService.logout();
+      await authService.logout();
       setUser(null);
       setIsAuthenticated(false);
       setError(null);

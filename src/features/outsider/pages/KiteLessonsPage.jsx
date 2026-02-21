@@ -519,6 +519,33 @@ const KiteLessonsPage = () => {
         </Modal>
       )}
 
+      {/* Contact Us Section */}
+      <div className="py-16 sm:py-20 bg-[#0d1511] border-t border-white/5">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">Not sure which package is right for you?</h2>
+          <p className="text-gray-400 mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+            Our team is happy to help you pick the best option based on your experience level, goals, and schedule. Reach out — we don&apos;t bite.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
+            <Button
+              icon={<InfoCircleOutlined />}
+              size="large"
+              className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30 !h-12 !rounded-lg"
+            >
+              Read FAQ
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              className="!bg-emerald-600 !border-none hover:!bg-emerald-500 !h-12 !rounded-lg !font-semibold"
+              href="/contact"
+            >
+              Contact Us
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <style>{`
         .deluxe-modal .ant-modal-content {
            padding: 0;
