@@ -230,7 +230,7 @@ const AppRoutes = () => {
     const role = typeof user?.role === 'string' ? user.role.toLowerCase() : undefined;
     // Outsider users go to booking page to book their first lesson
     if (role === ROLES.OUTSIDER) return '/book';
-    if (role === ROLES.STUDENT) {
+    if (role === ROLES.STUDENT || role === ROLES.TRUSTED_CUSTOMER) {
       return featureFlags.studentPortal ? '/student/dashboard' : '/student';
     }
     if (role === ROLES.INSTRUCTOR) return '/instructor/dashboard';
@@ -246,8 +246,8 @@ const AppRoutes = () => {
   const isStaffRole = (role) => {
     if (!role) return false;
     const r = role.toLowerCase();
-    // Exclude outsider and student roles - everything else is considered staff
-    if (r === ROLES.OUTSIDER || r === ROLES.STUDENT) return false;
+    // Exclude outsider, student, and trusted_customer roles - everything else is considered staff
+    if (r === ROLES.OUTSIDER || r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER) return false;
     return true;
   };
   
@@ -381,7 +381,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Student portal routes */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.STUDENT]} />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.STUDENT, ROLES.TRUSTED_CUSTOMER]} />}>
         {featureFlags.studentPortal ? (
           <Route path="/student" element={<StudentLayout />}>
             <Route index element={<Navigate to="/student/dashboard" replace />} />

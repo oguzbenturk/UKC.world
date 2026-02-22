@@ -37,6 +37,7 @@ import { studentPortalQueryKeys } from '../hooks/useStudentDashboard';
 import { computeBookingPrice, getPricingBreakdown, getPackagePriceInCurrency } from '@/shared/utils/pricing';
 import { createGroupBooking } from '@/features/bookings/services/groupBookingService';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
+import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 
 const { Text, Title } = Typography;
 
@@ -1642,20 +1643,22 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       });
     });
 
-    // Pay at Center option - available for all customers
-    options.push({
-      value: 'pay_later',
-      label: (
-        <Space align="baseline" className="w-full justify-between">
-          <Text>Pay at Reception (Cash/Card)</Text>
-          <Tag color="blue">Due on arrival</Tag>
-        </Space>
-      ),
-      display: 'Pay at Reception (Cash/Card)'
-    });
+    // Pay at Center option - only for trusted_customer, admin, manager
+    if (PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role)) {
+      options.push({
+        value: 'pay_later',
+        label: (
+          <Space align="baseline" className="w-full justify-between">
+            <Text>Pay at Reception (Cash/Card)</Text>
+            <Tag color="blue">Due on arrival</Tag>
+          </Space>
+        ),
+        display: 'Pay at Reception (Cash/Card)'
+      });
+    }
 
     return options;
-  }, [walletInsufficient, hasPackages, matchingPackages.length, processorInfo]);
+  }, [walletInsufficient, hasPackages, matchingPackages.length, processorInfo, user?.role]);
   const startHourDecimal = useMemo(() => {
     const minutes = timeStringToMinutes(selectedTime);
     if (minutes === null) {

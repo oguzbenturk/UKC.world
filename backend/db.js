@@ -220,6 +220,11 @@ try {
 
   const dbSslRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
 
+  // Force UTC interpretation for TIMESTAMP WITHOUT TIME ZONE columns (OID 1114)
+  // Without this, the pg driver interprets bare timestamps as local time,
+  // causing offsets (e.g. "3 hours ago" for just-created records in UTC+3).
+  pg.types.setTypeParser(1114, (str) => new Date(str + 'Z'));
+
   pool = new Pool({
     connectionString,
     ssl: dbSslEnabled ? { rejectUnauthorized: dbSslRejectUnauthorized } : false,

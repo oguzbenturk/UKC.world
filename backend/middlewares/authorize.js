@@ -50,6 +50,11 @@ export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
     if (!effectiveRoles.has('owner') && allowedRoles.some(role => elevatedRoles.includes(role))) {
       effectiveRoles.add('owner');
     }
+
+    // trusted_customer inherits all student-level access
+    if (effectiveRoles.has('student')) {
+      effectiveRoles.add('trusted_customer');
+    }
     
     // Log authorization checks for sensitive operations in development
     if (process.env.NODE_ENV === 'development' && (req.method === 'DELETE' || req.method === 'POST')) {

@@ -4,6 +4,7 @@ import { validate as uuidValidate } from 'uuid';
 import { getRecommendedProductsForRole } from './recommendationService.js';
 import { getUnratedBookings as fetchUnratedBookings } from './ratingService.js';
 import bookingNotificationService from './bookingNotificationService.js';
+import { recordTransaction as recordWalletTransaction, recordLegacyTransaction } from './walletService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -43,6 +44,40 @@ const parseDateSafe = (value) => {
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+/**
+ * Build a timezone-naive ISO string from a date column + start_hour decimal.
+ * This avoids the UTC-vs-local mismatch that occurs when PostgreSQL
+ * casts date::timestamptz (midnight UTC) and the client displays in local tz.
+ *
+ * @param {string|Date} dateValue – e.g. "2026-02-25" or Date object
+ * @param {number} hourDecimal  – e.g. 9 for 09:00, 12.5 for 12:30
+ * @param {number} [durationHours] – optional, to compute end time
+ * @returns {{ startIso: string|null, endIso: string|null }}
+ */
+const buildLocalTimeIso = (dateValue, hourDecimal, durationHours) => {
+  if (!dateValue) return { startIso: null, endIso: null };
+  // Normalise to "YYYY-MM-DD" string
+  let dateStr;
+  if (dateValue instanceof Date) {
+    dateStr = dateValue.toISOString().slice(0, 10);
+  } else {
+    dateStr = String(dateValue).slice(0, 10);
+  }
+  const h = coalesceNumber(hourDecimal, 0);
+  const hours = Math.floor(h);
+  const minutes = Math.round((h - hours) * 60);
+  const startIso = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  let endIso = null;
+  if (durationHours !== undefined && durationHours !== null) {
+    const dur = coalesceNumber(durationHours, 1);
+    const endTotalMin = hours * 60 + minutes + Math.round(dur * 60);
+    const eh = Math.floor(endTotalMin / 60);
+    const em = endTotalMin % 60;
+    endIso = `${dateStr}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00`;
+  }
+  return { startIso, endIso };
 };
 
 const PAYMENT_TYPES = new Set(['payment', 'credit']);
@@ -530,7 +565,7 @@ export async function getStudentOverview(studentId, options = {}) {
               i.id AS instructor_id,
               COALESCE(i.name, CONCAT(COALESCE(i.first_name,''),' ',COALESCE(i.last_name,''))) AS instructor_name,
               i.profile_image_url AS instructor_avatar,
-              (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
+              (b.date + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
               ${ratingSelectProjection}
          FROM bookings b
     LEFT JOIN users i ON i.id = b.instructor_user_id
@@ -539,7 +574,7 @@ export async function getStudentOverview(studentId, options = {}) {
         WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
           AND b.deleted_at IS NULL
           AND (b.status IS NULL OR b.status NOT IN ('cancelled','archived'))
-          AND (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()
+          AND (b.date + (b.start_hour * INTERVAL '1 hour')) < LOCALTIMESTAMP
      ORDER BY start_ts DESC
         LIMIT 10`,
       [normalizedStudentId]
@@ -589,23 +624,24 @@ export async function getStudentOverview(studentId, options = {}) {
                 b.service_id, s.name AS service_name,
                 i.id AS instructor_id,
                 COALESCE(i.name, CONCAT(COALESCE(i.first_name,''),' ',COALESCE(i.last_name,''))) AS instructor_name,
-                (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts
+                (b.date + (b.start_hour * INTERVAL '1 hour')) AS start_ts
            FROM bookings b
            LEFT JOIN users i ON i.id = b.instructor_user_id
            LEFT JOIN services s ON s.id = b.service_id
           WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
             AND b.deleted_at IS NULL
             AND (b.status IS NULL OR b.status NOT IN ('cancelled','archived'))
-            AND (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) >= NOW()
+            AND (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP
        ORDER BY start_ts ASC
           LIMIT 5`,
         [normalizedStudentId]
       ),
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE (b.status IS NULL OR b.status <> 'cancelled') AND (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()) AS completed_count,
-                COUNT(*) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) >= NOW()) AS upcoming_count,
+        `SELECT COUNT(*) FILTER (WHERE (b.status IS NULL OR b.status <> 'cancelled') AND (b.date + (b.start_hour * INTERVAL '1 hour')) < LOCALTIMESTAMP) AS completed_count,
+                COUNT(*) FILTER (WHERE (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP) AS upcoming_count,
                 COALESCE(SUM(b.duration) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled'),0) AS total_hours,
-                MIN((b.date::timestamptz + (b.start_hour * INTERVAL '1 hour'))) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()) AS next_session_at
+                (SELECT b2.date FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1) AND b2.deleted_at IS NULL AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_date,
+                (SELECT b2.start_hour FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1) AND b2.deleted_at IS NULL AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_hour
            FROM bookings b
           WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
             AND b.deleted_at IS NULL`,
@@ -801,13 +837,12 @@ export async function getStudentOverview(studentId, options = {}) {
     }
 
     const upcomingSessions = rowsOf(upcomingRes).map((row) => {
-      const startTs = row.start_ts ? new Date(row.start_ts) : null;
-      const endTs = startTs ? new Date(startTs.getTime() + coalesceNumber(row.duration, 1) * 3600 * 1000) : null;
+      const { startIso, endIso } = buildLocalTimeIso(row.date, row.start_hour, coalesceNumber(row.duration, 1));
       return {
         bookingId: row.id,
         date: row.date,
-        startTime: startTs ? startTs.toISOString() : null,
-        endTime: endTs ? endTs.toISOString() : null,
+        startTime: startIso,
+        endTime: endIso,
         status: row.status || 'scheduled',
         location: row.location || 'TBD',
         paymentStatus: row.payment_status || 'pending',
@@ -827,9 +862,8 @@ export async function getStudentOverview(studentId, options = {}) {
     });
 
       const previousLessons = rowsOf(previousLessonsRes).map((row) => {
-        const startTs = row.start_ts ? new Date(row.start_ts) : null;
         const durationHours = coalesceNumber(row.duration, row.service_default_duration || 1);
-        const endTs = startTs ? new Date(startTs.getTime() + durationHours * 3600 * 1000) : null;
+        const { startIso, endIso } = buildLocalTimeIso(row.date, row.start_hour, durationHours);
         const rating = row.rating_id
           ? {
               id: row.rating_id,
@@ -847,8 +881,8 @@ export async function getStudentOverview(studentId, options = {}) {
         return {
           bookingId: row.id,
           date: row.date,
-          startTime: startTs ? startTs.toISOString() : null,
-          endTime: endTs ? endTs.toISOString() : null,
+          startTime: startIso,
+          endTime: endIso,
           durationHours,
           status: row.status || 'completed',
           location: row.location || null,
@@ -1217,7 +1251,7 @@ export async function getStudentOverview(studentId, options = {}) {
         completedSessions: coalesceNumber(statsRow.completed_count),
         upcomingSessions: coalesceNumber(statsRow.upcoming_count),
         totalHours: coalesceNumber(statsRow.total_hours),
-        nextSessionAt: toIso(statsRow.next_session_at),
+        nextSessionAt: buildLocalTimeIso(statsRow.next_session_date, statsRow.next_session_hour).startIso,
         completionPercent
       },
       packages,
@@ -1304,8 +1338,8 @@ export async function getStudentSchedule(studentId, { startDate, endDate, limit 
              COALESCE(i.name, CONCAT(COALESCE(i.first_name,''),' ',COALESCE(i.last_name,''))) AS instructor_name,
              i.phone AS instructor_phone,
              i.email AS instructor_email,
-       (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
-       (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour')) AS end_ts,
+       (b.date + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
+       (b.date + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour')) AS end_ts,
        ${participantSelect}
         FROM bookings b
    LEFT JOIN users i ON i.id = b.instructor_user_id
@@ -1320,8 +1354,8 @@ export async function getStudentSchedule(studentId, { startDate, endDate, limit 
     const { rows } = await client.query(query, params);
 
     return rows.map((row) => {
-      const startTs = row.start_ts ? new Date(row.start_ts) : null;
-      const endTs = row.end_ts ? new Date(row.end_ts) : null;
+      const durationHrs = coalesceNumber(row.duration, row.service_default_duration || 1);
+      const { startIso, endIso } = buildLocalTimeIso(row.date, row.start_hour, durationHrs);
       const participants = hasParticipantTable && Array.isArray(row.participant_rows)
         ? row.participant_rows.map((participant) => ({
             id: participant.user_id,
@@ -1335,9 +1369,9 @@ export async function getStudentSchedule(studentId, { startDate, endDate, limit 
       return {
         bookingId: row.id,
         date: row.date,
-        startTime: startTs ? startTs.toISOString() : null,
-        endTime: endTs ? endTs.toISOString() : null,
-        durationHours: coalesceNumber(row.duration, row.service_default_duration || 1),
+        startTime: startIso,
+        endTime: endIso,
+        durationHours: durationHrs,
         status: row.status || 'scheduled',
         location: row.location || 'TBD',
         notes: row.notes || null,
@@ -1380,7 +1414,7 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
     await client.query('BEGIN');
 
     const bookingRes = await client.query(
-      `SELECT b.*, (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts
+      `SELECT b.*, (b.date + (b.start_hour * INTERVAL '1 hour')) AS start_ts
          FROM bookings b
         WHERE b.id = $1
           AND (b.student_user_id = $2 OR b.customer_user_id = $2)
@@ -1404,9 +1438,101 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
         return { success: true, bookingId, status: 'cancelled' };
       }
 
+      const duration = parseFloat(booking.duration) || 0;
+
+      // 1) Restore package hours (participant-aware)
+      if (duration > 0) {
+        const { rows: bpRows } = await client.query(
+          `SELECT customer_package_id, payment_status, package_hours_used
+           FROM booking_participants WHERE booking_id = $1`,
+          [bookingId]
+        );
+        let restoredAny = false;
+        for (const r of bpRows) {
+          if (r && r.payment_status === 'package' && r.customer_package_id) {
+            const restoreHours = parseFloat(r.package_hours_used) || duration;
+            const { rows: pkgRows } = await client.query(
+              `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
+               FROM customer_packages WHERE id = $1`,
+              [r.customer_package_id]
+            );
+            if (pkgRows.length > 0) {
+              const pkg = pkgRows[0];
+              const newUsed = Math.max(0, (parseFloat(pkg.used_hours) || 0) - restoreHours);
+              const newRemaining = Math.min(parseFloat(pkg.total_hours) || 0, (parseFloat(pkg.remaining_hours) || 0) + restoreHours);
+              const newStatus = newRemaining > 0 ? 'active' : pkg.status;
+              await client.query(
+                `UPDATE customer_packages
+                 SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
+                 WHERE id = $4`,
+                [newUsed, newRemaining, newStatus, r.customer_package_id]
+              );
+              restoredAny = true;
+              logger.info(`Student cancel: Restored ${restoreHours}h to package ${r.customer_package_id}`);
+            }
+          }
+        }
+        // Fallback: booking-level package
+        if (!restoredAny && booking.payment_status === 'package' && booking.customer_package_id) {
+          const { rows: pkgRows } = await client.query(
+            `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
+             FROM customer_packages WHERE id = $1`,
+            [booking.customer_package_id]
+          );
+          if (pkgRows.length > 0) {
+            const pkg = pkgRows[0];
+            const newUsed = Math.max(0, (parseFloat(pkg.used_hours) || 0) - duration);
+            const newRemaining = Math.min(parseFloat(pkg.total_hours) || 0, (parseFloat(pkg.remaining_hours) || 0) + duration);
+            const newStatus = newRemaining > 0 ? 'active' : pkg.status;
+            await client.query(
+              `UPDATE customer_packages
+               SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
+               WHERE id = $4`,
+              [newUsed, newRemaining, newStatus, booking.customer_package_id]
+            );
+            logger.info(`Student cancel: Restored ${duration}h to package ${booking.customer_package_id} (fallback)`);
+          }
+        }
+      }
+
+      // 2) Refund wallet balance for non-package individual payments
+      const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
+      if (bookingAmount > 0 && booking.student_user_id && booking.payment_method !== 'package' && booking.payment_status !== 'package' && !booking.package_id) {
+        await client.query(
+          `UPDATE users SET balance = COALESCE(balance, 0) + $1, updated_at = NOW() WHERE id = $2`,
+          [bookingAmount, booking.student_user_id]
+        );
+
+        try {
+          await recordLegacyTransaction({
+            userId: booking.student_user_id,
+            amount: bookingAmount,
+            transactionType: 'booking_cancelled_refund',
+            status: 'completed',
+            direction: 'credit',
+            description: `Student self-cancel refund: ${booking.date}`,
+            metadata: { bookingId: booking.id, cancelledVia: 'student_portal' },
+            entityType: 'booking',
+            relatedEntityType: 'booking',
+            relatedEntityId: booking.id,
+            bookingId: booking.id,
+            createdBy: normalizedStudentId,
+            client
+          });
+        } catch (walletError) {
+          logger.error('Failed to record wallet refund on student cancel', {
+            bookingId: booking.id, error: walletError?.message
+          });
+          throw walletError;
+        }
+
+        logger.info(`Student cancel: Refunded \u20ac${bookingAmount} to user ${booking.student_user_id}`);
+      }
+
       const result = await client.query(
         `UPDATE bookings
             SET status = 'cancelled',
+                canceled_at = CURRENT_TIMESTAMP,
                 updated_at = NOW(),
                 notes = CONCAT(COALESCE(notes,'')::text, '\n[Student cancelled on ', NOW()::text, ']')
           WHERE id = $1
@@ -1764,7 +1890,9 @@ export async function getStudentInvoices(studentId, { page = 1, limit = DEFAULT_
         status: row.status,
         bookingId: row.booking_id,
         description: row.description || `Payment for ${row.service_name || 'lesson'}`,
-        lessonDate: row.lesson_date ? row.lesson_date.toISOString().split('T')[0] : null,
+        lessonDate: row.lesson_date
+          ? (row.lesson_date instanceof Date ? row.lesson_date.toISOString().slice(0, 10) : String(row.lesson_date).slice(0, 10))
+          : null,
         lessonStartTime: startTime,
         serviceName: row.service_name,
         createdAt: toIso(row.created_at),

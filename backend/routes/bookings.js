@@ -838,7 +838,9 @@ router.post('/',
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker;
+    // trusted_customer with pay_later: allow negative balance so debt is tracked in wallet
+    const isTrustedCustomerPayLater = req.user?.role === 'trusted_customer' && requestedPaymentMethod === 'pay_later';
+    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker || isTrustedCustomerPayLater;
     
     // Staff roles automatically confirm bookings (admin, manager, front_desk)
     const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
@@ -2180,7 +2182,9 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker;
+    // trusted_customer with pay_later: allow negative balance so debt is tracked in wallet
+    const isTrustedCustomerPayLater = req.user?.role === 'trusted_customer' && requestedPaymentMethod === 'pay_later';
+    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker || isTrustedCustomerPayLater;
     const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
     
@@ -4724,8 +4728,7 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
            COALESCE(data, '{}'::jsonb),
            '{status}',
            '"processed"'::jsonb
-         ),
-         updated_at = NOW()
+         )
          WHERE (data->>'bookingId')::text = $1::text
          AND type IN ('booking_instructor', 'booking_student', 'new_booking_alert')`,
         [id]
@@ -4742,6 +4745,72 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       });
     }
     
+    // === Refund logic when cancelling ===
+    if (status === 'cancelled') {
+      const duration = parseFloat(booking.duration) || 0;
+
+      // 1) Restore package hours (participant-aware, same pattern as POST /:id/cancel)
+      if (duration > 0) {
+        const { rows: bpRows } = await client.query(
+          `SELECT customer_package_id, payment_status, package_hours_used
+           FROM booking_participants WHERE booking_id = $1`,
+          [id]
+        );
+        let restoredAny = false;
+        for (const r of bpRows) {
+          if (r && r.payment_status === 'package' && r.customer_package_id) {
+            const restoreHours = parseFloat(r.package_hours_used) || duration;
+            const result = await restoreHoursToPackage(client, r.customer_package_id, restoreHours);
+            if (result) restoredAny = true;
+          }
+        }
+        // Fallback: check booking-level package
+        if (!restoredAny && booking.payment_status === 'package' && booking.customer_package_id) {
+          await restoreHoursToPackage(client, booking.customer_package_id, duration);
+        }
+      }
+
+      // 2) Refund wallet balance for non-package individual payments
+      const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
+      if (bookingAmount > 0 && booking.student_user_id && booking.payment_method !== 'package' && booking.payment_status !== 'package' && !booking.package_id) {
+        await client.query(
+          `UPDATE users SET balance = COALESCE(balance, 0) + $1, updated_at = NOW() WHERE id = $2`,
+          [bookingAmount, booking.student_user_id]
+        );
+
+        try {
+          await recordLegacyTransaction({
+            userId: booking.student_user_id,
+            amount: bookingAmount,
+            transactionType: 'booking_cancelled_refund',
+            status: 'completed',
+            direction: 'credit',
+            description: `Booking cancelled (declined): ${booking.date}`,
+            metadata: { bookingId: booking.id, cancelledVia: 'status_update' },
+            entityType: 'booking',
+            relatedEntityType: 'booking',
+            relatedEntityId: booking.id,
+            bookingId: booking.id,
+            createdBy: req.user.id,
+            client
+          });
+        } catch (walletError) {
+          logger.error('Failed to record wallet refund on status-cancel', {
+            bookingId: booking.id, error: walletError?.message
+          });
+          throw walletError;
+        }
+
+        logger.info(`PATCH status cancel: Refunded €${bookingAmount} to user ${booking.student_user_id}`);
+      }
+
+      // Update canceled_at timestamp
+      await client.query(
+        `UPDATE bookings SET canceled_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [id]
+      );
+    }
+
     // Update status
     await client.query(
       `UPDATE bookings 
@@ -4759,8 +4828,7 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
          COALESCE(data, '{}'::jsonb),
          '{status}',
          '"processed"'::jsonb
-       ),
-       updated_at = NOW()
+       )
        WHERE (data->>'bookingId')::text = $1::text
        AND type IN ('booking_instructor', 'booking_student', 'new_booking_alert')`,
       [id]
@@ -4768,13 +4836,14 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     
     // Log audit trail
     await client.query(
-      `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO audit_logs (event_type, action, resource_type, resource_id, actor_user_id, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
       [
-        req.user.id,
+        'booking_status_change',
         'update_booking_status',
         'booking',
         id,
+        req.user.id,
         JSON.stringify({ oldStatus: booking.status, newStatus: status })
       ]
     );

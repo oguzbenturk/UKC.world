@@ -170,7 +170,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     ];
   }
   
-  if (r === ROLES.STUDENT && featureFlags.studentPortal) {
+  if ((r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER) && featureFlags.studentPortal) {
     return [
       // 1. Shop - Pink
       item('/shop', 'Shop', 'ShoppingBagIcon', {
@@ -522,8 +522,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 export const getSystemItemsForRole = (role, userPermissions = null) => {
   const r = role?.toLowerCase?.();
   
-  // For outsider, student roles, and unauthenticated users - no system items
-  if (r === ROLES.OUTSIDER || r === ROLES.STUDENT || !r || r === 'undefined') {
+  // For outsider, student, trusted_customer roles, and unauthenticated users - no system items
+  if (r === ROLES.OUTSIDER || r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER || !r || r === 'undefined') {
     return [];
   }
   

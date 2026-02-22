@@ -1086,6 +1086,13 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       }
       walletDeducted = true;
     }
+
+    // trusted_customer with pay_later: debit wallet (allow negative) so debt is tracked
+    if (normalizedPaymentMethod === 'pay_later' && req.user?.role === 'trusted_customer' && packagePrice > 0) {
+      walletDeducted = true; // triggers wallet transaction recording after purchase
+      // Mark that this is a pay_later negative-balance deduction
+      // The actual recording happens below in the walletDeducted block with allowNegative: true
+    }
     
     // Create the customer package record
     const customerPackageId = uuidv4();
@@ -1199,7 +1206,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       }
     }
     
-    // Record wallet transaction if paying by wallet
+    // Record wallet transaction if paying by wallet (or trusted_customer pay_later)
+    const isTrustedPayLater = normalizedPaymentMethod === 'pay_later' && req.user?.role === 'trusted_customer';
     if (walletDeducted) {
       try {
         await recordLegacyTransaction({
@@ -1207,11 +1215,13 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
           userId,
           amount: -Math.abs(packagePrice),
           transactionType: 'package_purchase',
-          status: 'completed',
+          status: isTrustedPayLater ? 'pending' : 'completed',
           direction: 'debit',
-          description: `Package Purchase: ${pkg.name}`,
+          description: isTrustedPayLater
+            ? `Package Purchase (Pay Later): ${pkg.name}`
+            : `Package Purchase: ${pkg.name}`,
           currency: priceCurrency,
-          paymentMethod: 'wallet',
+          paymentMethod: normalizedPaymentMethod,
           referenceNumber: customerPackageId,
           metadata: {
             packageId: customerPackageId,
@@ -1219,13 +1229,14 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
             totalHours: parseFloat(pkg.total_hours) || 0,
             purchasePrice: packagePrice,
             priceCurrency: priceCurrency,
-            source: 'services:packages:self-purchase'
+            source: 'services:packages:self-purchase',
+            payLater: isTrustedPayLater || false
           },
           entityType: 'customer_package',
           relatedEntityType: 'customer_package',
           relatedEntityId: customerPackageId,
           createdBy: actorId || userId,
-          allowNegative: false
+          allowNegative: isTrustedPayLater // Allow negative balance for trusted_customer pay_later
         });
       } catch (walletError) {
         logger.error('Failed to record package purchase in wallet ledger', {

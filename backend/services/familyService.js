@@ -729,12 +729,12 @@ export const getFamilyMemberActivity = async (parentUserId, memberId, options = 
         FROM (
           SELECT b.*, 
             CASE 
-              WHEN b.start_hour IS NOT NULL THEN (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour'))
-              ELSE b.date::timestamptz
+              WHEN b.start_hour IS NOT NULL THEN (b.date + (b.start_hour * INTERVAL '1 hour'))
+              ELSE b.date::timestamp
             END AS start_time,
             CASE 
-              WHEN b.start_hour IS NOT NULL AND b.duration IS NOT NULL THEN (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour') + (b.duration * INTERVAL '1 hour'))
-              WHEN b.duration IS NOT NULL THEN (b.date::timestamptz + (b.duration * INTERVAL '1 hour'))
+              WHEN b.start_hour IS NOT NULL AND b.duration IS NOT NULL THEN (b.date + (b.start_hour * INTERVAL '1 hour') + (b.duration * INTERVAL '1 hour'))
+              WHEN b.duration IS NOT NULL THEN (b.date + (b.duration * INTERVAL '1 hour'))
               ELSE NULL
             END AS end_time
           FROM bookings b

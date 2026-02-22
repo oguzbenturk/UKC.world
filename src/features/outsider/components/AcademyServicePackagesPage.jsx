@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal, Tag, Spin, message } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import StayAccommodationModal from './StayAccommodationModal';
 import AccommodationBookingModal from './AccommodationBookingModal';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
+import QuickBookingModal from './QuickBookingModal';
 import {
   RocketOutlined,
   HomeOutlined,
@@ -12,7 +14,8 @@ import {
   StarFilled,
   InfoCircleOutlined,
   ThunderboltFilled,
-  CloseOutlined
+  CloseOutlined,
+  GiftOutlined
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -62,6 +65,40 @@ const AcademyServicePackagesPage = ({
   // Accommodation booking modal state (stays)
   const [accomModalOpen, setAccomModalOpen] = useState(false);
   const [accomBookingUnit, setAccomBookingUnit] = useState(null);
+  // Quick booking modal state (lesson packages)
+  const [quickBookingOpen, setQuickBookingOpen] = useState(false);
+  const [quickBookingData, setQuickBookingData] = useState(null);
+  // Raw package rows for lookup when opening quick booking
+  const [rawPackageRows, setRawPackageRows] = useState([]);
+
+  // ── Fetch user's owned customer packages ──────────────────────────────────
+  const { data: ownedPackages = [] } = useQuery({
+    queryKey: ['customer-packages', user?.id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/services/customer-packages/${user.id}`);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!user?.id,
+    staleTime: 120_000,
+  });
+
+  // Build a map: service_package_id → owned customer package (active + has remaining hours)
+  const ownedByPackageId = useMemo(() => {
+    const map = new Map();
+    for (const cp of ownedPackages) {
+      const isActive = (cp.status || '').toLowerCase() === 'active';
+      const remaining = parseFloat(cp.remainingHours ?? cp.remaining_hours) || 0;
+      if (isActive && remaining > 0) {
+        const spId = String(cp.servicePackageId || cp.service_package_id);
+        // Keep the one with most remaining hours if duplicates
+        const existing = map.get(spId);
+        if (!existing || remaining > (parseFloat(existing.remainingHours ?? existing.remaining_hours) || 0)) {
+          map.set(spId, cp);
+        }
+      }
+    }
+    return map;
+  }, [ownedPackages]);
 
   usePageSEO({
     title: seoTitle,
@@ -158,6 +195,7 @@ const AcademyServicePackagesPage = ({
             price: parseFloat(s.price) || 0,
             label: h < 24 ? `${h}h Session` : `${h / 24} Day${h / 24 > 1 ? 's' : ''}`,
             sessions: h < 24 ? `${h} hour rental` : `${Math.round(h / 24)} day rental`,
+            serviceId: s.id || null,
           };
         })
         .sort((a, b) => parseFloat(a.hours) - parseFloat(b.hours));
@@ -634,13 +672,16 @@ const AcademyServicePackagesPage = ({
             tag: isStayMode
               ? toTitle(pkg.packageType || pkg.package_type || 'Stay')
               : (pkg.levelTag ? toTitle(pkg.levelTag) : undefined),
-            perPerson: normalize(pkg.lessonCategoryTag).includes('group') || normalize(pkg.lessonCategoryTag).includes('semi')
+            perPerson: normalize(pkg.lessonCategoryTag).includes('group') || normalize(pkg.lessonCategoryTag).includes('semi'),
+            serviceId: pkg.lessonServiceId || pkg.lesson_service_id || null,
+            packageId: pkg.isService ? null : (pkg.id || null)
           };
         })
         .filter(Boolean)
         .reduce((acc, current) => {
           const existing = acc.get(current.hours);
           // Keep the cheapest option per duration to avoid duplicate 6h/6h/6h entries
+          // Preserve serviceId from the winner
           if (!existing || current.price < existing.price) {
             acc.set(current.hours, current);
           }
@@ -653,8 +694,12 @@ const AcademyServicePackagesPage = ({
 
       if (sortedDurations.length === 0) return null;
 
+      // All items in a lesson group share the same lessonServiceId
+      const groupServiceId = first.lessonServiceId || first.lesson_service_id || null;
+
       return {
         id: first.id || `${serviceKey || 'lesson'}-${idx}`,
+        serviceId: groupServiceId,
         name: isStayMode
           ? (first.accommodationUnitName || first.accommodation_unit_name || first.name)
           : (first.lessonServiceName || toTitle(serviceKey) || first.name),
@@ -805,6 +850,21 @@ const AcademyServicePackagesPage = ({
           const packageRows = Array.isArray(packagesRes.data) ? packagesRes.data : [];
           const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
 
+          // Resolve missing lessonServiceId on packages by matching lessonServiceName
+          // against the actual services list. Many packages are created with a name
+          // link but no ID link in the database.
+          const lessonServices = rawServices.filter((s) => normalize(s.category) === 'lesson');
+          packageRows.forEach((pkg) => {
+            if (!pkg.lessonServiceId && pkg.lessonServiceName) {
+              const match = lessonServices.find(
+                (s) => normalize(s.name) === normalize(pkg.lessonServiceName)
+              );
+              if (match) {
+                pkg.lessonServiceId = match.id;
+              }
+            }
+          });
+
           // Transform services into compatible format
           const serviceRows = rawServices
             .filter((s) => !s.package_id && normalize(s.category) === 'lesson') // Only standalone lesson services
@@ -813,7 +873,10 @@ const AcademyServicePackagesPage = ({
           const allRows = [...packageRows, ...serviceRows];
           const mappedByService = buildDynamicCards(allRows, dynamicServiceKey);
 
-          if (!cancelled) setDynamicPackages(mappedByService);
+          if (!cancelled) {
+            setDynamicPackages(mappedByService);
+            setRawPackageRows(packageRows);
+          }
         }
       } catch (error) {
         if (!cancelled) setDynamicPackages([]);
@@ -870,14 +933,47 @@ const AcademyServicePackagesPage = ({
         }
       }
 
+      // Resolve service ID and package ID from the selected card + duration
+      let resolvedServiceId = null;
+      let resolvedPackageId = null;
+      if (pkg) {
+        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
+        if (matchingDuration?.serviceId) resolvedServiceId = matchingDuration.serviceId;
+        if (matchingDuration?.packageId) resolvedPackageId = matchingDuration.packageId;
+        if (!resolvedServiceId && pkg.serviceId) resolvedServiceId = pkg.serviceId;
+      }
+
+      // For lesson packages: use the streamlined QuickBookingModal
+      if (!isRental && resolvedPackageId) {
+        const rawPkg = rawPackageRows.find(p => String(p.id) === String(resolvedPackageId));
+        if (rawPkg) {
+          setQuickBookingData({
+            packageData: rawPkg,
+            serviceId: resolvedServiceId,
+            durationHours: parsedDurationHours,
+          });
+          setQuickBookingOpen(true);
+          setModalVisible(false);
+          return;
+        }
+      }
+
+      // Fallback: use full StudentBookingWizard (standalone services, rentals, etc.)
       setBookingInitialData({
         serviceCategory,
         preferredCategory: dynamicServiceKey || undefined,
         durationHours: parsedDurationHours || undefined,
+        serviceId: resolvedServiceId || undefined,
+        step: resolvedServiceId ? 1 : 0,
       });
       setBookingWizardOpen(true);
       setModalVisible(false);
     }
+  };
+
+  const handleQuickBookingClose = () => {
+    setQuickBookingOpen(false);
+    setQuickBookingData(null);
   };
 
   const handleBookingWizardClose = () => {
@@ -1324,34 +1420,53 @@ const AcademyServicePackagesPage = ({
                   {selectedPackage.durations.map((dur) => {
                     const isSelected = selectedDuration === dur.hours;
                     const theme = getThemeColor(selectedPackage);
+                    const ownedPkg = dur.packageId ? ownedByPackageId.get(String(dur.packageId)) : null;
+                    const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
                     return (
                       <div
                         key={`${selectedPackage.id}-${dur.hours}-${dur.price}`}
                         onClick={() => setSelectedDuration(dur.hours)}
                         className={`
                           relative cursor-pointer rounded-xl p-3 sm:p-4 border-2 transition-all duration-300
-                          ${isSelected
-                            ? `${theme.border} ${theme.soft}`
-                            : 'border-white/5 bg-[#1a1d26] hover:border-white/10 hover:bg-[#20242e]'}`}
+                          ${ownedPkg
+                            ? (isSelected
+                              ? 'border-emerald-500 bg-emerald-500/10'
+                              : 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50 hover:bg-emerald-500/10')
+                            : (isSelected
+                              ? `${theme.border} ${theme.soft}`
+                              : 'border-white/5 bg-[#1a1d26] hover:border-white/10 hover:bg-[#20242e]')}`}
                       >
-                        {isSelected && (
+                        {ownedPkg ? (
+                          <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 rounded-full px-2 py-0.5">
+                            <GiftOutlined className="text-emerald-400 text-[10px]" />
+                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">Owned</span>
+                          </div>
+                        ) : isSelected ? (
                           <div className={`absolute top-2 right-2 w-4 h-4 rounded-full ${theme.bg} flex items-center justify-center`}>
                             <CheckOutlined className="text-white text-[10px]" />
                           </div>
-                        )}
-                        <div className="flex justify-between items-start mb-2">
-                          <span className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-gray-400'}`}>{dur.hours}</span>
+                        ) : null}
+                        <div className="flex justify-between items-start mb-1">
+                          <span className={`text-sm font-bold ${isSelected || ownedPkg ? 'text-white' : 'text-gray-400'}`}>{dur.hours}</span>
                           {dur.tag && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded border ${isSelected ? 'border-white/20 text-white' : 'border-white/5 text-gray-600'}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded border ${isSelected || ownedPkg ? 'border-white/20 text-white' : 'border-white/5 text-gray-600'}`}>
                               {dur.tag}
                             </span>
                           )}
                         </div>
+                        {dur.label && (
+                          <p className={`text-[11px] truncate mb-2 ${isSelected || ownedPkg ? 'text-gray-300' : 'text-gray-500'}`}>{dur.label}</p>
+                        )}
                         <div className="mb-1">
                           <span className="text-lg sm:text-xl font-bold text-white">{formatPrice(dur.price)}</span>
                           {dur.perPerson && <span className="text-[10px] text-gray-500 ml-1">/pp</span>}
                         </div>
                         <p className="text-[11px] text-gray-500 font-medium">{dur.sessions}</p>
+                        {ownedPkg && (
+                          <p className="text-[10px] text-emerald-400 font-semibold mt-1">
+                            {ownedRemaining}h remaining
+                          </p>
+                        )}
                       </div>
                     );
                   })}
@@ -1359,32 +1474,60 @@ const AcademyServicePackagesPage = ({
               </div>
 
               <div className="mt-auto bg-[#0f1013] rounded-2xl p-4 sm:p-5 border border-white/5">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Total Price</p>
-                    <p className="text-gray-500 text-xs">{selectedPackage.durations.find(d => d.hours === selectedDuration)?.sessions}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{formatPrice(getCurrentPrice())}</span>
-                    {selectedPackage.durations.find(d => d.hours === selectedDuration)?.perPerson && (
-                      <p className="text-[10px] text-gray-500">per person</p>
-                    )}
-                  </div>
-                </div>
+                {(() => {
+                  const selDur = selectedPackage.durations.find(d => d.hours === selectedDuration);
+                  const selOwned = selDur?.packageId ? ownedByPackageId.get(String(selDur.packageId)) : null;
+                  const selOwnedRemaining = selOwned ? (parseFloat(selOwned.remainingHours ?? selOwned.remaining_hours) || 0) : 0;
+                  return (
+                    <>
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          {selOwned ? (
+                            <>
+                              <p className="text-emerald-400 text-xs uppercase tracking-wider font-semibold">You Own This Package</p>
+                              <p className="text-emerald-400/70 text-xs">{selOwnedRemaining}h remaining — schedule a session</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Total Price</p>
+                              <p className="text-gray-500 text-xs">{selDur?.sessions}</p>
+                            </>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {selOwned ? (
+                            <span className="text-lg font-bold text-emerald-400 flex items-center gap-1">
+                              <GiftOutlined /> Owned
+                            </span>
+                          ) : (
+                            <>
+                              <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{formatPrice(getCurrentPrice())}</span>
+                              {selDur?.perPerson && (
+                                <p className="text-[10px] text-gray-500">per person</p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
 
-                <Button
-                  block
-                  size="large"
-                  type="primary"
-                  icon={<RocketOutlined />}
-                  onClick={() => handleBookNow(selectedPackage, selectedDuration)}
-                  className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 ${selectedPackage.gradient}`}
-                >
-                  Book Now
-                </Button>
-                <p className="text-center text-gray-600 text-[10px] mt-3 flex items-center justify-center gap-1">
-                  <InfoCircleOutlined /> {user ? 'Pick your date & time in the next step.' : 'Sign in to secure your spot.'}
-                </p>
+                      <Button
+                        block
+                        size="large"
+                        type="primary"
+                        icon={selOwned ? <ClockCircleOutlined /> : <RocketOutlined />}
+                        onClick={() => handleBookNow(selectedPackage, selectedDuration)}
+                        className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 ${selOwned ? '!bg-emerald-600 hover:!bg-emerald-500' : selectedPackage.gradient}`}
+                      >
+                        {selOwned ? 'Schedule Session' : 'Book Now'}
+                      </Button>
+                      <p className="text-center text-gray-600 text-[10px] mt-3 flex items-center justify-center gap-1">
+                        <InfoCircleOutlined /> {selOwned
+                          ? 'Use your existing package hours — no extra charge.'
+                          : (user ? 'Pick your date & time in the next step.' : 'Sign in to secure your spot.')}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1436,6 +1579,15 @@ const AcademyServicePackagesPage = ({
         open={bookingWizardOpen}
         onClose={handleBookingWizardClose}
         initialData={bookingInitialData}
+      />
+
+      {/* Quick Booking Modal — lesson packages */}
+      <QuickBookingModal
+        open={quickBookingOpen}
+        onClose={handleQuickBookingClose}
+        packageData={quickBookingData?.packageData}
+        serviceId={quickBookingData?.serviceId}
+        durationHours={quickBookingData?.durationHours}
       />
 
       {/* Accommodation Booking Modal — stays */}
