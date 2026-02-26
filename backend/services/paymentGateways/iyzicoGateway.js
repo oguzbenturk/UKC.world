@@ -38,6 +38,7 @@ export async function initiateDeposit({
   amount,
   currency,
   userId,
+  clientIp,
   user, // Allow direct injection for testing
   metadata = {},
   referenceCode,
@@ -73,53 +74,91 @@ export async function initiateDeposit({
     const callbackUrl = metadata.callbackUrl || `${baseUrl}/api/finances/callback/iyzico`;
 
     // PAYMENT GATEWAY STRATEGY:
-    // - Display to user: Their preferred currency (EUR, USD, GBP, etc.)
-    // - Send to Iyzico: Always TRY (Turkish Lira) - required for Turkish merchant account
-    // - Customer's card: Can be any currency - their bank will handle conversion
-    // - You receive: Always TRY in your Turkish bank account
+    // - Iyzico natively supports: TRY, EUR, USD, GBP
+    // - If user's currency is supported → send directly (NO conversion)
+    //   This avoids double-conversion losses (our rate → TRY → bank rate → card currency)
+    // - If user's currency is NOT supported → convert to TRY as fallback
     //
-    // Example flow:
-    // User sees: "Pay €50.00"
-    // We convert: €50 × 32.5 = ₺1,625
-    // Iyzico charges: ₺1,625 (customer sees this on payment page)
-    // Customer's bank: Converts ₺1,625 to their card currency (€, $, £, etc.)
-    // Customer's statement: Shows charge in their card's currency
-    // Your Turkish account: Receives ₺1,625
+    // Example flow (EUR user with USD card):
+    //   We send: €50 EUR to Iyzico
+    //   Iyzico charges: €50 (card bank converts EUR→USD at one rate)
+    //   User's statement: ~$55 USD (single conversion, no spread)
+    //
+    // Old broken flow was:
+    //   We convert: €50 → ₺2,585 TRY (our DB rate)
+    //   Iyzico charges: ₺2,585 TRY
+    //   Card bank converts: ₺2,585 → $137 USD (bank's TRY rate, different from ours)
+    //   User pays $137 + commission = $151 for a €50 deposit (2.5× overcharge!)
     
     const displayCurrency = (currency || 'EUR').toUpperCase();
     const displayAmount = parseFloat(amount);
     
-    // Convert to TRY for gateway processing
-    let gatewayAmount;
-    let exchangeRate;
+    // Currencies Iyzico supports natively (no conversion needed)
+    const IYZICO_NATIVE_CURRENCIES = {
+      TRY: Iyzipay.CURRENCY.TRY,
+      EUR: Iyzipay.CURRENCY.EUR,
+      USD: Iyzipay.CURRENCY.USD,
+      GBP: Iyzipay.CURRENCY.GBP
+    };
     
-    try {
-        const conversion = await CurrencyService.convertToTRY(displayAmount, displayCurrency);
-        gatewayAmount = conversion.amount;
-        exchangeRate = conversion.rate;
+    let gatewayAmount;
+    let gatewayCurrency;
+    let iyzicoCurrency;
+    let exchangeRate = 1.0;
+    
+    if (IYZICO_NATIVE_CURRENCIES[displayCurrency]) {
+        // Currency is natively supported — send directly, no conversion
+        gatewayAmount = displayAmount;
+        gatewayCurrency = displayCurrency;
+        iyzicoCurrency = IYZICO_NATIVE_CURRENCIES[displayCurrency];
+        exchangeRate = 1.0; // No conversion applied
         
-        logger.info('Currency conversion for Iyzico', {
+        logger.info('Iyzico native currency — no conversion needed', {
             displayCurrency,
             displayAmount,
             gatewayAmount,
-            exchangeRate,
-            conversionFormula: `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} TRY`
+            gatewayCurrency
         });
-    } catch (error) {
-        logger.error('Failed to convert currency to TRY', { displayCurrency, displayAmount, error: error.message });
-        throw new Error('Para birimi dönüşümü başarısız oldu. Lütfen daha sonra tekrar deneyin.');
+    } else {
+        // Unsupported currency — convert to TRY as fallback
+        gatewayCurrency = 'TRY';
+        iyzicoCurrency = Iyzipay.CURRENCY.TRY;
+        
+        try {
+            const conversion = await CurrencyService.convertToTRY(displayAmount, displayCurrency);
+            gatewayAmount = conversion.amount;
+            exchangeRate = conversion.rate;
+            
+            logger.info('Currency conversion for Iyzico (fallback to TRY)', {
+                displayCurrency,
+                displayAmount,
+                gatewayAmount,
+                exchangeRate,
+                conversionFormula: `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} TRY`
+            });
+        } catch (error) {
+            logger.error('Failed to convert currency to TRY', { displayCurrency, displayAmount, error: error.message });
+            return reject(new Error('Currency conversion failed. Please try again later.'));
+        }
     }
     
-    // Always use TRY for Iyzico (Turkish merchant requirement)
-    const iyzicoCurrency = Iyzipay.CURRENCY.TRY;
+    // Iyzico has a hard limit per transaction
+    const IYZICO_MAX_AMOUNT = 99999.99;
+    if (gatewayAmount >= IYZICO_MAX_AMOUNT) {
+        return reject(new Error(
+            `Amount (${gatewayAmount.toFixed(2)} ${gatewayCurrency}) exceeds the payment gateway limit. Please enter a smaller amount.`
+        ));
+    }
+
     const priceStr = gatewayAmount.toFixed(2);
 
     logger.info('Iyzico payment initialization', { 
         displayAmount: displayAmount.toFixed(2),
         displayCurrency,
         gatewayAmount: priceStr,
-        gatewayCurrency: 'TRY',
+        gatewayCurrency,
         exchangeRate,
+        nativeCurrency: !!IYZICO_NATIVE_CURRENCIES[displayCurrency],
         userCountry: userData?.country,
         userEmail: userData?.email
     });
@@ -152,7 +191,7 @@ export async function initiateDeposit({
         lastLoginDate: '2025-01-01 12:00:00',
         registrationDate: '2025-01-01 12:00:00',
         registrationAddress: userData?.address || 'N/A',
-        ip: '85.34.78.112', // Should ideally be passed from req.ip
+        ip: clientIp || '85.34.78.112',
         city: userData?.city || 'Istanbul',
         country: userData?.country || 'Turkey',
         zipCode: userData?.zip_code || '34732'
@@ -174,7 +213,7 @@ export async function initiateDeposit({
       basketItems: items.length > 0 ? items : [
         {
           id: 'WALLET-TOPUP',
-          name: displayCurrency !== 'TRY' 
+          name: gatewayCurrency !== displayCurrency
             ? `Wallet Deposit (${displayAmount.toFixed(2)} ${displayCurrency})` 
             : 'Wallet Deposit',
           category1: 'General',
@@ -188,7 +227,7 @@ export async function initiateDeposit({
     logger.info('Initiating Iyzico Checkout', { 
       conversationId, 
       gatewayPrice: priceStr,
-      gatewayCurrency: 'TRY',
+      gatewayCurrency,
       displayPrice: displayAmount.toFixed(2),
       displayCurrency 
     });
@@ -356,28 +395,38 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
     throw new Error('Payment transaction ID is required for refund. Token or paymentTransactionId must be provided.');
   }
 
-  // Iyzico requires TRY currency for refunds
-  // Convert from source currency to TRY if needed
+  // Refund in the same currency the payment was made in.
+  // Iyzico supports refunds in TRY, EUR, USD, GBP.
+  const IYZICO_REFUND_CURRENCIES = {
+    TRY: Iyzipay.CURRENCY.TRY,
+    EUR: Iyzipay.CURRENCY.EUR,
+    USD: Iyzipay.CURRENCY.USD,
+    GBP: Iyzipay.CURRENCY.GBP
+  };
+
   let refundAmount = amount;
-  let refundCurrency = currency || 'TRY';
+  let refundCurrency = (currency || 'TRY').toUpperCase();
+  let iyzicoCurrencyCode = IYZICO_REFUND_CURRENCIES[refundCurrency];
   
-  if (refundCurrency !== 'TRY') {
+  // If the original currency isn't supported by Iyzico, convert to TRY
+  if (!iyzicoCurrencyCode) {
     try {
       refundAmount = await CurrencyService.convertCurrency(amount, refundCurrency, 'TRY');
-      logger.info('Converted refund amount to TRY', {
+      logger.info('Converted refund amount to TRY (unsupported currency)', {
         originalAmount: amount,
         originalCurrency: refundCurrency,
         convertedAmount: refundAmount,
         convertedCurrency: 'TRY'
       });
       refundCurrency = 'TRY';
+      iyzicoCurrencyCode = Iyzipay.CURRENCY.TRY;
     } catch (conversionError) {
       logger.error('Currency conversion failed for Iyzico refund', {
         error: conversionError.message,
         amount,
         fromCurrency: refundCurrency
       });
-      throw new Error('Failed to convert currency for refund. Iyzico requires TRY.');
+      throw new Error('Failed to convert currency for refund.');
     }
   }
 
@@ -385,7 +434,7 @@ export async function refundPayment({ paymentTransactionId, paymentId, token, am
     const request = {
       paymentTransactionId: actualPaymentTransactionId,
       price: refundAmount.toFixed(2),
-      currency: Iyzipay.CURRENCY.TRY,  // Always use TRY
+      currency: iyzicoCurrencyCode,
       ip: '127.0.0.1'
     };
 

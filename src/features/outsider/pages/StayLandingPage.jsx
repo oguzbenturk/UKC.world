@@ -120,14 +120,6 @@ const StayLandingPage = () => {
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                type="primary" 
-                size="large" 
-                className="!bg-blue-600 !border-blue-600 hover:!bg-blue-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-blue-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('accommodation')}
-                >
-                Book Hotel
-                </Button>
-                <Button 
                 ghost 
                 size="large" 
                 className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
@@ -166,14 +158,6 @@ const StayLandingPage = () => {
             </p>
             
             <div className="flex flex-wrap gap-4">
-                <Button 
-                type="primary" 
-                size="large" 
-                className="!bg-sky-600 !border-sky-600 hover:!bg-sky-500 !h-14 !px-10 !text-lg !font-bold !rounded-lg shadow-xl shadow-sky-900/40 hover:-translate-y-1 transition-transform"
-                onClick={() => handleBookService('accommodation')}
-                >
-                Book Home
-                </Button>
                 <Button 
                 ghost 
                 size="large" 

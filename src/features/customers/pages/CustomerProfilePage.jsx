@@ -2579,7 +2579,7 @@ function CustomerProfilePage() {
                       ),
                       children: (
                         <Suspense fallback={<div className="p-12 text-center"><Spin /></div>}>
-                          <MemberPurchasesSection userId={id} isAdminView={true} />
+                          <MemberPurchasesSection userId={customer?.id || id} isAdminView={true} />
                         </Suspense>
                       )
                     },
@@ -2727,7 +2727,7 @@ function CustomerProfilePage() {
                       children: (
                         <Suspense fallback={<Spin />}>
                           <MemberPurchasesSection 
-                            userId={parseInt(id, 10)} 
+                            userId={customer?.id || id} 
                             isAdminView={true}
                           />
                         </Suspense>

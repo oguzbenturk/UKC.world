@@ -226,7 +226,6 @@ const ResetPassword = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          autoComplete="off"
         >
           <Form.Item
             name="password"
@@ -240,6 +239,7 @@ const ResetPassword = () => {
               prefix={<LockOutlined className="text-gray-400" />}
               placeholder="Enter new password"
               size="large"
+              autoComplete="new-password"
               iconRender={(visible) => 
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }
@@ -266,6 +266,7 @@ const ResetPassword = () => {
               prefix={<LockOutlined className="text-gray-400" />}
               placeholder="Confirm new password"
               size="large"
+              autoComplete="new-password"
               iconRender={(visible) => 
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }

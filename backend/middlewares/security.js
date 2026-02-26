@@ -292,9 +292,10 @@ export const configureCORS = () => {
         process.env.FRONTEND_URL
       ].filter(Boolean);
       
-      // SEC-028 FIX: No blanket development bypass
-      // Only allow whitelisted origins, even in development
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // Allow null/undefined origin for:
+      // - Payment gateway iframes (iyzico checkout uses srcdoc iframe → Origin: "null" string)
+      // - Server-to-server requests (no origin header → undefined)
+      if (!origin || origin === 'null' || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         // Log rejected origins in development for debugging

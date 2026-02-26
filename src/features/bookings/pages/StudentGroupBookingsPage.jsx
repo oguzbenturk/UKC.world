@@ -22,7 +22,9 @@ import {
   List,
   message,
   Tabs,
-  Progress
+  Progress,
+  Popconfirm,
+  Tooltip
 } from 'antd';
 import {
   UserGroupIcon,
@@ -34,10 +36,13 @@ import {
   CreditCardIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  StarIcon
+  StarIcon,
+  SparklesIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import dayjs from 'dayjs';
 import { getGroupBookings } from '../services/groupBookingService';
+import { getGroupLessonRequests, cancelGroupLessonRequest } from '../services/groupLessonRequestService';
 import { usePageSEO } from '@/shared/utils/seo';
 
 const { Title, Text } = Typography;
@@ -51,23 +56,42 @@ const StudentGroupBookingsPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [cancellingId, setCancellingId] = useState(null);
   
-  const fetchBookings = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getGroupBookings();
-      setBookings(response.groupBookings || []);
-    } catch (err) {
-      message.error('Failed to load group bookings');
+      const [bookingsRes, requestsRes] = await Promise.allSettled([
+        getGroupBookings(),
+        getGroupLessonRequests()
+      ]);
+      setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.groupBookings || []) : []);
+      setRequests(requestsRes.status === 'fulfilled' ? (requestsRes.value.requests || requestsRes.value || []) : []);
+    } catch {
+      message.error('Failed to load data');
     } finally {
       setLoading(false);
     }
   }, []);
   
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    fetchData();
+  }, [fetchData]);
+
+  const handleCancelRequest = async (requestId) => {
+    try {
+      setCancellingId(requestId);
+      await cancelGroupLessonRequest(requestId);
+      message.success('Request cancelled');
+      setRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (err) {
+      message.error(err.response?.data?.error || 'Failed to cancel request');
+    } finally {
+      setCancellingId(null);
+    }
+  };
   
   const getStatusColor = (status) => {
     const colors = {
@@ -213,6 +237,63 @@ const StudentGroupBookingsPage = () => {
   }
   
   const pendingPayments = bookings.filter(b => b.myPaymentStatus === 'pending' && b.status !== 'cancelled').length;
+  const pendingRequests = requests.filter(r => r.status === 'pending');
+
+  const getRequestStatusColor = (status) => {
+    const colors = { pending: 'orange', matched: 'green', cancelled: 'default', expired: 'red' };
+    return colors[status] || 'default';
+  };
+
+  const renderRequestCard = (req) => (
+    <Card key={req.id} className="mb-3" bordered>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Avatar
+            size={40}
+            className="bg-violet-100 text-violet-600 flex-shrink-0"
+            icon={<SparklesIcon className="w-5 h-5" />}
+          />
+          <div>
+            <Text strong>{req.service_name || req.serviceName || 'Lesson'}</Text>
+            <div className="flex flex-wrap gap-2 mt-1">
+              <Tag icon={<CalendarIcon className="w-3 h-3 inline mr-1" />}>
+                {dayjs(req.preferred_date_start || req.preferredDateStart).format('MMM D')}
+                {(req.preferred_date_end || req.preferredDateEnd) &&
+                  ` – ${dayjs(req.preferred_date_end || req.preferredDateEnd).format('MMM D')}`}
+              </Tag>
+              <Tag>{(req.preferred_time_of_day || req.preferredTimeOfDay || 'any')}</Tag>
+              <Tag>{(req.skill_level || req.skillLevel || 'any')}</Tag>
+              <Tag color={getRequestStatusColor(req.status)}>{req.status}</Tag>
+            </div>
+            {req.notes && <Text type="secondary" className="text-xs block mt-1">{req.notes}</Text>}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {req.status === 'matched' && req.matched_group_booking_id && (
+            <Button
+              size="small"
+              icon={<EyeIcon className="w-3.5 h-3.5" />}
+              onClick={() => navigate(`/student/group-bookings/${req.matched_group_booking_id}`)}
+            >
+              View Booking
+            </Button>
+          )}
+          {req.status === 'pending' && (
+            <Popconfirm title="Cancel this request?" onConfirm={() => handleCancelRequest(req.id)}>
+              <Button
+                size="small"
+                danger
+                loading={cancellingId === req.id}
+                icon={<XMarkIcon className="w-3.5 h-3.5" />}
+              >
+                Cancel
+              </Button>
+            </Popconfirm>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
   
   const tabItems = [
     { 
@@ -250,6 +331,15 @@ const StudentGroupBookingsPage = () => {
           <Badge count={pendingPayments} className="ml-2" size="small" status="warning" />
         </span>
       )
+    },
+    {
+      key: 'my_requests',
+      label: (
+        <span>
+          My Requests
+          <Badge count={pendingRequests.length} className="ml-2" size="small" color="purple" />
+        </span>
+      )
     }
   ];
   
@@ -267,13 +357,23 @@ const StudentGroupBookingsPage = () => {
             <Text type="secondary">Manage your group lesson bookings</Text>
           </div>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusIcon className="w-4 h-4" />}
-          onClick={() => navigate('/student/book?participantType=group')}
-        >
-          Book Group Lesson
-        </Button>
+        <Space>
+          <Tooltip title="Don't have a partner? We'll find one for you!">
+            <Button
+              icon={<SparklesIcon className="w-4 h-4" />}
+              onClick={() => navigate('/student/group-bookings/request')}
+            >
+              Request a Match
+            </Button>
+          </Tooltip>
+          <Button
+            type="primary"
+            icon={<PlusIcon className="w-4 h-4" />}
+            onClick={() => navigate('/student/group-bookings/create')}
+          >
+            Create Group Lesson
+          </Button>
+        </Space>
       </div>
       
       {/* Pending Payment Alert */}
@@ -304,27 +404,47 @@ const StudentGroupBookingsPage = () => {
           onChange={setActiveTab}
           items={tabItems}
         />
-        
-        {filteredBookings.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              activeTab === 'all' 
-                ? "You haven't joined any group lessons yet"
-                : `No group lessons in this category`
-            }
-          >
-            <Button 
-              type="primary" 
-              onClick={() => navigate('/student/book?participantType=group')}
+
+        {activeTab === 'my_requests' ? (
+          requests.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="No matching requests yet"
             >
-              Book a Group Lesson
-            </Button>
-          </Empty>
+              <Button
+                type="primary"
+                onClick={() => navigate('/student/group-bookings/request')}
+              >
+                Request a Group Lesson
+              </Button>
+            </Empty>
+          ) : (
+            <div className="mt-4">
+              {requests.map(renderRequestCard)}
+            </div>
+          )
         ) : (
-          <div className="mt-4">
-            {filteredBookings.map(renderBookingCard)}
-          </div>
+          filteredBookings.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                activeTab === 'all' 
+                  ? "You haven't joined any group lessons yet"
+                  : `No group lessons in this category`
+              }
+            >
+              <Button 
+                type="primary" 
+                onClick={() => navigate('/student/group-bookings/create')}
+              >
+                Create a Group Lesson
+              </Button>
+            </Empty>
+          ) : (
+            <div className="mt-4">
+              {filteredBookings.map(renderBookingCard)}
+            </div>
+          )
         )}
       </Card>
     </div>

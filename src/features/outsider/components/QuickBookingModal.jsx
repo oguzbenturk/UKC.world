@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import {
@@ -32,6 +33,7 @@ import {
   CreditCardOutlined,
   RocketOutlined,
   ShoppingOutlined,
+  TeamOutlined,
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -42,9 +44,13 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import { getAvailableSlots } from '@/features/bookings/components/api/calendarApi';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
+import calendarConfig from '@/config/calendarConfig';
 
 const HALF_HOUR_MINUTES = 30;
 const DEFAULT_DURATION_OPTIONS = [30, 60, 90, 120];
+
+// Predefined lesson block start times — slots are only offered at these exact times
+const PRESET_SLOT_STARTS = calendarConfig.preScheduledSlots.map((s) => s.start);
 
 const formatDurationLabel = (minutes) => {
   if (!Number.isFinite(minutes)) return '';
@@ -73,21 +79,30 @@ const minutesToTimeString = (minutes) => {
 const computeAvailableStarts = (slots, durationMinutes, isToday) => {
   if (!Array.isArray(slots) || slots.length === 0) return [];
   const stepsRequired = Math.max(1, Math.round(durationMinutes / HALF_HOUR_MINUTES));
-  const sortedSlots = [...slots].sort(
-    (a, b) => (timeStringToMinutes(a.time) ?? 0) - (timeStringToMinutes(b.time) ?? 0)
-  );
+  // Index slots by time for O(1) lookup
+  const slotByTime = new Map(slots.map((s) => [s.time, s]));
   const nowMinutes = isToday ? dayjs().hour() * 60 + dayjs().minute() : null;
   const results = [];
 
-  for (let i = 0; i <= sortedSlots.length - stepsRequired; i++) {
-    const window = sortedSlots.slice(i, i + stepsRequired);
-    if (!window.every((s) => s.status === 'available')) continue;
-    const start = timeStringToMinutes(window[0].time);
-    if (start === null) continue;
-    if (nowMinutes !== null && start < nowMinutes + 30) continue;
-    const label = `${window[0].time} – ${minutesToTimeString(start + durationMinutes)}`;
-    if (!results.some((r) => r.value === window[0].time)) {
-      results.push({ value: window[0].time, label });
+  // Only offer the business-defined lesson blocks as start times
+  for (const startTime of PRESET_SLOT_STARTS) {
+    const startMinutes = timeStringToMinutes(startTime);
+    if (startMinutes === null) continue;
+    // Skip past slots on today
+    if (nowMinutes !== null && startMinutes < nowMinutes + 30) continue;
+    // Verify every 30-min sub-slot within the window is available
+    let allAvailable = true;
+    for (let step = 0; step < stepsRequired; step++) {
+      const slotTime = minutesToTimeString(startMinutes + step * HALF_HOUR_MINUTES);
+      const slot = slotByTime.get(slotTime);
+      if (!slot || slot.status !== 'available') {
+        allAvailable = false;
+        break;
+      }
+    }
+    if (allAvailable) {
+      const endTime = minutesToTimeString(startMinutes + durationMinutes);
+      results.push({ value: startTime, label: `${startTime} – ${endTime}` });
     }
   }
   return results;
@@ -117,7 +132,10 @@ const resolvePkgPrice = (pkg, userCurrency, convertCurrency) => {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
-const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater }) => (
+const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater, onCreateGroupLesson, onCreateGroupWithFriend }) => {
+  const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group';
+
+  return (
   <div className="space-y-4 sm:space-y-5">
     {/* Package summary card */}
     <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-blue-50/30 p-4 sm:p-5">
@@ -148,86 +166,150 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
       </div>
     </div>
 
-    {/* Payment method selection */}
-    <div>
-      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Payment Method
-      </p>
-      <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('wallet')}
-          className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
-            paymentMethod === 'wallet'
-              ? 'border-blue-500 bg-blue-50 shadow-sm shadow-blue-500/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-          }`}
-        >
-          {paymentMethod === 'wallet' && (
-            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-              <CheckOutlined className="text-white text-[8px]" />
-            </div>
-          )}
-          <WalletOutlined className={`text-lg sm:text-xl ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`} />
-          <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'wallet' ? 'text-blue-700' : 'text-slate-600'}`}>Wallet</span>
-          <span className={`text-[10px] sm:text-xs ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`}>
-            {formatCurrency(
-              convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance,
-              userCurrency
-            )}
-          </span>
-        </button>
-        {canPayLater && (
-          <button
-            type="button"
-            onClick={() => setPaymentMethod('pay_later')}
-            className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
-              paymentMethod === 'pay_later'
-                ? 'border-orange-500 bg-orange-50 shadow-sm shadow-orange-500/10'
-                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            {paymentMethod === 'pay_later' && (
-              <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
-                <CheckOutlined className="text-white text-[8px]" />
-              </div>
-            )}
-            <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-orange-700' : 'text-slate-600'}`}>Pay Later</span>
-            <span className={`text-[10px] sm:text-xs ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`}>
-              At the center
-            </span>
-          </button>
-        )}
-      </div>
-
-      {walletInsufficient && paymentMethod === 'wallet' && (
+    {isGroupPackage ? (
+      <>
+        {/* Group package — must go through group flow, no direct payment */}
         <Alert
-          type="warning"
+          type="info"
           showIcon
-          className="!mt-3 !rounded-xl !text-xs"
-          message="Insufficient wallet balance"
-          description="Switch to Pay Later or top up your wallet first."
+          className="!rounded-xl"
+          message="This is a group lesson package"
+          description="Group lessons require at least 2 people. Choose how you'd like to proceed below."
         />
-      )}
-    </div>
 
-    <Button
-      type="primary"
-      size="large"
-      block
-      loading={purchasing}
-      disabled={purchasing || (paymentMethod === 'wallet' && walletInsufficient)}
-      onClick={onPurchase}
-      className="!h-12 sm:!h-14 !rounded-xl !text-sm sm:!text-base !font-bold"
-      icon={<ShoppingOutlined />}
-    >
-      {paymentMethod === 'wallet'
-        ? `Pay ${formatCurrency(displayPrice, priceCurrency)}`
-        : 'Confirm — Pay Later'}
-    </Button>
+        <div className="rounded-xl border-2 border-blue-200 bg-blue-50/60 p-4 space-y-3">
+          <Button
+            type="primary"
+            size="large"
+            block
+            className="!h-12 !rounded-xl !font-bold"
+            icon={<TeamOutlined />}
+            onClick={onCreateGroupWithFriend}
+          >
+            I have a friend — Create Group
+          </Button>
+          <Button
+            size="large"
+            block
+            className="!h-12 !rounded-xl !font-bold !border-violet-300 !text-violet-600 hover:!bg-violet-50"
+            onClick={onCreateGroupLesson}
+          >
+            I'm alone — Find me a partner
+          </Button>
+        </div>
+      </>
+    ) : (
+      <>
+        {/* Non-group (private) package — normal payment flow */}
+        <div>
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            Payment Method
+          </p>
+          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('wallet')}
+              className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
+                paymentMethod === 'wallet'
+                  ? 'border-blue-500 bg-blue-50 shadow-sm shadow-blue-500/10'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {paymentMethod === 'wallet' && (
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                  <CheckOutlined className="text-white text-[8px]" />
+                </div>
+              )}
+              <WalletOutlined className={`text-lg sm:text-xl ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`} />
+              <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'wallet' ? 'text-blue-700' : 'text-slate-600'}`}>Wallet</span>
+              <span className={`text-[10px] sm:text-xs ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`}>
+                {formatCurrency(
+                  convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance,
+                  userCurrency
+                )}
+              </span>
+            </button>
+            {canPayLater && (
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('pay_later')}
+                className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
+                  paymentMethod === 'pay_later'
+                    ? 'border-orange-500 bg-orange-50 shadow-sm shadow-orange-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {paymentMethod === 'pay_later' && (
+                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+                    <CheckOutlined className="text-white text-[8px]" />
+                  </div>
+                )}
+                <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`} />
+                <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-orange-700' : 'text-slate-600'}`}>Pay Later</span>
+                <span className={`text-[10px] sm:text-xs ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`}>
+                  At the center
+                </span>
+              </button>
+            )}
+          </div>
+
+          {walletInsufficient && paymentMethod === 'wallet' && (
+            <Alert
+              type="warning"
+              showIcon
+              className="!mt-3 !rounded-xl !text-xs"
+              message="Insufficient wallet balance"
+              description="Switch to Pay Later or top up your wallet first."
+            />
+          )}
+        </div>
+
+        <Button
+          type="primary"
+          size="large"
+          block
+          loading={purchasing}
+          disabled={purchasing || (paymentMethod === 'wallet' && walletInsufficient)}
+          onClick={onPurchase}
+          className="!h-12 sm:!h-14 !rounded-xl !text-sm sm:!text-base !font-bold"
+          icon={<ShoppingOutlined />}
+        >
+          {paymentMethod === 'wallet'
+            ? `Pay ${formatCurrency(displayPrice, priceCurrency)}`
+            : 'Confirm — Pay Later'}
+        </Button>
+
+        {/* Group Lesson Options */}
+        <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-3 text-center">
+          <p className="text-xs text-slate-500 mb-1">
+            <TeamOutlined className="mr-1" />
+            Prefer a group lesson?
+          </p>
+          <div className="flex items-center justify-center gap-1">
+            <Button
+              type="link"
+              size="small"
+              className="!text-xs !font-semibold !text-blue-600"
+              onClick={onCreateGroupWithFriend}
+            >
+              I have a friend →
+            </Button>
+            <span className="text-xs text-slate-300">|</span>
+            <Button
+              type="link"
+              size="small"
+              className="!text-xs !font-semibold !text-violet-600"
+              onClick={onCreateGroupLesson}
+            >
+              Find me a partner →
+            </Button>
+          </div>
+        </div>
+      </>
+    )}
   </div>
-);
+  );
+};
 
 const ScheduleStep = ({ isExistingPackage, existingPackageRemaining, durationOptions, selectedDurationMinutes, setSelectedDurationMinutes, instructorsData, instructorsLoading, selectedInstructorId, setSelectedInstructorId, selectedDate, setSelectedDate, selectedDateString, selectedTime, setSelectedTime, slotsLoading, availableStarts, bookingPending, onBookSession, onSkip, setResetDateAndTime }) => (
   <div className="space-y-4 sm:space-y-5">
@@ -458,6 +540,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
 // eslint-disable-next-line complexity
 const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours }) => {
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refreshToken } = useAuth();
   const { formatCurrency, userCurrency, convertCurrency } = useCurrency();
@@ -684,26 +767,21 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const handleBookSession = useCallback(() => {
     if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
     const [h, m] = selectedTime.split(':').map(Number);
+    const startHour = h + (m || 0) / 60;
+    const pkgName = packageData?.name || 'Quick Booking';
+
     bookingMutation.mutate({
-      student_user_id: studentId,
-      instructor_user_id: selectedInstructorId,
-      service_id: serviceId || null,
-      date: selectedDateString,
-      start_hour: h + (m || 0) / 60,
-      duration: activeDurationHours,
-      status: 'pending',
-      notes: `Booked via package: ${packageData?.name || 'Quick Booking'}`,
+      student_user_id: studentId, instructor_user_id: selectedInstructorId,
+      service_id: serviceId || null, date: selectedDateString,
+      start_hour: startHour, duration: activeDurationHours,
+      status: 'pending', notes: `Booked via package: ${pkgName}`,
       use_package: true,
       customer_package_id: purchasedPackage?.id || null,
       selected_package_id: purchasedPackage?.id || null,
-      amount: 0,
-      final_amount: 0,
-      base_amount: 0,
+      amount: 0, final_amount: 0, base_amount: 0,
       package_hours_applied: activeDurationHours,
       package_chargeable_hours: activeDurationHours,
-      discount_percent: 0,
-      discount_amount: 0,
-      payment_method: 'wallet',
+      discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
     });
   }, [studentId, selectedInstructorId, selectedDateString, selectedTime, serviceId, activeDurationHours, packageData, purchasedPackage, bookingMutation]);
 
@@ -711,6 +789,20 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     setSkipSchedule(true);
     setStep(2);
   }, []);
+
+  const handleCreateGroupLesson = useCallback(() => {
+    onClose();
+    navigate('/student/group-bookings/request', {
+      state: { serviceId, packageData, durationHours }
+    });
+  }, [onClose, navigate, serviceId, packageData, durationHours]);
+
+  const handleCreateGroupWithFriend = useCallback(() => {
+    onClose();
+    navigate('/student/group-bookings/create', {
+      state: { serviceId, packageData, durationHours }
+    });
+  }, [onClose, navigate, serviceId, packageData, durationHours]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
   const handleResetDateAndTime = useCallback(() => { setSelectedDate(null); setSelectedTime(null); }, []);
@@ -739,7 +831,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       footer={null}
       width={520}
       centered
-      destroyOnClose
+      destroyOnHidden
       closable={step < 2}
       maskClosable={step === 0}
       style={{ maxWidth: '94vw' }}
@@ -798,6 +890,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           purchasing={purchasing}
           onPurchase={handlePurchase}
           canPayLater={canPayLater}
+          onCreateGroupLesson={handleCreateGroupLesson}
+          onCreateGroupWithFriend={handleCreateGroupWithFriend}
         />
       )}
       {step === 1 && (

@@ -88,8 +88,29 @@ export const Navbar = ({ toggleSidebar }) => {
   const { data: walletSummary } = useWalletSummary({ enabled: isAuthenticated, currency: storageCurrency });
   const navigate = useNavigate();
   
-  // Get raw balance in storage currency (EUR)
-  const rawWalletBalance = isAuthenticated ? resolveWalletBalance(walletSummary, user) : undefined;
+  // Get raw balance — aggregate all currency balances into storage currency
+  const rawWalletBalance = (() => {
+    if (!isAuthenticated) return undefined;
+
+    // If multi-currency balances array is available, aggregate
+    const balances = walletSummary?.balances;
+    if (Array.isArray(balances) && balances.length > 0) {
+      let total = 0;
+      for (const b of balances) {
+        if ((b.available || 0) !== 0) {
+          if (b.currency === storageCurrency) {
+            total += Number(b.available) || 0;
+          } else if (convertCurrency) {
+            total += convertCurrency(Number(b.available) || 0, b.currency, storageCurrency);
+          }
+        }
+      }
+      return total;
+    }
+
+    // Fallback: single-currency response
+    return resolveWalletBalance(walletSummary, user);
+  })();
   
   // Determine display currency: user's preferred currency, NOT wallet's storage currency
   // Priority: user.preferred_currency > userCurrency (from context) > storageCurrency
@@ -195,7 +216,7 @@ export const Navbar = ({ toggleSidebar }) => {
   return (
     <div className="dark safe-pt">
       <nav
-        className={`sticky top-0 z-50 border-b border-slate-200/80 dark:border-slate-700/40 shadow-xl transition-colors duration-200 ${
+        className={`sticky top-0 z-[70] border-b border-slate-200/80 dark:border-slate-700/40 shadow-xl transition-colors duration-200 ${
           isScrolled
             ? 'bg-white/85 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 dark:bg-gradient-to-r dark:from-slate-900/90 dark:to-slate-800/85'
             : 'bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-800'
@@ -372,7 +393,7 @@ export const Navbar = ({ toggleSidebar }) => {
               
                 {/* Profile Dropdown Container or Sign In Button */}
                 {isAuthenticated ? (
-                  <div className="relative profile-dropdown-container z-50">
+                  <div className="relative profile-dropdown-container z-[80]">
                     <button 
                       onClick={toggleProfileDropdown}
                       className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
@@ -392,20 +413,20 @@ export const Navbar = ({ toggleSidebar }) => {
                     </button>
                   {isProfileDropdownOpen && (
                     <div 
-                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-white border border-slate-200 focus:outline-none z-[60] dark:bg-slate-800 dark:border-slate-700/40"
+                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-white border border-slate-200 focus:outline-none z-[9999] dark:bg-slate-800 dark:border-slate-700/40"
                       role="menu" 
                       aria-orientation="vertical"
                       aria-labelledby="user-menu-button"
                       style={{ zIndex: 9999 }}
                     >
                       <NavLink
-                        to="/profile"
+                        to="/student/profile"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
                           setIsProfileDropdownOpen(false);
-                          navigate('/profile');
+                          navigate('/student/profile');
                         }}
                       >
                         My Profile

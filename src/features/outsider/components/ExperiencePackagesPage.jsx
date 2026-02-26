@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Tag } from 'antd';
-import { RocketOutlined, CalendarOutlined } from '@ant-design/icons';
+import { RocketOutlined, CalendarOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import ExperienceDetailModal from './ExperienceDetailModal';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { usePageSEO } from '@/shared/utils/seo';
@@ -11,6 +11,8 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import PackagePurchaseModal from './PackagePurchaseModal';
+import AllInclusiveBookingModal from './AllInclusiveBookingModal';
+import DownwinderBookingModal from './DownwinderBookingModal';
 
 const normalize = (v) => String(v || '').toLowerCase();
 
@@ -204,7 +206,7 @@ const ExperiencePackagesPage = ({
   const navigate = useNavigate();
   const { notification } = App.useApp();
   const queryClient = useQueryClient();
-  const { isAuthenticated, isGuest, refreshToken } = useAuth();
+  const { isAuthenticated, isGuest, refreshToken, user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
 
@@ -216,6 +218,33 @@ const ExperiencePackagesPage = ({
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [allInclusiveModalOpen, setAllInclusiveModalOpen] = useState(false);
+  const [downwinderModalOpen, setDownwinderModalOpen] = useState(false);
+
+  // ── Fetch user's owned customer packages ──────────────────────────────────
+  const { data: ownedPackages = [] } = useQuery({
+    queryKey: ['customer-packages', user?.id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/services/customer-packages/${user.id}`);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!user?.id,
+    staleTime: 120_000,
+  });
+
+  // Build a map: service_package_id → owned customer package (active + has remaining)
+  const ownedByPackageId = useMemo(() => {
+    const map = new Map();
+    for (const cp of ownedPackages) {
+      const isActive = (cp.status || '').toLowerCase() === 'active';
+      if (!isActive) continue;
+      const spId = String(cp.servicePackageId || cp.service_package_id);
+      const remaining = parseFloat(cp.remainingHours ?? cp.remaining_hours) || 0;
+      const existingRemaining = map.has(spId) ? (parseFloat(map.get(spId).remainingHours ?? map.get(spId).remaining_hours) || 0) : -1;
+      if (remaining > existingRemaining) map.set(spId, cp);
+    }
+    return map;
+  }, [ownedPackages]);
 
   usePageSEO({
     title: seoTitle,
@@ -286,6 +315,8 @@ const ExperiencePackagesPage = ({
       queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
 
       setPurchaseModalOpen(false);
+      setAllInclusiveModalOpen(false);
+      setDownwinderModalOpen(false);
       setDetailOpen(false);
       setSelectedPackage(null);
     },
@@ -298,6 +329,13 @@ const ExperiencePackagesPage = ({
   });
 
   const openPackageDetail = (pkg) => {
+    // Event packages (downwinders/camps) skip the detail modal and go straight to booking
+    if (isEventPackage(pkg)) {
+      if (!requireAuthForPurchase()) return;
+      setSelectedPackage(pkg);
+      setDownwinderModalOpen(true);
+      return;
+    }
     setSelectedPackage(pkg);
     setDetailOpen(true);
   };
@@ -318,6 +356,18 @@ const ExperiencePackagesPage = ({
     return true;
   };
 
+  // Determine if a package needs the detailed multi-step modal
+  const isMultiStepPackage = (pkg) => {
+    const pType = (pkg?.packageType || pkg?.package_type || '').toLowerCase();
+    return ['all_inclusive', 'accommodation_lesson', 'accommodation_rental'].includes(pType);
+  };
+
+  // Determine if package is an event type (downwinder / camp)
+  const isEventPackage = (pkg) => {
+    const pType = (pkg?.packageType || pkg?.package_type || '').toLowerCase();
+    return ['downwinders', 'camps'].includes(pType);
+  };
+
   const handleOpenPurchaseModal = (pkg = selectedPackage) => {
     if (!pkg) return;
     if (!requireAuthForPurchase()) return;
@@ -325,7 +375,13 @@ const ExperiencePackagesPage = ({
     setDetailOpen(false);
     // Add delay to ensure detail modal animation completes before purchase modal opens
     setTimeout(() => {
-      setPurchaseModalOpen(true);
+      if (isEventPackage(pkg)) {
+        setDownwinderModalOpen(true);
+      } else if (isMultiStepPackage(pkg)) {
+        setAllInclusiveModalOpen(true);
+      } else {
+        setPurchaseModalOpen(true);
+      }
     }, 300);
   };
 
@@ -399,18 +455,39 @@ const ExperiencePackagesPage = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5">
-              {sortedPackages.map((pkg) => (
+              {sortedPackages.map((pkg) => {
+                const ownedPkg = ownedByPackageId.get(String(pkg.id));
+                const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
+                const ownedRentalDays = ownedPkg ? (parseFloat(ownedPkg.remainingRentalDays ?? ownedPkg.remaining_rental_days) || 0) : 0;
+                const ownedNights = ownedPkg ? (parseFloat(ownedPkg.remainingAccommodationNights ?? ownedPkg.remaining_accommodation_nights) || 0) : 0;
+                return (
                 <div
                   key={pkg.id}
                   onClick={() => openPackageDetail(pkg)}
-                  className="group relative isolate overflow-hidden [clip-path:inset(0_round_1.25rem)] bg-gradient-to-b from-[#1f2230] to-[#171925] rounded-2xl border border-white/10 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-yellow-400/40 cursor-pointer"
+                  className={`group relative isolate overflow-hidden [clip-path:inset(0_round_1.25rem)] bg-gradient-to-b from-[#1f2230] to-[#171925] rounded-2xl border transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer ${
+                    ownedPkg
+                      ? 'border-emerald-500/40 hover:border-emerald-400/60'
+                      : 'border-white/10 hover:border-yellow-400/40'
+                  }`}
                 >
+                  {/* Owned badge */}
+                  {ownedPkg && (
+                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full px-2.5 py-1 backdrop-blur-sm">
+                      <CheckCircleOutlined className="text-emerald-400 text-xs" />
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">Owned</span>
+                    </div>
+                  )}
+
                   {/* Package Image */}
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={getImageUrl(pkg.imageUrl) || getFallbackImageByDiscipline(disciplineKey)}
                       alt={pkg.name}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = getFallbackImageByDiscipline(disciplineKey);
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1f2230] via-[#1f2230]/50 to-transparent" />
                     <Tag className="absolute top-3 left-3 !bg-yellow-500/10 !border-yellow-500/30 !text-yellow-300 !rounded-full backdrop-blur-sm">
@@ -433,28 +510,54 @@ const ExperiencePackagesPage = ({
                       {!!pkg.rentalDays && <Tag className="!bg-white/5 !border-white/15 !text-gray-200">{pkg.rentalDays} rental days</Tag>}
                     </div>
 
-                    <div className="flex items-end justify-between border-t border-white/10 pt-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Starting from</p>
-                        <p className="text-xl font-bold text-white">
-                          {getPriceForUserCurrency(pkg, userCurrency, convertCurrency, formatCurrency)}
+                    {/* Owned remaining info */}
+                    {ownedPkg && (
+                      <div className="mb-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-[11px] text-emerald-400 font-semibold">
+                          {ownedRemaining > 0 && `${ownedRemaining}h lessons`}
+                          {ownedRemaining > 0 && ownedRentalDays > 0 && ' · '}
+                          {ownedRentalDays > 0 && `${ownedRentalDays}d rental`}
+                          {(ownedRemaining > 0 || ownedRentalDays > 0) && ownedNights > 0 && ' · '}
+                          {ownedNights > 0 && `${ownedNights}n stay`}
+                          {ownedRemaining === 0 && ownedRentalDays === 0 && ownedNights === 0 && 'Active package'}
+                          <span className="text-emerald-500/60 ml-1">remaining</span>
                         </p>
                       </div>
+                    )}
+
+                    <div className="flex items-end justify-between border-t border-white/10 pt-4">
+                      {ownedPkg ? (
+                        <div>
+                          <p className="text-xs text-emerald-400 uppercase tracking-wider font-semibold">You Own This</p>
+                          <p className="text-xs text-emerald-400/60">Buy again or schedule</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Starting from</p>
+                          <p className="text-xl font-bold text-white">
+                            {getPriceForUserCurrency(pkg, userCurrency, convertCurrency, formatCurrency)}
+                          </p>
+                        </div>
+                      )}
                       <Button
                         type="primary"
                         size="small"
-                        className="!bg-yellow-500 !border-yellow-500 hover:!bg-yellow-400 !text-black !font-semibold"
+                        className={ownedPkg
+                          ? '!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-400 !text-black !font-semibold'
+                          : '!bg-yellow-500 !border-yellow-500 hover:!bg-yellow-400 !text-black !font-semibold'
+                        }
                         onClick={(event) => {
                           event.stopPropagation();
                           handleOpenPurchaseModal(pkg);
                         }}
                       >
-                        Buy
+                        {ownedPkg ? 'Buy Again' : 'Buy'}
                       </Button>
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}
@@ -476,6 +579,24 @@ const ExperiencePackagesPage = ({
         onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
         isPurchasing={purchaseMutation.isPending}
         destroyOnHidden
+      />
+
+      <AllInclusiveBookingModal
+        open={allInclusiveModalOpen}
+        onCancel={() => setAllInclusiveModalOpen(false)}
+        selectedPackage={selectedPackage}
+        walletBalance={walletSummary?.available || 0}
+        onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
+        isPurchasing={purchaseMutation.isPending}
+      />
+
+      <DownwinderBookingModal
+        open={downwinderModalOpen}
+        onCancel={() => setDownwinderModalOpen(false)}
+        selectedPackage={selectedPackage}
+        walletBalance={walletSummary?.available || 0}
+        onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
+        isPurchasing={purchaseMutation.isPending}
       />
     </div>
   );

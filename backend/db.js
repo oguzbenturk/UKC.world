@@ -225,6 +225,13 @@ try {
   // causing offsets (e.g. "3 hours ago" for just-created records in UTC+3).
   pg.types.setTypeParser(1114, (str) => new Date(str + 'Z'));
 
+  // Return DATE columns (OID 1082) as plain "YYYY-MM-DD" strings instead of
+  // a JS Date object at midnight local time.  Without this, pg creates a Date
+  // in the server's local timezone. On a UTC+3 host that means midnight local =
+  // "prev-day 21:00 UTC", so .toISOString() shifts the date back by one day
+  // (e.g. Feb 24 → shows as Feb 23 in notifications).
+  pg.types.setTypeParser(1082, (str) => str);
+
   pool = new Pool({
     connectionString,
     ssl: dbSslEnabled ? { rejectUnauthorized: dbSslRejectUnauthorized } : false,

@@ -4,7 +4,6 @@ import {
   Form,
   Select,
   DatePicker,
-  TimePicker,
   InputNumber,
   Alert,
   Button,
@@ -29,6 +28,17 @@ import moment from 'moment';
 import { serviceApi } from '@/shared/services/serviceApi';
 import { filterServicesByCapacity } from '@/shared/utils/serviceCapacityFilter';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import calendarConfig from '@/config/calendarConfig';
+
+// Predefined lesson time blocks for the booking form
+const PRESET_SLOT_OPTIONS = calendarConfig.preScheduledSlots.map((s) => ({
+  value: s.start,
+  label: `${s.start} – ${s.end}`,
+  durationMinutes: Math.round(
+    (parseInt(s.end.split(':')[0], 10) * 60 + parseInt(s.end.split(':')[1], 10)) -
+    (parseInt(s.start.split(':')[0], 10) * 60 + parseInt(s.start.split(':')[1], 10))
+  ),
+}));
 
 const { Option } = Select;
 
@@ -147,8 +157,11 @@ function QuickBooking({ visible, onClose, customer, onBookingCreated }) {
       setLoading(true);
       
       const bookingDate = values.date.format('YYYY-MM-DD');
-      const bookingTime = values.time.format('HH:mm');
-      const duration = values.duration;
+      // time is now a plain "HH:mm" string from the preset slot Select
+      const bookingTime = typeof values.time === 'string' ? values.time : values.time.format('HH:mm');
+      // derive duration from the selected preset slot, fallback to form value
+      const selectedSlot = PRESET_SLOT_OPTIONS.find((s) => s.value === values.time);
+      const duration = selectedSlot ? selectedSlot.durationMinutes : values.duration;
       
       const newBooking = {
         id: Date.now(),
@@ -328,8 +341,8 @@ function QuickBooking({ visible, onClose, customer, onBookingCreated }) {
           onFinish={handleCreateBooking}
           initialValues={{
             date: moment().add(1, 'day'),
-            time: moment().hour(10).minute(0),
-            duration: 60
+            time: PRESET_SLOT_OPTIONS[0]?.value || '09:00',
+            duration: PRESET_SLOT_OPTIONS[0]?.durationMinutes || 120
           }}
         >
           <Row gutter={16}>
@@ -388,13 +401,17 @@ function QuickBooking({ visible, onClose, customer, onBookingCreated }) {
             <Col span={8}>
               <Form.Item
                 name="time"
-                label="Time"
-                rules={[{ required: true, message: 'Please select a time' }]}
+                label="Time Slot"
+                rules={[{ required: true, message: 'Please select a time slot' }]}
               >
-                <TimePicker 
+                <Select
                   style={{ width: '100%' }}
-                  format="HH:mm"
-                  minuteStep={30}
+                  placeholder="Select time slot"
+                  options={PRESET_SLOT_OPTIONS}
+                  onChange={(val) => {
+                    const slot = PRESET_SLOT_OPTIONS.find((s) => s.value === val);
+                    if (slot) form.setFieldValue('duration', slot.durationMinutes);
+                  }}
                 />
               </Form.Item>
             </Col>

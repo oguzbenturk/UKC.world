@@ -66,6 +66,8 @@ const RentalServices = lazyWithRetry(() => import('../features/services/pages/Re
 const ShopManagement = lazyWithRetry(() => import('../features/services/pages/ShopManagement'));
 const PackageManagement = lazyWithRetry(() => import('../features/services/pages/PackageManagement'));
 const ShopPage = lazyWithRetry(() => import('../features/dashboard/pages/Shop'));
+const ShopLandingPage = lazyWithRetry(() => import('../features/outsider/pages/ShopLandingPage'));
+const ShopCategoryPage = lazyWithRetry(() => import('../features/outsider/pages/ShopCategoryPage'));
 const UserProfilePage = lazyWithRetry(() => import('../features/authentication/pages/UserProfilePage'));
 const CustomerProfilePage = lazyWithRetry(() => import('../features/customers/pages/CustomerProfilePage'));
 const InstructorFormPage = lazyWithRetry(() => import('../features/instructors/pages/InstructorFormPage'));
@@ -99,6 +101,7 @@ const NotificationCenter = lazyWithRetry(() => import('../features/notifications
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
 const OutsiderBookingPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderBookingPage'));
 const GuestLandingPage = lazyWithRetry(() => import('../features/outsider/pages/GuestLandingPage'));
+const PublicHome = lazyWithRetry(() => import('../features/public/PublicHome'));
 const OutsiderPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderPackagesPage'));
 const KiteLessonsPublicPage = lazyWithRetry(() => import('../features/outsider/pages/KiteLessonsPublicPage'));
 const AcademyLandingPage = lazyWithRetry(() => import('../features/outsider/pages/AcademyLandingPage'));
@@ -125,9 +128,12 @@ const ExperienceKitePackagesPage = lazyWithRetry(() => import('../features/outsi
 const ExperienceWingPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceWingPackagesPage'));
 const ExperienceDownwindersPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceDownwindersPage'));
 const ExperienceCampsPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceCampsPage'));
+const CommunityTeamPage = lazyWithRetry(() => import('../features/community/pages/TeamPage'));
 const GroupInvitationPage = lazyWithRetry(() => import('../features/bookings/pages/GroupInvitationPage'));
 const StudentGroupBookingsPage = lazyWithRetry(() => import('../features/bookings/pages/StudentGroupBookingsPage'));
 const GroupBookingDetailPage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingDetailPage'));
+const GroupBookingCreatePage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingCreatePage'));
+const GroupLessonRequestPage = lazyWithRetry(() => import('../features/bookings/pages/GroupLessonRequestPage'));
 const UserSettings = lazyWithRetry(() => import('../features/settings/pages/UserSettings'));
 const ManagerDashboard = lazyWithRetry(() => import('../features/manager/pages/ManagerDashboard'));
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
@@ -171,6 +177,8 @@ const FinanceDailyOperations = lazyWithRetry(() => import('../features/finances/
 const ExpensesPage = lazyWithRetry(() => import('../features/finances/pages/ExpensesPage'));
 const PaymentCallback = lazyWithRetry(() => import('../features/finances/pages/PaymentCallback'));
 const PaymentRefunds = lazyWithRetry(() => import('../features/finances/pages/PaymentRefunds'));
+const WalletDepositsAdmin = lazyWithRetry(() => import('../features/finances/pages/WalletDepositsAdmin'));
+const BankAccountsAdmin = lazyWithRetry(() => import('../features/finances/pages/BankAccountsAdmin'));
 
 // Shop Order Management
 const ShopOrdersPage = lazyWithRetry(() => import('../features/services/pages/ShopOrdersPage'));
@@ -286,8 +294,8 @@ const AppRoutes = () => {
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
   <Route path="/payment/callback" element={<PaymentCallback />} />
   
-  {/* Default route: guests see the UKC Landing Page */}
-  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <Navigate to="/guest" replace />} />
+  {/* Default route: unauthenticated users see the "Enter the World" splash page */}
+  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <PublicHome />} />
 
   {/* Guest Portal Main Page */}
   <Route path="/guest" element={<GuestLandingPage />} />
@@ -308,8 +316,10 @@ const AppRoutes = () => {
       {/* PUBLIC ROUTES - Accessible without authentication (Guest Mode) */}
       {/* These routes are browsable by guests but actions require sign-in */}
       
-      {/* Shop - browse products, but cart/purchase requires auth */}
-      <Route path="/shop" element={<ShopPage />} />
+      {/* Shop - landing page + browse products */}
+      <Route path="/shop" element={<ShopLandingPage />} />
+      <Route path="/shop/browse" element={<ShopPage />} />
+      <Route path="/shop/:section" element={<ShopCategoryPage />} />
       
       {/* Academy lesson pages - browse and explore */}
       <Route path="/academy/kite-lessons" element={<KiteLessonsPublicPage />} />
@@ -347,6 +357,9 @@ const AppRoutes = () => {
       
       {/* Events - view upcoming events */}
       <Route path="/services/events" element={<EventsPage />} />
+      
+      {/* Community */}
+      <Route path="/community/team" element={<CommunityTeamPage />} />
       
       {/* Guest landing page - welcome page for Duotone Pro Center */}
       <Route path="/academy" element={<AcademyLandingPage />} />
@@ -394,6 +407,8 @@ const AppRoutes = () => {
             <Route path="family" element={<FamilyManagementPage />} />
             <Route path="friends" element={<StudentFriendsPage />} />
             <Route path="group-bookings" element={<StudentGroupBookingsPage />} />
+            <Route path="group-bookings/create" element={<GroupBookingCreatePage />} />
+            <Route path="group-bookings/request" element={<GroupLessonRequestPage />} />
             <Route path="group-bookings/:id" element={<GroupBookingDetailPage />} />
           </Route>
         ) : (
@@ -501,6 +516,8 @@ const AppRoutes = () => {
       {/* Admin-only finance routes (refunds) */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MANAGER]} />}>
         <Route path="/finance/refunds" element={<PaymentRefunds />} />
+        <Route path="/finance/wallet-deposits" element={<WalletDepositsAdmin />} />
+        <Route path="/finance/bank-accounts" element={<BankAccountsAdmin />} />
       </Route>
         {/* User profile and settings routes - all authenticated users can access */}
       <Route element={<ProtectedRoute allowedRoles={[]} />}>
@@ -516,7 +533,7 @@ const AppRoutes = () => {
   {/* Root redirects to /guest for unauthenticated users */}
       
       {/* Catch all for non-existing routes */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/guest"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/"} replace />} />
     </Routes>
     </Suspense>
   );

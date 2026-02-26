@@ -64,7 +64,7 @@ const AcademyLandingPage = () => {
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
       
       {/* Top Category Nav - Sticky */}
-      <div className="sticky top-0 z-50 border-b border-white/10 bg-[#0d1511]/80 backdrop-blur-md">
+      <div className="sticky top-0 z-30 border-b border-white/10 bg-[#0d1511]/80 backdrop-blur-md">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-start md:justify-center items-center overflow-x-auto py-4 gap-5 md:gap-10 lg:gap-12 scrollbar-hide no-scrollbar">
                 <button

@@ -564,6 +564,7 @@ const Settings = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                     <input
                       type="text"
+                      autoComplete="name"
                       {...register('name', { required: 'Name is required' })}
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm"
                     />
@@ -574,6 +575,7 @@ const Settings = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
+                      autoComplete="email"
                       {...register('email', { required: 'Email is required' })}
                       disabled
                       className="w-full rounded-md border-gray-300 bg-gray-50 shadow-sm text-base sm:text-sm"
@@ -584,6 +586,7 @@ const Settings = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                     <input
                       type="tel"
+                      autoComplete="tel"
                       {...register('phone')}
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base sm:text-sm"
                     />

@@ -608,6 +608,12 @@ router.get('/user/:userId/purchases', authenticateJWT, authorizeRoles(ADMIN_ROLE
   try {
     const { userId } = req.params;
 
+    // Validate UUID format to prevent DB type errors
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(userId)) {
+      return res.json([]);
+    }
+
     const { rows } = await pool.query(`
       SELECT 
         mp.*,

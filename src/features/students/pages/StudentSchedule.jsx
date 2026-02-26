@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import { App, Button, DatePicker, Empty, Modal, Spin, Tag, Tooltip, Form, Input, Alert } from 'antd';
-import { CalendarOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { CalendarOutlined, ClockCircleOutlined, CheckCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import { CalendarDaysIcon, ClockIcon } from '@heroicons/react/24/outline';
-import { useOutletContext } from 'react-router-dom';
+import { UserGroupIcon } from '@heroicons/react/24/outline';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
+
+const StudentGroupBookingsPage = lazy(() => import('@/features/bookings/pages/StudentGroupBookingsPage'));
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useStudentSchedule } from '../hooks/useStudentDashboard';
@@ -529,6 +532,9 @@ const StudentSchedule = () => {
   const { message, notification } = App.useApp();
   const outletContext = useOutletContext() ?? {};
   const overview = outletContext?.overview;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'schedule';
+  const setActiveTab = (tab) => setSearchParams({ tab }, { replace: true });
   const [action, setAction] = useState({ type: null, booking: null });
   const filters = useMemo(
     () => ({
@@ -711,6 +717,40 @@ const StudentSchedule = () => {
 
   return (
     <div className="space-y-6">
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab('schedule')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'schedule'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <CalendarDaysIcon className="h-4 w-4" />
+          My Schedule
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('group')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'group'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <UserGroupIcon className="h-4 w-4" />
+          Group Lessons
+        </button>
+      </div>
+
+      {activeTab === 'group' ? (
+        <Suspense fallback={<div className="flex justify-center py-12"><Spin size="large" /></div>}>
+          <StudentGroupBookingsPage />
+        </Suspense>
+      ) : (
+      <>
       {/* Hero Header */}
       <section className="overflow-hidden rounded-[22px] border border-slate-200/70 bg-gradient-to-br from-sky-50 via-white to-indigo-50/40 p-6 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -799,6 +839,8 @@ const StudentSchedule = () => {
         onConfirm={handleCancel}
         submitting={bookingMutation.isLoading}
       />
+      </>
+      )}
     </div>
   );
 };

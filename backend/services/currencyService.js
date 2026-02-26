@@ -107,35 +107,67 @@ class CurrencyService {
   static async convertToTRY(amount, fromCurrency) {
     try {
       const upperCurrency = fromCurrency.toUpperCase();
+      const numericAmount = parseFloat(amount);
       
       // If already TRY, return as-is
       if (upperCurrency === 'TRY') {
         return {
-          amount: parseFloat(amount),
+          amount: numericAmount,
           rate: 1.0
         };
       }
 
-      // Get current exchange rate
-      const { rows } = await pool.query(
+      // Get TRY exchange rate (relative to base currency EUR)
+      const { rows: tryRows } = await pool.query(
         'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
         ['TRY']
       );
 
-      if (!rows.length || !rows[0].exchange_rate) {
+      if (!tryRows.length || !tryRows[0].exchange_rate) {
         throw new Error('TRY exchange rate not found in database');
       }
 
-      const tryRate = parseFloat(rows[0].exchange_rate);
-      const numericAmount = parseFloat(amount);
-      
-      // Convert: amount * TRY_rate = TRY amount
-      // Example: 50 EUR × 32.5 = 1625 TRY
-      const convertedAmount = numericAmount * tryRate;
+      const tryRate = parseFloat(tryRows[0].exchange_rate);
+
+      // If source currency is the base currency (EUR), direct multiplication
+      // exchange_rate stores "how many of this currency per 1 EUR"
+      if (upperCurrency === 'EUR') {
+        const convertedAmount = numericAmount * tryRate;
+        return {
+          amount: Math.round(convertedAmount * 100) / 100,
+          rate: tryRate
+        };
+      }
+
+      // For non-EUR currencies: first convert to EUR, then to TRY
+      // Example: 100 USD ÷ 1.1777 (USD rate) = 84.91 EUR × 51.70 (TRY rate) = 4389 TRY
+      const { rows: fromRows } = await pool.query(
+        'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
+        [upperCurrency]
+      );
+
+      if (!fromRows.length || !fromRows[0].exchange_rate) {
+        throw new Error(`Exchange rate not found for ${upperCurrency}`);
+      }
+
+      const fromRate = parseFloat(fromRows[0].exchange_rate);
+      const amountInEUR = numericAmount / fromRate;          // Convert to EUR first
+      const convertedAmount = amountInEUR * tryRate;         // Then to TRY
+      const effectiveRate = tryRate / fromRate;               // Combined rate for audit
+
+      logger.info('convertToTRY via base currency', {
+        fromCurrency: upperCurrency,
+        originalAmount: numericAmount,
+        fromRate,
+        amountInEUR: Math.round(amountInEUR * 100) / 100,
+        tryRate,
+        convertedTRY: Math.round(convertedAmount * 100) / 100,
+        effectiveRate: Math.round(effectiveRate * 100) / 100
+      });
 
       return {
-        amount: Math.round(convertedAmount * 100) / 100, // Round to 2 decimals
-        rate: tryRate
+        amount: Math.round(convertedAmount * 100) / 100,
+        rate: effectiveRate
       };
     } catch (error) {
       logger.error('Error converting to TRY:', { amount, fromCurrency, error: error.message });

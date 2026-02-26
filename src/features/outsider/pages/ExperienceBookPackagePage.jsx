@@ -5,14 +5,15 @@
  * Uses the same package purchase flow as OutsiderBookingPage.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Card, Typography, Button, Row, Col, Tag, Divider, Spin, Empty } from 'antd';
 import {
   ShoppingOutlined,
   WalletOutlined,
   LeftOutlined,
-  PhoneOutlined
+  PhoneOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -21,6 +22,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import PackagePurchaseModal from '../components/PackagePurchaseModal';
+import AllInclusiveBookingModal from '../components/AllInclusiveBookingModal';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -73,7 +75,7 @@ const getTypeIcon = (packageType) => {
 
 const ExperienceBookPackagePage = () => {
   const navigate = useNavigate();
-  const { refreshToken } = useAuth();
+  const { refreshToken, user } = useAuth();
   const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
   const { notification } = App.useApp();
   const queryClient = useQueryClient();
@@ -81,7 +83,32 @@ const ExperienceBookPackagePage = () => {
   // State
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [allInclusiveModalOpen, setAllInclusiveModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+
+  // ── Fetch user's owned customer packages ──────────────────────────────────
+  const { data: ownedPackages = [] } = useQuery({
+    queryKey: ['customer-packages', user?.id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/services/customer-packages/${user.id}`);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!user?.id,
+    staleTime: 120_000,
+  });
+
+  const ownedByPackageId = useMemo(() => {
+    const map = new Map();
+    for (const cp of ownedPackages) {
+      const isActive = (cp.status || '').toLowerCase() === 'active';
+      if (!isActive) continue;
+      const spId = String(cp.servicePackageId || cp.service_package_id);
+      const remaining = parseFloat(cp.remainingHours ?? cp.remaining_hours) || 0;
+      const existingRemaining = map.has(spId) ? (parseFloat(map.get(spId).remainingHours ?? map.get(spId).remaining_hours) || 0) : -1;
+      if (remaining > existingRemaining) map.set(spId, cp);
+    }
+    return map;
+  }, [ownedPackages]);
 
   usePageSEO({
     title: 'Book a Package | Experience | UKC',
@@ -128,6 +155,7 @@ const ExperienceBookPackagePage = () => {
       queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
       
       setPurchaseModalOpen(false);
+      setAllInclusiveModalOpen(false);
       setSelectedPackage(null);
       
       if (roleUpgraded) {
@@ -142,14 +170,25 @@ const ExperienceBookPackagePage = () => {
     },
   });
 
+  // Determine if a package needs the detailed multi-step modal
+  const isMultiStepPackage = (pkg) => {
+    const pType = (pkg?.packageType || pkg?.package_type || '').toLowerCase();
+    return ['all_inclusive', 'accommodation_lesson', 'accommodation_rental'].includes(pType);
+  };
+
   const handleCategorySelect = (categoryKey) => setSelectedCategory(categoryKey);
   const handleBackToCategories = () => setSelectedCategory(null);
   const handlePackageSelect = (pkg) => {
     setSelectedPackage(pkg);
-    setPurchaseModalOpen(true);
+    if (isMultiStepPackage(pkg)) {
+      setAllInclusiveModalOpen(true);
+    } else {
+      setPurchaseModalOpen(true);
+    }
   };
   const handleClosePurchaseModal = () => {
     setPurchaseModalOpen(false);
+    setAllInclusiveModalOpen(false);
     setSelectedPackage(null);
   };
   const handlePurchase = (purchaseData) => purchaseMutation.mutate(purchaseData);
@@ -199,12 +238,22 @@ const ExperienceBookPackagePage = () => {
           onBack={handleBackToCategories}
           onSelect={handlePackageSelect}
           getDisplayPrice={getPackageDisplayPrice}
+          ownedByPackageId={ownedByPackageId}
         />
       )}
 
       {/* Purchase Modal */}
       <PackagePurchaseModal
         open={purchaseModalOpen}
+        onCancel={handleClosePurchaseModal}
+        selectedPackage={selectedPackage}
+        walletBalance={walletSummary?.available || 0}
+        onPurchase={handlePurchase}
+        isPurchasing={purchaseMutation.isPending}
+      />
+
+      <AllInclusiveBookingModal
+        open={allInclusiveModalOpen}
         onCancel={handleClosePurchaseModal}
         selectedPackage={selectedPackage}
         walletBalance={walletSummary?.available || 0}
@@ -260,7 +309,7 @@ const CategorySelection = ({ categories, onSelect }) => (
 );
 
 // Sub-component: Package List
-const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack, onSelect, getDisplayPrice }) => {
+const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack, onSelect, getDisplayPrice, ownedByPackageId }) => {
   const currentCategory = categories.find(c => c.key === selectedCategory);
   
   return (
@@ -290,9 +339,27 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
         </Empty>
       ) : (
         <Row gutter={[24, 24]}>
-          {packages.map((pkg) => (
+          {packages.map((pkg) => {
+            const ownedPkg = ownedByPackageId?.get(String(pkg.id));
+            const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
+            return (
             <Col xs={24} md={12} lg={8} key={pkg.id}>
-              <Card className="h-full hover:shadow-lg transition-shadow">
+              <Card
+                className={`h-full hover:shadow-lg transition-shadow ${
+                  ownedPkg ? '!border-emerald-500/60' : ''
+                }`}
+              >
+                {/* Owned badge */}
+                {ownedPkg && (
+                  <div className="flex items-center justify-center gap-1.5 mb-3 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 mx-auto w-fit">
+                    <CheckCircleOutlined className="text-emerald-600 text-xs" />
+                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Owned</span>
+                    {ownedRemaining > 0 && (
+                      <span className="text-xs text-emerald-500 ml-1">· {ownedRemaining}h left</span>
+                    )}
+                  </div>
+                )}
+
                 <div className="text-center mb-4">
                   <span className="text-4xl">{getTypeIcon(pkg.packageType)}</span>
                 </div>
@@ -309,19 +376,36 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
                 </div>
                 <Divider className="my-4" />
                 <div className="text-center mb-4">
-                  <Text type="secondary" className="text-sm">Price</Text>
-                  <div>
-                    <Text strong className="text-2xl text-sky-600">
-                      {getDisplayPrice(pkg)}
-                    </Text>
-                  </div>
+                  {ownedPkg ? (
+                    <>
+                      <Text className="text-sm text-emerald-600 font-semibold">You Own This</Text>
+                      <div>
+                        <Text type="secondary" className="text-xs">Buy again for more hours</Text>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Text type="secondary" className="text-sm">Price</Text>
+                      <div>
+                        <Text strong className="text-2xl text-sky-600">
+                          {getDisplayPrice(pkg)}
+                        </Text>
+                      </div>
+                    </>
+                  )}
                 </div>
-                <Button type="primary" block onClick={() => onSelect(pkg)}>
-                  Purchase
+                <Button
+                  type="primary"
+                  block
+                  onClick={() => onSelect(pkg)}
+                  className={ownedPkg ? '!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-400' : ''}
+                >
+                  {ownedPkg ? 'Buy Again' : 'Purchase'}
                 </Button>
               </Card>
             </Col>
-          ))}
+          );
+          })}
         </Row>
       )}
     </>

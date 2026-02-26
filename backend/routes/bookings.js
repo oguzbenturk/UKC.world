@@ -14,6 +14,8 @@ import { recordTransaction as recordWalletTransaction, recordLegacyTransaction }
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
+import { sendEmail } from '../services/emailService.js';
+import { insertNotification } from '../services/notificationWriter.js';
 
 const router = express.Router();
 // Feature flag to optionally create cash transactions for partial package users
@@ -1068,7 +1070,9 @@ router.post('/',
       } else {
         finalPaymentStatus = 'paid'; // Pay-and-go: even zero amount is considered paid
       }
-    } else {
+    } else if (use_package !== true) {
+      // Only default to 'paid' when NOT using a package
+      // When use_package === true, finalPaymentStatus was already set to 'package' above
       finalPaymentStatus = 'paid'; // Pay-and-go: default to paid
     }
     
@@ -2938,7 +2942,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         const instructorId = updatedBooking.instructor_user_id || null;
         const serviceId = updatedBooking.service_id || null;
         const bookingId = updatedBooking.id;
-        const lessonDate = updatedBooking.date ? new Date(updatedBooking.date).toISOString().split('T')[0] : null;
+        const lessonDate = updatedBooking.date ? String(updatedBooking.date).slice(0, 10) : null;
 
         setImmediate(async () => {
           try {
@@ -3030,7 +3034,173 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     
   // Send immediate response to client for fast UI feedback
   res.status(200).json(updatedBooking);
-    
+
+    // **📅 RESCHEDULE DETECTION: Notify student if date, time, or instructor changed**
+    setImmediate(async () => {
+      try {
+        const dateChanged = currentBooking.date && date &&
+          String(currentBooking.date).slice(0, 10) !== String(date).slice(0, 10);
+        const timeChanged = currentBooking.start_hour !== null && start_hour !== undefined && 
+          Number(currentBooking.start_hour) !== Number(start_hour);
+        const instructorChanged = instructor_user_id && 
+          currentBooking.instructor_user_id !== instructor_user_id;
+
+        if (dateChanged || timeChanged || instructorChanged) {
+          const studentId = updatedBooking.student_user_id || updatedBooking.customer_user_id;
+          if (studentId) {
+            // Fetch names for context
+            const [studentRes, serviceRes, oldInstrRes, newInstrRes] = await Promise.all([
+              pool.query('SELECT name, email FROM users WHERE id = $1', [studentId]),
+              updatedBooking.service_id
+                ? pool.query('SELECT name FROM services WHERE id = $1', [updatedBooking.service_id])
+                : Promise.resolve({ rows: [] }),
+              currentBooking.instructor_user_id
+                ? pool.query('SELECT name FROM users WHERE id = $1', [currentBooking.instructor_user_id])
+                : Promise.resolve({ rows: [] }),
+              instructor_user_id
+                ? pool.query('SELECT name FROM users WHERE id = $1', [instructor_user_id])
+                : Promise.resolve({ rows: [] })
+            ]);
+
+            const student = studentRes.rows[0];
+            const serviceName = serviceRes.rows[0]?.name || 'Lesson';
+            const oldInstructorName = oldInstrRes.rows[0]?.name || null;
+            const newInstructorName = newInstrRes.rows[0]?.name || oldInstructorName;
+            const changedBy = req.user?.id || null;
+
+            // Build human-readable change description
+            const changeParts = [];
+            const oldDate = currentBooking.date ? new Date(currentBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+            const newDate = updatedBooking.date ? new Date(updatedBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+            if (dateChanged) changeParts.push(`date changed from ${oldDate} to ${newDate}`);
+            if (timeChanged) {
+              const fmtTime = (h) => { const hr = Math.floor(h); const min = Math.round((h - hr) * 60); return `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}`; };
+              changeParts.push(`time changed from ${fmtTime(Number(currentBooking.start_hour))} to ${fmtTime(Number(updatedBooking.start_hour))}`);
+            }
+            if (instructorChanged) changeParts.push(`instructor changed from ${oldInstructorName || 'TBD'} to ${newInstructorName || 'TBD'}`);
+            const changeMessage = `Your ${serviceName} has been rescheduled: ${changeParts.join(', ')}.`;
+
+            // 1) Insert into reschedule notifications table
+            await pool.query(`
+              INSERT INTO booking_reschedule_notifications (
+                booking_id, student_user_id, changed_by,
+                old_date, new_date, old_start_hour, new_start_hour,
+                old_instructor_id, new_instructor_id,
+                service_name, old_instructor_name, new_instructor_name,
+                message, status
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending')
+            `, [
+              updatedBooking.id,
+              studentId,
+              changedBy,
+              currentBooking.date ? new Date(currentBooking.date).toISOString().slice(0, 10) : null,
+              updatedBooking.date ? new Date(updatedBooking.date).toISOString().slice(0, 10) : null,
+              currentBooking.start_hour,
+              updatedBooking.start_hour,
+              currentBooking.instructor_user_id || null,
+              updatedBooking.instructor_user_id || null,
+              serviceName,
+              oldInstructorName,
+              newInstructorName,
+              changeMessage
+            ]);
+
+            // 2) Create in-app notification for the student
+            await insertNotification({
+              userId: studentId,
+              title: `${serviceName} rescheduled`,
+              message: changeMessage,
+              type: 'booking_rescheduled_by_admin',
+              data: {
+                bookingId: updatedBooking.id,
+                dateChanged,
+                timeChanged,
+                instructorChanged,
+                cta: {
+                  label: 'View details',
+                  href: `/student/schedule`
+                }
+              },
+              idempotencyKey: `reschedule-by-admin:${updatedBooking.id}:${Date.now()}`
+            });
+
+            // 3) Send real-time socket event so the pop-up shows immediately if student is online
+            if (req.socketService) {
+              try {
+                req.socketService.emitToChannel(`user:${studentId}`, 'booking:rescheduled', {
+                  bookingId: updatedBooking.id,
+                  message: changeMessage,
+                  serviceName
+                });
+              } catch (e) {
+                // non-blocking
+              }
+            }
+
+            // 4) Send email notification to student
+            if (student?.email) {
+              const emailNewDate = updatedBooking.date ? new Date(updatedBooking.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD';
+              const fmtTime = (h) => { if (h == null) return 'TBD'; const hr = Math.floor(Number(h)); const min = Math.round((Number(h) - hr) * 60); return `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}`; };
+
+              try {
+                await sendEmail({
+                  to: student.email,
+                  subject: `Your ${serviceName} has been rescheduled — UKC World`,
+                  userId: studentId,
+                  notificationType: 'booking_rescheduled',
+                  html: `
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <div style="background: #0d1511; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                        <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Lesson Rescheduled</h1>
+                      </div>
+                      <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+                        <p style="color: #374151; font-size: 16px;">Hi ${student.name || 'there'},</p>
+                        <p style="color: #374151; font-size: 15px;">Your <strong>${serviceName}</strong> has been updated:</p>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                          ${dateChanged ? `<p style="margin: 4px 0; color: #374151;">📅 <strong>Date:</strong> ${oldDate} → <strong>${newDate}</strong></p>` : ''}
+                          ${timeChanged ? `<p style="margin: 4px 0; color: #374151;">🕐 <strong>Time:</strong> ${fmtTime(currentBooking.start_hour)} → <strong>${fmtTime(updatedBooking.start_hour)}</strong></p>` : ''}
+                          ${instructorChanged ? `<p style="margin: 4px 0; color: #374151;">👤 <strong>Instructor:</strong> ${oldInstructorName || 'TBD'} → <strong>${newInstructorName || 'TBD'}</strong></p>` : ''}
+                        </div>
+                        <p style="color: #6b7280; font-size: 14px;">Please log in to confirm you've seen this change. If you have any questions, contact us anytime.</p>
+                        <div style="text-align: center; margin-top: 20px;">
+                          <a href="${process.env.FRONTEND_URL || process.env.VITE_FRONTEND_URL || 'https://ukcworld.com'}" style="display: inline-block; background: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">View My Schedule</a>
+                        </div>
+                      </div>
+                      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 16px;">UKC World — Your Watersport Academy</p>
+                    </div>
+                  `,
+                  text: `Hi ${student.name || 'there'}, your ${serviceName} has been rescheduled. ${changeParts.join('. ')}. Please log in to confirm.`
+                });
+
+                // Mark email as sent
+                await pool.query(`
+                  UPDATE booking_reschedule_notifications
+                  SET email_sent = TRUE, email_sent_at = NOW()
+                  WHERE booking_id = $1 AND student_user_id = $2 AND status = 'pending'
+                  ORDER BY created_at DESC LIMIT 1
+                `, [updatedBooking.id, studentId]);
+              } catch (emailErr) {
+                logger.warn('Failed to send reschedule email', { bookingId: updatedBooking.id, error: emailErr.message });
+              }
+            }
+
+            logger.info('Booking reschedule notification sent to student', {
+              bookingId: updatedBooking.id,
+              studentId,
+              dateChanged,
+              timeChanged,
+              instructorChanged
+            });
+          }
+        }
+      } catch (rescheduleErr) {
+        logger.warn('Failed to send reschedule notification (non-blocking)', {
+          bookingId: updatedBooking?.id,
+          error: rescheduleErr.message
+        });
+      }
+    });
+
     // **🚀 NEW: Comprehensive Data Cascade Update**
     // Track what fields actually changed to trigger appropriate cascades
     const changes = {};
@@ -3603,8 +3773,8 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
         }
       }
     }
-    // Fallback to main booking package if no participant records exist
-    if (packagesUpdated.length === 0 && booking.payment_status === 'package' && booking.customer_package_id) {
+    // Fallback to main booking package if no participant records exist (also handles bookings where payment_status was incorrectly saved)
+    if (packagesUpdated.length === 0 && booking.customer_package_id) {
       const restored = await restoreHoursToPackage(client, booking.customer_package_id, parseFloat(duration));
       if (restored) {
         packagesUpdated.push(restored);
@@ -4522,7 +4692,7 @@ router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager'])
           }
         }
       }
-      if (!restoredAny && booking.payment_status === 'package' && booking.customer_package_id) {
+      if (!restoredAny && booking.customer_package_id) {
         const restoreHours = parseFloat(duration);
         const { rows: pkgRows } = await client.query(
           `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
@@ -4718,9 +4888,10 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     
     const booking = bookingResult.rows[0];
     
-    // Check if booking is already in a terminal state
+    // Check if booking is already in a terminal/same state (no action needed)
     const terminalStatuses = ['completed', 'cancelled', 'no_show'];
-    if (terminalStatuses.includes(booking.status)) {
+    const alreadyInRequestedState = booking.status === status;
+    if (terminalStatuses.includes(booking.status) || alreadyInRequestedState) {
       // Still update notifications to hide buttons, but don't change booking status
       await client.query(
         `UPDATE notifications
@@ -4737,9 +4908,10 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       await client.query('COMMIT');
       
       // Return success - the booking was already processed
+      const friendlyStatus = booking.status === 'confirmed' ? 'approved' : booking.status;
       return res.json({ 
         success: true, 
-        message: `Booking already ${booking.status}`,
+        message: `This lesson has already been ${friendlyStatus}`,
         status: booking.status,
         alreadyProcessed: true
       });
@@ -4764,8 +4936,8 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
             if (result) restoredAny = true;
           }
         }
-        // Fallback: check booking-level package
-        if (!restoredAny && booking.payment_status === 'package' && booking.customer_package_id) {
+        // Fallback: check booking-level package (also handles bookings where payment_status was incorrectly saved)
+        if (!restoredAny && booking.customer_package_id) {
           await restoreHoursToPackage(client, booking.customer_package_id, duration);
         }
       }
@@ -4834,19 +5006,25 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       [id]
     );
     
-    // Log audit trail
-    await client.query(
-      `INSERT INTO audit_logs (event_type, action, resource_type, resource_id, actor_user_id, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-      [
-        'booking_status_change',
-        'update_booking_status',
-        'booking',
-        id,
-        req.user.id,
-        JSON.stringify({ oldStatus: booking.status, newStatus: status })
-      ]
-    );
+    // Log audit trail (non-critical — don't let it break the status update)
+    try {
+      await client.query(
+        `INSERT INTO audit_logs (event_type, action, resource_type, resource_id, actor_user_id, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+        [
+          'booking_status_change',
+          'update_booking_status',
+          'booking',
+          id,
+          req.user.id,
+          JSON.stringify({ oldStatus: booking.status, newStatus: status })
+        ]
+      );
+    } catch (auditErr) {
+      logger.warn('Non-critical: Failed to insert audit log for booking status change', {
+        bookingId: id, error: auditErr?.message
+      });
+    }
     
     await client.query('COMMIT');
     
@@ -4857,8 +5035,8 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    logger.error('Error updating booking status:', error);
-    res.status(500).json({ error: 'Failed to update booking status' });
+    logger.error('Error updating booking status:', { bookingId: id, error: error?.message, stack: error?.stack });
+    res.status(500).json({ error: 'Failed to update booking status', bookingId: id });
   } finally {
     client.release();
   }

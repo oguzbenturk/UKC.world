@@ -38,6 +38,17 @@ const { Option } = Select;
 
 // Note: SORT_OPTIONS and CATEGORY_LABELS are imported from ShopFiltersContext
 
+// Category navigation tabs (mirrors ShopLandingPage sections)
+const SHOP_NAV_CATEGORIES = [
+    { id: 'all',         label: 'All',          filterValue: 'all',         color: 'gray',    activeClasses: 'bg-gray-900 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' },
+    { id: 'kitesurf',    label: 'Kites',         filterValue: 'kites',       color: 'emerald', activeClasses: 'bg-emerald-600 text-white',          inactiveClasses: 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200' },
+    { id: 'wing-foil',   label: 'Wing Foil',    filterValue: 'wing-foil',   color: 'purple',  activeClasses: 'bg-purple-600 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200' },
+    { id: 'e-foil',      label: 'E-Foil',       filterValue: 'e-foil',      color: 'yellow',  activeClasses: 'bg-yellow-500 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-yellow-50 border border-gray-200' },
+    { id: 'wetsuits',    label: 'Wetsuits',     filterValue: 'wetsuits',    color: 'cyan',    activeClasses: 'bg-cyan-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-cyan-50 border border-gray-200' },
+    { id: 'ion-accs',    label: 'ION Accs',     filterValue: 'accessories', color: 'pink',    activeClasses: 'bg-pink-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200' },
+    { id: 'second-wind', label: 'SecondWind',   filterValue: 'other',       color: 'amber',   activeClasses: 'bg-amber-600 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-amber-50 border border-gray-200' },
+];
+
 const PAGE_SIZE = 1000; // Load all products at once
 const SKELETON_KEYS = Array.from({ length: 8 }, (_, index) => `skeleton-${index}`);
 const getStockStatus = (quantity) => {
@@ -711,6 +722,26 @@ const ShopPage = () => {
     return (
         <div className="shop-page min-h-screen bg-gray-50 px-4 pb-28 pt-5 lg:px-6">
             <div className="w-full">
+                {/* Category Navigation Bar */}
+                <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide no-scrollbar">
+                    <div className="flex items-center gap-2 min-w-max py-1">
+                        {SHOP_NAV_CATEGORIES.map((cat) => {
+                            const isActive = selectedCategory === cat.filterValue;
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => localHandleCategoryChange(cat.filterValue)}
+                                    className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 shadow-sm ${
+                                        isActive ? cat.activeClasses : cat.inactiveClasses
+                                    }`}
+                                >
+                                    {cat.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {renderHeader()}
                 
                 {/* Main Content */}

@@ -10,7 +10,6 @@ const calendarConfig = {
     { start: '11:30', end: '13:30' },
     { start: '14:00', end: '16:00' },
     { start: '16:30', end: '18:30' },
-    { start: '19:00', end: '21:00' }
   ],
   
   // Hours of operation

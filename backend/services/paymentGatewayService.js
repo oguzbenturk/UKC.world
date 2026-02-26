@@ -67,6 +67,7 @@ export async function initiateGatewayDeposit({
   amount,
   currency,
   userId,
+  clientIp,
   metadata,
   referenceCode,
   idempotencyKey,
@@ -108,6 +109,7 @@ export async function initiateGatewayDeposit({
       amount: sanitizedPayload.amount,
       currency: sanitizedPayload.currency,
       userId,
+      clientIp,
       metadata: {
         ...sanitizedPayload.metadata,
         idempotencyKey: resolvedIdempotencyKey

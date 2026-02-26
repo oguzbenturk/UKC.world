@@ -5,7 +5,7 @@ import { BellIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import NotificationList from './NotificationList';
-import { useNotificationActions, useNotificationList, notificationQueryKeys } from '../hooks/useNotifications';
+import { useNotificationActions, useNotificationList } from '../hooks/useNotifications';
 import apiClient from '@/shared/services/apiClient';
 
 const RATE_BOOKING_STORAGE_KEY = 'pendingRateBooking';
@@ -163,54 +163,16 @@ const NotificationBell = () => {
       return;
     }
     
-    // Handle regular booking actions (approve/cancel)
-    const bookingId = notification?.data?.bookingId;
-    if (!bookingId) {
-      message.error('Booking information not found');
-      return;
-    }
-
-    try {
-      if (actionKey === 'approve') {
-        await apiClient.patch(`/bookings/${bookingId}/status`, { status: 'confirmed' });
-        message.success('Booking approved successfully');
-      } else if (actionKey === 'cancel') {
-        await apiClient.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
-        message.success('Booking declined');
+    // For booking notifications, navigate to the daily program instead of inline approve/decline
+    const cta = notification?.data?.cta;
+    if (cta?.href) {
+      setOpen(false);
+      if (!notification.readAt) {
+        try { await markNotificationRead(notification.id); } catch { /* silent */ }
       }
-      
-      // Optimistically update ALL notification list caches to hide buttons immediately
-      queryClient.setQueriesData(
-        { queryKey: ['notifications', 'list'] },
-        (oldData) => {
-          if (!oldData?.notifications) return oldData;
-          
-          return {
-            ...oldData,
-            notifications: oldData.notifications.map(notif => {
-              // Update this notification and any related notifications with the same bookingId
-              if (notif.data?.bookingId === bookingId) {
-                return {
-                  ...notif,
-                  data: {
-                    ...notif.data,
-                    status: 'processed'
-                  }
-                };
-              }
-              return notif;
-            })
-          };
-        }
-      );
-      
-      // Don't refetch - the optimistic update is sufficient
-      // Next time the dropdown opens, it will fetch fresh data from server
-      
-    } catch (error) {
-      message.error(error?.response?.data?.error || 'Failed to update booking status');
+      navigate(cta.href);
     }
-  }, [queryClient]);
+  }, [queryClient, markNotificationRead, navigate]);
 
   const persistRatingContext = useCallback((payload) => {
     try {

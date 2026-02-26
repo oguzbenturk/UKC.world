@@ -50,7 +50,9 @@ const { Title, Text } = Typography;
 
 const PRODUCT_CATEGORIES = [
   { value: 'kites', label: 'Kites', color: '#f50' },
-  { value: 'boards', label: 'Boards', color: '#2db7f5' },
+  { value: 'boards', label: 'Boards (Kite)', color: '#2db7f5' },
+  { value: 'wing-foil', label: 'Wing Foil', color: '#9254de' },
+  { value: 'e-foil', label: 'E-Foil', color: '#fadb14' },
   { value: 'harnesses', label: 'Harnesses', color: '#87d068' },
   { value: 'wetsuits', label: 'Wetsuits', color: '#108ee9' },
   { value: 'bars', label: 'Bars & Lines', color: '#13c2c2' },
@@ -59,7 +61,7 @@ const PRODUCT_CATEGORIES = [
   { value: 'apparel', label: 'Apparel', color: '#eb2f96' },
   { value: 'safety', label: 'Safety Gear', color: '#fa541c' },
   { value: 'spare-parts', label: 'Spare Parts', color: '#595959' },
-  { value: 'other', label: 'Other', color: '#8c8c8c' }
+  { value: 'other', label: 'Other / Second-Hand', color: '#8c8c8c' }
 ];
 
 const PRODUCT_STATUS = [

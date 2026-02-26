@@ -268,6 +268,17 @@ const GroupInvitationPage = () => {
             />
           )}
           
+          {/* Not registered notice — show signup prompt */}
+          {!isAuthenticated && !invitation.requiresRegistration && (
+            <Alert
+              type="info"
+              showIcon
+              message="Sign in to Continue"
+              description="You'll need to sign in or create an account to accept this invitation."
+              className="mb-6"
+            />
+          )}
+          
           {/* Already logged in notice */}
           {isAuthenticated && (
             <Alert
@@ -295,6 +306,21 @@ const GroupInvitationPage = () => {
             >
               {isAuthenticated ? 'Accept Invitation' : 'Accept & Sign In'}
             </Button>
+            
+            {!isAuthenticated && (
+              <Button
+                size="large"
+                type="default"
+                icon={<UserIcon className="w-5 h-5" />}
+                onClick={() => {
+                  const returnUrl = encodeURIComponent(`/group-invitation/${token}`);
+                  navigate(`/register?returnUrl=${returnUrl}&action=accept-invitation`);
+                }}
+                className="min-w-[200px]"
+              >
+                Create Account & Accept
+              </Button>
+            )}
             
             <Button
               size="large"

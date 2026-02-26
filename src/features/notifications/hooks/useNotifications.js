@@ -20,8 +20,8 @@ export const useNotificationList = (filters = {}, queryOptions = {}) => {
   return useQuery({
     queryKey: notificationQueryKeys.list(params),
     queryFn: () => notificationsApi.fetchNotifications(params),
-    staleTime: 0, // Always fetch fresh data to show correct timestamps
-    gcTime: 0, // Don't cache old data at all
+    staleTime: 30_000, // Keep data fresh for 30s to preserve optimistic updates
+    gcTime: 60_000, // Keep cache for 60s
     refetchOnWindowFocus: true,
     refetchInterval: false, // Disable auto-refetch to avoid excessive requests
     ...queryOptions,

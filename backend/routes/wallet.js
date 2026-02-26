@@ -8,6 +8,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { logPaymentEvent, sendPaymentAlert } from '../services/alertService.js'; // Phase 3: Monitoring
 import {
   getBalance,
+  getAllBalances,
   fetchTransactions,
   recordTransaction,
   getWalletSettings,
@@ -94,8 +95,11 @@ router.get('/summary', authenticateJWT, async (req, res) => {
     const requestedCurrency = req.query.currency || 'EUR';
 
     const summary = await getBalance(userId, requestedCurrency);
+
+    // Also fetch all currency balances so the frontend can aggregate
+    const allBalances = await getAllBalances(userId);
     
-    res.json({ userId, ...summary });
+    res.json({ userId, ...summary, balances: allBalances });
   } catch (error) {
     logger.error('Failed to fetch wallet summary:', error);
     res.status(500).json({ error: 'Failed to fetch wallet summary' });
@@ -287,7 +291,7 @@ router.get('/bank-accounts', authenticateJWT, async (req, res) => {
 });
 
 router.post('/deposit', authenticateJWT, depositLimiter, [
-  body('amount').isFloat({ min: 10, max: 50000 }).withMessage('Tutar 10-50000 arasında olmalıdır'),
+  body('amount').toFloat().isFloat({ min: 1, max: 50000 }).withMessage('Amount must be between 1 and 50,000'),
   body('currency').isIn(['TRY', 'EUR', 'USD', 'GBP']).withMessage('Geçersiz para birimi'),
   body('gateway').optional().isIn(['stripe', 'iyzico', 'paytr', 'binance_pay']).withMessage('Geçersiz ödeme yöntemi')
 ], async (req, res) => {
@@ -351,6 +355,16 @@ router.post('/deposit', authenticateJWT, depositLimiter, [
       idempotencyKey
     });
 
+    // Notify admins/managers of new bank transfer deposit via Socket.IO
+    if ((method || '').toLowerCase() === 'bank_transfer' && req.socketService) {
+      const depositNotification = {
+        deposit: result.deposit,
+        userName: req.user?.name || req.user?.email,
+      };
+      req.socketService.emitToRole('admin', 'wallet:deposit_created', depositNotification);
+      req.socketService.emitToRole('manager', 'wallet:deposit_created', depositNotification);
+    }
+
     res.status(201).json(result);
   } catch (error) {
     logger.error('Failed to create deposit request:', error);
@@ -385,6 +399,47 @@ router.post('/deposit/binance-pay', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('Failed to initiate Binance Pay deposit:', error);
     res.status(500).json({ error: error.message || 'Failed to initiate Binance Pay deposit' });
+  }
+});
+
+// GET /deposits/:id/status — user polls their deposit status after iyzico payment
+router.get('/deposits/:id/status', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const depositId = req.params.id;
+    if (!depositId) {
+      return res.status(400).json({ error: 'Deposit ID is required' });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, status, amount, currency, method, failure_reason, metadata, created_at, completed_at
+       FROM wallet_deposit_requests
+       WHERE id = $1 AND user_id = $2`,
+      [depositId, userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Deposit not found' });
+    }
+
+    const deposit = rows[0];
+    res.json({
+      id: deposit.id,
+      status: deposit.status,
+      amount: deposit.amount,
+      currency: deposit.currency,
+      method: deposit.method,
+      failureReason: deposit.failure_reason,
+      createdAt: deposit.created_at,
+      completedAt: deposit.completed_at
+    });
+  } catch (error) {
+    logger.error('Failed to fetch deposit status:', error);
+    res.status(500).json({ error: 'Failed to fetch deposit status' });
   }
 });
 
@@ -481,6 +536,13 @@ router.post(
         verification
       });
 
+      // Notify the student that their deposit was approved
+      if (req.socketService && result.deposit?.userId) {
+        req.socketService.emitToChannel(`user:${result.deposit.userId}`, 'wallet:deposit_approved', {
+          deposit: result.deposit
+        });
+      }
+
       res.json({ message: 'Deposit approved', ...result });
     } catch (error) {
       logger.error('Failed to approve deposit request:', error);
@@ -504,6 +566,14 @@ router.post(
         metadata,
         notes
       });
+
+      // Notify the student that their deposit was rejected
+      const rejectedDeposit = result.deposit || result;
+      if (req.socketService && rejectedDeposit?.userId) {
+        req.socketService.emitToChannel(`user:${rejectedDeposit.userId}`, 'wallet:deposit_rejected', {
+          deposit: rejectedDeposit
+        });
+      }
 
       res.json({ message: 'Deposit rejected', deposit: result });
     } catch (error) {

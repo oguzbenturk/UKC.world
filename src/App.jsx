@@ -27,6 +27,7 @@ import NotificationRealtimeBridge from './features/notifications/components/Noti
 import UserConsentModal from './features/compliance/components/UserConsentModal.jsx';
 import NetworkStatusBanner from './shared/components/system/NetworkStatusBanner.jsx';
 import WalletModalManager from './shared/components/wallet/WalletModalManager';
+import RescheduleConfirmationModal from './features/notifications/components/RescheduleConfirmationModal';
 
 // Wrapper component to provide location to PopupManager
 const PopupManagerWrapper = ({ user }) => {
@@ -272,6 +273,7 @@ const AppLayoutWithAuth = () => {
   <Navbar toggleSidebar={toggleSidebar} toggleSidebarCollapsed={toggleSidebarCollapsed} />
   <NotificationRealtimeBridge />
   <WalletModalManager />
+  <RescheduleConfirmationModal />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar 
           isOpen={isSidebarOpen} 

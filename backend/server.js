@@ -60,6 +60,8 @@ import adminSupportTicketsRouter from './routes/adminSupportTickets.js';
 import walletRouter from './routes/wallet.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
 import groupBookingsRouter from './routes/groupBookings.js';
+import groupLessonRequestsRouter from './routes/groupLessonRequests.js';
+import rescheduleNotificationsRouter from './routes/rescheduleNotifications.js';
 import vouchersRouter from './routes/vouchers.js';
 import managerCommissionsRouter from './routes/managerCommissions.js';
 import memberOfferingsRouter from './routes/memberOfferings.js';
@@ -413,7 +415,8 @@ app.use('/api/student', authenticateJWT, studentPortalRouter);
 // Iyzico callback - MUST be before authenticateJWT middleware for /api/finances
 // This is called by Iyzico's servers after payment completion
 import { verifyPayment } from './services/paymentGateways/iyzicoGateway.js';
-import { recordTransaction as recordWalletTransactionDirect } from './services/walletService.js';
+import { approveDepositRequest as approveDepositFromCallback } from './services/walletService.js';
+import { resolveSystemActorId } from './utils/auditUtils.js';
 app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { token } = req.body;
@@ -432,106 +435,73 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
       basketId: payment.raw?.basketId
     });
 
-    // Get user ID from basketId (format: USR_{userId}_TRX_{timestamp})
-    const raw = payment.raw || {};
-    const basketId = raw.basketId || '';
-    const userIdMatch = basketId.match(/^USR_([^_]+)_TRX_/);
-    const targetUserId = userIdMatch ? userIdMatch[1] : null;
-
-    if (!targetUserId) {
-      logger.error('Iyzico Callback: Could not identify user from basketId', { basketId, raw });
-      throw new Error('Could not identify user');
-    }
-    
-    logger.info('User identified from basketId', { targetUserId, basketId });
-
-    // Get the amount and currency from the verified payment
-    // We sent EUR to Iyzico, so we should get EUR back
-    const paidAmount = parseFloat(payment.paidPrice);
-    const paidCurrency = payment.currency || 'EUR';
-    
-    // Credit the wallet with the actual paid amount in the paid currency
-    // The wallet service will handle any necessary conversion to EUR
-    let creditAmount = paidAmount;
-    let creditCurrency = paidCurrency;
-    
-    // Only convert if not already EUR (wallet uses EUR)
-    if (paidCurrency !== 'EUR') {
-      try {
-        const CurrencyService = (await import('./services/currencyService.js')).default;
-        creditAmount = await CurrencyService.convertCurrency(paidAmount, paidCurrency, 'EUR');
-        creditCurrency = 'EUR';
-        logger.info('Converted payment to EUR for wallet', { 
-          paidAmount, 
-          paidCurrency, 
-          creditAmount 
-        });
-      } catch (convErr) {
-        logger.warn('Currency conversion failed, using original amount', { error: convErr.message });
-        // Fall back to original amount - wallet will handle
-        creditAmount = paidAmount;
-        creditCurrency = paidCurrency;
-      }
-    }
-
-    // Record the wallet transaction
-    await recordWalletTransactionDirect({
-      userId: targetUserId,
-      amount: creditAmount,
-      currency: creditCurrency,
-      transactionType: 'payment',
-      direction: 'credit',
-      description: 'Wallet Top-up (Iyzico)',
-      paymentMethod: 'iyzico',
-      referenceNumber: payment.paymentId,
-      metadata: {
-        gateway: 'iyzico',  // Required for refund validation
-        paymentId: payment.paymentId,  // Required for refund
-        iyzicoPaymentId: payment.paymentId,  // Keep for backward compatibility
-        conversationId: raw.conversationId,
-        token: token,
-        originalPaidAmount: paidAmount,
-        originalPaidCurrency: paidCurrency
-      },
-      status: 'completed',
-      authorId: null
-    });
-
-    logger.info('Wallet credited successfully', { 
-      userId: targetUserId, 
-      amount: creditAmount, 
-      currency: creditCurrency 
-    });
-
-    // Get user role to determine redirect path
-    const userResult = await pool.query(
-      'SELECT r.name as role_name FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1',
-      [targetUserId]
+    // Find the matching deposit request by gateway_transaction_id (the iyzico token)
+    const depositResult = await pool.query(
+      `SELECT id, user_id, status, amount, currency FROM wallet_deposit_requests
+       WHERE gateway_transaction_id = $1
+       LIMIT 1`,
+      [token]
     );
-    const userRole = userResult.rows[0]?.role_name?.toLowerCase() || 'outsider';
-    
-    // Redirect based on user role
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    let redirectPath = '/student/payments'; // default for students
-    
-    if (userRole === 'outsider') {
-      // Outsiders go to book page with success notification
-      redirectPath = '/book';
-    } else if (userRole === 'student') {
-      redirectPath = '/student/payments';
-    } else {
-      // Staff roles go to finance page
-      redirectPath = '/finance';
+
+    if (depositResult.rows.length === 0) {
+      logger.error('Iyzico Callback: No matching deposit request found for token', { token });
+      throw new Error('No matching deposit request found');
     }
-    
-    res.redirect(`${frontendUrl}${redirectPath}?payment=success&amount=${creditAmount}&currency=${creditCurrency}`);
+
+    const depositRow = depositResult.rows[0];
+    const targetUserId = depositRow.user_id;
+
+    // Only approve if not already completed (idempotent check)
+    if (depositRow.status !== 'completed') {
+      const processorId = resolveSystemActorId() || targetUserId;
+      
+      const approvalResult = await approveDepositFromCallback({
+        requestId: depositRow.id,
+        processorId,
+        metadata: {
+          gatewayCallback: {
+            provider: 'iyzico',
+            paymentId: payment.paymentId,
+            paidPrice: payment.paidPrice,
+            currency: payment.currency,
+            token,
+            conversationId: payment.raw?.conversationId
+          }
+        },
+        notes: 'Wallet Top-up via Credit Card'
+      });
+
+      logger.info('Deposit approved via Iyzico callback', { 
+        depositId: depositRow.id,
+        userId: targetUserId
+      });
+
+      // Notify the user in real-time so the frontend auto-detects completion
+      try {
+        socketService.emitToChannel(`user:${targetUserId}`, 'wallet:deposit_approved', {
+          depositId: depositRow.id,
+          amount: approvalResult?.deposit?.amount || depositRow.amount,
+          currency: approvalResult?.deposit?.currency || depositRow.currency,
+          completedAt: new Date().toISOString()
+        });
+      } catch (socketErr) {
+        logger.warn('Failed to emit deposit_approved socket event', { error: socketErr.message });
+      }
+    } else {
+      logger.info('Deposit already completed, skipping (idempotent)', { 
+        depositId: depositRow.id,
+        userId: targetUserId 
+      });
+    }
+
+    // Redirect to payment callback page — the original tab handles the receipt via Socket.IO
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/payment/callback?status=success`);
 
   } catch (error) {
     logger.error('Iyzico Callback Failed', { error: error.message, stack: error.stack });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    // SEC-043 FIX: Use generic error code instead of exposing internal error messages
-    const errorCode = error.code || 'PAYMENT_ERROR';
-    res.redirect(`${frontendUrl}/book?payment=failed&error_code=${encodeURIComponent(errorCode)}`);
+    res.redirect(`${frontendUrl}/payment/callback?status=failed`);
   }
 });
 
@@ -596,6 +566,8 @@ app.use('/api/shop-orders', authenticateJWT, shopOrdersRouter);
 app.use('/api/shop/orders', authenticateJWT, shopOrdersRouter); // Alias for QuickShopSaleModal
 app.use('/api/business-expenses', authenticateJWT, businessExpensesRouter);
 app.use('/api/group-bookings', authenticateJWT, groupBookingsRouter);
+app.use('/api/group-lesson-requests', groupLessonRequestsRouter);
+app.use('/api/reschedule-notifications', rescheduleNotificationsRouter);
 app.use('/api/system', authenticateJWT, systemRouter);
 app.use('/api/settings', authenticateJWT, settingsRouter);
 app.use('/api/finance-settings', authenticateJWT, financeSettingsRouter);

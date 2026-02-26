@@ -44,7 +44,10 @@ import {
   TrashIcon,
   ArrowLeftIcon,
   CreditCardIcon,
-  WalletIcon
+  WalletIcon,
+  ClipboardDocumentIcon,
+  ShareIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import dayjs from 'dayjs';
 import { 
@@ -546,6 +549,102 @@ const GroupBookingDetailPage = () => {
           </Tag>
         </div>
       </Card>
+      
+      {/* Share Invite Link */}
+      {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+        <Card title={
+          <Space>
+            <ShareIcon className="w-4 h-4" />
+            <span>Share Invite Link</span>
+          </Space>
+        } className="mb-4">
+          <div className="space-y-3">
+            <Text type="secondary" className="text-sm block">
+              Share this link with friends to invite them to your group lesson. They can accept by clicking the link — even if they don't have an account yet.
+            </Text>
+            {(() => {
+              // Find a participant with pending invitation token for the invite link
+              const invitedParticipant = booking.participants?.find(p => p.invitationToken && p.status === 'invited');
+              const baseUrl = window.location.origin;
+              
+              if (invitedParticipant) {
+                const inviteLink = `${baseUrl}/group-invitation/${invitedParticipant.invitationToken}`;
+                return (
+                  <div className="flex gap-2">
+                    <Input 
+                      value={inviteLink}
+                      readOnly
+                      className="flex-1"
+                      addonBefore={<LinkIcon className="w-4 h-4" />}
+                    />
+                    <Tooltip title="Copy to clipboard">
+                      <Button
+                        type="primary"
+                        icon={<ClipboardDocumentIcon className="w-4 h-4" />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(inviteLink).then(() => {
+                            message.success('Invite link copied to clipboard!');
+                          }).catch(() => {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea');
+                            textArea.value = inviteLink;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            message.success('Invite link copied!');
+                          });
+                        }}
+                      >
+                        Copy Link
+                      </Button>
+                    </Tooltip>
+                  </div>
+                );
+              }
+              
+              return (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="No pending invite links"
+                  description="Use 'Invite Friends' above to create invite links. Each invited person gets a unique link you can share."
+                />
+              );
+            })()}
+
+            {/* Show all invite links for all pending invitations */}
+            {booking.participants?.filter(p => p.invitationToken && p.status === 'invited').length > 1 && (
+              <div className="mt-2">
+                <Text strong className="text-xs block mb-2">All pending invitation links:</Text>
+                {booking.participants
+                  .filter(p => p.invitationToken && p.status === 'invited')
+                  .map(p => {
+                    const link = `${window.location.origin}/group-invitation/${p.invitationToken}`;
+                    return (
+                      <div key={p.id} className="flex items-center gap-2 mb-1">
+                        <Text type="secondary" className="text-xs truncate max-w-[150px]">
+                          {p.email || p.fullName || 'Invited'}
+                        </Text>
+                        <Button
+                          size="small"
+                          type="link"
+                          icon={<ClipboardDocumentIcon className="w-3 h-3" />}
+                          onClick={() => {
+                            navigator.clipboard.writeText(link);
+                            message.success(`Link for ${p.email || 'participant'} copied!`);
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
       
       {/* Actions */}
       {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (

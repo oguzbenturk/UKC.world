@@ -20,6 +20,25 @@ export const PRODUCT_CATEGORIES = {
       'surfboard': { label: 'Surfboards', value: 'surfboard' }
     }
   },
+  'wing-foil': {
+    label: 'Wing Foil',
+    icon: '🪂',
+    value: 'wing-foil',
+    subcategories: {
+      'wings': { label: 'Wings', value: 'wings' },
+      'foil-boards': { label: 'Foil Boards', value: 'foil-boards' },
+      'masts': { label: 'Masts & Fuselages', value: 'masts' }
+    }
+  },
+  'e-foil': {
+    label: 'E-Foil',
+    icon: '⚡',
+    value: 'e-foil',
+    subcategories: {
+      'boards': { label: 'E-Foil Boards', value: 'boards' },
+      'accessories': { label: 'Accessories', value: 'accessories' }
+    }
+  },
   wetsuits: {
     label: 'Wetsuits',
     icon: '🩱',

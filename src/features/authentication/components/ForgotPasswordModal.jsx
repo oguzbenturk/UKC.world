@@ -106,11 +106,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                 <Input
                   prefix={<MailOutlined className="text-gray-400" />}
                   type="email"
+                  name="email"
+                  id="forgot-email"
+                  autoComplete="email"
                   placeholder="Enter your email"
                   size="large"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={(e) => e.key === 'Enter' && handleKeyPress(e)}
                   autoFocus
                 />
               </div>

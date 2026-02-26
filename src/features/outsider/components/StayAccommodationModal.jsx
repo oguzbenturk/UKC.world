@@ -44,6 +44,7 @@ const toTitle = (v) =>
  */
 const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookNow }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const isHotel = (unit?.type || '').toLowerCase() === 'room';
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState('1night');
   const [customNights, setCustomNights] = useState(3);
@@ -69,7 +70,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
   const allImages = [
     ...(primaryImage ? [primaryImage] : []),
     ...rawImages.filter((img) => img !== primaryImage),
-  ].filter(Boolean);
+  ].filter(Boolean).filter((img, i, arr) => arr.indexOf(img) === i);
   const hasGallery = allImages.length > 1;
 
   const prevPhoto = (e) => {
@@ -157,8 +158,8 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                       onChange: (idx) => setPreviewIndex(idx),
                     }}
                   >
-                    {allImages.map((src) => (
-                      <Image key={src} src={src} />
+                    {allImages.map((src, idx) => (
+                      <Image key={`img-${idx}-${src}`} src={src} />
                     ))}
                   </Image.PreviewGroup>
                 </div>
@@ -198,7 +199,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                   <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-20">
                     {allImages.map((img, i) => (
                       <button
-                        key={img}
+                        key={`dot-${i}`}
                         onClick={(e) => { e.stopPropagation(); setPhotoIndex(i); }}
                         className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIndex ? 'bg-white w-4' : 'bg-white/40'}`}
                       />
@@ -244,7 +245,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
             <div className="flex gap-2 px-4 pt-3 pb-0 overflow-x-auto scrollbar-thin">
               {allImages.map((img, i) => (
                 <button
-                  key={img}
+                  key={`thumb-${i}`}
                   onClick={() => setPhotoIndex(i)}
                   className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${i === photoIndex ? `${theme.border} opacity-100` : 'border-transparent opacity-50 hover:opacity-80'}`}
                 >
@@ -432,12 +433,14 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
               type="primary"
               icon={<RocketOutlined />}
               onClick={() => onBookNow?.(pkg, selectedKey === 'custom' ? `${customNights}night` : selectedKey)}
-              className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 bg-gradient-to-r ${pkg.gradient || 'from-blue-600 to-sky-500'}`}
+              className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 bg-gradient-to-r ${isHotel ? 'from-orange-500 to-amber-500' : (pkg.gradient || 'from-blue-600 to-sky-500')}`}
             >
-              Book Now
+              {isHotel ? 'Request Booking' : 'Book Now'}
             </Button>
             <p className="text-center text-gray-600 text-[10px] mt-3 flex items-center justify-center gap-1">
-              <InfoCircleOutlined /> No payment required today. Secure your spot now.
+              <InfoCircleOutlined /> {isHotel
+                ? 'This is a request. We will check hotel availability and confirm.'
+                : 'No payment required today. Secure your spot now.'}
             </p>
           </div>
         </div>

@@ -1472,8 +1472,8 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
             }
           }
         }
-        // Fallback: booking-level package
-        if (!restoredAny && booking.payment_status === 'package' && booking.customer_package_id) {
+        // Fallback: booking-level package (also handles bookings where payment_status was incorrectly saved)
+        if (!restoredAny && booking.customer_package_id) {
           const { rows: pkgRows } = await client.query(
             `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
              FROM customer_packages WHERE id = $1`,
@@ -1719,8 +1719,8 @@ export async function getStudentCourses(studentId) {
           completedLessons: completed,
           totalLessons: total,
           percent: total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0,
-          firstLessonDate: row.first_date ? row.first_date.toISOString().split('T')[0] : null,
-          lastLessonDate: row.last_date ? row.last_date.toISOString().split('T')[0] : null
+          firstLessonDate: row.first_date ? new Date(row.first_date).toISOString().split('T')[0] : null,
+          lastLessonDate: row.last_date ? new Date(row.last_date).toISOString().split('T')[0] : null
         },
         resourceCount: coalesceNumber(row.resource_count)
       };
@@ -2039,6 +2039,7 @@ export async function updateStudentProfile(studentId, payload = {}) {
     lastName,
     phone,
     language,
+    preferredCurrency,
     emergencyContact,
     communicationPreferences
   } = payload;
@@ -2048,6 +2049,7 @@ export async function updateStudentProfile(studentId, payload = {}) {
     await client.query('BEGIN');
     const userColumns = await getUserColumnCapabilities(client);
     const hasLanguageColumn = userColumns.language;
+    const hasPreferredCurrencyColumn = userColumns.preferred_currency;
     const hasEmergencyContactColumn = userColumns.emergency_contact;
     const hasCommunicationPreferencesColumn = userColumns.communication_preferences;
 
@@ -2066,6 +2068,11 @@ export async function updateStudentProfile(studentId, payload = {}) {
     if (hasLanguageColumn) {
       params.push(language ?? null);
       setters.push(`language = COALESCE($${params.length}, language)`);
+    }
+
+    if (hasPreferredCurrencyColumn) {
+      params.push(preferredCurrency ?? null);
+      setters.push(`preferred_currency = COALESCE($${params.length}, preferred_currency)`);
     }
 
     if (hasEmergencyContactColumn) {
@@ -2088,6 +2095,7 @@ export async function updateStudentProfile(studentId, payload = {}) {
       'last_name',
       'phone',
       hasLanguageColumn ? 'language' : 'NULL::text AS language',
+      hasPreferredCurrencyColumn ? 'preferred_currency' : 'NULL::text AS preferred_currency',
       hasEmergencyContactColumn ? 'emergency_contact' : 'NULL::json AS emergency_contact',
       hasCommunicationPreferencesColumn ? 'communication_preferences' : 'NULL::json AS communication_preferences',
       'updated_at'
@@ -2122,6 +2130,7 @@ export async function updateStudentProfile(studentId, payload = {}) {
       lastName: row.last_name,
       phone: row.phone,
       language: resolvedLanguage,
+      preferredCurrency: row.preferred_currency || 'EUR',
       emergencyContact: row.emergency_contact,
       communicationPreferences: row.communication_preferences,
       updatedAt: toIso(row.updated_at)

@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import CurrencySelector from '@/shared/components/ui/CurrencySelector';
+import { studentPortalApi } from '@/features/students/services/studentPortalApi';
 import apiClient from '@/shared/services/apiClient';
 import { usePageSEO } from '@/shared/utils/seo';
 import DataService from '@/shared/services/dataService';
@@ -376,9 +377,11 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
 });
 
 const UserSettings = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { message } = App.useApp();
-  const { userCurrency } = useCurrency();
+  const { userCurrency, getSupportedCurrencies } = useCurrency();
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
+  const [savingCurrency, setSavingCurrency] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [businessSettings, setBusinessSettings] = useState(null);
@@ -405,6 +408,30 @@ const UserSettings = () => {
     const role = (user?.role || user?.role_name || '').toLowerCase();
     return ['admin', 'manager', 'instructor', 'owner'].includes(role);
   }, [user]);
+
+  // Initialize selected currency from user profile
+  useEffect(() => {
+    if (user?.preferred_currency || user?.preferredCurrency) {
+      setSelectedCurrency(user.preferred_currency || user.preferredCurrency);
+    } else {
+      setSelectedCurrency(userCurrency || 'EUR');
+    }
+  }, [user, userCurrency]);
+
+  // Save preferred currency for non-staff users
+  const handleCurrencySave = useCallback(async () => {
+    if (!selectedCurrency) return;
+    setSavingCurrency(true);
+    try {
+      await studentPortalApi.updateProfile({ preferredCurrency: selectedCurrency });
+      await refreshUser();
+      message.success('Currency preference updated successfully');
+    } catch (error) {
+      message.error('Failed to update currency preference');
+    } finally {
+      setSavingCurrency(false);
+    }
+  }, [selectedCurrency, refreshUser, message]);
 
   usePageSEO({
     title: 'Settings | Plannivo',
@@ -741,6 +768,46 @@ const UserSettings = () => {
               </div>
             </div>
           </Card>
+
+          {/* Currency Preference - For non-staff users */}
+          {!isStaff && (
+            <Card 
+              title={
+                <span className="flex items-center gap-2">
+                  <DollarOutlined className="text-sky-500" />
+                  Currency Preference
+                </span>
+              }
+              className="mb-6 rounded-xl shadow-sm"
+            >
+              <div className="space-y-4">
+                <div>
+                  <Text strong className="block mb-2">Display Currency</Text>
+                  <Paragraph className="!mb-3 text-sm text-slate-500">
+                    Choose your preferred currency for viewing prices and balances
+                  </Paragraph>
+                  <CurrencySelector
+                    value={selectedCurrency}
+                    onChange={setSelectedCurrency}
+                    placeholder="Select your preferred currency"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={handleCurrencySave}
+                    loading={savingCurrency}
+                    disabled={selectedCurrency === (user?.preferred_currency || user?.preferredCurrency || userCurrency)}
+                    className="rounded-lg"
+                  >
+                    Save Currency
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Language Settings */}
           <Card 

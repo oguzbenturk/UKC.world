@@ -16,6 +16,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 const { Title, Text } = Typography;
@@ -62,7 +64,10 @@ const PackagePurchaseModal = ({
   isPurchasing = false
 }) => {
   const { userCurrency, formatCurrency, convertCurrency } = useCurrency();
+  const { user } = useAuth();
   
+  const isTrustedCustomer = user?.role && PAY_AT_CENTER_ALLOWED_ROLES.includes(user.role);
+
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('wallet');
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
   const [appliedVoucher, setAppliedVoucher] = useState(null);
@@ -224,12 +229,15 @@ const PackagePurchaseModal = ({
                   <span>External Payment</span>
                 </div>
               </Radio>
-              <Radio value="pay_later">
-                <div className="flex items-center gap-2">
-                  <CalendarOutlined />
-                  <span>Pay Later</span>
-                </div>
-              </Radio>
+              {isTrustedCustomer && (
+                <Radio value="pay_later">
+                  <div className="flex items-center gap-2">
+                    <CalendarOutlined />
+                    <span>Pay Later</span>
+                    <Tag color="orange" className="!text-xs">Trusted Customer</Tag>
+                  </div>
+                </Radio>
+              )}
             </Space>
           </Radio.Group>
 

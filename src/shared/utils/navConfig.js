@@ -163,9 +163,14 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue with dot
         subItems: [
+          { to: '/community/team', label: 'Team' },
           { to: '/chat', label: 'Chat' },
           { to: '/services/events', label: 'Events' }
         ]
+      }),
+      // Contact Us - Slate
+      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+        customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' } // slate
       })
     ];
   }
@@ -230,7 +235,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/stay/home', label: 'Home' },
           { to: '/stay/hotel', label: 'Hotel' },
-          { to: '/stay/my-accommodation', label: 'My Accommodation' }
+          { to: '/stay/my-accommodation', label: 'My Stay' }
         ]
       }),
       // 7. Experience - Yellow
@@ -249,6 +254,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue with dot
         subItems: [
+          { to: '/community/team', label: 'Team' },
           { to: '/chat', label: 'Chat' },
           { to: '/services/events', label: 'Events' }
         ]
@@ -259,6 +265,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/student/support', 'Support', 'LifebuoyIcon', {
         customStyle: { textColor: '#f59e0b' } // amber
+      }),
+      // Contact Us - Slate
+      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+        customStyle: { textColor: '#94a3b8' } // slate
       }),
       item('/student/profile', 'Profile', 'UserCircleIcon', {
         customStyle: { textColor: '#cbd5e1' }, // slate-300 (matches logout in dark mode)
@@ -318,6 +328,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       // Messages - Sky Blue
       item('/chat', 'Messages', 'ChatBubbleLeftRightIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
+      }),
+      // Contact Us - Slate
+      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+        customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' }
       })
     ];
   }
@@ -374,8 +388,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/membership', label: 'Member', dotColor: '#93c47d' },
           { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
           { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
-          { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
-          { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
+            { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
+            { to: '/finance/wallet-deposits', label: 'Wallet Deposits', icon: 'WalletIcon' },
+            { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' },
+            { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
         ]
       }),
@@ -458,6 +474,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
       subItems: [
+        { to: '/community/team', label: 'Team' },
         { to: '/chat', label: 'Chat' },
         { to: '/services/events', label: 'Events' }
       ]

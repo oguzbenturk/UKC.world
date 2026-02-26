@@ -83,6 +83,16 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       return res.status(400).json({ error: 'Invalid payment model. Use "individual" or "organizer_pays"' });
     }
 
+    // Students/outsiders must invite at least 1 other person — no solo group bookings
+    const isStudentOrOutsider = ['student', 'outsider'].includes(req.user.role);
+    const hasInvitees = (Array.isArray(invitees) && invitees.length > 0) ||
+                        (Array.isArray(participantIds) && participantIds.length > 0);
+    if (isStudentOrOutsider && !hasInvitees) {
+      return res.status(400).json({
+        error: 'Group lessons require at least 2 people. Please invite at least one friend, or submit a group lesson request so we can match you with another student.'
+      });
+    }
+
     // Create the group booking
     const groupBooking = await createGroupBooking({
       organizerId: userId,
@@ -204,6 +214,7 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
         endTime: details.end_time,
         durationHours: parseFloat(details.duration_hours || 0),
         serviceName: details.service_name,
+        serviceCategory: details.service_category,
         instructorName: details.instructor_name,
         organizerName: details.organizer_name,
         organizerEmail: details.organizer_email,
@@ -216,9 +227,13 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
         participants: details.participants,
         isOrganizer: details.isOrganizer,
         isParticipant: details.isParticipant,
+        paymentModel: details.payment_model || 'individual',
+        organizerPaid: details.organizer_paid || false,
         registrationDeadline: details.registration_deadline,
         paymentDeadline: details.payment_deadline,
         notes: details.notes,
+        bookingId: details.booking_id,
+        serviceId: details.service_id,
         createdAt: details.created_at
       }
     });

@@ -104,7 +104,21 @@ router.get('/units/:id', async (req, res) => {
 		if (rows.length === 0) {
 			return res.status(404).json({ error: 'Accommodation unit not found' });
 		}
-		res.json(rows[0]);
+
+		// Also fetch only upcoming bookings (for availability calendar)
+		const { rows: bookingRows } = await pool.query(
+			`SELECT id, check_in_date, check_out_date, status, guests_count
+			 FROM accommodation_bookings
+			 WHERE unit_id = $1
+			   AND status NOT IN ('cancelled', 'completed')
+			   AND check_out_date >= CURRENT_DATE
+			 ORDER BY check_in_date`,
+			[id]
+		);
+
+		const unit = rows[0];
+		unit.upcoming_bookings = bookingRows;
+		res.json(unit);
 	} catch (err) {
 		res.status(500).json({ error: 'Failed to get accommodation unit', details: err.message });
 	}
@@ -340,11 +354,27 @@ router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin',
 });
 
 // Cancel a booking — refund wallet if paid
-router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'student', 'outsider', 'trusted_customer']), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
 		const { id } = req.params;
+
+		// For non-staff users, verify they own the booking before cancelling
+		const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
+		const isStaff = ['admin', 'manager', 'super_admin', 'owner'].includes(userRole);
+
+		if (!isStaff) {
+			const ownershipCheck = await client.query(
+				`SELECT id FROM accommodation_bookings WHERE id = $1 AND guest_id = $2 AND status NOT IN ('cancelled', 'completed')`,
+				[id, req.user.id]
+			);
+			if (ownershipCheck.rows.length === 0) {
+				await client.query('ROLLBACK');
+				return res.status(403).json({ error: 'You can only cancel your own bookings' });
+			}
+		}
+
 		const { rows } = await client.query(
 			`UPDATE accommodation_bookings SET status = 'cancelled', updated_by = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
 			[id, req.user.id]
@@ -397,65 +427,68 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 router.post('/bookings', authenticateJWT, async (req, res) => {
 	const client = await pool.connect();
 	try {
-		   await client.query('BEGIN');
-		   const { 
-			   unit_id, 
-			   check_in_date, 
-			   check_out_date, 
-			   guests_count = 1,
-			   guest_id: requestedGuestId,
-			   notes 
-		   } = req.body;
+		await client.query('BEGIN');
+		const {
+			unit_id,
+			check_in_date,
+			check_out_date,
+			guests_count = 1,
+			guest_id: requestedGuestId,
+			notes,
+			payment_method = 'wallet' // 'wallet' | 'pay_later'
+		} = req.body;
 
-		   // DEBUG LOG
-		   console.log('[BOOKING] req.user:', req.user);
-		   console.log('[BOOKING] requestedGuestId:', requestedGuestId);
 		// Staff (admin, manager, front_desk) can book for any user
 		// Regular users can only book for themselves
-			 // Staff (admin, manager, front_desk) can book for any user
-			 // Regular users can only book for themselves
-			 const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
-			 const isStaff = (
-				 userRole === 'admin' ||
-				 userRole === 'manager' ||
-				 userRole.startsWith('front_desk')
-			 );
-			 const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
-		
+		const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
+		const isStaff = (
+			userRole === 'admin' ||
+			userRole === 'manager' ||
+			userRole.startsWith('front_desk')
+		);
+		const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
+
+		// Only trusted customers / staff can use pay_later
+		const PAY_LATER_ROLES = ['admin', 'manager', 'trusted_customer'];
+		if (payment_method === 'pay_later' && !PAY_LATER_ROLES.includes(userRole)) {
+			await client.query('ROLLBACK');
+			return res.status(403).json({ error: 'Pay Later is only available for trusted customers.' });
+		}
+
 		if (!unit_id || !check_in_date || !check_out_date) {
 			return res.status(400).json({ error: 'unit_id, check_in_date, and check_out_date are required' });
 		}
-		
+
 		// Validate dates
 		const checkIn = new Date(check_in_date);
 		const checkOut = new Date(check_out_date);
 		if (checkOut <= checkIn) {
 			return res.status(400).json({ error: 'check_out_date must be after check_in_date' });
 		}
-		
+
 		// Get unit details and check availability
 		const unit = await client.query(
 			`SELECT * FROM accommodation_units WHERE id = $1`,
 			[unit_id]
 		);
-		
+
 		if (unit.rows.length === 0) {
 			await client.query('ROLLBACK');
 			return res.status(404).json({ error: 'Accommodation unit not found' });
 		}
-		
+
 		const unitData = unit.rows[0];
-		
+
 		if (unitData.status !== 'Available') {
 			await client.query('ROLLBACK');
 			return res.status(400).json({ error: 'Unit is not available' });
 		}
-		
+
 		if (guests_count > unitData.capacity) {
 			await client.query('ROLLBACK');
 			return res.status(400).json({ error: `Unit capacity is ${unitData.capacity} guests` });
 		}
-		
+
 		// Check for overlapping bookings
 		const overlap = await client.query(
 			`SELECT id FROM accommodation_bookings 
@@ -464,60 +497,66 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			 AND (check_in_date, check_out_date) OVERLAPS ($2::date, $3::date)`,
 			[unit_id, check_in_date, check_out_date]
 		);
-		
+
 		if (overlap.rows.length > 0) {
 			await client.query('ROLLBACK');
 			return res.status(400).json({ error: 'Unit is not available for the selected dates' });
 		}
-		
+
 		// Calculate total price
 		const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
 		const total_price = nights * parseFloat(unitData.price_per_night);
-		
-		// Deduct from guest's wallet (lock funds)
+
+		const bookingId = uuidv4();
 		let walletTxId = null;
-		try {
-			const balance = await getBalance(guest_id, 'EUR');
-			if ((balance?.available || 0) < total_price) {
+		let paymentStatus = 'pending';
+
+		if (payment_method === 'wallet') {
+			// Deduct from guest's wallet (lock funds)
+			try {
+				const balance = await getBalance(guest_id, 'EUR');
+				if ((balance?.available || 0) < total_price) {
+					await client.query('ROLLBACK');
+					return res.status(400).json({ error: `Insufficient wallet balance. Required: €${total_price.toFixed(2)}, Available: €${(balance?.available || 0).toFixed(2)}` });
+				}
+
+				const lockResult = await lockFundsForBooking({
+					userId: guest_id,
+					amount: total_price,
+					bookingId,
+					currency: 'EUR',
+					client
+				});
+				walletTxId = lockResult?.id || null;
+				paymentStatus = 'paid';
+			} catch (walletErr) {
 				await client.query('ROLLBACK');
-				return res.status(400).json({ error: `Insufficient wallet balance. Required: €${total_price.toFixed(2)}, Available: €${(balance?.available || 0).toFixed(2)}` });
+				console.error('[ACCOMMODATION] Wallet deduction failed:', walletErr.message);
+				if (walletErr.message?.includes('Insufficient')) {
+					return res.status(400).json({ error: walletErr.message });
+				}
+				return res.status(500).json({ error: 'Failed to process payment from wallet', details: walletErr.message });
 			}
-			
-			const bookingId = uuidv4();
-			const lockResult = await lockFundsForBooking({
-				userId: guest_id,
-				amount: total_price,
-				bookingId,
-				currency: 'EUR',
-				client
-			});
-			walletTxId = lockResult?.id || null;
-			
-			// Create booking
-			const { rows } = await client.query(
-				`INSERT INTO accommodation_bookings 
-				(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, payment_status, wallet_transaction_id, payment_amount, created_at, updated_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, 'paid', $10, $7, NOW(), NOW())
-				RETURNING *`,
-				[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, walletTxId]
-			);
-			
-			await client.query('COMMIT');
-			
-			// Return booking with unit details
-			const booking = rows[0];
-			booking.unit = unitData;
-			booking.nights = nights;
-			
-			res.status(201).json(booking);
-		} catch (walletErr) {
-			await client.query('ROLLBACK');
-			console.error('[ACCOMMODATION] Wallet deduction failed:', walletErr.message);
-			if (walletErr.message?.includes('Insufficient')) {
-				return res.status(400).json({ error: walletErr.message });
-			}
-			return res.status(500).json({ error: 'Failed to process payment from wallet', details: walletErr.message });
 		}
+		// pay_later: no wallet deduction, payment_status stays 'pending'
+
+		// Create booking
+		const { rows } = await client.query(
+			`INSERT INTO accommodation_bookings 
+			(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, payment_status, payment_method, wallet_transaction_id, payment_amount, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $7, NOW(), NOW())
+			RETURNING *`,
+			[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, paymentStatus, payment_method, walletTxId]
+		);
+
+		await client.query('COMMIT');
+
+		// Return booking with unit details
+		const booking = rows[0];
+		booking.unit = unitData;
+		booking.nights = nights;
+
+		res.status(201).json(booking);
 	} catch (err) {
 		await client.query('ROLLBACK');
 		res.status(500).json({ error: 'Failed to create accommodation booking', details: err.message });

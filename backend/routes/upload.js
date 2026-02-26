@@ -284,6 +284,21 @@ router.post('/repair-image', authenticateJWT, imageUpload.single('image'), (req,
   }
 });
 
+router.post('/wallet-deposit', authenticateJWT, imageUpload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const relativePath = `/uploads/images/${req.file.filename}`;
+    console.log('Wallet deposit proof uploaded:', relativePath);
+    res.json({ url: relativePath });
+  } catch (error) {
+    console.error('Error uploading wallet deposit proof:', error);
+    res.status(500).json({ error: 'Failed to upload wallet deposit proof' });
+  }
+});
+
 // Chat media upload endpoints
 const chatImagesDir = path.join(uploadsDir, 'chat-images');
 const chatFilesDir = path.join(uploadsDir, 'chat-files');

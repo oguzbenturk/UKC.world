@@ -20,7 +20,13 @@ const toIsoDate = (value) => {
   }
 
   if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
+    // Use local-time getters to avoid UTC shift on UTC+ servers.
+    // e.g. on UTC+3, midnight local = 21:00 UTC-prev-day → toISOString()
+    // would return the wrong date.
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   if (typeof value === 'string') {
@@ -28,9 +34,13 @@ const toIsoDate = (value) => {
       return value.slice(0, 10);
     }
 
+    // Last-resort: parse and extract local date parts
     const parsed = new Date(value);
     if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10);
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
   }
 
@@ -597,10 +607,6 @@ class BookingNotificationService {
             instructor,
             students,
             status: 'pending',
-            actions: [
-              { key: 'approve', label: 'Approve', type: 'primary' },
-              { key: 'cancel', label: 'Decline', type: 'danger' }
-            ],
             cta: {
               label: 'View in daily program',
               href: isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily'
@@ -705,10 +711,6 @@ class BookingNotificationService {
         studentNames: studentNamesDisplay,
         instructorName,
         status: 'pending',
-        actions: [
-          { key: 'approve', label: 'Approve', type: 'primary' },
-          { key: 'cancel', label: 'Decline', type: 'danger' }
-        ],
         cta: {
           label: 'View in daily program',
           href: isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily'

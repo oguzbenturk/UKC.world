@@ -89,6 +89,11 @@ const computeBookingStats = (bookings) => {
   });
 
   const pendingBookings = bookings.filter((b) => b.status === 'pending');
+
+  const hotelRequests = bookings.filter((b) => {
+    const uType = (b.unit_type || '').toLowerCase();
+    return uType === 'room' && b.status === 'pending';
+  });
   
   const upcomingBookings = bookings.filter((b) => {
     const checkIn = dayjs(b.check_in_date);
@@ -107,10 +112,12 @@ const computeBookingStats = (bookings) => {
   return {
     activeCount: activeBookings.length,
     pendingCount: pendingBookings.length,
+    hotelRequestsCount: hotelRequests.length,
     upcomingCount: upcomingBookings.length,
     monthlyRevenue,
     activeBookings,
     pendingBookings,
+    hotelRequests,
     upcomingBookings,
   };
 };
@@ -377,6 +384,8 @@ function AccommodationAdminPage() {
         return stats.activeBookings;
       case 'pending':
         return stats.pendingBookings;
+      case 'hotel_requests':
+        return stats.hotelRequests;
       case 'upcoming':
         return stats.upcomingBookings;
       case 'completed':
@@ -484,6 +493,18 @@ function AccommodationAdminPage() {
                     Pending
                     {stats.pendingCount > 0 && (
                       <Badge count={stats.pendingCount} className="ml-2" />
+                    )}
+                  </span>
+                ),
+                children: null,
+              },
+              {
+                key: 'hotel_requests',
+                label: (
+                  <span>
+                    🏨 Hotel Requests
+                    {stats.hotelRequestsCount > 0 && (
+                      <Badge count={stats.hotelRequestsCount} className="ml-2" style={{ backgroundColor: '#fa8c16' }} />
                     )}
                   </span>
                 ),

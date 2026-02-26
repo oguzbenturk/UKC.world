@@ -226,6 +226,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               <Input
                 prefix={<UserOutlined className="text-slate-500" />}
                 placeholder="John"
+                autoComplete="given-name"
                 className="bg-slate-700/50 border-slate-600 text-white"
               />
             </Form.Item>
@@ -237,6 +238,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               <Input
                 prefix={<UserOutlined className="text-slate-500" />}
                 placeholder="Doe"
+                autoComplete="family-name"
                 className="bg-slate-700/50 border-slate-600 text-white"
               />
             </Form.Item>
@@ -253,6 +255,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
             <Input
               prefix={<MailOutlined className="text-slate-500" />}
               placeholder="your@email.com"
+              autoComplete="email"
               className="bg-slate-700/50 border-slate-600 text-white"
             />
           </Form.Item>
@@ -293,6 +296,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                 <Input
                   prefix={<PhoneOutlined className="text-slate-500" />}
                   placeholder="5xx xxx xxxx"
+                  autoComplete="tel-national"
                   className="bg-slate-700/50 border-slate-600 text-white"
                   style={{ width: 'calc(100% - 140px)' }}
                 />
@@ -371,6 +375,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
             <Input.Password
               prefix={<LockOutlined className="text-slate-500" />}
               placeholder="••••••••"
+              autoComplete="new-password"
               className="bg-slate-700/50 border-slate-600 text-white"
             />
           </Form.Item>
@@ -394,6 +399,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
             <Input.Password
               prefix={<LockOutlined className="text-slate-500" />}
               placeholder="••••••••"
+              autoComplete="new-password"
               className="bg-slate-700/50 border-slate-600 text-white"
             />
           </Form.Item>

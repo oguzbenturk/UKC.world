@@ -971,12 +971,14 @@ export const getGroupBookingDetails = async (groupBookingId, userId = null) => {
       amountPaid: parseFloat(p.amount_paid || 0),
       isOrganizer: p.is_organizer,
       acceptedAt: p.accepted_at,
-      paidAt: p.paid_at
+      paidAt: p.paid_at,
+      // Only expose invitation token to the organizer for shareable links
+      ...(isOrganizer && p.invitation_token ? { invitationToken: p.invitation_token } : {})
     })),
     isOrganizer,
     isParticipant,
     participantCount: participantsResult.rows.filter(p => ['accepted', 'paid'].includes(p.status)).length,
-    paidCount: participantsResult.rows.filter(p => p.payment_status === 'paid').length
+    paidCount: participantsResult.rows.filter(p => p.payment_status === 'paid' || p.payment_status === 'covered_by_organizer').length
   };
 };
 

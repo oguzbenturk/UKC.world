@@ -367,6 +367,7 @@ const PublicQuickBooking = () => {
                 size="large"
                 prefix={<UserOutlined className="text-gray-400" />}
                 placeholder="First Name"
+                autoComplete="given-name"
                 className="rounded-xl h-14 text-lg"
               />
             </Form.Item>
@@ -379,6 +380,7 @@ const PublicQuickBooking = () => {
                 size="large"
                 prefix={<UserOutlined className="text-gray-400" />}
                 placeholder="Last Name"
+                autoComplete="family-name"
                 className="rounded-xl h-14 text-lg"
               />
             </Form.Item>
@@ -407,6 +409,7 @@ const PublicQuickBooking = () => {
                 size="large"
                 prefix={<MailOutlined className="text-gray-400" />}
                 placeholder="Email Address"
+                autoComplete="email"
                 className="rounded-xl h-14 text-lg"
                 type="email"
               />
@@ -445,6 +448,7 @@ const PublicQuickBooking = () => {
                   size="large"
                   prefix={<PhoneOutlined className="text-gray-400" />}
                   placeholder="555 123 4567"
+                  autoComplete="tel-national"
                   className="h-14 text-lg"
                 />
               </Form.Item>

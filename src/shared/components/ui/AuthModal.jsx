@@ -91,6 +91,7 @@ const AuthModal = () => {
                 prefix={<MailOutlined />}
                 placeholder="Email"
                 size="large"
+                autoComplete="email"
               />
             </Form.Item>
 
@@ -102,6 +103,7 @@ const AuthModal = () => {
                 prefix={<LockOutlined />}
                 placeholder="Password"
                 size="large"
+                autoComplete="current-password"
               />
             </Form.Item>
 

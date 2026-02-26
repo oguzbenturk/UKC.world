@@ -968,6 +968,24 @@ export async function getBalance(userId, currency = DEFAULT_CURRENCY) {
   };
 }
 
+export async function getAllBalances(userId) {
+  const { rows } = await pool.query(
+    `SELECT currency, available_amount, pending_amount, non_withdrawable_amount, updated_at
+     FROM wallet_balances
+     WHERE user_id = $1
+     ORDER BY updated_at DESC`,
+    [userId]
+  );
+
+  return rows.map((row) => ({
+    currency: row.currency,
+    available: toNumeric(row.available_amount),
+    pending: toNumeric(row.pending_amount),
+    nonWithdrawable: toNumeric(row.non_withdrawable_amount),
+    updatedAt: row.updated_at
+  }));
+}
+
 export async function fetchTransactions(userId, {
   limit = 50,
   offset = 0,
@@ -2374,6 +2392,7 @@ export async function reviewKycDocument({
 export async function createDepositRequest({
   userId,
   amount,
+  clientIp,
   currency = DEFAULT_CURRENCY,
   method = 'card',
   metadata = {},
@@ -2560,6 +2579,7 @@ export async function createDepositRequest({
         amount: numericAmount,
         currency: normalizedCurrency,
         userId,
+        clientIp,
         metadata: { ...baseMetadata },
         referenceCode
       });
@@ -3278,7 +3298,7 @@ export async function approveDepositRequest({
       direction: 'credit',
       availableDelta: numericAmount,
       metadata: transactionMetadata,
-      description: notes || request.notes || `Deposit via ${request.method}`,
+      description: notes || request.notes || `Wallet Top-up via ${request.method === 'card' ? 'Credit Card' : request.method}`,
       relatedEntityType: 'deposit_request',
       relatedEntityId: request.id,
       createdBy: processorId,
@@ -3464,6 +3484,7 @@ export default {
   createWalletForUser,
   getWalletAccountSummary,
   getBalance,
+  getAllBalances,
   fetchTransactions,
   getTransactionById,
   recordTransaction,

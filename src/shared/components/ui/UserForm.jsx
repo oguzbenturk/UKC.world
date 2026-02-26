@@ -675,7 +675,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
             label="First Name"
             rules={[{ required: true, message: 'Please input the first name!' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter first name" />
+            <Input prefix={<UserOutlined />} placeholder="Enter first name" autoComplete="given-name" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
@@ -684,7 +684,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
             label="Last Name"
             rules={[{ required: true, message: 'Please input the last name!' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter last name" />
+            <Input prefix={<UserOutlined />} placeholder="Enter last name" autoComplete="family-name" />
           </Form.Item>
         </Col>
       </Row>
@@ -699,7 +699,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
               { required: true, message: 'Please input the email!' },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="Enter email address" />
+            <Input prefix={<MailOutlined />} placeholder="Enter email address" autoComplete="email" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
@@ -711,6 +711,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
             <Input 
               prefix={<PhoneOutlined />} 
               placeholder="Enter phone number with country code" 
+              autoComplete="tel"
               onChange={handlePhoneChange}
               addonBefore={selectedCountry ? (
                 <ReactCountryFlag countryCode={selectedCountry.code} svg style={{ width: '16px', height: '12px' }} />
@@ -783,7 +784,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       <Row gutter={24}>
         <Col xs={24} sm={12}>
           <Form.Item name="city" label="City">
-            <Input prefix={<EnvironmentOutlined />} placeholder="Enter city" />
+            <Input prefix={<EnvironmentOutlined />} placeholder="Enter city" autoComplete="address-level2" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
@@ -838,7 +839,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
               rules={[{ required: true, message: 'Please input a password!' }]}
               hasFeedback
             >
-              <Input.Password placeholder="Enter password" />
+              <Input.Password placeholder="Enter password" autoComplete="new-password" />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
@@ -859,7 +860,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
                 }),
               ]}
             >
-              <Input.Password placeholder="Confirm password" />
+              <Input.Password placeholder="Confirm password" autoComplete="new-password" />
             </Form.Item>
           </Col>
         </Row>

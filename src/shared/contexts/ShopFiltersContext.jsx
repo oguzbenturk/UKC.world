@@ -13,6 +13,8 @@ export const SORT_OPTIONS = [
 export const CATEGORY_LABELS = {
     'kites': 'Kites',
     'boards': 'Boards',
+    'wing-foil': 'Wing Foil',
+    'e-foil': 'E-Foil',
     'harnesses': 'Harnesses',
     'wetsuits': 'Wetsuits',
     'bars': 'Bars & Lines',

@@ -200,6 +200,7 @@ const Login = () => {
                     </label>
                     <input
                       id="email"
+                      name="email"
                       type="email"
                       autoComplete="email"
                       required
@@ -225,6 +226,7 @@ const Login = () => {
                     </div>
                     <input
                       id="password"
+                      name="password"
                       type="password"
                       autoComplete="current-password"
                       required
@@ -238,6 +240,7 @@ const Login = () => {
                   <div className="flex items-center">
                     <input
                       id="remember"
+                      name="remember"
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}

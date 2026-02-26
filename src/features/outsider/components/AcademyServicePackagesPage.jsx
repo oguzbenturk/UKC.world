@@ -645,7 +645,7 @@ const AcademyServicePackagesPage = ({
       { color: 'green', gradient: 'from-green-500 to-emerald-600', shadow: 'shadow-green-500/20', border: 'hover:border-green-500/50' }
     ];
 
-    return Array.from(groups.values()).map((group, idx) => {
+    const cards = Array.from(groups.values()).map((group, idx) => {
       const first = group[0];
       const theme = cardPalette[idx % cardPalette.length];
       const durations = group
@@ -731,6 +731,40 @@ const AcademyServicePackagesPage = ({
           : [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')]
       };
     }).filter(Boolean);
+
+    // Apply custom display order for lesson cards
+    if (!isStayMode) {
+      const LESSON_CARD_ORDER = [
+        'private lesson',
+        'premium private lesson',
+        'supervision',
+        'semi private supervision',
+        'semi private lesson',
+        'group lesson',
+        'advanced coaching'
+      ];
+      cards.sort((a, b) => {
+        const aName = normalize(a.name);
+        const bName = normalize(b.name);
+        const aIdx = LESSON_CARD_ORDER.findIndex(k => aName.includes(k));
+        const bIdx = LESSON_CARD_ORDER.findIndex(k => bName.includes(k));
+        // Known cards first (by priority), unknown cards go to the end
+        const aPriority = aIdx >= 0 ? aIdx : 999;
+        const bPriority = bIdx >= 0 ? bIdx : 999;
+        return aPriority - bPriority;
+      });
+      // Re-assign colors and featured flag based on new order
+      cards.forEach((card, idx) => {
+        const theme = cardPalette[idx % cardPalette.length];
+        card.featured = idx === 0;
+        card.color = theme.color;
+        card.gradient = theme.gradient;
+        card.shadow = theme.shadow;
+        card.border = theme.border;
+      });
+    }
+
+    return cards;
   };
 
   const transformServiceToPackage = (s) => {
