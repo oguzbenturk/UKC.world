@@ -2,22 +2,9 @@ import { useState, useEffect } from 'react';
 import { Modal, Tag, Typography, Button, Divider, Space, Row, Col } from 'antd';
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined, LeftOutlined, RightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { getCategoryLabel } from '@/shared/constants/productCategories';
 
 const { Text, Title, Paragraph } = Typography;
-
-const PRODUCT_CATEGORIES = [
-    { value: 'kites', label: 'Kites', color: '#f50' },
-    { value: 'boards', label: 'Boards', color: '#2db7f5' },
-    { value: 'harnesses', label: 'Harnesses', color: '#87d068' },
-    { value: 'wetsuits', label: 'Wetsuits', color: '#108ee9' },
-    { value: 'bars', label: 'Bars & Lines', color: '#13c2c2' },
-    { value: 'equipment', label: 'Equipment', color: '#faad14' },
-    { value: 'accessories', label: 'Accessories', color: '#722ed1' },
-    { value: 'apparel', label: 'Apparel', color: '#eb2f96' },
-    { value: 'safety', label: 'Safety Gear', color: '#fa541c' },
-    { value: 'spare-parts', label: 'Spare Parts', color: '#595959' },
-    { value: 'other', label: 'Other', color: '#8c8c8c' }
-];
 
 const ProductPreviewModal = ({ 
     product, 
@@ -185,7 +172,7 @@ const ProductPreviewModal = ({
     };
 
     const stock = getStockStatus(product.stock_quantity || 0);
-    const categoryLabel = PRODUCT_CATEGORIES.find((category) => category.value === product.category)?.label || 'Featured';
+    const categoryLabel = getCategoryLabel(product.category) || 'Featured';
 
     const dimensions = parseJSON(product.dimensions);
 

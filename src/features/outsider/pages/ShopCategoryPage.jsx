@@ -10,12 +10,21 @@ import { useShopFilters } from '@/shared/contexts/ShopFiltersContext';
 
 // Map nav sections to product category values
 const SECTION_TO_CATEGORY = {
-  'kitesurf': 'kites',
-  'wing-foil': 'wing-foil',
-  'e-foil': 'e-foil',
-  'wetsuits': 'wetsuits',
-  'ion-accs': 'accessories',
-  'second-wind': 'other',
+  'kitesurf': 'kitesurf',
+  'wingfoil': 'wingfoil',
+  'efoil': 'efoil',
+  'ion': 'ion',
+  'ukc-shop': 'ukc-shop',
+  'secondwind': 'secondwind',
+  // Legacy URL support
+  'wing-foil': 'wingfoil',
+  'e-foil': 'efoil',
+  'ion-wetsuits': 'ion',
+  'ion-harnesses': 'ion',
+  'ion-accessories': 'ion',
+  'wetsuits': 'ion',
+  'ion-accs': 'ion',
+  'second-wind': 'secondwind',
   'all': 'all',
 };
 

@@ -87,6 +87,11 @@ router.get('/', publicApiLimiter, async (req, res) => {
       paramIndex++;
     }
 
+    // Featured filter
+    if (req.query.is_featured === 'true') {
+      whereConditions.push(`is_featured = true`);
+    }
+
     // Low stock filter
     if (low_stock === 'true') {
       whereConditions.push(`stock_quantity <= min_stock_level`);

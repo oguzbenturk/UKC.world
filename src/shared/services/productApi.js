@@ -46,6 +46,10 @@ export const productApi = {
       queryParams.append('low_stock', 'true');
     }
 
+    if (params.is_featured) {
+      queryParams.append('is_featured', 'true');
+    }
+
   const response = await apiClient.get(`/products?${queryParams}`);
   return normalizeAuditPayload(response.data);
   },

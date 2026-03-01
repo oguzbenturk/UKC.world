@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { PRODUCT_CATEGORIES, LEGACY_CATEGORY_MAP, resolveCategory } from '@/shared/constants/productCategories';
 
 // Sort options
 export const SORT_OPTIONS = [
@@ -9,28 +10,16 @@ export const SORT_OPTIONS = [
     { value: 'popular', label: 'Most Popular', icon: '⭐' }
 ];
 
-// Category label mapping
-export const CATEGORY_LABELS = {
-    'kites': 'Kites',
-    'boards': 'Boards',
-    'wing-foil': 'Wing Foil',
-    'e-foil': 'E-Foil',
-    'harnesses': 'Harnesses',
-    'wetsuits': 'Wetsuits',
-    'bars': 'Bars & Lines',
-    'equipment': 'Equipment',
-    'accessories': 'Accessories',
-    'apparel': 'Apparel',
-    'safety': 'Safety Gear',
-    'spare-parts': 'Spare Parts',
-    'other': 'Other'
-};
+// Category label mapping — derived from PRODUCT_CATEGORIES (single source of truth)
+export const CATEGORY_LABELS = Object.fromEntries(
+    Object.values(PRODUCT_CATEGORIES).map(cat => [cat.value, cat.label])
+);
 
 const ShopFiltersContext = createContext(null);
 
 export const ShopFiltersProvider = ({ children }) => {
     // Filter state
-    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [selectedCategory, setSelectedCategory] = useState('featured');
     const [selectedSubcategory, setSelectedSubcategory] = useState('all');
     const [selectedBrand, setSelectedBrand] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
@@ -44,7 +33,7 @@ export const ShopFiltersProvider = ({ children }) => {
     // Active filter count
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (selectedCategory !== 'all') count++;
+        if (selectedCategory !== 'all' && selectedCategory !== 'featured') count++;
         if (selectedSubcategory !== 'all') count++;
         if (selectedBrand !== 'all') count++;
         if (searchText.trim()) count++;
@@ -52,35 +41,35 @@ export const ShopFiltersProvider = ({ children }) => {
         return count;
     }, [selectedCategory, selectedSubcategory, selectedBrand, searchText, showInStockOnly]);
 
-    // Available categories computed from products
+    // Available categories — always built from PRODUCT_CATEGORIES constant
+    // so sidebar always shows categories even before products are loaded.
+    // Counts come from allProducts when available.
     const availableCategories = useMemo(() => {
-        const productsForCounts = allProducts;
-        if (productsForCounts.length === 0) {
-            return [{ value: 'all', label: 'All Products', count: 0 }];
-        }
-        
-        const categoryMap = {};
-        productsForCounts.forEach(p => {
-            const cat = p.category || 'other';
-            if (!categoryMap[cat]) {
-                categoryMap[cat] = {
-                    value: cat,
-                    label: CATEGORY_LABELS[cat] || cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' '),
-                    count: 0
-                };
-            }
-            categoryMap[cat].count++;
+        // Count products per resolved category
+        const countMap = {};
+        let totalCount = 0;
+        allProducts.forEach(p => {
+            const rawCat = p.category || 'secondwind';
+            const cat = resolveCategory(rawCat);
+            countMap[cat] = (countMap[cat] || 0) + 1;
+            totalCount++;
         });
-        
-        // Sort by count (most products first), then alphabetically
-        const sorted = Object.values(categoryMap).sort((a, b) => {
-            if (b.count !== a.count) return b.count - a.count;
-            return a.label.localeCompare(b.label);
-        });
-        
+
+        // Always include all defined categories from constants
+        const categories = Object.values(PRODUCT_CATEGORIES)
+            .filter(cat => cat.value !== 'ukc-shop') // Hidden from shop sidebar
+            .map(cat => ({
+                value: cat.value,
+                label: cat.label,
+                count: countMap[cat.value] || 0
+            }));
+
+        // Count featured products
+        const featuredCount = allProducts.filter(p => p.is_featured).length;
+
         return [
-            { value: 'all', label: 'All Products', count: productsForCounts.length },
-            ...sorted
+            { value: 'featured', label: 'Featured Products', count: featuredCount },
+            ...categories
         ];
     }, [allProducts]);
 
@@ -107,7 +96,7 @@ export const ShopFiltersProvider = ({ children }) => {
     }, []);
 
     const clearAllFilters = useCallback(() => {
-        setSelectedCategory('all');
+        setSelectedCategory('featured');
         setSelectedSubcategory('all');
         setSelectedBrand('all');
         setSearchText('');

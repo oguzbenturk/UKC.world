@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     Alert,
     Badge,
@@ -40,13 +40,12 @@ const { Option } = Select;
 
 // Category navigation tabs (mirrors ShopLandingPage sections)
 const SHOP_NAV_CATEGORIES = [
-    { id: 'all',         label: 'All',          filterValue: 'all',         color: 'gray',    activeClasses: 'bg-gray-900 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' },
-    { id: 'kitesurf',    label: 'Kites',         filterValue: 'kites',       color: 'emerald', activeClasses: 'bg-emerald-600 text-white',          inactiveClasses: 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200' },
-    { id: 'wing-foil',   label: 'Wing Foil',    filterValue: 'wing-foil',   color: 'purple',  activeClasses: 'bg-purple-600 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200' },
-    { id: 'e-foil',      label: 'E-Foil',       filterValue: 'e-foil',      color: 'yellow',  activeClasses: 'bg-yellow-500 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-yellow-50 border border-gray-200' },
-    { id: 'wetsuits',    label: 'Wetsuits',     filterValue: 'wetsuits',    color: 'cyan',    activeClasses: 'bg-cyan-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-cyan-50 border border-gray-200' },
-    { id: 'ion-accs',    label: 'ION Accs',     filterValue: 'accessories', color: 'pink',    activeClasses: 'bg-pink-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200' },
-    { id: 'second-wind', label: 'SecondWind',   filterValue: 'other',       color: 'amber',   activeClasses: 'bg-amber-600 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-amber-50 border border-gray-200' },
+    { id: 'all',              label: 'All',           filterValue: 'all',              color: 'gray',    activeClasses: 'bg-gray-900 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' },
+    { id: 'kitesurf',         label: 'Kitesurf',      filterValue: 'kitesurf',         color: 'emerald', activeClasses: 'bg-emerald-600 text-white',          inactiveClasses: 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200' },
+    { id: 'wingfoil',         label: 'Wing Foil',     filterValue: 'wingfoil',         color: 'purple',  activeClasses: 'bg-purple-600 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200' },
+    { id: 'efoil',            label: 'E-Foil',        filterValue: 'efoil',            color: 'yellow',  activeClasses: 'bg-yellow-500 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-yellow-50 border border-gray-200' },
+    { id: 'ion',              label: 'ION',           filterValue: 'ion',              color: 'pink',    activeClasses: 'bg-pink-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200' },
+    { id: 'secondwind',       label: 'SecondWind',    filterValue: 'secondwind',       color: 'amber',   activeClasses: 'bg-amber-600 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-amber-50 border border-gray-200' },
 ];
 
 const PAGE_SIZE = 1000; // Load all products at once
@@ -118,6 +117,8 @@ const ShopPage = () => {
     } = useShopFilters();
 
     const { user } = useAuth();
+    const fetchIdRef = useRef(0);
+    const allProductsFetchedRef = useRef(false);
     
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
     const {
@@ -130,6 +131,7 @@ const ShopPage = () => {
 
     const fetchProducts = useCallback(
         async () => {
+            const currentFetchId = ++fetchIdRef.current;
             setLoading(true);
             setError(null);
 
@@ -137,20 +139,35 @@ const ShopPage = () => {
                 let availableProducts = [];
                 let total = 0;
                 
-                // If viewing all categories, fetch ALL products (no limit)
                 if (selectedCategory === 'all') {
-                    const response = await productApi.getProductsByCategory(100); // High limit to get all products
+                    // "All" top nav: fetch ALL products across all categories
+                    const response = await productApi.getProductsByCategory(100);
+                    if (currentFetchId !== fetchIdRef.current) return;
                     if (response.success && response.categories) {
-                        // Flatten all products from all categories
                         Object.values(response.categories).forEach(categoryGroup => {
                             availableProducts.push(...categoryGroup.products);
                         });
                         total = availableProducts.length;
                     }
+                } else if (selectedCategory === 'featured') {
+                    // "Featured Products": fetch only is_featured products
+                    const response = await productApi.getProducts({
+                        status: 'active',
+                        page: 1,
+                        limit: PAGE_SIZE,
+                        is_featured: true,
+                        sort_by: 'created_at',
+                        sort_order: 'DESC'
+                    });
+                    if (currentFetchId !== fetchIdRef.current) return;
+                    availableProducts = (response.data || []).filter((product) => {
+                        const hasPrice = typeof product.price === 'number' ? product.price >= 0 : true;
+                        return product.status === 'active' && product.stock_quantity > 0 && hasPrice;
+                    });
+                    total = response.pagination?.total ?? availableProducts.length;
                 } else {
                     // Fetch all products for specific category with subcategory filter
-                    // Note: 'all-kites' is a special value that means "show all" (no subcategory filter)
-                    const effectiveSubcategory = selectedSubcategory !== 'all' && selectedSubcategory !== 'all-kites' 
+                    const effectiveSubcategory = selectedSubcategory !== 'all' 
                         ? selectedSubcategory 
                         : undefined;
                     
@@ -164,6 +181,8 @@ const ShopPage = () => {
                         sort_order: 'DESC'
                     });
                     
+                    if (currentFetchId !== fetchIdRef.current) return; // Stale request — discard
+                    
                     availableProducts = (response.data || []).filter((product) => {
                         const hasPrice = typeof product.price === 'number' ? product.price >= 0 : true;
                         return product.status === 'active' && product.stock_quantity > 0 && hasPrice;
@@ -175,10 +194,13 @@ const ShopPage = () => {
                 setProducts(availableProducts);
                 setPagination({ page: 1, total });
             } catch (error) {
+                if (currentFetchId !== fetchIdRef.current) return; // Stale — ignore
                 const reason = error?.response?.data?.message;
                 setError(reason || 'Unable to load products right now. Please try again soon.');
             } finally {
-                setLoading(false);
+                if (currentFetchId === fetchIdRef.current) {
+                    setLoading(false);
+                }
             }
         },
         [selectedCategory, selectedSubcategory]
@@ -285,13 +307,34 @@ const ShopPage = () => {
     const cartCount = getCartCount();
 
     // availableCategories is now from context
-    // We need to update allProducts in context when we fetch ALL products (for category counts)
+    // Populate allProducts for sidebar category counts:
+    // 1. When viewing 'all', use the products we already fetched
+    // 2. Otherwise, do a one-time background fetch so sidebar always has counts
     useEffect(() => {
-        // Only set allProducts when viewing 'all' categories and we have products
         if (selectedCategory === 'all' && products.length > 0 && allProducts.length === 0) {
             setAllProducts(products);
+            allProductsFetchedRef.current = true;
         }
     }, [selectedCategory, products, allProducts.length, setAllProducts]);
+
+    // One-time background fetch for sidebar category counts (when navigating directly to a category)
+    useEffect(() => {
+        if (allProducts.length > 0 || allProductsFetchedRef.current) return;
+        allProductsFetchedRef.current = true;
+
+        (async () => {
+            try {
+                const response = await productApi.getProductsByCategory(100);
+                if (response.success && response.categories) {
+                    const flat = [];
+                    Object.values(response.categories).forEach(cat => flat.push(...cat.products));
+                    if (flat.length > 0) setAllProducts(flat);
+                }
+            } catch {
+                // Sidebar counts unavailable — non-critical
+            }
+        })();
+    }, [allProducts.length, setAllProducts]);
 
     // Dynamically build brands from actual products
     const availableBrands = useMemo(() => {
@@ -595,7 +638,7 @@ const ShopPage = () => {
             const parts = [];
             parts.push(`${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''}`);
             
-            if (selectedCategory !== 'all') {
+            if (selectedCategory !== 'all' && selectedCategory !== 'featured') {
                 const cat = availableCategories.find(c => c.value === selectedCategory);
                 parts.push(`in ${cat?.label || selectedCategory}`);
             }
@@ -611,8 +654,8 @@ const ShopPage = () => {
             return parts.join(' ');
         };
 
-        // When viewing "All Products", show grouped by category with "Show More"
-        if (selectedCategory === 'all' && !searchText.trim()) {
+        // When viewing "All" or "Featured", show grouped by category with "Show More"
+        if ((selectedCategory === 'all' || selectedCategory === 'featured') && !searchText.trim()) {
             const categoryOrder = Object.keys(productsByCategory).sort((a, b) => {
                 // Sort by count (most products first)
                 return productsByCategory[b].length - productsByCategory[a].length;
@@ -726,7 +769,8 @@ const ShopPage = () => {
                 <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide no-scrollbar">
                     <div className="flex items-center gap-2 min-w-max py-1">
                         {SHOP_NAV_CATEGORIES.map((cat) => {
-                            const isActive = selectedCategory === cat.filterValue;
+                            const isActive = selectedCategory === cat.filterValue 
+                                || (cat.filterValue === 'all' && selectedCategory === 'featured');
                             return (
                                 <button
                                     key={cat.id}

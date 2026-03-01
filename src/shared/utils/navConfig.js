@@ -107,11 +107,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         isShopLink: true, // Special flag for shop - navigates directly
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wing-foil', label: 'Wing Foil' },
-          { to: '/shop/e-foil', label: 'E-Foil' },
-          { to: '/shop/wetsuits', label: 'Wetsuits' },
-          { to: '/shop/ion-accs', label: 'ION ACCS' },
-          { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
+          { to: '/shop/wingfoil', label: 'Wing Foil' },
+          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/ion', label: 'ION' },
+          { to: '/shop/secondwind', label: 'SecondWind' }
         ]
       }),
       item('/academy', 'Academy', 'AcademicCapIcon', {
@@ -183,11 +182,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         isShopLink: true, // Special flag for shop - navigates directly
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wing-foil', label: 'Wing Foil' },
-          { to: '/shop/e-foil', label: 'E-Foil' },
-          { to: '/shop/wetsuits', label: 'Wetsuits' },
-          { to: '/shop/ion-accs', label: 'ION ACCS' },
-          { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
+          { to: '/shop/wingfoil', label: 'Wing Foil' },
+          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/ion', label: 'ION' },
+          { to: '/shop/secondwind', label: 'SecondWind' }
         ]
       }),
       // 2. Academy - Light Green
@@ -289,11 +287,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         isShopLink: true,
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wing-foil', label: 'Wing Foil' },
-          { to: '/shop/e-foil', label: 'E-Foil' },
-          { to: '/shop/wetsuits', label: 'Wetsuits' },
-          { to: '/shop/ion-accs', label: 'ION ACCS' },
-          { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
+          { to: '/shop/wingfoil', label: 'Wing Foil' },
+          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/ion', label: 'ION' },
+          { to: '/shop/secondwind', label: 'SecondWind' }
         ]
       }),
       // Dashboard - Blue
@@ -435,11 +432,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       isShopLink: true,
       subItems: [
         { to: '/shop/kitesurf', label: 'Kitesurf' },
-        { to: '/shop/wing-foil', label: 'Wing Foil' },
-        { to: '/shop/e-foil', label: 'E-Foil' },
-        { to: '/shop/wetsuits', label: 'Wetsuits' },
-        { to: '/shop/ion-accs', label: 'ION ACCS' },
-        { to: '/shop/second-wind', label: 'SecondWind (2nd hand)' }
+        { to: '/shop/wingfoil', label: 'Wing Foil' },
+        { to: '/shop/efoil', label: 'E-Foil' },
+        { to: '/shop/ion', label: 'ION' },
+        { to: '/shop/secondwind', label: 'SecondWind' }
       ]
     }),
     // 2. Academy - Light Green

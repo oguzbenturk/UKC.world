@@ -42,27 +42,14 @@ import CurrencySelector from '@/shared/components/ui/CurrencySelector';
 import apiClient from '@/shared/services/apiClient';
 import VariantTable from './VariantTable';
 import ColorTable from './ColorTable';
-import { getHierarchicalSubcategories, hasSubcategories } from '@/shared/constants/productCategories';
+import { getHierarchicalSubcategories, hasSubcategories, CATEGORY_OPTIONS } from '@/shared/constants/productCategories';
 
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-const PRODUCT_CATEGORIES = [
-  { value: 'kites', label: 'Kites', color: '#f50' },
-  { value: 'boards', label: 'Boards (Kite)', color: '#2db7f5' },
-  { value: 'wing-foil', label: 'Wing Foil', color: '#9254de' },
-  { value: 'e-foil', label: 'E-Foil', color: '#fadb14' },
-  { value: 'harnesses', label: 'Harnesses', color: '#87d068' },
-  { value: 'wetsuits', label: 'Wetsuits', color: '#108ee9' },
-  { value: 'bars', label: 'Bars & Lines', color: '#13c2c2' },
-  { value: 'equipment', label: 'Equipment', color: '#faad14' },
-  { value: 'accessories', label: 'Accessories', color: '#722ed1' },
-  { value: 'apparel', label: 'Apparel', color: '#eb2f96' },
-  { value: 'safety', label: 'Safety Gear', color: '#fa541c' },
-  { value: 'spare-parts', label: 'Spare Parts', color: '#595959' },
-  { value: 'other', label: 'Other / Second-Hand', color: '#8c8c8c' }
-];
+// Derive from shared constants — single source of truth
+const PRODUCT_CATEGORIES = CATEGORY_OPTIONS;
 
 const PRODUCT_STATUS = [
   { value: 'active', label: 'Active', color: 'success' },
@@ -294,7 +281,7 @@ const ProductForm = ({
                   >
                     {PRODUCT_CATEGORIES.map(cat => (
                       <Option key={cat.value} value={cat.value}>
-                        <Tag color={cat.color}>{cat.label}</Tag>
+                        <span>{cat.icon} {cat.label}</span>
                       </Option>
                     ))}
                   </Select>

@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig';
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
-import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
+import { hasSubcategories, getHierarchicalSubcategories, PRODUCT_CATEGORIES } from '@/shared/constants/productCategories';
 import {
   HomeIcon,
   UsersIcon,
@@ -260,6 +260,61 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   // Shop filters context - only use when shop mode is active
   const shopFilters = useShopFilters();
 
+  // Recursive subcategory tree renderer for shop sidebar
+  const renderSubcategoryTree = (nodes, catValue, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, depth) => {
+    // Style config per depth level
+    const textSize = depth === 0 ? 'text-sm' : 'text-xs';
+    const py = depth === 0 ? 'py-1.5' : 'py-1';
+    const chevronSize = depth === 0 ? 'h-2.5 w-2.5' : 'h-2 w-2';
+    const toggleW = depth === 0 ? 'w-5 h-7' : 'w-4 h-6';
+    const spacerW = depth === 0 ? 'w-5' : 'w-4';
+
+    return nodes.map((node) => {
+      const isActive = selectedCategory === catValue && selectedSubcategory === node.value;
+      const hasChildren = node.children && node.children.length > 0;
+      const expandKey = `${catValue}__${node.value}`;
+      const isNodeExpanded = expandedCategories[expandKey];
+
+      return (
+        <div key={node.value}>
+          <div className="flex items-center">
+            {hasChildren ? (
+              <button
+                onClick={() => toggleCategoryExpanded(expandKey)}
+                className={`${toggleW} flex items-center justify-center text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300`}
+              >
+                <ChevronRightIcon className={`${chevronSize} transition-transform duration-150 ${isNodeExpanded ? 'rotate-90' : ''}`} />
+              </button>
+            ) : (
+              <div className={spacerW} />
+            )}
+            <button
+              onClick={() => {
+                handleSubcategoryChange(node.value);
+                if (hasChildren) {
+                  toggleCategoryExpanded(expandKey);
+                }
+              }}
+              className={`flex-1 flex items-center px-2 ${py} rounded ${textSize} transition-all ${
+                isActive
+                  ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/30'
+              }`}
+            >
+              <span>{node.label}</span>
+            </button>
+          </div>
+
+          {hasChildren && isNodeExpanded && (
+            <div className="ml-5 mt-0.5 space-y-0.5 border-l border-slate-200 pl-2 dark:border-slate-700">
+              {renderSubcategoryTree(node.children, catValue, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, depth + 1)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
   // Shop Mode Sidebar Content with Full Filters
   const renderShopSidebar = () => {
     const {
@@ -271,14 +326,40 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
       expandedCategories,
       activeFilterCount,
       availableCategories,
-      handleCategoryChange,
-      handleSubcategoryChange,
+      handleCategoryChange: contextHandleCategoryChange,
+      handleSubcategoryChange: contextHandleSubcategoryChange,
       handleSortChange,
       handleSearchChange,
       setShowInStockOnly,
       clearAllFilters,
       toggleCategoryExpanded
     } = shopFilters;
+
+    // Check if we're on the landing page (not the browse/category page)
+    const isLandingPage = location.pathname === '/shop';
+
+    // Wrap handlers to also navigate when on landing page
+    const handleCategoryChange = (value) => {
+      contextHandleCategoryChange(value);
+      if (isLandingPage) {
+        if (value === 'featured' || value === 'all') {
+          navigate('/shop/browse');
+        } else {
+          navigate(`/shop/${value}`);
+        }
+      }
+    };
+
+    const handleSubcategoryChange = (value) => {
+      contextHandleSubcategoryChange(value);
+      if (isLandingPage) {
+        if (selectedCategory && selectedCategory !== 'featured' && selectedCategory !== 'all') {
+          navigate(`/shop/${selectedCategory}`);
+        } else {
+          navigate('/shop/browse');
+        }
+      }
+    };
 
     return (
       <div className="overflow-y-auto overflow-x-hidden h-full px-2 pt-2 pb-4 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-600">
@@ -319,16 +400,21 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
           )}
         </div>
 
-        {/* Categories */}
+        {/* Categories — always show all with expandable subcategories */}
         <div className="px-3 mb-4">
           <div className="space-y-0.5">
             {availableCategories.map((cat) => {
+              const isSpecialCategory = cat.value === 'all' || cat.value === 'featured';
               const isActive = selectedCategory === cat.value && selectedSubcategory === 'all';
-              const isExpanded = expandedCategories[cat.value];
-              const hasSubs = cat.value !== 'all' && hasSubcategories(cat.value);
+              const hasSubs = !isSpecialCategory && hasSubcategories(cat.value);
               const subcats = hasSubs ? getHierarchicalSubcategories(cat.value) : [];
               const isCategoryActive = selectedCategory === cat.value;
-              
+              // Auto-expand on first selection, but allow manual collapse
+              const isExpanded = expandedCategories[cat.value] !== undefined 
+                ? expandedCategories[cat.value]  // User has explicitly toggled
+                : isCategoryActive;              // Default: auto-expand if active
+              const showCount = cat.count > 0;
+
               return (
                 <div key={cat.value}>
                   {/* Category row */}
@@ -337,13 +423,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     {hasSubs ? (
                       <button
                         onClick={() => toggleCategoryExpanded(cat.value)}
-                        className="w-6 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                        className="w-6 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-transform duration-150"
                       >
-                        {isExpanded ? (
-                          <ChevronDownIcon className="h-3 w-3" />
-                        ) : (
-                          <ChevronRightIcon className="h-3 w-3" />
-                        )}
+                        <ChevronRightIcon className={`h-3 w-3 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
                     ) : (
                       <div className="w-6" />
@@ -351,7 +433,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     <button
                       onClick={() => {
                         handleCategoryChange(cat.value);
-                        if (hasSubs && !isExpanded) {
+                        if (hasSubs) {
                           toggleCategoryExpanded(cat.value);
                         }
                       }}
@@ -364,32 +446,18 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                       }`}
                     >
                       <span>{cat.label}</span>
-                      <span className={`text-xs ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                        {cat.count}
-                      </span>
+                      {showCount && (
+                        <span className={`text-xs ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                          {cat.count}
+                        </span>
+                      )}
                     </button>
                   </div>
-                  
-                  {/* Subcategories */}
+
+                  {/* Subcategories — auto-expand when category is active */}
                   {hasSubs && isExpanded && (
-                    <div className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-300 pl-2 dark:border-slate-600">
-                      {subcats.map((parent) => {
-                        const isParentActive = selectedCategory === cat.value && selectedSubcategory === parent.value;
-                        
-                        return (
-                          <button
-                            key={parent.value}
-                            onClick={() => handleSubcategoryChange(parent.value)}
-                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-sm transition-all ${
-                              isParentActive
-                                ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white'
-                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/30'
-                            }`}
-                          >
-                            <span>{parent.label}</span>
-                          </button>
-                        );
-                      })}
+                    <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-2 dark:border-slate-600">
+                      {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, 0)}
                     </div>
                   )}
                 </div>

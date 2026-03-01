@@ -47,23 +47,14 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
+import { CATEGORY_OPTIONS } from '@/shared/constants/productCategories';
 
 const { Option } = Select;
 const { Search } = Input;
 
 const PRODUCT_CATEGORIES = [
   { value: 'all', label: 'All Categories', icon: '📦' },
-  { value: 'kites', label: 'Kites', icon: '🪁' },
-  { value: 'boards', label: 'Boards', icon: '🏄' },
-  { value: 'bars', label: 'Bars', icon: '🎛️' },
-  { value: 'bags', label: 'Bags', icon: '🎒' },
-  { value: 'harnesses', label: 'Harnesses', icon: '🦺' },
-  { value: 'wetsuits', label: 'Wetsuits', icon: '🩱' },
-  { value: 'equipment', label: 'Equipment', icon: '⚙️' },
-  { value: 'accessories', label: 'Accessories', icon: '🔧' },
-  { value: 'apparel', label: 'Apparel', icon: '👕' },
-  { value: 'safety', label: 'Safety Gear', icon: '🛡️' },
-  { value: 'other', label: 'Other', icon: '📋' }
+  ...CATEGORY_OPTIONS,
 ];
 
 // Simple stat card component
