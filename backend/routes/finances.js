@@ -2647,8 +2647,18 @@ router.get('/customer-analytics', authenticateJWT, authorizeRoles(['admin', 'man
 router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const dateFilter = startDate && endDate ? 
-      `AND date >= '${startDate}' AND date <= '${endDate}'` : '';
+    
+    // Validate date format to prevent injection (YYYY-MM-DD)
+    const dateRx = /^\d{4}-\d{2}-\d{2}$/;
+    const hasDateRange = startDate && endDate && dateRx.test(startDate) && dateRx.test(endDate);
+    
+    // Build parameterized date filter for bookings
+    let bookingDateFilter = '';
+    let bookingParams = [];
+    if (hasDateRange) {
+      bookingDateFilter = 'AND date >= $1 AND date <= $2';
+      bookingParams = [startDate, endDate];
+    }
     
     // Booking performance metrics
     const bookingMetricsQuery = `
@@ -2659,12 +2669,12 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
         COALESCE(SUM(final_amount), 0) as total_amount,
         COALESCE(AVG(final_amount), 0) as average_amount
       FROM bookings 
-      WHERE 1=1 ${dateFilter} AND deleted_at IS NULL
+      WHERE deleted_at IS NULL ${bookingDateFilter}
       GROUP BY status, payment_status
       ORDER BY status, payment_status
     `;
     
-    const bookingMetricsResult = await pool.query(bookingMetricsQuery);
+    const bookingMetricsResult = await pool.query(bookingMetricsQuery, bookingParams);
     
     // Equipment rental analysis (if rentals table exists)
     const rentalMetricsQuery = `
@@ -2690,6 +2700,14 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
     }
     
     // Instructor performance metrics - calculate actual instructor earnings (commission)
+    // Build parameterized date filter for the JOIN clause
+    let instrDateFilter = '';
+    let instrParams = [];
+    if (hasDateRange) {
+      instrDateFilter = 'AND b.date >= $1 AND b.date <= $2';
+      instrParams = [startDate, endDate];
+    }
+    
     const instructorMetricsQuery = `
       SELECT 
         u.id,
@@ -2700,31 +2718,26 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
           CASE 
             WHEN b.status = 'completed' THEN
               CASE 
-                -- Package bookings with fixed hourly rate commission
                 WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
-                -- Package bookings with percentage commission
                 WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
                   ((cp.purchase_price / cp.total_hours) * b.duration) * 
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
                 WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
                   (cp.purchase_price / sp.sessions_count) * 
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-                -- Standalone bookings with fixed hourly rate
                 WHEN bcc.commission_type = 'fixed' THEN 
                   COALESCE(bcc.commission_value, 0) * b.duration
                 WHEN isc.commission_type = 'fixed' THEN 
                   COALESCE(isc.commission_value, 0) * b.duration
                 WHEN idc.commission_type = 'fixed' THEN 
                   COALESCE(idc.commission_value, 0) * b.duration
-                -- Standalone bookings with percentage commission
                 WHEN bcc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
                 WHEN isc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
                 WHEN idc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-                -- Fallback: 50% of lesson amount
                 ELSE 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
               END
@@ -2735,38 +2748,33 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
           CASE 
             WHEN b.status = 'completed' THEN
               CASE 
-                -- Package bookings with fixed hourly rate commission
                 WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
-                -- Package bookings with percentage commission
                 WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
                   ((cp.purchase_price / cp.total_hours) * b.duration) * 
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
                 WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
                   (cp.purchase_price / sp.sessions_count) * 
                   COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-                -- Standalone bookings with fixed hourly rate
                 WHEN bcc.commission_type = 'fixed' THEN 
                   COALESCE(bcc.commission_value, 0) * b.duration
                 WHEN isc.commission_type = 'fixed' THEN 
                   COALESCE(isc.commission_value, 0) * b.duration
                 WHEN idc.commission_type = 'fixed' THEN 
                   COALESCE(idc.commission_value, 0) * b.duration
-                -- Standalone bookings with percentage commission
                 WHEN bcc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
                 WHEN isc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
                 WHEN idc.commission_type = 'percentage' THEN 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-                -- Fallback: 50% of lesson amount
                 ELSE 
                   COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
               END
           END
         ), 0) as average_lesson_value
       FROM users u
-      LEFT JOIN bookings b ON u.id = b.instructor_user_id ${dateFilter.replace('date', 'b.date')} AND b.deleted_at IS NULL
+      LEFT JOIN bookings b ON u.id = b.instructor_user_id ${instrDateFilter} AND b.deleted_at IS NULL
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = b.service_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
@@ -2778,7 +2786,7 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       ORDER BY total_revenue DESC
     `;
     
-    const instructorMetricsResult = await pool.query(instructorMetricsQuery);
+    const instructorMetricsResult = await pool.query(instructorMetricsQuery, instrParams);
     
     res.json({
       success: true,

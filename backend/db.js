@@ -253,7 +253,7 @@ try {
   });
 
   pool.on('connect', (client) => {
-    logger.info('🔗 New database connection established');
+    logger.debug('🔗 New database connection established');
     instrumentClient(client);
   });
 
@@ -262,13 +262,13 @@ try {
   });
 
   pool.on('acquire', (client) => {
-    logger.info('📊 Database connection acquired from pool');
+    logger.debug('📊 Database connection acquired from pool');
     instrumentClient(client);
     maybeWarnQueueSaturation({ event: 'pool.acquire' });
   });
 
   pool.on('release', () => {
-    logger.info('📤 Database connection released back to pool');
+    logger.debug('📤 Database connection released back to pool');
   });
 
   const originalPoolQuery = pool.query.bind(pool);

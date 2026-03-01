@@ -155,17 +155,6 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
       });
     }
 
-    // Test database connection first
-    try {
-      await pool.query('SELECT NOW() as current_time');
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError);
-      return res.status(500).json({ 
-        error: 'Database connection failed',
-        details: dbError.message 
-      });
-    }
-
     // Resolve instructors
     // Priority 1: if explicit instructorIds provided, use those
     // Priority 2: fallback to role lookup (users with role 'instructor')
@@ -233,76 +222,81 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
     };
     const standardHours = generateHalfHourSlots();
 
-    let cursor = startDate;
-    const last = endDate;
-    while (true) {
-      const dateStr = cursor; // exact match with query string
-      
-      // Get existing bookings for this date (filter by instructor IDs when provided)
-      let bookingsResult;
-      try {
-        let params = [dateStr];
-        let bookingsQuery = `
-          SELECT 
-            instructor_user_id,
-            start_hour,
-            duration,
-            status
-          FROM bookings 
-          WHERE date = $1 AND deleted_at IS NULL
-        `;
-        if (!noInstructors && instructorIdList.length > 0) {
-          // Filter by explicit instructor ids (UUID/text-safe)
-          const placeholders = instructorIdList.map((_, i) => `$${i + 2}`).join(',');
-          bookingsQuery += ` AND instructor_user_id IN (${placeholders})`;
-          params = [dateStr, ...instructorIdList];
-        }
-        bookingsQuery += ' ORDER BY instructor_user_id, start_hour';
-        bookingsResult = await pool.query(bookingsQuery, params);
-        
-      } catch (bookingError) {
-        console.error('Error fetching bookings for', dateStr, ':', bookingError);
-        bookingsResult = { rows: [] };
+    // Collect all dates in the range
+    const allDates = [];
+    {
+      let cursor = startDate;
+      const last = endDate;
+      while (true) {
+        allDates.push(cursor);
+        if (cursor === last) break;
+        cursor = addDays(cursor, 1);
       }
-      
-      // Create a map of booked slots by instructor
-      const bookedSlots = new Map();
-      
-      if (bookingsResult.rows.length > 0) {
-        bookingsResult.rows.forEach(booking => {
-          const instructorId = booking.instructor_user_id;
-          if (!bookedSlots.has(instructorId)) {
-            bookedSlots.set(instructorId, new Set());
-          }
-          
-          // Parse start_hour as a decimal (e.g., 9.00, 12.50)
-          const startHourDecimal = parseFloat(booking.start_hour);
-          const durationDecimal = parseFloat(booking.duration) || 1;
-          
-          // Convert decimal hour to time slots (30-minute intervals)
-          const startHour = Math.floor(startHourDecimal);
-          const startMinute = Math.round((startHourDecimal - startHour) * 60);
-          
-          // Calculate total minutes for the booking
-          const startTimeMinutes = startHour * 60 + startMinute;
-          const durationMinutes = durationDecimal * 60;
-          const endTimeMinutes = startTimeMinutes + durationMinutes;
-          
-          // Mark all 30-minute slots in the duration as booked
-          for (let currentMinutes = startTimeMinutes; currentMinutes < endTimeMinutes; currentMinutes += 30) {
-            const hour = Math.floor(currentMinutes / 60);
-            const minute = currentMinutes % 60;
-            const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            bookedSlots.get(instructorId).add(timeSlot);
-          }
-        });
+    }
+
+    // BATCH: Fetch all bookings for the entire date range in ONE query (not 1 per day)
+    let allBookings = [];
+    try {
+      let params = [...allDates];
+      const datePlaceholders = allDates.map((_, i) => `$${i + 1}`).join(',');
+      let bookingsQuery = `
+        SELECT 
+          date::text AS date,
+          instructor_user_id,
+          start_hour,
+          duration,
+          status
+        FROM bookings 
+        WHERE date IN (${datePlaceholders}) AND deleted_at IS NULL
+      `;
+      if (!noInstructors && instructorIdList.length > 0) {
+        const instrPlaceholders = instructorIdList.map((_, i) => `$${allDates.length + i + 1}`).join(',');
+        bookingsQuery += ` AND instructor_user_id IN (${instrPlaceholders})`;
+        params = [...allDates, ...instructorIdList];
+      }
+      bookingsQuery += ' ORDER BY date, instructor_user_id, start_hour';
+      const bookingsResult = await pool.query(bookingsQuery, params);
+      allBookings = bookingsResult.rows;
+    } catch (bookingError) {
+      console.error('Error fetching bookings for date range:', bookingError);
+    }
+
+    // Index bookings by date → instructor → booked time slots
+    const bookingsByDate = new Map();
+    for (const booking of allBookings) {
+      const dateStr = booking.date;
+      if (!bookingsByDate.has(dateStr)) {
+        bookingsByDate.set(dateStr, new Map());
+      }
+      const dayMap = bookingsByDate.get(dateStr);
+      const instructorId = booking.instructor_user_id;
+      if (!dayMap.has(instructorId)) {
+        dayMap.set(instructorId, new Set());
       }
 
-      // Generate slots for each instructor
+      const startHourDecimal = parseFloat(booking.start_hour);
+      const durationDecimal = parseFloat(booking.duration) || 1;
+      const startHour = Math.floor(startHourDecimal);
+      const startMinute = Math.round((startHourDecimal - startHour) * 60);
+      const startTimeMinutes = startHour * 60 + startMinute;
+      const durationMinutes = durationDecimal * 60;
+      const endTimeMinutes = startTimeMinutes + durationMinutes;
+
+      for (let currentMinutes = startTimeMinutes; currentMinutes < endTimeMinutes; currentMinutes += 30) {
+        const hour = Math.floor(currentMinutes / 60);
+        const minute = currentMinutes % 60;
+        const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        dayMap.get(instructorId).add(timeSlot);
+      }
+    }
+
+    // Build result from pre-indexed data (no more DB calls)
+    for (const dateStr of allDates) {
+      const dayMap = bookingsByDate.get(dateStr) || new Map();
       const daySlots = [];
       
       for (const instructor of (noInstructors ? [] : instructorsResult.rows)) {
-        const instructorBookedSlots = bookedSlots.get(instructor.id) || new Set();
+        const instructorBookedSlots = dayMap.get(instructor.id) || new Set();
         
         for (const time of standardHours) {
           const status = instructorBookedSlots.has(time) ? 'booked' : 'available';
@@ -321,10 +315,6 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
         date: dateStr,
         slots: daySlots
       });
-      
-  // Move to next day
-  if (cursor === last) break;
-  cursor = addDays(cursor, 1);
     }
     
   // If no instructors, still respond with the date structure but empty slots array
@@ -471,7 +461,12 @@ router.get('/',
     }      
     
     query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, cp.package_name, bcc.commission_value, isc.commission_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
-               ORDER BY b.date DESC`;
+               ORDER BY b.date DESC
+               LIMIT $${paramCount++}`;
+    
+    // Safety cap: prevent unbounded result sets (default 2000, max 5000)
+    const limit = Math.min(parseInt(req.query.limit) || 2000, 5000);
+    params.push(limit);
     
     if (DEBUG) {
       try {
@@ -3521,24 +3516,40 @@ router.post(
       };
 
       const exclude = [aRow.id, bRow.id];
-      // Find a parking slot (prefer A's instructor, then B's), half-hour steps between 6:00–21:00
+      // Batch: fetch ALL bookings for both instructors on this date in ONE query
       const tryInstructors = [aRow.instructor_user_id, bRow.instructor_user_id];
+      const { rows: dayBookings } = await client.query(
+        `SELECT instructor_user_id, start_hour::numeric AS sh, duration::numeric AS dur
+         FROM bookings
+         WHERE date = $1::date
+           AND instructor_user_id = ANY($2::uuid[])
+           AND status <> 'cancelled'
+           AND deleted_at IS NULL
+           AND id <> ALL($3::uuid[])
+        `,
+        [date, tryInstructors, exclude]
+      );
+      // Build occupied-interval sets per instructor
+      const busyMap = new Map();
+      for (const b of dayBookings) {
+        if (!busyMap.has(b.instructor_user_id)) busyMap.set(b.instructor_user_id, []);
+        busyMap.get(b.instructor_user_id).push({ sh: parseFloat(b.sh), dur: parseFloat(b.dur) });
+      }
+      const overlaps = (instrId, startH, dur) => {
+        const intervals = busyMap.get(instrId) || [];
+        return intervals.some(iv => startH < iv.sh + iv.dur && startH + dur > iv.sh);
+      };
+
+      // Find a parking slot in pure JS (no more DB queries per slot)
       let parking = null;
       outer: for (const instr of tryInstructors) {
         for (let h = 6; h <= 21 - durA + 0.0001; h += 0.5) {
-          const busy = await overlapCheck(instr, h, durA, exclude);
-          if (!busy) { parking = { instructor_user_id: instr, start_hour: h }; break outer; }
+          if (!overlaps(instr, h, durA)) { parking = { instructor_user_id: instr, start_hour: h }; break outer; }
         }
       }
       if (!parking) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'No temporary parking slot available to complete swap' });
-      }
-
-      // Step 1: A -> parking
-      if (await overlapCheck(parking.instructor_user_id, parking.start_hour, durA, exclude)) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Parking slot unexpectedly occupied' });
       }
       await client.query(
         `UPDATE bookings SET instructor_user_id=$1::uuid, start_hour=$2::numeric, date=$3::date, updated_at=NOW() WHERE id=$4::uuid`,
@@ -3657,13 +3668,34 @@ router.post(
       };
 
       const exclude = [aRow.id, bRow.id];
-      // Always use parking-based swap to respect unique constraints
+      // Batch: fetch ALL bookings for both instructors on this date in ONE query
       const tryInstructors = [aRow.instructor_user_id, bRow.instructor_user_id];
+      const { rows: dayBookings } = await client.query(
+        `SELECT instructor_user_id, start_hour::numeric AS sh, duration::numeric AS dur
+         FROM bookings
+         WHERE date = $1::date
+           AND instructor_user_id = ANY($2::uuid[])
+           AND status <> 'cancelled'
+           AND deleted_at IS NULL
+           AND id <> ALL($3::uuid[])
+        `,
+        [date, tryInstructors, exclude]
+      );
+      const busyMap = new Map();
+      for (const b of dayBookings) {
+        if (!busyMap.has(b.instructor_user_id)) busyMap.set(b.instructor_user_id, []);
+        busyMap.get(b.instructor_user_id).push({ sh: parseFloat(b.sh), dur: parseFloat(b.dur) });
+      }
+      const overlaps = (instrId, startH, dur) => {
+        const intervals = busyMap.get(instrId) || [];
+        return intervals.some(iv => startH < iv.sh + iv.dur && startH + dur > iv.sh);
+      };
+
+      // Find parking slot in pure JS (no more per-slot DB queries)
       let parking = null;
       outer: for (const instr of tryInstructors) {
         for (let h = 6; h <= 21 - durA + 0.0001; h += 0.5) {
-          const busy = await overlapCheck(instr, h, durA, exclude);
-          if (!busy) { parking = { instructor_user_id: instr, start_hour: h }; break outer; }
+          if (!overlaps(instr, h, durA)) { parking = { instructor_user_id: instr, start_hour: h }; break outer; }
         }
       }
       if (!parking) {

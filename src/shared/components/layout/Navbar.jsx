@@ -243,13 +243,13 @@ export const Navbar = ({ toggleSidebar }) => {
                 {/* Logo - now always on the left */}
                 <div>
                   <NavLink 
-                    to="/" 
+                    to="/guest" 
                     className="flex items-center px-3 py-1 rounded-md text-slate-800 hover:text-slate-900 hover:bg-slate-100/80 transition-colors duration-150 ease-in-out dark:text-slate-100 dark:hover:text-white dark:hover:bg-slate-800/60"
                     onClick={(e) => {
-                      // For UKC roles on shop page, navigate to home (same as back button)
+                      // For UKC roles on shop page, navigate to guest landing (same as back button)
                       if ((user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && location.pathname.startsWith('/shop')) {
                         e.preventDefault();
-                        navigate('/');
+                        navigate('/guest');
                       }
                     }}
                   >

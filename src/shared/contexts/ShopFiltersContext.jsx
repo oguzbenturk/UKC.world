@@ -3,11 +3,11 @@ import { PRODUCT_CATEGORIES, LEGACY_CATEGORY_MAP, resolveCategory } from '@/shar
 
 // Sort options
 export const SORT_OPTIONS = [
-    { value: 'newest', label: 'Newest First', icon: '🆕' },
-    { value: 'price-low', label: 'Price: Low → High', icon: '💰' },
-    { value: 'price-high', label: 'Price: High → Low', icon: '💎' },
-    { value: 'name-az', label: 'Name: A → Z', icon: '🔤' },
-    { value: 'popular', label: 'Most Popular', icon: '⭐' }
+    { value: 'newest', label: 'Newest First' },
+    { value: 'price-low', label: 'Price: Low → High' },
+    { value: 'price-high', label: 'Price: High → Low' },
+    { value: 'name-az', label: 'Name: A → Z' },
+    { value: 'popular', label: 'Most Popular' }
 ];
 
 // Category label mapping — derived from PRODUCT_CATEGORIES (single source of truth)

@@ -151,7 +151,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (re
     params.push(role);
   }
 
-  query += ` ORDER BY u.created_at DESC`;
+  query += ` ORDER BY u.created_at DESC LIMIT 2000`;
 
   try {
     const { rows } = await pool.query(query, params);

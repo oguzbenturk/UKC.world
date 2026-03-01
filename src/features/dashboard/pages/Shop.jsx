@@ -9,7 +9,6 @@ import {
     Row,
     Skeleton,
     Tag,
-    Typography,
     Input,
     Select
 } from 'antd';
@@ -26,26 +25,25 @@ import { useCart } from '@/shared/contexts/CartContext';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { useShopFilters, SORT_OPTIONS, CATEGORY_LABELS } from '@/shared/contexts/ShopFiltersContext';
 import ShoppingCart from '@/features/students/components/ShoppingCart';
-import FinancialService from '@/features/finances/services/financialService';
+import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useAuth } from '@/shared/hooks/useAuth';
 import ProductCard from '@/features/dashboard/components/ProductCard';
 import ProductPreviewModal from '@/features/dashboard/components/ProductPreviewModal';
 import { getHierarchicalSubcategories, hasSubcategories, PRODUCT_CATEGORIES } from '@/shared/constants/productCategories';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
 const { Option } = Select;
 
 // Note: SORT_OPTIONS and CATEGORY_LABELS are imported from ShopFiltersContext
 
 // Category navigation tabs (mirrors ShopLandingPage sections)
 const SHOP_NAV_CATEGORIES = [
-    { id: 'all',              label: 'All',           filterValue: 'all',              color: 'gray',    activeClasses: 'bg-gray-900 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200' },
-    { id: 'kitesurf',         label: 'Kitesurf',      filterValue: 'kitesurf',         color: 'emerald', activeClasses: 'bg-emerald-600 text-white',          inactiveClasses: 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200' },
-    { id: 'wingfoil',         label: 'Wing Foil',     filterValue: 'wingfoil',         color: 'purple',  activeClasses: 'bg-purple-600 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200' },
-    { id: 'efoil',            label: 'E-Foil',        filterValue: 'efoil',            color: 'yellow',  activeClasses: 'bg-yellow-500 text-white',           inactiveClasses: 'bg-white text-gray-700 hover:bg-yellow-50 border border-gray-200' },
-    { id: 'ion',              label: 'ION',           filterValue: 'ion',              color: 'pink',    activeClasses: 'bg-pink-600 text-white',             inactiveClasses: 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200' },
-    { id: 'secondwind',       label: 'SecondWind',    filterValue: 'secondwind',       color: 'amber',   activeClasses: 'bg-amber-600 text-white',            inactiveClasses: 'bg-white text-gray-700 hover:bg-amber-50 border border-gray-200' },
+    { id: 'all',              label: 'All',            filterValue: 'all' },
+    { id: 'kitesurf',         label: 'Kiteboarding',   filterValue: 'kitesurf' },
+    { id: 'wingfoil',         label: 'Wing Foiling',   filterValue: 'wingfoil' },
+    { id: 'efoil',            label: 'Foiling',        filterValue: 'efoil' },
+    { id: 'ion',              label: 'ION Water',      filterValue: 'ion' },
+    { id: 'secondwind',       label: 'SecondWind',     filterValue: 'secondwind' },
 ];
 
 const PAGE_SIZE = 1000; // Load all products at once
@@ -81,12 +79,13 @@ const ShopPage = () => {
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ page: 1, total: 0 });
     const [cartVisible, setCartVisible] = useState(false);
-    const [userBalance, setUserBalance] = useState(0);
     const [previewProduct, setPreviewProduct] = useState(null);
     const [expandedCategorySections, setExpandedCategorySections] = useState({}); // Track which categories show all products
 
     const { isGuest, isAuthenticated } = useAuth();
     const { openAuthModal } = useAuthModal();
+    const { data: walletSummary } = useWalletSummary({ enabled: isAuthenticated });
+    const userBalance = Number(walletSummary?.available ?? 0);
 
     // Use shared filter context
     const {
@@ -116,9 +115,9 @@ const ShopPage = () => {
         toggleCategoryExpanded
     } = useShopFilters();
 
-    const { user } = useAuth();
     const fetchIdRef = useRef(0);
     const allProductsFetchedRef = useRef(false);
+    const masterProductsRef = useRef([]); // All products loaded once
     
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
     const {
@@ -129,114 +128,66 @@ const ShopPage = () => {
         getCartCount
     } = useCart();
 
-    const fetchProducts = useCallback(
-        async () => {
-            const currentFetchId = ++fetchIdRef.current;
-            setLoading(true);
-            setError(null);
+    // Single upfront fetch — loads ALL products once, then everything is client-side
+    const fetchAllProducts = useCallback(async () => {
+        if (masterProductsRef.current.length > 0) return; // Already loaded
+        const currentFetchId = ++fetchIdRef.current;
+        setLoading(true);
+        setError(null);
 
-            try {
-                let availableProducts = [];
-                let total = 0;
+        try {
+            const response = await productApi.getProductsByCategory(100);
+            if (currentFetchId !== fetchIdRef.current) return;
+            
+            if (response.success && response.categories) {
+                const allProds = [];
+                Object.values(response.categories).forEach(categoryGroup => {
+                    allProds.push(...categoryGroup.products);
+                });
+                masterProductsRef.current = allProds;
+                setProducts(allProds);
+                setPagination({ page: 1, total: allProds.length });
                 
-                if (selectedCategory === 'all') {
-                    // "All" top nav: fetch ALL products across all categories
-                    const response = await productApi.getProductsByCategory(100);
-                    if (currentFetchId !== fetchIdRef.current) return;
-                    if (response.success && response.categories) {
-                        Object.values(response.categories).forEach(categoryGroup => {
-                            availableProducts.push(...categoryGroup.products);
-                        });
-                        total = availableProducts.length;
-                    }
-                } else if (selectedCategory === 'featured') {
-                    // "Featured Products": fetch only is_featured products
-                    const response = await productApi.getProducts({
-                        status: 'active',
-                        page: 1,
-                        limit: PAGE_SIZE,
-                        is_featured: true,
-                        sort_by: 'created_at',
-                        sort_order: 'DESC'
-                    });
-                    if (currentFetchId !== fetchIdRef.current) return;
-                    availableProducts = (response.data || []).filter((product) => {
-                        const hasPrice = typeof product.price === 'number' ? product.price >= 0 : true;
-                        return product.status === 'active' && product.stock_quantity > 0 && hasPrice;
-                    });
-                    total = response.pagination?.total ?? availableProducts.length;
-                } else {
-                    // Fetch all products for specific category with subcategory filter
-                    const effectiveSubcategory = selectedSubcategory !== 'all' 
-                        ? selectedSubcategory 
-                        : undefined;
-                    
-                    const response = await productApi.getProducts({
-                        status: 'active',
-                        page: 1,
-                        limit: PAGE_SIZE,
-                        category: selectedCategory,
-                        subcategory: effectiveSubcategory,
-                        sort_by: 'created_at',
-                        sort_order: 'DESC'
-                    });
-                    
-                    if (currentFetchId !== fetchIdRef.current) return; // Stale request — discard
-                    
-                    availableProducts = (response.data || []).filter((product) => {
-                        const hasPrice = typeof product.price === 'number' ? product.price >= 0 : true;
-                        return product.status === 'active' && product.stock_quantity > 0 && hasPrice;
-                    });
-                    
-                    total = response.pagination?.total ?? availableProducts.length;
-                }
-
-                setProducts(availableProducts);
-                setPagination({ page: 1, total });
-            } catch (error) {
-                if (currentFetchId !== fetchIdRef.current) return; // Stale — ignore
-                const reason = error?.response?.data?.message;
-                setError(reason || 'Unable to load products right now. Please try again soon.');
-            } finally {
-                if (currentFetchId === fetchIdRef.current) {
-                    setLoading(false);
+                // Also populate sidebar counts
+                if (allProds.length > 0 && allProducts.length === 0) {
+                    setAllProducts(allProds);
+                    allProductsFetchedRef.current = true;
                 }
             }
-        },
-        [selectedCategory, selectedSubcategory]
-    );
+        } catch (err) {
+            if (currentFetchId !== fetchIdRef.current) return;
+            const reason = err?.response?.data?.message;
+            setError(reason || 'Unable to load products right now. Please try again soon.');
+        } finally {
+            if (currentFetchId === fetchIdRef.current) {
+                setLoading(false);
+            }
+        }
+    }, [allProducts.length, setAllProducts]);
 
+    // Load all products once on mount
     useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+        fetchAllProducts();
+    }, [fetchAllProducts]);
 
+    // Instant client-side filtering when category/subcategory changes
     useEffect(() => {
-        let cancelled = false;
-
-        const loadBalance = async () => {
-            if (!user?.id) {
-                setUserBalance(0);
-                return;
+        if (masterProductsRef.current.length === 0) return;
+        
+        let result = masterProductsRef.current;
+        
+        if (selectedCategory === 'featured') {
+            result = result.filter(p => p.is_featured);
+        } else if (selectedCategory !== 'all') {
+            result = result.filter(p => p.category === selectedCategory);
+            if (selectedSubcategory !== 'all') {
+                result = result.filter(p => p.subcategory === selectedSubcategory);
             }
-
-            try {
-                const balance = await FinancialService.getUserBalance(user.id);
-                if (!cancelled) {
-                    setUserBalance(Number(balance?.currentBalance || 0));
-                }
-            } catch {
-                if (!cancelled) {
-                    setUserBalance(0);
-                }
-            }
-        };
-
-        loadBalance();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [user?.id]);
+        }
+        
+        setProducts(result);
+        setPagination({ page: 1, total: result.length });
+    }, [selectedCategory, selectedSubcategory]);
 
     // Local handler wrappers to reset pagination when category changes
     const localHandleCategoryChange = useCallback((value, keepSubcategory = false) => {
@@ -307,34 +258,6 @@ const ShopPage = () => {
     const cartCount = getCartCount();
 
     // availableCategories is now from context
-    // Populate allProducts for sidebar category counts:
-    // 1. When viewing 'all', use the products we already fetched
-    // 2. Otherwise, do a one-time background fetch so sidebar always has counts
-    useEffect(() => {
-        if (selectedCategory === 'all' && products.length > 0 && allProducts.length === 0) {
-            setAllProducts(products);
-            allProductsFetchedRef.current = true;
-        }
-    }, [selectedCategory, products, allProducts.length, setAllProducts]);
-
-    // One-time background fetch for sidebar category counts (when navigating directly to a category)
-    useEffect(() => {
-        if (allProducts.length > 0 || allProductsFetchedRef.current) return;
-        allProductsFetchedRef.current = true;
-
-        (async () => {
-            try {
-                const response = await productApi.getProductsByCategory(100);
-                if (response.success && response.categories) {
-                    const flat = [];
-                    Object.values(response.categories).forEach(cat => flat.push(...cat.products));
-                    if (flat.length > 0) setAllProducts(flat);
-                }
-            } catch {
-                // Sidebar counts unavailable — non-critical
-            }
-        })();
-    }, [allProducts.length, setAllProducts]);
 
     // Dynamically build brands from actual products
     const availableBrands = useMemo(() => {
@@ -520,24 +443,30 @@ const ShopPage = () => {
         );
     };
 
-    // Header with search and sort (no filter pills - they're in sidebar now)
+    // Header with search and sort
     const renderHeader = () => (
-        <div className="mb-5">
-            {/* Top Bar: Search + Sort + Filter Button */}
-            <div className="flex items-center gap-3 flex-wrap">
+        <div className="mb-4 flex flex-col md:flex-row items-center justify-center gap-3">
+            {/* Results Count */}
+            <div className="text-gray-400 font-medium text-xs flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+                {filteredProducts.length} items
+            </div>
+
+            {/* Top Bar: Search + Sort */}
+            <div className="flex items-center gap-2">
                 {/* Search */}
-                <div className="flex-1 min-w-[200px] max-w-[400px]">
+                <div className="w-[280px]">
                     <Input
                         placeholder="Search products..."
-                        prefix={<SearchOutlined className="text-gray-400" />}
+                        prefix={<SearchOutlined className="text-gray-400 mr-1" />}
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         allowClear
                         size="large"
+                        className="hover:border-black focus:border-black focus:shadow-none"
                         style={{ 
-                            borderRadius: 10,
-                            border: '1px solid #e5e7eb',
-                            backgroundColor: '#fff'
+                            borderRadius: '8px',
+                            backgroundColor: '#f9fafb'
                         }}
                     />
                 </div>
@@ -548,18 +477,15 @@ const ShopPage = () => {
                         value={sortBy}
                         onChange={handleSortChange}
                         size="large"
+                        className="hover:border-black focus:border-black"
                         style={{ 
                             width: 200,
-                            borderRadius: 10
                         }}
-                        popupMatchSelectWidth={200}
+                        dropdownStyle={{ borderRadius: '8px', padding: '4px' }}
                     >
                         {SORT_OPTIONS.map(opt => (
                             <Option key={opt.value} value={opt.value}>
-                                <div className="flex items-center gap-2">
-                                    <span>{opt.icon}</span>
-                                    <span>{opt.label}</span>
-                                </div>
+                                <span className="font-medium text-gray-700">{opt.label}</span>
                             </Option>
                         ))}
                     </Select>
@@ -662,14 +588,7 @@ const ShopPage = () => {
             });
 
             return (
-                <div className="space-y-8">
-                    {/* Results Header */}
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <Text className="text-sm text-gray-600">
-                            {buildResultsDescription()}
-                        </Text>
-                    </div>
-
+                <div className="space-y-6">
                     {/* Category Sections */}
                     {categoryOrder.map((category) => {
                         const categoryProducts = productsByCategory[category];
@@ -682,44 +601,45 @@ const ShopPage = () => {
                         const categoryLabel = CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ');
 
                         return (
-                            <div key={category} className="space-y-4">
+                            <div key={category} className="space-y-3">
                                 {/* Category Header */}
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <h2 className="text-lg font-semibold text-gray-900">{categoryLabel}</h2>
-                                        <span className="text-sm text-gray-500">({categoryProducts.length})</span>
+                                <div className="flex items-end justify-between border-b border-gray-200 pb-2">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-xl font-bold text-gray-900 tracking-tight m-0 leading-none">{categoryLabel}</h2>
+                                        <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                            {categoryProducts.length}
+                                        </span>
                                     </div>
                                     <Button 
                                         type="link" 
-                                        className="text-gray-600 hover:text-gray-900"
+                                        className="text-gray-500 hover:text-black font-semibold text-sm mr-2 flex items-center gap-1 p-0 transition-colors"
                                         onClick={() => handleCategoryChange(category)}
                                     >
-                                        View all →
+                                        View all <RightOutlined className="text-[10px]" />
                                     </Button>
                                 </div>
 
                                 {/* Products Grid */}
                                 <Row gutter={[12, 16]}>
                                     {displayProducts.map((product) => (
-                                        <Col key={product.id} xs={12} sm={8} md={6} lg={4} xl={4}>
+                                        <Col key={product.id} xs={12} sm={8} md={6} lg={4} xl={4} className="flex">
                                             <ProductCard
                                                 product={product}
                                                 onPreview={handleOpenPreview}
                                                 onWishlistToggle={handleWishlistToggle}
-                                                isInWishlist={isInWishlist}
+                                                isWishlisted={isInWishlist(product.id)}
                                             />
                                         </Col>
                                     ))}
                                 </Row>
 
-                                {/* Show More/Less Button */}
+                                {/* Show More/Less Button - Minimalist */}
                                 {hasMore && (
-                                    <div className="flex justify-center pt-2">
+                                    <div className="flex justify-center pt-2 pb-4">
                                         <Button
-                                            type="default"
                                             onClick={() => toggleCategoryExpansion(category)}
-                                            className="px-6"
-                                            style={{ borderRadius: 8 }}
+                                            className="px-8 h-10 border-gray-300 text-gray-700 hover:border-black hover:text-black font-medium transition-all"
+                                            style={{ borderRadius: '4px' }}
                                         >
                                             {isExpanded 
                                                 ? 'Show Less' 
@@ -737,23 +657,16 @@ const ShopPage = () => {
 
         // Standard grid view (for specific category or search results)
         return (
-            <div className="space-y-4">
-                {/* Results Header */}
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <Text className="text-sm text-gray-600">
-                        {buildResultsDescription()}
-                    </Text>
-                </div>
-
+            <div className="space-y-3">
                 {/* Product Grid */}
                 <Row gutter={[12, 16]}>
                     {filteredProducts.map((product) => (
-                        <Col key={product.id} xs={12} sm={8} md={6} lg={4} xl={4}>
+                        <Col key={product.id} xs={12} sm={8} md={6} lg={4} xl={4} className="flex">
                             <ProductCard
                                 product={product}
                                 onPreview={handleOpenPreview}
                                 onWishlistToggle={handleWishlistToggle}
-                                isInWishlist={isInWishlist}
+                                isWishlisted={isInWishlist(product.id)}
                             />
                         </Col>
                     ))}
@@ -763,11 +676,11 @@ const ShopPage = () => {
     };
 
     return (
-        <div className="shop-page min-h-screen bg-gray-50 px-4 pb-28 pt-5 lg:px-6">
+        <div className="shop-page min-h-screen bg-gray-50 px-4 pb-28 pt-3 lg:px-6">
             <div className="w-full">
                 {/* Category Navigation Bar */}
-                <div className="mb-4 -mx-4 px-4 overflow-x-auto scrollbar-hide no-scrollbar">
-                    <div className="flex items-center gap-2 min-w-max py-1">
+                <div className="mb-3 -mx-4 px-4 overflow-x-auto scrollbar-hide no-scrollbar">
+                    <div className="flex items-center justify-center gap-2 min-w-max py-1">
                         {SHOP_NAV_CATEGORIES.map((cat) => {
                             const isActive = selectedCategory === cat.filterValue 
                                 || (cat.filterValue === 'all' && selectedCategory === 'featured');
@@ -775,8 +688,10 @@ const ShopPage = () => {
                                 <button
                                     key={cat.id}
                                     onClick={() => localHandleCategoryChange(cat.filterValue)}
-                                    className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 shadow-sm ${
-                                        isActive ? cat.activeClasses : cat.inactiveClasses
+                                    className={`px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 border ${
+                                        isActive
+                                            ? 'bg-black text-white border-black shadow-sm'
+                                            : 'bg-black/5 text-gray-600 border-transparent hover:bg-black/10 hover:text-gray-900'
                                     }`}
                                 >
                                     {cat.label}

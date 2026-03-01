@@ -66,25 +66,37 @@ router.get('/', publicApiLimiter, async (req, res) => {
       queryParams.push(category);
     }
 
-    // Subcategory filter (supports parent filtering: 'men' matches 'men', 'men-shorty', 'men-long', etc.)
+    // Subcategory filter (supports parent filtering: 'men' matches 'men', 'men-shorty', etc.)
     if (subcategory && subcategory !== 'all') {
-      // Match exact subcategory OR children (subcategory starts with parent-)
-      whereConditions.push(`(subcategory = $${paramIndex} OR subcategory LIKE $${paramIndex + 1})`);
+      let subCondition = `(subcategory = $${paramIndex} OR subcategory LIKE $${paramIndex + 1})`;
       queryParams.push(subcategory);
       queryParams.push(`${subcategory}-%`);
       paramIndex += 2;
+
+      // Smart Gender Inheritance: 
+      // If the user requests a gendered subcategory (e.g. 'protection-men' or 'daily-wear-women'), 
+      // automatically include 'Unisex' items from the parent category (e.g. 'protection', 'daily-wear')
+      if (subcategory.endsWith('-men') || subcategory.endsWith('-women')) {
+        const parentSubcategory = subcategory.replace(/-men$|-women$/, '');
+        subCondition = `(${subCondition} OR (subcategory = $${paramIndex} AND gender = 'Unisex'))`;
+        queryParams.push(parentSubcategory);
+        paramIndex += 1;
+      }
+
+      whereConditions.push(subCondition);
     }
 
-    // Search filter
+    // Search filter — use full-text search when possible (GIN-indexed), fallback to ILIKE for SKU
     if (search) {
-      whereConditions.push(`(
-        name ILIKE $${paramIndex} OR 
-        description ILIKE $${paramIndex} OR 
-        sku ILIKE $${paramIndex} OR
-        brand ILIKE $${paramIndex}
-      )`);
-      queryParams.push(`%${search}%`);
-      paramIndex++;
+      const trimmed = search.trim();
+      if (trimmed) {
+        whereConditions.push(`(
+          to_tsvector('english', name || ' ' || COALESCE(description, '') || ' ' || COALESCE(brand, '')) @@ plainto_tsquery('english', $${paramIndex})
+          OR sku ILIKE $${paramIndex + 1}
+        )`);
+        queryParams.push(trimmed, `%${trimmed}%`);
+        paramIndex += 2;
+      }
     }
 
     // Featured filter
@@ -177,91 +189,60 @@ router.get('/', publicApiLimiter, async (req, res) => {
 });
 
 // Get products grouped by category (for shop homepage)
-// Returns up to 10 products per category
+// Returns up to N products per category in a SINGLE query (no N+1)
 // Public endpoint - guests can browse shop
 router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
   try {
-    const { limit_per_category = 10 } = req.query;
+    const limitPerCategory = Math.min(Math.max(parseInt(req.query.limit_per_category) || 10, 1), 200);
     
-    // Get all active categories with products
-    const categoriesQuery = `
-      SELECT DISTINCT category
-      FROM products
-      WHERE status = 'active' AND stock_quantity > 0
-      ORDER BY category
-    `;
-    const categoriesResult = await pool.query(categoriesQuery);
-    const categories = categoriesResult.rows.map(row => row.category);
-    
-    // Fetch products for each category
-    const categoryGroups = {};
-    
-    for (const category of categories) {
-      const productsQuery = `
+    // Single query: fetch top N products per category using ROW_NUMBER()
+    const result = await pool.query(`
+      SELECT *
+      FROM (
         SELECT 
-          id,
-          name,
-          description,
-          sku,
-          category,
-          subcategory,
-          brand,
-          price,
-          cost_price,
-          currency,
-          stock_quantity,
-          min_stock_level,
-          weight,
-          dimensions,
-          image_url,
-          images,
-          status,
-          is_featured,
-          tags,
-          variants,
-          colors,
-          gender,
-          sizes,
-          source_url,
-          created_at,
-          updated_at,
-          CASE 
-            WHEN stock_quantity <= min_stock_level THEN true 
-            ELSE false 
-          END as is_low_stock
+          id, name, description, sku, category, subcategory, brand,
+          price, cost_price, currency, stock_quantity, min_stock_level,
+          weight, dimensions, image_url, images, status, is_featured,
+          tags, variants, colors, gender, sizes, source_url,
+          created_at, updated_at,
+          CASE WHEN stock_quantity <= min_stock_level THEN true ELSE false END AS is_low_stock,
+          ROW_NUMBER() OVER (
+            PARTITION BY category
+            ORDER BY is_featured DESC, created_at DESC
+          ) AS rn
         FROM products
-        WHERE status = 'active' 
-          AND category = $1
-          AND stock_quantity > 0
-        ORDER BY 
-          is_featured DESC,
-          created_at DESC
-        LIMIT $2
-      `;
+        WHERE status = 'active' AND stock_quantity > 0
+      ) ranked
+      WHERE rn <= $1
+      ORDER BY category, rn
+    `, [limitPerCategory]);
+
+    // Group results in JS (single pass)
+    const categoryGroups = {};
+    const categoriesList = [];
+
+    for (const row of result.rows) {
+      const { category, rn, ...product } = row;
       
-      const result = await pool.query(productsQuery, [category, limit_per_category]);
-      
-      // Group by subcategory if available
-      const subcategoryGroups = {};
-      result.rows.forEach(product => {
-        const subcat = product.subcategory || 'general';
-        if (!subcategoryGroups[subcat]) {
-          subcategoryGroups[subcat] = [];
-        }
-        subcategoryGroups[subcat].push(product);
-      });
-      
-      categoryGroups[category] = {
-        products: result.rows,
-        subcategories: subcategoryGroups,
-        total: result.rows.length
-      };
+      if (!categoryGroups[category]) {
+        categoryGroups[category] = { products: [], subcategories: {}, total: 0 };
+        categoriesList.push(category);
+      }
+
+      categoryGroups[category].products.push(product);
+      categoryGroups[category].total++;
+
+      const subcat = product.subcategory || 'general';
+      if (!categoryGroups[category].subcategories[subcat]) {
+        categoryGroups[category].subcategories[subcat] = [];
+      }
+      categoryGroups[category].subcategories[subcat].push(product);
     }
     
     res.json({
       success: true,
       categories: categoryGroups,
-      categoriesList: categories
+      categoriesList
     });
 
   } catch (error) {

@@ -4,71 +4,77 @@
 
 export const PRODUCT_CATEGORIES = {
   'kitesurf': {
-    label: 'Duotone Equipment',
+    label: 'Kiteboarding',
     icon: '🪁',
     value: 'kitesurf',
     subcategories: {
       'kites':                     { label: 'Kites',              value: 'kites',                     parent: null },
-      'bars':                      { label: 'Bars',               value: 'bars',                      parent: null },
-      'bars-trust':                { label: 'Trust Bar',           value: 'bars-trust',                parent: 'bars' },
-      'bars-click':                { label: 'Click Bar',           value: 'bars-click',                parent: 'bars' },
-      'boards':                     { label: 'Boards',             value: 'boards',                     parent: null },
-      'boards-twintips':             { label: 'Twintips',           value: 'boards-twintips',            parent: 'boards' },
-      'boards-twintips-sls':         { label: 'SLS',                value: 'boards-twintips-sls',        parent: 'boards-twintips' },
-      'boards-surfboards':           { label: 'Surfboards',         value: 'boards-surfboards',          parent: 'boards' },
-      'boards-surfboards-dlab':      { label: 'DLAB',               value: 'boards-surfboards-dlab',     parent: 'boards-surfboards' },
-      'board-bags':                { label: 'Board Bags',          value: 'board-bags',                parent: null },
-      'spare-parts':               { label: 'Spare Parts',        value: 'spare-parts',               parent: null },
+      'bars':                      { label: 'Control Bars',       value: 'bars',                      parent: null },
+      'bars-trust':                { label: 'Trust Bar',          value: 'bars-trust',                parent: 'bars' },
+      'bars-click':                { label: 'Click Bar',          value: 'bars-click',                parent: 'bars' },
+      'boards':                    { label: 'Boards',             value: 'boards',                    parent: null },
+      'boards-twintips':           { label: 'Twintips',           value: 'boards-twintips',           parent: 'boards' },
+      'boards-surfboards':         { label: 'Surfboards',         value: 'boards-surfboards',         parent: 'boards' },
+      'boards-foilboards':         { label: 'Foilboards',         value: 'boards-foilboards',         parent: 'boards' },
+      'accessories':               { label: 'Accessories',        value: 'accessories',               parent: null },
+      'board-bags':                { label: 'Board Bags',         value: 'board-bags',                parent: 'accessories' },
+      'spare-parts':               { label: 'Spare Parts',        value: 'spare-parts',               parent: 'accessories' },
     }
   },
   'wingfoil': {
-    label: 'WingFoil Equipment',
+    label: 'Wing Foiling',
     icon: '🪂',
     value: 'wingfoil',
     subcategories: {
-      'wings':  { label: 'Wings',  value: 'wings' },
-      'boards': { label: 'Boards', value: 'boards' },
-      'foils':  { label: 'Foils',  value: 'foils' },
+      'wings':  { label: 'Wings',  value: 'wings',  parent: null },
+      'boards': { label: 'Boards', value: 'boards', parent: null },
+      'foils':  { label: 'Foils',  value: 'foils',  parent: null },
     }
   },
   'efoil': {
-    label: 'Efoil Equipment',
+    label: 'Foiling',
     icon: '⚡',
     value: 'efoil',
     subcategories: {
-      'foilassist-boards': { label: 'FoilAssist Boards',     value: 'foilassist-boards' },
-      'wings':             { label: 'Front & Back Wings',     value: 'wings' },
-      'masts-fuselages':   { label: 'E-Masts & Fuselages',   value: 'masts-fuselages' },
+      'foilassist-boards': { label: 'FoilAssist Boards',   value: 'foilassist-boards', parent: null },
+      'wings':             { label: 'Front & Back Wings',   value: 'wings',             parent: null },
+      'masts-fuselages':   { label: 'Masts & Fuselages',   value: 'masts-fuselages',   parent: null },
     }
   },
   'ion': {
-    label: 'ION',
+    label: 'ION Water',
     icon: '🩱',
     value: 'ion',
     subcategories: {
-      // Level 2: Wetsuits
+      // Wetsuits
       'wetsuits':                    { label: 'Wetsuits',              value: 'wetsuits',                    parent: null },
       'wetsuits-men':                { label: 'Men',                   value: 'wetsuits-men',                parent: 'wetsuits' },
-      'wetsuits-men-fullsuits':      { label: 'FullSuits',             value: 'wetsuits-men-fullsuits',      parent: 'wetsuits-men' },
-      'wetsuits-men-springsuits':    { label: 'Springsuits & Shorties',value: 'wetsuits-men-springsuits',    parent: 'wetsuits-men' },
+      'wetsuits-men-fullsuits':      { label: 'Fullsuits',             value: 'wetsuits-men-fullsuits',      parent: 'wetsuits-men' },
+      'wetsuits-men-springsuits':    { label: 'Springsuits & Shorties', value: 'wetsuits-men-springsuits',   parent: 'wetsuits-men' },
       'wetsuits-women':              { label: 'Women',                 value: 'wetsuits-women',              parent: 'wetsuits' },
-      'wetsuits-women-fullsuits':    { label: 'FullSuits',             value: 'wetsuits-women-fullsuits',    parent: 'wetsuits-women' },
-      'wetsuits-women-springsuits':  { label: 'Springsuits & Shorties',value: 'wetsuits-women-springsuits',  parent: 'wetsuits-women' },
-      // Level 2: Protection Equipment
-      'protection':                  { label: 'Protection',             value: 'protection',                  parent: null },
+      'wetsuits-women-fullsuits':    { label: 'Fullsuits',             value: 'wetsuits-women-fullsuits',    parent: 'wetsuits-women' },
+      'wetsuits-women-springsuits':  { label: 'Springsuits & Shorties', value: 'wetsuits-women-springsuits', parent: 'wetsuits-women' },
+      // Protection
+      'protection':                  { label: 'Protection',            value: 'protection',                  parent: null },
       'protection-men':              { label: 'Men',                   value: 'protection-men',              parent: 'protection' },
       'protection-women':            { label: 'Women',                 value: 'protection-women',            parent: 'protection' },
-      // Level 2: Daily Wear
-      'daily-wear':                  { label: 'Daily Wear',            value: 'daily-wear',                  parent: null },
-      'daily-wear-men':              { label: 'Men',                   value: 'daily-wear-men',              parent: 'daily-wear' },
-      'daily-wear-women':            { label: 'Women',                 value: 'daily-wear-women',            parent: 'daily-wear' },
-      // Level 2: ION Accs
-      'ion-accs':                    { label: 'ION Accs',              value: 'ion-accs',                    parent: null },
-      'ion-accs-leash':              { label: 'Leash',                 value: 'ion-accs-leash',              parent: 'ion-accs' },
+      // Harnesses
+      'harnesses':                   { label: 'Harnesses',             value: 'harnesses',                   parent: null },
+      'harnesses-kite':              { label: 'Kite Harnesses',        value: 'harnesses-kite',              parent: 'harnesses' },
+      'harnesses-wing':              { label: 'Wing Harnesses',        value: 'harnesses-wing',              parent: 'harnesses' },
+      // Apparel
+      'apparel':                     { label: 'Water Apparel',         value: 'apparel',                     parent: null },
+      'apparel-tops':                { label: 'Neo Tops & Rashguards', value: 'apparel-tops',                parent: 'apparel' },
+      'apparel-ponchos':             { label: 'Ponchos',               value: 'apparel-ponchos',             parent: 'apparel' },
+      // Footwear
+      'footwear':                    { label: 'Footwear',              value: 'footwear',                    parent: null },
+      // Accessories
+      'ion-accs':                    { label: 'Accessories',           value: 'ion-accs',                    parent: null },
+      'ion-accs-leash':              { label: 'Leashes',               value: 'ion-accs-leash',              parent: 'ion-accs' },
     }
   },
   'ukc-shop': {
-    label: 'UKC.SHOP',
+    label: 'UKC Shop',
     icon: '👕',
     value: 'ukc-shop',
     subcategories: {
@@ -78,13 +84,15 @@ export const PRODUCT_CATEGORIES = {
     }
   },
   'secondwind': {
-    label: 'UKC.SECONDWIND',
+    label: 'SecondWind',
     icon: '♻️',
     value: 'secondwind',
     subcategories: {
       'kites':  { label: 'Kites',        value: 'kites' },
       'bars':   { label: 'Bars',         value: 'bars' },
       'boards': { label: 'Boards',       value: 'boards' },
+      'wings':  { label: 'Wings',        value: 'wings' },
+      'foils':  { label: 'Foils',        value: 'foils' },
       'sets':   { label: 'Set Options',  value: 'sets' },
     }
   },
@@ -104,11 +112,15 @@ export const LEGACY_CATEGORY_MAP = {
   'accessories': 'ion',
   'ion-accessories': 'ion',
   'apparel':     'ukc-shop',
+  'daily-wear':  'ion',
   'other':       'secondwind',
   'equipment':   'kitesurf',
   'bags':        'kitesurf',
   'spare-parts': 'kitesurf',
   'safety':      'kitesurf',
+  // Legacy SLS/DLAB subcategory values → still resolve to kitesurf
+  'boards-twintips-sls':    'kitesurf',
+  'boards-surfboards-dlab': 'kitesurf',
 };
 
 // Flat list for admin dropdowns

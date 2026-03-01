@@ -14,7 +14,7 @@ const ALLOWED_ROLES = ['admin', 'manager', 'developer'];
 router.get('/public', async (req, res) => {
   try {
     const { status, from, to } = req.query;
-    const filters = []; // Removed deleted_at filter until migration is applied
+    const filters = ['e.deleted_at IS NULL'];
     const values = [];
 
     if (status) {
@@ -30,7 +30,7 @@ router.get('/public', async (req, res) => {
       filters.push(`e.start_at <= $${values.length}::timestamptz`);
     }
 
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+    const whereClause = `WHERE ${filters.join(' AND ')}`;
 
     const query = `
       SELECT
@@ -42,6 +42,7 @@ router.get('/public', async (req, res) => {
       FROM events e
       ${whereClause}
       ORDER BY e.start_at DESC
+      LIMIT 500
     `;
 
     const { rows } = await pool.query(query, values);
@@ -56,7 +57,7 @@ router.get('/public', async (req, res) => {
 router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res) => {
   try {
     const { status, from, to } = req.query;
-    const filters = []; // Removed deleted_at filter until migration is applied
+    const filters = ['e.deleted_at IS NULL'];
     const values = [];
 
     if (status) {
@@ -72,7 +73,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res)
       filters.push(`e.start_at <= $${values.length}::timestamptz`);
     }
 
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+    const whereClause = `WHERE ${filters.join(' AND ')}`;
 
     const query = `
       SELECT
@@ -86,6 +87,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res)
       LEFT JOIN users u ON e.created_by = u.id
       ${whereClause}
       ORDER BY e.start_at DESC
+      LIMIT 500
     `;
 
     const { rows } = await pool.query(query, values);

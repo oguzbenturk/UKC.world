@@ -71,7 +71,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   // Handle back to menu - exit shop mode and reset filters
   const handleBackToMenu = () => {
     setIsShopMode(false);
-    navigate('/'); // Navigate away from shop
+    navigate('/guest'); // Navigate to guest landing
   };
 
   // Auto-expand parent items when their subitems are active
@@ -350,11 +350,16 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
       }
     };
 
-    const handleSubcategoryChange = (value) => {
+    const handleSubcategoryChange = (value, forCategory) => {
+      // If clicking a subcategory from a different category, switch category first
+      const effectiveCategory = forCategory || selectedCategory;
+      if (forCategory && forCategory !== selectedCategory) {
+        contextHandleCategoryChange(forCategory, true); // keepSubcategory
+      }
       contextHandleSubcategoryChange(value);
       if (isLandingPage) {
-        if (selectedCategory && selectedCategory !== 'featured' && selectedCategory !== 'all') {
-          navigate(`/shop/${selectedCategory}`);
+        if (effectiveCategory && effectiveCategory !== 'featured' && effectiveCategory !== 'all') {
+          navigate(`/shop/${effectiveCategory}`);
         } else {
           navigate('/shop/browse');
         }
@@ -454,10 +459,10 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     </button>
                   </div>
 
-                  {/* Subcategories — auto-expand when category is active */}
-                  {hasSubs && isExpanded && (
+                  {/* Subcategories — only show for the active category */}
+                  {hasSubs && isExpanded && isCategoryActive && (
                     <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-2 dark:border-slate-600">
-                      {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, 0)}
+                      {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, (subValue) => handleSubcategoryChange(subValue, cat.value), 0)}
                     </div>
                   )}
                 </div>

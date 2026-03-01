@@ -34,11 +34,11 @@ import {
   DollarOutlined,
   AppstoreOutlined,
   PictureOutlined,
-  SettingOutlined,
   BgColorsOutlined,
   LinkOutlined,
   StarOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import CurrencySelector from '@/shared/components/ui/CurrencySelector';
@@ -112,7 +112,7 @@ const CATEGORY_FIELD_CONFIG = {
     showGender: true,
     showColors: true,
     showSizes: true,
-    showVariants: false,
+    showVariants: true,
     showWeight: false,
     showCostPrice: true,
     sizePlaceholder: 'e.g., S, M, L, XL',
@@ -155,7 +155,7 @@ const ProductForm = ({
   const [imageLoading, setImageLoading] = useState(false);
   const { getCurrencySymbol, businessCurrency } = useCurrency();
   const [selectedCurrency, setSelectedCurrency] = useState(product?.currency || businessCurrency || 'EUR');
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState('product');
   const [profitMargin, setProfitMargin] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
   const [extraSubcategories, setExtraSubcategories] = useState([]);
@@ -163,6 +163,12 @@ const ProductForm = ({
 
   // Derived field config based on selected category
   const fieldConfig = useMemo(() => getFieldConfig(selectedCategory), [selectedCategory]);
+
+  // Track variant stock totals for badge & auto-sync
+  const variantStockTotal = useMemo(() => {
+    const variants = form.getFieldValue('variants') || [];
+    return variants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+  }, [form]);
 
   // Category options for CreatableSelect
   const categoryOptions = useMemo(() => 
@@ -313,21 +319,36 @@ const ProductForm = ({
     if (!config.showColors) form.setFieldValue('colors', []);
   }, [form]);
 
-  const handleCreateSubcategory = useCallback(async (slug, label) => {
+  const handleCreateSubcategory = useCallback(async (slug, label, parentValue) => {
     if (!selectedCategory) return;
     try {
       await productApi.createSubcategory({
         category: selectedCategory,
         subcategory: slug,
         display_name: label,
+        parent_subcategory: parentValue || null,
       });
       // Refresh extra subcategories from DB
       const data = await productApi.getSubcategories(selectedCategory);
       setExtraSubcategories(data.subcategories || []);
-      message.success(`Subcategory "${label}" created`);
+      message.success(`Subcategory "${label}" created${parentValue ? ` under ${parentValue}` : ''}`);
     } catch {
       message.error('Failed to create subcategory');
       throw new Error('creation failed');
+    }
+  }, [selectedCategory]);
+
+  const handleDeleteSubcategory = useCallback(async (subcategoryValue) => {
+    if (!selectedCategory) return;
+    try {
+      await productApi.deleteSubcategory(selectedCategory, subcategoryValue);
+      // Refresh extra subcategories from DB
+      const data = await productApi.getSubcategories(selectedCategory);
+      setExtraSubcategories(data.subcategories || []);
+      message.success('Subcategory removed');
+    } catch {
+      message.error('Failed to delete subcategory');
+      throw new Error('deletion failed');
     }
   }, [selectedCategory]);
 
@@ -390,19 +411,35 @@ const ProductForm = ({
     </div>
   );
 
-  // Tab items configuration
+  // ── Compute live variant stock for tab badge ────────────────────
+  const watchedVariants = Form.useWatch('variants', form) || [];
+  const liveStockSummary = useMemo(() => {
+    const total = watchedVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+    const withStock = watchedVariants.filter(v => (v.quantity || 0) > 0);
+    return { total, sizeCount: withStock.length, variantCount: watchedVariants.length };
+  }, [watchedVariants]);
+
+  // Auto-sync stock_quantity from variant totals
+  useEffect(() => {
+    if (watchedVariants.length > 0) {
+      const total = watchedVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
+      form.setFieldValue('stock_quantity', total);
+    }
+  }, [watchedVariants, form]);
+
+  // Tab items configuration — 2 tabs: Product | Stock & Media
   const tabItems = [
     {
-      key: 'basic',
+      key: 'product',
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <InfoCircleOutlined />
-          Basic Info
+          <TagsOutlined />
+          Product
         </span>
       ),
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Product Identity Card */}
+          {/* ─── Product Identity ─────────────────────────────── */}
           <Card 
             size="small" 
             title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TagsOutlined /> Product Identity</span>}
@@ -442,7 +479,7 @@ const ProductForm = ({
               </Col>
             </Row>
 
-          {/* Category & Subcategory — combo-box selectors */}
+            {/* Category & Subcategory */}
             <Row gutter={[16, 16]}>
               <Col xs={24} md={8}>
                 <Form.Item
@@ -455,8 +492,6 @@ const ProductForm = ({
                     placeholder="Select or create category"
                     onChange={handleCategoryChange}
                     onCreateNew={async (slug, label) => {
-                      // For categories, just allow the free-text value —
-                      // it gets stored directly on the product
                       message.info(`New category "${label}" will be saved with this product`);
                     }}
                     createLabel="Create new category"
@@ -476,14 +511,12 @@ const ProductForm = ({
                     disabled={!selectedCategory}
                     hierarchical={hasSubcategories(selectedCategory)}
                     onCreateNew={handleCreateSubcategory}
+                    onDelete={handleDeleteSubcategory}
                     createLabel="Create new subcategory"
                     createPlaceholder="e.g., Harnesses"
                   />
                 </Form.Item>
               </Col>
-            </Row>
-
-            <Row gutter={[16, 16]}>
               <Col xs={24} md={8}>
                 <Form.Item name="brand" label="Brand">
                   <Select 
@@ -498,99 +531,109 @@ const ProductForm = ({
                   </Select>
                 </Form.Item>
               </Col>
-              {fieldConfig.showGender && (
+            </Row>
+          </Card>
+
+          {/* ─── Additional Details ──────────────────────────── */}
+          <Card
+            size="small"
+            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><InfoCircleOutlined /> Details</span>}
+            styles={{ body: { padding: 20 } }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Row gutter={[16, 16]}>
+                {fieldConfig.showGender && (
+                  <Col xs={24} md={8}>
+                    <Form.Item name="gender" label="Gender">
+                      <Select placeholder="Select gender" size="large" allowClear>
+                        <Option value="Men">👨 Men</Option>
+                        <Option value="Women">👩 Women</Option>
+                        <Option value="Unisex">👥 Unisex</Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                )}
                 <Col xs={24} md={8}>
-                  <Form.Item name="gender" label="Gender">
-                    <Select placeholder="Select gender" size="large" allowClear>
-                      <Option value="Men">👨 Men</Option>
-                      <Option value="Women">👩 Women</Option>
-                      <Option value="Unisex">👥 Unisex</Option>
+                  <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+                    <Select size="large">
+                      {PRODUCT_STATUS.map(s => (
+                        <Option key={s.value} value={s.value}>
+                          <Badge status={s.color} text={s.label} />
+                        </Option>
+                      ))}
                     </Select>
                   </Form.Item>
                 </Col>
-              )}
-            </Row>
-
-            <Form.Item name="description" label="Description">
-              <TextArea 
-                rows={3} 
-                placeholder="Detailed product description..."
-                showCount
-                maxLength={1000}
-              />
-            </Form.Item>
-
-            <Form.Item name="tags" label="Tags">
-              <Select
-                mode="tags"
-                placeholder="Add tags (press Enter after each)"
-                tokenSeparators={[',']}
-                suffixIcon={<TagsOutlined />}
-              />
-            </Form.Item>
-          </Card>
-
-          {/* Status Card */}
-          <Card 
-            size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SettingOutlined /> Status & Visibility</span>}
-            styles={{ body: { padding: 20 } }}
-          >
-            <Row gutter={[24, 16]} align="middle">
-              <Col xs={24} md={8}>
-                <Form.Item name="status" label="Status" rules={[{ required: true }]}>
-                  <Select size="large">
-                    {PRODUCT_STATUS.map(s => (
-                      <Option key={s.value} value={s.value}>
-                        <Badge status={s.color} text={s.label} />
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={8}>
-                <Form.Item 
-                  name="is_featured" 
-                  label="Featured Product" 
-                  valuePropName="checked"
-                >
-                  <Switch 
-                    checkedChildren={<><StarOutlined /> Featured</>}
-                    unCheckedChildren="Not Featured"
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={8}>
-                <Form.Item 
-                  name="source_url" 
-                  label={
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <LinkOutlined /> Source URL
-                    </span>
-                  }
-                >
-                  <Input placeholder="https://..." />
-                </Form.Item>
-              </Col>
-            </Row>
+                <Col xs={24} md={8}>
+                  <Form.Item 
+                    name="is_featured" 
+                    label="Featured Product" 
+                    valuePropName="checked"
+                  >
+                    <Switch 
+                      checkedChildren={<><StarOutlined /> Featured</>}
+                      unCheckedChildren="Not Featured"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                  <Form.Item 
+                    name="source_url" 
+                    label={<span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><LinkOutlined /> Source URL</span>}
+                  >
+                    <Input placeholder="https://..." />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="tags" label="Tags">
+                    <Select
+                      mode="tags"
+                      placeholder="Add tags (press Enter after each)"
+                      tokenSeparators={[',']}
+                      suffixIcon={<TagsOutlined />}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Form.Item name="description" label="Description">
+                <TextArea 
+                  rows={3} 
+                  placeholder="Detailed product description..."
+                  showCount
+                  maxLength={1000}
+                />
+              </Form.Item>
+            </div>
           </Card>
         </div>
       )
     },
     {
-      key: 'pricing',
+      key: 'stock-media',
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <DollarOutlined />
-          Pricing & Stock
+          Stock & Pricing
+          {liveStockSummary.variantCount > 0 && (
+            <Badge 
+              count={`${liveStockSummary.total} pcs`} 
+              style={{ backgroundColor: '#1677ff', fontSize: 11 }} 
+              size="small" 
+            />
+          )}
+          {(imageUrl || images.length > 0) && (
+            <Badge count={images.length + (imageUrl ? 1 : 0)} size="small" />
+          )}
         </span>
       ),
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Pricing Card */}
+          {/* ─── Pricing ─────────────────────────────────────── */}
           <Card 
             size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><DollarOutlined /> Pricing</span>}
+            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><DollarOutlined /> Base Pricing</span>}
             styles={{ body: { padding: 20 } }}
             extra={
               profitMargin && (
@@ -647,29 +690,85 @@ const ProductForm = ({
                 </Col>
               )}
             </Row>
+            {fieldConfig.showVariants && (
+              <div style={{ marginTop: 8, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, fontSize: 12, color: '#52c41a' }}>
+                💡 Variants below can override this price per size. Leave blank on a variant to use this base price.
+              </div>
+            )}
           </Card>
 
-          {/* Stock Card */}
+          {/* ─── Size & Price Variants ────────────────────────── */}
+          {fieldConfig.showVariants && (
+            <Card 
+              size="small" 
+              title={
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AppstoreOutlined /> Size & Stock Variants
+                </span>
+              }
+              styles={{ body: { padding: 20 } }}
+              extra={
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Set quantity and price per size
+                </Text>
+              }
+            >
+              <Form.Item name="variants">
+                <VariantTable currency={selectedCurrency} category={selectedCategory} />
+              </Form.Item>
+            </Card>
+          )}
+
+          {/* Simple Sizes — only when showSizes & NOT showVariants (avoid duplication) */}
+          {fieldConfig.showSizes && !fieldConfig.showVariants && (
+            <Card 
+              size="small" 
+              title="Quick Size List"
+              styles={{ body: { padding: 20 } }}
+            >
+              <Form.Item 
+                name="sizes" 
+                label={fieldConfig.sizeLabel}
+                extra="Press Enter after each size"
+              >
+                <Select
+                  mode="tags"
+                  style={{ width: '100%' }}
+                  placeholder={fieldConfig.sizePlaceholder}
+                  tokenSeparators={[',', ' ']}
+                  size="large"
+                />
+              </Form.Item>
+            </Card>
+          )}
+
+          {/* ─── Inventory ───────────────────────────────────── */}
           <Card 
             size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><AppstoreOutlined /> Inventory</span>}
+            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><InboxOutlined /> Inventory</span>}
             styles={{ body: { padding: 20 } }}
           >
             <Row gutter={[16, 16]}>
               <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
                 <Form.Item
                   name="stock_quantity"
-                  label="Stock Quantity"
+                  label="Total Stock"
                   rules={[
                     { required: true, message: 'Required' },
                     { type: 'number', min: 0, message: 'Must be >= 0' }
                   ]}
+                  extra={
+                    liveStockSummary.variantCount > 0
+                      ? `Auto-synced from ${liveStockSummary.sizeCount} variant${liveStockSummary.sizeCount !== 1 ? 's' : ''}: ${liveStockSummary.total} total`
+                      : 'Add variants above to auto-calculate, or enter manually'
+                  }
                 >
                   <InputNumber 
                     style={{ width: '100%' }}
                     size="large"
                     min={0}
                     placeholder="0"
+                    disabled={liveStockSummary.variantCount > 0}
                   />
                 </Form.Item>
               </Col>
@@ -709,72 +808,8 @@ const ProductForm = ({
               )}
             </Row>
           </Card>
-        </div>
-      )
-    },
-    {
-      key: 'variants',
-      label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AppstoreOutlined />
-          Variants
-        </span>
-      ),
-      children: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Size & Price Variants — only for categories that need per-size pricing */}
-          {fieldConfig.showVariants && (
-            <Card 
-              size="small" 
-              title={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AppstoreOutlined /> Size & Price Variants
-                </span>
-              }
-              styles={{ body: { padding: 20 } }}
-              extra={
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Different sizes can have different prices
-                </Text>
-              }
-            >
-              <Form.Item name="variants">
-                <VariantTable currency={selectedCurrency} />
-              </Form.Item>
-            </Card>
-          )}
 
-          {/* Simple Sizes — always when showSizes */}
-          {fieldConfig.showSizes && (
-            <Card 
-              size="small" 
-              title="Quick Size List"
-              styles={{ body: { padding: 20 } }}
-              extra={
-                fieldConfig.showVariants ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    For products with same price across sizes
-                  </Text>
-                ) : null
-              }
-            >
-              <Form.Item 
-                name="sizes" 
-                label={fieldConfig.sizeLabel}
-                extra="Press Enter after each size"
-              >
-                <Select
-                  mode="tags"
-                  style={{ width: '100%' }}
-                  placeholder={fieldConfig.sizePlaceholder}
-                  tokenSeparators={[',', ' ']}
-                  size="large"
-                />
-              </Form.Item>
-            </Card>
-          )}
-
-          {/* Color Options — only for wearable/apparel categories */}
+          {/* Color Options */}
           {fieldConfig.showColors && (
             <Card 
               size="small" 
@@ -791,7 +826,7 @@ const ProductForm = ({
             </Card>
           )}
 
-          {/* Show hint when all sections are hidden */}
+          {/* No variant hint */}
           {!fieldConfig.showVariants && !fieldConfig.showSizes && !fieldConfig.showColors && (
             <Alert
               type="info"
@@ -800,23 +835,8 @@ const ProductForm = ({
               description="Variant pricing, sizes, and colors are not typically used for this product category."
             />
           )}
-        </div>
-      )
-    },
-    {
-      key: 'images',
-      label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <PictureOutlined />
-          Images
-          {(imageUrl || images.length > 0) && (
-            <Badge count={images.length + (imageUrl ? 1 : 0)} size="small" />
-          )}
-        </span>
-      ),
-      children: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Main Image Card */}
+
+          {/* ─── Images ──────────────────────────────────────── */}
           <Card 
             size="small" 
             title={
@@ -875,14 +895,13 @@ const ProductForm = ({
               <div style={{ flex: 1 }}>
                 <Title level={5} style={{ marginBottom: 8 }}>Primary Display Image</Title>
                 <Text type="secondary" style={{ fontSize: 14 }}>
-                  This image appears in product listings and as the main image on the product page.
-                  Recommended size: 800x800px, max 5MB.
+                  This image appears in product listings. Recommended: 800×800px, max 5MB.
                 </Text>
               </div>
             </div>
           </Card>
 
-          {/* Gallery Card */}
+          {/* Gallery */}
           <Card 
             size="small" 
             title={

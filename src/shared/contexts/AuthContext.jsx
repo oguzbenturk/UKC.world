@@ -205,10 +205,20 @@ export function AuthProvider({ children }) {
           }
           applyConsentRef.current?.(userData?.consent ?? null, { syncUser: false });
           setIsAuthenticated(true);
-        } catch {
-          const fallbackSuccessful = hydrateFromStoredUser();
-          if (!fallbackSuccessful) {
+        } catch (err) {
+          if (err?.isNetworkError) {
+            // Network error (offline/timeout) — use localStorage for offline resilience
+            const fallbackSuccessful = hydrateFromStoredUser();
+            if (!fallbackSuccessful) {
+              localStorage.removeItem('user');
+              clearAccessToken();
+              resetAuthState();
+            }
+          } else {
+            // Server explicitly rejected the token (401 or other auth error)
+            // Do NOT fall back to stale localStorage — clear everything
             localStorage.removeItem('user');
+            localStorage.removeItem('token');
             clearAccessToken();
             resetAuthState();
           }

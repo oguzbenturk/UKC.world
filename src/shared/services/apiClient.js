@@ -164,7 +164,8 @@ apiClient.interceptors.response.use(
           '/currencies/active',
           '/services/categories/list',
           '/auth/login',
-          '/auth/refresh'
+          '/auth/refresh',
+          '/auth/me'
         ];
 
         const shouldSkip = skipRedirectPaths.some(p => reqUrl.endsWith(p));

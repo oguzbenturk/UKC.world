@@ -41,13 +41,23 @@ class AuthService {
     } catch (error) {
       
       if (error.response?.status === 401) {
-        throw new Error('Authentication failed');
+        const err = new Error('Authentication failed');
+        err.isAuthError = true;
+        err.statusCode = 401;
+        throw err;
       } else if (error.response?.data?.message) {
-        throw new Error(error.response.data.message);
+        const err = new Error(error.response.data.message);
+        err.isAuthError = true;
+        err.statusCode = error.response.status;
+        throw err;
       } else if (error.networkError) {
-        throw new Error(error.networkMessage);
+        const err = new Error(error.networkMessage);
+        err.isNetworkError = true;
+        throw err;
       } else {
-        throw new Error('Failed to get user information');
+        const err = new Error('Failed to get user information');
+        err.isNetworkError = true;
+        throw err;
       }
     }
   }
