@@ -1,7 +1,9 @@
 // src/features/products/components/ProductForm.jsx
 // Modern redesigned form for creating and editing products
+// Context-aware fields: sections shown/hidden based on selected category
+// Combo-box category/subcategory selectors with inline creation
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Form, 
   Input, 
@@ -19,7 +21,8 @@ import {
   Space,
   Typography,
   Badge,
-  Tooltip
+  Tooltip,
+  Alert
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
@@ -40,16 +43,20 @@ import {
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import CurrencySelector from '@/shared/components/ui/CurrencySelector';
 import apiClient from '@/shared/services/apiClient';
+import { productApi } from '@/shared/services/productApi';
 import VariantTable from './VariantTable';
 import ColorTable from './ColorTable';
-import { getHierarchicalSubcategories, hasSubcategories, CATEGORY_OPTIONS } from '@/shared/constants/productCategories';
+import CreatableSelect from './CreatableSelect';
+import { 
+  getHierarchicalSubcategories, 
+  hasSubcategories, 
+  CATEGORY_OPTIONS,
+  PRODUCT_CATEGORIES as CATEGORIES_MAP
+} from '@/shared/constants/productCategories';
 
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
-
-// Derive from shared constants — single source of truth
-const PRODUCT_CATEGORIES = CATEGORY_OPTIONS;
 
 const PRODUCT_STATUS = [
   { value: 'active', label: 'Active', color: 'success' },
@@ -58,6 +65,83 @@ const PRODUCT_STATUS = [
 ];
 
 const BRANDS = ['Duotone', 'ION', 'North', 'Core', 'Cabrinha', 'Mystic', 'Dakine', 'F-One', 'Ozone', 'Slingshot'];
+
+// ─── Context-aware field visibility per category ───────────────────
+const CATEGORY_FIELD_CONFIG = {
+  kitesurf: {
+    showGender: false,
+    showColors: false,
+    showSizes: true,
+    showVariants: true,
+    showWeight: true,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., 7m, 9m, 10m, 12m or 133, 136, 139',
+    sizeLabel: 'Available Sizes / Dimensions',
+  },
+  wingfoil: {
+    showGender: false,
+    showColors: false,
+    showSizes: true,
+    showVariants: true,
+    showWeight: true,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., 3m, 4m, 5m, 6m or 80L, 100L, 120L',
+    sizeLabel: 'Available Sizes / Volumes',
+  },
+  efoil: {
+    showGender: false,
+    showColors: false,
+    showSizes: true,
+    showVariants: true,
+    showWeight: true,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., S, M, L or specific dimensions',
+    sizeLabel: 'Available Sizes',
+  },
+  ion: {
+    showGender: true,
+    showColors: true,
+    showSizes: true,
+    showVariants: true,
+    showWeight: false,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., XS, S, M, L, XL, XXL or 46, 48, 50, 52',
+    sizeLabel: 'Available Sizes',
+  },
+  'ukc-shop': {
+    showGender: true,
+    showColors: true,
+    showSizes: true,
+    showVariants: false,
+    showWeight: false,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., S, M, L, XL',
+    sizeLabel: 'Available Sizes',
+  },
+  secondwind: {
+    showGender: false,
+    showColors: false,
+    showSizes: true,
+    showVariants: false,
+    showWeight: true,
+    showCostPrice: false,
+    sizePlaceholder: 'e.g., 7m, 9m, 12m or 133, 136',
+    sizeLabel: 'Available Sizes',
+  },
+  _default: {
+    showGender: true,
+    showColors: true,
+    showSizes: true,
+    showVariants: true,
+    showWeight: true,
+    showCostPrice: true,
+    sizePlaceholder: 'e.g., S, M, L, XL',
+    sizeLabel: 'Available Sizes',
+  },
+};
+
+const getFieldConfig = (category) =>
+  CATEGORY_FIELD_CONFIG[category] || CATEGORY_FIELD_CONFIG._default;
 
 const ProductForm = ({ 
   product = null, 
@@ -74,7 +158,74 @@ const ProductForm = ({
   const [activeTab, setActiveTab] = useState('basic');
   const [profitMargin, setProfitMargin] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
+  const [extraSubcategories, setExtraSubcategories] = useState([]);
   const isEditing = !!product;
+
+  // Derived field config based on selected category
+  const fieldConfig = useMemo(() => getFieldConfig(selectedCategory), [selectedCategory]);
+
+  // Category options for CreatableSelect
+  const categoryOptions = useMemo(() => 
+    CATEGORY_OPTIONS.map(cat => ({
+      value: cat.value,
+      label: `${cat.icon} ${cat.label}`,
+    })),
+    []
+  );
+
+  // Subcategory options: merge constants hierarchy + any DB extras
+  const subcategoryOptions = useMemo(() => {
+    if (!selectedCategory) return [];
+    const hasSubs = hasSubcategories(selectedCategory);
+    if (!hasSubs) {
+      // Only show extra (DB-sourced) subcategories
+      return extraSubcategories.map(s => ({
+        value: s.value || s.subcategory,
+        label: s.label || s.display_name,
+        children: [],
+      }));
+    }
+    const tree = getHierarchicalSubcategories(selectedCategory);
+    // Gather all constant values to avoid duplicates
+    const collectValues = (nodes) => {
+      const vals = new Set();
+      nodes.forEach(n => {
+        vals.add(n.value);
+        if (n.children) collectValues(n.children).forEach(v => vals.add(v));
+      });
+      return vals;
+    };
+    const constantValues = collectValues(tree);
+    const extras = extraSubcategories
+      .filter(s => !constantValues.has(s.value || s.subcategory))
+      .map(s => ({
+        value: s.value || s.subcategory,
+        label: s.label || s.display_name,
+        children: [],
+      }));
+    return [...tree, ...extras];
+  }, [selectedCategory, extraSubcategories]);
+
+  // Fetch extra subcategories from DB when category changes
+  useEffect(() => {
+    if (!selectedCategory) {
+      setExtraSubcategories([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchExtras = async () => {
+      try {
+        const data = await productApi.getSubcategories(selectedCategory);
+        if (!cancelled) {
+          setExtraSubcategories(data.subcategories || []);
+        }
+      } catch {
+        // Silent — constants are always available as fallback
+      }
+    };
+    fetchExtras();
+    return () => { cancelled = true; };
+  }, [selectedCategory]);
 
   // Calculate profit margin
   const calculateMargin = () => {
@@ -151,6 +302,34 @@ const ProductForm = ({
       message.error(`Failed to ${isEditing ? 'update' : 'create'} product`);
     }
   };
+
+  const handleCategoryChange = useCallback((value) => {
+    setSelectedCategory(value);
+    form.setFieldValue('category', value);
+    form.setFieldValue('subcategory', undefined);
+    // Clear fields that may not apply to the new category
+    const config = getFieldConfig(value);
+    if (!config.showGender) form.setFieldValue('gender', undefined);
+    if (!config.showColors) form.setFieldValue('colors', []);
+  }, [form]);
+
+  const handleCreateSubcategory = useCallback(async (slug, label) => {
+    if (!selectedCategory) return;
+    try {
+      await productApi.createSubcategory({
+        category: selectedCategory,
+        subcategory: slug,
+        display_name: label,
+      });
+      // Refresh extra subcategories from DB
+      const data = await productApi.getSubcategories(selectedCategory);
+      setExtraSubcategories(data.subcategories || []);
+      message.success(`Subcategory "${label}" created`);
+    } catch {
+      message.error('Failed to create subcategory');
+      throw new Error('creation failed');
+    }
+  }, [selectedCategory]);
 
   const handleImageUpload = async (info) => {
     if (info.file.status === 'uploading') {
@@ -263,6 +442,7 @@ const ProductForm = ({
               </Col>
             </Row>
 
+          {/* Category & Subcategory — combo-box selectors */}
             <Row gutter={[16, 16]}>
               <Col xs={24} md={8}>
                 <Form.Item
@@ -270,52 +450,35 @@ const ProductForm = ({
                   label="Category"
                   rules={[{ required: true, message: 'Please select a category' }]}
                 >
-                  <Select 
-                    placeholder="Select category" 
-                    size="large"
-                    onChange={(value) => {
-                      setSelectedCategory(value);
-                      // Reset subcategory when category changes
-                      form.setFieldValue('subcategory', undefined);
+                  <CreatableSelect
+                    options={categoryOptions}
+                    placeholder="Select or create category"
+                    onChange={handleCategoryChange}
+                    onCreateNew={async (slug, label) => {
+                      // For categories, just allow the free-text value —
+                      // it gets stored directly on the product
+                      message.info(`New category "${label}" will be saved with this product`);
                     }}
-                  >
-                    {PRODUCT_CATEGORIES.map(cat => (
-                      <Option key={cat.value} value={cat.value}>
-                        <span>{cat.icon} {cat.label}</span>
-                      </Option>
-                    ))}
-                  </Select>
+                    createLabel="Create new category"
+                    createPlaceholder="e.g., Surfboards"
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
                 <Form.Item 
                   name="subcategory" 
                   label="Subcategory"
-                  tooltip={selectedCategory && hasSubcategories(selectedCategory) ? "Select product type" : "Select a category first"}
+                  tooltip={selectedCategory ? "Select or create a subcategory" : "Select a category first"}
                 >
-                  <Select 
-                    placeholder={selectedCategory ? "Select subcategory" : "Select category first"}
-                    size="large"
-                    allowClear
-                    disabled={!selectedCategory || !hasSubcategories(selectedCategory)}
-                  >
-                    {selectedCategory && hasSubcategories(selectedCategory) && 
-                      getHierarchicalSubcategories(selectedCategory).map((parent) => (
-                        <React.Fragment key={parent.value}>
-                          {/* Parent option */}
-                          <Option value={parent.value} style={{ fontWeight: 600 }}>
-                            {parent.label}
-                          </Option>
-                          {/* Child options (indented) */}
-                          {parent.children && parent.children.map((child) => (
-                            <Option key={child.value} value={child.value}>
-                              <span style={{ paddingLeft: 16 }}>↳ {child.label}</span>
-                            </Option>
-                          ))}
-                        </React.Fragment>
-                      ))
-                    }
-                  </Select>
+                  <CreatableSelect
+                    options={subcategoryOptions}
+                    placeholder={selectedCategory ? "Select or create subcategory" : "Select category first"}
+                    disabled={!selectedCategory}
+                    hierarchical={hasSubcategories(selectedCategory)}
+                    onCreateNew={handleCreateSubcategory}
+                    createLabel="Create new subcategory"
+                    createPlaceholder="e.g., Harnesses"
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -335,15 +498,17 @@ const ProductForm = ({
                   </Select>
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
-                <Form.Item name="gender" label="Gender">
-                  <Select placeholder="Select gender" size="large" allowClear>
-                    <Option value="Men">👨 Men</Option>
-                    <Option value="Women">👩 Women</Option>
-                    <Option value="Unisex">👥 Unisex</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
+              {fieldConfig.showGender && (
+                <Col xs={24} md={8}>
+                  <Form.Item name="gender" label="Gender">
+                    <Select placeholder="Select gender" size="large" allowClear>
+                      <Option value="Men">👨 Men</Option>
+                      <Option value="Women">👩 Women</Option>
+                      <Option value="Unisex">👥 Unisex</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
 
             <Form.Item name="description" label="Description">
@@ -436,7 +601,7 @@ const ProductForm = ({
             }
           >
             <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
+              <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
                 <Form.Item name="currency" label="Currency">
                   <CurrencySelector 
                     value={selectedCurrency}
@@ -444,7 +609,7 @@ const ProductForm = ({
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
+              <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
                 <Form.Item
                   name="price"
                   label="Selling Price"
@@ -465,20 +630,22 @@ const ProductForm = ({
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
-                <Form.Item name="cost_price" label="Cost Price">
-                  <InputNumber 
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    step={0.01}
-                    precision={2}
-                    prefix={getCurrencySymbol(selectedCurrency)}
-                    placeholder="0.00"
-                    onChange={calculateMargin}
-                  />
-                </Form.Item>
-              </Col>
+              {fieldConfig.showCostPrice && (
+                <Col xs={24} md={8}>
+                  <Form.Item name="cost_price" label="Cost Price">
+                    <InputNumber 
+                      style={{ width: '100%' }}
+                      size="large"
+                      min={0}
+                      step={0.01}
+                      precision={2}
+                      prefix={getCurrencySymbol(selectedCurrency)}
+                      placeholder="0.00"
+                      onChange={calculateMargin}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
           </Card>
 
@@ -489,7 +656,7 @@ const ProductForm = ({
             styles={{ body: { padding: 20 } }}
           >
             <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
+              <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
                 <Form.Item
                   name="stock_quantity"
                   label="Stock Quantity"
@@ -506,7 +673,7 @@ const ProductForm = ({
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
+              <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
                 <Form.Item
                   name="min_stock_level"
                   label={
@@ -526,18 +693,20 @@ const ProductForm = ({
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} md={8}>
-                <Form.Item name="weight" label="Weight (kg)">
-                  <InputNumber 
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    step={0.1}
-                    precision={2}
-                    placeholder="0.00"
-                  />
-                </Form.Item>
-              </Col>
+              {fieldConfig.showWeight && (
+                <Col xs={24} md={8}>
+                  <Form.Item name="weight" label="Weight (kg)">
+                    <InputNumber 
+                      style={{ width: '100%' }}
+                      size="large"
+                      min={0}
+                      step={0.1}
+                      precision={2}
+                      placeholder="0.00"
+                    />
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
           </Card>
         </div>
@@ -553,66 +722,84 @@ const ProductForm = ({
       ),
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Size Variants Card */}
-          <Card 
-            size="small" 
-            title={
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AppstoreOutlined /> Size & Price Variants
-              </span>
-            }
-            styles={{ body: { padding: 20 } }}
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Different sizes can have different prices
-              </Text>
-            }
-          >
-            <Form.Item name="variants">
-              <VariantTable currency={selectedCurrency} />
-            </Form.Item>
-          </Card>
-
-          {/* Simple Sizes Card */}
-          <Card 
-            size="small" 
-            title="Quick Size List"
-            styles={{ body: { padding: 20 } }}
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                For products with same price across sizes
-              </Text>
-            }
-          >
-            <Form.Item 
-              name="sizes" 
-              label="Available Sizes"
-              extra="Press Enter after each size"
+          {/* Size & Price Variants — only for categories that need per-size pricing */}
+          {fieldConfig.showVariants && (
+            <Card 
+              size="small" 
+              title={
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AppstoreOutlined /> Size & Price Variants
+                </span>
+              }
+              styles={{ body: { padding: 20 } }}
+              extra={
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Different sizes can have different prices
+                </Text>
+              }
             >
-              <Select
-                mode="tags"
-                style={{ width: '100%' }}
-                placeholder="e.g., 133, 136, 139 or S, M, L, XL"
-                tokenSeparators={[',', ' ']}
-                size="large"
-              />
-            </Form.Item>
-          </Card>
+              <Form.Item name="variants">
+                <VariantTable currency={selectedCurrency} />
+              </Form.Item>
+            </Card>
+          )}
 
-          {/* Color Options Card */}
-          <Card 
-            size="small" 
-            title={
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BgColorsOutlined /> Color Options
-              </span>
-            }
-            styles={{ body: { padding: 20 } }}
-          >
-            <Form.Item name="colors">
-              <ColorTable />
-            </Form.Item>
-          </Card>
+          {/* Simple Sizes — always when showSizes */}
+          {fieldConfig.showSizes && (
+            <Card 
+              size="small" 
+              title="Quick Size List"
+              styles={{ body: { padding: 20 } }}
+              extra={
+                fieldConfig.showVariants ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    For products with same price across sizes
+                  </Text>
+                ) : null
+              }
+            >
+              <Form.Item 
+                name="sizes" 
+                label={fieldConfig.sizeLabel}
+                extra="Press Enter after each size"
+              >
+                <Select
+                  mode="tags"
+                  style={{ width: '100%' }}
+                  placeholder={fieldConfig.sizePlaceholder}
+                  tokenSeparators={[',', ' ']}
+                  size="large"
+                />
+              </Form.Item>
+            </Card>
+          )}
+
+          {/* Color Options — only for wearable/apparel categories */}
+          {fieldConfig.showColors && (
+            <Card 
+              size="small" 
+              title={
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <BgColorsOutlined /> Color Options
+                </span>
+              }
+              styles={{ body: { padding: 20 } }}
+            >
+              <Form.Item name="colors">
+                <ColorTable />
+              </Form.Item>
+            </Card>
+          )}
+
+          {/* Show hint when all sections are hidden */}
+          {!fieldConfig.showVariants && !fieldConfig.showSizes && !fieldConfig.showColors && (
+            <Alert
+              type="info"
+              showIcon
+              message="No variant options for this category"
+              description="Variant pricing, sizes, and colors are not typically used for this product category."
+            />
+          )}
         </div>
       )
     },

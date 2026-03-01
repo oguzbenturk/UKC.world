@@ -321,6 +321,68 @@ router.get('/subcategories', publicApiLimiter, async (req, res) => {
   }
 });
 
+// Create a new subcategory (admin only)
+router.post('/subcategories', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { category, subcategory, display_name, parent_subcategory = null } = req.body;
+
+    if (!category || !subcategory || !display_name) {
+      return res.status(400).json({
+        error: true,
+        message: 'category, subcategory, and display_name are required'
+      });
+    }
+
+    // Get the next display_order for this category
+    const orderResult = await pool.query(
+      `SELECT COALESCE(MAX(display_order), 0) + 1 as next_order
+       FROM product_subcategories WHERE category = $1`,
+      [category]
+    );
+    const nextOrder = orderResult.rows[0].next_order;
+
+    // Upsert — if exists, update display_name; if not, insert
+    const result = await pool.query(
+      `INSERT INTO product_subcategories (category, subcategory, display_name, display_order, parent_subcategory, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)
+       ON CONFLICT (category, subcategory) DO UPDATE SET
+         display_name = EXCLUDED.display_name,
+         is_active = true,
+         updated_at = NOW()
+       RETURNING *`,
+      [category, subcategory, display_name, nextOrder, parent_subcategory]
+    );
+
+    res.status(201).json({
+      success: true,
+      subcategory: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error creating subcategory:', error);
+    res.status(500).json({ error: true, message: 'Failed to create subcategory' });
+  }
+});
+
+// Delete (deactivate) a subcategory (admin only)
+router.delete('/subcategories/:category/:subcategory', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { category, subcategory } = req.params;
+
+    await pool.query(
+      `UPDATE product_subcategories SET is_active = false, updated_at = NOW()
+       WHERE category = $1 AND subcategory = $2`,
+      [category, subcategory]
+    );
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error deactivating subcategory:', error);
+    res.status(500).json({ error: true, message: 'Failed to deactivate subcategory' });
+  }
+});
+
 // Trigger external vendor product synchronization (ION, Duotone...)
 router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {

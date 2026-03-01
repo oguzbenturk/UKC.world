@@ -69,6 +69,23 @@ export const productApi = {
     return response.data;
   },
 
+  // Create a new subcategory (admin)
+  createSubcategory: async ({ category, subcategory, display_name, parent_subcategory = null }) => {
+    const response = await apiClient.post('/products/subcategories', {
+      category,
+      subcategory,
+      display_name,
+      parent_subcategory
+    });
+    return response.data;
+  },
+
+  // Deactivate a subcategory (admin)
+  deleteSubcategory: async (category, subcategory) => {
+    const response = await apiClient.delete(`/products/subcategories/${category}/${subcategory}`);
+    return response.data;
+  },
+
   // Get product by ID
   getProduct: async (id) => {
   const response = await apiClient.get(`/products/${id}`);
