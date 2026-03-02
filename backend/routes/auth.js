@@ -269,6 +269,10 @@ router.get('/me', authenticateJWT, async (req, res) => {
           u.updated_at,
           u.profile_image_url,
           u.preferred_currency,
+          u.address,
+          u.city,
+          u.country,
+          u.zip_code,
           r.name as role_name,
           r.permissions as role_permissions
         FROM users u
@@ -475,7 +479,11 @@ router.post('/register', authRateLimit, async (req, res) => {
     password,
     age,
     weight,
-    preferred_currency
+    preferred_currency,
+    address,
+    city,
+    country,
+    zip_code
   } = req.body;
 
   // Validate required fields
@@ -574,11 +582,15 @@ router.post('/register', authRateLimit, async (req, res) => {
         age,
         weight,
         preferred_currency,
+        address,
+        city,
+        country,
+        zip_code,
         role_id, 
         created_at, 
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
       RETURNING id, email, name, first_name, last_name, preferred_currency
     `, [
       email.toLowerCase(),
@@ -590,6 +602,10 @@ router.post('/register', authRateLimit, async (req, res) => {
       age || null,
       weight || null,
       preferred_currency || 'EUR',
+      address || null,
+      city || null,
+      country || null,
+      zip_code || null,
       outsiderRoleId
     ]);
 

@@ -1,18 +1,21 @@
 // src/features/students/components/CheckoutModal.jsx
-// Checkout modal with wallet/credit card payment options
+// Checkout modal with wallet/credit card payment options + delivery address confirmation
 
-import { useState } from 'react';
-import { Modal, Button, Typography, Radio, Space, Divider, Tag, Alert, Spin, Result } from 'antd';
+import { useState, useEffect } from 'react';
+import { Modal, Button, Typography, Radio, Space, Divider, Tag, Alert, Spin, Result, Input } from 'antd';
 import {
   WalletOutlined,
   CreditCardOutlined,
   CheckCircleOutlined,
   ShoppingCartOutlined,
   SafetyCertificateOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  EnvironmentOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { useCart } from '@/shared/contexts/CartContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 
 const { Text, Title } = Typography;
@@ -20,12 +23,44 @@ const { Text, Title } = Typography;
 const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const { cart, getCartTotal, getCartCount, clearCart } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
+  const { user } = useAuth();
   
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
+
+  // Delivery address state
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState({
+    address: '',
+    city: '',
+    country: '',
+    zip_code: '',
+  });
+
+  // Pre-fill address from user profile when modal opens
+  useEffect(() => {
+    if (visible && user) {
+      const addr = {
+        address: user.address || '',
+        city: user.city || '',
+        country: user.country || '',
+        zip_code: user.zip_code || '',
+      };
+      setDeliveryAddress(addr);
+      // Auto-open editing if no address on file
+      setEditingAddress(!addr.address && !addr.city);
+    }
+  }, [visible, user]);
+
+  const hasCompleteAddress = deliveryAddress.address && deliveryAddress.city && deliveryAddress.country && deliveryAddress.zip_code;
+
+  const formatShippingAddress = () => {
+    const parts = [deliveryAddress.address, deliveryAddress.city, deliveryAddress.zip_code, deliveryAddress.country].filter(Boolean);
+    return parts.join(', ');
+  };
 
   const storageCurrency = businessCurrency || 'EUR';
   const showDualCurrency = storageCurrency !== userCurrency && convertCurrency;
@@ -42,6 +77,11 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const amountNeeded = total - (userBalance || 0);
 
   const handleCheckout = async () => {
+    if (!hasCompleteAddress) {
+      setError('Please provide a complete delivery address before checking out');
+      return;
+    }
+
     if (paymentMethod === 'wallet' && !canAffordWallet) {
       setError('Insufficient wallet balance');
       return;
@@ -64,7 +104,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       const response = await apiClient.post('/shop-orders', {
         items,
         payment_method: paymentMethod,
-        use_wallet: paymentMethod === 'wallet'
+        use_wallet: paymentMethod === 'wallet',
+        shipping_address: formatShippingAddress()
       });
 
       // Handle Redirect (Iyzico)
@@ -99,6 +140,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     }
     setError(null);
     setPaymentMethod('wallet');
+    setEditingAddress(false);
     onClose();
   };
 
@@ -172,6 +214,81 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                 </Title>
               </div>
             </div>
+          </div>
+
+          {/* Delivery Address */}
+          <div style={{ 
+            background: '#f8f9fa', 
+            borderRadius: 12, 
+            padding: 16, 
+            marginBottom: 20 
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                <EnvironmentOutlined style={{ marginRight: 6 }} />
+                Delivery Address
+              </Text>
+              {hasCompleteAddress && !editingAddress && (
+                <Button 
+                  type="link" 
+                  size="small" 
+                  icon={<EditOutlined />}
+                  onClick={() => setEditingAddress(true)}
+                >
+                  Edit
+                </Button>
+              )}
+            </div>
+
+            {editingAddress ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Input
+                  placeholder="Street address"
+                  value={deliveryAddress.address}
+                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address: e.target.value }))}
+                  size="middle"
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <Input
+                    placeholder="City"
+                    value={deliveryAddress.city}
+                    onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
+                    size="middle"
+                  />
+                  <Input
+                    placeholder="ZIP / Postal code"
+                    value={deliveryAddress.zip_code}
+                    onChange={(e) => setDeliveryAddress(prev => ({ ...prev, zip_code: e.target.value }))}
+                    size="middle"
+                  />
+                </div>
+                <Input
+                  placeholder="Country"
+                  value={deliveryAddress.country}
+                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
+                  size="middle"
+                />
+                <Button 
+                  type="primary" 
+                  size="small" 
+                  disabled={!hasCompleteAddress}
+                  onClick={() => setEditingAddress(false)}
+                  style={{ alignSelf: 'flex-end', marginTop: 4 }}
+                >
+                  Confirm Address
+                </Button>
+              </div>
+            ) : hasCompleteAddress ? (
+              <Text style={{ fontSize: 13 }}>{formatShippingAddress()}</Text>
+            ) : (
+              <Alert
+                message="No delivery address on file"
+                description="Please add your delivery address to continue."
+                type="warning"
+                showIcon
+                style={{ borderRadius: 8 }}
+              />
+            )}
           </div>
 
           {/* Payment Method Selection */}
@@ -317,7 +434,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             block
             icon={paymentMethod === 'wallet' ? <WalletOutlined /> : <CreditCardOutlined />}
             onClick={handleCheckout}
-            disabled={paymentMethod === 'wallet' && !canAffordWallet}
+            disabled={(paymentMethod === 'wallet' && !canAffordWallet) || !hasCompleteAddress || editingAddress}
             loading={loading}
             style={{
               height: 52,
@@ -335,6 +452,12 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
               : 'Place Order'
             }
           </Button>
+
+          {(!hasCompleteAddress || editingAddress) && (
+            <Text type="warning" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 13, color: '#faad14' }}>
+              {editingAddress ? '⚠ Please confirm your address to continue' : '⚠ A complete delivery address is required'}
+            </Text>
+          )}
 
           {/* Security Note */}
           <div style={{ 

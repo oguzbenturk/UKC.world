@@ -37,6 +37,7 @@ const lazyWithRetry = (factory) =>
 // ── Eagerly loaded pages (critical path / first paint) ──
 import Login from '../features/authentication/pages/Login';
 import ResetPassword from '../features/authentication/pages/ResetPassword';
+import RegisterPage from '../features/authentication/pages/RegisterPage';
 
 // ── Lazy-loaded pages (code-split for fast mobile load) ──
 const ExecutiveDashboard = lazyWithRetry(() => import('../features/dashboard/pages/ExecutiveDashboard'));
@@ -289,6 +290,7 @@ const AppRoutes = () => {
     <Suspense fallback={<LazyFallback />}>
     <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
+  <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />
   
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
