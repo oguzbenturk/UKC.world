@@ -13,17 +13,20 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   CheckOutlined,
+  IdcardOutlined,
+  CompassOutlined
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 const { Option } = Select;
 
 // ─── Step configuration ───
 const STEPS = [
-  { key: 'account', title: 'Account', subtitle: "Let's get you in!", icon: '🔐' },
-  { key: 'profile', title: 'Rider Profile', subtitle: 'Help us find the right gear for you', icon: '🏄' },
-  { key: 'address', title: 'Your Location', subtitle: 'Where should we ship your orders?', icon: '📍' },
+  { key: 'account', title: 'Account', subtitle: "Let's get you in!", icon: <UserOutlined /> },
+  { key: 'profile', title: 'Rider Profile', subtitle: 'Help us find the right gear for you', icon: <IdcardOutlined /> },
+  { key: 'address', title: 'Your Location', subtitle: 'Where should we ship your orders?', icon: <CompassOutlined /> },
 ];
 
 // ─── Country codes ───
@@ -106,25 +109,28 @@ const COUNTRIES = [
   'Thailand', 'Egypt', 'South Africa', 'Morocco', 'Nigeria',
 ];
 
-const RegisterModal = ({ visible, onClose, onSuccess }) => {
+const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
   const [form] = Form.useForm();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [allowedCurrencies, setAllowedCurrencies] = useState([]);
   const { getSupportedCurrencies, businessCurrency } = useCurrency();
+  const { login } = useAuth();
   const supportedCurrencies = getSupportedCurrencies();
 
   const fallbackCurrencies = [
     { label: 'Euro (€)', value: 'EUR', symbol: '€', name: 'Euro' },
     { label: 'US Dollar ($)', value: 'USD', symbol: '$', name: 'US Dollar' },
     { label: 'Turkish Lira (₺)', value: 'TRY', symbol: '₺', name: 'Turkish Lira' },
+    { label: 'British Pound (£)', value: 'GBP', symbol: '£', name: 'British Pound' },
+    { label: 'Swiss Franc (CHF)', value: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
   ];
 
+  // For registration, always use fallback list (user is not yet in DB so active currencies
+  // may be limited). Filter by allowedCurrencies if admin has restricted them.
   const currencyOptions = allowedCurrencies.length > 0
-    ? (supportedCurrencies?.length ? supportedCurrencies : fallbackCurrencies).filter(c =>
-        allowedCurrencies.includes(c.value)
-      )
-    : (supportedCurrencies?.length ? supportedCurrencies : fallbackCurrencies);
+    ? fallbackCurrencies.filter(c => allowedCurrencies.includes(c.value))
+    : fallbackCurrencies;
 
   // Fetch allowed currencies
   useEffect(() => {
@@ -201,7 +207,14 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
         zip_code: values.zip_code,
       });
 
-      message.success('Account created successfully! Please login.');
+      // Auto-login after successful registration
+      const loggedIn = await login(values.email.toLowerCase(), values.password);
+      if (loggedIn) {
+        message.success(`Welcome, ${values.first_name}! Your account is ready.`);
+      } else {
+        message.success('Account created successfully! Please login.');
+      }
+
       form.resetFields();
       setStep(0);
       onSuccess?.();
@@ -232,46 +245,33 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
   const pwStrength = getPasswordStrength(passwordValue);
 
   // ─── Shared form item label helper ───
-  const lbl = (text) => <span className="text-slate-300 text-sm">{text}</span>;
+  const lbl = (text) => <span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>{text}</span>;
 
-  return (
-    <Modal
-      open={visible}
-      onCancel={handleClose}
-      footer={null}
-      width={480}
-      maskClosable={!loading}
-      closable={!loading}
-      destroyOnClose
-      styles={{ content: { padding: 0, overflow: 'hidden', borderRadius: 16 } }}
-    >
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 16, overflow: 'hidden', width: '100%', position: 'relative' }}>
       {/* Header with progress */}
-      <div className="bg-gradient-to-r from-sky-600 to-blue-700 px-6 pt-6 pb-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-2xl">{STEPS[step].icon}</span>
+      <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)', padding: '28px 28px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, border: '1px solid rgba(255,255,255,0.25)' }}>
+            {STEPS[step].icon}
+          </div>
           <div>
-            <h2 className="text-xl font-bold text-white m-0 leading-tight">{STEPS[step].title}</h2>
-            <p className="text-sky-200 text-sm m-0">{STEPS[step].subtitle}</p>
+            <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{STEPS[step].title}</h2>
+            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, margin: 0, marginTop: 3 }}>{STEPS[step].subtitle}</p>
           </div>
         </div>
         {/* Step progress bars */}
-        <div className="flex items-center gap-2 mt-3">
+        <div style={{ display: 'flex', gap: 8 }}>
           {STEPS.map((s, i) => (
-            <div key={s.key} className="flex-1">
-              <div
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i <= step ? 'bg-white' : 'bg-white/30'
-                }`}
-              />
-            </div>
+            <div key={s.key} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)', transition: 'all 0.3s' }} />
           ))}
         </div>
-        <p className="text-sky-200/80 text-xs mt-2 mb-0 text-right">Step {step + 1} of {STEPS.length}</p>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0, marginTop: 10, textAlign: 'right', fontWeight: 500 }}>Step {step + 1} of {STEPS.length}</p>
       </div>
 
       {/* Form body */}
-      <div className="px-6 py-5 bg-slate-800">
-        <Form form={form} layout="vertical" requiredMark={false}>
+      <div style={{ padding: '24px 28px', background: '#fff', flex: 1 }}>
+        <Form form={form} layout="vertical" requiredMark={false} className="register-form">
           {/* ─── STEP 1: Account ─── */}
           <div style={{ display: step === 0 ? 'block' : 'none' }}>
             <div className="grid grid-cols-2 gap-3">
@@ -281,10 +281,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                 rules={[{ required: true, message: 'Required' }]}
               >
                 <Input
-                  prefix={<UserOutlined className="text-slate-500" />}
+                  prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
                   placeholder="John"
                   autoComplete="given-name"
                   size="large"
+                  className="rounded-lg"
                 />
               </Form.Item>
               <Form.Item
@@ -293,10 +294,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                 rules={[{ required: true, message: 'Required' }]}
               >
                 <Input
-                  prefix={<UserOutlined className="text-slate-500" />}
+                  prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
                   placeholder="Doe"
                   autoComplete="family-name"
                   size="large"
+                  className="rounded-lg"
                 />
               </Form.Item>
             </div>
@@ -310,10 +312,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               ]}
             >
               <Input
-                prefix={<MailOutlined className="text-slate-500" />}
+                prefix={<MailOutlined className="text-slate-400 dark:text-slate-500" />}
                 placeholder="you@example.com"
                 autoComplete="email"
                 size="large"
+                className="rounded-lg"
               />
             </Form.Item>
 
@@ -330,10 +333,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               ]}
             >
               <Input.Password
-                prefix={<LockOutlined className="text-slate-500" />}
+                prefix={<LockOutlined className="text-slate-400 dark:text-slate-500" />}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 size="large"
+                className="rounded-lg"
               />
             </Form.Item>
             {passwordValue && (
@@ -343,7 +347,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                     percent={pwStrength.pct}
                     showInfo={false}
                     strokeColor={pwStrength.color}
-                    trailColor="#334155"
+                    trailColor="rgba(0,0,0,0.06)"
                     size="small"
                   />
                 </div>
@@ -368,10 +372,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               ]}
             >
               <Input.Password
-                prefix={<LockOutlined className="text-slate-500" />}
+                prefix={<LockOutlined className="text-slate-400 dark:text-slate-500" />}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 size="large"
+                className="rounded-lg"
               />
             </Form.Item>
           </div>
@@ -379,19 +384,20 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
           {/* ─── STEP 2: Rider Profile ─── */}
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
             <Form.Item label={lbl('Phone Number')} required>
-              <Input.Group compact>
+              <Input.Group compact className="flex !rounded-lg overflow-hidden">
                 <Form.Item
                   name="country_code"
                   noStyle
                   rules={[{ required: true, message: 'Required' }]}
                 >
                   <Select
-                    style={{ width: 150 }}
+                    style={{ width: 140 }}
                     showSearch
                     size="large"
                     filterOption={(input, option) =>
                       option.label.toLowerCase().includes(input.toLowerCase())
                     }
+                    className="[&_.ant-select-selector]:!rounded-none [&_.ant-select-selector]:!border-r-0"
                   >
                     {COUNTRY_CODES.map((item) => (
                       <Option key={`${item.code}-${item.country}`} value={item.code} label={item.label}>
@@ -409,11 +415,12 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                   ]}
                 >
                   <Input
-                    prefix={<PhoneOutlined className="text-slate-500" />}
+                    prefix={<PhoneOutlined className="text-slate-400 dark:text-slate-500" />}
                     placeholder="5xx xxx xxxx"
                     autoComplete="tel-national"
                     size="large"
-                    style={{ width: 'calc(100% - 150px)' }}
+                    style={{ width: 'calc(100% - 140px)' }}
+                    className="!rounded-none"
                   />
                 </Form.Item>
               </Input.Group>
@@ -427,9 +434,9 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                   { required: true, message: 'Required' },
                   { type: 'number', min: 10, max: 100, message: '10–100' },
                 ]}
-                extra={<span className="text-slate-500 text-xs">For safety guidelines</span>}
+                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For safety guidelines</span>}
               >
-                <InputNumber placeholder="e.g. 25" className="w-full" min={10} max={100} size="large" />
+                <InputNumber placeholder="e.g. 25" className="w-full !rounded-lg" min={10} max={100} size="large" />
               </Form.Item>
               <Form.Item
                 name="weight"
@@ -438,9 +445,9 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                   { required: true, message: 'Required' },
                   { type: 'number', min: 30, max: 200, message: '30–200 kg' },
                 ]}
-                extra={<span className="text-slate-500 text-xs">For correct kite & board sizing</span>}
+                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For correct kite & board sizing</span>}
               >
-                <InputNumber placeholder="e.g. 70" className="w-full" min={30} max={200} size="large" />
+                <InputNumber placeholder="e.g. 70" className="w-full !rounded-lg" min={30} max={200} size="large" />
               </Form.Item>
             </div>
 
@@ -448,13 +455,14 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               name="preferred_currency"
               label={lbl('Preferred Currency')}
               rules={[{ required: true, message: 'Required' }]}
-              extra={<span className="text-slate-500 text-xs">Prices will be shown in this currency</span>}
+              extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>Prices will be shown in this currency</span>}
             >
               <Select
                 placeholder="Select currency"
-                suffixIcon={<DollarOutlined className="text-slate-500" />}
+                suffixIcon={<DollarOutlined className="text-slate-400 dark:text-slate-500" />}
                 showSearch
                 size="large"
+                className="[&_.ant-select-selector]:!rounded-lg"
                 filterOption={(input, option) =>
                   option.label.toLowerCase().includes(input.toLowerCase())
                 }
@@ -474,8 +482,8 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
 
           {/* ─── STEP 3: Address ─── */}
           <div style={{ display: step === 2 ? 'block' : 'none' }}>
-            <div className="mb-3 p-3 rounded-lg bg-sky-900/30 border border-sky-700/40">
-              <p className="text-sky-300 text-xs m-0">
+            <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <p style={{ color: '#1d4ed8', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
                 📦 Your address will be used as the default delivery address for shop orders. You can always change it at checkout.
               </p>
             </div>
@@ -486,10 +494,11 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               rules={[{ required: true, message: 'Required' }]}
             >
               <Input
-                prefix={<EnvironmentOutlined className="text-slate-500" />}
+                prefix={<EnvironmentOutlined className="text-slate-400 dark:text-slate-500" />}
                 placeholder="123 Beach Road, Apt 4"
                 autoComplete="street-address"
                 size="large"
+                className="rounded-lg"
               />
             </Form.Item>
 
@@ -499,14 +508,14 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                 label={lbl('City')}
                 rules={[{ required: true, message: 'Required' }]}
               >
-                <Input placeholder="e.g. Istanbul" autoComplete="address-level2" size="large" />
+                <Input placeholder="e.g. Istanbul" autoComplete="address-level2" size="large" className="rounded-lg" />
               </Form.Item>
               <Form.Item
                 name="zip_code"
                 label={lbl('Postal / ZIP Code')}
                 rules={[{ required: true, message: 'Required' }]}
               >
-                <Input placeholder="e.g. 34000" autoComplete="postal-code" size="large" />
+                <Input placeholder="e.g. 34000" autoComplete="postal-code" size="large" className="rounded-lg" />
               </Form.Item>
             </div>
 
@@ -519,6 +528,7 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
                 placeholder="Select country"
                 showSearch
                 size="large"
+                className="[&_.ant-select-selector]:!rounded-lg"
                 filterOption={(input, option) =>
                   option.children.toLowerCase().includes(input.toLowerCase())
                 }
@@ -532,19 +542,20 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
         </Form>
 
         {/* ─── Navigation buttons ─── */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTop: '1px solid #e5e7eb' }}>
           {step > 0 ? (
             <Button
               icon={<ArrowLeftOutlined />}
               onClick={goBack}
               disabled={loading}
               size="large"
-              className="text-slate-300"
+              type="text"
+              style={{ color: '#6b7280', borderRadius: 8 }}
             >
               Back
             </Button>
           ) : (
-            <Button onClick={handleClose} disabled={loading} size="large" className="text-slate-300">
+            <Button onClick={handleClose} disabled={loading} size="large" style={{ color: '#6b7280', borderRadius: 8, borderColor: '#e5e7eb' }}>
               Cancel
             </Button>
           )}
@@ -554,10 +565,9 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               type="primary"
               onClick={goNext}
               size="large"
-              className="px-8"
-              style={{ background: '#0284c7', borderColor: '#0284c7' }}
+              style={{ background: '#3b82f6', borderColor: '#3b82f6', borderRadius: 8, paddingLeft: 32, paddingRight: 32, fontWeight: 500 }}
             >
-              Continue <ArrowRightOutlined />
+              Continue <ArrowRightOutlined style={{ marginLeft: 4 }} />
             </Button>
           ) : (
             <Button
@@ -566,14 +576,42 @@ const RegisterModal = ({ visible, onClose, onSuccess }) => {
               loading={loading}
               size="large"
               icon={<CheckOutlined />}
-              className="px-8"
-              style={{ background: '#059669', borderColor: '#059669' }}
+              style={{ background: '#10b981', borderColor: '#10b981', borderRadius: 8, paddingLeft: 32, paddingRight: 32, fontWeight: 500 }}
             >
               Create Account
             </Button>
           )}
         </div>
       </div>
+    </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <Modal
+      open={visible}
+      onCancel={handleClose}
+      footer={null}
+      width={480}
+      maskClosable={!loading}
+      closable={true}
+      closeIcon={<span className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 mt-1">✕</span>}
+      destroyOnClose
+      styles={{ 
+        content: { 
+          padding: 0, 
+          overflow: 'hidden', 
+          borderRadius: '16px',
+          backgroundColor: 'transparent',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' 
+        } 
+      }}
+      className="register-modal"
+    >
+      {content}
     </Modal>
   );
 };

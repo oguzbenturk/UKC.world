@@ -27,18 +27,21 @@ const RegisterPage = () => {
 
   const handleSuccess = useCallback(() => {
     setVisible(false);
-    // After successful registration the user is typically logged in;
-    // navigate to the guest landing or wherever they came from.
-    navigate(returnUrl, { replace: true });
+    // If auto-login succeeded, token is already in localStorage synchronously
+    const destination = localStorage.getItem('token') ? '/dashboard' : returnUrl;
+    navigate(destination, { replace: true });
   }, [navigate, returnUrl]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
-      <RegisterModal
-        visible={visible}
-        onClose={handleClose}
-        onSuccess={handleSuccess}
-      />
+    <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
+        <div style={{ width: '100%', maxWidth: 480, boxShadow: '0 25px 80px rgba(0,0,0,0.6)', borderRadius: 16, overflow: 'hidden' }}>
+        <RegisterModal
+          visible={visible}
+          inline={true}
+          onClose={handleClose}
+          onSuccess={handleSuccess}
+        />
+      </div>
     </div>
   );
 };
