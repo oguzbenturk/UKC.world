@@ -108,7 +108,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
           { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/foiling', label: 'Foiling' },
+          { to: '/shop/efoil', label: 'E-Foiling' },
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
@@ -183,7 +184,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
           { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/foiling', label: 'Foiling' },
+          { to: '/shop/efoil', label: 'E-Foiling' },
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
@@ -288,7 +290,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         subItems: [
           { to: '/shop/kitesurf', label: 'Kitesurf' },
           { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/efoil', label: 'E-Foil' },
+          { to: '/shop/foiling', label: 'Foiling' },
+          { to: '/shop/efoil', label: 'E-Foiling' },
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
@@ -433,7 +436,8 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       subItems: [
         { to: '/shop/kitesurf', label: 'Kitesurf' },
         { to: '/shop/wingfoil', label: 'Wing Foil' },
-        { to: '/shop/efoil', label: 'E-Foil' },
+        { to: '/shop/foiling', label: 'Foiling' },
+        { to: '/shop/efoil', label: 'E-Foiling' },
         { to: '/shop/ion', label: 'ION' },
         { to: '/shop/secondwind', label: 'SecondWind' }
       ]

@@ -31,18 +31,27 @@ export const PRODUCT_CATEGORIES = {
       'foils':  { label: 'Foils',  value: 'foils',  parent: null },
     }
   },
-  'efoil': {
+  'foiling': {
     label: 'Foiling',
-    icon: '⚡',
-    value: 'efoil',
+    icon: '🏄',
+    value: 'foiling',
     subcategories: {
-      'foilassist-boards': { label: 'FoilAssist Boards',   value: 'foilassist-boards', parent: null },
+      'foils':             { label: 'Foils',               value: 'foils',             parent: null },
       'wings':             { label: 'Front & Back Wings',   value: 'wings',             parent: null },
       'masts-fuselages':   { label: 'Masts & Fuselages',   value: 'masts-fuselages',   parent: null },
     }
   },
+  'efoil': {
+    label: 'E-Foiling',
+    icon: '⚡',
+    value: 'efoil',
+    subcategories: {
+      'efoil-boards':      { label: 'E-Foil Boards',       value: 'efoil-boards',      parent: null },
+      'efoil-accessories': { label: 'Accessories',          value: 'efoil-accessories', parent: null },
+    }
+  },
   'ion': {
-    label: 'ION Water',
+    label: 'ION Accessories',
     icon: '🩱',
     value: 'ion',
     subcategories: {
@@ -105,6 +114,7 @@ export const LEGACY_CATEGORY_MAP = {
   'bars':        'kitesurf',
   'wing-foil':   'wingfoil',
   'e-foil':      'efoil',
+  'foil':        'foiling',
   'wetsuits':    'ion',
   'ion-wetsuits': 'ion',
   'harnesses':   'ion',

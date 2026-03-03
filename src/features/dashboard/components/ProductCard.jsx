@@ -41,7 +41,7 @@ const ProductCard = memo(({
 
     return (
         <div
-            className="group relative overflow-hidden cursor-pointer flex flex-col h-full bg-white hover:shadow-lg transition-shadow duration-200"
+            className="group relative overflow-hidden cursor-pointer flex flex-col w-full h-full bg-white hover:shadow-lg transition-shadow duration-200"
             style={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
             onClick={() => onPreview(product)}
         >

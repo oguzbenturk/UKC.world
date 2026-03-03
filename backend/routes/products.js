@@ -211,7 +211,7 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
             ORDER BY is_featured DESC, created_at DESC
           ) AS rn
         FROM products
-        WHERE status = 'active' AND stock_quantity > 0
+        WHERE status = 'active'
       ) ranked
       WHERE rn <= $1
       ORDER BY category, rn
@@ -222,7 +222,8 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
     const categoriesList = [];
 
     for (const row of result.rows) {
-      const { category, rn, ...product } = row;
+      const { rn, ...product } = row;  // Keep category on the product object
+      const category = product.category;
       
       if (!categoryGroups[category]) {
         categoryGroups[category] = { products: [], subcategories: {}, total: 0 };

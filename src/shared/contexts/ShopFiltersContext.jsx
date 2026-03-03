@@ -96,7 +96,7 @@ export const ShopFiltersProvider = ({ children }) => {
     }, []);
 
     const clearAllFilters = useCallback(() => {
-        setSelectedCategory('featured');
+        setSelectedCategory('all');
         setSelectedSubcategory('all');
         setSelectedBrand('all');
         setSearchText('');

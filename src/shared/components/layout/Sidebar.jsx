@@ -46,6 +46,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   const [expandedItems, setExpandedItems] = useState({});
   const [isShopMode, setIsShopMode] = useState(false);
   const sidebarRef = useRef(null);
+  const navRef = useRef(null);
   const { logout, isAuthenticated, isGuest } = useAuth();
   const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
@@ -102,6 +103,13 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
       setExpandedItems(prev => ({ ...prev, ...newExpandedState }));
     } catch {
       // Silently handle parse errors
+    }
+  }, [location.pathname]);
+
+  // Reset sidebar nav scroll to top on every route change so Shop is always visible
+  useEffect(() => {
+    if (navRef.current) {
+      navRef.current.scrollTop = 0;
     }
   }, [location.pathname]);
 
@@ -291,7 +299,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
             <button
               onClick={() => {
                 handleSubcategoryChange(node.value);
-                if (hasChildren) {
+                if (hasChildren && !isNodeExpanded) {
                   toggleCategoryExpanded(expandKey);
                 }
               }}
@@ -332,7 +340,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
       handleSearchChange,
       setShowInStockOnly,
       clearAllFilters,
-      toggleCategoryExpanded
+      toggleCategoryExpanded,
+      setExpandedCategories
     } = shopFilters;
 
     // Check if we're on the landing page (not the browse/category page)
@@ -341,6 +350,13 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     // Wrap handlers to also navigate when on landing page
     const handleCategoryChange = (value) => {
       contextHandleCategoryChange(value);
+      // Expand clicked category, collapse all others
+      setExpandedCategories(prev => {
+        const next = {};
+        Object.keys(prev).forEach(k => { next[k] = false; });
+        next[value] = true;
+        return next;
+      });
       if (isLandingPage) {
         if (value === 'featured' || value === 'all') {
           navigate('/shop/browse');
@@ -438,9 +454,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     <button
                       onClick={() => {
                         handleCategoryChange(cat.value);
-                        if (hasSubs) {
-                          toggleCategoryExpanded(cat.value);
-                        }
                       }}
                       className={`flex-1 flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-all ${
                         isActive
@@ -459,8 +472,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     </button>
                   </div>
 
-                  {/* Subcategories — only show for the active category */}
-                  {hasSubs && isExpanded && isCategoryActive && (
+                  {/* Subcategories — show for any expanded category */}
+                  {hasSubs && isExpanded && (
                     <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-2 dark:border-slate-600">
                       {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, (subValue) => handleSubcategoryChange(subValue, cat.value), 0)}
                     </div>
@@ -514,7 +527,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
               {renderShopSidebar()}
             </nav>
           ) : (
-          <nav className="flex-grow overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
+          <nav ref={navRef} className="flex-grow overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
           
           <div>
             {/* Removed duplicate 'Main Menu' labels to simplify UI */}
@@ -599,8 +612,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                               ? { 
                                   to: item.to, 
                                   onClick: (e) => {
-                                      // If we want to toggle expansion too
                                       toggleExpanded(item.label);
+                                      // Close sidebar on mobile when navigating via direct link
+                                      if (isOpen && window.innerWidth < 1200) toggleSidebar();
                                   },
                                   className: ({ isActive }) => `${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isActive || isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`
                                 }

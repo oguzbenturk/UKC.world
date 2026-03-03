@@ -41,8 +41,9 @@ const SHOP_NAV_CATEGORIES = [
     { id: 'all',              label: 'All',            filterValue: 'all' },
     { id: 'kitesurf',         label: 'Kiteboarding',   filterValue: 'kitesurf' },
     { id: 'wingfoil',         label: 'Wing Foiling',   filterValue: 'wingfoil' },
-    { id: 'efoil',            label: 'Foiling',        filterValue: 'efoil' },
-    { id: 'ion',              label: 'ION Water',      filterValue: 'ion' },
+    { id: 'foiling',          label: 'Foiling',        filterValue: 'foiling' },
+    { id: 'efoil',            label: 'E-Foiling',      filterValue: 'efoil' },
+    { id: 'ion',              label: 'ION Accessories', filterValue: 'ion' },
     { id: 'secondwind',       label: 'SecondWind',     filterValue: 'secondwind' },
 ];
 
@@ -163,12 +164,12 @@ const ShopPage = () => {
                 setLoading(false);
             }
         }
-    }, [allProducts.length, setAllProducts]);
+    }, [setAllProducts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load all products once on mount
     useEffect(() => {
         fetchAllProducts();
-    }, [fetchAllProducts]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Instant client-side filtering when category/subcategory changes
     useEffect(() => {
@@ -181,7 +182,12 @@ const ShopPage = () => {
         } else if (selectedCategory !== 'all') {
             result = result.filter(p => p.category === selectedCategory);
             if (selectedSubcategory !== 'all') {
-                result = result.filter(p => p.subcategory === selectedSubcategory);
+                // Hierarchical match: selected subcategory matches itself AND all children
+                // e.g. selecting 'bars' matches 'bars', 'bars-trust', 'bars-click'
+                result = result.filter(p =>
+                    p.subcategory === selectedSubcategory ||
+                    p.subcategory?.startsWith(selectedSubcategory + '-')
+                );
             }
         }
         
@@ -191,12 +197,9 @@ const ShopPage = () => {
 
     // Local handler wrappers to reset pagination when category changes
     const localHandleCategoryChange = useCallback((value, keepSubcategory = false) => {
-        handleCategoryChange(value);
-        if (!keepSubcategory) {
-            setSelectedSubcategory('all'); // Reset subcategory when category changes (unless explicitly kept)
-        }
+        handleCategoryChange(value, keepSubcategory);
         setPagination({ page: 1, total: 0 });
-    }, [handleCategoryChange, setSelectedSubcategory]);
+    }, [handleCategoryChange]);
 
     const localHandleSubcategoryChange = useCallback((value) => {
         handleSubcategoryChange(value);
