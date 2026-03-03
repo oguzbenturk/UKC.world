@@ -597,7 +597,7 @@ const OutsiderBookingPage = () => {
       openAuthModal({
         title: 'Sign In to Book Your First Lesson',
         message: 'Create a free account or sign in to book your lesson with us',
-        returnUrl: '/book'
+        returnUrl: '/guest'
       });
       return;
     }
@@ -682,7 +682,7 @@ const OutsiderBookingPage = () => {
                   openAuthModal({
                     title: 'Sign In to Purchase Packages',
                     message: 'Create an account to purchase lesson packages and save money',
-                    returnUrl: '/book'
+                    returnUrl: '/guest'
                   });
                   return;
                 }
@@ -941,7 +941,6 @@ const OutsiderBookingPage = () => {
           </Button>
         ]}
         width={500}
-        destroyOnHidden
       >
         {renderPaymentMethodSelector()}
       </Modal>

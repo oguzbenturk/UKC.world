@@ -13,6 +13,7 @@ import socketService from './services/socketService.js';
 import BackupService from './services/backupService.js';
 import ExchangeRateService from './services/exchangeRateService.js';
 import { reconciliationService } from './services/financialReconciliationService.js';
+import voucherService from './services/voucherService.js';
 
 // Import routes
 import authRouter, { authenticateJWT } from './routes/auth.js';
@@ -443,9 +444,120 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
       [token]
     );
 
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
     if (depositResult.rows.length === 0) {
-      logger.error('Iyzico Callback: No matching deposit request found for token', { token });
-      throw new Error('No matching deposit request found');
+      // No deposit request found — check if this is a shop order payment
+      // Shop orders use order_number as conversationId when calling initiateDeposit
+      const conversationId = payment.raw?.conversationId;
+      logger.info('No deposit request found, checking for shop order', { token, conversationId });
+
+      if (conversationId && conversationId.startsWith('ORD-')) {
+        // This is a shop order credit card payment
+        const orderResult = await pool.query(
+          `SELECT id, user_id, order_number, status, payment_status, total_amount, subtotal, discount_amount, voucher_id, voucher_code, currency
+           FROM shop_orders
+           WHERE order_number = $1 AND payment_method = 'credit_card'
+           LIMIT 1`,
+          [conversationId]
+        );
+
+        if (orderResult.rows.length === 0) {
+          logger.error('Iyzico Callback: No matching shop order found', { conversationId, token });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=order_not_found`);
+        }
+
+        const order = orderResult.rows[0];
+
+        // Idempotent: skip if already completed
+        if (order.payment_status === 'completed') {
+          logger.info('Shop order already completed, skipping (idempotent)', { orderNumber: order.order_number });
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
+        }
+
+        // Update shop order: mark payment as completed, confirm order
+        await pool.query(`
+          UPDATE shop_orders 
+          SET payment_status = 'completed', 
+              status = 'confirmed', 
+              confirmed_at = NOW(),
+              updated_at = NOW()
+          WHERE id = $1
+        `, [order.id]);
+
+        // Log status change in history
+        const systemActorId = resolveSystemActorId() || order.user_id;
+        await pool.query(`
+          INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+          VALUES ($1, $2, 'confirmed', $3, $4)
+        `, [order.id, order.status, systemActorId, `Payment completed via Iyzico (paymentId: ${payment.paymentId})`]);
+
+        logger.info('Shop order confirmed via Iyzico callback', { 
+          orderId: order.id, 
+          orderNumber: order.order_number,
+          userId: order.user_id,
+          paymentId: payment.paymentId
+        });
+
+        // Notify admins and user via socket
+        try {
+          socketService.emitToChannel('general', 'shop:orderPaid', {
+            orderId: order.id,
+            orderNumber: order.order_number,
+            totalAmount: order.total_amount,
+            paymentMethod: 'credit_card'
+          });
+          socketService.emitToChannel(`user:${order.user_id}`, 'shop:myOrderConfirmed', {
+            orderId: order.id,
+            orderNumber: order.order_number,
+            totalAmount: order.total_amount,
+            completedAt: new Date().toISOString()
+          });
+        } catch (socketErr) {
+          logger.warn('Failed to emit shop order socket events', { error: socketErr.message });
+        }
+
+        // Clear the user's cart via socket (they were redirected away)
+        try {
+          socketService.emitToChannel(`user:${order.user_id}`, 'shop:clearCart', {
+            orderNumber: order.order_number
+          });
+        } catch (_) { /* non-critical */ }
+
+        // Redeem voucher if one was applied to this order
+        if (order.voucher_id) {
+          try {
+            // Check if it's a wallet_credit voucher
+            const voucherResult = await pool.query(
+              `SELECT voucher_type, discount_value, currency FROM voucher_codes WHERE id = $1`,
+              [order.voucher_id]
+            );
+            if (voucherResult.rows.length > 0 && voucherResult.rows[0].voucher_type === 'wallet_credit') {
+              await voucherService.applyWalletCredit(
+                order.user_id, voucherResult.rows[0].discount_value, order.voucher_id, order.currency || 'EUR'
+              );
+            }
+            await voucherService.redeemVoucher({
+              voucherId: order.voucher_id,
+              userId: order.user_id,
+              referenceType: 'shop_order',
+              referenceId: String(order.id),
+              originalAmount: parseFloat(order.subtotal) || 0,
+              discountAmount: parseFloat(order.discount_amount) || 0,
+              currency: order.currency || 'EUR'
+            });
+            logger.info(`Voucher ${order.voucher_code} redeemed via Iyzico callback for order ${order.order_number}`);
+          } catch (voucherErr) {
+            logger.error('Voucher redemption error in Iyzico callback (non-blocking):', voucherErr);
+          }
+        }
+
+        return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
+      }
+
+      // Neither deposit request nor shop order found
+      logger.error('Iyzico Callback: No matching deposit request or shop order found', { token, conversationId });
+      return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=no_match`);
     }
 
     const depositRow = depositResult.rows[0];
@@ -495,7 +607,6 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
     }
 
     // Redirect to payment callback page — the original tab handles the receipt via Socket.IO
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/payment/callback?status=success`);
 
   } catch (error) {

@@ -11,6 +11,7 @@
 
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { recordTransaction } from './walletService.js';
 
 /**
  * Voucher types and their handlers
@@ -33,6 +34,7 @@ const APPLIES_TO = {
   ACCOMMODATION: 'accommodation',
   PACKAGES: 'packages',
   WALLET: 'wallet',
+  SHOP: 'shop',
   SPECIFIC: 'specific'
 };
 
@@ -71,7 +73,7 @@ export async function getVoucherById(id) {
 export async function getUserRedemptionCount(voucherId, userId) {
   const result = await pool.query(
     `SELECT COUNT(*) as count FROM voucher_redemptions 
-     WHERE voucher_id = $1 AND user_id = $2 AND status = 'completed'`,
+     WHERE voucher_code_id = $1 AND user_id = $2 AND status = 'completed'`,
     [voucherId, userId]
   );
   return parseInt(result.rows[0].count, 10);
@@ -128,7 +130,7 @@ export async function isUserAssignedVoucher(voucherId, userId) {
   // Check user_vouchers table for private assignment
   const result = await pool.query(
     `SELECT 1 FROM user_vouchers 
-     WHERE voucher_id = $1 AND user_id = $2 AND is_available = true`,
+     WHERE voucher_code_id = $1 AND user_id = $2 AND is_used = false`,
     [voucherId, userId]
   );
   
@@ -393,8 +395,8 @@ export async function redeemVoucher({
     // Create redemption record
     const redemptionResult = await db.query(
       `INSERT INTO voucher_redemptions (
-        voucher_id, user_id, reference_type, reference_id,
-        original_amount, discount_applied, currency, status
+        voucher_code_id, user_id, applied_to_type, applied_to_id,
+        original_amount, discount_amount, currency, status
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'completed')
       RETURNING *`,
       [voucherId, userId, referenceType, referenceId, originalAmount, discountAmount, currency]
@@ -409,8 +411,8 @@ export async function redeemVoucher({
     // If user has this voucher in user_vouchers (private voucher), mark as used
     await db.query(
       `UPDATE user_vouchers 
-       SET is_available = false, redeemed_at = NOW() 
-       WHERE voucher_id = $1 AND user_id = $2 AND is_available = true`,
+       SET is_used = true, used_at = NOW() 
+       WHERE voucher_code_id = $1 AND user_id = $2 AND is_used = false`,
       [voucherId, userId]
     );
     
@@ -440,43 +442,23 @@ export async function redeemVoucher({
  * @returns {Object} Wallet transaction record
  */
 export async function applyWalletCredit(userId, amount, voucherId, currency = 'EUR', client = null) {
-  const db = client || pool;
-  
   try {
-    // Get or create wallet
-    let wallet = await db.query(
-      `SELECT * FROM wallets WHERE user_id = $1`,
-      [userId]
-    );
-    
-    if (wallet.rows.length === 0) {
-      wallet = await db.query(
-        `INSERT INTO wallets (user_id, balance, currency) VALUES ($1, 0, $2) RETURNING *`,
-        [userId, currency]
-      );
-    }
-    
-    const walletId = wallet.rows[0].id;
-    
-    // Add credit transaction
-    const transaction = await db.query(
-      `INSERT INTO wallet_transactions (
-        wallet_id, user_id, type, amount, currency, 
-        description, status, reference_type, reference_id
-      ) VALUES ($1, $2, 'credit', $3, $4, $5, 'completed', 'voucher', $6)
-      RETURNING *`,
-      [walletId, userId, amount, currency, 'Voucher credit', voucherId]
-    );
-    
-    // Update wallet balance
-    await db.query(
-      `UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-      [amount, walletId]
-    );
+    const transaction = await recordTransaction({
+      userId,
+      amount,
+      transactionType: 'credit',
+      currency,
+      status: 'completed',
+      direction: 'in',
+      description: 'Voucher credit',
+      relatedEntityType: 'voucher',
+      relatedEntityId: voucherId,
+      client
+    });
     
     logger.info('Wallet credit applied from voucher', { userId, amount, voucherId });
     
-    return transaction.rows[0];
+    return transaction;
     
   } catch (error) {
     logger.error('Error applying wallet credit', { userId, amount, voucherId, error: error.message });
@@ -577,8 +559,9 @@ export async function createVoucher(voucherData, createdBy) {
  */
 export async function updateVoucher(id, updates) {
   const allowedFields = [
-    'name', 'description', 'discount_value', 'max_discount', 'min_purchase_amount',
-    'applies_to', 'applies_to_ids', 'excludes_ids', 'max_total_uses', 'max_uses_per_user',
+    'name', 'description', 'voucher_type', 'discount_value', 'max_discount', 'min_purchase_amount',
+    'currency', 'applies_to', 'applies_to_ids', 'excludes_ids', 'usage_type',
+    'max_total_uses', 'max_uses_per_user',
     'valid_from', 'valid_until', 'is_active', 'visibility', 'requires_first_purchase',
     'allowed_roles', 'allowed_user_ids', 'can_combine', 'campaign_id', 'metadata'
   ];
@@ -753,9 +736,9 @@ export async function generateBulkVouchers({ count, prefix = '', template }, cre
  */
 export async function assignVoucherToUser(voucherId, userId, source = 'admin') {
   const result = await pool.query(
-    `INSERT INTO user_vouchers (voucher_id, user_id, source)
+    `INSERT INTO user_vouchers (voucher_code_id, user_id, notes)
      VALUES ($1, $2, $3)
-     ON CONFLICT (voucher_id, user_id) DO UPDATE SET is_available = true, assigned_at = NOW()
+     ON CONFLICT (voucher_code_id, user_id) DO UPDATE SET is_used = false, assigned_at = NOW()
      RETURNING *`,
     [voucherId, userId, source]
   );
@@ -770,12 +753,12 @@ export async function assignVoucherToUser(voucherId, userId, source = 'admin') {
  * @returns {Array} User's vouchers
  */
 export async function getUserVouchers(userId, onlyAvailable = true) {
-  const availableCondition = onlyAvailable ? 'AND uv.is_available = true' : '';
+  const availableCondition = onlyAvailable ? 'AND uv.is_used = false' : '';
   
   const result = await pool.query(
-    `SELECT vc.*, uv.assigned_at, uv.is_available, uv.redeemed_at
+    `SELECT vc.*, uv.assigned_at, uv.is_used, uv.used_at
      FROM user_vouchers uv
-     JOIN voucher_codes vc ON uv.voucher_id = vc.id
+     JOIN voucher_codes vc ON uv.voucher_code_id = vc.id
      WHERE uv.user_id = $1 
        AND vc.is_active = true
        AND (vc.valid_until IS NULL OR vc.valid_until > NOW())
@@ -797,7 +780,7 @@ export async function getVoucherRedemptions(voucherId) {
     `SELECT vr.*, u.first_name, u.last_name, u.email
      FROM voucher_redemptions vr
      JOIN users u ON vr.user_id = u.id
-     WHERE vr.voucher_id = $1
+     WHERE vr.voucher_code_id = $1
      ORDER BY vr.redeemed_at DESC`,
     [voucherId]
   );
@@ -837,10 +820,10 @@ export async function getCampaignStats(campaignId) {
       c.*,
       COUNT(DISTINCT v.id) as total_vouchers,
       SUM(v.total_uses) as total_redemptions,
-      SUM(r.discount_applied) as total_discount_given
+      SUM(r.discount_amount) as total_discount_given
      FROM voucher_campaigns c
      LEFT JOIN voucher_codes v ON v.campaign_id = c.id
-     LEFT JOIN voucher_redemptions r ON r.voucher_id = v.id
+     LEFT JOIN voucher_redemptions r ON r.voucher_code_id = v.id
      WHERE c.id = $1
      GROUP BY c.id`,
     [campaignId]

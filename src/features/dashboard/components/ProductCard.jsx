@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
@@ -27,6 +27,9 @@ const ProductCard = memo(({
         return null;
     }, [product.image_url, product.images]);
 
+    const [imgError, setImgError] = useState(false);
+    const handleImgError = useCallback(() => setImgError(true), []);
+
     const formattedPrice = formatCurrency(
         convertCurrency ? convertCurrency(product.price, product.currency || 'EUR', userCurrency) : product.price,
         userCurrency
@@ -48,13 +51,14 @@ const ProductCard = memo(({
             {/* Image */}
             <div className="relative bg-[#f8f9fa] w-full" style={{ paddingTop: '100%' }}>
                 <div className="absolute inset-0 p-2">
-                    {imgSrc ? (
+                    {imgSrc && !imgError ? (
                         <div className="w-full h-full rounded bg-white flex items-center justify-center overflow-hidden">
                             <img
                                 src={imgSrc}
                                 alt={product.name}
                                 loading="lazy"
                                 decoding="async"
+                                onError={handleImgError}
                                 className="h-[90%] w-[90%] object-contain mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
                             />
                         </div>

@@ -24,14 +24,17 @@ import {
   Select,
   Space,
   Statistic,
+  Steps,
   Switch,
   Table,
-  Tabs,
   Tag,
   Tooltip,
   Typography
 } from 'antd';
 import {
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
+  CheckCircleOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -61,12 +64,13 @@ const VOUCHER_TYPES = {
 };
 
 const APPLIES_TO_OPTIONS = [
-  { value: 'all', label: 'All Services' },
-  { value: 'lessons', label: 'Lessons Only' },
-  { value: 'rentals', label: 'Rentals Only' },
-  { value: 'accommodation', label: 'Accommodation Only' },
-  { value: 'packages', label: 'Packages Only' },
-  { value: 'wallet', label: 'Wallet Deposits' }
+  { value: 'all', label: 'All Services', description: 'Works everywhere — lessons, shop, rentals, etc.', icon: '🌐' },
+  { value: 'shop', label: 'Shop Only', description: 'Physical products and merchandise', icon: '🛍️' },
+  { value: 'lessons', label: 'Lessons Only', description: 'Lesson bookings and training sessions', icon: '🏄' },
+  { value: 'rentals', label: 'Rentals Only', description: 'Equipment rental bookings', icon: '🔧' },
+  { value: 'accommodation', label: 'Accommodation Only', description: 'Room and accommodation bookings', icon: '🏠' },
+  { value: 'packages', label: 'Packages Only', description: 'Package deals and bundles', icon: '📦' },
+  { value: 'wallet', label: 'Wallet Deposits', description: 'Wallet top-up transactions', icon: '💰' }
 ];
 
 const VISIBILITY_OPTIONS = [
@@ -92,6 +96,81 @@ const CURRENCY_OPTIONS = [
 
 const formatDate = (value) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '—');
 
+const VOUCHER_TYPE_DESCRIPTIONS = {
+  percentage: 'Discount by a percentage of the total. Great for sales & promos.',
+  fixed_amount: 'Flat amount off the order. Simple and clear.',
+  wallet_credit: 'Adds credit to the user\'s wallet. Good for referrals.',
+  free_service: 'Unlock a free service for the customer.',
+  package_upgrade: 'Upgrade the customer\'s package tier.'
+};
+
+// Controlled card-grid selectors — receive value/onChange from Form.Item
+const VoucherTypeCards = ({ value, onChange }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+    {Object.entries(VOUCHER_TYPES).map(([key, config]) => {
+      const selected = value === key;
+      return (
+        <div
+          key={key}
+          onClick={() => onChange?.(key)}
+          style={{
+            border: `2px solid ${selected ? '#1890ff' : '#e8e8e8'}`,
+            borderRadius: 12,
+            padding: '16px 18px',
+            cursor: 'pointer',
+            background: selected ? '#e6f7ff' : '#fafafa',
+            transition: 'all 0.2s',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 20, color: selected ? '#1890ff' : '#666' }}>
+              {config.icon}
+            </span>
+            <Text strong style={{ fontSize: 14, color: selected ? '#1890ff' : '#333' }}>
+              {config.label}
+            </Text>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {VOUCHER_TYPE_DESCRIPTIONS[key]}
+          </Text>
+        </div>
+      );
+    })}
+  </div>
+);
+
+const AppliesToCards = ({ value, onChange }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+    {APPLIES_TO_OPTIONS.map(opt => {
+      const selected = value === opt.value;
+      return (
+        <div
+          key={opt.value}
+          onClick={() => onChange?.(opt.value)}
+          style={{
+            border: `2px solid ${selected ? '#1890ff' : '#e8e8e8'}`,
+            borderRadius: 10,
+            padding: '10px 14px',
+            cursor: 'pointer',
+            background: selected ? '#e6f7ff' : '#fafafa',
+            transition: 'all 0.2s',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>{opt.icon}</span>
+            <Text strong style={{ fontSize: 13, color: selected ? '#1890ff' : '#333' }}>
+              {opt.label}
+            </Text>
+          </div>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2, marginLeft: 24 }}>
+            {opt.description}
+          </Text>
+        </div>
+      );
+    })}
+  </div>
+);
+
 const VoucherManagement = () => {
   const { message } = App.useApp();
   const [form] = Form.useForm();
@@ -111,6 +190,7 @@ const VoucherManagement = () => {
   const [redemptions, setRedemptions] = useState([]);
   const [redemptionsLoading, setRedemptionsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
   
   // Statistics
   const [stats, setStats] = useState({
@@ -180,17 +260,20 @@ const VoucherManagement = () => {
     try {
       const payload = {
         ...values,
-        code: values.code.toUpperCase(),
+        code: (values.code || '').toUpperCase().trim(),
         valid_from: values.validDates?.[0]?.toISOString(),
         valid_until: values.validDates?.[1]?.toISOString()
       };
       delete payload.validDates;
+      // Strip null/undefined values — Ant Design sends null for empty InputNumber/DatePicker
+      Object.keys(payload).forEach(k => { if (payload[k] == null) delete payload[k]; });
       
       const response = await api.post('/vouchers', payload);
       
       if (response.data.success) {
         message.success('Voucher created successfully');
         setIsCreateModalOpen(false);
+        setWizardStep(0);
         form.resetFields();
         fetchVouchers();
       }
@@ -213,6 +296,8 @@ const VoucherManagement = () => {
       };
       delete payload.validDates;
       delete payload.code; // Code cannot be changed
+      // Strip null/undefined values — Ant Design sends null for empty InputNumber/DatePicker
+      Object.keys(payload).forEach(k => { if (payload[k] == null) delete payload[k]; });
       
       const response = await api.put(`/vouchers/${selectedVoucher.id}`, payload);
       
@@ -220,6 +305,7 @@ const VoucherManagement = () => {
         message.success('Voucher updated successfully');
         setIsCreateModalOpen(false);
         setIsEditing(false);
+        setWizardStep(0);
         form.resetFields();
         fetchVouchers();
       }
@@ -289,6 +375,7 @@ const VoucherManagement = () => {
   const openEditModal = (voucher) => {
     setSelectedVoucher(voucher);
     setIsEditing(true);
+    setWizardStep(0);
     form.setFieldsValue({
       ...voucher,
       validDates: voucher.valid_from || voucher.valid_until 
@@ -550,6 +637,7 @@ const VoucherManagement = () => {
             <Button type="primary" icon={<PlusOutlined />} onClick={() => {
               setIsEditing(false);
               setSelectedVoucher(null);
+              setWizardStep(0);
               form.resetFields();
               setIsCreateModalOpen(true);
             }}>
@@ -637,18 +725,47 @@ const VoucherManagement = () => {
         mobileCardRenderer={(props) => <VoucherMobileCard {...props} />}
       />
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Wizard Modal */}
       <Modal
-        title={isEditing ? 'Edit Voucher' : 'Create Voucher'}
+        title={null}
         open={isCreateModalOpen}
         onCancel={() => {
           setIsCreateModalOpen(false);
           setIsEditing(false);
+          setWizardStep(0);
           form.resetFields();
         }}
         footer={null}
-        width={700}
+        width={720}
+        forceRender
+        styles={{ body: { padding: '16px 24px 24px' } }}
       >
+        {/* Wizard Header */}
+        <div style={{ marginBottom: 20 }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
+            {isEditing ? '✏️ Edit Voucher' : '🎁 Create Voucher'}
+          </Title>
+          <Text type="secondary">
+            {isEditing 
+              ? 'Update voucher settings' 
+              : 'Set up a new discount code in a few easy steps'}
+          </Text>
+        </div>
+
+        {!isEditing && (
+          <Steps
+            current={wizardStep}
+            size="small"
+            style={{ marginBottom: 28 }}
+            items={[
+              { title: 'Type' },
+              { title: 'Value & Scope' },
+              { title: 'Rules' },
+              { title: 'Code & Review' },
+            ]}
+          />
+        )}
+
         <Form
           form={form}
           layout="vertical"
@@ -666,201 +783,413 @@ const VoucherManagement = () => {
             requires_first_purchase: false
           }}
         >
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="code"
-                label="Voucher Code"
-                rules={[
-                  { required: !isEditing, message: 'Code is required' },
-                  { min: 3, message: 'Minimum 3 characters' },
-                  { max: 50, message: 'Maximum 50 characters' }
-                ]}
-              >
-                <Input 
-                  placeholder="e.g., SUMMER20" 
-                  style={{ textTransform: 'uppercase' }}
-                  disabled={isEditing}
-                />
+          {/* ====== STEP 0: Voucher Type ====== */}
+            <div style={{ display: (isEditing || wizardStep === 0) ? 'block' : 'none' }}>
+              {!isEditing && (
+                <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
+                  What kind of voucher do you want to create?
+                </Text>
+              )}
+              
+              <Form.Item name="voucher_type" label={isEditing ? 'Voucher Type' : undefined} rules={[{ required: true }]} style={isEditing ? {} : { marginBottom: 0 }}>
+                {isEditing ? (
+                  <Select>
+                    {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
+                      <Select.Option key={key} value={key}>
+                        {config.icon} {config.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                ) : (
+                  <VoucherTypeCards />
+                )}
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="name"
-                label="Display Name"
-                rules={[{ required: true, message: 'Name is required' }]}
-              >
-                <Input placeholder="e.g., Summer Sale 20% Off" />
-              </Form.Item>
-            </Col>
-          </Row>
+            </div>
 
-          <Form.Item name="description" label="Description">
-            <TextArea rows={2} placeholder="Optional description for internal use" />
-          </Form.Item>
+          {isEditing && <Divider style={{ margin: '12px 0' }} />}
 
-          <Divider orientation="left">Discount Settings</Divider>
+          {/* ====== STEP 1: Value & Scope ====== */}
+            <div style={{ display: (isEditing || wizardStep === 1) ? 'block' : 'none' }}>
+              {!isEditing && (
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.voucher_type !== curr.voucher_type}>
+                  {({ getFieldValue }) => {
+                    const vType = getFieldValue('voucher_type');
+                    return (
+                      <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
+                        {vType === 'percentage' && '💰 How much percent off?'}
+                        {vType === 'fixed_amount' && '💰 How much off the total?'}
+                        {vType === 'wallet_credit' && '💰 How much wallet credit?'}
+                        {vType === 'free_service' && '🎁 Free service details'}
+                        {vType === 'package_upgrade' && '⬆️ Package upgrade details'}
+                      </Text>
+                    );
+                  }}
+                </Form.Item>
+              )}
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="voucher_type"
-                label="Type"
-                rules={[{ required: true }]}
-              >
-                <Select>
-                  {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
-                    <Select.Option key={key} value={key}>
-                      {config.icon} {config.label}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="discount_value"
-                label="Value"
-                rules={[{ required: true, type: 'number', min: 0 }]}
-              >
-                <InputNumber style={{ width: '100%' }} min={0} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="currency" label="Currency">
-                <Select>
-                  {CURRENCY_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.voucher_type !== curr.voucher_type}>
+                {({ getFieldValue }) => {
+                  const vType = getFieldValue('voucher_type');
+                  const isPercentage = vType === 'percentage';
+                  const showCurrency = ['fixed_amount', 'wallet_credit'].includes(vType);
+                  const showMaxDiscount = vType === 'percentage';
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="max_discount" label="Max Discount (for %)">
-                <InputNumber 
-                  style={{ width: '100%' }} 
-                  min={0} 
-                  placeholder="Leave empty for no cap"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="min_purchase_amount" label="Minimum Purchase">
-                <InputNumber 
-                  style={{ width: '100%' }} 
-                  min={0} 
-                  placeholder="Leave empty for no minimum"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+                  return (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={showCurrency ? 12 : 16}>
+                          <Form.Item
+                            name="discount_value"
+                            label={isPercentage ? 'Percentage (%)' : vType === 'wallet_credit' ? 'Credit Amount' : 'Discount Amount'}
+                            rules={[{ required: true, type: 'number', min: 0.01, message: 'Enter a value' }]}
+                          >
+                            <InputNumber 
+                              style={{ width: '100%' }} 
+                              min={0.01}
+                              max={isPercentage ? 100 : undefined}
+                              addonAfter={isPercentage ? '%' : undefined}
+                              placeholder={isPercentage ? 'e.g., 15' : 'e.g., 10.00'}
+                              size="large"
+                            />
+                          </Form.Item>
+                        </Col>
+                        {showCurrency && (
+                          <Col span={12}>
+                            <Form.Item name="currency" label="Currency">
+                              <Select size="large">
+                                {CURRENCY_OPTIONS.map(opt => (
+                                  <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                        )}
+                        {!showCurrency && (
+                          <Col span={8}>
+                            <Form.Item name="currency" label="Currency">
+                              <Select size="large">
+                                {CURRENCY_OPTIONS.map(opt => (
+                                  <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                                ))}
+                              </Select>
+                            </Form.Item>
+                          </Col>
+                        )}
+                      </Row>
 
-          <Divider orientation="left">Applicability</Divider>
+                      {showMaxDiscount && (
+                        <Form.Item name="max_discount" label="Maximum Discount Cap" extra="Optional — limits the discount for high-value orders">
+                          <InputNumber style={{ width: '100%' }} min={0} placeholder="No cap" />
+                        </Form.Item>
+                      )}
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="applies_to" label="Applies To">
-                <Select>
-                  {APPLIES_TO_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
-                  ))}
-                </Select>
+                      <Form.Item name="min_purchase_amount" label="Minimum Purchase Amount" extra="Customer must spend at least this much to use the code">
+                        <InputNumber style={{ width: '100%' }} min={0} placeholder="No minimum" />
+                      </Form.Item>
+                    </>
+                  );
+                }}
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="visibility" label="Visibility">
-                <Select>
-                  {VISIBILITY_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
-                  ))}
-                </Select>
+
+              <Divider style={{ margin: '16px 0' }} />
+
+              <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 14 }}>
+                Where can this voucher be used?
+              </Text>
+
+              <Form.Item name="applies_to" rules={[{ required: true }]}>
+                {isEditing ? (
+                  <Select>
+                    {APPLIES_TO_OPTIONS.map(opt => (
+                      <Select.Option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</Select.Option>
+                    ))}
+                  </Select>
+                ) : (
+                  <AppliesToCards />
+                )}
               </Form.Item>
-            </Col>
-          </Row>
+            </div>
 
-          <Divider orientation="left">Usage Limits</Divider>
+          {isEditing && <Divider style={{ margin: '12px 0' }} />}
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="usage_type" label="Usage Type">
-                <Select>
+          {/* ====== STEP 2: Rules & Limits ====== */}
+            <div style={{ display: (isEditing || wizardStep === 2) ? 'block' : 'none' }}>
+              {!isEditing && (
+                <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
+                  📋 Set usage rules and restrictions
+                </Text>
+              )}
+
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Usage Limits</Text>
+
+              <Form.Item name="usage_type" label="How many times can this be used?">
+                <Select size="large">
                   {USAGE_TYPE_OPTIONS.map(opt => (
                     <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="max_total_uses" label="Max Total Uses">
-                <InputNumber style={{ width: '100%' }} min={1} placeholder="Unlimited" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="max_uses_per_user" label="Max Per User">
-                <InputNumber style={{ width: '100%' }} min={1} />
-              </Form.Item>
-            </Col>
-          </Row>
 
-          <Form.Item name="validDates" label="Valid Date Range">
-            <RangePicker 
-              showTime 
-              style={{ width: '100%' }}
-              placeholder={['Start Date', 'End Date']}
-            />
-          </Form.Item>
+              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.usage_type !== curr.usage_type}>
+                {({ getFieldValue }) => {
+                  const usageType = getFieldValue('usage_type');
+                  const showMaxTotal = ['multi_limited'].includes(usageType);
+                  const showMaxPerUser = ['multi_per_user', 'single_per_user', 'multi_limited'].includes(usageType);
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="is_active" valuePropName="checked" label="Active">
-                <Switch />
+                  return (
+                    <Row gutter={16}>
+                      {showMaxTotal && (
+                        <Col span={12}>
+                          <Form.Item name="max_total_uses" label="Max Total Uses" rules={[{ required: true, type: 'number', min: 1 }]}>
+                            <InputNumber style={{ width: '100%' }} min={1} placeholder="e.g., 100" />
+                          </Form.Item>
+                        </Col>
+                      )}
+                      {showMaxPerUser && (
+                        <Col span={showMaxTotal ? 12 : 24}>
+                          <Form.Item name="max_uses_per_user" label="Max Uses Per User">
+                            <InputNumber style={{ width: '100%' }} min={1} />
+                          </Form.Item>
+                        </Col>
+                      )}
+                    </Row>
+                  );
+                }}
               </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="requires_first_purchase" valuePropName="checked" label="First Purchase Only">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="can_combine" valuePropName="checked" label="Can Combine">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
 
-          <Divider />
+              <Divider style={{ margin: '16px 0' }} />
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Validity Period</Text>
 
-          <Row justify="end">
+              <Form.Item name="validDates" label="Valid Date Range" extra="Leave empty for no time restriction">
+                <RangePicker 
+                  showTime 
+                  style={{ width: '100%' }}
+                  size="large"
+                  placeholder={['Start Date', 'End Date']}
+                />
+              </Form.Item>
+
+              <Divider style={{ margin: '16px 0' }} />
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Access Control</Text>
+
+              <Form.Item name="visibility" label="Who can use this voucher?">
+                <Select size="large">
+                  {VISIBILITY_OPTIONS.map(opt => (
+                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item name="requires_first_purchase" valuePropName="checked" label="First Purchase Only">
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="can_combine" valuePropName="checked" label="Can Combine">
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item name="is_active" valuePropName="checked" label="Active on Create">
+                    <Switch />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </div>
+
+          {isEditing && <Divider style={{ margin: '12px 0' }} />}
+
+          {/* ====== STEP 3: Code & Review ====== */}
+            <div style={{ display: (isEditing || wizardStep === 3) ? 'block' : 'none' }}>
+              {!isEditing && (
+                <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
+                  🏷️ Name your voucher and review
+                </Text>
+              )}
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="code"
+                    label="Voucher Code"
+                    rules={[
+                      { required: !isEditing, message: 'Code is required' },
+                      { min: 3, message: 'Min 3 characters' },
+                      { max: 50, message: 'Max 50 characters' },
+                      { pattern: /^[A-Za-z0-9_-]+$/, message: 'Only letters, numbers, - and _' }
+                    ]}
+                    extra="Customers type this code at checkout"
+                  >
+                    <Input 
+                      placeholder="e.g., SUMMER20" 
+                      size="large"
+                      style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontSize: 16, letterSpacing: 1 }}
+                      disabled={isEditing}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="name"
+                    label="Display Name"
+                    rules={[{ required: true, message: 'Name is required' }]}
+                    extra="Internal name (shown to customer on apply)"
+                  >
+                    <Input placeholder="e.g., Summer Sale 20% Off" size="large" />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item name="description" label="Internal Description">
+                <TextArea rows={2} placeholder="Optional notes about this voucher" />
+              </Form.Item>
+
+              {/* Review Summary */}
+              {!isEditing && (
+                <Form.Item noStyle shouldUpdate>
+                  {({ getFieldValue }) => {
+                    const vType = getFieldValue('voucher_type');
+                    const value = getFieldValue('discount_value');
+                    const currency = getFieldValue('currency') || 'EUR';
+                    const appliesTo = getFieldValue('applies_to');
+                    const usageType = getFieldValue('usage_type');
+                    const maxDiscount = getFieldValue('max_discount');
+                    const minPurchase = getFieldValue('min_purchase_amount');
+                    const config = VOUCHER_TYPES[vType];
+                    const scopeOpt = APPLIES_TO_OPTIONS.find(o => o.value === appliesTo);
+                    const usageOpt = USAGE_TYPE_OPTIONS.find(o => o.value === usageType);
+
+                    return (
+                      <div style={{
+                        background: '#f6ffed',
+                        border: '1px solid #b7eb8f',
+                        borderRadius: 12,
+                        padding: 20,
+                        marginTop: 8
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+                          <Text strong style={{ fontSize: 14 }}>Review Summary</Text>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>TYPE</Text>
+                            <div>
+                              <Tag color={config?.color}>{config?.icon} {config?.label}</Tag>
+                            </div>
+                          </div>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>VALUE</Text>
+                            <div>
+                              <Text strong style={{ fontSize: 16 }}>
+                                {vType === 'percentage' ? `${value}%` : `${value} ${currency}`}
+                              </Text>
+                              {maxDiscount && <Text type="secondary"> (max {maxDiscount} {currency})</Text>}
+                            </div>
+                          </div>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>APPLIES TO</Text>
+                            <div><Text>{scopeOpt?.icon} {scopeOpt?.label}</Text></div>
+                          </div>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>USAGE</Text>
+                            <div><Text>{usageOpt?.label}</Text></div>
+                          </div>
+                          {minPurchase > 0 && (
+                            <div>
+                              <Text type="secondary" style={{ fontSize: 11 }}>MIN PURCHASE</Text>
+                              <div><Text>{minPurchase} {currency}</Text></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }}
+                </Form.Item>
+              )}
+            </div>
+
+          {/* ====== Navigation / Submit Buttons ====== */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: isEditing ? 'flex-end' : 'space-between', 
+            marginTop: 24,
+            paddingTop: 16,
+            borderTop: '1px solid #f0f0f0'
+          }}>
+            {!isEditing && (
+              <Button 
+                icon={<ArrowLeftOutlined />}
+                disabled={wizardStep === 0}
+                onClick={() => setWizardStep(s => s - 1)}
+              >
+                Back
+              </Button>
+            )}
+            
             <Space>
               <Button onClick={() => {
                 setIsCreateModalOpen(false);
                 setIsEditing(false);
+                setWizardStep(0);
                 form.resetFields();
               }}>
                 Cancel
               </Button>
-              <Button type="primary" htmlType="submit">
-                {isEditing ? 'Update' : 'Create'} Voucher
-              </Button>
+
+              {isEditing ? (
+                <Button type="primary" htmlType="submit">
+                  Update Voucher
+                </Button>
+              ) : wizardStep < 3 ? (
+                <Button 
+                  type="primary" 
+                  icon={<ArrowRightOutlined />}
+                  iconPosition="end"
+                  onClick={() => {
+                    // Validate current step fields before proceeding
+                    const stepFields = {
+                      0: ['voucher_type'],
+                      1: ['discount_value', 'applies_to'],
+                      2: ['usage_type'],
+                    };
+                    form.validateFields(stepFields[wizardStep] || [])
+                      .then(() => setWizardStep(s => s + 1))
+                      .catch(() => {});
+                  }}
+                >
+                  {wizardStep === 2 ? 'Review' : 'Next'}
+                </Button>
+              ) : (
+                <Button type="primary" htmlType="submit" icon={<CheckCircleOutlined />} size="large">
+                  Create Voucher
+                </Button>
+              )}
             </Space>
-          </Row>
+          </div>
         </Form>
       </Modal>
 
       {/* Bulk Generate Modal */}
       <Modal
-        title="Bulk Generate Voucher Codes"
+        title={null}
         open={isBulkModalOpen}
         onCancel={() => {
           setIsBulkModalOpen(false);
           bulkForm.resetFields();
         }}
         footer={null}
-        width={500}
+        width={520}
+        forceRender
+        styles={{ body: { padding: '16px 24px 24px' } }}
       >
+        <div style={{ marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>📦 Bulk Generate Codes</Title>
+          <Text type="secondary">Generate multiple unique voucher codes with the same settings</Text>
+        </div>
+
         <Form
           form={bulkForm}
           layout="vertical"
@@ -874,50 +1203,62 @@ const VoucherManagement = () => {
             applies_to: 'all'
           }}
         >
-          <Form.Item
-            name="count"
-            label="Number of Codes"
-            rules={[{ required: true, type: 'number', min: 1, max: 1000 }]}
-          >
-            <InputNumber style={{ width: '100%' }} min={1} max={1000} />
-          </Form.Item>
-
-          <Form.Item name="prefix" label="Code Prefix">
-            <Input placeholder="e.g., GIFT" maxLength={10} style={{ textTransform: 'uppercase' }} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="count"
+                label="Number of Codes"
+                rules={[{ required: true, type: 'number', min: 1, max: 1000 }]}
+              >
+                <InputNumber style={{ width: '100%' }} min={1} max={1000} size="large" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="prefix" label="Code Prefix" extra="e.g., GIFT → GIFT-A1B2C3">
+                <Input placeholder="e.g., GIFT" maxLength={10} style={{ textTransform: 'uppercase', fontFamily: 'monospace' }} size="large" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item
             name="name"
             label="Voucher Name"
             rules={[{ required: true }]}
           >
-            <Input placeholder="e.g., Holiday Gift Voucher" />
+            <Input placeholder="e.g., Holiday Gift Voucher" size="large" />
           </Form.Item>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item name="voucher_type" label="Type" rules={[{ required: true }]}>
                 <Select>
                   {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
-                    <Select.Option key={key} value={key}>{config.label}</Select.Option>
+                    <Select.Option key={key} value={key}>{config.icon} {config.label}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item name="discount_value" label="Value" rules={[{ required: true }]}>
-                <InputNumber style={{ width: '100%' }} min={0} />
+            <Col span={8}>
+              <Form.Item name="discount_value" label="Value" rules={[{ required: true, type: 'number', min: 0.01 }]}>
+                <InputNumber style={{ width: '100%' }} min={0.01} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="applies_to" label="Scope">
+                <Select>
+                  {APPLIES_TO_OPTIONS.map(opt => (
+                    <Select.Option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="validDates" label="Valid Date Range">
-            <RangePicker showTime style={{ width: '100%' }} />
+          <Form.Item name="validDates" label="Valid Date Range" extra="Leave empty for no time restriction">
+            <RangePicker showTime style={{ width: '100%' }} placeholder={['Start Date', 'End Date']} />
           </Form.Item>
 
-          <Divider />
-
-          <Row justify="end">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
             <Space>
               <Button onClick={() => {
                 setIsBulkModalOpen(false);
@@ -929,7 +1270,7 @@ const VoucherManagement = () => {
                 Generate Codes
               </Button>
             </Space>
-          </Row>
+          </div>
         </Form>
       </Modal>
 

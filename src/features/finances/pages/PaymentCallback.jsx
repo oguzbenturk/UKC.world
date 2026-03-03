@@ -1,24 +1,118 @@
 /**
  * PaymentCallback Component
- * Shown in the iyzico payment tab after callback redirect.
- * The original tab auto-detects completion via Socket.IO and shows the receipt.
- * This page auto-closes immediately — it's just a transient redirect target.
+ * Shown after Iyzico payment callback redirect.
+ * For wallet deposits: auto-closes tab (original tab shows receipt via Socket.IO).
+ * For shop orders: shows success/failure and links to orders or shop.
  */
 
 import { useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export function PaymentCallback() {
-  // Auto-close this tab immediately — the original tab shows the receipt
-  useEffect(() => {
-    try { window.close(); } catch { /* browser may block */ }
-    // Retry after a tick in case the first attempt was too early
-    const t = setTimeout(() => {
-      try { window.close(); } catch { /* noop */ }
-    }, 300);
-    return () => clearTimeout(t);
-  }, []);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const status = searchParams.get('status');
+  const type = searchParams.get('type'); // 'shop' for shop orders
+  const orderNumber = searchParams.get('order');
+  const reason = searchParams.get('reason');
+  
+  const isShopOrder = type === 'shop';
+  const isSuccess = status === 'success';
 
-  // Minimal fallback UI — only visible if window.close() is blocked by the browser
+  // For wallet deposits (no type param), auto-close the tab
+  useEffect(() => {
+    if (!isShopOrder) {
+      try { window.close(); } catch { /* browser may block */ }
+      const t = setTimeout(() => {
+        try { window.close(); } catch { /* noop */ }
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [isShopOrder]);
+
+  // For shop orders: clear cart from localStorage on successful payment
+  useEffect(() => {
+    if (isShopOrder && isSuccess) {
+      try {
+        localStorage.removeItem('plannivo_cart');
+      } catch { /* noop */ }
+    }
+  }, [isShopOrder, isSuccess]);
+
+  // Shop order success screen
+  if (isShopOrder && isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-8 w-8 text-emerald-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">Order Confirmed!</h2>
+          {orderNumber && (
+            <p className="text-sm text-gray-600 mb-1">
+              Order Number: <span className="font-mono font-semibold text-gray-800">{orderNumber}</span>
+            </p>
+          )}
+          <p className="text-xs text-gray-400 mb-6">Your payment was processed successfully. Thank you for your purchase!</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/shop/my-orders')}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
+            >
+              View My Orders
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/shop')}
+              className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 cursor-pointer"
+            >
+              Continue Shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Shop order failure screen
+  if (isShopOrder && !isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-8 w-8 text-red-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">Payment Failed</h2>
+          <p className="text-xs text-gray-400 mb-6">
+            {reason === 'order_not_found' 
+              ? 'We could not find your order. Please contact support.'
+              : 'Your payment could not be processed. Please try again or use a different payment method.'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/shop')}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
+            >
+              Return to Shop
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: wallet deposit — fallback UI (only visible if window.close() is blocked)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="text-center">

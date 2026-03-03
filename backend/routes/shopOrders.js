@@ -9,6 +9,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import socketService from '../services/socketService.js';
 import { getBalance, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
+import voucherService from '../services/voucherService.js';
 
 const router = express.Router();
 
@@ -60,7 +61,8 @@ router.post('/', authenticateJWT, async (req, res) => {
       payment_method, 
       notes, 
       shipping_address,
-      use_wallet = true 
+      use_wallet = true,
+      voucher_code
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -121,15 +123,63 @@ router.post('/', authenticateJWT, async (req, res) => {
 
     const totalAmount = subtotal; // Can add tax/shipping logic here
 
+    // Voucher/promo code handling
+    let voucherDiscount = 0;
+    let appliedVoucher = null;
+    let discountInfo = null;
+
+    if (voucher_code && subtotal > 0) {
+      try {
+        const voucherValidation = await voucherService.validateVoucher({
+          code: voucher_code,
+          userId,
+          userRole: req.user.role,
+          context: 'shop',
+          amount: subtotal,
+          currency: 'EUR'
+        });
+
+        if (!voucherValidation.valid) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: voucherValidation.message || 'Invalid voucher code',
+            code: 'VOUCHER_INVALID'
+          });
+        }
+
+        appliedVoucher = voucherValidation.voucher;
+        discountInfo = voucherValidation.discount;
+
+        // Handle wallet_credit type vouchers — don't apply as price discount
+        if (appliedVoucher.type === 'wallet_credit') {
+          // Will be applied after order creation
+          voucherDiscount = 0;
+        } else if (discountInfo) {
+          voucherDiscount = discountInfo.discountAmount || 0;
+          // Don't let discount exceed the subtotal
+          voucherDiscount = Math.min(voucherDiscount, subtotal);
+        }
+
+        logger.info(`Voucher ${voucher_code} applied to shop order: -${voucherDiscount} EUR`);
+      } catch (err) {
+        logger.error('Voucher validation error:', err);
+        // Non-blocking: proceed without voucher
+        appliedVoucher = null;
+        voucherDiscount = 0;
+      }
+    }
+
+    const finalAmount = subtotal - voucherDiscount;
+
     // Check wallet balance if paying by wallet
     if (payment_method === 'wallet' && use_wallet) {
       const walletBalance = await getBalance(userId, 'EUR');
       const balance = walletBalance.available || 0;
       
-      if (balance < totalAmount) {
+      if (balance < finalAmount) {
         await client.query('ROLLBACK');
         return res.status(400).json({ 
-          error: `Insufficient wallet balance. Required: €${totalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}` 
+          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}` 
         });
       }
     }
@@ -138,11 +188,13 @@ router.post('/', authenticateJWT, async (req, res) => {
     const orderResult = await client.query(`
       INSERT INTO shop_orders (
         user_id, status, payment_method, payment_status, 
-        subtotal, total_amount, notes, shipping_address
+        subtotal, discount_amount, total_amount, notes, shipping_address,
+        voucher_id, voucher_code
       )
-      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6)
+      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [userId, payment_method, subtotal, totalAmount, notes || null, shipping_address || null]);
+    `, [userId, payment_method, subtotal, voucherDiscount, finalAmount, notes || null, shipping_address || null,
+        appliedVoucher?.id || null, appliedVoucher?.code || null]);
 
     const order = orderResult.rows[0];
 
@@ -180,9 +232,10 @@ router.post('/', authenticateJWT, async (req, res) => {
     if (payment_method === 'credit_card') {
        try {
            // Map items for Iyzico
-           // Check if total matches sum of items to avoid Iyzico error (Basket price equal to price)
-           // Iyzico requires sum of basket items price to equal total price.
-           const iyzicoItems = validatedItems.map(i => ({
+           // Iyzico requires sum of basket items price to equal total price exactly.
+           // If a voucher discount is applied, we must distribute it proportionally
+           // across items so the basket total matches finalAmount.
+           let iyzicoItems = validatedItems.map(i => ({
                id: String(i.product_id),
                name: i.product_name,
                category1: 'Shop',
@@ -191,8 +244,24 @@ router.post('/', authenticateJWT, async (req, res) => {
                price: parseFloat(i.total_price).toFixed(2)
            }));
 
+           // Adjust basket item prices when voucher discount applied
+           if (voucherDiscount > 0 && finalAmount > 0 && subtotal > 0) {
+             const ratio = finalAmount / subtotal;
+             let runningTotal = 0;
+             iyzicoItems = iyzicoItems.map((item, index) => {
+               if (index === iyzicoItems.length - 1) {
+                 // Last item absorbs rounding difference to match exactly
+                 const lastPrice = Math.round((finalAmount - runningTotal) * 100) / 100;
+                 return { ...item, price: Math.max(0.01, lastPrice).toFixed(2) };
+               }
+               const adjustedPrice = Math.round(parseFloat(item.price) * ratio * 100) / 100;
+               runningTotal += adjustedPrice;
+               return { ...item, price: Math.max(0.01, adjustedPrice).toFixed(2) };
+             });
+           }
+
            const gatewayResult = await initiateDeposit({
-               amount: totalAmount,
+               amount: finalAmount,
                currency: 'EUR', 
                userId: userId,
                referenceCode: order.order_number,
@@ -221,12 +290,12 @@ router.post('/', authenticateJWT, async (req, res) => {
       await recordTransaction({
         client,
         userId,
-        amount: totalAmount,
+        amount: finalAmount,
         currency: 'EUR',
         transactionType: 'payment',
         direction: 'debit',
-        availableDelta: -totalAmount,
-        description: `Shop Order #${order.order_number}`,
+        availableDelta: -finalAmount,
+        description: `Shop Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''}`,
         relatedEntityType: 'shop_order',
         // Note: order.id is INTEGER, not UUID, so we store it in metadata instead
         metadata: { orderId: order.id, orderNumber: order.order_number }
@@ -246,16 +315,54 @@ router.post('/', authenticateJWT, async (req, res) => {
       `, [order.id, userId]);
     }
 
+    // Process cash payment — auto-confirm order (payment collected on pickup/delivery)
+    if (payment_method === 'cash') {
+      await client.query(`
+        UPDATE shop_orders 
+        SET status = 'confirmed', payment_status = 'pending', confirmed_at = NOW()
+        WHERE id = $1
+      `, [order.id]);
+
+      await client.query(`
+        INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+        VALUES ($1, 'pending', 'confirmed', $2, 'Order confirmed — cash payment on pickup/delivery')
+      `, [order.id, userId]);
+    }
+
     await client.query('COMMIT');
 
     // Get complete order with items
     const completeOrder = await getOrderWithItems(order.id);
 
+    // Redeem the voucher after successful order creation
+    if (appliedVoucher) {
+      try {
+        if (appliedVoucher.type === 'wallet_credit') {
+          // Apply wallet credit
+          await voucherService.applyWalletCredit(
+            userId, discountInfo?.walletCredit || 0, appliedVoucher.id, 'EUR'
+          );
+        }
+        await voucherService.redeemVoucher({
+          voucherId: appliedVoucher.id,
+          userId,
+          referenceType: 'shop_order',
+          referenceId: String(order.id),
+          originalAmount: subtotal,
+          discountAmount: voucherDiscount,
+          currency: 'EUR'
+        });
+        logger.info(`Voucher ${appliedVoucher.code} redeemed for shop order ${order.order_number}`);
+      } catch (err) {
+        logger.error('Voucher redemption error (non-blocking):', err);
+      }
+    }
+
     // Emit socket event to notify admins
     emitSocketEvent('shop:newOrder', {
       orderId: order.id,
       orderNumber: order.order_number,
-      totalAmount,
+      totalAmount: finalAmount,
       itemCount: validatedItems.length
     });
 
@@ -345,6 +452,44 @@ router.get('/my-orders', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('Error fetching user orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+/**
+ * GET /my-orders/unread-counts - Get unread message counts for user's orders
+ */
+router.get('/my-orders/unread-counts', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const isStaff = ['admin', 'manager', 'super_admin'].includes(userRole);
+
+    let result;
+    if (isStaff) {
+      // Staff sees unread customer messages
+      result = await pool.query(`
+        SELECT m.order_id, COUNT(*) as unread_count
+        FROM shop_order_messages m
+        WHERE m.is_staff = false AND m.is_read = false
+        GROUP BY m.order_id
+      `);
+    } else {
+      // Customer sees unread staff messages on their orders
+      result = await pool.query(`
+        SELECT m.order_id, COUNT(*) as unread_count
+        FROM shop_order_messages m
+        JOIN shop_orders o ON o.id = m.order_id
+        WHERE o.user_id = $1 AND m.is_staff = true AND m.is_read = false
+        GROUP BY m.order_id
+      `, [userId]);
+    }
+
+    const counts = {};
+    result.rows.forEach(r => { counts[r.order_id] = parseInt(r.unread_count); });
+    res.json({ unreadCounts: counts });
+  } catch (error) {
+    logger.error('Error fetching unread counts:', error);
+    res.status(500).json({ error: 'Failed to fetch unread counts' });
   }
 });
 
@@ -1020,6 +1165,103 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
     res.status(500).json({ error: 'Failed to create sale' });
   } finally {
     client.release();
+  }
+});
+
+// ============ ORDER MESSAGES ============
+
+/**
+ * GET /:id/messages - Get messages for an order
+ * Both the order owner and admin/manager can view messages
+ */
+router.get('/:id/messages', authenticateJWT, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Verify order exists and user has access
+    const order = await pool.query('SELECT id, user_id FROM shop_orders WHERE id = $1', [orderId]);
+    if (order.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const isOwner = order.rows[0].user_id === userId;
+    const isStaff = ['admin', 'manager', 'super_admin'].includes(userRole);
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const messages = await pool.query(`
+      SELECT m.*, u.first_name, u.last_name, u.profile_image_url
+      FROM shop_order_messages m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.order_id = $1
+      ORDER BY m.created_at ASC
+    `, [orderId]);
+
+    // Mark unread messages as read for this user
+    if (isStaff) {
+      await pool.query(
+        `UPDATE shop_order_messages SET is_read = true WHERE order_id = $1 AND is_staff = false AND is_read = false`,
+        [orderId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE shop_order_messages SET is_read = true WHERE order_id = $1 AND is_staff = true AND is_read = false`,
+        [orderId]
+      );
+    }
+
+    res.json({ messages: messages.rows });
+  } catch (error) {
+    logger.error('Error fetching order messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+/**
+ * POST /:id/messages - Send a message on an order
+ */
+router.post('/:id/messages', authenticateJWT, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Verify order exists and user has access
+    const order = await pool.query('SELECT id, user_id FROM shop_orders WHERE id = $1', [orderId]);
+    if (order.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const isOwner = order.rows[0].user_id === userId;
+    const isStaff = ['admin', 'manager', 'super_admin'].includes(userRole);
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO shop_order_messages (order_id, user_id, message, is_staff)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [orderId, userId, message.trim(), isStaff]);
+
+    // Fetch with user info
+    const full = await pool.query(`
+      SELECT m.*, u.first_name, u.last_name, u.profile_image_url
+      FROM shop_order_messages m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.id = $1
+    `, [result.rows[0].id]);
+
+    res.status(201).json({ message: full.rows[0] });
+  } catch (error) {
+    logger.error('Error sending order message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 

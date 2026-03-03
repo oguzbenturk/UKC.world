@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { message } from '@/shared/utils/antdStatic';
+import apiClient from '@/shared/services/apiClient';
 
 const CartContext = createContext();
 
@@ -138,6 +139,59 @@ export const CartProvider = ({ children }) => {
     return cart.reduce((count, item) => count + item.quantity, 0);
   };
 
+  /**
+   * Refresh cart prices from the backend.
+   * Call when the cart drawer opens to catch any price changes since items were added.
+   * Returns the number of items whose prices changed.
+   */
+  const refreshCartPrices = useCallback(async () => {
+    if (cart.length === 0) return 0;
+    
+    try {
+      // Get unique product IDs from cart
+      const productIds = [...new Set(cart.map(item => item.id))];
+      
+      // Fetch current prices (use the products endpoint)
+      const responses = await Promise.all(
+        productIds.map(id => apiClient.get(`/products/${id}`).catch(() => null))
+      );
+      
+      const priceMap = {};
+      responses.forEach(res => {
+        if (res?.data) {
+          const product = res.data.product || res.data;
+          if (product?.id && product?.price !== undefined) {
+            priceMap[product.id] = parseFloat(product.price);
+          }
+        }
+      });
+      
+      if (Object.keys(priceMap).length === 0) return 0;
+      
+      let changedCount = 0;
+      setCart(prevCart => {
+        const updatedCart = prevCart.map(item => {
+          const currentPrice = priceMap[item.id];
+          if (currentPrice !== undefined && Math.abs(currentPrice - item.price) > 0.001) {
+            changedCount++;
+            return { ...item, price: currentPrice };
+          }
+          return item;
+        });
+        return changedCount > 0 ? updatedCart : prevCart;
+      });
+      
+      if (changedCount > 0) {
+        message.info(`${changedCount} item${changedCount > 1 ? 's have' : ' has'} updated prices.`);
+      }
+      
+      return changedCount;
+    } catch (err) {
+      console.error('Failed to refresh cart prices:', err);
+      return 0;
+    }
+  }, [cart]);
+
   const value = {
     cart,
     wishlist,
@@ -150,7 +204,8 @@ export const CartProvider = ({ children }) => {
     isInWishlist,
     moveWishlistToCart,
     getCartTotal,
-    getCartCount
+    getCartCount,
+    refreshCartPrices
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

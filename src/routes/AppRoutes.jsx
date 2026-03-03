@@ -100,7 +100,7 @@ const StudentMyRentalsPage = lazyWithRetry(() => import('../features/students/pa
 const StudentMyAccommodationPage = lazyWithRetry(() => import('../features/students/pages/StudentMyAccommodationPage'));
 const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
-const OutsiderBookingPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderBookingPage'));
+// OutsiderBookingPage removed - /book now redirects to /guest
 const GuestLandingPage = lazyWithRetry(() => import('../features/outsider/pages/GuestLandingPage'));
 const PublicHome = lazyWithRetry(() => import('../features/public/PublicHome'));
 const OutsiderPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderPackagesPage'));
@@ -183,6 +183,7 @@ const BankAccountsAdmin = lazyWithRetry(() => import('../features/finances/pages
 
 // Shop Order Management
 const ShopOrdersPage = lazyWithRetry(() => import('../features/services/pages/ShopOrdersPage'));
+const MyOrdersPage = lazyWithRetry(() => import('../features/students/pages/MyOrdersPage'));
 
 // Admin Members
 const AdminMembersPage = lazyWithRetry(() => import('../features/members/pages/AdminMembersPage'));
@@ -237,8 +238,8 @@ const AppRoutes = () => {
 
   const resolveLandingRoute = () => {
     const role = typeof user?.role === 'string' ? user.role.toLowerCase() : undefined;
-    // Outsider users go to booking page to book their first lesson
-    if (role === ROLES.OUTSIDER) return '/book';
+    // Outsider users go to guest landing page
+    if (role === ROLES.OUTSIDER) return '/guest';
     if (role === ROLES.STUDENT || role === ROLES.TRUSTED_CUSTOMER) {
       return featureFlags.studentPortal ? '/student/dashboard' : '/student';
     }
@@ -367,8 +368,8 @@ const AppRoutes = () => {
       <Route path="/academy" element={<AcademyLandingPage />} />
       <Route path="/rental" element={<RentalLandingPage />} />
       <Route path="/contact" element={<ContactPage />} />
-      {/* Legacy booking page - keep for direct access if needed */}
-      <Route path="/book" element={<OutsiderBookingPage />} />
+      {/* Legacy /book route - redirect to /guest */}
+      <Route path="/book" element={<Navigate to="/guest" replace />} />
       <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
       
       {/* Help/Support - public access */}
@@ -381,6 +382,7 @@ const AppRoutes = () => {
         <Route path="/notifications" element={<NotificationCenter />} />
         <Route path="/accommodation" element={<AccommodationBookingPage />} />
         <Route path="/repairs" element={<RepairsPage />} />
+        <Route path="/shop/my-orders" element={<MyOrdersPage />} />
       </Route>
 
       {/* Dashboard routes for staff */}
@@ -395,8 +397,8 @@ const AppRoutes = () => {
         <Route path="/admin/dashboard" element={<ExecutiveDashboard />} />
       </Route>
 
-      {/* Student portal routes */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.STUDENT, ROLES.TRUSTED_CUSTOMER]} />}>
+      {/* Student portal routes - accessible by students, trusted customers, and outsiders */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.STUDENT, ROLES.TRUSTED_CUSTOMER, ROLES.OUTSIDER]} />}>
         {featureFlags.studentPortal ? (
           <Route path="/student" element={<StudentLayout />}>
             <Route index element={<Navigate to="/student/dashboard" replace />} />

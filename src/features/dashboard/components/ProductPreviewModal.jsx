@@ -220,12 +220,16 @@ const ProductPreviewModal = ({
                             alt={product.name}
                             className="w-full object-contain"
                             style={{ display: 'block', maxHeight: 400 }}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = 'flex'); }}
                         />
-                    ) : (
-                        <div className="flex w-full h-full items-center justify-center">
-                            <ShoppingCartOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
-                        </div>
-                    )}
+                    ) : null}
+                    {/* Fallback placeholder (shown when no image or image fails to load) */}
+                    <div 
+                        className="w-full items-center justify-center"
+                        style={{ display: currentImage ? 'none' : 'flex', minHeight: 280 }}
+                    >
+                        <ShoppingCartOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
+                    </div>
                     
                     {/* Navigation Arrows */}
                     {hasMultipleImages && (
@@ -345,6 +349,7 @@ const ProductPreviewModal = ({
                                             src={img}
                                             alt={`${product.name} ${index + 1}`}
                                             loading="eager"
+                                            onError={(e) => { e.target.style.display = 'none'; }}
                                             style={{ 
                                                 width: '100%', 
                                                 height: '100%', 

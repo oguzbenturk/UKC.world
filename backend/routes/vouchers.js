@@ -54,7 +54,7 @@ router.post('/validate',
   authenticateJWT,
   [
     body('code').trim().notEmpty().withMessage('Voucher code is required'),
-    body('context').isIn(['lessons', 'rentals', 'accommodation', 'packages', 'wallet', 'all'])
+    body('context').isIn(['lessons', 'rentals', 'accommodation', 'packages', 'wallet', 'shop', 'all'])
       .withMessage('Invalid context'),
     body('amount').optional().isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
     body('serviceId').optional().isUUID().withMessage('Invalid service ID'),
@@ -139,27 +139,27 @@ router.post('/',
       .withMessage('Invalid voucher type'),
     body('discount_value').isFloat({ min: 0 })
       .withMessage('Discount value must be a positive number'),
-    body('max_discount').optional().isFloat({ min: 0 })
+    body('max_discount').optional({ values: 'null' }).isFloat({ min: 0 })
       .withMessage('Max discount must be a positive number'),
-    body('min_purchase_amount').optional().isFloat({ min: 0 })
+    body('min_purchase_amount').optional({ values: 'null' }).isFloat({ min: 0 })
       .withMessage('Minimum purchase amount must be a positive number'),
-    body('currency').optional().isLength({ min: 3, max: 3 })
+    body('currency').optional({ values: 'null' }).isLength({ min: 3, max: 3 })
       .withMessage('Currency must be 3 characters'),
-    body('applies_to').optional().isIn(['all', 'lessons', 'rentals', 'accommodation', 'packages', 'wallet', 'specific'])
+    body('applies_to').optional({ values: 'null' }).isIn(['all', 'shop', 'lessons', 'rentals', 'accommodation', 'packages', 'wallet', 'specific'])
       .withMessage('Invalid applies_to value'),
-    body('usage_type').optional().isIn(['single_global', 'single_per_user', 'multi_limited', 'multi_per_user', 'unlimited'])
+    body('usage_type').optional({ values: 'null' }).isIn(['single_global', 'single_per_user', 'multi_limited', 'multi_per_user', 'unlimited'])
       .withMessage('Invalid usage type'),
-    body('max_total_uses').optional().isInt({ min: 1 })
+    body('max_total_uses').optional({ values: 'null' }).isInt({ min: 1 })
       .withMessage('Max total uses must be a positive integer'),
-    body('max_uses_per_user').optional().isInt({ min: 1 })
+    body('max_uses_per_user').optional({ values: 'null' }).isInt({ min: 1 })
       .withMessage('Max uses per user must be a positive integer'),
-    body('valid_from').optional().isISO8601()
+    body('valid_from').optional({ values: 'null' }).isISO8601()
       .withMessage('Valid from must be a valid date'),
-    body('valid_until').optional().isISO8601()
+    body('valid_until').optional({ values: 'null' }).isISO8601()
       .withMessage('Valid until must be a valid date'),
-    body('visibility').optional().isIn(['public', 'private', 'role_based'])
+    body('visibility').optional({ values: 'null' }).isIn(['public', 'private', 'role_based'])
       .withMessage('Invalid visibility'),
-    body('campaign_id').optional().isUUID()
+    body('campaign_id').optional({ values: 'null' }).isUUID()
       .withMessage('Invalid campaign ID')
   ],
   validate,
@@ -277,14 +277,26 @@ router.put('/:id',
   [
     param('id').isUUID().withMessage('Invalid voucher ID'),
     body('name').optional().trim().isLength({ max: 255 }),
-    body('discount_value').optional().isFloat({ min: 0 }),
-    body('max_discount').optional().isFloat({ min: 0 }),
-    body('min_purchase_amount').optional().isFloat({ min: 0 }),
-    body('max_total_uses').optional().isInt({ min: 1 }),
-    body('max_uses_per_user').optional().isInt({ min: 1 }),
-    body('valid_from').optional().isISO8601(),
-    body('valid_until').optional().isISO8601(),
-    body('is_active').optional().isBoolean()
+    body('voucher_type').optional({ values: 'null' }).isIn(['percentage', 'fixed_amount', 'wallet_credit', 'free_service', 'package_upgrade'])
+      .withMessage('Invalid voucher type'),
+    body('discount_value').optional({ values: 'null' }).isFloat({ min: 0 }),
+    body('max_discount').optional({ values: 'null' }).isFloat({ min: 0 }),
+    body('min_purchase_amount').optional({ values: 'null' }).isFloat({ min: 0 }),
+    body('currency').optional({ values: 'null' }).isLength({ min: 3, max: 3 })
+      .withMessage('Currency must be 3 characters'),
+    body('applies_to').optional({ values: 'null' }).isIn(['all', 'shop', 'lessons', 'rentals', 'accommodation', 'packages', 'wallet', 'specific'])
+      .withMessage('Invalid applies_to value'),
+    body('usage_type').optional({ values: 'null' }).isIn(['single_global', 'single_per_user', 'multi_limited', 'multi_per_user', 'unlimited'])
+      .withMessage('Invalid usage type'),
+    body('max_total_uses').optional({ values: 'null' }).isInt({ min: 1 }),
+    body('max_uses_per_user').optional({ values: 'null' }).isInt({ min: 1 }),
+    body('valid_from').optional({ values: 'null' }).isISO8601(),
+    body('valid_until').optional({ values: 'null' }).isISO8601(),
+    body('visibility').optional({ values: 'null' }).isIn(['public', 'private', 'role_based'])
+      .withMessage('Invalid visibility'),
+    body('requires_first_purchase').optional({ values: 'null' }).isBoolean(),
+    body('can_combine').optional({ values: 'null' }).isBoolean(),
+    body('is_active').optional({ values: 'null' }).isBoolean()
   ],
   validate,
   async (req, res, next) => {

@@ -1,7 +1,7 @@
 // src/features/students/components/ShoppingCart.jsx
 // Modern, mobile-friendly shopping cart drawer
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Drawer, Button, Typography, Space, Divider, Tag, Tooltip, Image } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -21,9 +21,16 @@ import CheckoutModal from './CheckoutModal';
 const { Text, Title } = Typography;
 
 const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess }) => {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, addToWishlist } = useCart();
+  const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, addToWishlist, refreshCartPrices } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
+
+  // Refresh cart prices from backend when drawer opens
+  useEffect(() => {
+    if (visible && cart.length > 0) {
+      refreshCartPrices();
+    }
+  }, [visible]); // intentionally only depend on visible
 
   const storageCurrency = businessCurrency || 'EUR';
   const showDualCurrency = storageCurrency !== userCurrency && convertCurrency;

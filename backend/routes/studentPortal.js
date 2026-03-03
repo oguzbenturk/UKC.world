@@ -16,7 +16,7 @@ import {
 
 const router = express.Router();
 
-const requireStudent = authorizeRoles(['student']);
+const requireStudent = authorizeRoles(['student', 'outsider']);
 
 router.get('/dashboard', requireStudent, async (req, res, next) => {
   try {

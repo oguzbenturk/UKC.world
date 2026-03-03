@@ -17,6 +17,7 @@ import { useCart } from '@/shared/contexts/CartContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
+import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 const { Text, Title } = Typography;
 
@@ -30,6 +31,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   // Delivery address state
   const [editingAddress, setEditingAddress] = useState(false);
@@ -73,8 +75,12 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
   const total = getCartTotal();
   const itemCount = getCartCount();
-  const canAffordWallet = userBalance >= total;
-  const amountNeeded = total - (userBalance || 0);
+
+  // Calculate discount from applied voucher
+  const voucherDiscount = appliedVoucher?.discount?.discountAmount || 0;
+  const finalTotal = Math.max(0, total - voucherDiscount);
+  const canAffordWallet = userBalance >= finalTotal;
+  const amountNeeded = finalTotal - (userBalance || 0);
 
   const handleCheckout = async () => {
     if (!hasCompleteAddress) {
@@ -105,11 +111,14 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         items,
         payment_method: paymentMethod,
         use_wallet: paymentMethod === 'wallet',
-        shipping_address: formatShippingAddress()
+        shipping_address: formatShippingAddress(),
+        voucher_code: appliedVoucher?.code || null
       });
 
       // Handle Redirect (Iyzico)
       if (response.data.paymentPageUrl) {
+        // Clear cart before redirect — payment is already initiated, stock is reserved
+        clearCart();
         window.location.href = response.data.paymentPageUrl;
         return;
       }
@@ -141,6 +150,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     setError(null);
     setPaymentMethod('wallet');
     setEditingAddress(false);
+    setAppliedVoucher(null);
     onClose();
   };
 
@@ -206,14 +216,37 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                 <Text>{itemCount} {itemCount === 1 ? 'item' : 'items'}</Text>
                 <Text strong>{formatDualAmount(total)}</Text>
               </div>
+              {voucherDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ color: '#52c41a' }}>
+                    Promo: {appliedVoucher?.code}
+                  </Text>
+                  <Text style={{ color: '#52c41a' }} strong>
+                    -{formatCurrency(voucherDiscount, storageCurrency)}
+                  </Text>
+                </div>
+              )}
               <Divider style={{ margin: '12px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Title level={5} style={{ margin: 0 }}>Total</Title>
                 <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-                  {formatDualAmount(total)}
+                  {formatDualAmount(finalTotal)}
                 </Title>
               </div>
             </div>
+          </div>
+
+          {/* Promo Code */}
+          <div style={{ marginBottom: 20 }}>
+            <PromoCodeInput
+              context="shop"
+              amount={total}
+              currency={storageCurrency}
+              appliedVoucher={appliedVoucher}
+              onValidCode={(voucherData) => setAppliedVoucher(voucherData)}
+              onClear={() => setAppliedVoucher(null)}
+              disabled={loading}
+            />
           </div>
 
           {/* Delivery Address */}
@@ -446,9 +479,9 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             }}
           >
             {paymentMethod === 'wallet' 
-              ? `Pay ${formatCurrency(total, storageCurrency)} from Wallet`
+              ? `Pay ${formatCurrency(finalTotal, storageCurrency)} from Wallet`
               : paymentMethod === 'credit_card'
-              ? `Pay ${formatCurrency(total, storageCurrency)} by Card`
+              ? `Pay ${formatCurrency(finalTotal, storageCurrency)} by Card`
               : 'Place Order'
             }
           </Button>

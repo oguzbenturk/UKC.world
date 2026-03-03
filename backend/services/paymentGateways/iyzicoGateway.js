@@ -297,11 +297,15 @@ export async function verifyPayment(token) {
         if (!iyzipay) {
              // Mock verification for dev
              if (token && token.startsWith('mock-')) {
+                 // Parse conversationId from mock token if embedded (mock-{conversationId}-{timestamp})
+                 const parts = token.replace('mock-', '').split('-TS-');
+                 const mockConversationId = parts[0] || null;
                  return resolve({
                      status: 'success',
                      paymentId: token,
                      paidPrice: 100, // Mock amount
-                     currency: 'EUR'
+                     currency: 'EUR',
+                     raw: { conversationId: mockConversationId }
                  });
              }
              return reject(new Error('Iyzico not configured'));
