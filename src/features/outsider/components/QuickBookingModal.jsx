@@ -311,29 +311,39 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
   );
 };
 
-const ScheduleStep = ({ isExistingPackage, existingPackageRemaining, durationOptions, selectedDurationMinutes, setSelectedDurationMinutes, instructorsData, instructorsLoading, selectedInstructorId, setSelectedInstructorId, selectedDate, setSelectedDate, selectedDateString, selectedTime, setSelectedTime, slotsLoading, availableStarts, bookingPending, onBookSession, onSkip, setResetDateAndTime }) => (
+const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions, selectedDurationMinutes, setSelectedDurationMinutes, instructorsData, instructorsLoading, selectedInstructorId, setSelectedInstructorId, selectedDate, setSelectedDate, selectedDateString, selectedTime, setSelectedTime, slotsLoading, availableStarts, bookingPending, onBookSession, onSkip, setResetDateAndTime }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Status banner */}
     <div className={`rounded-2xl border p-3 sm:p-4 flex items-start sm:items-center gap-2.5 sm:gap-3 ${
-      isExistingPackage
+      isStandalone
         ? 'bg-blue-50 border-blue-200'
-        : 'bg-green-50 border-green-200'
+        : isExistingPackage
+          ? 'bg-blue-50 border-blue-200'
+          : 'bg-green-50 border-green-200'
     }`}>
       <CheckCircleFilled className={`shrink-0 mt-0.5 sm:mt-0 ${
-        isExistingPackage ? 'text-blue-500 text-lg sm:text-xl' : 'text-green-500 text-lg sm:text-xl'
+        isStandalone
+          ? 'text-blue-500 text-lg sm:text-xl'
+          : isExistingPackage ? 'text-blue-500 text-lg sm:text-xl' : 'text-green-500 text-lg sm:text-xl'
       }`} />
       <div className="min-w-0">
         <p className={`font-semibold text-xs sm:text-sm ${
-          isExistingPackage ? 'text-blue-800' : 'text-green-800'
+          isStandalone
+            ? 'text-blue-800'
+            : isExistingPackage ? 'text-blue-800' : 'text-green-800'
         }`}>
-          {isExistingPackage ? 'You have an active package!' : 'Package purchased!'}
+          {isStandalone ? 'Book Your Lesson' : isExistingPackage ? 'You have an active package!' : 'Package purchased!'}
         </p>
         <p className={`text-[11px] sm:text-xs mt-0.5 leading-relaxed ${
-          isExistingPackage ? 'text-blue-600' : 'text-green-600'
+          isStandalone
+            ? 'text-blue-600'
+            : isExistingPackage ? 'text-blue-600' : 'text-green-600'
         }`}>
-          {isExistingPackage
-            ? `${existingPackageRemaining}h remaining — schedule a session below.`
-            : 'Now schedule your first session, or skip and book later.'}
+          {isStandalone
+            ? 'Pick your instructor, date, and time slot below.'
+            : isExistingPackage
+              ? `${existingPackageRemaining}h remaining — schedule a session below.`
+              : 'Now schedule your first session, or skip and book later.'}
         </p>
       </div>
     </div>
@@ -437,10 +447,12 @@ const ScheduleStep = ({ isExistingPackage, existingPackageRemaining, durationOpt
     )}
 
     {/* Action buttons — stack on mobile */}
-    <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1 sm:pt-2">
-      <Button size="large" block onClick={onSkip} className="!h-11 sm:!h-12 !rounded-xl !text-xs sm:!text-sm">
-        Skip — Book Later
-      </Button>
+    <div className={`flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1 sm:pt-2`}>
+      {!isStandalone && (
+        <Button size="large" block onClick={onSkip} className="!h-11 sm:!h-12 !rounded-xl !text-xs sm:!text-sm">
+          Skip — Book Later
+        </Button>
+      )}
       <Button
         type="primary"
         size="large"
@@ -458,7 +470,7 @@ const ScheduleStep = ({ isExistingPackage, existingPackageRemaining, durationOpt
 );
 
 // eslint-disable-next-line complexity
-const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, perSessionHours, isExistingPackage, onClose }) => {
+const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, onClose }) => {
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
 
@@ -475,22 +487,30 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
       <div className="px-2">
         <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">All Done!</h3>
         <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-          {usedBooking
-            ? (isExistingPackage
-              ? 'Your session is booked from your existing package.'
-              : 'Package purchased & your first session is booked.')
-            : (isExistingPackage
-              ? 'No session booked — schedule anytime from your dashboard.'
-              : 'Package purchased — book sessions anytime from your dashboard.')}
+          {isStandalone
+            ? 'Your lesson session has been booked! Check your dashboard for details.'
+            : usedBooking
+              ? (isExistingPackage
+                ? 'Your session is booked from your existing package.'
+                : 'Package purchased & your first session is booked.')
+              : (isExistingPackage
+                ? 'No session booked — schedule anytime from your dashboard.'
+                : 'Package purchased — book sessions anytime from your dashboard.')}
         </p>
       </div>
 
       <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 text-left space-y-2.5">
         <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-slate-500">Package</span>
+          <span className="text-slate-500">{isStandalone ? 'Lesson' : 'Package'}</span>
           <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{packageName}</span>
         </div>
-        {!isExistingPackage && (
+        {isStandalone && displayPrice > 0 && (
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <span className="text-slate-500">Price</span>
+            <span className="font-semibold text-slate-800">{formatCurrency(displayPrice, priceCurrency)}</span>
+          </div>
+        )}
+        {!isExistingPackage && !isStandalone && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Payment</span>
             <Tag color={paymentMethod === 'wallet' ? 'green' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
@@ -512,7 +532,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
             </span>
           </div>
         )}
-        {remaining > 0 && (
+        {!isStandalone && remaining > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Remaining</span>
             <span className="font-semibold text-emerald-600">
@@ -538,7 +558,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
 // ── Main Component ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
-const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours }) => {
+const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours, servicePrice, serviceName }) => {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -559,6 +579,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [selectedDurationMinutes, setSelectedDurationMinutes] = useState(60);
 
   const studentId = user?.userId || user?.id;
+
+  // Standalone service mode (no package to purchase)
+  const isStandalone = !packageData && !!serviceId;
 
   // Determine if user can use pay_later based on role
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
@@ -614,6 +637,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   }, [open]);
 
   // Once owned packages are loaded, check for an existing matching package
+  // For standalone services, skip step 0 (no package to buy)
   const hasDetectedRef = useRef(false);
   useEffect(() => {
     if (!open) {
@@ -622,6 +646,11 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     }
     // Only run detection once per open
     if (hasDetectedRef.current) return;
+    if (isStandalone) {
+      hasDetectedRef.current = true;
+      setStep(1);
+      return;
+    }
     // Wait for ownedPackages to be fetched (non-empty or query settled)
     if (matchingOwnedPackage) {
       hasDetectedRef.current = true;
@@ -629,7 +658,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setPurchasedPackage(matchingOwnedPackage);
       setIsExistingPackage(true);
     }
-  }, [open, matchingOwnedPackage]);
+  }, [open, matchingOwnedPackage, isStandalone]);
 
   // ── Booking defaults (for allowed durations) ─────────────────────────────
   const { data: bookingDefaults } = useQuery({
@@ -768,22 +797,38 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
     const [h, m] = selectedTime.split(':').map(Number);
     const startHour = h + (m || 0) / 60;
-    const pkgName = packageData?.name || 'Quick Booking';
 
-    bookingMutation.mutate({
-      student_user_id: studentId, instructor_user_id: selectedInstructorId,
-      service_id: serviceId || null, date: selectedDateString,
-      start_hour: startHour, duration: activeDurationHours,
-      status: 'pending', notes: `Booked via package: ${pkgName}`,
-      use_package: true,
-      customer_package_id: purchasedPackage?.id || null,
-      selected_package_id: purchasedPackage?.id || null,
-      amount: 0, final_amount: 0, base_amount: 0,
-      package_hours_applied: activeDurationHours,
-      package_chargeable_hours: activeDurationHours,
-      discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
-    });
-  }, [studentId, selectedInstructorId, selectedDateString, selectedTime, serviceId, activeDurationHours, packageData, purchasedPackage, bookingMutation]);
+    if (isStandalone) {
+      // Standalone service: create a regular booking with proper pricing
+      const price = servicePrice || 0;
+      bookingMutation.mutate({
+        student_user_id: studentId, instructor_user_id: selectedInstructorId,
+        service_id: serviceId || null, date: selectedDateString,
+        start_hour: startHour, duration: activeDurationHours,
+        status: 'pending', notes: `Booked via academy: ${serviceName || 'Lesson'}`,
+        use_package: false,
+        amount: price, final_amount: price, base_amount: price,
+        discount_percent: 0, discount_amount: 0,
+        payment_method: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+      });
+    } else {
+      // Package-based booking: use package credits
+      const pkgName = packageData?.name || 'Quick Booking';
+      bookingMutation.mutate({
+        student_user_id: studentId, instructor_user_id: selectedInstructorId,
+        service_id: serviceId || null, date: selectedDateString,
+        start_hour: startHour, duration: activeDurationHours,
+        status: 'pending', notes: `Booked via package: ${pkgName}`,
+        use_package: true,
+        customer_package_id: purchasedPackage?.id || null,
+        selected_package_id: purchasedPackage?.id || null,
+        amount: 0, final_amount: 0, base_amount: 0,
+        package_hours_applied: activeDurationHours,
+        package_chargeable_hours: activeDurationHours,
+        discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
+      });
+    }
+  }, [studentId, selectedInstructorId, selectedDateString, selectedTime, serviceId, activeDurationHours, packageData, purchasedPackage, bookingMutation, isStandalone, servicePrice, serviceName, paymentMethod]);
 
   const handleSkipSchedule = useCallback(() => {
     setSkipSchedule(true);
@@ -812,15 +857,15 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   }, []);
 
   const totalSessions = packageData?.sessionsCount || Math.round(durationHours || 1);
-  const packageName = packageData?.name || 'Lesson';
+  const packageName = packageData?.name || serviceName || 'Lesson';
 
-  // Dynamic step titles based on whether user already owns the package
-  const stepTitles = isExistingPackage
+  // Dynamic step titles based on whether user already owns the package or standalone
+  const stepTitles = (isExistingPackage || isStandalone)
     ? ['—', 'Schedule Session', 'Complete']
     : ['Review & Pay', 'Schedule Session', 'Complete'];
 
   // Number of visible steps for the progress indicator
-  const visibleSteps = isExistingPackage
+  const visibleSteps = (isExistingPackage || isStandalone)
     ? [{ title: 'Schedule Session', idx: 1 }, { title: 'Complete', idx: 2 }]
     : [{ title: 'Review & Pay', idx: 0 }, { title: 'Schedule Session', idx: 1 }, { title: 'Complete', idx: 2 }];
 
@@ -897,6 +942,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       {step === 1 && (
         <ScheduleStep
           isExistingPackage={isExistingPackage}
+          isStandalone={isStandalone}
           existingPackageRemaining={matchingOwnedPackage ? (parseFloat(matchingOwnedPackage.remainingHours ?? matchingOwnedPackage.remaining_hours) || 0) : 0}
           durationOptions={durationOptions}
           selectedDurationMinutes={activeDurationMinutes}
@@ -929,6 +975,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           durationHours={durationHours}
           perSessionHours={activeDurationHours}
           isExistingPackage={isExistingPackage}
+          isStandalone={isStandalone}
+          displayPrice={isStandalone ? (servicePrice || 0) : displayPrice}
+          formatCurrency={formatCurrency}
+          priceCurrency={priceCurrency}
           onClose={handleClose}
         />
       )}
@@ -942,6 +992,8 @@ QuickBookingModal.propTypes = {
   packageData: PropTypes.object,   // raw package row from API (with id, name, price, prices, etc.)
   serviceId: PropTypes.string,     // resolved lesson service UUID
   durationHours: PropTypes.number, // selected duration in hours
+  servicePrice: PropTypes.number,  // price for standalone services (no package)
+  serviceName: PropTypes.string,   // name for standalone services
 };
 
 export default QuickBookingModal;

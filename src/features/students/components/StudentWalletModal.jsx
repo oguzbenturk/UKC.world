@@ -6,6 +6,9 @@ import { useWalletTransactions } from '@/shared/hooks/useWalletTransactions';
 import { useRealTimeSync } from '@/shared/hooks/useRealTime';
 import { WalletDepositModal } from '@/features/finances/components/WalletDepositModal';
 import { BankTransferModal } from '@/features/finances/components/BankTransferModal';
+import PromoCodeInput from '@/shared/components/PromoCodeInput';
+import apiClient from '@/shared/services/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
 
 const STORAGE_CURRENCY = 'EUR';
 
@@ -133,8 +136,10 @@ const TRANSACTION_LIMIT = 3;
 
 const StudentWalletModal = ({ open, onClose, currency, balance }) => {
   const { message } = App.useApp();
+  const queryClient = useQueryClient();
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [bankTransferModalVisible, setBankTransferModalVisible] = useState(false);
+  const [appliedWalletVoucher, setAppliedWalletVoucher] = useState(null);
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
 
   const storageCurrency = businessCurrency || STORAGE_CURRENCY;
@@ -149,6 +154,26 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
     : formatCurrency(numericBalance, resolvedCurrencyCode);
 
   const isNegative = numericBalance < 0;
+
+  const handleRedeemWalletVoucher = useCallback(async (voucherData) => {
+    try {
+      const response = await apiClient.post('/vouchers/redeem-wallet', {
+        code: voucherData.code,
+        currency: storageCurrency
+      });
+      if (response.data?.success) {
+        message.success(response.data.message || 'Wallet credit applied!');
+        transactionsQuery.refetch();
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        // Clear the promo input after successful redemption
+        setTimeout(() => setAppliedWalletVoucher(null), 2000);
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Failed to redeem voucher';
+      message.error(errorMsg);
+      setAppliedWalletVoucher(null);
+    }
+  }, [storageCurrency, message, transactionsQuery, queryClient]);
 
   const handleDepositSuccess = () => {
     setDepositModalVisible(false);
@@ -299,6 +324,24 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
           label="Latest Activity"
           value={latestActivity ? resolveLabel(latestActivity) : 'None yet'}
           hint={latestActivity ? formatDate(latestActivity.transaction_date || latestActivity.created_at) : null}
+        />
+      </div>
+
+      {/* ── Promo Code ── */}
+      <div className="bg-white px-4 pt-3 pb-1">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Promo Code</p>
+        <PromoCodeInput
+          context="wallet"
+          amount={0}
+          currency={storageCurrency}
+          appliedVoucher={appliedWalletVoucher}
+          onValidCode={(voucherData) => {
+            setAppliedWalletVoucher(voucherData);
+            if (voucherData?.discount?.walletCredit > 0) {
+              handleRedeemWalletVoucher(voucherData);
+            }
+          }}
+          onClear={() => setAppliedWalletVoucher(null)}
         />
       </div>
 

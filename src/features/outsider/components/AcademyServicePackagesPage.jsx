@@ -934,6 +934,9 @@ const AcademyServicePackagesPage = ({
   // Handle booking: auth-gate then open inline modal (wizard or accommodation picker)
   const handleBookNow = (pkg, durationHours) => {
     if (!user) {
+      // Close any open card/stay modals so the auth modal is visible on top
+      setModalVisible(false);
+      setStayModalVisible(false);
       openAuthModal({
         title: 'Sign in to Book',
         message: 'Create an account or sign in to book this service.',
@@ -992,7 +995,22 @@ const AcademyServicePackagesPage = ({
         }
       }
 
-      // Fallback: use full StudentBookingWizard (standalone services, rentals, etc.)
+      // For standalone lesson services (no package): also use QuickBookingModal
+      if (!isRental && resolvedServiceId && !resolvedPackageId) {
+        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
+        setQuickBookingData({
+          packageData: null,
+          serviceId: resolvedServiceId,
+          durationHours: parsedDurationHours,
+          servicePrice: matchingDuration?.price || 0,
+          serviceName: pkg.name || 'Lesson',
+        });
+        setQuickBookingOpen(true);
+        setModalVisible(false);
+        return;
+      }
+
+      // Fallback: use full StudentBookingWizard (rentals, etc.)
       setBookingInitialData({
         serviceCategory,
         preferredCategory: dynamicServiceKey || undefined,
@@ -1622,6 +1640,8 @@ const AcademyServicePackagesPage = ({
         packageData={quickBookingData?.packageData}
         serviceId={quickBookingData?.serviceId}
         durationHours={quickBookingData?.durationHours}
+        servicePrice={quickBookingData?.servicePrice}
+        serviceName={quickBookingData?.serviceName}
       />
 
       {/* Accommodation Booking Modal — stays */}

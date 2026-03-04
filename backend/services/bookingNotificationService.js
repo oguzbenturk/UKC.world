@@ -103,6 +103,14 @@ const normalizeServiceLabel = (serviceName) => {
   return trimmed.length ? trimmed : 'your lesson';
 };
 
+const resolveNotificationServiceType = (booking) => {
+  const candidates = [booking.service_type, booking.service_category, booking.service_name]
+    .map((v) => (typeof v === 'string' ? v.toLowerCase() : ''));
+  if (candidates.some((v) => v.includes('rental') || v.includes('equipment'))) return 'rental';
+  if (candidates.some((v) => v.includes('accommodation') || v.includes('lodging') || v.includes('stay'))) return 'accommodation';
+  return 'lesson';
+};
+
 const buildBookingContext = (booking, participantsRows) => {
   const isoDate = toIsoDate(booking.date);
   const dateLabel = formatDateLabel(isoDate);
@@ -139,12 +147,15 @@ const buildBookingContext = (booking, participantsRows) => {
     ? { id: booking.instructor_id, name: booking.instructor_name || 'Instructor' }
     : null;
 
+  const serviceType = resolveNotificationServiceType(booking);
+
   return {
     booking,
     isoDate,
     dateLabel,
     timeLabel,
     serviceName,
+    serviceType,
     packageName,
     durationHours,
     durationMinutes,
@@ -179,6 +190,8 @@ const fetchBookingContexts = async (client, bookingIds) => {
        i.id AS instructor_id,
        i.name AS instructor_name,
        srv.name AS service_name,
+       srv.category AS service_category,
+       srv.service_type AS service_type,
        cp.package_name
      FROM bookings b
      LEFT JOIN users s ON s.id = b.student_user_id
@@ -539,6 +552,7 @@ class BookingNotificationService {
         dateLabel,
         timeLabel,
         serviceName,
+        serviceType,
         packageName,
         durationHours,
         durationMinutes,
@@ -608,8 +622,10 @@ class BookingNotificationService {
             students,
             status: 'pending',
             cta: {
-              label: 'View in daily program',
-              href: isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily'
+              label: serviceType === 'rental' ? 'View rental requests' : 'View in daily program',
+              href: serviceType === 'rental'
+                ? '/calendars/rentals?tab=requests'
+                : (isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily')
             }
           };
 
@@ -623,7 +639,7 @@ class BookingNotificationService {
           await insertNotification({
             client,
             userId: instructor.id,
-            title: `New lesson: ${serviceName}`,
+            title: serviceType === 'rental' ? `New rental request: ${serviceName}` : `New lesson: ${serviceName}`,
             message: instructorMessage,
             type: 'booking_instructor',
             data: instructorData,
@@ -639,6 +655,7 @@ class BookingNotificationService {
         dateLabel,
         timeLabel,
         serviceName,
+        serviceType,
         studentNamesDisplay,
         instructorName: instructor?.name || 'TBD',
         instructorId: instructor?.id,
@@ -675,7 +692,7 @@ class BookingNotificationService {
   /**
    * Notify all managers and admins about a new booking
    */
-  async _notifyStaffAboutNewBooking(client, { bookingId, isoDate, dateLabel, timeLabel, serviceName, studentNamesDisplay, instructorName, instructorId, createdBy }) {
+  async _notifyStaffAboutNewBooking(client, { bookingId, isoDate, dateLabel, timeLabel, serviceName, serviceType, studentNamesDisplay, instructorName, instructorId, createdBy }) {
     try {
       // Get all admins and managers who have new_booking_alerts enabled (or haven't set preferences)
       // Exclude the instructor AND the person who created the booking
@@ -701,6 +718,14 @@ class BookingNotificationService {
       }
 
       const staffMessage = `${serviceName} for ${studentNamesDisplay} with ${instructorName} on ${dateLabel} at ${timeLabel}`;
+
+      // Determine CTA based on service type — rental bookings go to Rental Requests tab
+      const isRental = serviceType === 'rental';
+      const ctaHref = isRental
+        ? `/calendars/rentals?tab=requests`
+        : (isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily');
+      const ctaLabel = isRental ? 'View rental requests' : 'View in daily program';
+      const notificationTitle = isRental ? 'New rental request' : 'New booking request';
       
       const notificationData = {
         bookingId,
@@ -708,12 +733,13 @@ class BookingNotificationService {
         date: isoDate,
         startTime: timeLabel,
         serviceName,
+        serviceType: serviceType || 'lesson',
         studentNames: studentNamesDisplay,
         instructorName,
         status: 'pending',
         cta: {
-          label: 'View in daily program',
-          href: isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily'
+          label: ctaLabel,
+          href: ctaHref
         }
       };
 
@@ -722,7 +748,7 @@ class BookingNotificationService {
           insertNotification({
             client,
             userId: staff.id,
-            title: `New booking request`,
+            title: notificationTitle,
             message: staffMessage,
             type: 'new_booking_alert',
             data: notificationData,

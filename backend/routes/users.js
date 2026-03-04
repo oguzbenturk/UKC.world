@@ -436,6 +436,24 @@ router.put('/preferences', authenticateJWT, async (req, res) => {
   }
 });
 
+// === GET INSTRUCTORS LIST ===
+router.get('/instructors', authenticateJWT, async (req, res) => {
+  try {
+    const query = `
+      SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.phone, r.name as role_name
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+      ORDER BY u.first_name, u.last_name
+    `;
+    const { rows } = await pool.query(query);
+    res.json({ instructors: rows });
+  } catch (err) {
+    console.error('Error fetching instructors:', err);
+    res.status(500).json({ error: 'Failed to fetch instructors' });
+  }
+});
+
 // === READ ONE USER ===
 // Allow all authenticated users to view their own profile, admins/managers can view any profile
 router.get('/:id', authenticateJWT, async (req, res) => {

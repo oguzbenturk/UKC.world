@@ -98,6 +98,95 @@ router.post('/validate',
 );
 
 /**
+ * POST /api/vouchers/redeem-wallet
+ * Redeem a wallet_credit voucher — validates the code, records the redemption,
+ * and credits the user's wallet in a single call.
+ */
+router.post('/redeem-wallet',
+  authenticateJWT,
+  [
+    body('code').trim().notEmpty().withMessage('Voucher code is required'),
+    body('currency').optional().isLength({ min: 3, max: 3 }).withMessage('Currency must be 3 characters')
+  ],
+  validate,
+  async (req, res, next) => {
+    try {
+      const { code, currency = 'EUR' } = req.body;
+      const userId = req.user.id;
+      const userRole = req.user.role;
+
+      // Validate the voucher
+      const result = await voucherService.validateVoucher({
+        code,
+        userId,
+        userRole,
+        context: 'wallet',
+        amount: 0,
+        currency
+      });
+
+      if (!result.valid) {
+        return res.status(400).json({
+          success: false,
+          error: result.error,
+          message: result.message
+        });
+      }
+
+      // Only wallet_credit vouchers can be redeemed here
+      if (result.voucher.type !== 'wallet_credit') {
+        return res.status(400).json({
+          success: false,
+          error: 'NOT_WALLET_CREDIT',
+          message: 'This voucher is not a wallet credit voucher. Use it during checkout instead.'
+        });
+      }
+
+      const walletCredit = result.discount?.walletCredit || 0;
+      if (walletCredit <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'NO_CREDIT',
+          message: 'This voucher has no wallet credit value'
+        });
+      }
+
+      // Apply wallet credit
+      await voucherService.applyWalletCredit(userId, walletCredit, result.voucher.id, currency);
+
+      // Record the redemption
+      await voucherService.redeemVoucher({
+        voucherId: result.voucher.id,
+        userId,
+        referenceType: 'wallet_topup',
+        referenceId: null,
+        originalAmount: 0,
+        discountAmount: 0,
+        currency
+      });
+
+      logger.info('Wallet credit voucher redeemed directly', {
+        userId,
+        voucherId: result.voucher.id,
+        walletCredit,
+        currency
+      });
+
+      res.json({
+        success: true,
+        message: `${walletCredit} ${currency} has been added to your wallet!`,
+        walletCredit,
+        currency,
+        voucher: result.voucher
+      });
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/vouchers/my
  * Get vouchers assigned to current user
  */

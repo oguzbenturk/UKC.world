@@ -68,6 +68,7 @@ export async function logAuditEvent({
       `INSERT INTO audit_logs (
         event_type,
         action,
+        entity_type,
         resource_type,
         resource_id,
         actor_user_id,
@@ -80,12 +81,13 @@ export async function logAuditEvent({
         user_agent,
         retain_until
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, NOW() + make_interval(years => $13)
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, NOW() + make_interval(years => $14)
       )
       RETURNING id`,
       [
         eventType,
         action,
+        resourceType,
         resourceType,
         resourceId,
         actorUserId,

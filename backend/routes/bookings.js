@@ -73,7 +73,7 @@ const resolveServiceType = (serviceRow) => {
     return 'lesson';
   }
 
-  const candidates = [serviceRow.type, serviceRow.category, serviceRow.name]
+  const candidates = [serviceRow.service_type, serviceRow.category, serviceRow.name]
     .map((value) => (typeof value === 'string' ? value.toLowerCase() : ''));
 
   if (candidates.some((value) => value.includes('rental') || value.includes('equipment'))) {
@@ -339,7 +339,7 @@ router.get('/',
   // Removed cacheMiddleware to ensure fresh data is always returned
   async (req, res) => {
   try {
-  const { student_id, instructor_id, start_date, end_date, status } = req.query;
+  const { student_id, instructor_id, start_date, end_date, status, service_type } = req.query;
   const DEBUG = req.query._debug === '1' || process.env.DEBUG_BOOKINGS === '1';
 
   const rawRole = req.user.role || '';
@@ -353,6 +353,9 @@ router.get('/',
         s.name as student_name,
         i.name as instructor_name,
         srv.name as service_name,
+        srv.category as service_category,
+        srv.service_type as service_type,
+        srv.duration as service_duration,
         cp.package_name as customer_package_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
         COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value) as instructor_commission,
@@ -458,9 +461,21 @@ router.get('/',
     if (status) {
       query += ` AND b.status = $${paramCount++}`;
       params.push(status);
-    }      
+    }
+
+    // Filter by service type (rental, lesson, accommodation) — matches against service category/type/name
+    if (service_type) {
+      const st = service_type.toLowerCase();
+      if (st === 'rental') {
+        query += ` AND (LOWER(srv.category) LIKE '%rental%' OR LOWER(srv.service_type) LIKE '%rental%' OR LOWER(srv.name) LIKE '%rental%' OR LOWER(srv.name) LIKE '%equipment%')`;
+      } else if (st === 'accommodation') {
+        query += ` AND (LOWER(srv.category) LIKE '%accommodation%' OR LOWER(srv.service_type) LIKE '%accommodation%' OR LOWER(srv.name) LIKE '%accommodation%')`;
+      } else if (st === 'lesson') {
+        query += ` AND NOT (LOWER(COALESCE(srv.category,'')) LIKE '%rental%' OR LOWER(COALESCE(srv.service_type,'')) LIKE '%rental%' OR LOWER(COALESCE(srv.name,'')) LIKE '%rental%' OR LOWER(COALESCE(srv.category,'')) LIKE '%accommodation%' OR LOWER(COALESCE(srv.service_type,'')) LIKE '%accommodation%')`;
+      }
+    }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, cp.package_name, bcc.commission_value, isc.commission_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     
@@ -2946,7 +2961,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
                 ? pool.query('SELECT name, profile_image_url FROM users WHERE id = $1', [instructorId])
                 : Promise.resolve({ rows: [] }),
               serviceId
-                ? pool.query('SELECT type, category, name FROM services WHERE id = $1', [serviceId])
+                ? pool.query('SELECT service_type, category, name FROM services WHERE id = $1', [serviceId])
                 : Promise.resolve({ rows: [] })
             ]);
 
@@ -4887,6 +4902,80 @@ router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager'])
   }
 });
 
+// Helper: create a rental record from an approved booking (if it's a rental service and no rental exists yet)
+async function ensureRentalFromBooking(client, booking, actorUserId) {
+  try {
+    const svcCheck = await client.query(
+      `SELECT id, name, category, service_type, duration, price, currency FROM services WHERE id = $1`,
+      [booking.service_id]
+    );
+    const svc = svcCheck.rows[0];
+    if (!svc) return;
+
+    const isRental = (
+      (svc.category || '').toLowerCase().includes('rental') ||
+      (svc.service_type || '').toLowerCase().includes('rental') ||
+      (svc.name || '').toLowerCase().includes('rental') ||
+      (svc.name || '').toLowerCase().includes('equipment')
+    );
+    if (!isRental) return;
+
+    const userId = booking.student_user_id || booking.customer_user_id;
+
+    // Check if a rental already exists for this booking's user + service + date
+    const existing = await client.query(
+      `SELECT id FROM rentals WHERE user_id = $1 AND equipment_ids @> $2::jsonb AND rental_date = $3 LIMIT 1`,
+      [userId, JSON.stringify([booking.service_id]), booking.date]
+    );
+    if (existing.rows.length > 0) return; // Already has a rental
+
+    const serviceDurationHours = parseFloat(svc.duration) || parseFloat(booking.duration) || 1;
+    const bookingDate = booking.date || new Date().toISOString().split('T')[0];
+    const startHour = parseFloat(booking.start_hour) || 9;
+    const startDate = new Date(`${bookingDate}T${String(Math.floor(startHour)).padStart(2, '0')}:${String(Math.round((startHour % 1) * 60)).padStart(2, '0')}:00`);
+    const endDate = new Date(startDate.getTime() + serviceDurationHours * 60 * 60 * 1000);
+
+    const equipmentIds = JSON.stringify([booking.service_id]);
+    const equipmentDetails = JSON.stringify({
+      [svc.id]: { id: svc.id, name: svc.name, category: svc.category, price: parseFloat(svc.price) || 0, currency: svc.currency }
+    });
+    const totalPrice = parseFloat(booking.final_amount || booking.amount) || 0;
+
+    const rentalResult = await client.query(
+      `INSERT INTO rentals (
+        user_id, equipment_ids, rental_date, start_date, end_date,
+        status, total_price, payment_status, equipment_details, notes,
+        created_by, family_member_id, participant_type
+      ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)
+      RETURNING id`,
+      [
+        userId, equipmentIds, bookingDate,
+        startDate.toISOString(), endDate.toISOString(),
+        'active', totalPrice, booking.payment_status || 'paid',
+        equipmentDetails, booking.notes || null, actorUserId,
+        booking.family_member_id || null,
+        booking.family_member_id ? 'family_member' : 'self'
+      ]
+    );
+
+    if (rentalResult.rows.length > 0) {
+      const rentalId = rentalResult.rows[0].id;
+      await client.query(
+        `INSERT INTO rental_equipment (rental_id, equipment_id, daily_rate, created_by)
+         VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+        [rentalId, svc.id, parseFloat(svc.price) || 0, actorUserId]
+      );
+      logger.info('Created rental record from approved booking', {
+        bookingId: booking.id, rentalId, serviceId: svc.id, serviceName: svc.name
+      });
+    }
+  } catch (rentalErr) {
+    logger.warn('Failed to create rental record from approved booking', {
+      bookingId: booking.id, error: rentalErr?.message
+    });
+  }
+}
+
 // PATCH /:id/status - Update booking status (for approve/decline actions from notifications)
 router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'owner']), async (req, res) => {
   const client = await pool.connect();
@@ -4924,6 +5013,11 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     const terminalStatuses = ['completed', 'cancelled', 'no_show'];
     const alreadyInRequestedState = booking.status === status;
     if (terminalStatuses.includes(booking.status) || alreadyInRequestedState) {
+      // If already confirmed, ensure rental record exists (idempotent)
+      if (booking.status === 'confirmed' || status === 'confirmed') {
+        await ensureRentalFromBooking(client, booking, req.user.id);
+      }
+
       // Still update notifications to hide buttons, but don't change booking status
       await client.query(
         `UPDATE notifications
@@ -5022,6 +5116,11 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
        WHERE id = $2`,
       [status, id]
     );
+
+    // === Create rental record when approving a rental booking ===
+    if (status === 'confirmed') {
+      await ensureRentalFromBooking(client, booking, req.user.id);
+    }
     
     // Update notification status for this booking
     // Set data.status to 'processed' to hide action buttons
@@ -5038,21 +5137,25 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       [id]
     );
     
-    // Log audit trail (non-critical — don't let it break the status update)
+    // Log audit trail (non-critical — use SAVEPOINT so a failure doesn't abort the transaction)
     try {
+      await client.query('SAVEPOINT audit_log_sp');
       await client.query(
-        `INSERT INTO audit_logs (event_type, action, resource_type, resource_id, actor_user_id, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+        `INSERT INTO audit_logs (event_type, action, entity_type, resource_type, resource_id, actor_user_id, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
         [
           'booking_status_change',
           'update_booking_status',
+          'booking',
           'booking',
           id,
           req.user.id,
           JSON.stringify({ oldStatus: booking.status, newStatus: status })
         ]
       );
+      await client.query('RELEASE SAVEPOINT audit_log_sp');
     } catch (auditErr) {
+      await client.query('ROLLBACK TO SAVEPOINT audit_log_sp').catch(() => {});
       logger.warn('Non-critical: Failed to insert audit log for booking status change', {
         bookingId: id, error: auditErr?.message
       });

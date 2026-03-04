@@ -172,7 +172,17 @@ const standardizeTimeFormat = (timeInput) => {
 // Helper function to filter out cancelled bookings consistently
 const filterActiveBookings = (bookings) => {
   if (!Array.isArray(bookings)) return [];
-  const activeBookings = bookings.filter(booking => booking.status !== 'cancelled');
+  const activeBookings = bookings.filter(booking => {
+    if (booking.status === 'cancelled') return false;
+    // Exclude rental bookings from the lessons calendar — they belong on the rentals calendar
+    const cat = (booking.service_category || '').toLowerCase();
+    const sType = (booking.service_type || '').toLowerCase();
+    const sName = (booking.service_name || booking.serviceName || '').toLowerCase();
+    if (cat.includes('rental') || sType.includes('rental') || sName.includes('rental') || sName.includes('equipment')) {
+      return false;
+    }
+    return true;
+  });
   return activeBookings;
 };
 

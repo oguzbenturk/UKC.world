@@ -227,7 +227,9 @@ export async function validateVoucher({ code, userId, userRole, context, amount,
     }
     
     // Check application scope
-    if (voucher.applies_to !== 'all' && voucher.applies_to !== context) {
+    // Wallet credit vouchers can be used from any context since they just add funds
+    const isWalletCredit = voucher.voucher_type === VOUCHER_TYPES.WALLET_CREDIT;
+    if (!isWalletCredit && voucher.applies_to !== 'all' && voucher.applies_to !== context) {
       return { 
         valid: false, 
         error: 'WRONG_CONTEXT', 

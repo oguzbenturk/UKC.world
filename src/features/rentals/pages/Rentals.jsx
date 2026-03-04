@@ -29,6 +29,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   CheckOutlined,
+  CloseOutlined,
   ClockCircleOutlined,
   UserOutlined,
   ToolOutlined,
@@ -37,6 +38,7 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   GiftOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -49,6 +51,7 @@ dayjs.extend(isBetween);
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 import { createCreatedByAuditColumn } from '@/shared/components/tables/unifiedTableAuditPresets.jsx';
 import CalendarViewSwitcher from '@/shared/components/CalendarViewSwitcher';
+import DataService from '@/shared/services/dataService';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -144,7 +147,9 @@ function Rentals() {
   const location = useLocation();
   // Use static message API directly - no need for useMessage hook
   const messageApi = message;
-  const [activeTab, setActiveTab] = useState('recent');
+  // Read tab from URL params (e.g., /calendars/rentals?tab=requests)
+  const urlTab = new URLSearchParams(location.search).get('tab');
+  const [activeTab, setActiveTab] = useState(urlTab || 'recent');
   const [loading, setLoading] = useState(false);
   const [rentals, setRentals] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -152,6 +157,10 @@ function Rentals() {
   const [customers, setCustomers] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [form] = Form.useForm();
+
+  // Rental booking requests state (from bookings table via StudentBookingWizard)
+  const [rentalRequests, setRentalRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
   
   // Package-based rental state
   const [usePackage, setUsePackage] = useState(false);
@@ -627,6 +636,7 @@ function Rentals() {
   // Load rental data based on active tab
   const loadRentals = useCallback(async () => {
     if (!apiClient) return;
+    if (activeTab === 'requests') return; // Requests tab has its own loader
     setLoading(true);
     try {
       let data;
@@ -650,11 +660,60 @@ function Rentals() {
     }
   }, [activeTab, apiClient, enrichRentalsWithDetails, messageApi]);
 
+  // Load rental booking requests from bookings table (made via StudentBookingWizard)
+  const loadRentalRequests = useCallback(async () => {
+    if (!apiClient) return;
+    setRequestsLoading(true);
+    try {
+      const bookings = await DataService.getBookings({ service_type: 'rental', status: 'pending' });
+      setRentalRequests(Array.isArray(bookings) ? bookings : []);
+    } catch (error) {
+      void error;
+      messageApi.error('Failed to load rental requests');
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [apiClient, messageApi]);
+
   useEffect(() => {
     if (apiClient) {
-      loadRentals();
+      if (activeTab === 'requests') {
+        loadRentalRequests();
+      } else {
+        loadRentals();
+      }
     }
-  }, [apiClient, loadRentals]);
+  }, [apiClient, activeTab, loadRentals, loadRentalRequests]);
+
+  // Sync URL tab param when tab changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const currentUrlTab = params.get('tab');
+    if (activeTab === 'requests' && currentUrlTab !== 'requests') {
+      params.set('tab', 'requests');
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+    } else if (activeTab !== 'requests' && currentUrlTab) {
+      params.delete('tab');
+      const search = params.toString();
+      navigate(`${location.pathname}${search ? `?${search}` : ''}`, { replace: true });
+    }
+  }, [activeTab, location.pathname, location.search, navigate]);
+
+  // Handle booking request status changes (approve / decline)
+  const handleBookingStatusChange = useCallback(async (bookingId, newStatus) => {
+    try {
+      setRequestsLoading(true);
+      await apiClient.patch(`/bookings/${bookingId}/status`, { status: newStatus });
+      const label = newStatus === 'confirmed' ? 'approved' : newStatus;
+      messageApi.success(`Rental request ${label} successfully`);
+      await loadRentalRequests();
+    } catch (error) {
+      const msg = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update booking status';
+      messageApi.error(msg);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [apiClient, messageApi, loadRentalRequests]);
 
   // Handle rental actions
   const handleStatusChange = async (rentalId, newStatus) => {
@@ -936,6 +995,189 @@ function Rentals() {
     },
   ];
 
+  // Columns for the Rental Requests tab (bookings with service_type=rental)
+  const requestColumns = useMemo(() => [
+    {
+      title: 'Student',
+      key: 'student',
+      render: (_, record) => {
+        const name = record.student_name || record.studentName || 'Student';
+        return (
+          <div>
+            <div className="font-medium flex items-center">
+              <UserOutlined className="mr-1" />
+              {name}
+            </div>
+            {record.group_size > 1 && (
+              <Tag color="geekblue" className="mt-1">Group of {record.group_size}</Tag>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Service',
+      key: 'service',
+      render: (_, record) => {
+        const serviceName = record.service_name || record.serviceName || 'Rental Service';
+        return (
+          <div className="flex items-center">
+            <ToolOutlined className="mr-1 text-orange-500" />
+            <span className="font-medium">{serviceName}</span>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Date & Time',
+      key: 'datetime',
+      sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+      defaultSortOrder: 'descend',
+      render: (_, record) => {
+        const dateStr = record.date || record.formatted_date;
+        const startHour = record.start_hour || record.startHour;
+        return (
+          <div>
+            <div className="flex items-center">
+              <CalendarOutlined className="mr-1" />
+              <span className="text-sm font-medium">
+                {dateStr ? dayjs(dateStr).format('MMM DD, YYYY') : '—'}
+              </span>
+            </div>
+            {startHour != null && (
+              <div className="text-xs text-slate-500 mt-0.5">
+                {String(Math.floor(startHour)).padStart(2, '0')}:{String(Math.round((startHour % 1) * 60)).padStart(2, '0')}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Rental Period',
+      key: 'duration',
+      render: (_, record) => {
+        // Prefer the service's actual duration (rental period) over the booking's timeslot duration
+        const dur = Number(record.service_duration) || Number(record.duration);
+        if (!dur) return <span className="text-slate-400">—</span>;
+        return <span className="text-sm">{formatRentalDuration(dur)}</span>;
+      },
+    },
+    {
+      title: 'Amount',
+      key: 'amount',
+      render: (_, record) => {
+        const amount = record.final_amount ?? record.finalAmount ?? record.amount ?? 0;
+        return (
+          <div className="flex items-center">
+            <DollarOutlined className="mr-1" />
+            <span className="font-medium">{formatCurrency(Number(amount), businessCurrency)}</span>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      filters: [
+        { text: 'Pending', value: 'pending' },
+        { text: 'Confirmed', value: 'confirmed' },
+        { text: 'Cancelled', value: 'cancelled' },
+        { text: 'Completed', value: 'completed' },
+      ],
+      onFilter: (value, record) => record.status === value,
+      render: (status) => {
+        const statusConfig = {
+          pending: { color: 'orange', label: 'Pending' },
+          confirmed: { color: 'green', label: 'Approved' },
+          cancelled: { color: 'red', label: 'Declined' },
+          completed: { color: 'blue', label: 'Completed' },
+          no_show: { color: 'default', label: 'No Show' },
+        };
+        const config = statusConfig[status] || { color: 'default', label: status };
+        return <Tag color={config.color}>{config.label}</Tag>;
+      },
+    },
+    {
+      title: 'Instructor',
+      key: 'instructor',
+      render: (_, record) => {
+        const name = record.instructor_name || record.instructorName;
+        if (!name) return <span className="text-slate-400 text-xs">Not assigned</span>;
+        return <span className="text-sm">{name}</span>;
+      },
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 160,
+      render: (notes) => notes ? (
+        <Tooltip title={notes}>
+          <span className="text-xs text-slate-600">{notes.length > 40 ? `${notes.substring(0, 40)}…` : notes}</span>
+        </Tooltip>
+      ) : <span className="text-slate-400 text-xs italic">—</span>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      fixed: 'right',
+      width: 160,
+      render: (_, record) => {
+        const isPending = record.status === 'pending';
+        const isConfirmed = record.status === 'confirmed';
+        return (
+          <Space>
+            {isPending && (
+              <>
+                <Tooltip title="Approve">
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    className="bg-green-500 border-green-500 hover:bg-green-600"
+                    onClick={() => handleBookingStatusChange(record.id, 'confirmed')}
+                  >
+                    Approve
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Decline">
+                  <Popconfirm
+                    title="Decline this rental request?"
+                    description="The student will be notified and any charged amount will be refunded."
+                    onConfirm={() => handleBookingStatusChange(record.id, 'cancelled')}
+                    okText="Decline"
+                    okButtonProps={{ danger: true }}
+                    cancelText="Keep"
+                  >
+                    <Button size="small" danger icon={<CloseOutlined />}>
+                      Decline
+                    </Button>
+                  </Popconfirm>
+                </Tooltip>
+              </>
+            )}
+            {isConfirmed && (
+              <Tooltip title="Mark Completed">
+                <Button
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => handleBookingStatusChange(record.id, 'completed')}
+                >
+                  Complete
+                </Button>
+              </Tooltip>
+            )}
+            {!isPending && !isConfirmed && (
+              <span className="text-xs text-slate-400">No actions</span>
+            )}
+          </Space>
+        );
+      },
+    },
+  ], [businessCurrency, formatCurrency, handleBookingStatusChange]);
+
   const rentalStats = useMemo(() => {
     if (!Array.isArray(rentals) || rentals.length === 0) {
       return {
@@ -1061,6 +1303,20 @@ function Rentals() {
           onChange={setActiveTab}
           items={[
             {
+              key: 'requests',
+              label: (
+                <span className="flex items-center">
+                  <ShoppingOutlined className="mr-2" />
+                  Rental Requests
+                  {rentalRequests.length > 0 && (
+                    <Tag color="orange" className="ml-2 !mr-0" style={{ borderRadius: 10, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>
+                      {rentalRequests.length}
+                    </Tag>
+                  )}
+                </span>
+              ),
+            },
+            {
               key: 'recent',
               label: (
                 <span className="flex items-center">
@@ -1081,21 +1337,40 @@ function Rentals() {
           ]}
         />
 
-        <UnifiedTable density="comfortable">
-          <Table
-            columns={columns}
-            dataSource={rentals}
-            loading={loading}
-            rowKey="id"
-            pagination={{
-              pageSize: activeTab === 'recent' ? 20 : 25,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} ${activeTab === 'recent' ? 'recent' : 'total'} rentals`,
-            }}
-            scroll={{ x: 1200 }}
-          />
-        </UnifiedTable>
+        {activeTab === 'requests' ? (
+          <UnifiedTable density="comfortable">
+            <Table
+              columns={requestColumns}
+              dataSource={rentalRequests}
+              loading={requestsLoading}
+              rowKey="id"
+              pagination={{
+                pageSize: 25,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
+              }}
+              scroll={{ x: 1400 }}
+              locale={{ emptyText: 'No rental booking requests found' }}
+            />
+          </UnifiedTable>
+        ) : (
+          <UnifiedTable density="comfortable">
+            <Table
+              columns={columns}
+              dataSource={rentals}
+              loading={loading}
+              rowKey="id"
+              pagination={{
+                pageSize: activeTab === 'recent' ? 20 : 25,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} ${activeTab === 'recent' ? 'recent' : 'total'} rentals`,
+              }}
+              scroll={{ x: 1200 }}
+            />
+          </UnifiedTable>
+        )}
       </Card>
 
       {/* Rental Form Modal */}

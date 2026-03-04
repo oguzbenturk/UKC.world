@@ -234,7 +234,15 @@ const NotificationBell = () => {
       const href = notification.data?.cta?.href;
       if (href) {
         setOpen(false);
-        navigate(href);
+        // Redirect rental booking notifications to the Rental Requests tab
+        const sType = notification.data?.serviceType;
+        const sName = (notification.data?.serviceName || '').toLowerCase();
+        const isRental = sType === 'rental' || sName.includes('rental') || sName.includes('equipment');
+        if (isRental && href.startsWith('/bookings/')) {
+          navigate('/calendars/rentals?tab=requests');
+        } else {
+          navigate(href);
+        }
       }
     },
     [handleMarkRead, navigate, persistRatingContext]

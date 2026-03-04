@@ -70,7 +70,8 @@ export const getAllRequests = async ({ status = 'pending', serviceId, skillLevel
     SELECT glr.*,
       s.name AS service_name,
       s.category AS service_category,
-      u.first_name, u.last_name, u.email, u.phone,
+      u.name AS user_name,
+      u.first_name, u.last_name, u.email AS user_email, u.phone,
       u.profile_image_url
     FROM group_lesson_requests glr
     LEFT JOIN services s ON s.id = glr.service_id

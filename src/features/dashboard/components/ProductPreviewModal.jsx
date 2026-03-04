@@ -4,6 +4,13 @@ import { HeartFilled, HeartOutlined, ShoppingCartOutlined, LeftOutlined, RightOu
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { getCategoryLabel } from '@/shared/constants/productCategories';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+const resolveImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const { Text, Title, Paragraph } = Typography;
 
 const ProductPreviewModal = ({ 
@@ -154,10 +161,11 @@ const ProductPreviewModal = ({
         }
     }
     
-    const allImages = product.image_url && !displayImages.includes(product.image_url)
+    const allImagesRaw = product.image_url && !displayImages.includes(product.image_url)
         ? [product.image_url, ...displayImages]
         : displayImages.length > 0 ? displayImages : (product.image_url ? [product.image_url] : []);
     
+    const allImages = allImagesRaw.map(resolveImageUrl).filter(Boolean);
     const hasMultipleImages = allImages.length > 1;
     const currentImage = allImages[selectedImageIndex] || allImages[0] || null;
 

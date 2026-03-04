@@ -448,6 +448,8 @@ const createBookingPayload = ({
   selectedProcessor,
   processorInfo,
   currency,
+  voucherDiscountAmount = 0,
+  voucherId = null,
 }) => {
   const payload = {
     student_user_id: studentId,
@@ -461,8 +463,11 @@ const createBookingPayload = ({
     use_package: usePackage,
     amount: dueAmount,
     final_amount: dueAmount,
-    discount_percent: 0,
-    discount_amount: 0,
+    discount_percent: baseAmount > 0 && voucherDiscountAmount > 0
+      ? Math.round((voucherDiscountAmount / baseAmount) * 100)
+      : 0,
+    discount_amount: voucherDiscountAmount,
+    voucher_id: voucherId || null,
     family_member_id: null,
     customer_package_id: packageId,
     selected_package_id: packageId,
@@ -1177,12 +1182,10 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     return categoryKey === 'lesson';
   }, [selectedService]);
 
-  // Helper to check if schedule step is needed - rentals are instant, don't need date/time selection
+  // Helper to check if schedule step is needed - all service types require date selection
   const isScheduleRequired = useMemo(() => {
-    if (!selectedService) return true; // Default to required until service is selected
-    const categoryKey = getServiceCategoryKey(selectedService);
-    // Lessons and accommodations need scheduling, rentals are instant
-    return categoryKey !== 'rental';
+    // All services require date/time scheduling including rentals
+    return true;
   }, [selectedService]);
 
   const selectedInstructor = useMemo(
@@ -1478,7 +1481,19 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     [pricingInput, servicePrice]
   );
 
-  const roundedFinalAmount = useMemo(() => roundCurrency(finalAmount), [finalAmount]);
+  const roundedFinalAmountBeforeVoucher = useMemo(() => roundCurrency(finalAmount), [finalAmount]);
+
+  // Apply voucher/promo code discount to the final amount
+  const voucherDiscountAmount = useMemo(() => {
+    if (!appliedVoucher?.discount?.discountAmount) return 0;
+    return roundCurrency(Math.min(appliedVoucher.discount.discountAmount, roundedFinalAmountBeforeVoucher));
+  }, [appliedVoucher, roundedFinalAmountBeforeVoucher]);
+
+  const roundedFinalAmount = useMemo(
+    () => roundCurrency(Math.max(0, roundedFinalAmountBeforeVoucher - voucherDiscountAmount)),
+    [roundedFinalAmountBeforeVoucher, voucherDiscountAmount]
+  );
+
   const walletAfterCharge = useMemo(() => (
     paymentMethod === 'wallet'
       ? roundCurrency(walletBalance - roundedFinalAmount)
@@ -2358,6 +2373,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       selectedProcessor,
       processorInfo,
       currency: serviceCurrency,
+      voucherDiscountAmount,
+      voucherId: appliedVoucher?.id || null,
     });
 
     await submitBooking({
@@ -3421,7 +3438,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         <div className="space-y-2">
           <Title level={5} className="mb-2">Have a Promo Code?</Title>
           <PromoCodeInput
-            context="lessons"
+            context={(() => {
+              const cat = getServiceCategoryKey(selectedService);
+              if (cat === 'rental') return 'rentals';
+              if (cat === 'accommodation') return 'accommodation';
+              return 'lessons';
+            })()}
             amount={finalAmount}
             currency={customerCurrency}
             serviceId={selectedServiceId}

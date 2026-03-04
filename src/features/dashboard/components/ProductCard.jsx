@@ -2,6 +2,13 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+const resolveImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const ProductCard = memo(({ 
     product, 
     onPreview, 
@@ -19,12 +26,13 @@ const ProductCard = memo(({
         : 0;
 
     const imgSrc = useMemo(() => {
-        if (product.image_url) return product.image_url;
-        if (product.images) {
+        let raw = null;
+        if (product.image_url) raw = product.image_url;
+        else if (product.images) {
             const imgs = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
-            return imgs?.[0] || null;
+            raw = imgs?.[0] || null;
         }
-        return null;
+        return resolveImageUrl(raw);
     }, [product.image_url, product.images]);
 
     const [imgError, setImgError] = useState(false);
