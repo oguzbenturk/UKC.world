@@ -28,59 +28,59 @@
 
 | # | Test | Result | Notes |
 |---|------|--------|-------|
-| 1 | `/` home page loads without login | `[ ]` | |
-| 2 | `/guest` guest landing loads | `[ ]` | |
-| 3 | `/academy` academy landing loads | `[ ]` | |
-| 4 | `/academy/kite-lessons` loads with pricing | `[ ]` | |
-| 5 | `/academy/foil-lessons` loads with pricing | `[ ]` | |
-| 6 | `/academy/wing-lessons` loads with pricing | `[ ]` | |
-| 7 | `/academy/efoil-lessons` loads with pricing | `[ ]` | |
-| 8 | `/academy/premium-lessons` loads with pricing | `[ ]` | |
-| 9 | `/rental` rental landing loads | `[ ]` | |
-| 10 | `/rental/standard` showcase loads | `[ ]` | |
-| 11 | `/rental/sls` showcase loads | `[ ]` | |
-| 12 | `/rental/dlab` showcase loads | `[ ]` | |
-| 13 | `/rental/efoil` showcase loads | `[ ]` | |
-| 14 | `/rental/premium` showcase loads | `[ ]` | |
-| 15 | `/stay` accommodation landing loads | `[ ]` | |
-| 16 | `/stay/hotel` hotel page loads | `[ ]` | |
-| 17 | `/stay/home` villa page loads | `[ ]` | |
-| 18 | `/stay/book-accommodation` booking form loads | `[ ]` | |
-| 19 | `/experience` experience landing loads | `[ ]` | |
-| 20 | `/experience/kite-packages` loads | `[ ]` | |
-| 21 | `/experience/wing-packages` loads | `[ ]` | |
-| 22 | `/experience/downwinders` loads | `[ ]` | |
-| 23 | `/experience/camps` loads | `[ ]` | |
-| 24 | `/experience/book-package` loads | `[ ]` | |
-| 25 | `/shop` shop landing loads | `[ ]` | |
-| 26 | `/shop/browse` product grid visible without login | `[ ]` | |
-| 27 | `/members/offerings` member packages visible | `[ ]` | |
-| 28 | `/services/events` upcoming events visible | `[ ]` | |
-| 29 | `/community/team` team page loads | `[ ]` | |
-| 30 | `/contact` contact form loads | `[ ]` | |
-| 31 | `/care` repair request page loads | `[ ]` | |
-| 32 | `/help` help articles load | `[ ]` | |
-| 33 | `/book` outsider booking page loads | `[ ]` | |
-| 34 | `/outsider/packages` packages list loads | `[ ]` | |
+| 1 | `/` home page loads without login | `[x ]` |https://plannivo.com/ |
+| 2 | `/guest` guest landing loads | `[ x]` |https://plannivo.com/guest|
+| 3 | `/academy` academy landing loads | `[x ]` |https://plannivo.com/academy |
+| 4 | `/academy/kite-lessons` loads with pricing | `[x ]` | |
+| 5 | `/academy/foil-lessons` loads with pricing | `[ x]` | |
+| 6 | `/academy/wing-lessons` loads with pricing | `[x ]` | |
+| 7 | `/academy/efoil-lessons` loads with pricing | `[x ]` | |
+| 8 | `/academy/premium-lessons` loads with pricing | `[ x]` | |
+| 9 | `/rental` rental landing loads | `[ x]` | |
+| 10 | `/rental/standard` showcase loads | `[ x]` | |
+| 11 | `/rental/sls` showcase loads | `[ x]` | |
+| 12 | `/rental/dlab` showcase loads | `[ x]` | |
+| 13 | `/rental/efoil` showcase loads | `[x ]` | |
+| 14 | `/rental/premium` showcase loads | `[x ]` | |
+| 15 | `/stay` accommodation landing loads | `[x ]` | |
+| 16 | `/stay/hotel` hotel page loads | `[ x]` | |
+| 17 | `/stay/home` villa page loads | `[x ]` | |
+| 18 | `/stay/book-accommodation` booking form loads | `[ x]` | |
+| 19 | `/experience` experience landing loads | `[ x]` | |
+| 20 | `/experience/kite-packages` loads | `[ x]` | |
+| 21 | `/experience/wing-packages` loads | `[x ]` | |
+| 22 | `/experience/downwinders` loads | `[ x]` | |
+| 23 | `/experience/camps` loads | `[ x]` | |
+| 24 | `/experience/book-package` loads | `[x ]` | |
+| 25 | `/shop` shop landing loads | `[ x]` | |
+| 26 | `/shop/browse` product grid visible without login | `[x ]` | |
+| 27 | `/members/offerings` member packages visible | `[-]` |need redesign, faster loading |
+| 28 | `/services/events` upcoming events visible | `[-]` |need redesign, faster loading |
+| 29 | `/community/team` team page loads | `[-]` |need redesign, faster loading |
+| 30 | `/contact` contact form loads | `[-]` |need redesign, faster loading, admin configuration panel |
+| 31 | `/care` repair request page loads | `[-]` |need redesign, faster loading |
+| 32 | `/help` help articles load | `[?]` |need redesign, faster loading, designing of proper help page |
+| 33 | `/book` outsider booking page loads | ---REMOVE THIS PAGE---
+| 34 | `/outsider/packages` packages list loads | `[-]` |https://plannivo.com/outsider/packages  this page is exsist with empty inside. outsider user can not have packages also because its not loged in find a solution on it |
 
 ## 1.2 Auth Protection (No Login)
 
 | # | Test | Result | Notes |
 |---|------|--------|-------|
-| 35 | Visit `/dashboard`  redirected to `/` | `[ ]` | |
-| 36 | Visit `/bookings`  redirected | `[ ]` | |
-| 37 | Visit `/finance`  redirected | `[ ]` | |
-| 38 | Visit `/student/dashboard`  redirected | `[ ]` | |
-| 39 | Visit `/chat`  redirected | `[ ]` | |
-| 40 | Visit `/admin/roles`  redirected | `[ ]` | |
+| 35 | Visit `/dashboard`  redirected to `/` | `[*]` | https://plannivo.com/login|
+| 36 | Visit `/bookings`  redirected | `[*]` |https://plannivo.com/login |
+| 37 | Visit `/finance`  redirected | `[*]` |https://plannivo.com/login |
+| 38 | Visit `/student/dashboard`  redirected | `[*]` | https://plannivo.com/login|
+| 39 | Visit `/chat`  redirected | `[*]` |https://plannivo.com/login |
+| 40 | Visit `/admin/roles`  redirected | `[8]` | |
 
 ## 1.3 Auth Modal Triggers
 
 | # | Test | Result | Notes |
 |---|------|--------|-------|
-| 41 | Click "Book" on any lesson page  Auth Modal opens (not page redirect) | `[ ]` | |
-| 42 | Click "Buy Package" on `/members/offerings`  Auth Modal opens | `[ ]` | |
-| 43 | Click "Add to Cart" in shop  Auth Modal opens | `[ ]` | |
+| 41 | Click "Book" on any lesson page  Auth Modal opens (not page redirect) | `[*]` | |
+| 42 | Click "Buy Package" on `/members/offerings`  Auth Modal opens | `[*]` | |
+| 43 | Click "Add to Cart" in shop  Auth Modal opens | `[*]` | |
 | 44 | Click "Register" for an event  Auth Modal opens | `[ ]` | |
 | 45 | Auth Modal shows both Login and Register tabs | `[ ]` | |
 | 46 | Close Auth Modal  stays on same page | `[ ]` | |
