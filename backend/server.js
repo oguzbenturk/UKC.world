@@ -226,13 +226,16 @@ app.use(requestLogger);
 // Response time and cache metrics
 app.use(responseMetrics);
 
-// CORS bypass for iyzico payment callback
-// iyzico checkout form POSTs from sandbox-api.iyzipay.com / api.iyzipay.com origin
-// which is not in our allowed origins. This route is protected by token validation + rate limiting.
-app.use('/api/finances/callback/iyzico', cors({ origin: true, methods: ['GET', 'POST', 'OPTIONS'], credentials: false }));
-
 // CORS configuration
-app.use(cors(configureCORS()));
+// Payment gateway callbacks bypass CORS (iyzico POSTs from sandbox-api.iyzipay.com / api.iyzipay.com)
+const globalCors = cors(configureCORS());
+const callbackCors = cors({ origin: true, methods: ['GET', 'POST', 'OPTIONS'], credentials: false });
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/finances/callback/')) {
+    return callbackCors(req, res, next);
+  }
+  globalCors(req, res, next);
+});
 
 // Rate limiting - TEMPORARILY DISABLED FOR DEBUGGING
 app.use('/api/auth', authRateLimit); // Stricter for auth routes (now dummy middleware)

@@ -447,7 +447,7 @@ router.get('/deposits/:id/status', authenticateJWT, async (req, res) => {
 // This is called when the iyzico callback didn't fire or failed, but the user completed payment.
 const verifyDepositLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 40,  // Allow aggressive polling (every 2s for ~80s)
   message: { error: 'Too many verify attempts. Please wait.' },
   keyGenerator: (req) => `verify_${req.user?.id || req.ip}`,
   standardHeaders: true,

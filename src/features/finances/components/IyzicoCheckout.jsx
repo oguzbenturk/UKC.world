@@ -67,16 +67,14 @@ export function IyzicoCheckout({
 
   useRealTimeSync('wallet:deposit_approved', handleSocketApproved);
 
-  // Poll deposit status (fallback for when socket doesn't fire)
-  // Strategy: poll status first, then after a few pending results, trigger manual verify
+  // Poll deposit status + aggressively verify with iyzico
   // NOTE: Must be defined BEFORE handleOpenPayment which references it
   const pollDepositStatus = useCallback(async () => {
     if (!depositId || resolvedRef.current) return;
 
     setVerifying(true);
     let attempts = 0;
-    const maxAttempts = 30; // ~90 seconds total
-    let verifyTriggered = false;
+    const maxAttempts = 40; // ~80 seconds total (2s interval)
 
     if (pollRef.current) clearInterval(pollRef.current);
 
@@ -88,29 +86,7 @@ export function IyzicoCheckout({
       }
       attempts++;
       try {
-        // After 3 polls (~9s) with still-pending status, trigger manual verification
-        // This covers the case where iyzico's callback failed or hasn't arrived yet
-        if (attempts === 3 && !verifyTriggered) {
-          verifyTriggered = true;
-          try {
-            const verifyRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
-            const verifyData = verifyRes.data;
-            if (verifyData?.status === 'completed') {
-              clearInterval(pollRef.current);
-              pollRef.current = null;
-              if (!resolvedRef.current) {
-                resolvedRef.current = true;
-                setVerifying(false);
-                onSuccess?.(verifyData);
-              }
-              return;
-            }
-            // If verify returned pending (gateway not ready), continue polling
-          } catch {
-            // Verify endpoint failed — continue polling normally
-          }
-        }
-
+        // First check if callback already approved it (fast path)
         const res = await apiClient.get(`/wallet/deposits/${depositId}/status`);
         const data = res.data;
 
@@ -136,21 +112,24 @@ export function IyzicoCheckout({
           return;
         }
 
-        // After 15 polls (~45s), try verify once more before giving up
-        if (attempts === 15 && verifyTriggered) {
+        // Still pending — try manual verify with iyzico on every poll from attempt 2+
+        // This catches payments the instant iyzico confirms them
+        if (attempts >= 2) {
           try {
-            const retryRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
-            if (retryRes.data?.status === 'completed') {
+            const verifyRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
+            if (verifyRes.data?.status === 'completed') {
               clearInterval(pollRef.current);
               pollRef.current = null;
               if (!resolvedRef.current) {
                 resolvedRef.current = true;
                 setVerifying(false);
-                onSuccess?.(retryRes.data);
+                onSuccess?.(verifyRes.data);
               }
               return;
             }
-          } catch { /* continue */ }
+          } catch {
+            // Verify failed (payment not done yet on iyzico side) — keep polling
+          }
         }
 
         if (attempts >= maxAttempts) {
@@ -169,7 +148,7 @@ export function IyzicoCheckout({
           onClose?.();
         }
       }
-    }, POLL_INTERVAL);
+    }, 2000); // Poll every 2 seconds for fast detection
   }, [depositId, onSuccess, onError, onClose, message]);
 
   // Open payment in new tab and auto-start verification polling
@@ -184,7 +163,7 @@ export function IyzicoCheckout({
       // Auto-start polling immediately — don't wait for "I've Completed Payment" click
       // This way the manual verify kicks in ~9s after opening, catching payments
       // even if the iyzico callback fails (e.g. CORS)
-      setTimeout(() => pollDepositStatus(), 5000);
+      setTimeout(() => pollDepositStatus(), 3000);
     } else {
       onError?.('Payment URL not available');
     }
