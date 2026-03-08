@@ -318,33 +318,38 @@ export async function verifyPayment(token) {
             locale: Iyzipay.LOCALE.TR,
             token: token
         }, function (err, result) {
-            // Log full response for debugging
-            logger.info('Iyzico checkoutForm.retrieve response', {
-                err: err ? err.message : null,
-                status: result?.status,
-                paymentStatus: result?.paymentStatus,
-                errorCode: result?.errorCode,
-                errorMessage: result?.errorMessage,
-                paymentId: result?.paymentId,
-                paidPrice: result?.paidPrice,
-                currency: result?.currency
-            });
-            
-            if (err || result.status !== 'success') {
-                return reject(new Error(err?.message || result?.errorMessage || 'Verification failed'));
-            }
-            
-            if (result.paymentStatus !== 'SUCCESS') {
-                 return reject(new Error(`Payment not successful: ${result.paymentStatus}`));
-            }
+            try {
+                // Log full response for debugging
+                logger.info('Iyzico checkoutForm.retrieve response', {
+                    err: err ? err.message : null,
+                    status: result?.status,
+                    paymentStatus: result?.paymentStatus,
+                    errorCode: result?.errorCode,
+                    errorMessage: result?.errorMessage,
+                    paymentId: result?.paymentId,
+                    paidPrice: result?.paidPrice,
+                    currency: result?.currency
+                });
+                
+                if (err || !result || result.status !== 'success') {
+                    return reject(new Error(err?.message || result?.errorMessage || 'Verification failed'));
+                }
+                
+                if (result.paymentStatus !== 'SUCCESS') {
+                     return reject(new Error(`Payment not successful: ${result.paymentStatus}`));
+                }
 
-            resolve({
-                status: 'success',
-                paymentId: result.paymentId,
-                paidPrice: result.paidPrice,
-                currency: result.currency,
-                raw: result
-            });
+                resolve({
+                    status: 'success',
+                    paymentId: result.paymentId,
+                    paidPrice: result.paidPrice,
+                    currency: result.currency,
+                    raw: result
+                });
+            } catch (callbackErr) {
+                logger.error('Iyzico checkoutForm.retrieve callback error', { error: callbackErr.message });
+                reject(callbackErr);
+            }
         });
     });
 }

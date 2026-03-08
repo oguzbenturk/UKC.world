@@ -4,8 +4,12 @@ import fs from 'fs';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { pool } from './db.js';
+import { verifyPayment } from './services/paymentGateways/iyzicoGateway.js';
+import { approveDepositRequest as approveDepositFromCallback } from './services/walletService.js';
+import { resolveSystemActorId } from './utils/auditUtils.js';
 
 // Import services
 import { cacheService } from './services/cacheService.js';
@@ -421,11 +425,6 @@ app.use('/api/student', authenticateJWT, studentPortalRouter);
 //   - Token verified: cryptographically verified with iyzico API (verifyPayment)
 //   - Idempotent: deposit status checked before approval (no double-crediting)
 //   - No user input used in SQL: only the iyzico-verified token is used as lookup key
-import { verifyPayment } from './services/paymentGateways/iyzicoGateway.js';
-import { approveDepositRequest as approveDepositFromCallback } from './services/walletService.js';
-import { resolveSystemActorId } from './utils/auditUtils.js';
-import rateLimit from 'express-rate-limit';
-
 const iyzicoCallbackLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 30,                  // max 30 per IP (generous enough for legitimate multi-tab)
@@ -643,6 +642,15 @@ app.get('/api/finances/callback/iyzico', iyzicoCallbackLimiter, (req, res) => {
   // that iyzico redirected. The frontend will pick up the result via Socket.IO or query params.
   const status = req.query.status || 'pending';
   res.redirect(`${frontendUrl}/payment/callback?status=${encodeURIComponent(status)}`);
+});
+
+// Safety-net error handler for iyzico callback routes.
+// Ensures ANY uncaught error (e.g. from middleware before the handler) results in
+// a redirect instead of a raw JSON error page that confuses users.
+app.use('/api/finances/callback/iyzico', (err, req, res, _next) => {
+  logger.error('Iyzico callback safety-net caught an error', { error: err.message, stack: err.stack, method: req.method });
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=server_error`);
 });
 
 app.use('/api/finances', authenticateJWT, triggerFinancialReconciliation, financesRouter);
