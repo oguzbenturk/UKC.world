@@ -34,40 +34,9 @@ const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
 // ===========================================================================================
 // IYZICO PAYMENT CALLBACKS
 // ===========================================================================================
-// NOTE: The main Iyzico callback handler is in server.js (app.post('/api/finances/callback/iyzico'))
-// It's registered BEFORE route mounting to ensure it runs first for payment processing.
-// The handlers below are kept for GET redirects only.
-
-// GET handler for direct browser access
-router.get('/callback/iyzico', async (req, res) => {
-  const { token, payment, amount, currency, reason } = req.query;
-  
-  // If already has payment result, redirect to frontend
-  if (payment) {
-    const params = new URLSearchParams({ payment, amount, currency, reason }).toString();
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`);
-  }
-  
-  // If has token, verify it
-  if (token) {
-    try {
-      const result = await verifyPayment(token);
-      const params = new URLSearchParams({
-        payment: result.success ? 'success' : 'failed',
-        amount: result.amount || '',
-        currency: result.currency || '',
-        reason: result.error || ''
-      });
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?${params}`);
-    } catch (error) {
-      logger.error('Iyzico GET callback error', { error: error.message, token });
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments?payment=error`);
-    }
-  }
-  
-  // No token - just redirect to payments page
-  res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/payments`);
-});
+// NOTE: Both POST and GET Iyzico callback handlers are in server.js
+// They are registered BEFORE route mounting so they run without authenticateJWT.
+// No callback routes are needed here.
 
 function resolveWalletAmount(transactionType, rawAmount) {
   const numeric = Number.parseFloat(rawAmount);

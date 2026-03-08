@@ -414,17 +414,34 @@ app.use('/api/waivers', waiversRouter); // Liability waiver routes (template end
 app.use('/api/student', authenticateJWT, studentPortalRouter);
 
 // Iyzico callback - MUST be before authenticateJWT middleware for /api/finances
-// This is called by Iyzico's servers after payment completion
+// This is called by iyzico after the user completes payment on the checkout form.
+// SECURITY:
+//   - Rate limited: max 30 requests per IP per 5 minutes (legitimate flow = 1 per payment)
+//   - Token validated: must be non-empty string with reasonable length
+//   - Token verified: cryptographically verified with iyzico API (verifyPayment)
+//   - Idempotent: deposit status checked before approval (no double-crediting)
+//   - No user input used in SQL: only the iyzico-verified token is used as lookup key
 import { verifyPayment } from './services/paymentGateways/iyzicoGateway.js';
 import { approveDepositRequest as approveDepositFromCallback } from './services/walletService.js';
 import { resolveSystemActorId } from './utils/auditUtils.js';
-app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true }), async (req, res) => {
+import rateLimit from 'express-rate-limit';
+
+const iyzicoCallbackLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30,                  // max 30 per IP (generous enough for legitimate multi-tab)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many payment callback attempts. Please wait.' }
+});
+
+app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { token } = req.body;
-    logger.info('Iyzico callback received', { token, body: req.body });
+    logger.info('Iyzico callback received', { token: token ? `${token.substring(0, 8)}...` : null, ip: req.ip });
 
-    if (!token) {
-      throw new Error('No token provided in callback');
+    if (!token || typeof token !== 'string' || token.length < 10 || token.length > 512) {
+      logger.warn('Iyzico callback: invalid or missing token', { ip: req.ip, tokenLength: token?.length });
+      throw new Error('Invalid token in callback');
     }
 
     // Verify payment with Iyzico
@@ -614,6 +631,18 @@ app.post('/api/finances/callback/iyzico', express.urlencoded({ extended: true })
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/payment/callback?status=failed`);
   }
+});
+
+// Iyzico GET callback — browser may arrive here via GET (refresh, direct nav, back button).
+// SECURITY: GET must NEVER process payments or mutate state. It only redirects to the frontend.
+// All actual payment processing happens exclusively in the POST handler above.
+app.get('/api/finances/callback/iyzico', iyzicoCallbackLimiter, (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  // Just redirect to the frontend payment callback page.
+  // The POST handler already processed the payment; this is only for the browser tab
+  // that iyzico redirected. The frontend will pick up the result via Socket.IO or query params.
+  const status = req.query.status || 'pending';
+  res.redirect(`${frontendUrl}/payment/callback?status=${encodeURIComponent(status)}`);
 });
 
 app.use('/api/finances', authenticateJWT, triggerFinancialReconciliation, financesRouter);
