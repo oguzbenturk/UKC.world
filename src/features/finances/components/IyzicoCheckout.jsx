@@ -67,26 +67,9 @@ export function IyzicoCheckout({
 
   useRealTimeSync('wallet:deposit_approved', handleSocketApproved);
 
-  // Open payment in new tab and auto-start verification polling
-  const handleOpenPayment = useCallback(() => {
-    if (expired) {
-      onError?.('Payment session expired. Please start a new deposit.');
-      return;
-    }
-    if (paymentPageUrl) {
-      window.open(paymentPageUrl, '_blank');
-      setWindowOpened(true);
-      // Auto-start polling immediately — don't wait for "I've Completed Payment" click
-      // This way the manual verify kicks in ~9s after opening, catching payments
-      // even if the iyzico callback fails (e.g. CORS)
-      setTimeout(() => pollDepositStatus(), 5000);
-    } else {
-      onError?.('Payment URL not available');
-    }
-  }, [paymentPageUrl, onError, expired, pollDepositStatus]);
-
   // Poll deposit status (fallback for when socket doesn't fire)
   // Strategy: poll status first, then after a few pending results, trigger manual verify
+  // NOTE: Must be defined BEFORE handleOpenPayment which references it
   const pollDepositStatus = useCallback(async () => {
     if (!depositId || resolvedRef.current) return;
 
@@ -188,6 +171,24 @@ export function IyzicoCheckout({
       }
     }, POLL_INTERVAL);
   }, [depositId, onSuccess, onError, onClose, message]);
+
+  // Open payment in new tab and auto-start verification polling
+  const handleOpenPayment = useCallback(() => {
+    if (expired) {
+      onError?.('Payment session expired. Please start a new deposit.');
+      return;
+    }
+    if (paymentPageUrl) {
+      window.open(paymentPageUrl, '_blank');
+      setWindowOpened(true);
+      // Auto-start polling immediately — don't wait for "I've Completed Payment" click
+      // This way the manual verify kicks in ~9s after opening, catching payments
+      // even if the iyzico callback fails (e.g. CORS)
+      setTimeout(() => pollDepositStatus(), 5000);
+    } else {
+      onError?.('Payment URL not available');
+    }
+  }, [paymentPageUrl, onError, expired, pollDepositStatus]);
 
   // "I've Completed Payment" → trigger immediate verify + show verifying state
   const handlePaymentCompleted = useCallback(async () => {
