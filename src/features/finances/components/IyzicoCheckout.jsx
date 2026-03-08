@@ -67,7 +67,7 @@ export function IyzicoCheckout({
 
   useRealTimeSync('wallet:deposit_approved', handleSocketApproved);
 
-  // Open payment in new tab
+  // Open payment in new tab and auto-start verification polling
   const handleOpenPayment = useCallback(() => {
     if (expired) {
       onError?.('Payment session expired. Please start a new deposit.');
@@ -76,10 +76,14 @@ export function IyzicoCheckout({
     if (paymentPageUrl) {
       window.open(paymentPageUrl, '_blank');
       setWindowOpened(true);
+      // Auto-start polling immediately — don't wait for "I've Completed Payment" click
+      // This way the manual verify kicks in ~9s after opening, catching payments
+      // even if the iyzico callback fails (e.g. CORS)
+      setTimeout(() => pollDepositStatus(), 5000);
     } else {
       onError?.('Payment URL not available');
     }
-  }, [paymentPageUrl, onError, expired]);
+  }, [paymentPageUrl, onError, expired, pollDepositStatus]);
 
   // Poll deposit status (fallback for when socket doesn't fire)
   // Strategy: poll status first, then after a few pending results, trigger manual verify
@@ -185,11 +189,28 @@ export function IyzicoCheckout({
     }, POLL_INTERVAL);
   }, [depositId, onSuccess, onError, onClose, message]);
 
-  // "I've Completed Payment" → start polling as backup to socket
-  const handlePaymentCompleted = useCallback(() => {
-    setWindowOpened(false);
-    pollDepositStatus();
-  }, [pollDepositStatus]);
+  // "I've Completed Payment" → trigger immediate verify + show verifying state
+  const handlePaymentCompleted = useCallback(async () => {
+    setVerifying(true);
+    // Try an immediate verify first before falling back to polling
+    try {
+      const verifyRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
+      if (verifyRes.data?.status === 'completed') {
+        if (!resolvedRef.current) {
+          resolvedRef.current = true;
+          setVerifying(false);
+          onSuccess?.(verifyRes.data);
+        }
+        return;
+      }
+    } catch {
+      // Verify failed — fall back to polling
+    }
+    // If verify didn't resolve immediately, ensure polling is running
+    if (!pollRef.current) {
+      pollDepositStatus();
+    }
+  }, [depositId, pollDepositStatus, onSuccess]);
 
   // Close handler
   const handleClose = useCallback(() => {

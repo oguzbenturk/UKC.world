@@ -226,6 +226,11 @@ app.use(requestLogger);
 // Response time and cache metrics
 app.use(responseMetrics);
 
+// CORS bypass for iyzico payment callback
+// iyzico checkout form POSTs from sandbox-api.iyzipay.com / api.iyzipay.com origin
+// which is not in our allowed origins. This route is protected by token validation + rate limiting.
+app.use('/api/finances/callback/iyzico', cors({ origin: true, methods: ['GET', 'POST', 'OPTIONS'], credentials: false }));
+
 // CORS configuration
 app.use(cors(configureCORS()));
 
