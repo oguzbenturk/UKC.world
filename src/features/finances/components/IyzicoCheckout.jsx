@@ -82,12 +82,14 @@ export function IyzicoCheckout({
   }, [paymentPageUrl, onError, expired]);
 
   // Poll deposit status (fallback for when socket doesn't fire)
+  // Strategy: poll status first, then after a few pending results, trigger manual verify
   const pollDepositStatus = useCallback(async () => {
     if (!depositId || resolvedRef.current) return;
 
     setVerifying(true);
     let attempts = 0;
-    const maxAttempts = 20; // ~60 seconds
+    const maxAttempts = 30; // ~90 seconds total
+    let verifyTriggered = false;
 
     if (pollRef.current) clearInterval(pollRef.current);
 
@@ -99,6 +101,29 @@ export function IyzicoCheckout({
       }
       attempts++;
       try {
+        // After 3 polls (~9s) with still-pending status, trigger manual verification
+        // This covers the case where iyzico's callback failed or hasn't arrived yet
+        if (attempts === 3 && !verifyTriggered) {
+          verifyTriggered = true;
+          try {
+            const verifyRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
+            const verifyData = verifyRes.data;
+            if (verifyData?.status === 'completed') {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+              if (!resolvedRef.current) {
+                resolvedRef.current = true;
+                setVerifying(false);
+                onSuccess?.(verifyData);
+              }
+              return;
+            }
+            // If verify returned pending (gateway not ready), continue polling
+          } catch {
+            // Verify endpoint failed — continue polling normally
+          }
+        }
+
         const res = await apiClient.get(`/wallet/deposits/${depositId}/status`);
         const data = res.data;
 
@@ -122,6 +147,23 @@ export function IyzicoCheckout({
             onError?.(data?.failureReason || 'Payment was not successful. No funds were charged.');
           }
           return;
+        }
+
+        // After 15 polls (~45s), try verify once more before giving up
+        if (attempts === 15 && verifyTriggered) {
+          try {
+            const retryRes = await apiClient.post(`/wallet/deposits/${depositId}/verify`);
+            if (retryRes.data?.status === 'completed') {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+              if (!resolvedRef.current) {
+                resolvedRef.current = true;
+                setVerifying(false);
+                onSuccess?.(retryRes.data);
+              }
+              return;
+            }
+          } catch { /* continue */ }
         }
 
         if (attempts >= maxAttempts) {

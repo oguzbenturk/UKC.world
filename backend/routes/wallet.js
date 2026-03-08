@@ -33,8 +33,8 @@ import {
   finalizeWithdrawal,
   listWithdrawalRequests
 } from '../services/walletService.js';
-import { refundPayment as iyzicoRefund } from '../services/paymentGateways/iyzicoGateway.js';
-import { resolveActorId } from '../utils/auditUtils.js';
+import { refundPayment as iyzicoRefund, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
+import { resolveActorId, resolveSystemActorId } from '../utils/auditUtils.js';
 
 // Phase 2: Rate Limiting (with Phase 3 alert on exceed)
 const depositLimiter = rateLimit({
@@ -440,6 +440,119 @@ router.get('/deposits/:id/status', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('Failed to fetch deposit status:', error);
     res.status(500).json({ error: 'Failed to fetch deposit status' });
+  }
+});
+
+// POST /deposits/:id/verify — frontend fallback: manually verify & approve a pending deposit
+// This is called when the iyzico callback didn't fire or failed, but the user completed payment.
+const verifyDepositLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Too many verify attempts. Please wait.' },
+  keyGenerator: (req) => `verify_${req.user?.id || req.ip}`,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+router.post('/deposits/:id/verify', authenticateJWT, verifyDepositLimiter, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const depositId = req.params.id;
+    if (!depositId) {
+      return res.status(400).json({ error: 'Deposit ID is required' });
+    }
+
+    // Fetch the deposit and verify ownership
+    const { rows } = await pool.query(
+      `SELECT id, status, amount, currency, gateway_transaction_id, user_id
+       FROM wallet_deposit_requests
+       WHERE id = $1 AND user_id = $2`,
+      [depositId, userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Deposit not found' });
+    }
+
+    const deposit = rows[0];
+
+    // Already completed — return success immediately (idempotent)
+    if (deposit.status === 'completed') {
+      return res.json({ status: 'completed', message: 'Deposit already completed' });
+    }
+
+    // Only verify pending/processing deposits
+    if (deposit.status !== 'pending' && deposit.status !== 'processing') {
+      return res.status(400).json({ error: `Cannot verify deposit in status: ${deposit.status}` });
+    }
+
+    const token = deposit.gateway_transaction_id;
+    if (!token) {
+      return res.status(400).json({ error: 'No gateway token found for this deposit' });
+    }
+
+    // Verify with iyzico
+    let payment;
+    try {
+      payment = await verifyPayment(token);
+    } catch (verifyErr) {
+      logger.warn('Manual deposit verify: iyzico verification failed', {
+        depositId, error: verifyErr.message
+      });
+      return res.json({
+        status: deposit.status,
+        message: 'Payment not yet confirmed by gateway. Please wait a moment and try again.',
+        verificationError: verifyErr.message
+      });
+    }
+
+    // Payment verified — approve the deposit
+    const processorId = resolveSystemActorId() || userId;
+    const approvalResult = await approveDepositRequest({
+      requestId: deposit.id,
+      processorId,
+      metadata: {
+        gatewayCallback: {
+          provider: 'iyzico',
+          paymentId: payment.paymentId,
+          paidPrice: payment.paidPrice,
+          currency: payment.currency,
+          manualVerify: true
+        }
+      },
+      notes: 'Wallet Top-up via Credit Card (manual verify)'
+    });
+
+    logger.info('Deposit approved via manual verify', {
+      depositId: deposit.id,
+      userId,
+      paymentId: payment.paymentId
+    });
+
+    // Emit Socket.IO event
+    try {
+      req.socketService?.emitToChannel(`user:${userId}`, 'wallet:deposit_approved', {
+        depositId: deposit.id,
+        amount: approvalResult?.deposit?.amount || deposit.amount,
+        currency: approvalResult?.deposit?.currency || deposit.currency,
+        completedAt: new Date().toISOString()
+      });
+    } catch (socketErr) {
+      logger.warn('Failed to emit deposit_approved socket event (manual verify)', { error: socketErr.message });
+    }
+
+    res.json({
+      status: 'completed',
+      message: 'Payment verified and deposit approved',
+      deposit: approvalResult?.deposit
+    });
+  } catch (error) {
+    logger.error('Manual deposit verify failed:', error);
+    res.status(500).json({ error: 'Verification failed. Please try again.' });
   }
 });
 

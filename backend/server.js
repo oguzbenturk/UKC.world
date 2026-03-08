@@ -436,10 +436,16 @@ const iyzicoCallbackLimiter = rateLimit({
 app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { token } = req.body;
-    logger.info('Iyzico callback received', { token: token ? `${token.substring(0, 8)}...` : null, ip: req.ip });
+    logger.info('Iyzico callback received', { 
+      token: token ? `${token.substring(0, 8)}...` : null, 
+      ip: req.ip,
+      bodyKeys: Object.keys(req.body || {}),
+      contentType: req.headers['content-type'],
+      method: req.method
+    });
 
     if (!token || typeof token !== 'string' || token.length < 10 || token.length > 512) {
-      logger.warn('Iyzico callback: invalid or missing token', { ip: req.ip, tokenLength: token?.length });
+      logger.warn('Iyzico callback: invalid or missing token', { ip: req.ip, tokenLength: token?.length, bodyKeys: Object.keys(req.body || {}) });
       throw new Error('Invalid token in callback');
     }
 
@@ -626,7 +632,13 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
     res.redirect(`${frontendUrl}/payment/callback?status=success`);
 
   } catch (error) {
-    logger.error('Iyzico Callback Failed', { error: error.message, stack: error.stack });
+    logger.error('Iyzico Callback Failed', { 
+      error: error.message, 
+      stack: error.stack,
+      bodyKeys: Object.keys(req.body || {}),
+      hasToken: !!req.body?.token,
+      ip: req.ip
+    });
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/payment/callback?status=failed`);
   }
