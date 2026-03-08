@@ -69,9 +69,12 @@ export async function initiateDeposit({
     const safeUserId = userId || userData?.id || 'GUEST';
     const basketId = `USR_${safeUserId}_TRX_${Date.now()}`;
     const conversationId = referenceCode || basketId;
-    const baseUrl = process.env.BACKEND_API_URL || 'http://localhost:4000';
+    // Use FRONTEND_URL for the callback since the backend is behind a reverse proxy
+    // in production and BACKEND_API_URL points to localhost:4000 (internal Docker address).
+    // Iyzico needs the public URL to POST the callback to.
+    const publicBaseUrl = process.env.FRONTEND_URL || process.env.BACKEND_API_URL || 'http://localhost:4000';
     // Use a route in finances.js that will handle the POST and redirect to frontend
-    const callbackUrl = metadata.callbackUrl || `${baseUrl}/api/finances/callback/iyzico`;
+    const callbackUrl = metadata.callbackUrl || `${publicBaseUrl}/api/finances/callback/iyzico`;
 
     // PAYMENT GATEWAY STRATEGY:
     // - Iyzico natively supports: TRY, EUR, USD, GBP
