@@ -132,7 +132,71 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const pricePerNight = parseFloat(unit?.price_per_night || unitDetail?.price_per_night || 0);
   const capacity = unit?.capacity || unitDetail?.capacity || 10;
   const nights = checkIn && checkOut ? checkOut.diff(checkIn, 'day') : 0;
-  const totalPrice = nights * pricePerNight;
+
+  // Extract extended pricing meta from amenities
+  const unitMeta = useMemo(() => {
+    const amenities = unit?.amenities || unitDetail?.amenities || [];
+    if (!Array.isArray(amenities)) return {};
+    const entry = amenities.find(a => typeof a === 'string' && a.startsWith('__meta__'));
+    if (!entry) return {};
+    try { return JSON.parse(entry.slice(8)); } catch { return {}; }
+  }, [unit?.amenities, unitDetail?.amenities]);
+
+  // Calculate total with weekend / holiday / discount pricing
+  const priceBreakdown = useMemo(() => {
+    if (!checkIn || !checkOut || nights <= 0) return { total: 0, weekendNights: 0, holidayNights: 0, discount: null };
+    const weekendPrice = unitMeta.weekend_price ? parseFloat(unitMeta.weekend_price) : null;
+    const holidays = Array.isArray(unitMeta.holiday_pricing) ? unitMeta.holiday_pricing : [];
+    const discounts = Array.isArray(unitMeta.custom_discounts) ? unitMeta.custom_discounts : [];
+
+    let subtotal = 0;
+    let weekendNights = 0;
+    let holidayNights = 0;
+
+    for (let i = 0; i < nights; i++) {
+      const nightDate = checkIn.add(i, 'day');
+      const dateStr = nightDate.format('YYYY-MM-DD');
+      const dayOfWeek = nightDate.day(); // 0=Sun, 5=Fri, 6=Sat
+
+      const holidayMatch = holidays.find(h =>
+        h.start_date && h.end_date && h.price_per_night &&
+        dateStr >= h.start_date && dateStr <= h.end_date
+      );
+
+      if (holidayMatch) {
+        subtotal += parseFloat(holidayMatch.price_per_night);
+        holidayNights++;
+      } else if (weekendPrice && (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6)) {
+        subtotal += weekendPrice;
+        weekendNights++;
+      } else {
+        subtotal += pricePerNight;
+      }
+    }
+
+    // Apply best matching length-of-stay discount
+    let discount = null;
+    if (discounts.length > 0) {
+      const eligible = discounts
+        .filter(d => d.min_nights && nights >= d.min_nights && d.discount_value > 0)
+        .sort((a, b) => (b.min_nights || 0) - (a.min_nights || 0));
+      if (eligible.length > 0) discount = eligible[0];
+    }
+
+    let total = subtotal;
+    if (discount) {
+      if (discount.discount_type === 'percentage') {
+        total = subtotal * (1 - discount.discount_value / 100);
+      } else {
+        total = subtotal - (discount.discount_value * nights);
+      }
+      total = Math.max(0, total);
+    }
+
+    return { total: Math.round(total * 100) / 100, subtotal, weekendNights, holidayNights, discount };
+  }, [checkIn, checkOut, nights, pricePerNight, unitMeta]);
+
+  const totalPrice = priceBreakdown.total;
 
   const formatPrice = (eurPrice) => {
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
@@ -485,20 +549,54 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
           {/* ── Summary + Submit ── */}
           <div className="px-6 pb-6">
             <div className="bg-[#13151a] rounded-2xl p-4 border border-white/5">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <p className="text-white/40 text-xs uppercase tracking-wider font-semibold m-0">Total</p>
-                  <p className="text-white/30 text-xs m-0">
-                    {nights > 0
-                      ? `${formatPrice(pricePerNight)} × ${nights} night${nights !== 1 ? 's' : ''}`
-                      : 'Select dates'}
-                  </p>
+              <div className="mb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-white/40 text-xs uppercase tracking-wider font-semibold m-0">Total</p>
+                    <p className="text-white/30 text-xs m-0">
+                      {nights > 0
+                        ? (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0)
+                          ? `${nights} night${nights !== 1 ? 's' : ''} (mixed rates)`
+                          : `${formatPrice(pricePerNight)} × ${nights} night${nights !== 1 ? 's' : ''}`
+                        : 'Select dates'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-white tracking-tight">
+                      {nights > 0 ? formatPrice(totalPrice) : '—'}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-bold text-white tracking-tight">
-                    {nights > 0 ? formatPrice(totalPrice) : '—'}
-                  </span>
-                </div>
+                {nights > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0 || priceBreakdown.discount) && (
+                  <div className="mt-2 space-y-1 text-xs text-white/30">
+                    {priceBreakdown.weekendNights > 0 && (
+                      <div className="flex justify-between">
+                        <span>{priceBreakdown.weekendNights} weekend night{priceBreakdown.weekendNights !== 1 ? 's' : ''}</span>
+                        <span>{formatPrice(unitMeta.weekend_price)}/night</span>
+                      </div>
+                    )}
+                    {priceBreakdown.holidayNights > 0 && (
+                      <div className="flex justify-between">
+                        <span>{priceBreakdown.holidayNights} holiday night{priceBreakdown.holidayNights !== 1 ? 's' : ''}</span>
+                        <span>special rate</span>
+                      </div>
+                    )}
+                    {(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0) && (
+                      <div className="flex justify-between">
+                        <span>{nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights} standard night{(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) !== 1 ? 's' : ''}</span>
+                        <span>{formatPrice(pricePerNight)}/night</span>
+                      </div>
+                    )}
+                    {priceBreakdown.discount && (
+                      <div className="flex justify-between text-green-400/70">
+                        <span>Discount ({priceBreakdown.discount.min_nights}+ nights)</span>
+                        <span>−{priceBreakdown.discount.discount_type === 'percentage'
+                          ? `${priceBreakdown.discount.discount_value}%`
+                          : formatPrice(priceBreakdown.discount.discount_value * nights)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button

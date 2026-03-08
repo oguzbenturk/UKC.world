@@ -65,33 +65,43 @@ const WalletModalManager = () => {
   }, [isAuthenticated, user, walletSummary, fallbackCurrency]);
 
   // Balance from wallet — aggregate all currency balances into display currency
-  const rawBalance = useMemo(() => {
+  const { rawBalance, rawPending } = useMemo(() => {
     if (!isAuthenticated) {
-      return 0;
+      return { rawBalance: 0, rawPending: 0 };
     }
 
     // If the backend returns multi-currency balances, aggregate them
     const balances = walletSummary?.balances;
     if (Array.isArray(balances) && balances.length > 0) {
-      let total = 0;
+      let totalAvailable = 0;
+      let totalPending = 0;
       for (const b of balances) {
-        if (b.available > 0 || b.pending > 0) {
-          if (b.currency === storageCurrency) {
-            total += Number(b.available) || 0;
-          } else if (convertCurrency) {
-            total += convertCurrency(Number(b.available) || 0, b.currency, storageCurrency);
-          }
+        const avail = Number(b.available) || 0;
+        const pend = Number(b.pending) || 0;
+        if (avail === 0 && pend === 0) continue;
+        if (b.currency === storageCurrency) {
+          totalAvailable += avail;
+          totalPending += pend;
+        } else if (convertCurrency) {
+          totalAvailable += convertCurrency(avail, b.currency, storageCurrency);
+          totalPending += convertCurrency(pend, b.currency, storageCurrency);
         }
       }
-      return total;
+      return { rawBalance: totalAvailable, rawPending: totalPending };
     }
 
     // Fallback: single-currency response
     if (typeof walletSummary?.available === 'number') {
-      return Number(walletSummary.available);
+      return {
+        rawBalance: Number(walletSummary.available),
+        rawPending: Number(walletSummary.pending) || 0
+      };
     }
     const extracted = getWalletBalance(walletSummary, user);
-    return typeof extracted === 'number' && Number.isFinite(extracted) ? extracted : 0;
+    return {
+      rawBalance: typeof extracted === 'number' && Number.isFinite(extracted) ? extracted : 0,
+      rawPending: Number(walletSummary?.pending) || 0
+    };
   }, [isAuthenticated, walletSummary, user, storageCurrency, convertCurrency]);
 
   // Convert from storage currency (EUR) to user's display currency
@@ -107,6 +117,14 @@ const WalletModalManager = () => {
     return rawBalance;
   }, [isAuthenticated, rawBalance, convertCurrency, storageCurrency, displayCurrencyCode]);
 
+  const pendingBalance = useMemo(() => {
+    if (!isAuthenticated || rawPending === 0) return 0;
+    if (convertCurrency && displayCurrencyCode !== storageCurrency) {
+      return convertCurrency(rawPending, storageCurrency, displayCurrencyCode);
+    }
+    return rawPending;
+  }, [isAuthenticated, rawPending, convertCurrency, storageCurrency, displayCurrencyCode]);
+
   if (!isAuthenticated) {
     return null;
   }
@@ -117,6 +135,7 @@ const WalletModalManager = () => {
       onClose={() => setOpen(false)}
       currency={currency}
       balance={balance}
+      pendingBalance={pendingBalance}
     />
   );
 };

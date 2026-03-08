@@ -23,7 +23,9 @@ const mapEarningRow = (row) => {
 
   return {
     booking_id: row.booking_id,
-    lesson_date: row.lesson_date ? row.lesson_date.toISOString() : null,
+    lesson_date: row.lesson_date
+      ? (row.lesson_date instanceof Date ? row.lesson_date.toISOString() : String(row.lesson_date))
+      : null,
     start_hour: row.start_hour,
     lesson_duration: lessonDuration,
     base_amount: baseAmount,

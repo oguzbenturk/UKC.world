@@ -134,7 +134,7 @@ const TransactionsPanel = ({ transactionsQuery, transactions, resolveLabel, form
 // --- Main modal ---
 const TRANSACTION_LIMIT = 3;
 
-const StudentWalletModal = ({ open, onClose, currency, balance }) => {
+const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance = 0 }) => {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [depositModalVisible, setDepositModalVisible] = useState(false);
@@ -146,12 +146,20 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
   const transactionsQuery = useWalletTransactions({ enabled: open, limit: TRANSACTION_LIMIT });
 
   const numericBalance = typeof balance === 'number' && Number.isFinite(balance) ? balance : 0;
+  const numericPending = typeof pendingBalance === 'number' && Number.isFinite(pendingBalance) ? pendingBalance : 0;
   const resolvedCurrencyCode = userCurrency || currency?.code || storageCurrency;
   const showDualCurrency = storageCurrency !== resolvedCurrencyCode && convertCurrency;
   const convertedBalance = showDualCurrency ? convertCurrency(numericBalance, storageCurrency, resolvedCurrencyCode) : numericBalance;
   const formattedBalance = showDualCurrency
     ? `${formatCurrency(numericBalance, storageCurrency)} / ${formatCurrency(convertedBalance, resolvedCurrencyCode)}`
     : formatCurrency(numericBalance, resolvedCurrencyCode);
+
+  const hasPending = numericPending > 0;
+  const totalBalance = numericBalance + numericPending;
+  const convertedTotal = showDualCurrency ? convertCurrency(totalBalance, storageCurrency, resolvedCurrencyCode) : totalBalance;
+  const formattedTotal = showDualCurrency
+    ? `${formatCurrency(totalBalance, storageCurrency)} / ${formatCurrency(convertedTotal, resolvedCurrencyCode)}`
+    : formatCurrency(totalBalance, resolvedCurrencyCode);
 
   const isNegative = numericBalance < 0;
 
@@ -276,10 +284,22 @@ const StudentWalletModal = ({ open, onClose, currency, balance }) => {
 
           {/* Text */}
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-white/50">Available Balance</p>
-            <p className={`text-xl font-bold leading-tight tracking-tight tabular-nums mt-0.5 ${isNegative ? 'text-red-400' : 'text-white'}`}>
-              {formattedBalance}
+            <p className="text-[10px] font-medium uppercase tracking-widest text-white/50">
+              {hasPending ? 'Total Balance' : 'Available Balance'}
             </p>
+            <p className={`text-xl font-bold leading-tight tracking-tight tabular-nums mt-0.5 ${isNegative ? 'text-red-400' : 'text-white'}`}>
+              {hasPending ? formattedTotal : formattedBalance}
+            </p>
+            {hasPending && (
+              <div className="flex items-center gap-3 mt-1 text-[10px]">
+                <span className="text-emerald-400/80">
+                  {formatCurrency(numericBalance, resolvedCurrencyCode)} available
+                </span>
+                <span className="text-amber-400/70">
+                  {formatCurrency(numericPending, resolvedCurrencyCode)} reserved
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Status pill */}

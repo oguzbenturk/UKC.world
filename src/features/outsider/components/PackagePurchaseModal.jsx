@@ -279,7 +279,23 @@ const PackagePurchaseModal = ({
             size="large"
             block
             loading={isPurchasing}
-            onClick={handlePurchaseClick}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Confirm Purchase',
+                icon: <ShoppingOutlined style={{ color: '#1890ff' }} />,
+                content: (
+                  <div style={{ marginTop: 8 }}>
+                    <p><strong>{selectedPackage?.name}</strong></p>
+                    <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{getPackageDisplayPrice(selectedPackage)}</p>
+                    <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'external' ? 'External Payment' : 'Pay Later'}</p>
+                  </div>
+                ),
+                okText: 'Confirm & Pay',
+                cancelText: 'Go Back',
+                centered: true,
+                onOk: handlePurchaseClick,
+              });
+            }}
             icon={<CheckCircleOutlined />}
           >
             Complete Purchase

@@ -470,7 +470,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
 );
 
 // eslint-disable-next-line complexity
-const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, onClose }) => {
+const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, instructorName, onClose }) => {
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
 
@@ -504,6 +504,12 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
           <span className="text-slate-500">{isStandalone ? 'Lesson' : 'Package'}</span>
           <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{packageName}</span>
         </div>
+        {instructorName && (
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <span className="text-slate-500">Instructor</span>
+            <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{instructorName}</span>
+          </div>
+        )}
         {isStandalone && displayPrice > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Price</span>
@@ -786,14 +792,31 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
 
   const handlePurchase = useCallback(() => {
     if (!packageData?.id || !studentId) return;
-    setPurchasing(true);
-    purchaseMutation.mutate({
-      packageId: packageData.id,
-      paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+    const { price: pkgPrice, currency: pkgCurrency } = getPackagePriceInCurrency(packageData, userCurrency, convertCurrency);
+    Modal.confirm({
+      title: 'Confirm Purchase',
+      icon: <ShoppingOutlined style={{ color: '#1890ff' }} />,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{packageData.name || serviceName || 'Package'}</strong></p>
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(pkgPrice, pkgCurrency)}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : 'Pay at Center'}</p>
+        </div>
+      ),
+      okText: 'Confirm & Pay',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: () => {
+        setPurchasing(true);
+        purchaseMutation.mutate({
+          packageId: packageData.id,
+          paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+        });
+      },
     });
-  }, [packageData, studentId, paymentMethod, purchaseMutation]);
+  }, [packageData, studentId, paymentMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName]);
 
-  const handleBookSession = useCallback(() => {
+  const executeBookSession = useCallback(() => {
     if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
     const [h, m] = selectedTime.split(':').map(Number);
     const startHour = h + (m || 0) / 60;
@@ -829,6 +852,29 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       });
     }
   }, [studentId, selectedInstructorId, selectedDateString, selectedTime, serviceId, activeDurationHours, packageData, purchasedPackage, bookingMutation, isStandalone, servicePrice, serviceName, paymentMethod]);
+
+  const handleBookSession = useCallback(() => {
+    if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
+    const selectedInstr = (instructorsData || []).find(i => i.id === selectedInstructorId);
+    const instructorName = selectedInstr?.name || `${selectedInstr?.first_name || ''} ${selectedInstr?.last_name || ''}`.trim() || 'Selected instructor';
+    Modal.confirm({
+      title: 'Confirm Booking',
+      icon: <CalendarOutlined style={{ color: '#1890ff' }} />,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{serviceName || packageData?.name || 'Lesson'}</strong></p>
+          <p style={{ color: '#555' }}>Instructor: {instructorName}</p>
+          <p style={{ color: '#555' }}>Date: {selectedDateString} at {selectedTime}</p>
+          <p style={{ color: '#555' }}>Duration: {formatDurationLabel(activeDurationMinutes)}</p>
+          {isStandalone && servicePrice > 0 && <p style={{ fontSize: 16, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(servicePrice, userCurrency)}</p>}
+        </div>
+      ),
+      okText: 'Confirm Booking',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: executeBookSession,
+    });
+  }, [studentId, selectedInstructorId, selectedDateString, selectedTime, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSession]);
 
   const handleSkipSchedule = useCallback(() => {
     setSkipSchedule(true);
@@ -979,6 +1025,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           displayPrice={isStandalone ? (servicePrice || 0) : displayPrice}
           formatCurrency={formatCurrency}
           priceCurrency={priceCurrency}
+          instructorName={selectedInstructorId ? (instructorsData.find((i) => i.id === selectedInstructorId)?.name || `${instructorsData.find((i) => i.id === selectedInstructorId)?.first_name || ''} ${instructorsData.find((i) => i.id === selectedInstructorId)?.last_name || ''}`.trim() || null) : null}
           onClose={handleClose}
         />
       )}

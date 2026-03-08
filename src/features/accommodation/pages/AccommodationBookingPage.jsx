@@ -175,6 +175,31 @@ function AccommodationBookingPage() {
       return;
     }
 
+    const nights = dateRange[1].diff(dateRange[0], 'day');
+    const pricePerNight = parseFloat(selectedUnit.price_per_night || 0);
+    const unitCurrency = selectedUnit.currency || 'EUR';
+    const totalPrice = convertCurrency
+      ? convertCurrency(pricePerNight * nights, unitCurrency, selectedCurrency)
+      : pricePerNight * nights;
+
+    Modal.confirm({
+      title: 'Confirm Accommodation Booking',
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{selectedUnit.name}</strong></p>
+          <p style={{ color: '#555' }}>{dateRange[0].format('DD MMM YYYY')} — {dateRange[1].format('DD MMM YYYY')} ({nights} night{nights !== 1 ? 's' : ''})</p>
+          <p style={{ color: '#555' }}>Guests: {values.guests_count}</p>
+          {totalPrice > 0 && <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>Total: {formatCurrency(totalPrice, selectedCurrency)}</p>}
+        </div>
+      ),
+      okText: 'Confirm Booking',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: () => executeSubmitBooking(values),
+    });
+  };
+
+  const executeSubmitBooking = async (values) => {
     try {
       setSubmitting(true);
       await accommodationApi.createBooking({

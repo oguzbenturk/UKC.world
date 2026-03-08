@@ -392,14 +392,14 @@ class BookingNotificationService {
     return Promise.resolve();
   }
 
-  async sendRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, immediate = false } = {}) {
+  async sendRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, originalDate, originalTime, immediate = false } = {}) {
     if (!bookingId) {
       return;
     }
 
     if (immediate || !this.queueEnabled) {
       try {
-        await this._processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason });
+        await this._processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, originalDate, originalTime });
       } catch (error) {
         // Already logged downstream; swallow to preserve legacy behavior.
       }
@@ -411,13 +411,13 @@ class BookingNotificationService {
       meta: { type: 'reschedule-request', bookingId, studentId },
       idempotencyKey: `reschedule-request:${bookingId}:${Date.now()}`,
       tenantKey: `booking:${bookingId}`,
-      execute: () => this._processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason })
+      execute: () => this._processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, originalDate, originalTime })
     });
 
     return Promise.resolve();
   }
 
-  async _processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason }) {
+  async _processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, originalDate, originalTime }) {
     const client = await pool.connect();
 
     try {
@@ -452,15 +452,17 @@ class BookingNotificationService {
       const instructorName = booking.instructor_name || 'TBD';
       const newDateLabel = formatDateLabel(newDate);
       const newTimeLabel = newTime || 'TBD';
-      const originalDateLabel = formatDateLabel(toIsoDate(booking.date));
-      const originalTimeLabel = formatTimeLabel(booking.start_hour);
+      // Use the passed-in original date/time (captured before the booking was updated)
+      // Fall back to booking's current values if not provided (backward compat)
+      const originalDateLabel = formatDateLabel(originalDate || toIsoDate(booking.date));
+      const originalTimeLabel = originalTime || formatTimeLabel(booking.start_hour);
 
-      // Get all managers and admins
+      // Get all managers and admins (including super_admin)
       const managersQuery = await client.query(
         `SELECT u.id, u.name 
          FROM users u
          JOIN roles r ON r.id = u.role_id
-         WHERE r.name IN ('admin', 'manager', 'owner')
+         WHERE r.name IN ('super_admin', 'admin', 'manager', 'owner')
            AND u.status = 'active'
            AND u.deleted_at IS NULL`
       );
@@ -481,7 +483,7 @@ class BookingNotificationService {
         serviceName,
         instructorId: booking.instructor_id,
         instructorName,
-        originalDate: toIsoDate(booking.date),
+        originalDate: originalDate || toIsoDate(booking.date),
         originalTime: originalTimeLabel,
         newDate,
         newTime: newTimeLabel,

@@ -93,6 +93,25 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       return;
     }
 
+    Modal.confirm({
+      title: 'Confirm Order',
+      icon: <ShoppingCartOutlined style={{ color: '#3B82F6' }} />,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{itemCount} item{itemCount !== 1 ? 's' : ''}</strong></p>
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, storageCurrency)}</p>
+          <p style={{ color: '#888' }}>Delivery to: {formatShippingAddress()}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Cash at Pickup'}</p>
+        </div>
+      ),
+      okText: 'Place Order',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: executeCheckout,
+    });
+  };
+
+  const executeCheckout = async () => {
     setLoading(true);
     setError(null);
 

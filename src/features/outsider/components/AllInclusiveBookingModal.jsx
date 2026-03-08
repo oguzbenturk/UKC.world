@@ -1251,7 +1251,24 @@ const AllInclusiveBookingModal = ({
                 type="primary"
                 size="large"
                 loading={isPurchasing}
-                onClick={handlePurchase}
+                onClick={() => {
+                  Modal.confirm({
+                    title: 'Confirm Purchase',
+                    icon: <CheckCircleOutlined style={{ color: '#f59e0b' }} />,
+                    content: (
+                      <div style={{ marginTop: 8 }}>
+                        <p><strong>{selectedPackage?.name}</strong></p>
+                        <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{getDisplayPrice()}</p>
+                        {checkIn && checkOut && <p style={{ color: '#888' }}>Dates: {checkIn.format('DD MMM')} — {checkOut.format('DD MMM YYYY')}</p>}
+                        <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'external' ? 'External' : 'Pay Later'}</p>
+                      </div>
+                    ),
+                    okText: 'Confirm & Pay',
+                    cancelText: 'Go Back',
+                    centered: true,
+                    onOk: handlePurchase,
+                  });
+                }}
                 className="!bg-amber-500 !border-amber-500 hover:!bg-amber-400 !text-black !font-bold"
                 icon={<CheckCircleOutlined />}
               >

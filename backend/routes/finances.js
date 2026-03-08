@@ -1792,7 +1792,6 @@ router.put('/instructor-payments/:id',
     logger.debug('[DEBUG] Updating instructor payment:', { id, amount, description, payment_date });
 
     if (!amount || !description || !payment_date) {
-      client.release();
       return res.status(400).json({ 
         error: 'Missing required fields: amount, description, payment_date' 
       });
@@ -1801,12 +1800,10 @@ router.put('/instructor-payments/:id',
     const transaction = await getWalletTransactionById(id);
 
     if (!transaction) {
-      client.release();
       return res.status(404).json({ error: 'Instructor payment not found in wallet ledger' });
     }
 
     if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
-      client.release();
       return res.status(400).json({ error: 'Only instructor payment transactions can be updated with this endpoint.' });
     }
 
@@ -1885,7 +1882,6 @@ router.put('/instructor-payments/:id',
     });
 
     await client.query('COMMIT');
-    client.release();
 
     res.json({
       success: true,
@@ -1900,12 +1896,13 @@ router.put('/instructor-payments/:id',
     } catch (rollbackError) {
       logger.error('Failed to rollback instructor payment update:', rollbackError);
     }
-    client.release();
     logger.error('Error updating instructor payment:', error);
     res.status(500).json({ 
       error: 'Failed to update instructor payment',
       details: error.message 
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -1929,13 +1926,11 @@ router.delete('/instructor-payments/:id',
 
     if (!transaction) {
       await client.query('ROLLBACK');
-      client.release();
       return res.status(404).json({ error: 'Instructor payment not found in wallet ledger' });
     }
 
     if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
       await client.query('ROLLBACK');
-      client.release();
       return res.status(400).json({ error: 'Only instructor payment transactions can be deleted with this endpoint.' });
     }
 
@@ -1983,7 +1978,6 @@ router.delete('/instructor-payments/:id',
     }
 
     await client.query('COMMIT');
-    client.release();
 
     res.json({
       success: true,
@@ -1996,12 +1990,13 @@ router.delete('/instructor-payments/:id',
     } catch (rollbackError) {
       logger.error('Failed to rollback instructor payment deletion:', rollbackError);
     }
-    client.release();
     logger.error('Error deleting instructor payment:', error);
     res.status(500).json({ 
       error: 'Failed to delete instructor payment',
       details: error.message 
     });
+  } finally {
+    client.release();
   }
 });
 

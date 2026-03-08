@@ -1090,8 +1090,12 @@ export async function getStudentOverview(studentId, options = {}) {
           description = type === 'refund' ? `Refund for ${serviceName}` : `Payment for ${serviceName}`;
         } else if (rentalDescriptor) {
           description = type === 'refund' ? `Rental refund - ${rentalDescriptor}` : `Rental charge - ${rentalDescriptor}`;
+        } else if (type === 'wallet_lock') {
+          description = 'Funds reserved for booking';
+        } else if (type === 'wallet_unlock' || type === 'wallet_release') {
+          description = 'Funds released from booking';
         } else {
-          description = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Transaction';
+          description = type ? type.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Transaction';
         }
       }
 
@@ -1560,6 +1564,18 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
         throw err;
       }
 
+      // Capture original date/time before updating (for accurate notification message)
+      const origDate = booking.date;
+      const origStartHour = booking.start_hour;
+      const origHours = Math.floor(Number(origStartHour));
+      const origMinutes = Math.round((Number(origStartHour) - origHours) * 60);
+      const originalTime = `${String(origHours).padStart(2, '0')}:${String(origMinutes).padStart(2, '0')}`;
+      const originalDate = origDate instanceof Date
+        ? `${origDate.getFullYear()}-${String(origDate.getMonth() + 1).padStart(2, '0')}-${String(origDate.getDate()).padStart(2, '0')}`
+        : typeof origDate === 'string' && origDate.length >= 10
+          ? origDate.slice(0, 10)
+          : null;
+
       const targetRes = await client.query(
         `SELECT COUNT(*) AS conflict_count
            FROM bookings
@@ -1614,7 +1630,9 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
           studentId,
           newDate,
           newTime,
-          reason
+          reason,
+          originalDate,
+          originalTime
         });
       } catch (notifyError) {
         logger.warn('Failed to send reschedule notification', { bookingId, error: notifyError.message });

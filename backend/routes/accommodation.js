@@ -5,6 +5,83 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { v4 as uuidv4 } from 'uuid';
 import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services/walletService.js';
 
+/**
+ * Extract extended pricing metadata stored inside the amenities JSONB array.
+ * Meta is stored as a string entry like `__meta__{"weekend_price":80,...}`.
+ */
+function extractUnitMeta(unitRow) {
+	const amenities = unitRow.amenities;
+	if (!Array.isArray(amenities)) return {};
+	const entry = amenities.find(a => typeof a === 'string' && a.startsWith('__meta__'));
+	if (!entry) return {};
+	try { return JSON.parse(entry.slice(8)); } catch { return {}; }
+}
+
+/**
+ * Calculate total accommodation price for a date range, accounting for
+ * weekend pricing, holiday/special pricing, and length-of-stay discounts.
+ */
+function calculateTotalPrice(checkInDate, checkOutDate, basePrice, meta) {
+	const oneDay = 24 * 60 * 60 * 1000;
+	const nights = Math.ceil((checkOutDate - checkInDate) / oneDay);
+	if (nights <= 0) return { total: 0, nights: 0, breakdown: [] };
+
+	const weekendPrice = meta.weekend_price ? parseFloat(meta.weekend_price) : null;
+	const holidays = Array.isArray(meta.holiday_pricing) ? meta.holiday_pricing : [];
+	const discounts = Array.isArray(meta.custom_discounts) ? meta.custom_discounts : [];
+
+	let subtotal = 0;
+	const breakdown = [];
+
+	for (let i = 0; i < nights; i++) {
+		const nightDate = new Date(checkInDate.getTime() + i * oneDay);
+		const dateStr = nightDate.toISOString().slice(0, 10);
+		const dayOfWeek = nightDate.getDay(); // 0=Sun, 5=Fri, 6=Sat
+
+		// Check holiday pricing first (highest priority)
+		let price = basePrice;
+		let reason = 'standard';
+
+		const holidayMatch = holidays.find(h =>
+			h.start_date && h.end_date && h.price_per_night &&
+			dateStr >= h.start_date && dateStr <= h.end_date
+		);
+		if (holidayMatch) {
+			price = parseFloat(holidayMatch.price_per_night);
+			reason = 'holiday';
+		} else if (weekendPrice && (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6)) {
+			price = weekendPrice;
+			reason = 'weekend';
+		}
+
+		subtotal += price;
+		breakdown.push({ date: dateStr, price, reason });
+	}
+
+	// Apply length-of-stay discount (best matching)
+	let appliedDiscount = null;
+	if (discounts.length > 0) {
+		const eligible = discounts
+			.filter(d => d.min_nights && nights >= d.min_nights && d.discount_value > 0)
+			.sort((a, b) => (b.min_nights || 0) - (a.min_nights || 0));
+		if (eligible.length > 0) {
+			appliedDiscount = eligible[0];
+		}
+	}
+
+	let total = subtotal;
+	if (appliedDiscount) {
+		if (appliedDiscount.discount_type === 'percentage') {
+			total = subtotal * (1 - appliedDiscount.discount_value / 100);
+		} else {
+			total = subtotal - (appliedDiscount.discount_value * nights);
+		}
+		total = Math.max(0, total);
+	}
+
+	return { total: Math.round(total * 100) / 100, nights, subtotal, appliedDiscount, breakdown };
+}
+
 const router = Router();
 
 // ============================================================================
@@ -503,9 +580,12 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			return res.status(400).json({ error: 'Unit is not available for the selected dates' });
 		}
 
-		// Calculate total price
-		const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-		const total_price = nights * parseFloat(unitData.price_per_night);
+		// Calculate total price with weekend/holiday/discount support
+		const meta = extractUnitMeta(unitData);
+		const basePrice = parseFloat(unitData.price_per_night);
+		const priceCalc = calculateTotalPrice(checkIn, checkOut, basePrice, meta);
+		const nights = priceCalc.nights;
+		const total_price = priceCalc.total;
 
 		const bookingId = uuidv4();
 		let walletTxId = null;
@@ -525,7 +605,8 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 					amount: total_price,
 					bookingId,
 					currency: 'EUR',
-					client
+					client,
+					description: `Accommodation booking: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`
 				});
 				walletTxId = lockResult?.id || null;
 				paymentStatus = 'paid';

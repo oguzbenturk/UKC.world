@@ -21,6 +21,7 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
+import RentalBookingModal from '@/features/outsider/components/RentalBookingModal';
 import apiClient from '@/shared/services/apiClient';
 
 const { Title, Paragraph, Text } = Typography;
@@ -120,6 +121,9 @@ function StudentBookEquipmentPage() {
   const [bookingInitialData, setBookingInitialData] = useState({});
   const [rentalServices, setRentalServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Rental booking modal (for specific service selections)
+  const [rentalModalOpen, setRentalModalOpen] = useState(false);
+  const [rentalModalData, setRentalModalData] = useState(null);
 
   usePageSEO({
     title: 'Book Equipment | UKC Academy',
@@ -150,10 +154,21 @@ function StudentBookEquipmentPage() {
   };
 
   const handleBookEquipment = (service = null) => {
-    const initialData = { serviceCategory: 'rental' };
-    if (service) {
-      initialData.serviceId = service.id;
+    if (service && service.id) {
+      // Specific service selected — use the streamlined RentalBookingModal
+      setRentalModalData({
+        serviceId: service.id,
+        serviceName: service.name || 'Equipment Rental',
+        servicePrice: parseFloat(service.price) || 0,
+        serviceCurrency: service.currency || 'EUR',
+        durationHours: (parseFloat(service.duration) || 60) / 60, // service.duration is in minutes
+        serviceDescription: service.description || '',
+      });
+      setRentalModalOpen(true);
+      return;
     }
+    // No specific service — use generic booking wizard to browse
+    const initialData = { serviceCategory: 'rental' };
     setBookingInitialData(initialData);
     setBookingOpen(true);
   };
@@ -161,6 +176,11 @@ function StudentBookEquipmentPage() {
   const handleBookingClose = () => {
     setBookingOpen(false);
     setBookingInitialData({});
+  };
+
+  const handleRentalModalClose = () => {
+    setRentalModalOpen(false);
+    setRentalModalData(null);
   };
 
   const renderServiceCard = (service) => {
@@ -412,11 +432,23 @@ function StudentBookEquipmentPage() {
         </Card>
       )}
 
-      {/* Booking Wizard */}
+      {/* Booking Wizard (fallback for generic browse) */}
       <StudentBookingWizard
         open={bookingOpen}
         onClose={handleBookingClose}
         initialData={bookingInitialData}
+      />
+
+      {/* Rental Booking Modal (for specific services) */}
+      <RentalBookingModal
+        open={rentalModalOpen}
+        onClose={handleRentalModalClose}
+        serviceId={rentalModalData?.serviceId}
+        serviceName={rentalModalData?.serviceName}
+        servicePrice={rentalModalData?.servicePrice}
+        serviceCurrency={rentalModalData?.serviceCurrency}
+        durationHours={rentalModalData?.durationHours}
+        serviceDescription={rentalModalData?.serviceDescription}
       />
     </div>
   );

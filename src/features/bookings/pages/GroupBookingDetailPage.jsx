@@ -139,6 +139,25 @@ const GroupBookingDetailPage = () => {
   };
   
   const handlePayment = async () => {
+    const amount = organizerNeedsToPay ? totalForOrganizer : booking?.pricePerPerson;
+    Modal.confirm({
+      title: 'Confirm Payment',
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{booking?.title || 'Group Booking'}</strong></p>
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>€{amount?.toFixed(2)}</p>
+          {organizerNeedsToPay && <p style={{ color: '#888' }}>Paying for {acceptedCount} participant(s)</p>}
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : 'External'}</p>
+        </div>
+      ),
+      okText: 'Confirm & Pay',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: executePayment,
+    });
+  };
+
+  const executePayment = async () => {
     try {
       setPaying(true);
       

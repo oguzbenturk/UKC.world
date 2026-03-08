@@ -1441,7 +1441,7 @@ export async function calculateAvailableBalance(userId, currency = DEFAULT_CURRE
   return balance.available;
 }
 
-export async function lockFundsForBooking({ userId, amount, bookingId, currency = DEFAULT_CURRENCY, client, originalAmount: providedOriginalAmount = null, originalCurrency: providedOriginalCurrency = null, transactionExchangeRate = null }) {
+export async function lockFundsForBooking({ userId, amount, bookingId, currency = DEFAULT_CURRENCY, client, originalAmount: providedOriginalAmount = null, originalCurrency: providedOriginalCurrency = null, transactionExchangeRate = null, description = null }) {
   const absolute = Math.abs(toNumeric(amount));
   if (absolute === 0) {
     return null;
@@ -1459,6 +1459,7 @@ export async function lockFundsForBooking({ userId, amount, bookingId, currency 
     direction: 'adjustment',
     availableDelta: -absolute,
     pendingDelta: absolute,
+    description: description || `Funds reserved for booking`,
     metadata: { bookingId },
     relatedEntityType: 'booking',
     relatedEntityId: bookingId || null,

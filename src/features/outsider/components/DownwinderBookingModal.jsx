@@ -531,7 +531,24 @@ const DownwinderBookingModal = ({
                 size="large"
                 block
                 loading={isPurchasing}
-                onClick={handlePurchase}
+                onClick={() => {
+                  Modal.confirm({
+                    title: 'Confirm Booking',
+                    icon: <CheckCircleOutlined style={{ color: '#f59e0b' }} />,
+                    content: (
+                      <div style={{ marginTop: 8 }}>
+                        <p><strong>{pkg.name}</strong></p>
+                        <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{getDisplayPrice()}</p>
+                        {eventStartDate && <p style={{ color: '#888' }}>Date: {formatEventDate(eventStartDate)}</p>}
+                        <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : 'Pay Later'}</p>
+                      </div>
+                    ),
+                    okText: 'Confirm & Pay',
+                    cancelText: 'Go Back',
+                    centered: true,
+                    onOk: handlePurchase,
+                  });
+                }}
                 disabled={selectedPaymentMethod === 'wallet' && getRawPrice() > walletBalance}
                 className="!bg-amber-500 !border-amber-500 hover:!bg-amber-400 !text-black !font-bold !rounded-xl !h-12 !text-base"
                 icon={<CheckCircleOutlined />}

@@ -51,6 +51,10 @@ class NotificationRealtimeService {
       this.failedAttempts++;
       if (this.failedAttempts >= this.maxFailedAttempts) {
         logger.warn(`Notification realtime listener disabled after ${this.failedAttempts} failed attempts`);
+        if (this.client) {
+          this.client.release();
+          this.client = null;
+        }
         return; // Stop retrying
       }
       logger.error('Failed to initialize notification realtime listener:', error);

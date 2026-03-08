@@ -1837,10 +1837,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               <Text type="secondary" className="text-xs block mb-1">Service</Text>
               <Text strong>{selectedService?.name}</Text>
             </div>
-            <div>
-              <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
-              <Text strong>{instructorLabel}</Text>
-            </div>
+            {(instructorLabel || isInstructorRequired) && (
+              <div>
+                <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
+                <Text strong>{instructorLabel || (instructorsLoading ? 'Loading…' : 'To be assigned')}</Text>
+              </div>
+            )}
             <div>
               <Text type="secondary" className="text-xs block mb-1">Duration</Text>
               <Text strong>{durationLabel}</Text>
@@ -1894,10 +1896,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             <Text type="secondary" className="text-xs block mb-1">Service</Text>
             <Text strong>{selectedService?.name}</Text>
           </div>
-          <div>
-            <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
-            <Text strong>{instructorLabel}</Text>
-          </div>
+          {(instructorLabel || isInstructorRequired) && (
+            <div>
+              <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
+              <Text strong>{instructorLabel || (instructorsLoading ? 'Loading…' : 'To be assigned')}</Text>
+            </div>
+          )}
           <div>
             <Text type="secondary" className="text-xs block mb-1">Duration</Text>
             <Text strong>{durationLabel}</Text>

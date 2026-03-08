@@ -248,11 +248,30 @@ const MemberOfferings = () => {
 
   const confirmPurchase = (paymentMethod) => {
     if (!purchaseModal.offering) return;
-    if (isStaff && selectedCustomer) {
-      assignMutation.mutate({ userId: selectedCustomer, offeringId: purchaseModal.offering.id, paymentMethod });
-    } else {
-      purchaseMutation.mutate({ offeringId: purchaseModal.offering.id, paymentMethod });
-    }
+    const offering = purchaseModal.offering;
+    const displayPrice = convertCurrency(offering.price || 0, businessCurrency, displayCurrency);
+    Modal.confirm({
+      title: 'Confirm Membership Purchase',
+      icon: <CrownOutlined style={{ color: '#f59e0b' }} />,
+      content: (
+        <div style={{ marginTop: 8 }}>
+          <p><strong>{offering.name}</strong></p>
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(displayPrice)}{offering.period ? ` / ${offering.period}` : ''}</p>
+          {isStaff && selectedCustomerName && <p style={{ color: '#888' }}>Assigning to: {selectedCustomerName}</p>}
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet Balance' : 'Pay at Reception'}</p>
+        </div>
+      ),
+      okText: 'Confirm & Pay',
+      cancelText: 'Go Back',
+      centered: true,
+      onOk: () => {
+        if (isStaff && selectedCustomer) {
+          assignMutation.mutate({ userId: selectedCustomer, offeringId: offering.id, paymentMethod });
+        } else {
+          purchaseMutation.mutate({ offeringId: offering.id, paymentMethod });
+        }
+      },
+    });
   };
 
   const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
@@ -404,10 +423,16 @@ const MemberOfferings = () => {
                 <CrownOutlined />
               </div>
               <h3 className="text-xl font-black mb-1" style={{ color: modalAccent.text }}>{purchaseModal.offering.name}</h3>
+              <div className="text-2xl font-bold my-2" style={{ color: modalAccent.ring }}>
+                {formatCurrency(convertCurrency(purchaseModal.offering.price || 0, businessCurrency, displayCurrency))}
+                {purchaseModal.offering.period && (
+                  <span className="text-sm font-normal" style={{ color: modalAccent.text, opacity: 0.7 }}> / {purchaseModal.offering.period}</span>
+                )}
+              </div>
               <p className="text-sm" style={{ color: modalAccent.text }}>
                 {isStaff && selectedCustomerName
                   ? <>Assigning to <strong>{selectedCustomerName}</strong></>
-                  : 'Select your payment method to continue'}
+                  : 'Select your payment method to confirm'}
               </p>
             </div>
 

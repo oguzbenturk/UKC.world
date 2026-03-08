@@ -6,6 +6,7 @@ import StayAccommodationModal from './StayAccommodationModal';
 import AccommodationBookingModal from './AccommodationBookingModal';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import QuickBookingModal from './QuickBookingModal';
+import RentalBookingModal from './RentalBookingModal';
 import {
   RocketOutlined,
   HomeOutlined,
@@ -48,7 +49,7 @@ const AcademyServicePackagesPage = ({
   const navigate = useNavigate();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState('6h');
+  const [selectedDuration, setSelectedDuration] = useState(null);
   const [dynamicPackages, setDynamicPackages] = useState([]);
   // For stay pages: keep raw unit objects so the gallery modal has full data
   const [rawUnits, setRawUnits] = useState([]);
@@ -68,6 +69,9 @@ const AcademyServicePackagesPage = ({
   // Quick booking modal state (lesson packages)
   const [quickBookingOpen, setQuickBookingOpen] = useState(false);
   const [quickBookingData, setQuickBookingData] = useState(null);
+  // Rental booking modal state
+  const [rentalBookingOpen, setRentalBookingOpen] = useState(false);
+  const [rentalBookingData, setRentalBookingData] = useState(null);
   // Raw package rows for lookup when opening quick booking
   const [rawPackageRows, setRawPackageRows] = useState([]);
 
@@ -1010,7 +1014,23 @@ const AcademyServicePackagesPage = ({
         return;
       }
 
-      // Fallback: use full StudentBookingWizard (rentals, etc.)
+      // For rentals: use the streamlined RentalBookingModal
+      if (isRental && resolvedServiceId) {
+        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
+        setRentalBookingData({
+          serviceId: resolvedServiceId,
+          serviceName: pkg.name || 'Equipment Rental',
+          servicePrice: matchingDuration?.price || 0,
+          serviceCurrency: 'EUR',
+          durationHours: parsedDurationHours || 1,
+          serviceDescription: pkg.description || '',
+        });
+        setRentalBookingOpen(true);
+        setModalVisible(false);
+        return;
+      }
+
+      // Fallback: use full StudentBookingWizard
       setBookingInitialData({
         serviceCategory,
         preferredCategory: dynamicServiceKey || undefined,
@@ -1026,6 +1046,11 @@ const AcademyServicePackagesPage = ({
   const handleQuickBookingClose = () => {
     setQuickBookingOpen(false);
     setQuickBookingData(null);
+  };
+
+  const handleRentalBookingClose = () => {
+    setRentalBookingOpen(false);
+    setRentalBookingData(null);
   };
 
   const handleBookingWizardClose = () => {
@@ -1047,7 +1072,7 @@ const AcademyServicePackagesPage = ({
       setStayModalVisible(true);
     } else {
       setSelectedPackage(pkg);
-      setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || '6h');
+      setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || null);
       setModalVisible(true);
     }
   };
@@ -1056,7 +1081,7 @@ const AcademyServicePackagesPage = ({
     setModalVisible(false);
     setTimeout(() => {
       setSelectedPackage(null);
-      setSelectedDuration('6h');
+      setSelectedDuration(null);
     }, 300);
   };
 
@@ -1470,14 +1495,15 @@ const AcademyServicePackagesPage = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {selectedPackage.durations.map((dur) => {
-                    const isSelected = selectedDuration === dur.hours;
+                    const durKey = dur.hours;
+                    const isSelected = selectedDuration === durKey;
                     const theme = getThemeColor(selectedPackage);
                     const ownedPkg = dur.packageId ? ownedByPackageId.get(String(dur.packageId)) : null;
                     const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
                     return (
                       <div
-                        key={`${selectedPackage.id}-${dur.hours}-${dur.price}`}
-                        onClick={() => setSelectedDuration(dur.hours)}
+                        key={`${selectedPackage.id}-${dur.serviceId || dur.hours}-${dur.price}`}
+                        onClick={() => setSelectedDuration(durKey)}
                         className={`
                           relative cursor-pointer rounded-xl p-3 sm:p-4 border-2 transition-all duration-300
                           ${ownedPkg
@@ -1642,6 +1668,18 @@ const AcademyServicePackagesPage = ({
         durationHours={quickBookingData?.durationHours}
         servicePrice={quickBookingData?.servicePrice}
         serviceName={quickBookingData?.serviceName}
+      />
+
+      {/* Rental Booking Modal — equipment rentals */}
+      <RentalBookingModal
+        open={rentalBookingOpen}
+        onClose={handleRentalBookingClose}
+        serviceId={rentalBookingData?.serviceId}
+        serviceName={rentalBookingData?.serviceName}
+        servicePrice={rentalBookingData?.servicePrice}
+        serviceCurrency={rentalBookingData?.serviceCurrency}
+        durationHours={rentalBookingData?.durationHours}
+        serviceDescription={rentalBookingData?.serviceDescription}
       />
 
       {/* Accommodation Booking Modal — stays */}
