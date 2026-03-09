@@ -4,6 +4,8 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { v4 as uuidv4 } from 'uuid';
 import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services/walletService.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 /**
  * Extract extended pricing metadata stored inside the amenities JSONB array.
@@ -512,7 +514,7 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			guests_count = 1,
 			guest_id: requestedGuestId,
 			notes,
-			payment_method = 'wallet' // 'wallet' | 'pay_later'
+			payment_method = 'wallet' // 'wallet' | 'pay_later' | 'credit_card'
 		} = req.body;
 
 		// Staff (admin, manager, front_desk) can book for any user
@@ -619,6 +621,10 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 				return res.status(500).json({ error: 'Failed to process payment from wallet', details: walletErr.message });
 			}
 		}
+		// credit_card: no wallet deduction, payment_status set to pending_payment
+		if (payment_method === 'credit_card') {
+			paymentStatus = 'pending_payment';
+		}
 		// pay_later: no wallet deduction, payment_status stays 'pending'
 
 		// Create booking
@@ -636,6 +642,31 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		const booking = rows[0];
 		booking.unit = unitData;
 		booking.nights = nights;
+
+		// For credit card payments, initiate Iyzico checkout
+		if (payment_method === 'credit_card') {
+			try {
+				const gatewayResult = await initiateDeposit({
+					amount: total_price,
+					currency: 'EUR',
+					userId: guest_id,
+					clientIp: req.ip,
+					referenceCode: `ACC-${bookingId}`,
+					items: [{
+						id: `accom-${unit_id}`,
+						name: `${unitData.name || 'Accommodation'} (${nights} night${nights !== 1 ? 's' : ''})`,
+						price: total_price
+					}]
+				});
+
+				booking.paymentPageUrl = gatewayResult.paymentPageUrl;
+				return res.status(201).json(booking);
+			} catch (iyzicoErr) {
+				logger.error('Iyzico initiation failed for accommodation booking', { bookingId, error: iyzicoErr.message });
+				await pool.query(`UPDATE accommodation_bookings SET payment_status = 'failed' WHERE id = $1`, [bookingId]);
+				return res.status(500).json({ error: 'Failed to initiate card payment. Please try again or use wallet.' });
+			}
+		}
 
 		res.status(201).json(booking);
 	} catch (err) {

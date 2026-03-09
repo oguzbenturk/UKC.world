@@ -6,6 +6,7 @@ import {
   CheckCircleFilled,
   WalletOutlined,
   ShopOutlined,
+  CreditCardOutlined,
   UserOutlined,
   SearchOutlined,
   StarFilled,
@@ -16,6 +17,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import apiClient from '@/shared/services/apiClient';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const fetchMemberOfferings = async () => {
   const { data } = await apiClient.get('/member-offerings');
@@ -171,6 +173,8 @@ const MemberOfferings = () => {
   const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
 
   const isGuest = !user;
   const userRole = user?.role?.toLowerCase() || '';
@@ -211,7 +215,13 @@ const MemberOfferings = () => {
 
   const purchaseMutation = useMutation({
     mutationFn: purchaseMembership,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // For credit card payments, show Iyzico payment modal
+      if (data?.paymentPageUrl) {
+        setIyzicoPaymentUrl(data.paymentPageUrl);
+        setShowIyzicoModal(true);
+        return;
+      }
       message.success('Membership activated! Welcome aboard.');
       setPurchaseModal({ visible: false, offering: null });
       queryClient.invalidateQueries(['member-offerings']);
@@ -258,7 +268,7 @@ const MemberOfferings = () => {
           <p><strong>{offering.name}</strong></p>
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(displayPrice)}{offering.period ? ` / ${offering.period}` : ''}</p>
           {isStaff && selectedCustomerName && <p style={{ color: '#888' }}>Assigning to: {selectedCustomerName}</p>}
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet Balance' : 'Pay at Reception'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet Balance' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Reception'}</p>
         </div>
       ),
       okText: 'Confirm & Pay',
@@ -455,6 +465,21 @@ const MemberOfferings = () => {
               </button>
 
               <button
+                onClick={() => confirmPurchase('credit_card')}
+                disabled={purchaseMutation.isPending || assignMutation.isPending}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                  <CreditCardOutlined />
+                </div>
+                <div>
+                  <div className="font-bold text-white">{(purchaseMutation.isPending || assignMutation.isPending) ? 'Processing...' : 'Credit Card'}</div>
+                  <div className="text-xs text-white/50">Pay securely via Iyzico</div>
+                </div>
+                <span className="ml-auto text-xs font-bold px-2 py-1 rounded-full bg-emerald-500 text-white">Secure</span>
+              </button>
+
+              <button
                 onClick={() => confirmPurchase('cash')}
                 disabled={purchaseMutation.isPending || assignMutation.isPending}
                 className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-white/5 bg-white/5 hover:border-white/15 hover:bg-white/10 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
@@ -471,6 +496,30 @@ const MemberOfferings = () => {
           </div>
         )}
       </Modal>
+
+      {/* Iyzico Credit Card Payment Modal */}
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="membership:payment_confirmed"
+        onSuccess={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          message.success('Payment confirmed! Membership activated.');
+          setPurchaseModal({ visible: false, offering: null });
+          queryClient.invalidateQueries(['member-offerings']);
+          queryClient.invalidateQueries(['my-member-purchases']);
+        }}
+        onClose={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+        }}
+        onError={(msg) => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          message.error(msg || 'Payment failed');
+        }}
+      />
     </div>
   );
 };

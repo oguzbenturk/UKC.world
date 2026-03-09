@@ -23,6 +23,7 @@ import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import PackagePurchaseModal from '../components/PackagePurchaseModal';
 import AllInclusiveBookingModal from '../components/AllInclusiveBookingModal';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -85,6 +86,8 @@ const ExperienceBookPackagePage = () => {
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [allInclusiveModalOpen, setAllInclusiveModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
 
   // ── Fetch user's owned customer packages ──────────────────────────────────
   const { data: ownedPackages = [] } = useQuery({
@@ -137,9 +140,10 @@ const ExperienceBookPackagePage = () => {
       return response.data;
     },
     onSuccess: async (data) => {
-      // For credit card payments, redirect to Iyzico payment page
+      // For credit card payments, show IyzicoPaymentModal
       if (data.paymentPageUrl) {
-        window.location.href = data.paymentPageUrl;
+        setIyzicoPaymentUrl(data.paymentPageUrl);
+        setShowIyzicoModal(true);
         return;
       }
 
@@ -265,6 +269,33 @@ const ExperienceBookPackagePage = () => {
         walletBalance={walletSummary?.available || 0}
         onPurchase={handlePurchase}
         isPurchasing={purchaseMutation.isPending}
+      />
+
+      {/* Iyzico Credit Card Payment Modal */}
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="package:payment_confirmed"
+        onSuccess={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          refetchWallet();
+          queryClient.invalidateQueries({ queryKey: ['wallet'] });
+          queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
+          notification.success({ message: 'Payment confirmed!', description: 'Your package has been purchased.' });
+          setPurchaseModalOpen(false);
+          setAllInclusiveModalOpen(false);
+          setSelectedPackage(null);
+        }}
+        onClose={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+        }}
+        onError={(msg) => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          notification.error({ message: 'Payment Failed', description: msg || 'Payment could not be completed.' });
+        }}
       />
 
       {/* Contact Info */}

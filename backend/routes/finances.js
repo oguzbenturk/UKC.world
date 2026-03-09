@@ -341,10 +341,40 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
     const account = userResult.rows[0];
     const userPreferredCurrency = account.preferred_currency || 'EUR';
     
-    // IMPORTANT: Always query balance in EUR (storage currency)
-    // The frontend handles conversion to display currency when needed
-    const storageCurrency = 'EUR';
-    const { balance, totalSpent, walletSummary } = await calculateUserBalance(id, storageCurrency);
+    // Try user's preferred currency first, then fallback to EUR
+    let walletCurrency = userPreferredCurrency;
+    let { balance, totalSpent, walletSummary } = await calculateUserBalance(id, walletCurrency);
+
+    // If no balance found in preferred currency, try EUR
+    if (walletCurrency !== 'EUR' && (!walletSummary || (walletSummary.available === 0 && walletSummary.totalCredits === 0))) {
+      const eurResult = await calculateUserBalance(id, 'EUR');
+      if (eurResult.walletSummary && (eurResult.walletSummary.available !== 0 || eurResult.walletSummary.totalCredits !== 0)) {
+        balance = eurResult.balance;
+        totalSpent = eurResult.totalSpent;
+        walletSummary = eurResult.walletSummary;
+        walletCurrency = 'EUR';
+      }
+    }
+
+    // Last resort: check if user has balance in ANY currency
+    if (!walletSummary || (walletSummary.available === 0 && walletSummary.totalCredits === 0)) {
+      try {
+        const anyBalance = await pool.query(
+          `SELECT currency, available_amount FROM wallet_balances WHERE user_id = $1 AND (available_amount != 0) LIMIT 1`,
+          [id]
+        );
+        if (anyBalance.rows.length > 0) {
+          const foundCurrency = anyBalance.rows[0].currency;
+          const anyResult = await calculateUserBalance(id, foundCurrency);
+          if (anyResult.walletSummary) {
+            balance = anyResult.balance;
+            totalSpent = anyResult.totalSpent;
+            walletSummary = anyResult.walletSummary;
+            walletCurrency = foundCurrency;
+          }
+        }
+      } catch (_) { /* fallback, non-critical */ }
+    }
 
     const responseBody = {
       id: account.id,
@@ -357,8 +387,8 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
       lifetime_value: totalSpent,
       last_payment_date: account.last_payment_date || walletSummary?.lastCreditAt || null,
       account_status: account.account_status,
-      preferred_currency: userPreferredCurrency, // User's display preference (for frontend)
-      storage_currency: storageCurrency, // Actual currency of the balance values
+      preferred_currency: userPreferredCurrency,
+      storage_currency: walletCurrency, // Actual currency of the balance values
       created_at: account.created_at,
       updated_at: account.updated_at
     };
@@ -373,7 +403,7 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
         total_spent: walletSummary.totalSpent,
         last_credit_at: walletSummary.lastCreditAt,
         last_transaction_at: walletSummary.lastTransactionAt,
-        currency: storageCurrency // Always EUR
+        currency: walletCurrency
       };
     }
 

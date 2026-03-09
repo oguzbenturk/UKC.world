@@ -6,6 +6,7 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getBalance, recordTransaction } from '../services/walletService.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.post(
   '/:offeringId/purchase',
   authenticateJWT,
   [
-    body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer', 'pay_later']).withMessage('Invalid payment method'),
+    body('paymentMethod').isIn(['wallet', 'cash', 'card', 'credit_card', 'transfer', 'pay_later']).withMessage('Invalid payment method'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -195,8 +196,11 @@ router.post(
         });
         
         paymentStatus = 'pending'; // Set as pending until payment received
+      } else if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
+        // Credit card via Iyzico - set as pending_payment until callback confirms
+        paymentStatus = 'pending_payment';
       } else {
-        // For card/transfer payments, set as pending until admin confirms
+        // For transfer payments, set as pending until admin confirms
         paymentStatus = 'pending';
       }
 
@@ -228,6 +232,36 @@ router.post(
       await client.query('COMMIT');
 
       logger.info(`Member purchase created: user=${userId}, offering=${offering.name}, method=${paymentMethod}`);
+
+      // For credit card payments, initiate Iyzico checkout
+      if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
+        try {
+          const gatewayResult = await initiateDeposit({
+            amount: parseFloat(offering.price),
+            currency: 'EUR',
+            userId,
+            clientIp: req.ip,
+            referenceCode: `MO-${purchase.id}`,
+            items: [{
+              id: `offering-${offeringId}`,
+              name: offering.name,
+              price: parseFloat(offering.price)
+            }]
+          });
+
+          return res.status(201).json({
+            message: 'Redirecting to payment...',
+            purchase,
+            paymentStatus,
+            paymentPageUrl: gatewayResult.paymentPageUrl
+          });
+        } catch (iyzicoErr) {
+          logger.error('Iyzico initiation failed for member offering purchase', { purchaseId: purchase.id, error: iyzicoErr.message });
+          // Update purchase to failed
+          await pool.query(`UPDATE member_purchases SET payment_status = 'failed' WHERE id = $1`, [purchase.id]);
+          return res.status(500).json({ error: 'Failed to initiate card payment. Please try again or use wallet.' });
+        }
+      }
 
       res.status(201).json({
         message: paymentStatus === 'completed' 

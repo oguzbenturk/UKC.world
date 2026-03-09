@@ -37,6 +37,7 @@ import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ const PayStep = ({
       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
         Payment Method
       </p>
-      <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <button
           type="button"
           onClick={() => setPaymentMethod('wallet')}
@@ -151,6 +152,26 @@ const PayStep = ({
               convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance,
               userCurrency
             )}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPaymentMethod('credit_card')}
+          className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
+            paymentMethod === 'credit_card'
+              ? 'border-emerald-500 bg-emerald-50 shadow-sm shadow-emerald-500/10'
+              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          {paymentMethod === 'credit_card' && (
+            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+              <CheckOutlined className="text-white text-[8px]" />
+            </div>
+          )}
+          <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`} />
+          <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-700' : 'text-slate-600'}`}>Credit Card</span>
+          <span className={`text-[10px] sm:text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`}>
+            Iyzico
           </span>
         </button>
         {canPayLater && (
@@ -183,7 +204,7 @@ const PayStep = ({
           showIcon
           className="!mt-3 !rounded-xl !text-xs"
           message="Insufficient wallet balance"
-          description="Switch to Pay Later or top up your wallet first."
+          description="Switch to Credit Card or top up your wallet first."
         />
       )}
     </div>
@@ -200,7 +221,9 @@ const PayStep = ({
     >
       {paymentMethod === 'wallet'
         ? `Pay ${formatCurrency(displayPrice, priceCurrency)}`
-        : 'Confirm — Pay Later'}
+        : paymentMethod === 'credit_card'
+          ? `Pay ${formatCurrency(displayPrice, priceCurrency)} with Card`
+          : 'Confirm — Pay Later'}
     </Button>
   </div>
 );
@@ -334,8 +357,8 @@ const DoneStep = ({
       )}
       <div className="flex justify-between items-center text-xs sm:text-sm">
         <span className="text-slate-500">Payment</span>
-        <Tag color={paymentMethod === 'wallet' ? 'green' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
-          {paymentMethod === 'wallet' ? 'Paid' : 'Pay Later'}
+        <Tag color={paymentMethod === 'wallet' ? 'green' : paymentMethod === 'credit_card' ? 'cyan' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
+          {paymentMethod === 'wallet' ? 'Paid' : paymentMethod === 'credit_card' ? 'Card Paid' : 'Pay Later'}
         </Tag>
       </div>
       {!skipSchedule && selectedDateString && (
@@ -386,6 +409,8 @@ const RentalBookingModal = ({
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [skipSchedule, setSkipSchedule] = useState(false);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
 
   const studentId = user?.userId || user?.id;
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
@@ -420,6 +445,8 @@ const RentalBookingModal = ({
       setSelectedDate(null);
       setSelectedTime(null);
       setSkipSchedule(false);
+      setIyzicoPaymentUrl(null);
+      setShowIyzicoModal(false);
     }
   }, [open]);
 
@@ -429,6 +456,14 @@ const RentalBookingModal = ({
   const bookingMutation = useMutation({
     mutationFn: (payload) => apiClient.post('/bookings', payload),
     onSuccess: async (res) => {
+      // For credit card payments, show the Iyzico payment modal
+      if (res.data?.paymentPageUrl) {
+        setIyzicoPaymentUrl(res.data.paymentPageUrl);
+        setShowIyzicoModal(true);
+        setSubmitting(false);
+        return;
+      }
+
       if (res.data?.roleUpgrade?.upgraded) {
         try { await refreshToken(); } catch { /* ignore */ }
       }
@@ -467,7 +502,7 @@ const RentalBookingModal = ({
       base_amount: price,
       discount_percent: 0,
       discount_amount: 0,
-      payment_method: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+      payment_method: paymentMethod === 'wallet' ? 'wallet' : paymentMethod === 'credit_card' ? 'credit_card' : 'pay_later',
     });
   }, [studentId, serviceId, servicePrice, durationHours, serviceName, paymentMethod, bookingMutation]);
 
@@ -481,7 +516,7 @@ const RentalBookingModal = ({
           <p><strong>{serviceName || 'Equipment Rental'}</strong></p>
           {durationHours > 0 && <p style={{ color: '#555' }}>Duration: {formatDurationLabel(durationHours)}</p>}
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(displayPrice, priceCurrency)}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : 'Pay at Center'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
         </div>
       ),
       okText: 'Confirm & Pay',
@@ -536,6 +571,7 @@ const RentalBookingModal = ({
   ];
 
   return (
+    <>
     <Modal
       open={open}
       onCancel={handleClose}
@@ -628,6 +664,32 @@ const RentalBookingModal = ({
         />
       )}
     </Modal>
+
+    {/* Iyzico Credit Card Payment Modal */}
+    <IyzicoPaymentModal
+      visible={showIyzicoModal}
+      paymentPageUrl={iyzicoPaymentUrl}
+      socketEventName="booking:payment_confirmed"
+      onSuccess={() => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        queryClient.invalidateQueries({ queryKey: ['student-booking'] });
+        queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+        message.success('Payment confirmed! Rental booked.');
+        setStep(1);
+      }}
+      onClose={() => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+      }}
+      onError={(msg) => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+        message.error(msg || 'Payment failed');
+      }}
+    />
+    </>
   );
 };
 

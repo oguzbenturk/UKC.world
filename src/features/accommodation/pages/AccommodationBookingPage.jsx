@@ -28,12 +28,15 @@ import {
   CoffeeOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  WalletOutlined,
+  CreditCardOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import accommodationApi from '@/shared/services/accommodationApi';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
@@ -89,6 +92,9 @@ function AccommodationBookingPage() {
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const { userCurrency, convertCurrency, formatCurrency, getSupportedCurrencies } = useCurrency();
   const [selectedCurrency, setSelectedCurrency] = useState(userCurrency);
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
 
   // Keep the local selection in sync with the user's saved preference
   useEffect(() => {
@@ -202,16 +208,25 @@ function AccommodationBookingPage() {
   const executeSubmitBooking = async (values) => {
     try {
       setSubmitting(true);
-      await accommodationApi.createBooking({
+      const result = await accommodationApi.createBooking({
         unit_id: selectedUnit.id,
         check_in_date: dateRange[0].format('YYYY-MM-DD'),
         check_out_date: dateRange[1].format('YYYY-MM-DD'),
         guests_count: values.guests_count,
         notes: values.notes,
+        payment_method: paymentMethod,
       });
+
+      // For credit card payments, show Iyzico modal
+      if (result?.paymentPageUrl) {
+        setIyzicoPaymentUrl(result.paymentPageUrl);
+        setShowIyzicoModal(true);
+        return;
+      }
+
       message.success('Booking request submitted! You will be notified once confirmed.');
       setBookingModalVisible(false);
-      loadUnits(); // Refresh availability
+      loadUnits();
     } catch (error) {
       message.error(error.response?.data?.error || 'Failed to submit booking');
     } finally {
@@ -630,20 +645,73 @@ function AccommodationBookingPage() {
               />
             )}
 
+            {/* Payment Method Selection */}
+            <div className="mb-4">
+              <p className="text-gray-400 mb-2 font-medium">Payment Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('wallet')}
+                  className={`p-3 rounded-lg border-2 text-center transition-all ${
+                    paymentMethod === 'wallet'
+                      ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <WalletOutlined className="text-xl mb-1" />
+                  <p className="text-sm font-medium">Wallet</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('credit_card')}
+                  className={`p-3 rounded-lg border-2 text-center transition-all ${
+                    paymentMethod === 'credit_card'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                      : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <CreditCardOutlined className="text-xl mb-1" />
+                  <p className="text-sm font-medium">Credit Card</p>
+                </button>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 mt-6">
               <Button onClick={() => setBookingModalVisible(false)}>Cancel</Button>
               <Button 
                 type="primary" 
                 htmlType="submit"
                 loading={submitting}
-                style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
+                style={{ 
+                  backgroundColor: paymentMethod === 'credit_card' ? '#10b981' : '#fa8c16', 
+                  borderColor: paymentMethod === 'credit_card' ? '#10b981' : '#fa8c16' 
+                }}
               >
-                Submit Booking Request
+                {paymentMethod === 'credit_card' 
+                  ? `Pay ${calculatedPrice > 0 ? formatCurrency(calculatedPrice, selectedCurrency) : ''} with Card`
+                  : 'Submit Booking Request'}
               </Button>
             </div>
           </Form>
         )}
       </Modal>
+
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="booking:payment_confirmed"
+        onSuccess={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          setBookingModalVisible(false);
+          message.success('Payment successful! Your booking has been confirmed.');
+          loadUnits();
+        }}
+        onClose={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+        }}
+      />
       </div>
     </div>
   );

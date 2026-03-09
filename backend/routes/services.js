@@ -7,7 +7,7 @@ import { authorizeRoles as authorize } from '../middlewares/authorize.js';
 import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
 // import CurrencyService from '../services/currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { getWalletAccountSummary, recordLegacyTransaction } from '../services/walletService.js';
+import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
 import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
 import { setPackagePrices, getPackagePrices, setServicePrices, getServicePrices, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
@@ -1338,6 +1338,44 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     }
 
     await client.query('COMMIT');
+
+    // Record a ledger entry for non-wallet purchases so they appear in financial history
+    if (!walletDeducted && packagePrice > 0) {
+      try {
+        const paymentLabel = normalizedPaymentMethod === 'credit_card' ? 'Credit Card'
+          : normalizedPaymentMethod === 'pay_later' ? 'Pay Later'
+          : normalizedPaymentMethod === 'cash' ? 'Cash' : normalizedPaymentMethod;
+        await recordTransaction({
+          userId,
+          amount: -Math.abs(packagePrice),
+          transactionType: 'package_purchase',
+          status: normalizedPaymentMethod === 'credit_card' ? 'pending' : (normalizedPaymentMethod === 'pay_later' ? 'pending' : 'completed'),
+          direction: 'debit',
+          availableDelta: 0, // Don't affect wallet balance — payment is external
+          description: `Package Purchase (${paymentLabel}): ${pkg.name}`,
+          currency: priceCurrency,
+          paymentMethod: normalizedPaymentMethod,
+          referenceNumber: customerPackageId,
+          metadata: {
+            packageId: customerPackageId,
+            servicePackageId: packageId,
+            totalHours: parseFloat(pkg.total_hours) || 0,
+            purchasePrice: packagePrice,
+            priceCurrency: priceCurrency,
+            source: 'services:packages:self-purchase',
+            paymentMethod: normalizedPaymentMethod
+          },
+          entityType: 'customer_package',
+          relatedEntityType: 'customer_package',
+          relatedEntityId: customerPackageId,
+          createdBy: actorId || userId,
+        });
+      } catch (ledgerErr) {
+        logger.warn('Failed to record non-wallet package purchase ledger entry', {
+          userId, packageId: customerPackageId, error: ledgerErr.message
+        });
+      }
+    }
 
     // For credit card payments, initiate Iyzico checkout after commit
     let iyzicoPaymentPageUrl = null;

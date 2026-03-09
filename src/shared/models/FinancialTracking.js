@@ -26,6 +26,8 @@ class Transaction {
     this.updatedAt = data.updatedAt || new Date().toISOString();
     this.createdBy = data.createdBy || null;
     this.metadata = data.metadata || {};
+    this.currency = data.currency || null;
+    this.direction = data.direction || null;
   }
 
   /**

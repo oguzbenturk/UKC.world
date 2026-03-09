@@ -45,6 +45,7 @@ import apiClient from '@/shared/services/apiClient';
 import { getAvailableSlots } from '@/features/bookings/components/api/calendarApi';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import calendarConfig from '@/config/calendarConfig';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const HALF_HOUR_MINUTES = 30;
 const DEFAULT_DURATION_OPTIONS = [30, 60, 90, 120];
@@ -229,7 +230,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Payment Method
           </p>
-          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <button
               type="button"
               onClick={() => setPaymentMethod('wallet')}
@@ -251,6 +252,26 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
                   convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance,
                   userCurrency
                 )}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('credit_card')}
+              className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
+                paymentMethod === 'credit_card'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-sm shadow-emerald-500/10'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {paymentMethod === 'credit_card' && (
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <CheckOutlined className="text-white text-[8px]" />
+                </div>
+              )}
+              <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`} />
+              <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-700' : 'text-slate-600'}`}>Credit Card</span>
+              <span className={`text-[10px] sm:text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                Iyzico
               </span>
             </button>
             {canPayLater && (
@@ -283,7 +304,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
               showIcon
               className="!mt-3 !rounded-xl !text-xs"
               message="Insufficient wallet balance"
-              description="Switch to Pay Later or top up your wallet first."
+              description="Switch to Credit Card or top up your wallet first."
             />
           )}
         </div>
@@ -300,7 +321,9 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
         >
           {paymentMethod === 'wallet'
             ? `Pay ${formatCurrency(displayPrice, priceCurrency)}`
-            : 'Confirm — Pay Later'}
+            : paymentMethod === 'credit_card'
+              ? `Pay ${formatCurrency(displayPrice, priceCurrency)} with Card`
+              : 'Confirm — Pay Later'}
         </Button>
 
         {/* Group Lesson Options */}
@@ -601,6 +624,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [purchasing, setPurchasing] = useState(false);
   const [purchasedPackage, setPurchasedPackage] = useState(null);
   const [isExistingPackage, setIsExistingPackage] = useState(false);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
 
   const [selectedInstructorId, setSelectedInstructorId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -659,6 +684,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setSelectedTime(null);
       setSkipSchedule(false);
       setSelectedDurationMinutes(null);
+      setIyzicoPaymentUrl(null);
+      setShowIyzicoModal(false);
       // Initial step detection happens in the effect below once ownedPackages load
       setStep(0);
       setPurchasedPackage(null);
@@ -780,8 +807,16 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const purchaseMutation = useMutation({
     mutationFn: (payload) => apiClient.post('/services/packages/purchase', payload),
     onSuccess: async (res) => {
+      // For credit card payments, show the Iyzico payment modal
+      if (res.data?.paymentPageUrl) {
+        setIyzicoPaymentUrl(res.data.paymentPageUrl);
+        setShowIyzicoModal(true);
+        setPurchasing(false);
+        return;
+      }
+
       setPurchasedPackage(res.data.customerPackage);
-      setIsExistingPackage(false); // freshly purchased, not existing
+      setIsExistingPackage(false);
       if (res.data.roleUpgrade?.upgraded) {
         try { await refreshToken(); } catch { /* ignore */ }
       }
@@ -824,7 +859,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         <div style={{ marginTop: 8 }}>
           <p><strong>{packageData.name || serviceName || 'Package'}</strong></p>
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(pkgPrice, pkgCurrency)}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : 'Pay at Center'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
         </div>
       ),
       okText: 'Confirm & Pay',
@@ -834,7 +869,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         setPurchasing(true);
         purchaseMutation.mutate({
           packageId: packageData.id,
-          paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+          paymentMethod: paymentMethod,
         });
       },
     });
@@ -940,6 +975,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     : [{ title: 'Review & Pay', idx: 0 }, { title: 'Schedule Session', idx: 1 }, { title: 'Complete', idx: 2 }];
 
   return (
+    <>
     <Modal
       open={open}
       onCancel={handleClose}
@@ -1054,7 +1090,32 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         />
       )}
     </Modal>
-  );
+
+    {/* Iyzico Credit Card Payment Modal */}
+    <IyzicoPaymentModal
+      visible={showIyzicoModal}
+      paymentPageUrl={iyzicoPaymentUrl}
+      socketEventName="package:payment_confirmed"
+      onSuccess={() => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
+        queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
+        message.success('Payment confirmed! Package purchased.');
+        setStep(1);
+      }}
+      onClose={() => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+      }}
+      onError={(msg) => {
+        setShowIyzicoModal(false);
+        setIyzicoPaymentUrl(null);
+        message.error(msg || 'Payment failed');
+      }}
+    />
+  </>;
 };
 
 QuickBookingModal.propTypes = {

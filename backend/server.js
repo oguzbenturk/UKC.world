@@ -740,6 +740,110 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
         }
       }
 
+      // === Member Offering purchase (MO-{purchaseId}) ===
+      if (conversationId && conversationId.startsWith('MO-')) {
+        const purchaseId = conversationId.replace('MO-', '');
+        try {
+          const moResult = await pool.query(
+            `SELECT id, user_id, payment_status, offering_name, offering_price FROM member_purchases WHERE id = $1`,
+            [purchaseId]
+          );
+
+          if (moResult.rows.length === 0) {
+            logger.error('Iyzico Callback: Member offering purchase not found', { purchaseId, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=purchase_not_found`);
+          }
+
+          const mo = moResult.rows[0];
+
+          // Idempotent: if already paid, just redirect success
+          if (mo.payment_status === 'completed' || mo.payment_status === 'paid') {
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
+          }
+
+          // Update payment status
+          await pool.query(
+            `UPDATE member_purchases SET payment_status = 'completed' WHERE id = $1`,
+            [purchaseId]
+          );
+
+          logger.info('Iyzico Callback: Member offering purchase confirmed', {
+            purchaseId,
+            userId: mo.user_id,
+            paymentId: payment.paymentId,
+            paidPrice: payment.paidPrice
+          });
+
+          try {
+            socketService.emitToChannel(`user:${mo.user_id}`, 'membership:payment_confirmed', {
+              purchaseId,
+              offeringName: mo.offering_name,
+              completedAt: new Date().toISOString()
+            });
+            socketService.emitToChannel('general', 'dashboard:refresh', { type: 'membership', action: 'payment_confirmed' });
+          } catch (socketErr) {
+            logger.warn('Failed to emit membership payment socket events', { error: socketErr.message });
+          }
+
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
+        } catch (moErr) {
+          logger.error('Member offering payment failed in Iyzico callback', { purchaseId, error: moErr.message });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=membership_payment_error`);
+        }
+      }
+
+      // === Accommodation booking (ACC-{bookingId}) ===
+      if (conversationId && conversationId.startsWith('ACC-')) {
+        const accBookingId = conversationId.replace('ACC-', '');
+        try {
+          const accResult = await pool.query(
+            `SELECT id, guest_id, payment_status, total_price FROM accommodation_bookings WHERE id = $1`,
+            [accBookingId]
+          );
+
+          if (accResult.rows.length === 0) {
+            logger.error('Iyzico Callback: Accommodation booking not found', { accBookingId, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=booking_not_found`);
+          }
+
+          const accBooking = accResult.rows[0];
+
+          // Idempotent
+          if (accBooking.payment_status === 'paid') {
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=accommodation`);
+          }
+
+          // Update payment status
+          await pool.query(
+            `UPDATE accommodation_bookings SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`,
+            [accBookingId]
+          );
+
+          logger.info('Iyzico Callback: Accommodation booking payment confirmed', {
+            bookingId: accBookingId,
+            userId: accBooking.guest_id,
+            paymentId: payment.paymentId,
+            paidPrice: payment.paidPrice
+          });
+
+          try {
+            socketService.emitToChannel(`user:${accBooking.guest_id}`, 'booking:payment_confirmed', {
+              bookingId: accBookingId,
+              amount: accBooking.total_price,
+              completedAt: new Date().toISOString()
+            });
+            socketService.emitToChannel('general', 'dashboard:refresh', { type: 'accommodation', action: 'payment_confirmed' });
+          } catch (socketErr) {
+            logger.warn('Failed to emit accommodation payment socket events', { error: socketErr.message });
+          }
+
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=accommodation`);
+        } catch (accErr) {
+          logger.error('Accommodation booking payment failed in Iyzico callback', { accBookingId, error: accErr.message });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=accommodation_payment_error`);
+        }
+      }
+
       // === Package purchase (PKG-{customerPackageId}) ===
       if (conversationId && conversationId.startsWith('PKG-')) {
         const customerPackageId = conversationId.replace('PKG-', '');
@@ -768,16 +872,17 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           );
 
           try {
-            const { recordLegacyTransaction } = await import('./services/walletService.js');
-            await recordLegacyTransaction({
+            const { recordTransaction: recordWalletTx } = await import('./services/walletService.js');
+            await recordWalletTx({
               userId: cp.user_id,
-              amount: parseFloat(payment.paidPrice) || 0,
+              amount: -(parseFloat(payment.paidPrice) || 0),
               transactionType: 'package_purchase',
               status: 'completed',
-              direction: 'credit',
-              description: `Package Purchase (Iyzico): ${cp.package_name}`,
+              direction: 'debit',
+              availableDelta: 0, // Don't change wallet balance — payment was via credit card
+              description: `Package Purchase (Credit Card): ${cp.package_name}`,
               currency: payment.currency || 'EUR',
-              paymentMethod: 'iyzico',
+              paymentMethod: 'credit_card',
               referenceNumber: payment.paymentId,
               metadata: {
                 packageId: customerPackageId,
@@ -790,7 +895,6 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
               relatedEntityType: 'customer_package',
               relatedEntityId: customerPackageId,
               createdBy: cp.user_id,
-              allowNegative: true
             });
           } catch (txErr) {
             logger.warn('Failed to record package purchase wallet transaction from Iyzico callback', {

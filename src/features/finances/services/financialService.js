@@ -72,8 +72,8 @@ class FinancialService {
         lifetimeValue: parseFloat(account.lifetime_value || account.total_spent || 0),
         lastPaymentDate: account.last_payment_date,
         updatedAt: account.updated_at,
-        // Pass the currency that the balance is stored in (customer's preferred currency)
-        currency: account.preferred_currency || account.wallet?.currency || 'EUR'
+        // Pass the actual currency the balance is stored in
+        currency: account.storage_currency || account.wallet?.currency || account.preferred_currency || 'EUR'
       });
       
     } catch (error) {
@@ -116,7 +116,9 @@ class FinancialService {
         receiptNumber: txnData.reference_number,
         createdAt: txnData.transaction_date || txnData.created_at,
         updatedAt: txnData.updated_at,
-        createdBy: txnData.created_by
+        createdBy: txnData.created_by,
+        currency: txnData.currency || null,
+        direction: txnData.direction || null
       }));
       
     } catch (error) {

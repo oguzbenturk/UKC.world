@@ -128,9 +128,14 @@ function CustomerProfilePage() {
     return currentUser && staffRoles.includes(currentUser.role?.toLowerCase());
   }, [currentUser]);
   
-  // IMPORTANT: All financial data in the database is stored in EUR (base currency)
-  // The "source currency" is always EUR regardless of customer's preferred currency
-  const storageCurrency = businessCurrency || 'EUR'; // Base currency = EUR
+  // IMPORTANT: The wallet balance can be in the user's preferred currency (e.g. TRY)
+  // The backend returns the actual wallet currency via userAccount.currency
+  const walletCurrency = useMemo(() => {
+    return userAccount?.currency || 'EUR';
+  }, [userAccount?.currency]);
+
+  // The admin's preferred display currency (business base currency)
+  const storageCurrency = businessCurrency || 'EUR';
   
   // Customer's preferred display currency (only used when customer views their own data)
   const customerPreferredCurrency = useMemo(() => {
@@ -150,33 +155,38 @@ function CustomerProfilePage() {
   const adminBaseCurrency = businessCurrency || 'EUR';
   
   // Format helper - formats amounts for display
-  // CRITICAL: All amounts in DB are in EUR. Convert only for non-staff users.
+  // Balance amounts are in walletCurrency (could be TRY, EUR, etc.)
+  // Staff sees EUR (convert from walletCurrency if needed)
+  // Customer sees their preferred currency
   const formatInCustomerCurrency = useCallback((amount) => {
     const amountNum = Number(amount) || 0;
     
     if (isStaffViewing) {
-      // Staff viewing: amounts are in EUR, display as EUR (no conversion)
+      // Staff viewing: convert from wallet currency to admin base currency (EUR)
+      if (walletCurrency !== storageCurrency) {
+        const converted = convertCurrency(amountNum, walletCurrency, storageCurrency);
+        return formatCurrency(converted, storageCurrency);
+      }
       return formatCurrency(amountNum, storageCurrency);
     }
     
-    // Customer viewing: convert from EUR to their preferred currency
-    if (customerPreferredCurrency !== storageCurrency) {
-      const converted = convertCurrency(amountNum, storageCurrency, customerPreferredCurrency);
-      return formatCurrency(converted, customerPreferredCurrency);
-    }
-    
-    return formatCurrency(amountNum, displayCurrency);
-  }, [formatCurrency, storageCurrency, customerPreferredCurrency, displayCurrency, isStaffViewing, convertCurrency]);
+    // Customer viewing: show in wallet currency (which matches their preferred)
+    return formatCurrency(amountNum, walletCurrency);
+  }, [formatCurrency, storageCurrency, walletCurrency, isStaffViewing, convertCurrency]);
 
   // For admin: show converted value in customer's currency as secondary info
   const formatConvertedForAdmin = useCallback((amount) => {
     if (!isAdminViewing || customerPreferredCurrency === adminBaseCurrency) {
-      return null; // No need to show converted value
+      // If wallet is in a different currency than admin base, show that
+      if (isAdminViewing && walletCurrency !== adminBaseCurrency) {
+        return formatCurrency(amount || 0, walletCurrency);
+      }
+      return null;
     }
     // Show what the customer would see in their currency
-    const converted = convertCurrency(amount || 0, storageCurrency, customerPreferredCurrency);
+    const converted = convertCurrency(amount || 0, walletCurrency, customerPreferredCurrency);
     return formatCurrency(converted, customerPreferredCurrency);
-  }, [isAdminViewing, customerPreferredCurrency, adminBaseCurrency, convertCurrency, formatCurrency, storageCurrency]);
+  }, [isAdminViewing, customerPreferredCurrency, adminBaseCurrency, convertCurrency, formatCurrency, walletCurrency]);
   
   const currencySymbol = useMemo(() => getCurrencySymbol(displayCurrency), [getCurrencySymbol, displayCurrency]);
   const [loading, setLoading] = useState(true);
@@ -2657,7 +2667,18 @@ function CustomerProfilePage() {
                               title: 'Amount',
                               dataIndex: 'amount',
                               key: 'amount',
-                              render: (amount, record) => formatCurrency(amount || 0, record.currency || storageCurrency),
+                              render: (amount, record) => {
+                                const txCurrency = record.currency || walletCurrency;
+                                if (isStaffViewing && txCurrency !== storageCurrency) {
+                                  const converted = convertCurrency(amount || 0, txCurrency, storageCurrency);
+                                  return (
+                                    <Tooltip title={formatCurrency(amount || 0, txCurrency)}>
+                                      {formatCurrency(converted, storageCurrency)}
+                                    </Tooltip>
+                                  );
+                                }
+                                return formatCurrency(amount || 0, txCurrency);
+                              },
                               sorter: (a, b) => (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0),
                             },
                             {
