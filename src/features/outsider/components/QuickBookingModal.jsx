@@ -49,6 +49,30 @@ import calendarConfig from '@/config/calendarConfig';
 const HALF_HOUR_MINUTES = 30;
 const DEFAULT_DURATION_OPTIONS = [30, 60, 90, 120];
 
+// Resolve a package price in the user's preferred currency
+const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
+  if (!pkg) return { price: 0, currency: 'EUR' };
+
+  if (targetCurrency && pkg.prices && Array.isArray(pkg.prices)) {
+    const currencyPrice = pkg.prices.find(
+      p => p.currencyCode === targetCurrency || p.currency_code === targetCurrency
+    );
+    if (currencyPrice && currencyPrice.price > 0) {
+      return { price: currencyPrice.price, currency: targetCurrency };
+    }
+  }
+
+  const baseCurrency = pkg.currency || 'EUR';
+  const basePrice = pkg.price || 0;
+
+  if (convertCurrencyFn && targetCurrency && targetCurrency !== baseCurrency) {
+    const convertedPrice = convertCurrencyFn(basePrice, baseCurrency, targetCurrency);
+    return { price: convertedPrice, currency: targetCurrency };
+  }
+
+  return { price: basePrice, currency: baseCurrency };
+};
+
 // Predefined lesson block start times — slots are only offered at these exact times
 const PRESET_SLOT_STARTS = calendarConfig.preScheduledSlots.map((s) => s.start);
 

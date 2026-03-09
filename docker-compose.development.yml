@@ -1,5 +1,6 @@
-# Development Docker Compose - Only Database and Redis
-# Use this for local development on your machine
+# docker-compose.development.yml -- Standalone DB + Redis only for local development
+# Usage: docker-compose -f docker-compose.development.yml up -d
+# Run frontend and backend natively with npm run dev
 services:
   db-dev:
     image: postgres:15-alpine

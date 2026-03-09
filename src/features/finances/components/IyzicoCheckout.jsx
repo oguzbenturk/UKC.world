@@ -151,6 +151,20 @@ export function IyzicoCheckout({
     }, 2000); // Poll every 2 seconds for fast detection
   }, [depositId, onSuccess, onError, onClose, message]);
 
+  // Auto-open payment window immediately when component becomes visible
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (visible && paymentPageUrl && !autoOpenedRef.current && !expired) {
+      autoOpenedRef.current = true;
+      window.open(paymentPageUrl, '_blank');
+      setWindowOpened(true);
+      setTimeout(() => pollDepositStatus(), 3000);
+    }
+    if (!visible) {
+      autoOpenedRef.current = false;
+    }
+  }, [visible, paymentPageUrl, expired, pollDepositStatus]);
+
   // Open payment in new tab and auto-start verification polling
   const handleOpenPayment = useCallback(() => {
     if (expired) {

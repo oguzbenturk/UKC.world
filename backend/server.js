@@ -65,6 +65,7 @@ import adminSupportTicketsRouter from './routes/adminSupportTickets.js';
 import walletRouter from './routes/wallet.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
 import groupBookingsRouter from './routes/groupBookings.js';
+import { processParticipantPayment, processOrganizerPayment } from './services/groupBookingService.js';
 import groupLessonRequestsRouter from './routes/groupLessonRequests.js';
 import rescheduleNotificationsRouter from './routes/rescheduleNotifications.js';
 import vouchersRouter from './routes/vouchers.js';
@@ -463,8 +464,27 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
       paymentId: payment.paymentId,
       paidPrice: payment.paidPrice,
       currency: payment.currency,
-      basketId: payment.raw?.basketId
+      basketId: payment.raw?.basketId,
+      hasCardUserKey: !!payment.cardUserKey
     });
+
+    // Save cardUserKey for saved card feature if returned by Iyzico
+    if (payment.cardUserKey) {
+      try {
+        const basketId = payment.raw?.basketId || '';
+        const userIdMatch = basketId.match(/^USR_(.+?)_TRX_/);
+        const cardUserId = userIdMatch?.[1];
+        if (cardUserId && cardUserId !== 'GUEST') {
+          await pool.query(
+            `UPDATE users SET iyzico_card_user_key = $1 WHERE id = $2 AND (iyzico_card_user_key IS NULL OR iyzico_card_user_key != $1)`,
+            [payment.cardUserKey, cardUserId]
+          );
+          logger.info('Saved Iyzico cardUserKey for user', { userId: cardUserId });
+        }
+      } catch (cardKeyErr) {
+        logger.warn('Failed to save cardUserKey (non-blocking)', { error: cardKeyErr.message });
+      }
+    }
 
     // Find the matching deposit request by gateway_transaction_id (the iyzico token)
     const depositResult = await pool.query(
@@ -585,8 +605,225 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
         return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
       }
 
-      // Neither deposit request nor shop order found
-      logger.error('Iyzico Callback: No matching deposit request or shop order found', { token, conversationId });
+      // Check if this is a booking credit card payment (BKG-{bookingId})
+      if (conversationId && conversationId.startsWith('BKG-')) {
+        const bookingId = conversationId.replace('BKG-', '');
+        const bookingResult = await pool.query(
+          `SELECT id, student_user_id, date, start_hour, duration, amount, payment_status, status, service_id
+           FROM bookings
+           WHERE id = $1 AND payment_status = 'pending_payment'
+           LIMIT 1`,
+          [bookingId]
+        );
+
+        if (bookingResult.rows.length === 0) {
+          // Check if already paid (idempotent)
+          const alreadyPaid = await pool.query(
+            `SELECT id, payment_status FROM bookings WHERE id = $1 AND payment_status = 'paid' LIMIT 1`,
+            [bookingId]
+          );
+          if (alreadyPaid.rows.length > 0) {
+            logger.info('Booking already paid, skipping (idempotent)', { bookingId });
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=booking&bookingId=${bookingId}`);
+          }
+          logger.error('Iyzico Callback: No matching pending booking found', { conversationId, bookingId, token });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=booking_not_found`);
+        }
+
+        const booking = bookingResult.rows[0];
+
+        // Update booking payment status to paid
+        await pool.query(
+          `UPDATE bookings SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`,
+          [booking.id]
+        );
+
+        logger.info('Booking payment confirmed via Iyzico callback', {
+          bookingId: booking.id,
+          userId: booking.student_user_id,
+          amount: booking.amount,
+          paymentId: payment.paymentId
+        });
+
+        // Notify via socket
+        try {
+          socketService.emitToChannel('general', 'booking:updated', {
+            bookingId: booking.id,
+            paymentStatus: 'paid',
+            paymentMethod: 'credit_card'
+          });
+          socketService.emitToChannel(`user:${booking.student_user_id}`, 'booking:payment_confirmed', {
+            bookingId: booking.id,
+            amount: booking.amount,
+            completedAt: new Date().toISOString()
+          });
+          socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'payment_confirmed' });
+        } catch (socketErr) {
+          logger.warn('Failed to emit booking payment socket events', { error: socketErr.message });
+        }
+
+        return res.redirect(`${frontendUrl}/payment/callback?status=success&type=booking&bookingId=${bookingId}`);
+      }
+
+      // Check if this is a group booking participant payment (GBKP-{participantId})
+      if (conversationId && conversationId.startsWith('GBKP-')) {
+        const participantId = conversationId.replace('GBKP-', '');
+        try {
+          // Get participant to find userId
+          const partCheck = await pool.query(
+            `SELECT id, user_id, payment_status FROM group_booking_participants WHERE id = $1 LIMIT 1`,
+            [participantId]
+          );
+          if (partCheck.rows.length === 0) {
+            logger.error('Iyzico Callback: No matching group booking participant', { conversationId, participantId });
+            return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=participant_not_found`);
+          }
+          if (partCheck.rows[0].payment_status === 'paid') {
+            logger.info('Group booking participant already paid (idempotent)', { participantId });
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=group_booking`);
+          }
+
+          await processParticipantPayment({
+            participantId,
+            userId: partCheck.rows[0].user_id,
+            paymentMethod: 'credit_card'
+          });
+
+          logger.info('Group booking participant payment confirmed via Iyzico', { participantId, paymentId: payment.paymentId });
+
+          try {
+            socketService.emitToChannel(`user:${partCheck.rows[0].user_id}`, 'booking:payment_confirmed', {
+              participantId,
+              completedAt: new Date().toISOString()
+            });
+            socketService.emitToChannel('general', 'dashboard:refresh', { type: 'group_booking', action: 'payment_confirmed' });
+          } catch (socketErr) {
+            logger.warn('Failed to emit group booking payment socket events', { error: socketErr.message });
+          }
+
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=group_booking`);
+        } catch (gbErr) {
+          logger.error('Group booking participant payment failed in Iyzico callback', { participantId, error: gbErr.message });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=group_payment_error`);
+        }
+      }
+
+      // Check if this is a group booking organizer pay-all (GBKO_{groupBookingId}_{userId})
+      if (conversationId && conversationId.startsWith('GBKO_')) {
+        // UUID format: 8-4-4-4-12 hex chars. Split by underscore delimiter.
+        const gbkoParts = conversationId.slice(5).split('_'); // Remove 'GBKO_' prefix
+        const groupBookingId = gbkoParts[0];
+        const organizerId = gbkoParts[1];
+        try {
+          await processOrganizerPayment({
+            groupBookingId,
+            organizerId,
+            paymentMethod: 'credit_card'
+          });
+
+          logger.info('Group booking organizer payment confirmed via Iyzico', { groupBookingId, organizerId, paymentId: payment.paymentId });
+
+          try {
+            socketService.emitToChannel(`user:${organizerId}`, 'booking:payment_confirmed', {
+              groupBookingId,
+              completedAt: new Date().toISOString()
+            });
+            socketService.emitToChannel('general', 'dashboard:refresh', { type: 'group_booking', action: 'payment_confirmed' });
+          } catch (socketErr) {
+            logger.warn('Failed to emit group booking organizer payment socket events', { error: socketErr.message });
+          }
+
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=group_booking`);
+        } catch (gbErr) {
+          logger.error('Group booking organizer payment failed in Iyzico callback', { groupBookingId, organizerId, error: gbErr.message });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=group_payment_error`);
+        }
+      }
+
+      // === Package purchase (PKG-{customerPackageId}) ===
+      if (conversationId && conversationId.startsWith('PKG-')) {
+        const customerPackageId = conversationId.replace('PKG-', '');
+        try {
+          const pkgResult = await pool.query(
+            `SELECT id, user_id, payment_status, package_name FROM customer_packages WHERE id = $1`,
+            [customerPackageId]
+          );
+
+          if (pkgResult.rows.length === 0) {
+            logger.error('Iyzico Callback: Package not found', { customerPackageId, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=package_not_found`);
+          }
+
+          const cp = pkgResult.rows[0];
+
+          // Idempotent: if already paid, just redirect success
+          if (cp.payment_status === 'paid') {
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=package_purchase`);
+          }
+
+          // Update payment status to paid
+          await pool.query(
+            `UPDATE customer_packages SET payment_status = 'paid', notes = COALESCE(notes, '') || ' | Iyzico payment confirmed' WHERE id = $1`,
+            [customerPackageId]
+          );
+
+          try {
+            const { recordLegacyTransaction } = await import('./services/walletService.js');
+            await recordLegacyTransaction({
+              userId: cp.user_id,
+              amount: parseFloat(payment.paidPrice) || 0,
+              transactionType: 'package_purchase',
+              status: 'completed',
+              direction: 'credit',
+              description: `Package Purchase (Iyzico): ${cp.package_name}`,
+              currency: payment.currency || 'EUR',
+              paymentMethod: 'iyzico',
+              referenceNumber: payment.paymentId,
+              metadata: {
+                packageId: customerPackageId,
+                provider: 'iyzico',
+                paymentId: payment.paymentId,
+                paidPrice: payment.paidPrice,
+                source: 'iyzico:callback:package-purchase'
+              },
+              entityType: 'customer_package',
+              relatedEntityType: 'customer_package',
+              relatedEntityId: customerPackageId,
+              createdBy: cp.user_id,
+              allowNegative: true
+            });
+          } catch (txErr) {
+            logger.warn('Failed to record package purchase wallet transaction from Iyzico callback', {
+              customerPackageId, error: txErr.message
+            });
+          }
+
+          logger.info('Iyzico Callback: Package purchase payment confirmed', {
+            customerPackageId,
+            userId: cp.user_id,
+            paymentId: payment.paymentId,
+            paidPrice: payment.paidPrice
+          });
+
+          try {
+            socketService.emitToChannel(`user:${cp.user_id}`, 'package:payment_confirmed', {
+              customerPackageId,
+              completedAt: new Date().toISOString()
+            });
+            socketService.emitToChannel('general', 'dashboard:refresh', { type: 'package_purchase', action: 'payment_confirmed' });
+          } catch (socketErr) {
+            logger.warn('Failed to emit package payment socket events', { error: socketErr.message });
+          }
+
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=package_purchase`);
+        } catch (pkgErr) {
+          logger.error('Package purchase payment failed in Iyzico callback', { customerPackageId, error: pkgErr.message });
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=package_payment_error`);
+        }
+      }
+
+      // Neither deposit request, shop order, booking, group booking, nor package found
+      logger.error('Iyzico Callback: No matching deposit request, shop order, booking, or group booking found', { token, conversationId });
       return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=no_match`);
     }
 

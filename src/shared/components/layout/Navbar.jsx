@@ -5,6 +5,7 @@ import { Avatar, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
+import { useCart } from '@/shared/hooks/useCart';
 import RealTimeStatusIndicator from '../realtime/RealTimeStatusIndicator';
 import NotificationBell from '@/features/notifications/components/NotificationBell';
 import StudentWalletTriggerButton from '@/features/students/components/StudentWalletTriggerButton';
@@ -79,6 +80,7 @@ export const Navbar = ({ toggleSidebar }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { logout, user, isAuthenticated } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const { getCartCount } = useCart();
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
   const location = useLocation();
   
@@ -339,7 +341,18 @@ export const Navbar = ({ toggleSidebar }) => {
                     const textColor = activeItem.customStyle?.textColor || '#64748b';
 
                     return (
-                      <div className="flex items-center max-w-[120px] sm:max-w-[200px] md:max-w-none overflow-hidden">
+                      <div
+                        className="flex items-center max-w-[120px] sm:max-w-[200px] md:max-w-none overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          if (activeItem.to) navigate(activeItem.to);
+                        }}
+                        role="link"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && activeItem.to) navigate(activeItem.to);
+                        }}
+                        title={`Go to ${displayLabel}`}
+                      >
                         <span
                           className="animate-pulse flex-shrink-0"
                           style={{
@@ -385,7 +398,7 @@ export const Navbar = ({ toggleSidebar }) => {
               
                 {/* Real-time Status Indicator - Only for authenticated users */}
                 {isAuthenticated && <NotificationBell />}
-                {isAuthenticated && (
+                {isAuthenticated && ['admin', 'manager', 'super_admin', 'developer'].includes(user?.role?.toLowerCase()) && (
                   <div className="hidden md:flex">
                     <RealTimeStatusIndicator />
                   </div>
@@ -458,6 +471,23 @@ export const Navbar = ({ toggleSidebar }) => {
                         }}
                       >
                         My Orders
+                      </NavLink>
+                      <NavLink
+                        to="/shop"
+                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsProfileDropdownOpen(false);
+                          navigate('/shop');
+                        }}
+                      >
+                        <span>Shopping Cart</span>
+                        {getCartCount() > 0 && (
+                          <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
+                            {getCartCount()}
+                          </span>
+                        )}
                       </NavLink>
                       <NavLink
                         to="/settings"

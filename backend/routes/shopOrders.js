@@ -10,8 +10,43 @@ import socketService from '../services/socketService.js';
 import { getBalance, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
+import { insertNotification } from '../services/notificationWriter.js';
 
 const router = express.Router();
+
+// Helper to notify admins and managers about a new shop order
+async function notifyAdminsNewOrder(order, items, buyerName) {
+  try {
+    const adminsResult = await pool.query(`
+      SELECT u.id FROM users u
+      JOIN roles r ON u.role_id = r.id
+      WHERE r.name IN ('admin', 'manager')
+        AND u.deleted_at IS NULL
+    `);
+
+    const itemSummary = items.length <= 3
+      ? items.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+      : `${items.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${items.length - 2} more`;
+
+    for (const admin of adminsResult.rows) {
+      await insertNotification({
+        userId: admin.id,
+        title: 'New Shop Order',
+        message: `${buyerName} placed order #${order.order_number} (${itemSummary}) - Total: €${parseFloat(order.total_amount).toFixed(2)}`,
+        type: 'shop_order',
+        data: {
+          orderId: order.id,
+          orderNumber: order.order_number,
+          totalAmount: order.total_amount,
+          itemCount: items.length,
+          link: `/services/shop-orders`
+        }
+      });
+    }
+  } catch (err) {
+    logger.warn('Failed to notify admins about new shop order:', err.message);
+  }
+}
 
 // Helper to emit socket events safely
 const emitSocketEvent = (event, data) => {
@@ -69,7 +104,7 @@ router.post('/', authenticateJWT, async (req, res) => {
       return res.status(400).json({ error: 'Order must contain at least one item' });
     }
 
-    if (!payment_method || !['wallet', 'credit_card', 'cash'].includes(payment_method)) {
+    if (!payment_method || !['wallet', 'credit_card', 'cash', 'wallet_hybrid'].includes(payment_method)) {
       return res.status(400).json({ error: 'Invalid payment method' });
     }
 
@@ -172,16 +207,21 @@ router.post('/', authenticateJWT, async (req, res) => {
     const finalAmount = subtotal - voucherDiscount;
 
     // Check wallet balance if paying by wallet
+    let hybridWalletDeducted = 0;
     if (payment_method === 'wallet' && use_wallet) {
       const walletBalance = await getBalance(userId, 'EUR');
       const balance = walletBalance.available || 0;
-      
+
       if (balance < finalAmount) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}` 
+        return res.status(400).json({
+          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}`
         });
       }
+    } else if (payment_method === 'wallet_hybrid') {
+      // Hybrid: deduct what we can from wallet, charge the rest via credit card
+      const walletBalance = await getBalance(userId, 'EUR');
+      hybridWalletDeducted = Math.min(walletBalance.available || 0, finalAmount);
     }
 
     // Create the order
@@ -329,6 +369,77 @@ router.post('/', authenticateJWT, async (req, res) => {
       `, [order.id, userId]);
     }
 
+    // Process hybrid wallet+card payment
+    if (payment_method === 'wallet_hybrid') {
+      const cardChargeAmount = Math.max(0, finalAmount - hybridWalletDeducted);
+
+      // Deduct wallet portion if available
+      if (hybridWalletDeducted > 0) {
+        await recordTransaction({
+          client,
+          userId,
+          amount: hybridWalletDeducted,
+          currency: 'EUR',
+          transactionType: 'payment',
+          direction: 'debit',
+          availableDelta: -hybridWalletDeducted,
+          description: `Shop Order #${order.order_number} (wallet portion)`,
+          relatedEntityType: 'shop_order',
+          metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: hybridWalletDeducted, cardPortion: cardChargeAmount }
+        });
+      }
+
+      if (cardChargeAmount > 0) {
+        // Initiate Iyzico for the remaining card portion
+        try {
+          const iyzicoItems = [{
+            id: String(order.id),
+            name: `Shop Order #${order.order_number} (card portion)`,
+            category1: 'Shop',
+            category2: 'Retail',
+            itemType: 'PHYSICAL',
+            price: parseFloat(cardChargeAmount).toFixed(2)
+          }];
+
+          const gatewayResult = await initiateDeposit({
+            amount: cardChargeAmount,
+            currency: 'EUR',
+            userId: userId,
+            referenceCode: order.order_number,
+            items: iyzicoItems
+          });
+
+          await client.query('COMMIT');
+          const completeOrder = await getOrderWithItems(order.id);
+
+          return res.status(201).json({
+            success: true,
+            paymentPageUrl: gatewayResult.paymentPageUrl,
+            order: completeOrder,
+            hybridPayment: {
+              walletCharged: hybridWalletDeducted,
+              cardCharge: cardChargeAmount,
+              totalAmount: finalAmount
+            }
+          });
+        } catch (iyzicoErr) {
+          // Rollback wallet deduction too
+          await client.query('ROLLBACK');
+          logger.error('Iyzico hybrid payment init failed', iyzicoErr);
+          return res.status(500).json({ error: 'Failed to initiate card payment for remaining amount' });
+        }
+      } else {
+        // Wallet covered everything (edge case)
+        await client.query(`
+          UPDATE shop_orders SET payment_status = 'completed', status = 'confirmed', confirmed_at = NOW() WHERE id = $1
+        `, [order.id]);
+        await client.query(`
+          INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+          VALUES ($1, 'pending', 'confirmed', $2, 'Payment completed via wallet (hybrid)')
+        `, [order.id, userId]);
+      }
+    }
+
     await client.query('COMMIT');
 
     // Get complete order with items
@@ -365,6 +476,15 @@ router.post('/', authenticateJWT, async (req, res) => {
       totalAmount: finalAmount,
       itemCount: validatedItems.length
     });
+
+    // Send in-app notifications to admins/managers
+    const buyerResult = await pool.query(
+      'SELECT first_name, last_name FROM users WHERE id = $1', [userId]
+    );
+    const buyerName = buyerResult.rows[0]
+      ? `${buyerResult.rows[0].first_name} ${buyerResult.rows[0].last_name}`.trim()
+      : 'A customer';
+    notifyAdminsNewOrder(completeOrder, validatedItems, buyerName);
 
     // Check for low stock and emit alerts
     for (const item of validatedItems) {

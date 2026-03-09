@@ -471,13 +471,14 @@ router.post('/logout', authenticateJWT, async (req, res) => {
 
 // Public registration endpoint for outsider role
 router.post('/register', authRateLimit, async (req, res) => {
-  const { 
-    first_name, 
-    last_name, 
-    email, 
-    phone, 
+  const {
+    first_name,
+    last_name,
+    email,
+    phone,
     password,
-    age,
+    age: rawAge,
+    date_of_birth,
     weight,
     preferred_currency,
     address,
@@ -485,6 +486,21 @@ router.post('/register', authRateLimit, async (req, res) => {
     country,
     zip_code
   } = req.body;
+
+  // Calculate age from date_of_birth if provided, otherwise use rawAge
+  let age = rawAge;
+  if (date_of_birth) {
+    const dob = new Date(date_of_birth);
+    if (!isNaN(dob.getTime())) {
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        calculatedAge--;
+      }
+      age = calculatedAge;
+    }
+  }
 
   // Validate required fields
   if (!first_name || !last_name || !email || !password) {
@@ -573,24 +589,25 @@ router.post('/register', authRateLimit, async (req, res) => {
     // Create user
     const userResult = await client.query(`
       INSERT INTO users (
-        email, 
-        password_hash, 
-        name, 
-        first_name, 
-        last_name, 
-        phone, 
+        email,
+        password_hash,
+        name,
+        first_name,
+        last_name,
+        phone,
         age,
+        date_of_birth,
         weight,
         preferred_currency,
         address,
         city,
         country,
         zip_code,
-        role_id, 
-        created_at, 
+        role_id,
+        created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
       RETURNING id, email, name, first_name, last_name, preferred_currency
     `, [
       email.toLowerCase(),
@@ -600,6 +617,7 @@ router.post('/register', authRateLimit, async (req, res) => {
       last_name,
       phone || null,
       age || null,
+      date_of_birth || null,
       weight || null,
       preferred_currency || 'EUR',
       address || null,

@@ -179,8 +179,6 @@ const buildSuccessMessage = (data, formatCurrency) => {
 
   if (data.wallet) {
     description += ` New wallet balance: ${formatCurrency(data.wallet.newBalance, data.wallet.currency)}.`;
-  } else if (data.externalPayment) {
-    description += ` Payment via ${data.externalPayment.processor} recorded.`;
   } else if (data.paymentMethod === 'pay_later') {
     description += ' Payment is pending.';
   }
@@ -299,6 +297,12 @@ const ExperiencePackagesPage = ({
       return response.data;
     },
     onSuccess: async (data) => {
+      // For credit card payments, redirect to Iyzico payment page
+      if (data.paymentPageUrl) {
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+
       const roleUpgraded = data.roleUpgrade?.upgraded;
       if (roleUpgraded) {
         await refreshToken();

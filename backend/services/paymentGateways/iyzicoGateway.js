@@ -21,7 +21,7 @@ const iyzipay = (config.apiKey && config.secretKey)
 async function getUserDetails(userId) {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, phone, address, city, country FROM users WHERE id = $1',
+      'SELECT id, name, email, phone, address, city, country, iyzico_card_user_key FROM users WHERE id = $1',
       [userId]
     );
     return result.rows[0];
@@ -184,6 +184,8 @@ export async function initiateDeposit({
       paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
       callbackUrl: callbackUrl,
       enabledInstallments: [1],
+      // Enable saved card feature — pass cardUserKey so Iyzico shows "Save my card" checkbox
+      ...(userData?.iyzico_card_user_key ? { cardUserKey: userData.iyzico_card_user_key } : {}),
       buyer: {
         id: safeUserId,
         name: firstName,
@@ -344,6 +346,7 @@ export async function verifyPayment(token) {
                     paymentId: result.paymentId,
                     paidPrice: result.paidPrice,
                     currency: result.currency,
+                    cardUserKey: result.cardUserKey || null,
                     raw: result
                 });
             } catch (callbackErr) {

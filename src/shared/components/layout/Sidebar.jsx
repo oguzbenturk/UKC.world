@@ -527,7 +527,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
               {renderShopSidebar()}
             </nav>
           ) : (
-          <nav ref={navRef} className="flex-grow overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
+          <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
           
           <div>
             {/* Removed duplicate 'Main Menu' labels to simplify UI */}
@@ -935,6 +935,49 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                     )}
                   </div>
                 )}
+              </li>
+            </ul>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
+            {!isCollapsed && <span className={groupLabelClasses}>Payment Methods</span>}
+            <ul className="mt-1 space-y-1">
+              <li>
+                <div className="relative group">
+                  <button
+                    onClick={() => { window.dispatchEvent(new Event('wallet:deposit')); if (isOpen && window.innerWidth < 1200) toggleSidebar(); }}
+                    className={`${commonLinkClasses} w-full text-left ${isCollapsed ? 'justify-center' : ''}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                    </svg>
+                    {!isCollapsed && 'Credit Card'}
+                  </button>
+                  {isCollapsed && (
+                    <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
+                      Credit Card
+                    </div>
+                  )}
+                </div>
+              </li>
+              <li>
+                <div className="relative group">
+                  <button
+                    onClick={() => { window.dispatchEvent(new Event('wallet:bank-transfer')); if (isOpen && window.innerWidth < 1200) toggleSidebar(); }}
+                    className={`${commonLinkClasses} w-full text-left ${isCollapsed ? 'justify-center' : ''}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
+                    </svg>
+                    {!isCollapsed && 'Bank Transfer'}
+                  </button>
+                  {isCollapsed && (
+                    <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
+                      Bank Transfer
+                    </div>
+                  )}
+                </div>
               </li>
             </ul>
           </div>

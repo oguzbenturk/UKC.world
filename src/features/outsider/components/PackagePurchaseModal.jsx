@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { Modal, Card, Typography, Button, Tag, Divider, Space, Radio, Input, Form, DatePicker } from 'antd';
+import { Modal, Card, Typography, Button, Tag, Divider, Space, Radio, DatePicker } from 'antd';
 import {
   ShoppingOutlined,
   WalletOutlined,
@@ -21,15 +21,6 @@ import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 const { Title, Text } = Typography;
-
-// Payment processor options
-const PROCESSOR_OPTIONS = [
-  { value: 'stripe', label: 'Stripe (Credit Card)' },
-  { value: 'paytr', label: 'PayTR' },
-  { value: 'binance_pay', label: 'Binance Pay' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'paypal', label: 'PayPal' }
-];
 
 // Helper to get package price in specific currency
 const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
@@ -71,13 +62,11 @@ const PackagePurchaseModal = ({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('wallet');
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
   const [appliedVoucher, setAppliedVoucher] = useState(null);
-  const [processorForm] = Form.useForm();
 
   const handleClose = () => {
     setSelectedPaymentMethod('wallet');
     setAccommodationDates({ checkIn: null, checkOut: null });
     setAppliedVoucher(null);
-    processorForm.resetFields();
     onCancel();
   };
 
@@ -104,27 +93,9 @@ const PackagePurchaseModal = ({
       return { error: 'Please select check-in and check-out dates for accommodation.' };
     }
 
-    let processor = null;
-    let reference = null;
-    let note = null;
-
-    if (selectedPaymentMethod === 'external') {
-      try {
-        const values = await processorForm.validateFields();
-        processor = values.processor;
-        reference = values.reference;
-        note = values.note;
-      } catch {
-        return { error: 'Please fill in payment details.' };
-      }
-    }
-
     onPurchase({
       packageId: selectedPackage.id,
       paymentMethod: selectedPaymentMethod,
-      externalPaymentProcessor: processor,
-      externalPaymentReference: reference,
-      externalPaymentNote: note,
       checkInDate: accommodationDates.checkIn?.format('YYYY-MM-DD'),
       checkOutDate: accommodationDates.checkOut?.format('YYYY-MM-DD'),
       voucherId: appliedVoucher?.id
@@ -223,10 +194,11 @@ const PackagePurchaseModal = ({
                   </Tag>
                 </div>
               </Radio>
-              <Radio value="external">
+              <Radio value="credit_card">
                 <div className="flex items-center gap-2">
                   <CreditCardOutlined />
-                  <span>External Payment</span>
+                  <span>Card</span>
+                  <Tag color="blue" className="!text-xs">Iyzico</Tag>
                 </div>
               </Radio>
               {isTrustedCustomer && (
@@ -241,39 +213,6 @@ const PackagePurchaseModal = ({
             </Space>
           </Radio.Group>
 
-          {/* External Payment Form */}
-          {selectedPaymentMethod === 'external' && (
-            <Form form={processorForm} layout="vertical" className="mb-4">
-              <Form.Item
-                name="processor"
-                label="Payment Processor"
-                rules={[{ required: true, message: 'Please select a processor' }]}
-              >
-                <Radio.Group>
-                  <Space wrap>
-                    {PROCESSOR_OPTIONS.map((opt) => (
-                      <Radio.Button key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </Radio.Button>
-                    ))}
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-              <Form.Item
-                name="reference"
-                label="Transaction Reference"
-              >
-                <Input placeholder="Transaction ID or reference number" />
-              </Form.Item>
-              <Form.Item
-                name="note"
-                label="Note"
-              >
-                <Input.TextArea placeholder="Additional notes (optional)" rows={2} />
-              </Form.Item>
-            </Form>
-          )}
-
           <Button
             type="primary"
             size="large"
@@ -287,7 +226,7 @@ const PackagePurchaseModal = ({
                   <div style={{ marginTop: 8 }}>
                     <p><strong>{selectedPackage?.name}</strong></p>
                     <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{getPackageDisplayPrice(selectedPackage)}</p>
-                    <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'external' ? 'External Payment' : 'Pay Later'}</p>
+                    <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'credit_card' ? 'Card' : 'Pay Later'}</p>
                   </div>
                 ),
                 okText: 'Confirm & Pay',

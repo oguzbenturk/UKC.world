@@ -11,6 +11,7 @@ import { useRealTimeSync } from '@/shared/hooks/useRealTime';
 const WalletModalManager = () => {
   const { isAuthenticated, user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [initialAction, setInitialAction] = useState(null);
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
   const queryClient = useQueryClient();
   
@@ -33,17 +34,23 @@ const WalletModalManager = () => {
       return undefined;
     }
 
-    const handleOpen = () => setOpen(true);
-    const handleClose = () => setOpen(false);
+    const handleOpen = () => { setInitialAction(null); setOpen(true); };
+    const handleClose = () => { setInitialAction(null); setOpen(false); };
+    const handleDeposit = () => { setInitialAction('deposit'); setOpen(true); };
+    const handleBankTransfer = () => { setInitialAction('bank_transfer'); setOpen(true); };
 
     window.addEventListener('wallet:open', handleOpen);
     window.addEventListener('studentWallet:open', handleOpen);
     window.addEventListener('wallet:close', handleClose);
+    window.addEventListener('wallet:deposit', handleDeposit);
+    window.addEventListener('wallet:bank-transfer', handleBankTransfer);
 
     return () => {
       window.removeEventListener('wallet:open', handleOpen);
       window.removeEventListener('studentWallet:open', handleOpen);
       window.removeEventListener('wallet:close', handleClose);
+      window.removeEventListener('wallet:deposit', handleDeposit);
+      window.removeEventListener('wallet:bank-transfer', handleBankTransfer);
     };
   }, [isAuthenticated]);
 
@@ -132,10 +139,11 @@ const WalletModalManager = () => {
   return (
     <StudentWalletModal
       open={open}
-      onClose={() => setOpen(false)}
+      onClose={() => { setOpen(false); setInitialAction(null); }}
       currency={currency}
       balance={balance}
       pendingBalance={pendingBalance}
+      initialAction={initialAction}
     />
   );
 };

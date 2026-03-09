@@ -1,3 +1,5 @@
+# docker-compose.production.yml -- Production deployment with SSL, security hardening
+# Usage: docker-compose -f docker-compose.production.yml up --build -d
 version: "3.8"
 
 services:

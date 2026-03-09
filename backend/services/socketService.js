@@ -492,12 +492,19 @@ class SocketService {
     const stats = {
       totalConnections: this.connectedUsers.size,
       usersByRole: {},
-      activeChannels: new Set()
+      activeChannels: new Set(),
+      users: []
     };
 
-    // Count users by role
+    // Count users by role and collect user info
     this.connectedUsers.forEach(user => {
       stats.usersByRole[user.role] = (stats.usersByRole[user.role] || 0) + 1;
+      stats.users.push({
+        id: user.id,
+        name: user.name || user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+        email: user.email,
+        role: user.role
+      });
     });
 
     // Get active channels

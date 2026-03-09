@@ -4,7 +4,7 @@ import multer from 'multer';
 import fs from 'fs';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
-import { formSubmissionRateLimit } from '../middlewares/security-clean.js';
+import { formSubmissionRateLimit } from '../middlewares/security.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';

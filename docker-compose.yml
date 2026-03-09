@@ -1,3 +1,8 @@
+# docker-compose.yml -- Base services for local development
+# Usage: docker-compose up --build
+# Override: docker-compose.override.yml (auto-loaded, adds dev ports and volumes)
+# Production: docker-compose -f docker-compose.production.yml up --build
+
 services:
   frontend:
     build:
@@ -27,15 +32,15 @@ services:
     ports:
       - "4000:4000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=plannivo
-      - DB_PASSWORD=WHMgux86
+      - DB_PASSWORD=plannivo-dev-password
       - DB_NAME=plannivo
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - JWT_SECRET=plannivo-production-secret-key
+      - JWT_SECRET=plannivo-local-dev-secret
       - CORS_ORIGIN=http://localhost
     depends_on:
       db:
@@ -61,7 +66,7 @@ services:
     environment:
       POSTGRES_DB: plannivo
       POSTGRES_USER: plannivo
-      POSTGRES_PASSWORD: WHMgux86
+      POSTGRES_PASSWORD: plannivo-dev-password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

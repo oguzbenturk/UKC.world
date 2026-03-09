@@ -53,3 +53,25 @@ backend/.env.local
 
 # Upload directories
 backend/uploads/signatures/
+
+# Claude Code temporary files
+tmpclaude-*
+tmp-*.mjs
+tmp-*.cjs
+
+# Test output artifacts
+playwright-report/
+test-results/
+
+# Stale production config folder
+productionvars/
+
+# Large binary assets (not used by the app)
+*.pdf
+pictures/
+
+# ACME challenge webroot (local infrastructure artifact)
+acme-webroot/
+
+# Production env files with secrets
+backend/.env.server.production

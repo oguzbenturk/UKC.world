@@ -119,6 +119,7 @@ const ShopPage = () => {
     const fetchIdRef = useRef(0);
     const allProductsFetchedRef = useRef(false);
     const masterProductsRef = useRef([]); // All products loaded once
+    const [masterProductsLoaded, setMasterProductsLoaded] = useState(false); // Trigger re-filter after load
     
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
     const {
@@ -146,6 +147,7 @@ const ShopPage = () => {
                     allProds.push(...categoryGroup.products);
                 });
                 masterProductsRef.current = allProds;
+                setMasterProductsLoaded(true);
                 setProducts(allProds);
                 setPagination({ page: 1, total: allProds.length });
                 
@@ -193,7 +195,7 @@ const ShopPage = () => {
         
         setProducts(result);
         setPagination({ page: 1, total: result.length });
-    }, [selectedCategory, selectedSubcategory]);
+    }, [selectedCategory, selectedSubcategory, masterProductsLoaded]);
 
     // Local handler wrappers to reset pagination when category changes
     const localHandleCategoryChange = useCallback((value, keepSubcategory = false) => {

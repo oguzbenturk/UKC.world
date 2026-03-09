@@ -8,7 +8,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { App, Button, Card, Typography, Alert, Spin, Tag, Empty, Modal, Radio, Input, Form, DatePicker } from 'antd';
+import { App, Button, Card, Typography, Alert, Spin, Tag, Empty, Modal, Radio, Input, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import { CalendarOutlined, CheckCircleOutlined, RocketOutlined, ShoppingOutlined, WalletOutlined, CreditCardOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -23,14 +23,6 @@ import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 const { Title, Paragraph, Text } = Typography;
 
-// Payment processor options (same as booking wizard)
-const PROCESSOR_OPTIONS = [
-  { value: 'stripe', label: 'Stripe (Credit Card)' },
-  { value: 'paytr', label: 'PayTR' },
-  { value: 'binance_pay', label: 'Binance Pay' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'paypal', label: 'PayPal' }
-];
 
 // Stable empty object reference to prevent re-renders
 const EMPTY_BOOKING_DATA = {};
@@ -79,8 +71,6 @@ const OutsiderBookingPage = () => {
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [selectedPackageForPurchase, setSelectedPackageForPurchase] = useState(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('wallet');
-  const [selectedProcessor, setSelectedProcessor] = useState(null);
-  const [processorForm] = Form.useForm();
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   
@@ -145,13 +135,10 @@ const OutsiderBookingPage = () => {
 
   // Package purchase mutation
   const purchaseMutation = useMutation({
-    mutationFn: async ({ packageId, paymentMethod, externalPaymentProcessor, externalPaymentReference, externalPaymentNote, checkInDate, checkOutDate, voucherId }) => {
+    mutationFn: async ({ packageId, paymentMethod, checkInDate, checkOutDate, voucherId }) => {
       const response = await apiClient.post('/services/packages/purchase', {
         packageId,
         paymentMethod,
-        externalPaymentProcessor,
-        externalPaymentReference,
-        externalPaymentNote,
         checkInDate,
         checkOutDate,
         voucherId
@@ -159,6 +146,12 @@ const OutsiderBookingPage = () => {
       return response.data;
     },
     onSuccess: async (data) => {
+      // For credit card payments, redirect to Iyzico payment page
+      if (data.paymentPageUrl) {
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+
       let description = `You have successfully purchased "${data.customerPackage.packageName}".`;
       
       // Add voucher discount info if applied
@@ -176,8 +169,6 @@ const OutsiderBookingPage = () => {
       
       if (data.wallet) {
         description += ` Your new wallet balance is ${formatCurrency(data.wallet.newBalance, data.wallet.currency)}.`;
-      } else if (data.externalPayment) {
-        description += ` Payment via ${data.externalPayment.processor} recorded.`;
       } else if (data.paymentMethod === 'pay_later') {
         description += ' Payment is pending.';
       }
@@ -207,8 +198,6 @@ const OutsiderBookingPage = () => {
       setPurchaseModalOpen(false);
       setSelectedPackageForPurchase(null);
       setSelectedPaymentMethod('wallet');
-      setSelectedProcessor(null);
-      processorForm.resetFields();
       
       // Redirect to student dashboard if upgraded
       if (roleUpgraded) {
@@ -260,8 +249,6 @@ const OutsiderBookingPage = () => {
   const handleOpenPurchaseModal = (pkg) => {
     setSelectedPackageForPurchase(pkg);
     setSelectedPaymentMethod('wallet');
-    setSelectedProcessor(null);
-    processorForm.resetFields();
     setAccommodationDates({ checkIn: null, checkOut: null });
     setPurchaseModalOpen(true);
   };
@@ -321,36 +308,11 @@ const OutsiderBookingPage = () => {
       return;
     }
 
-    // Validate external payment
-    let externalPaymentReference = null;
-    let externalPaymentNote = null;
-
-    if (selectedPaymentMethod === 'external') {
-      if (!selectedProcessor) {
-        notification.error({
-          message: 'Select Payment Processor',
-          description: 'Please select a payment processor.',
-        });
-        return;
-      }
-
-      try {
-        const values = await processorForm.validateFields();
-        externalPaymentReference = values.reference;
-        externalPaymentNote = values.note;
-      } catch {
-        return; // Form validation failed
-      }
-    }
-
     setPurchasingPackageId(pkg.id);
 
     await purchaseMutation.mutateAsync({
       packageId: pkg.id,
       paymentMethod: selectedPaymentMethod,
-      externalPaymentProcessor: selectedProcessor,
-      externalPaymentReference,
-      externalPaymentNote,
       // Send accommodation dates if applicable
       checkInDate: includesAccommodation && accommodationDates.checkIn ? accommodationDates.checkIn.format('YYYY-MM-DD') : null,
       checkOutDate: includesAccommodation && accommodationDates.checkOut ? accommodationDates.checkOut.format('YYYY-MM-DD') : null,
@@ -457,10 +419,6 @@ const OutsiderBookingPage = () => {
             value={selectedPaymentMethod}
             onChange={(e) => {
               setSelectedPaymentMethod(e.target.value);
-              if (e.target.value !== 'external') {
-                setSelectedProcessor(null);
-                processorForm.resetFields();
-              }
             }}
             className="w-full"
           >
@@ -485,62 +443,21 @@ const OutsiderBookingPage = () => {
                 )}
               </Radio>
 
-              {/* Credit Card / External Payment */}
+              {/* Card Payment */}
               <Radio 
-                value="external" 
+                value="credit_card" 
                 className="w-full p-3 border rounded-lg hover:bg-slate-50"
               >
                 <div className="flex items-center gap-2">
                   <CreditCardOutlined className="text-blue-600" />
-                  <span>Credit Card / External Payment</span>
+                  <span>Card</span>
                 </div>
               </Radio>
 
               {/* Pay Later - REMOVED for outsiders to prevent refund issues
-                 Outsiders must pay upfront (wallet or external payment only) */}
+                 Outsiders must pay upfront (wallet or card payment only) */}
             </div>
           </Radio.Group>
-        </div>
-
-        {/* External Payment Form - Always render Form but conditionally show to avoid useForm warning */}
-        <div style={{ display: selectedPaymentMethod === 'external' ? 'block' : 'none' }}>
-          <div className="border-l-4 border-blue-400 pl-4 py-2 bg-blue-50 rounded-r-lg">
-            <Text strong className="block mb-3">External Payment Details</Text>
-            
-            {/* Processor Selection */}
-            <div className="mb-3">
-              <Text className="block mb-1">Payment Processor</Text>
-              <Radio.Group
-                value={selectedProcessor}
-                onChange={(e) => setSelectedProcessor(e.target.value)}
-                buttonStyle="solid"
-                size="small"
-              >
-                {PROCESSOR_OPTIONS.map((opt) => (
-                  <Radio.Button key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </Radio.Button>
-                ))}
-              </Radio.Group>
-            </div>
-
-            {/* Reference Number */}
-            <Form form={processorForm} layout="vertical" size="small">
-              <Form.Item
-                name="reference"
-                label="Payment Reference / Transaction ID"
-                rules={[{ required: true, message: 'Please enter the payment reference' }]}
-              >
-                <Input placeholder="Enter payment reference or transaction ID" />
-              </Form.Item>
-              <Form.Item
-                name="note"
-                label="Note (Optional)"
-              >
-                <Input placeholder="Any additional notes" />
-              </Form.Item>
-            </Form>
-          </div>
         </div>
 
         {/* Promo Code Input */}
@@ -914,9 +831,7 @@ const OutsiderBookingPage = () => {
           setPurchaseModalOpen(false);
           setSelectedPackageForPurchase(null);
           setSelectedPaymentMethod('wallet');
-          setSelectedProcessor(null);
           setAppliedVoucher(null);
-          processorForm.resetFields();
         }}
         footer={[
           <Button 
@@ -933,9 +848,6 @@ const OutsiderBookingPage = () => {
             type="primary"
             loading={purchaseMutation.isPending}
             onClick={handleConfirmPurchase}
-            disabled={
-              (selectedPaymentMethod === 'external' && !selectedProcessor)
-            }
           >
             Confirm Purchase
           </Button>

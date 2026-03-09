@@ -23,6 +23,7 @@ import {
   cancelGroupBooking
 } from '../services/groupBookingService.js';
 import { pool } from '../db.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = express.Router();
 
@@ -446,7 +447,7 @@ router.post('/:id/pay', authenticateJWT, async (req, res, next) => {
 
     // Get participant record
     const partResult = await pool.query(
-      'SELECT id FROM group_booking_participants WHERE group_booking_id = $1 AND user_id = $2',
+      'SELECT id, amount_due, currency FROM group_booking_participants WHERE group_booking_id = $1 AND user_id = $2',
       [id, userId]
     );
 
@@ -454,8 +455,29 @@ router.post('/:id/pay', authenticateJWT, async (req, res, next) => {
       return res.status(404).json({ error: 'You are not a participant in this group booking' });
     }
 
+    const participant = partResult.rows[0];
+
+    // Credit card: initiate Iyzico checkout and return payment URL
+    if (paymentMethod === 'credit_card') {
+      const amount = parseFloat(participant.amount_due);
+      const currency = participant.currency || 'EUR';
+
+      const gatewayResult = await initiateDeposit({
+        amount,
+        currency,
+        userId,
+        referenceCode: `GBKP-${participant.id}`,
+        items: [{ id: String(id), name: `Group Booking #${id}`, price: amount.toFixed(2) }]
+      });
+
+      return res.json({
+        success: true,
+        paymentPageUrl: gatewayResult.paymentPageUrl
+      });
+    }
+
     const result = await processParticipantPayment({
-      participantId: partResult.rows[0].id,
+      participantId: participant.id,
       userId,
       paymentMethod: paymentMethod || 'wallet',
       externalReference,
@@ -486,6 +508,36 @@ router.post('/:id/pay-all', authenticateJWT, async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
     const { paymentMethod, externalReference } = req.body;
+
+    // Credit card: initiate Iyzico checkout with total amount
+    if (paymentMethod === 'credit_card') {
+      // Calculate total amount for all unpaid participants
+      const unpaidResult = await pool.query(
+        `SELECT SUM(amount_due) as total, COUNT(*) as count, MIN(currency) as currency
+         FROM group_booking_participants
+         WHERE group_booking_id = $1 AND payment_status != 'paid'`,
+        [id]
+      );
+      const total = parseFloat(unpaidResult.rows[0]?.total) || 0;
+      const currency = unpaidResult.rows[0]?.currency || 'EUR';
+
+      if (total <= 0) {
+        return res.status(400).json({ error: 'All participants are already paid' });
+      }
+
+      const gatewayResult = await initiateDeposit({
+        amount: total,
+        currency,
+        userId,
+        referenceCode: `GBKO_${id}_${userId}`,
+        items: [{ id: String(id), name: `Group Booking #${id} (All Participants)`, price: total.toFixed(2) }]
+      });
+
+      return res.json({
+        success: true,
+        paymentPageUrl: gatewayResult.paymentPageUrl
+      });
+    }
 
     const result = await processOrganizerPayment({
       groupBookingId: id,

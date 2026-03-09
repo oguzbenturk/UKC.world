@@ -10,7 +10,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Modal, Button, Tag, Steps, Spin, Input, Form, Select, Tooltip, Alert, App } from 'antd';
+import { Modal, Button, Tag, Steps, Spin, Input, Select, Tooltip, Alert, App } from 'antd';
 import {
   CalendarOutlined,
   CheckCircleOutlined,
@@ -48,14 +48,7 @@ const HALF_HOUR_MINUTES = 30;
 const LESSON_DURATION_HOURS = 2; // Each lesson block is 2h
 const LESSON_DURATION_MINUTES = LESSON_DURATION_HOURS * 60;
 
-// Payment processor options
-const PROCESSOR_OPTIONS = [
-  { value: 'stripe', label: 'Stripe (Credit Card)' },
-  { value: 'paytr', label: 'PayTR' },
-  { value: 'binance_pay', label: 'Binance Pay' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'paypal', label: 'PayPal' },
-];
+
 
 const timeStringToMinutes = (time) => {
   if (!time) return null;
@@ -344,29 +337,37 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
 /* ─────────────────────── RentalStep ─────────────────────── */
 const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalChange, rentalServiceName }) => {
   const { message } = App.useApp();
-  // Build array of dates between check-in and check-out
-  const accommodationDates = useMemo(() => {
+  // Build array of selectable dates: accommodation dates + extra days to cover rental period
+  // If rental days > accommodation nights, extend the range before/after
+  const selectableDates = useMemo(() => {
     if (!checkIn || !checkOut) return [];
+    const accommodationNights = checkOut.diff(checkIn, 'day');
     const dates = [];
-    let d = checkIn;
-    while (d.isBefore(checkOut)) {
+    // Start 1 day before check-in to give flexibility
+    const extraDaysBefore = rentalDays > accommodationNights ? 1 : 0;
+    // Extend after check-out if rental days exceed accommodation nights
+    const extraDaysAfter = Math.max(0, rentalDays - accommodationNights);
+
+    let d = checkIn.subtract(extraDaysBefore, 'day');
+    const endDate = checkOut.add(extraDaysAfter, 'day');
+    while (d.isBefore(endDate)) {
       dates.push(d);
       d = d.add(1, 'day');
     }
     return dates;
-  }, [checkIn, checkOut]);
+  }, [checkIn, checkOut, rentalDays]);
 
   const selectedCount = rentalSelections.filter(Boolean).length;
 
-  // Auto-fill rental selections when dates change  
+  // Initialize rental selections array to match selectable dates length (all unselected)
   useEffect(() => {
-    if (accommodationDates.length === 0) return;
-    // If no selections yet, auto-enable all up to the allowed rental days  
-    if (rentalSelections.length !== accommodationDates.length) {
-      const newSelections = accommodationDates.map((_, idx) => idx < rentalDays);
+    if (selectableDates.length === 0) return;
+    // Only initialize if the array length doesn't match (dates changed)
+    if (rentalSelections.length !== selectableDates.length) {
+      const newSelections = selectableDates.map(() => false);
       onRentalChange(newSelections);
     }
-  }, [accommodationDates.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectableDates.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleDay = (idx) => {
     const newSelections = [...rentalSelections];
@@ -402,7 +403,7 @@ const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalC
       </div>
 
       <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-        {accommodationDates.map((date, idx) => {
+        {selectableDates.map((date, idx) => {
           const isSelected = !!rentalSelections[idx];
           return (
             <button
@@ -715,11 +716,7 @@ const PaymentStep = ({
   formatCurrency,
   userCurrency,
   getDisplayPrice,
-  processorForm,
 }) => {
-  useEffect(() => {
-    processorForm.resetFields();
-  }, [processorForm]);
 
   return (
     <div className="space-y-5">
@@ -772,25 +769,25 @@ const PaymentStep = ({
             </span>
           </button>
 
-          {/* External */}
+          {/* Card (Iyzico) */}
           <button
             type="button"
-            onClick={() => onPaymentMethodChange('external')}
+            onClick={() => onPaymentMethodChange('credit_card')}
             className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all text-center ${
-              selectedPaymentMethod === 'external'
+              selectedPaymentMethod === 'credit_card'
                 ? 'border-purple-500 bg-purple-500/10 shadow-lg shadow-purple-500/10'
                 : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
             }`}
           >
-            {selectedPaymentMethod === 'external' && (
+            {selectedPaymentMethod === 'credit_card' && (
               <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
                 <CheckCircleOutlined className="text-white text-[8px]" />
               </div>
             )}
-            <CreditCardOutlined className={`text-xl ${selectedPaymentMethod === 'external' ? 'text-purple-400' : 'text-slate-500'}`} />
-            <span className={`text-sm font-semibold ${selectedPaymentMethod === 'external' ? 'text-purple-300' : 'text-slate-400'}`}>Card / Transfer</span>
-            <span className={`text-[10px] ${selectedPaymentMethod === 'external' ? 'text-purple-400/80' : 'text-slate-500'}`}>
-              External payment
+            <CreditCardOutlined className={`text-xl ${selectedPaymentMethod === 'credit_card' ? 'text-purple-400' : 'text-slate-500'}`} />
+            <span className={`text-sm font-semibold ${selectedPaymentMethod === 'credit_card' ? 'text-purple-300' : 'text-slate-400'}`}>Card</span>
+            <span className={`text-[10px] ${selectedPaymentMethod === 'credit_card' ? 'text-purple-400/80' : 'text-slate-500'}`}>
+              Credit / Debit Card
             </span>
           </button>
 
@@ -820,48 +817,7 @@ const PaymentStep = ({
         </div>
       </div>
 
-      {/* External Payment Form */}
-      {selectedPaymentMethod === 'external' && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Payment Details</p>
-          <Form form={processorForm} layout="vertical" className="[&_.ant-form-item-label>label]:!text-slate-300 [&_.ant-form-item]:!mb-3">
-            <Form.Item name="processor" label="Payment Processor" rules={[{ required: true, message: 'Please select a processor' }]}>
-              <div className="flex flex-wrap gap-2">
-                {PROCESSOR_OPTIONS.map((opt) => {
-                  const isSelected = processorForm.getFieldValue('processor') === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => processorForm.setFieldsValue({ processor: opt.value })}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                        isSelected
-                          ? 'border-purple-500 bg-purple-500/15 text-purple-300'
-                          : 'border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-300'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </Form.Item>
-            <Form.Item name="reference" label="Transaction Reference">
-              <Input
-                placeholder="Transaction ID or reference number"
-                className="!bg-white/5 !border-white/15 !text-white placeholder:!text-slate-500 hover:!border-white/25 focus:!border-purple-500"
-              />
-            </Form.Item>
-            <Form.Item name="note" label="Note">
-              <Input.TextArea
-                placeholder="Additional notes (optional)"
-                rows={2}
-                className="!bg-white/5 !border-white/15 !text-white placeholder:!text-slate-500 hover:!border-white/25 focus:!border-purple-500"
-              />
-            </Form.Item>
-          </Form>
-        </div>
-      )}
+
     </div>
   );
 };
@@ -879,7 +835,6 @@ const AllInclusiveBookingModal = ({
   const { message } = App.useApp();
   const { user } = useAuth();
   const { userCurrency, formatCurrency, convertCurrency } = useCurrency();
-  const [processorForm] = Form.useForm();
 
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -1068,22 +1023,6 @@ const AllInclusiveBookingModal = ({
   };
 
   const handlePurchase = async () => {
-    let processor = null;
-    let reference = null;
-    let note = null;
-
-    if (selectedPaymentMethod === 'external') {
-      try {
-        const values = await processorForm.validateFields();
-        processor = values.processor;
-        reference = values.reference;
-        note = values.note;
-      } catch {
-        message.warning('Please fill in payment details.');
-        return;
-      }
-    }
-
     // Build rental dates array
     const rentalDatesArray = [];
     if (includesRental && checkIn) {
@@ -1107,9 +1046,6 @@ const AllInclusiveBookingModal = ({
     onPurchase({
       packageId: selectedPackage.id,
       paymentMethod: selectedPaymentMethod,
-      externalPaymentProcessor: processor,
-      externalPaymentReference: reference,
-      externalPaymentNote: note,
       checkInDate: checkIn?.format('YYYY-MM-DD'),
       checkOutDate: checkOut?.format('YYYY-MM-DD'),
       voucherId: appliedVoucher?.id,
@@ -1220,7 +1156,6 @@ const AllInclusiveBookingModal = ({
                 formatCurrency={formatCurrency}
                 userCurrency={userCurrency}
                 getDisplayPrice={getDisplayPrice}
-                processorForm={processorForm}
               />
             )}
           </div>
@@ -1260,7 +1195,7 @@ const AllInclusiveBookingModal = ({
                         <p><strong>{selectedPackage?.name}</strong></p>
                         <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{getDisplayPrice()}</p>
                         {checkIn && checkOut && <p style={{ color: '#888' }}>Dates: {checkIn.format('DD MMM')} — {checkOut.format('DD MMM YYYY')}</p>}
-                        <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'external' ? 'External' : 'Pay Later'}</p>
+                        <p style={{ color: '#888' }}>Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'credit_card' ? 'Card' : 'Pay Later'}</p>
                       </div>
                     ),
                     okText: 'Confirm & Pay',

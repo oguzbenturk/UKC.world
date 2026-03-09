@@ -71,8 +71,22 @@ const StudentQuickActions = ({
   balance,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isOnStudentPage, setIsOnStudentPage] = useState(true);
   const containerRef = useRef(null);
   const navigate = useNavigate();
+
+  // Hide FAB when browser URL leaves /student/* (catches React Router startTransition lag)
+  useEffect(() => {
+    const checkRoute = () => {
+      setIsOnStudentPage(window.location.pathname.startsWith('/student'));
+    };
+    window.addEventListener('popstate', checkRoute);
+    const id = setInterval(checkRoute, 120);
+    return () => {
+      window.removeEventListener('popstate', checkRoute);
+      clearInterval(id);
+    };
+  }, []);
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
 
   // Storage currency is always EUR
@@ -125,6 +139,8 @@ const StudentQuickActions = ({
         return `${currency?.symbol || '€'}${balance.toFixed(2)}`;
       })()
     : 'Wallet';
+
+  if (!isOnStudentPage) return null;
 
   return (
     <div

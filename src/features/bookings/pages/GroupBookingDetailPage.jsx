@@ -147,7 +147,7 @@ const GroupBookingDetailPage = () => {
           <p><strong>{booking?.title || 'Group Booking'}</strong></p>
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>€{amount?.toFixed(2)}</p>
           {organizerNeedsToPay && <p style={{ color: '#888' }}>Paying for {acceptedCount} participant(s)</p>}
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : 'External'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Card' : paymentMethod}</p>
         </div>
       ),
       okText: 'Confirm & Pay',
@@ -164,9 +164,17 @@ const GroupBookingDetailPage = () => {
       // Check if organizer paying for all
       if (booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer) {
         const result = await payForAllParticipants(id, paymentMethod);
+        if (result.paymentPageUrl) {
+          window.location.href = result.paymentPageUrl;
+          return;
+        }
         message.success(`Payment successful! Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
       } else {
-        await payForGroupBooking(id, paymentMethod);
+        const result = await payForGroupBooking(id, paymentMethod);
+        if (result.paymentPageUrl) {
+          window.location.href = result.paymentPageUrl;
+          return;
+        }
         message.success('Payment successful!');
       }
       
@@ -776,10 +784,10 @@ const GroupBookingDetailPage = () => {
                 Pay from Wallet
               </Space>
             </Select.Option>
-            <Select.Option value="external">
+            <Select.Option value="credit_card">
               <Space>
                 <CreditCardIcon className="w-4 h-4" />
-                External Payment (Cash/Card)
+                Card
               </Space>
             </Select.Option>
           </Select>

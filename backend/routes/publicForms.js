@@ -3,7 +3,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import * as formSubmissionService from '../services/formSubmissionService.js';
 import * as formAnalyticsService from '../services/formAnalyticsService.js';
 import * as formEmailNotificationService from '../services/formEmailNotificationService.js';
-import { formSubmissionRateLimit } from '../middlewares/security-clean.js';
+import { formSubmissionRateLimit } from '../middlewares/security.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();

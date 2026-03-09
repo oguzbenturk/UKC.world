@@ -81,7 +81,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (cartItemId) => {
-    setCart(prevCart => prevCart.filter(item => item.cartItemId === cartItemId));
+    setCart(prevCart => prevCart.filter(item => item.cartItemId !== cartItemId));
     message.success('Item removed from cart');
   };
 

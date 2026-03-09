@@ -3,6 +3,7 @@
  * Shown after Iyzico payment callback redirect.
  * For wallet deposits: auto-closes tab (original tab shows receipt via Socket.IO).
  * For shop orders: shows success/failure and links to orders or shop.
+ * For bookings/group bookings: shows success/failure and links to dashboard.
  */
 
 import { useEffect } from 'react';
@@ -13,23 +14,25 @@ export function PaymentCallback() {
   const navigate = useNavigate();
   
   const status = searchParams.get('status');
-  const type = searchParams.get('type'); // 'shop' for shop orders
+  const type = searchParams.get('type'); // 'shop', 'booking', 'group_booking'
   const orderNumber = searchParams.get('order');
   const reason = searchParams.get('reason');
   
   const isShopOrder = type === 'shop';
+  const isBooking = type === 'booking';
+  const isGroupBooking = type === 'group_booking';
   const isSuccess = status === 'success';
 
   // For wallet deposits (no type param), auto-close the tab
   useEffect(() => {
-    if (!isShopOrder) {
+    if (!isShopOrder && !isBooking && !isGroupBooking) {
       try { window.close(); } catch { /* browser may block */ }
       const t = setTimeout(() => {
         try { window.close(); } catch { /* noop */ }
       }, 300);
       return () => clearTimeout(t);
     }
-  }, [isShopOrder]);
+  }, [isShopOrder, isBooking, isGroupBooking]);
 
   // For shop orders: clear cart from localStorage on successful payment
   useEffect(() => {
@@ -105,6 +108,64 @@ export function PaymentCallback() {
               className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
             >
               Return to Shop
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Booking payment success screen
+  if ((isBooking || isGroupBooking) && isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-8 w-8 text-emerald-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">Booking Payment Confirmed!</h2>
+          <p className="text-xs text-gray-400 mb-6">Your payment was processed successfully. Your booking is now confirmed.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/student/dashboard')}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Booking payment failure screen
+  if ((isBooking || isGroupBooking) && !isSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-8 w-8 text-red-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">Payment Failed</h2>
+          <p className="text-xs text-gray-400 mb-6">
+            Your booking payment could not be processed. Please try again or use a different payment method.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/student/dashboard')}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
+            >
+              Go to Dashboard
             </button>
           </div>
         </div>

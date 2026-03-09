@@ -10,7 +10,6 @@ import {
   DatePicker,
   Divider,
   Empty,
-  Form,
   Input,
   List,
   Modal,
@@ -61,13 +60,6 @@ const GROUP_STEP_CONFIG = [
 ];
 
 const HALF_HOUR_MINUTES = 30;
-const PROCESSOR_OPTIONS = [
-  { value: 'stripe', label: 'Stripe' },
-  { value: 'paytr', label: 'PayTR' },
-  { value: 'binance_pay', label: 'Binance Pay' },
-  { value: 'revolut', label: 'Revolut' },
-  { value: 'paypal', label: 'PayPal' }
-];
 
 const normalizeText = (value) => (value ?? '').toString().trim().toLowerCase();
 
@@ -238,7 +230,6 @@ const matchesServicePackage = (service, pkg, forPurchase = false) => {
   return false;
 };
 
-const getProcessorLabel = (method) => PROCESSOR_OPTIONS.find((option) => option.value === method)?.label || method;
 
 const roundCurrency = (value) => Number.parseFloat((Number(value) || 0).toFixed(2));
 
@@ -373,24 +364,6 @@ const buildPackagePaymentSummary = ({
   return { title: 'Package hours', tag, lines };
 };
 
-const buildProcessorPaymentSummary = ({ processorLabel, selectedProcessor, processorInfo, formattedFinalAmount }) => {
-  const descriptor = processorLabel || selectedProcessor || 'external';
-  const hasReference = processorInfo?.method === selectedProcessor && Boolean(processorInfo?.reference);
-  return {
-    title: `${descriptor} payment`,
-    tag: hasReference ? { color: 'blue', text: 'Awaiting review' } : { color: 'red', text: 'Reference required' },
-    lines: [
-      {
-        text: `Complete payment via ${descriptor} and share the transaction reference with our team.`,
-        type: 'secondary'
-      },
-      hasReference
-        ? { text: `Reference: ${processorInfo.reference}`, type: 'secondary' }
-        : { text: 'Enter the payment reference so we can reconcile it.', type: 'danger' },
-      { text: `Amount recorded for this booking: ${formattedFinalAmount}.`, type: 'secondary' }
-    ]
-  };
-};
 
 const buildPayLaterSummary = ({ formattedFinalAmount }) => ({
   title: 'Pay at the center',
@@ -398,6 +371,15 @@ const buildPayLaterSummary = ({ formattedFinalAmount }) => ({
   lines: [
     { text: 'We will reserve your slot now and collect payment when you arrive.', type: 'secondary' },
     { text: `Amount to settle in-person: ${formattedFinalAmount}.`, type: 'secondary' }
+  ]
+});
+
+const buildCreditCardSummary = ({ formattedFinalAmount }) => ({
+  title: 'Credit Card Payment',
+  tag: { color: 'blue', text: 'Iyzico' },
+  lines: [
+    { text: 'You will be redirected to a secure payment page to complete your purchase.', type: 'secondary' },
+    { text: `Amount: ${formattedFinalAmount}`, type: 'secondary' }
   ]
 });
 
@@ -443,10 +425,7 @@ const createBookingPayload = ({
   baseAmount,
   packageHoursUsed,
   packageChargeableHours,
-  isProcessorPayment,
   paymentMethod,
-  selectedProcessor,
-  processorInfo,
   currency,
   voucherDiscountAmount = 0,
   voucherId = null,
@@ -474,10 +453,7 @@ const createBookingPayload = ({
     base_amount: baseAmount,
     package_hours_applied: 0,
     package_chargeable_hours: packageChargeableHours,
-    payment_method: isProcessorPayment ? 'external' : paymentMethod,
-    external_payment_processor: selectedProcessor,
-    external_payment_reference: processorInfo?.reference ?? null,
-    external_payment_note: processorInfo?.note ?? null,
+    payment_method: paymentMethod,
     wallet_currency: currency,
     currency: currency,
   };
@@ -519,10 +495,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const [serviceSearch, setServiceSearch] = useState('');
   const [instructorSearch, setInstructorSearch] = useState('');
   const lastServiceIdRef = useRef(null);
-  const [processorModal, setProcessorModal] = useState(null);
-  const [processorInfo, setProcessorInfo] = useState({});
-  const [processorForm] = Form.useForm();
-  const previousPaymentMethodRef = useRef('wallet');
   const [preferredCategory, setPreferredCategory] = useState(null);
   const [familyModalOpen, setFamilyModalOpen] = useState(false);
   const [familyModalSubmitting, setFamilyModalSubmitting] = useState(false);
@@ -531,8 +503,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const [showBuyPackages, setShowBuyPackages] = useState(false);
   const [selectedBuyCategory, setSelectedBuyCategory] = useState(null);
   const [purchasePaymentMethod, setPurchasePaymentMethod] = useState('wallet');
-  const [purchaseProcessor, setPurchaseProcessor] = useState(null);
-  const [purchaseProcessorForm] = Form.useForm();
   
   // Track mounted state for cleanup operations
   const isComponentMounted = useRef(false);
@@ -543,23 +513,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     };
   }, []);
 
-  // Reset purchase form when buy packages mode is opened
-  useEffect(() => {
-    if (showBuyPackages && purchaseProcessorForm) {
-      // Delay slightly to ensure form is connected to DOM
-      const t = setTimeout(() => {
-        if (isComponentMounted.current) {
-          try {
-            purchaseProcessorForm.resetFields();
-          } catch (e) {
-            // Ignore if still not mounted
-          }
-        }
-      }, 50);
-      return () => clearTimeout(t);
-    }
-  }, [showBuyPackages, purchaseProcessorForm]);
-  
   // Accommodation date selection for package purchase
   const [accommodationDateModal, setAccommodationDateModal] = useState(null); // null or package object
   const [accommodationDates, setAccommodationDates] = useState({ checkIn: null, checkOut: null });
@@ -600,15 +553,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       setNotes('');
       setServiceSearch('');
       setInstructorSearch('');
-      setProcessorModal(null);
-      setProcessorInfo({});
       setPreferredCategory(null);
       setSelectedServiceCategory(null);
       // Reset buy package states
       setShowBuyPackages(false);
       setSelectedBuyCategory(null);
       setPurchasePaymentMethod('wallet');
-      setPurchaseProcessor(null);
       // Reset promo code
       setAppliedVoucher(null);
       // Reset group booking states
@@ -647,8 +597,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     setNotes(initialData.notes ?? '');
     setServiceSearch('');
     setInstructorSearch('');
-    setProcessorModal(null);
-    setProcessorInfo({});
     setPreferredCategory(initialData.preferredCategory ? normalizeText(initialData.preferredCategory) : null);
     // Handle serviceCategory from initial data (e.g., from lesson info pages)
     if (initialData.serviceCategory) {
@@ -660,7 +608,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       setShowBuyPackages(true);
       setCurrentStep(2); // Go to package step (now step 2 after swap)
     }
-  }, [open, initialData, processorForm]);
+  }, [open, initialData]);
 
   const { data: bookingDefaults } = useQuery({
     queryKey: ['student-booking', 'booking-defaults'],
@@ -864,13 +812,10 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
   // Package purchase mutation
   const purchaseMutation = useMutation({
-    mutationFn: async ({ packageId, paymentMethod: pmtMethod, externalPaymentProcessor, externalPaymentReference, externalPaymentNote, checkInDate, checkOutDate, voucherId }) => {
+    mutationFn: async ({ packageId, paymentMethod: pmtMethod, checkInDate, checkOutDate, voucherId }) => {
       const response = await apiClient.post('/services/packages/purchase', {
         packageId,
         paymentMethod: pmtMethod,
-        externalPaymentProcessor,
-        externalPaymentReference,
-        externalPaymentNote,
         checkInDate,
         checkOutDate,
         voucherId
@@ -878,6 +823,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       return response.data;
     },
     onSuccess: async (data) => {
+      // For credit card payments, redirect to Iyzico payment page
+      if (data.paymentPageUrl) {
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+
       let description = `You have successfully purchased "${data.customerPackage.packageName}".`;
       
       // Add voucher discount info if applied
@@ -895,8 +846,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       
       if (data.wallet) {
         description += ` Your new wallet balance is ${formatCurrency(data.wallet.newBalance, data.wallet.currency)}.`;
-      } else if (data.externalPayment) {
-        description += ` Payment via ${data.externalPayment.processor} recorded.`;
       } else if (data.paymentMethod === 'pay_later') {
         description += ' Payment is pending.';
       }
@@ -916,8 +865,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       setShowBuyPackages(false);
       setSelectedBuyCategory(null);
       setPurchasePaymentMethod('wallet');
-      setPurchaseProcessor(null);
-      try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
+      try { } catch { /* form may not be mounted */ }
       setAccommodationDates({ checkIn: null, checkOut: null });
       setAccommodationDateModal(null);
       
@@ -1000,28 +948,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       return;
     }
 
-    // Validate external payment
-    let externalPaymentReference = null;
-    let externalPaymentNote = null;
-
-    if (purchasePaymentMethod === 'external') {
-      if (!purchaseProcessor) {
-        notification.error({
-          message: 'Select Payment Processor',
-          description: 'Please select a payment processor.',
-        });
-        return;
-      }
-
-      try {
-        const values = await purchaseProcessorForm.validateFields();
-        externalPaymentReference = values.reference;
-        externalPaymentNote = values.note;
-      } catch {
-        return; // Form validation failed
-      }
-    }
-
     // Calculate nights for accommodation
     const nightsSelected = dates?.checkIn && dates?.checkOut 
       ? dates.checkOut.diff(dates.checkIn, 'day')
@@ -1059,7 +985,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           )}
           <div className="flex justify-between">
             <Text strong>Payment:</Text>
-            <Text>{purchasePaymentMethod === 'wallet' ? '💳 Wallet' : '🏦 Card/External'}</Text>
+            <Text>{purchasePaymentMethod === 'wallet' ? '💳 Wallet' : '💳 Card'}</Text>
           </div>
           {purchasePaymentMethod === 'wallet' && (
             <div className="flex justify-between">
@@ -1076,9 +1002,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         await purchaseMutation.mutateAsync({
           packageId: pkg.id,
           paymentMethod: purchasePaymentMethod,
-          externalPaymentProcessor: purchaseProcessor,
-          externalPaymentReference,
-          externalPaymentNote,
           // Include accommodation dates if provided
           checkInDate: dates?.checkIn ? dates.checkIn.format('YYYY-MM-DD') : null,
           checkOutDate: dates?.checkOut ? dates.checkOut.format('YYYY-MM-DD') : null,
@@ -1239,7 +1162,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     }
 
     if (candidateSet.size === 0) {
-      [60, 90, 120].forEach((fallback) => candidateSet.add(fallback));
+      [60, 90, 120, 180, 240, 360].forEach((fallback) => candidateSet.add(fallback));
     }
 
     const result = Array.from(candidateSet).filter((value) => Number.isFinite(value) && value >= HALF_HOUR_MINUTES);
@@ -1500,6 +1423,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       : walletBalance
   ), [paymentMethod, walletBalance, roundedFinalAmount]);
   const walletInsufficient = paymentMethod === 'wallet' && roundedFinalAmount > walletBalance;
+  // Can still proceed with partial wallet + card if wallet has some balance
+  const walletDeficit = walletInsufficient ? roundCurrency(roundedFinalAmount - walletBalance) : 0;
+  const canUseHybridPayment = walletInsufficient && walletBalance > 0;
   
   // Storage currency is always EUR (base/business currency)
   // Service prices and amounts are already in EUR, wallet is in EUR
@@ -1522,11 +1448,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     : formatCurrency(displayWalletAfterCharge, userCurrency);
   const packageHoursUsed = paymentMethod === 'package' && pricingBreakdown ? pricingBreakdown.usedFromPackage : 0;
   const packageChargeableHours = pricingBreakdown?.chargeableHours ?? bookingDurationHours;
-  const isProcessorPayment = typeof paymentMethod === 'string' && paymentMethod.startsWith('processor:');
-  const selectedProcessor = isProcessorPayment ? paymentMethod.split(':')[1] : null;
-  const processorLabel = selectedProcessor ? getProcessorLabel(selectedProcessor) : null;
-  const processorModalVisible = Boolean(processorModal);
-  const processorModalLabel = processorModalVisible ? getProcessorLabel(processorModal) : null;
   const recommendedPackage = useMemo(() => {
     if (selectedPackageId) {
       return null;
@@ -1546,18 +1467,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const baseAmount = roundCurrency(servicePrice);
   const dueAmount = paymentMethod === 'pay_later' ? 0 : roundedFinalAmount;
   const packageIdToSend = paymentMethod === 'package' ? (selectedPackage?.id ?? selectedPackageId) : null;
-  const processorNoteText = useMemo(() => {
-    if (!isProcessorPayment || !processorInfo?.reference) {
-      return '';
-    }
-    const descriptor = processorLabel || selectedProcessor;
-    const extra = processorInfo.note ? ` — ${processorInfo.note}` : '';
-    return `Payment via ${descriptor}: ${processorInfo.reference}${extra}`;
-  }, [isProcessorPayment, processorInfo, processorLabel, selectedProcessor]);
-  const combinedNotes = useMemo(() => {
-    const baseNote = notes?.trim() || '';
-    return [baseNote, processorNoteText].filter(Boolean).join('\n\n');
-  }, [notes, processorNoteText]);
+  const combinedNotes = notes?.trim() || '';
   const paymentSummary = useMemo(() => {
     if (paymentMethod === 'wallet') {
       return buildWalletPaymentSummary({
@@ -1578,17 +1488,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       });
     }
 
-    if (isProcessorPayment) {
-      return buildProcessorPaymentSummary({
-        processorLabel,
-        selectedProcessor,
-        processorInfo,
-        formattedFinalAmount
-      });
-    }
-
     if (paymentMethod === 'pay_later') {
       return buildPayLaterSummary({ formattedFinalAmount });
+    }
+
+    if (paymentMethod === 'credit_card') {
+      return buildCreditCardSummary({ formattedFinalAmount });
     }
 
     return null;
@@ -1601,11 +1506,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     selectedPackage,
     packageHoursUsed,
     packageRemainingAfterBooking,
-    roundedFinalAmount,
-    isProcessorPayment,
-    processorInfo,
-    processorLabel,
-    selectedProcessor
+    roundedFinalAmount
   ]);
 
   const paymentSelectOptions = useMemo(() => {
@@ -1621,6 +1522,16 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           </Space>
         ),
         display: 'Wallet'
+      },
+      {
+        value: 'credit_card',
+        label: (
+          <Space align="baseline" className="w-full justify-between">
+            <Text>Credit Card</Text>
+            <Tag color="blue">Iyzico</Tag>
+          </Space>
+        ),
+        display: 'Credit Card'
       }
     ];
 
@@ -1639,25 +1550,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       });
     }
 
-    PROCESSOR_OPTIONS.forEach((option) => {
-      const tag = processorInfo?.method === option.value
-        ? (processorInfo?.reference
-          ? { color: 'green', text: 'Reference saved' }
-          : { color: 'red', text: 'Reference needed' })
-        : { color: 'blue', text: 'Manual payment' };
-
-      options.push({
-        value: `processor:${option.value}`,
-        label: (
-          <Space align="baseline" className="w-full justify-between">
-            <Text>{option.label}</Text>
-            <Tag color={tag.color}>{tag.text}</Tag>
-          </Space>
-        ),
-        display: option.label
-      });
-    });
-
     // Pay at Center option - only for trusted_customer, admin, manager
     if (PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role)) {
       options.push({
@@ -1673,7 +1565,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     }
 
     return options;
-  }, [walletInsufficient, hasPackages, matchingPackages.length, processorInfo, user?.role]);
+  }, [walletInsufficient, hasPackages, matchingPackages.length, user?.role]);
   const startHourDecimal = useMemo(() => {
     const minutes = timeStringToMinutes(selectedTime);
     if (minutes === null) {
@@ -1719,67 +1611,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     setSelectedTime(null);
   };
 
-  const openProcessorModal = (method) => {
-    if (!method) {
-      return;
-    }
-    previousPaymentMethodRef.current = paymentMethod;
-    setProcessorModal(method);
-    processorForm.setFieldsValue({
-      reference: processorInfo.method === method ? processorInfo.reference : '',
-      note: processorInfo.method === method ? processorInfo.note : ''
-    });
-  };
-
   const handlePaymentMethodChange = (value) => {
     if (typeof value !== 'string') {
       return;
     }
-    if (value.startsWith('processor:')) {
-      const method = value.split(':')[1];
-      setPaymentMethod(value);
-      openProcessorModal(method);
-      return;
-    }
-
     setPaymentMethod(value);
-    previousPaymentMethodRef.current = value;
-    setProcessorModal(null);
-    try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
     if (value !== 'package') {
       setSelectedPackageId(null);
     } else if (packagesWithBalance.length === 1) {
       setSelectedPackageId(packagesWithBalance[0].id);
-    }
-    if (!value.startsWith('processor:')) {
-      setProcessorInfo({});
-    }
-  };
-
-  const handleProcessorModalCancel = () => {
-    const fallback = processorInfo.method ? `processor:${processorInfo.method}` : previousPaymentMethodRef.current || 'wallet';
-    setProcessorModal(null);
-    try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
-    setPaymentMethod(fallback);
-  };
-
-  const handleProcessorModalOk = async () => {
-    try {
-      const values = await processorForm.validateFields();
-      const method = processorModal;
-      if (!method) {
-        return;
-      }
-      const reference = values.reference?.trim() || '';
-      const note = values.note?.trim() || '';
-      setProcessorInfo({ method, reference, note });
-      const nextValue = `processor:${method}`;
-      setPaymentMethod(nextValue);
-      previousPaymentMethodRef.current = nextValue;
-      setProcessorModal(null);
-      try { processorForm.resetFields(); } catch { /* form may not be mounted */ }
-    } catch {
-      // Leave modal open so the user can correct validation errors
     }
   };
 
@@ -1818,7 +1658,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       if (paymentMethod === 'wallet') return 'Wallet';
       if (paymentMethod === 'package') return selectedPackage ? getPackageDisplayName(selectedPackage) : 'Package';
       if (paymentMethod === 'pay_later') return 'Pay at Center';
-      if (isProcessorPayment) return processorLabel || 'External Payment';
+      if (paymentMethod === 'credit_card') return 'Credit Card';
       return paymentMethod;
     };
 
@@ -1986,31 +1826,36 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     );
   };
 
-  const renderProcessorActions = () => {
-    if (!isProcessorPayment || !selectedProcessor) {
-      return null;
-    }
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="small" onClick={() => openProcessorModal(selectedProcessor)}>
-          {processorInfo?.reference ? 'Edit payment details' : 'Enter payment details'}
-        </Button>
-        {processorInfo?.reference ? (
-          <Text type="secondary">Stored reference: {processorInfo.reference}</Text>
-        ) : null}
-      </div>
-    );
-  };
 
   const renderWalletWarning = () => {
     if (!(paymentMethod === 'wallet' && walletInsufficient)) {
       return null;
     }
+
+    if (canUseHybridPayment) {
+      const displayDeficit = convertCurrency ? convertCurrency(walletDeficit, storageCurrency, userCurrency) : walletDeficit;
+      const displayCurrentBalance = convertCurrency ? convertCurrency(walletBalance, storageCurrency, userCurrency) : walletBalance;
+      return (
+        <Alert
+          type="info"
+          showIcon
+          message="Partial Wallet Payment"
+          description={
+            <div>
+              <p className="mb-1">Your wallet balance is <strong>{formatCurrency(displayCurrentBalance, userCurrency)}</strong>.</p>
+              <p className="mb-1">The remaining <strong>{formatCurrency(displayDeficit, userCurrency)}</strong> will be charged from your credit card.</p>
+              <p className="text-xs text-gray-500">The card charge will be added to your wallet and then used for this purchase.</p>
+            </div>
+          }
+        />
+      );
+    }
+
     return (
       <Alert
         type="warning"
         showIcon
-        message="Wallet balance is lower than the amount due. Choose another payment option or top up your wallet."
+        message="Insufficient wallet balance. Choose another payment option or top up your wallet."
       />
     );
   };
@@ -2028,7 +1873,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       />
 
       {renderPackageSelector()}
-      {renderProcessorActions()}
       {renderWalletWarning()}
     </div>
   );
@@ -2081,16 +1925,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     // Step 5: Confirm
     () => {
       if (paymentMethod === 'wallet') {
-        return roundedFinalAmount <= walletBalance;
+        // Allow if fully covered by wallet OR if wallet has partial balance (hybrid payment)
+        return roundedFinalAmount <= walletBalance || walletBalance > 0;
       }
       if (paymentMethod === 'package') {
         return !!selectedPackageId;
-      }
-      if (isProcessorPayment) {
-        return (
-          processorInfo?.method === selectedProcessor
-          && Boolean(processorInfo?.reference)
-        );
       }
       return true;
     }
@@ -2118,13 +1957,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         return !isScheduleRequired || (!!selectedDateString && !!selectedTime);
       case 'confirm':
         if (paymentMethod === 'wallet') {
-          return roundedFinalAmount <= walletBalance;
+          // Allow if fully covered by wallet OR if wallet has partial balance (hybrid payment)
+          return roundedFinalAmount <= walletBalance || walletBalance > 0;
         }
         if (paymentMethod === 'package') {
           return !!selectedPackageId;
-        }
-        if (isProcessorPayment) {
-          return processorInfo?.method === selectedProcessor && Boolean(processorInfo?.reference);
         }
         return true;
       default:
@@ -2194,6 +2031,14 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       return response.data;
     },
     onSuccess: async (data) => {
+      // Credit card payment: redirect to Iyzico checkout
+      if (data?.paymentPageUrl) {
+        message.info('Redirecting to payment page...');
+        onClose();
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+
       message.success('Your booking request has been submitted.');
       
       // Check if user was upgraded from outsider to student
@@ -2351,6 +2196,14 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     // Handle regular booking (self/family)
     const isPackagePayment = paymentMethod === 'package';
 
+    // Determine effective payment method: use hybrid if wallet has partial balance
+    const effectivePaymentMethod = (() => {
+      if (paymentMethod === 'wallet' && walletInsufficient && walletBalance > 0) {
+        return 'wallet_hybrid';
+      }
+      return paymentMethod;
+    })();
+
     // For rentals without scheduling, use current date/time as defaults
     const bookingDate = isScheduleRequired ? selectedDateString : dayjs().format('YYYY-MM-DD');
     const bookingStartHour = isScheduleRequired ? startHourDecimal : 12; // Default to noon for instant rentals
@@ -2372,10 +2225,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       baseAmount,
       packageHoursUsed,
       packageChargeableHours,
-      isProcessorPayment,
-      paymentMethod,
-      selectedProcessor,
-      processorInfo,
+      paymentMethod: effectivePaymentMethod,
       currency: serviceCurrency,
       voucherDiscountAmount,
       voucherId: appliedVoucher?.id || null,
@@ -2679,8 +2529,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                 setShowBuyPackages(false);
                 setSelectedBuyCategory(null);
                 setPurchasePaymentMethod('wallet');
-                setPurchaseProcessor(null);
-                try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
               }}
             />
             <Title level={5} className="mb-0">Buy Lesson Packages</Title>
@@ -2697,54 +2545,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                     value={purchasePaymentMethod}
                     onChange={(e) => {
                       setPurchasePaymentMethod(e.target.value);
-                      if (e.target.value !== 'external') {
-                        setPurchaseProcessor(null);
-                        try { purchaseProcessorForm.resetFields(); } catch { /* form may not be mounted */ }
-                      }
                     }}
                     className="w-full"
                   >
                     <div className="flex flex-wrap gap-2">
                       <Radio.Button value="wallet">💳 Wallet</Radio.Button>
-                      <Radio.Button value="cash">💵 Cash</Radio.Button>
-                      <Radio.Button value="external">🏦 Card/External</Radio.Button>
+                      <Radio.Button value="pay_later">💵 Cash</Radio.Button>
+                      <Radio.Button value="credit_card">💳 Card</Radio.Button>
                     </div>
                   </Radio.Group>
-
-                  {/* External payment details */}
-                  {purchasePaymentMethod === 'external' && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <Text strong className="block mb-2 text-sm">External Payment Details</Text>
-                      <div className="mb-2">
-                        <Text className="block mb-1 text-xs">Payment Processor</Text>
-                        <Radio.Group
-                          value={purchaseProcessor}
-                          onChange={(e) => setPurchaseProcessor(e.target.value)}
-                          buttonStyle="solid"
-                          size="small"
-                        >
-                          {PROCESSOR_OPTIONS.map((opt) => (
-                            <Radio.Button key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </Radio.Button>
-                          ))}
-                        </Radio.Group>
-                      </div>
-                      <Form form={purchaseProcessorForm} layout="vertical" size="small">
-                        <Form.Item
-                          name="reference"
-                          label="Payment Reference"
-                          rules={[{ required: true, message: 'Enter payment reference' }]}
-                          className="mb-2"
-                        >
-                          <Input placeholder="Transaction ID" />
-                        </Form.Item>
-                        <Form.Item name="note" label="Note (Optional)" className="mb-0">
-                          <Input placeholder="Any additional notes" />
-                        </Form.Item>
-                      </Form>
-                    </div>
-                  )}
                 </div>
               </Card>
 
@@ -3100,6 +2909,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                   : formatCurrency(displayPrice, userCurrency);
                 const durationLabel = formatDurationLabel(normalizeNumeric(service.duration, 1) * 60);
                 const category = service.category || service.disciplineTag || 'Service';
+                const isPremium = (service.disciplineTag || service.discipline_tag || '')
+                  .toLowerCase() === 'premium'
+                  || (service.name || '').toLowerCase().includes('premium');
 
                 return (
                   <div
@@ -3107,15 +2919,29 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                     onClick={() => handleServiceSelect(service.id)}
                     className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${
                       isSelected
-                        ? 'bg-sky-50 border-sky-500 shadow-sm'
-                        : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                        ? isPremium
+                          ? 'bg-amber-50 border-amber-500 shadow-sm'
+                          : 'bg-sky-50 border-sky-500 shadow-sm'
+                        : isPremium
+                          ? 'border-amber-200 hover:bg-amber-50 hover:border-amber-400'
+                          : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <Title level={5} className="mb-1 text-sm">{service.name}</Title>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Title level={5} className="mb-0 text-sm">{service.name}</Title>
+                          {isPremium && (
+                            <Tag color="gold" className="text-xs !m-0">Premium</Tag>
+                          )}
+                        </div>
                         {service.description && (
                           <Text type="secondary" className="text-xs mb-2 block">{service.description}</Text>
+                        )}
+                        {isPremium && !service.description && (
+                          <Text type="secondary" className="text-xs mb-2 block italic">
+                            Private coaching with our most experienced instructors - fully personalized sessions
+                          </Text>
                         )}
                         <div className="flex flex-wrap gap-1">
                           <Tag color="blue" className="text-xs">{durationLabel}</Tag>
@@ -3572,39 +3398,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         <div className="flex-1 overflow-y-auto min-h-0 px-4 py-3">
           {renderStepContent()}
         </div>
-      </Modal>
-
-      <Modal
-        open={processorModalVisible}
-        onCancel={handleProcessorModalCancel}
-        onOk={handleProcessorModalOk}
-        okText="Save details"
-        cancelButtonProps={{ disabled: mutation.isLoading }}
-        okButtonProps={{ type: 'primary' }}
-        maskClosable={false}
-        title={processorModalLabel ? `Confirm ${processorModalLabel} payment` : 'Confirm external payment'}
-        destroyOnHidden
-        width={500}
-      >
-        <Form form={processorForm} layout="vertical" size="small">
-          <Form.Item
-            name="reference"
-            label="Transaction reference"
-            rules={[{ required: true, message: 'Reference is required to track the payment.' }]}
-          >
-            <Input placeholder="receipt number or payment ID" autoComplete="off" size="small" />
-          </Form.Item>
-          <Form.Item name="note" label="Notes">
-            <Input.TextArea rows={2} placeholder="Optional additional details" size="small" />
-          </Form.Item>
-        </Form>
-        <Alert
-          type="info"
-          showIcon
-          className="mt-3 text-xs"
-          message={`Amount due: ${formattedFinalAmount}`}
-          description="We will attach this reference to your booking so the team can reconcile the payment quickly."
-        />
       </Modal>
 
       {/* Family Member Modal - for adding family members inline */}

@@ -81,6 +81,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const finalTotal = Math.max(0, total - voucherDiscount);
   const canAffordWallet = userBalance >= finalTotal;
   const amountNeeded = finalTotal - (userBalance || 0);
+  const canUseHybridWallet = !canAffordWallet && (userBalance || 0) > 0;
 
   const handleCheckout = async () => {
     if (!hasCompleteAddress) {
@@ -88,10 +89,21 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       return;
     }
 
-    if (paymentMethod === 'wallet' && !canAffordWallet) {
+    if (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) {
       setError('Insufficient wallet balance');
       return;
     }
+
+    // Determine effective payment method
+    const effectiveMethod = (paymentMethod === 'wallet' && !canAffordWallet && canUseHybridWallet)
+      ? 'wallet_hybrid'
+      : paymentMethod;
+
+    const paymentLabel = effectiveMethod === 'wallet_hybrid'
+      ? `Wallet (${formatCurrency(userBalance, storageCurrency)}) + Card (${formatCurrency(amountNeeded, storageCurrency)})`
+      : effectiveMethod === 'wallet' ? 'Wallet'
+      : effectiveMethod === 'credit_card' ? 'Credit Card'
+      : 'Cash at Pickup';
 
     Modal.confirm({
       title: 'Confirm Order',
@@ -101,17 +113,25 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           <p><strong>{itemCount} item{itemCount !== 1 ? 's' : ''}</strong></p>
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, storageCurrency)}</p>
           <p style={{ color: '#888' }}>Delivery to: {formatShippingAddress()}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Cash at Pickup'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentLabel}</p>
+          {effectiveMethod === 'wallet_hybrid' && (
+            <div style={{ marginTop: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
+              <p style={{ color: '#1d4ed8', fontSize: 13, margin: 0 }}>
+                Your wallet balance of <strong>{formatCurrency(userBalance, storageCurrency)}</strong> will be used, and the remaining <strong>{formatCurrency(amountNeeded, storageCurrency)}</strong> will be charged from your card.
+              </p>
+            </div>
+          )}
         </div>
       ),
       okText: 'Place Order',
       cancelText: 'Go Back',
       centered: true,
-      onOk: executeCheckout,
+      onOk: () => executeCheckout(effectiveMethod),
     });
   };
 
-  const executeCheckout = async () => {
+  const executeCheckout = async (effectiveMethod) => {
+    const method = effectiveMethod || paymentMethod;
     setLoading(true);
     setError(null);
 
@@ -128,8 +148,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
       const response = await apiClient.post('/shop-orders', {
         items,
-        payment_method: paymentMethod,
-        use_wallet: paymentMethod === 'wallet',
+        payment_method: method,
+        use_wallet: method === 'wallet' || method === 'wallet_hybrid',
         shipping_address: formatShippingAddress(),
         voucher_code: appliedVoucher?.code || null
       });
@@ -479,6 +499,17 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             />
           )}
 
+          {/* Wallet Hybrid Payment Notice */}
+          {paymentMethod === 'wallet' && !canAffordWallet && canUseHybridWallet && (
+            <Alert
+              message="Partial Wallet Payment"
+              description={`Your wallet balance (${formatCurrency(userBalance, storageCurrency)}) will be used, and the remaining ${formatCurrency(amountNeeded, storageCurrency)} will be charged from your card.`}
+              type="info"
+              showIcon
+              style={{ marginBottom: 16, borderRadius: 8 }}
+            />
+          )}
+
           {/* Checkout Button */}
           <Button
             type="primary"
@@ -486,7 +517,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             block
             icon={paymentMethod === 'wallet' ? <WalletOutlined /> : <CreditCardOutlined />}
             onClick={handleCheckout}
-            disabled={(paymentMethod === 'wallet' && !canAffordWallet) || !hasCompleteAddress || editingAddress}
+            disabled={(paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress}
             loading={loading}
             style={{
               height: 52,
@@ -497,8 +528,10 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
               border: 'none'
             }}
           >
-            {paymentMethod === 'wallet' 
+            {paymentMethod === 'wallet' && canAffordWallet
               ? `Pay ${formatCurrency(finalTotal, storageCurrency)} from Wallet`
+              : paymentMethod === 'wallet' && canUseHybridWallet
+              ? `Pay with Wallet + Card`
               : paymentMethod === 'credit_card'
               ? `Pay ${formatCurrency(finalTotal, storageCurrency)} by Card`
               : 'Place Order'

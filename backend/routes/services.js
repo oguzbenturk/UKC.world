@@ -12,6 +12,7 @@ import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../
 import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
 import { setPackagePrices, getPackagePrices, setServicePrices, getServicePrices, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 const router = express.Router();
 
 // Minimal currency defaults to prevent FK errors when currency_settings isn't seeded
@@ -779,15 +780,14 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
   const client = await pool.connect();
   
   try {
-    const { 
-      packageId, 
+    const {
+      packageId,
       paymentMethod,
-      externalPaymentProcessor,
-      externalPaymentReference,
-      externalPaymentNote,
       checkInDate,
       checkOutDate,
-      voucherId  // Voucher/promo code to apply
+      voucherId,  // Voucher/promo code to apply
+      rentalDates,     // Array of 'YYYY-MM-DD' strings for rental days
+      lessonBookings   // Array of { date, instructorId, startTime, duration }
     } = req.body;
     const userId = req.user?.id;
     const actorId = resolveActorId(req);
@@ -801,7 +801,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     }
 
     // Validate payment method
-    const validPaymentMethods = ['wallet', 'external', 'pay_later'];
+    const validPaymentMethods = ['wallet', 'credit_card', 'pay_later'];
     const normalizedPaymentMethod = paymentMethod || 'wallet';
     
     if (!validPaymentMethods.includes(normalizedPaymentMethod)) {
@@ -810,16 +810,6 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     // Pay at center (pay_later) is now available for all authenticated customers
     // This allows students to choose cash payment at reception, similar to member offerings
-
-    // For external payments, require processor and reference
-    if (normalizedPaymentMethod === 'external') {
-      if (!externalPaymentProcessor) {
-        return res.status(400).json({ error: 'External payment processor is required' });
-      }
-      if (!externalPaymentReference) {
-        return res.status(400).json({ error: 'External payment reference is required' });
-      }
-    }
     
     await client.query('BEGIN');
     
@@ -1100,7 +1090,9 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
 
     // Determine payment status based on method
-    const paymentStatus = normalizedPaymentMethod === 'pay_later' ? 'pending' : 'paid';
+    const paymentStatus = normalizedPaymentMethod === 'pay_later' ? 'pending'
+      : normalizedPaymentMethod === 'credit_card' ? 'pending_payment'
+      : 'paid';
     
     // Extract package details including rental days and accommodation nights
     const pkgTotalHours = parseFloat(pkg.total_hours) || 0;
@@ -1131,8 +1123,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     // Build notes for payment tracking
     let purchaseNotes = null;
-    if (normalizedPaymentMethod === 'external') {
-      purchaseNotes = `Payment: ${externalPaymentProcessor} | Ref: ${externalPaymentReference}${externalPaymentNote ? ' | ' + externalPaymentNote : ''}`;
+    if (normalizedPaymentMethod === 'credit_card') {
+      purchaseNotes = 'Payment via credit card (Iyzico)';
     } else if (normalizedPaymentMethod === 'pay_later') {
       purchaseNotes = 'Payment pending - Pay Later';
     }
@@ -1165,6 +1157,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     // Create accommodation booking if package includes accommodation
     if (includesAccommodation && pkg.accommodation_unit_id && checkInDate && checkOutDate) {
       try {
+        await client.query('SAVEPOINT accommodation_booking');
         accommodationBookingId = uuidv4();
         const checkIn = new Date(checkInDate);
         const checkOut = new Date(checkOutDate);
@@ -1197,12 +1190,97 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
           userId
         });
       } catch (accBookingErr) {
+        await client.query('ROLLBACK TO SAVEPOINT accommodation_booking');
         logger.error('Failed to create accommodation booking for package', {
           customerPackageId,
           error: accBookingErr.message
         });
         // Don't fail the whole transaction, but log the error
         // The accommodation dates are still saved in customer_packages
+      }
+    }
+
+    // === Create individual lesson bookings if provided ===
+    if (Array.isArray(lessonBookings) && lessonBookings.length > 0 && pkg.lesson_service_id) {
+      for (const lesson of lessonBookings) {
+        try {
+          if (!lesson.date || !lesson.instructorId || !lesson.startTime) continue;
+          await client.query('SAVEPOINT lesson_booking');
+          const bookingId = uuidv4();
+          const lessonDuration = parseFloat(lesson.duration) || 1;
+          const startHour = parseFloat(lesson.startTime);
+          const endHour = startHour + lessonDuration;
+
+          await client.query(
+            `INSERT INTO bookings (
+              id, service_id, student_user_id, instructor_user_id,
+              date, start_time, end_time, duration,
+              status, payment_method, payment_status,
+              amount, final_amount,
+              customer_package_id, package_id,
+              notes, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'package', 'package', 0, 0, $9, $10, $11, NOW(), NOW())`,
+            [
+              bookingId,
+              pkg.lesson_service_id,
+              userId,
+              lesson.instructorId,
+              lesson.date,
+              startHour,
+              endHour,
+              lessonDuration,
+              customerPackageId,
+              packageId,
+              `Package booking: ${pkg.name}`
+            ]
+          );
+
+          logger.info('Lesson booking created for package purchase', {
+            bookingId, customerPackageId, date: lesson.date,
+            instructorId: lesson.instructorId
+          });
+        } catch (lessonBookErr) {
+          await client.query('ROLLBACK TO SAVEPOINT lesson_booking');
+          logger.warn('Failed to create lesson booking for package', {
+            customerPackageId, lesson, error: lessonBookErr.message
+          });
+        }
+      }
+    }
+
+    // === Create rental records for selected rental dates ===
+    if (Array.isArray(rentalDates) && rentalDates.length > 0 && pkg.rental_service_id) {
+      for (const rentalDate of rentalDates) {
+        try {
+          if (!rentalDate) continue;
+          await client.query('SAVEPOINT rental_record');
+          const rentalId = uuidv4();
+
+          await client.query(
+            `INSERT INTO rentals (
+              id, service_id, customer_id, start_date, end_date,
+              status, payment_method, total_price,
+              customer_package_id, notes, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $4, 'confirmed', 'package', 0, $5, $6, NOW(), NOW())`,
+            [
+              rentalId,
+              pkg.rental_service_id,
+              userId,
+              rentalDate,
+              customerPackageId,
+              `Package rental: ${pkg.name}`
+            ]
+          );
+
+          logger.info('Rental record created for package purchase', {
+            rentalId, customerPackageId, date: rentalDate
+          });
+        } catch (rentalErr) {
+          await client.query('ROLLBACK TO SAVEPOINT rental_record');
+          logger.warn('Failed to create rental record for package', {
+            customerPackageId, rentalDate, error: rentalErr.message
+          });
+        }
       }
     }
     
@@ -1259,48 +1337,36 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         : 0;
     }
 
-    // For external payments, record a transaction for audit trail
-    if (normalizedPaymentMethod === 'external') {
+    await client.query('COMMIT');
+
+    // For credit card payments, initiate Iyzico checkout after commit
+    let iyzicoPaymentPageUrl = null;
+    if (normalizedPaymentMethod === 'credit_card' && packagePrice > 0) {
       try {
-        await recordLegacyTransaction({
-          client,
-          userId,
+        const iyzicoItems = [{
+          id: String(packageId),
+          name: pkg.name || 'Package Purchase',
+          price: parseFloat(packagePrice).toFixed(2)
+        }];
+
+        const gatewayResult = await initiateDeposit({
           amount: packagePrice,
-          transactionType: 'package_purchase',
-          status: 'completed',
-          direction: 'credit',
-          description: `Package Purchase (${externalPaymentProcessor}): ${pkg.name}`,
-          currency: priceCurrency,
-          paymentMethod: externalPaymentProcessor,
-          referenceNumber: externalPaymentReference,
-          metadata: {
-            packageId: customerPackageId,
-            servicePackageId: packageId,
-            totalHours: parseFloat(pkg.total_hours) || 0,
-            purchasePrice: packagePrice,
-            priceCurrency: priceCurrency,
-            processor: externalPaymentProcessor,
-            reference: externalPaymentReference,
-            note: externalPaymentNote,
-            source: 'services:packages:external-purchase'
-          },
-          entityType: 'customer_package',
-          relatedEntityType: 'customer_package',
-          relatedEntityId: customerPackageId,
-          createdBy: actorId || userId,
-          allowNegative: true
-        });
-      } catch (txError) {
-        logger.warn('Failed to record external payment transaction', {
+          currency: priceCurrency || 'EUR',
           userId,
-          packageId: customerPackageId,
-          error: txError?.message
+          referenceCode: `PKG-${customerPackageId}`,
+          items: iyzicoItems
         });
-        // Don't throw - the package was still created
+
+        iyzicoPaymentPageUrl = gatewayResult.paymentPageUrl;
+      } catch (iyzicoErr) {
+        logger.error('Failed to initiate Iyzico payment for package purchase', {
+          customerPackageId,
+          userId,
+          error: iyzicoErr.message
+        });
+        return res.status(500).json({ error: 'Failed to initiate card payment. Please try again.' });
       }
     }
-    
-    await client.query('COMMIT');
     
     // Redeem voucher if one was applied
     let voucherRedemptionInfo = null;
@@ -1439,13 +1505,9 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       };
     }
 
-    // Add external payment info
-    if (normalizedPaymentMethod === 'external') {
-      response.externalPayment = {
-        processor: externalPaymentProcessor,
-        reference: externalPaymentReference,
-        note: externalPaymentNote
-      };
+    // Add Iyzico payment URL if credit card payment
+    if (iyzicoPaymentPageUrl) {
+      response.paymentPageUrl = iyzicoPaymentPageUrl;
     }
 
     res.status(201).json(response);

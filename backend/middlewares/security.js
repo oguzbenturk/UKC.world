@@ -139,6 +139,23 @@ export const passwordResetRateLimit = rateLimit({
   keyGenerator: (req) => `pwd_reset_${req.ip}_${req.body?.email || 'unknown'}`
 });
 
+// Rate limiting for form submissions (public forms)
+export const formSubmissionRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'development' ? 100 : 10, // 10 submissions per hour per IP
+  message: {
+    error: 'Too many form submissions from this IP, please try again later.',
+    retryAfter: '1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Rate limit per IP and form code combination
+    return `form_submit_${req.ip}_${req.params.code || 'unknown'}`;
+  },
+  skipSuccessfulRequests: false // Count all attempts
+});
+
 // Rate limiting for payment callbacks (Iyzico, etc.) - prevents brute force attacks
 export const paymentCallbackRateLimit = rateLimit({
   windowMs: parsePositiveInt(process.env.PAYMENT_CALLBACK_RATE_LIMIT_WINDOW_MS, 60 * 1000), // 1 minute

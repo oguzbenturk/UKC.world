@@ -1,4 +1,4 @@
-﻿import { useCallback, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Modal, Spin, Alert, App, Dropdown } from 'antd';
 import { CreditCardOutlined, BankOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -134,11 +134,20 @@ const TransactionsPanel = ({ transactionsQuery, transactions, resolveLabel, form
 // --- Main modal ---
 const TRANSACTION_LIMIT = 3;
 
-const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance = 0 }) => {
+const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance = 0, initialAction }) => {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [bankTransferModalVisible, setBankTransferModalVisible] = useState(false);
+
+  // Auto-open sub-modal when initialAction is provided
+  useEffect(() => {
+    if (open && initialAction === 'deposit') {
+      setDepositModalVisible(true);
+    } else if (open && initialAction === 'bank_transfer') {
+      setBankTransferModalVisible(true);
+    }
+  }, [open, initialAction]);
   const [appliedWalletVoucher, setAppliedWalletVoucher] = useState(null);
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
 

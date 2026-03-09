@@ -291,9 +291,9 @@ router.get('/bank-accounts', authenticateJWT, async (req, res) => {
 });
 
 router.post('/deposit', authenticateJWT, depositLimiter, [
-  body('amount').toFloat().isFloat({ min: 1, max: 50000 }).withMessage('Amount must be between 1 and 50,000'),
+  body('amount').toFloat().isFloat({ min: 1 }).withMessage('Amount must be at least 1'),
   body('currency').isIn(['TRY', 'EUR', 'USD', 'GBP']).withMessage('Geçersiz para birimi'),
-  body('gateway').optional().isIn(['stripe', 'iyzico', 'paytr', 'binance_pay']).withMessage('Geçersiz ödeme yöntemi')
+  body('gateway').optional().isIn(['iyzico']).withMessage('Geçersiz ödeme yöntemi')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -512,6 +512,19 @@ router.post('/deposits/:id/verify', authenticateJWT, verifyDepositLimiter, async
 
     // Payment verified — approve the deposit
     const processorId = resolveSystemActorId() || userId;
+
+    // Save cardUserKey for saved card feature if returned
+    if (payment.cardUserKey) {
+      try {
+        await pool.query(
+          `UPDATE users SET iyzico_card_user_key = $1 WHERE id = $2 AND (iyzico_card_user_key IS NULL OR iyzico_card_user_key != $1)`,
+          [payment.cardUserKey, userId]
+        );
+      } catch (cardKeyErr) {
+        logger.warn('Failed to save cardUserKey from manual verify (non-blocking)', { error: cardKeyErr.message });
+      }
+    }
+
     const approvalResult = await approveDepositRequest({
       requestId: deposit.id,
       processorId,

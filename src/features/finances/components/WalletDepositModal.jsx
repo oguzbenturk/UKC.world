@@ -15,20 +15,20 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 import IyzicoCheckout from './IyzicoCheckout';
 
-// Minimum and maximum deposit amounts (in each currency)
+// Minimum deposit amounts (in each currency)
 const DEPOSIT_LIMITS = {
-  TRY: { min: 10, max: 50000 },
-  EUR: { min: 1, max: 1500 },
-  USD: { min: 1, max: 1500 },
-  GBP: { min: 1, max: 1200 }
+  TRY: { min: 10 },
+  EUR: { min: 1 },
+  USD: { min: 1 },
+  GBP: { min: 1 }
 };
 
 // Quick amount presets per currency
 function getQuickAmounts(currency) {
   switch (currency) {
-    case 'TRY': return [100, 250, 500, 1000, 2500];
-    case 'GBP': return [10, 25, 50, 100, 200];
-    default:    return [10, 25, 50, 100, 250];
+    case 'TRY': return [1000, 2000, 5000, 10000];
+    case 'GBP': return [200, 400, 800, 1600];
+    default:    return [250, 500, 1000, 2000];
   }
 }
 
@@ -138,7 +138,7 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
 
   const limits = DEPOSIT_LIMITS[selectedDisplayCurrency] || DEPOSIT_LIMITS.EUR;
   const quickAmounts = getQuickAmounts(selectedDisplayCurrency);
-  const canSubmit = depositAmount && depositAmount >= limits.min && depositAmount <= limits.max;
+  const canSubmit = depositAmount && depositAmount >= limits.min;
 
   // Iyzico natively supports these currencies (no TRY conversion needed)
   const isNativeCurrency = ['TRY', 'EUR', 'USD', 'GBP'].includes(selectedDisplayCurrency);
@@ -167,16 +167,14 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
           className="!mb-0"
           rules={[
             { required: true, message: 'Enter an amount' },
-            { type: 'number', min: limits.min, message: `Min ${formatCurrency(limits.min, selectedDisplayCurrency)}` },
-            { type: 'number', max: limits.max, message: `Max ${formatCurrency(limits.max, selectedDisplayCurrency)}` }
+            { type: 'number', min: limits.min, message: `Min ${formatCurrency(limits.min, selectedDisplayCurrency)}` }
           ]}
         >
           <InputNumber
             size="large"
             className="!w-full !rounded-xl"
             min={limits.min}
-            max={limits.max}
-            placeholder={`${limits.min} – ${limits.max.toLocaleString()}`}
+            placeholder={`Min ${limits.min}`}
             addonAfter={
               <span className="text-xs font-semibold text-gray-500">{selectedDisplayCurrency}</span>
             }

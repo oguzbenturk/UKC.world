@@ -1,7 +1,7 @@
 // src/features/authentication/components/RegisterModal.jsx
 // Multi-step registration wizard: Account → Profile → Address
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, Form, Input, Button, Select, InputNumber, Progress } from 'antd';
+import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined,
@@ -170,7 +170,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
   // Fields to validate per step
   const stepFields = [
     ['first_name', 'last_name', 'email', 'password', 'confirm_password'],
-    ['country_code', 'phone', 'age', 'weight', 'preferred_currency'],
+    ['country_code', 'phone', 'date_of_birth', 'weight', 'preferred_currency'],
     ['address', 'city', 'country', 'zip_code'],
   ];
 
@@ -198,7 +198,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
         email: values.email.toLowerCase(),
         phone: fullPhone,
         password: values.password,
-        age: values.age,
+        date_of_birth: values.date_of_birth ? values.date_of_birth.format('YYYY-MM-DD') : undefined,
         weight: values.weight,
         preferred_currency: values.preferred_currency,
         address: values.address,
@@ -428,15 +428,33 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
-                name="age"
-                label={lbl('Age')}
+                name="date_of_birth"
+                label={lbl('Date of Birth')}
                 rules={[
                   { required: true, message: 'Required' },
-                  { type: 'number', min: 10, max: 100, message: '10–100' },
+                  () => ({
+                    validator(_, value) {
+                      if (!value) return Promise.resolve();
+                      const today = new Date();
+                      const dob = value.toDate ? value.toDate() : new Date(value);
+                      let calcAge = today.getFullYear() - dob.getFullYear();
+                      const m = today.getMonth() - dob.getMonth();
+                      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) calcAge--;
+                      if (calcAge < 10) return Promise.reject('Must be at least 10 years old');
+                      if (calcAge > 100) return Promise.reject('Please enter a valid date');
+                      return Promise.resolve();
+                    }
+                  })
                 ]}
                 extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For safety guidelines</span>}
               >
-                <InputNumber placeholder="e.g. 25" className="w-full !rounded-lg" min={10} max={100} size="large" />
+                <DatePicker
+                  placeholder="Select date"
+                  className="w-full !rounded-lg"
+                  size="large"
+                  format="DD/MM/YYYY"
+                  disabledDate={(current) => current && current.valueOf() > Date.now()}
+                />
               </Form.Item>
               <Form.Item
                 name="weight"

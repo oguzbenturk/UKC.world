@@ -137,6 +137,12 @@ const ExperienceBookPackagePage = () => {
       return response.data;
     },
     onSuccess: async (data) => {
+      // For credit card payments, redirect to Iyzico payment page
+      if (data.paymentPageUrl) {
+        window.location.href = data.paymentPageUrl;
+        return;
+      }
+
       const description = buildSuccessMessage(data, formatCurrency);
       const roleUpgraded = data.roleUpgrade?.upgraded;
       
@@ -429,8 +435,6 @@ const buildSuccessMessage = (data, formatCurrency) => {
   
   if (data.wallet) {
     description += ` Your new wallet balance is ${formatCurrency(data.wallet.newBalance, data.wallet.currency)}.`;
-  } else if (data.externalPayment) {
-    description += ` Payment via ${data.externalPayment.processor} recorded.`;
   } else if (data.paymentMethod === 'pay_later') {
     description += ' Payment is pending.';
   }

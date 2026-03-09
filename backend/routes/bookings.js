@@ -16,6 +16,7 @@ import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
 import { insertNotification } from '../services/notificationWriter.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = express.Router();
 // Feature flag to optionally create cash transactions for partial package users
@@ -1054,9 +1055,48 @@ router.post('/',
     }
     
     // Defer transactions until booking exists, so we can attach booking_id
+    const isHybridPayment = requestedPaymentMethod === 'wallet_hybrid' && use_package === false && finalAmount > 0;
+    const isCreditCardPayment = (requestedPaymentMethod === 'credit_card' && use_package === false && finalAmount > 0) || isHybridPayment;
+    let hybridWalletDeducted = 0;
     const pendingTransactions = [];
     if (student_user_id && use_package === false) {
-      if (finalAmount > 0) {
+      if (isHybridPayment) {
+        // Hybrid: deduct what we can from wallet, charge the rest via Iyzico
+        try {
+          const balResult = await client.query(
+            `SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = $2`,
+            [student_user_id, walletCurrency || 'EUR']
+          );
+          const walletAvailable = parseFloat(balResult.rows[0]?.available_amount) || 0;
+          hybridWalletDeducted = Math.min(walletAvailable, finalAmount);
+
+          if (hybridWalletDeducted > 0) {
+            pendingTransactions.push({
+              userId: student_user_id,
+              amount: -Math.abs(hybridWalletDeducted),
+              type: 'booking_charge',
+              description: `Partial wallet payment for lesson: ${date} ${start_hour}:00 (${bookingDuration}h)`,
+              status: 'completed',
+              currency: walletCurrency,
+              metadata: {
+                paymentMethod: 'wallet_hybrid',
+                bookingDate: date,
+                walletPortion: hybridWalletDeducted,
+                cardPortion: finalAmount - hybridWalletDeducted,
+                source: 'student_booking_wizard'
+              }
+            });
+          }
+        } catch (walletCheckErr) {
+          logger.warn('Failed to check wallet for hybrid payment, falling back to full card', {
+            error: walletCheckErr.message
+          });
+        }
+        finalPaymentStatus = 'pending_payment';
+      } else if (requestedPaymentMethod === 'credit_card') {
+        // Credit card: don't charge wallet — Iyzico handles the payment
+        finalPaymentStatus = 'pending_payment';
+      } else if (finalAmount > 0) {
         pendingTransactions.push({
           userId: student_user_id,
           amount: -Math.abs(finalAmount),
@@ -1364,6 +1404,70 @@ router.post('/',
     }
     if (voucherRedemptionInfo) {
       response.voucher = voucherRedemptionInfo;
+    }
+
+    // For credit card payments, initiate Iyzico checkout and return payment URL
+    if (isCreditCardPayment) {
+      try {
+        // For hybrid payments, only charge the card for the deficit (total - wallet portion)
+        const cardChargeAmount = isHybridPayment
+          ? Math.max(0, finalAmount - hybridWalletDeducted)
+          : finalAmount;
+
+        if (cardChargeAmount > 0) {
+          const iyzicoItems = [{
+            id: String(booking.service_id || booking.id),
+            name: bookingServiceName || `Booking #${booking.id}`,
+            price: parseFloat(cardChargeAmount).toFixed(2)
+          }];
+
+          const gatewayResult = await initiateDeposit({
+            amount: cardChargeAmount,
+            currency: walletCurrency || 'EUR',
+            userId: student_user_id,
+            referenceCode: `BKG-${booking.id}`,
+            items: iyzicoItems
+          });
+
+          response.paymentPageUrl = gatewayResult.paymentPageUrl;
+          if (isHybridPayment) {
+            response.hybridPayment = {
+              walletCharged: hybridWalletDeducted,
+              cardCharge: cardChargeAmount,
+              totalAmount: finalAmount
+            };
+          }
+          logger.info('Iyzico checkout initiated for booking', {
+            bookingId: booking.id,
+            amount: cardChargeAmount,
+            hybridWalletDeducted,
+            currency: walletCurrency,
+            userId: student_user_id
+          });
+        } else {
+          // Hybrid payment fully covered by wallet (edge case)
+          finalPaymentStatus = 'paid';
+          await pool.query(
+            `UPDATE bookings SET payment_status = 'paid' WHERE id = $1`,
+            [booking.id]
+          );
+        }
+      } catch (iyzicoErr) {
+        logger.error('Failed to initiate Iyzico checkout for booking', {
+          bookingId: booking.id,
+          error: iyzicoErr.message
+        });
+        // Booking was created but payment initiation failed — mark it
+        await pool.query(
+          `UPDATE bookings SET payment_status = 'failed' WHERE id = $1`,
+          [booking.id]
+        );
+        return res.status(500).json({
+          error: 'payment_initiation_failed',
+          message: 'Booking was created but payment could not be initiated. Please try again or use a different payment method.',
+          bookingId: booking.id
+        });
+      }
     }
     
     res.status(201).json(response);
@@ -5120,6 +5224,67 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     // === Create rental record when approving a rental booking ===
     if (status === 'confirmed') {
       await ensureRentalFromBooking(client, booking, req.user.id);
+    }
+
+    // === Notify student when booking is confirmed/approved ===
+    if (status === 'confirmed' && booking.student_user_id) {
+      try {
+        // Get service name for the notification
+        const serviceResult = await client.query(
+          'SELECT name FROM services WHERE id = $1',
+          [booking.service_id]
+        );
+        const serviceName = serviceResult.rows[0]?.name || 'Lesson';
+        const bookingDate = booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+        await insertNotification({
+          userId: booking.student_user_id,
+          title: 'Booking Confirmed',
+          message: `Your ${serviceName} booking${bookingDate ? ` on ${bookingDate}` : ''} has been confirmed!`,
+          type: 'booking_confirmed',
+          data: {
+            bookingId: booking.id,
+            serviceId: booking.service_id,
+            date: booking.date,
+            link: '/student/bookings'
+          },
+          client
+        });
+      } catch (notifErr) {
+        logger.warn('Failed to send booking confirmation notification to student', {
+          bookingId: booking.id, studentId: booking.student_user_id, error: notifErr?.message
+        });
+      }
+    }
+
+    // === Notify student when booking is cancelled/declined ===
+    if (status === 'cancelled' && booking.student_user_id) {
+      try {
+        const serviceResult = await client.query(
+          'SELECT name FROM services WHERE id = $1',
+          [booking.service_id]
+        );
+        const serviceName = serviceResult.rows[0]?.name || 'Lesson';
+        const bookingDate = booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+        await insertNotification({
+          userId: booking.student_user_id,
+          title: 'Booking Declined',
+          message: `Your ${serviceName} booking${bookingDate ? ` on ${bookingDate}` : ''} has been declined. Any charges have been refunded.`,
+          type: 'booking_declined',
+          data: {
+            bookingId: booking.id,
+            serviceId: booking.service_id,
+            date: booking.date,
+            link: '/student/bookings'
+          },
+          client
+        });
+      } catch (notifErr) {
+        logger.warn('Failed to send booking decline notification to student', {
+          bookingId: booking.id, studentId: booking.student_user_id, error: notifErr?.message
+        });
+      }
     }
     
     // Update notification status for this booking
