@@ -244,20 +244,27 @@ const buildStats = (overview, walletSummary, formatCurrency, convertCurrency, us
   const upcomingLessons = overview.stats?.upcomingSessions ?? 0;
   const totalHours = overview.stats?.totalHours ?? 0;
   
-  // Use wallet balance from wallet API (has correct currency)
-  const walletBalance = walletSummary?.available ?? 0;
-  const walletCurrency = walletSummary?.currency || 'EUR';
-  
-  // Show dual currency: original + converted (if different)
-  let balanceDisplay;
-  if (walletCurrency !== userCurrency) {
-    const convertedBalance = convertCurrency(walletBalance, walletCurrency, userCurrency);
-    const originalFormatted = formatCurrency(walletBalance, walletCurrency);
-    const convertedFormatted = formatCurrency(convertedBalance, userCurrency);
-    balanceDisplay = `${originalFormatted} / ${convertedFormatted}`;
+  // Aggregate ALL wallet currency rows into the user's display currency
+  const allBalances = walletSummary?.balances;
+  let totalBalance = 0;
+  if (Array.isArray(allBalances) && allBalances.length > 0) {
+    totalBalance = allBalances.reduce((sum, row) => {
+      const amt = Number(row.available) || 0;
+      if (amt === 0) return sum;
+      if (row.currency === userCurrency || !convertCurrency) return sum + amt;
+      return sum + convertCurrency(amt, row.currency, userCurrency);
+    }, 0);
   } else {
-    balanceDisplay = formatCurrency(walletBalance, walletCurrency);
+    const singleAmt = Number(walletSummary?.available) || 0;
+    const singleCur = walletSummary?.currency || 'EUR';
+    if (singleCur === userCurrency || !convertCurrency) {
+      totalBalance = singleAmt;
+    } else {
+      totalBalance = convertCurrency(singleAmt, singleCur, userCurrency);
+    }
   }
+  
+  const balanceDisplay = formatCurrency(totalBalance, userCurrency);
 
   return [
     { label: 'Completed lessons', value: completedLessons },

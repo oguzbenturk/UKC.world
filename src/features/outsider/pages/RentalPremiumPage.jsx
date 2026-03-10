@@ -35,8 +35,10 @@ const RentalPremiumPage = () => {
 
   // Convert EUR prices to user currency
   const formatPrice = (eurPrice) => {
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const handleBookRental = () => {

@@ -7,10 +7,11 @@ import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import socketService from '../services/socketService.js';
-import { getBalance, recordTransaction } from '../services/walletService.js';
+import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
 import { insertNotification } from '../services/notificationWriter.js';
+import CurrencyService from '../services/currencyService.js';
 
 const router = express.Router();
 
@@ -207,34 +208,85 @@ router.post('/', authenticateJWT, async (req, res) => {
     const finalAmount = subtotal - voucherDiscount;
 
     // Check wallet balance if paying by wallet
+    // Aggregate all wallet currency balances into EUR equivalent
     let hybridWalletDeducted = 0;
-    if (payment_method === 'wallet' && use_wallet) {
-      const walletBalance = await getBalance(userId, 'EUR');
-      const balance = walletBalance.available || 0;
+    let walletDeductionPlan = []; // Array of { currency, amount } to deduct from each wallet
 
-      if (balance < finalAmount) {
+    // Get user's preferred currency for Iyzico gateway
+    const userCurrResult = await client.query('SELECT preferred_currency FROM users WHERE id = $1', [userId]);
+    const userPreferredCurrency = userCurrResult.rows[0]?.preferred_currency || 'EUR';
+
+    // Helper: calculate total EUR-equivalent wallet balance and build deduction plan
+    async function calculateWalletDeduction(maxDeductEUR) {
+      const allBalances = await getAllBalances(userId);
+      let remaining = maxDeductEUR;
+      const plan = [];
+
+      // Deduct from EUR wallet first, then other currencies
+      const sorted = allBalances.sort((a, b) => (a.currency === 'EUR' ? -1 : b.currency === 'EUR' ? 1 : 0));
+
+      for (const bal of sorted) {
+        if (remaining <= 0) break;
+        if (bal.available <= 0) continue;
+
+        const availableInEUR = bal.currency === 'EUR'
+          ? bal.available
+          : await CurrencyService.convertCurrency(bal.available, bal.currency, 'EUR');
+
+        const deductEUR = Math.min(availableInEUR, remaining);
+        const deductNative = bal.currency === 'EUR'
+          ? deductEUR
+          : await CurrencyService.convertCurrency(deductEUR, 'EUR', bal.currency);
+
+        // Don't deduct more than available in native currency
+        const actualDeductNative = Math.min(deductNative, bal.available);
+        const actualDeductEUR = bal.currency === 'EUR'
+          ? actualDeductNative
+          : await CurrencyService.convertCurrency(actualDeductNative, bal.currency, 'EUR');
+
+        if (actualDeductNative > 0) {
+          plan.push({ currency: bal.currency, amount: Math.round(actualDeductNative * 100) / 100 });
+          remaining -= actualDeductEUR;
+        }
+      }
+
+      return { totalDeductedEUR: Math.round((maxDeductEUR - Math.max(0, remaining)) * 100) / 100, plan };
+    }
+
+    if (payment_method === 'wallet' && use_wallet) {
+      const { totalDeductedEUR, plan } = await calculateWalletDeduction(finalAmount);
+
+      if (totalDeductedEUR < finalAmount - 0.01) {
         await client.query('ROLLBACK');
         return res.status(400).json({
-          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}`
+          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${totalDeductedEUR.toFixed(2)}`
         });
       }
-    } else if (payment_method === 'wallet_hybrid') {
-      // Hybrid: deduct what we can from wallet, charge the rest via credit card
-      const walletBalance = await getBalance(userId, 'EUR');
-      hybridWalletDeducted = Math.min(walletBalance.available || 0, finalAmount);
+      hybridWalletDeducted = totalDeductedEUR;
+      walletDeductionPlan = plan;
+    } else if (payment_method === 'wallet_hybrid' || payment_method === 'credit_card') {
+      // Hybrid / credit_card: deduct what we can from wallet, charge the rest via card
+      const { totalDeductedEUR, plan } = await calculateWalletDeduction(finalAmount);
+      hybridWalletDeducted = totalDeductedEUR;
+      walletDeductionPlan = plan;
     }
+
+    // Build wallet deduction data to store on order (deducted ONLY after Iyzico callback confirms)
+    const walletDeductionData = (hybridWalletDeducted > 0 && walletDeductionPlan.length > 0)
+      ? { totalDeductedEUR: hybridWalletDeducted, plan: walletDeductionPlan }
+      : null;
 
     // Create the order
     const orderResult = await client.query(`
       INSERT INTO shop_orders (
         user_id, status, payment_method, payment_status, 
         subtotal, discount_amount, total_amount, notes, shipping_address,
-        voucher_id, voucher_code
+        voucher_id, voucher_code, wallet_deduction_data
       )
-      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `, [userId, payment_method, subtotal, voucherDiscount, finalAmount, notes || null, shipping_address || null,
-        appliedVoucher?.id || null, appliedVoucher?.code || null]);
+        appliedVoucher?.id || null, appliedVoucher?.code || null, walletDeductionData ? JSON.stringify(walletDeductionData) : null]);
 
     const order = orderResult.rows[0];
 
@@ -268,13 +320,34 @@ router.post('/', authenticateJWT, async (req, res) => {
       `, [item.quantity, item.product_id]);
     }
 
-    // Process credit_card payment via Iyzico
+    // Process credit_card payment via Iyzico (wallet deduction deferred to callback)
     if (payment_method === 'credit_card') {
+      const cardChargeAmountEUR = Math.max(0, finalAmount - hybridWalletDeducted);
+
+      if (cardChargeAmountEUR > 0) {
        try {
+           // Convert card charge amount to user's preferred currency for Iyzico
+           // Iyzico rejects amounts >= 100,000 in any currency
+           const IYZICO_MAX = 99999.99;
+           let cardChargeConverted = cardChargeAmountEUR;
+           let chargeCurrency = userPreferredCurrency;
+           if (userPreferredCurrency !== 'EUR') {
+             const converted = await CurrencyService.convertCurrency(cardChargeAmountEUR, 'EUR', userPreferredCurrency);
+             if (converted >= IYZICO_MAX) {
+               await client.query('ROLLBACK');
+               const maxCardEUR = await CurrencyService.convertCurrency(IYZICO_MAX, userPreferredCurrency, 'EUR');
+               const minWalletEUR = (finalAmount - maxCardEUR).toFixed(2);
+               const minWalletLocal = await CurrencyService.convertCurrency(parseFloat(minWalletEUR), 'EUR', userPreferredCurrency);
+               return res.status(400).json({
+                 error: `Card amount (${converted.toFixed(2)} ${userPreferredCurrency}) exceeds the payment gateway limit of ${IYZICO_MAX.toLocaleString()} ${userPreferredCurrency}. Please add at least €${minWalletEUR} (${minWalletLocal.toFixed(2)} ${userPreferredCurrency}) to your wallet first to reduce the card portion.`
+               });
+             } else {
+               cardChargeConverted = converted;
+             }
+           }
+
            // Map items for Iyzico
            // Iyzico requires sum of basket items price to equal total price exactly.
-           // If a voucher discount is applied, we must distribute it proportionally
-           // across items so the basket total matches finalAmount.
            let iyzicoItems = validatedItems.map(i => ({
                id: String(i.product_id),
                name: i.product_name,
@@ -284,14 +357,15 @@ router.post('/', authenticateJWT, async (req, res) => {
                price: parseFloat(i.total_price).toFixed(2)
            }));
 
-           // Adjust basket item prices when voucher discount applied
-           if (voucherDiscount > 0 && finalAmount > 0 && subtotal > 0) {
-             const ratio = finalAmount / subtotal;
+           // Adjust basket item prices to match the card charge amount
+           // (accounts for voucher discount + wallet deduction)
+           const originalItemsTotal = validatedItems.reduce((sum, i) => sum + parseFloat(i.total_price), 0);
+           if (originalItemsTotal > 0) {
+             const ratio = cardChargeConverted / originalItemsTotal;
              let runningTotal = 0;
              iyzicoItems = iyzicoItems.map((item, index) => {
                if (index === iyzicoItems.length - 1) {
-                 // Last item absorbs rounding difference to match exactly
-                 const lastPrice = Math.round((finalAmount - runningTotal) * 100) / 100;
+                 const lastPrice = Math.round((cardChargeConverted - runningTotal) * 100) / 100;
                  return { ...item, price: Math.max(0.01, lastPrice).toFixed(2) };
                }
                const adjustedPrice = Math.round(parseFloat(item.price) * ratio * 100) / 100;
@@ -301,45 +375,79 @@ router.post('/', authenticateJWT, async (req, res) => {
            }
 
            const gatewayResult = await initiateDeposit({
-               amount: finalAmount,
-               currency: 'EUR', 
+               amount: cardChargeConverted,
+               currency: chargeCurrency,
                userId: userId,
                referenceCode: order.order_number,
                items: iyzicoItems
            });
 
+           // Store the Iyzico token on the order for reliable callback matching
+           await client.query('UPDATE shop_orders SET gateway_token = $1 WHERE id = $2', [gatewayResult.gatewayTransactionId, order.id]);
            await client.query('COMMIT'); 
            
-           const completeOrder = await getOrderWithItems(order.id, client);
+           const completeOrder = await getOrderWithItems(order.id);
            
            return res.status(201).json({
               success: true,
               paymentPageUrl: gatewayResult.paymentPageUrl,
-              order: completeOrder
+              order: completeOrder,
+              ...(hybridWalletDeducted > 0 && {
+                hybridPayment: {
+                  walletCharged: hybridWalletDeducted,
+                  cardCharge: cardChargeAmountEUR,
+                  totalAmount: finalAmount
+                }
+              })
            });
        } catch (err) {
            await client.query('ROLLBACK');
            logger.error('Iyzico Payment Init Failed', err);
            return res.status(500).json({ error: 'Failed to initiate payment gateway' });
        }
+      } else {
+        // Wallet covered everything — no card charge needed, deduct wallet immediately
+        for (const wd of walletDeductionPlan) {
+          await recordTransaction({
+            client,
+            userId,
+            amount: wd.amount,
+            currency: wd.currency,
+            transactionType: 'payment',
+            direction: 'debit',
+            availableDelta: -wd.amount,
+            description: `Shop Order #${order.order_number} (wallet - ${wd.currency})`,
+            relatedEntityType: 'shop_order',
+            metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
+          });
+        }
+        await client.query(`
+          UPDATE shop_orders SET payment_status = 'completed', status = 'confirmed', confirmed_at = NOW(), wallet_deduction_data = NULL WHERE id = $1
+        `, [order.id]);
+        await client.query(`
+          INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+          VALUES ($1, 'pending', 'confirmed', $2, 'Payment completed via wallet (auto-deducted on card checkout)')
+        `, [order.id, userId]);
+      }
     }
 
     // Process wallet payment
     if (payment_method === 'wallet' && use_wallet) {
-      // Deduct from wallet using walletService
-      await recordTransaction({
-        client,
-        userId,
-        amount: finalAmount,
-        currency: 'EUR',
-        transactionType: 'payment',
-        direction: 'debit',
-        availableDelta: -finalAmount,
-        description: `Shop Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''}`,
-        relatedEntityType: 'shop_order',
-        // Note: order.id is INTEGER, not UUID, so we store it in metadata instead
-        metadata: { orderId: order.id, orderNumber: order.order_number }
-      });
+      // Deduct from each currency wallet according to deduction plan
+      for (const wd of walletDeductionPlan) {
+        await recordTransaction({
+          client,
+          userId,
+          amount: wd.amount,
+          currency: wd.currency,
+          transactionType: 'payment',
+          direction: 'debit',
+          availableDelta: -wd.amount,
+          description: `Shop Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''} (${wd.currency})`,
+          relatedEntityType: 'shop_order',
+          metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
+        });
+      }
 
       // Update order payment status
       await client.query(`
@@ -369,46 +477,52 @@ router.post('/', authenticateJWT, async (req, res) => {
       `, [order.id, userId]);
     }
 
-    // Process hybrid wallet+card payment
+    // Process hybrid wallet+card payment (wallet deduction deferred to callback)
     if (payment_method === 'wallet_hybrid') {
       const cardChargeAmount = Math.max(0, finalAmount - hybridWalletDeducted);
-
-      // Deduct wallet portion if available
-      if (hybridWalletDeducted > 0) {
-        await recordTransaction({
-          client,
-          userId,
-          amount: hybridWalletDeducted,
-          currency: 'EUR',
-          transactionType: 'payment',
-          direction: 'debit',
-          availableDelta: -hybridWalletDeducted,
-          description: `Shop Order #${order.order_number} (wallet portion)`,
-          relatedEntityType: 'shop_order',
-          metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: hybridWalletDeducted, cardPortion: cardChargeAmount }
-        });
-      }
 
       if (cardChargeAmount > 0) {
         // Initiate Iyzico for the remaining card portion
         try {
+          // Convert to user's preferred currency for Iyzico
+          // Iyzico rejects amounts >= 100,000 in any currency
+          const IYZICO_MAX_HYBRID = 99999.99;
+          let cardChargeConverted = cardChargeAmount;
+          let chargeCurrency = userPreferredCurrency;
+          if (userPreferredCurrency !== 'EUR') {
+            const converted = await CurrencyService.convertCurrency(cardChargeAmount, 'EUR', userPreferredCurrency);
+            if (converted >= IYZICO_MAX_HYBRID) {
+              await client.query('ROLLBACK');
+              const maxCardEUR = await CurrencyService.convertCurrency(IYZICO_MAX_HYBRID, userPreferredCurrency, 'EUR');
+              const minWalletEUR = (finalAmount - maxCardEUR).toFixed(2);
+              const minWalletLocal = await CurrencyService.convertCurrency(parseFloat(minWalletEUR), 'EUR', userPreferredCurrency);
+              return res.status(400).json({
+                error: `Card amount (${converted.toFixed(2)} ${userPreferredCurrency}) exceeds the payment gateway limit of ${IYZICO_MAX_HYBRID.toLocaleString()} ${userPreferredCurrency}. Please add at least €${minWalletEUR} (${minWalletLocal.toFixed(2)} ${userPreferredCurrency}) to your wallet first to reduce the card portion.`
+              });
+            } else {
+              cardChargeConverted = converted;
+            }
+          }
+
           const iyzicoItems = [{
             id: String(order.id),
             name: `Shop Order #${order.order_number} (card portion)`,
             category1: 'Shop',
             category2: 'Retail',
             itemType: 'PHYSICAL',
-            price: parseFloat(cardChargeAmount).toFixed(2)
+            price: parseFloat(cardChargeConverted).toFixed(2)
           }];
 
           const gatewayResult = await initiateDeposit({
-            amount: cardChargeAmount,
-            currency: 'EUR',
+            amount: cardChargeConverted,
+            currency: chargeCurrency,
             userId: userId,
             referenceCode: order.order_number,
             items: iyzicoItems
           });
 
+          // Store the Iyzico token on the order for reliable callback matching
+          await client.query('UPDATE shop_orders SET gateway_token = $1 WHERE id = $2', [gatewayResult.gatewayTransactionId, order.id]);
           await client.query('COMMIT');
           const completeOrder = await getOrderWithItems(order.id);
 
@@ -423,15 +537,28 @@ router.post('/', authenticateJWT, async (req, res) => {
             }
           });
         } catch (iyzicoErr) {
-          // Rollback wallet deduction too
           await client.query('ROLLBACK');
           logger.error('Iyzico hybrid payment init failed', iyzicoErr);
           return res.status(500).json({ error: 'Failed to initiate card payment for remaining amount' });
         }
       } else {
-        // Wallet covered everything (edge case)
+        // Wallet covered everything (edge case) — deduct immediately, no Iyzico needed
+        for (const wd of walletDeductionPlan) {
+          await recordTransaction({
+            client,
+            userId,
+            amount: wd.amount,
+            currency: wd.currency,
+            transactionType: 'payment',
+            direction: 'debit',
+            availableDelta: -wd.amount,
+            description: `Shop Order #${order.order_number} (wallet - ${wd.currency})`,
+            relatedEntityType: 'shop_order',
+            metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
+          });
+        }
         await client.query(`
-          UPDATE shop_orders SET payment_status = 'completed', status = 'confirmed', confirmed_at = NOW() WHERE id = $1
+          UPDATE shop_orders SET payment_status = 'completed', status = 'confirmed', confirmed_at = NOW(), wallet_deduction_data = NULL WHERE id = $1
         `, [order.id]);
         await client.query(`
           INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)

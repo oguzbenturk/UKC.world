@@ -1017,7 +1017,11 @@ export async function fetchTransactions(userId, {
     params.push(status);
     filters.push(`status = $${index}`);
   } else {
+    // Exclude cancelled transactions and also exclude ghost "pending" credit-card
+    // external-payment records that have no real balance impact (available_delta = 0).
+    // These are created when a card payment is initiated but never confirmed.
     filters.push(`status != 'cancelled'`);
+    filters.push(`NOT (status = 'pending' AND available_delta = 0 AND payment_method = 'credit_card')`);
   }
 
   if (transactionType) {

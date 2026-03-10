@@ -204,8 +204,12 @@ const ExperienceBookPackagePage = () => {
   const handlePurchase = (purchaseData) => purchaseMutation.mutate(purchaseData);
 
   const getPackageDisplayPrice = (pkg) => {
+    const eurPrice = pkg?.price || 0;
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
-    return formatCurrency(price, currency);
+    if (currency === 'EUR') return eurFormatted;
+    return `${eurFormatted} (~${formatCurrency(price, currency)})`;
   };
 
   return (

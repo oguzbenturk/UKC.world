@@ -57,9 +57,12 @@ const ACCENT = {
 const DEFAULT_ACCENT = { ring: '#93c47d', light: '#f0fdf4', text: '#14532d', btn: '#4ade80', btnHover: '#22c55e' };
 const getAccent = (color) => ACCENT[String(color || '').toLowerCase()] || DEFAULT_ACCENT;
 
-const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, displayCurrency, businessCurrency, isPopular, isOwned }) => {
+const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, userCurrency, businessCurrency, isPopular, isOwned }) => {
   const price = offering.price || 0;
-  const displayPrice = convertCurrency(price, businessCurrency, displayCurrency);
+  const eurPrice = businessCurrency === 'EUR' ? price : convertCurrency(price, businessCurrency, 'EUR');
+  const eurFormatted = formatCurrency(eurPrice, 'EUR');
+  const showLocal = userCurrency && userCurrency !== 'EUR';
+  const localFormatted = showLocal ? formatCurrency(convertCurrency(price, businessCurrency, userCurrency), userCurrency) : null;
   const parsedFeatures = parseFeatures(offering.features);
   const accent = getAccent(offering.badge_color);
   const [hovered, setHovered] = useState(false);
@@ -120,11 +123,14 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, d
         {/* Price */}
           <div className="mb-6 pb-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-black text-white tracking-tight">{formatCurrency(displayPrice)}</span>
+            <span className="text-4xl font-black text-white tracking-tight">{eurFormatted}</span>
             {offering.period && (
               <span className="text-sm text-white/40 font-medium">/ {offering.period}</span>
             )}
           </div>
+          {showLocal && (
+            <p className="text-sm text-white/40 mt-1">~{localFormatted}</p>
+          )}
         </div>
 
         {/* Features */}
@@ -169,7 +175,7 @@ const MemberOfferings = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
-  const { formatCurrency, convertCurrency, displayCurrency, businessCurrency } = useCurrency();
+  const { formatCurrency, convertCurrency, userCurrency, businessCurrency } = useCurrency();
   const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -259,14 +265,17 @@ const MemberOfferings = () => {
   const confirmPurchase = (paymentMethod) => {
     if (!purchaseModal.offering) return;
     const offering = purchaseModal.offering;
-    const displayPrice = convertCurrency(offering.price || 0, businessCurrency, displayCurrency);
+    const eurBase = businessCurrency === 'EUR' ? (offering.price || 0) : convertCurrency(offering.price || 0, businessCurrency, 'EUR');
+    const eurStr = formatCurrency(eurBase, 'EUR');
+    const showLocal = userCurrency && userCurrency !== 'EUR';
+    const localStr = showLocal ? ` (~${formatCurrency(convertCurrency(offering.price || 0, businessCurrency, userCurrency), userCurrency)})` : '';
     Modal.confirm({
       title: 'Confirm Membership Purchase',
       icon: <CrownOutlined style={{ color: '#f59e0b' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
           <p><strong>{offering.name}</strong></p>
-          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(displayPrice)}{offering.period ? ` / ${offering.period}` : ''}</p>
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{eurStr}{localStr}{offering.period ? ` / ${offering.period}` : ''}</p>
           {isStaff && selectedCustomerName && <p style={{ color: '#888' }}>Assigning to: {selectedCustomerName}</p>}
           <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet Balance' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Reception'}</p>
         </div>
@@ -399,7 +408,7 @@ const MemberOfferings = () => {
                 onPurchase={handlePurchase}
                 formatCurrency={formatCurrency}
                 convertCurrency={convertCurrency}
-                displayCurrency={displayCurrency}
+                userCurrency={userCurrency}
                 businessCurrency={businessCurrency}
                 isPopular={getIsPopular(offering)}
                 isOwned={ownedOfferingIds.has(offering.id)}
@@ -434,7 +443,12 @@ const MemberOfferings = () => {
               </div>
               <h3 className="text-xl font-black mb-1" style={{ color: modalAccent.text }}>{purchaseModal.offering.name}</h3>
               <div className="text-2xl font-bold my-2" style={{ color: modalAccent.ring }}>
-                {formatCurrency(convertCurrency(purchaseModal.offering.price || 0, businessCurrency, displayCurrency))}
+                {formatCurrency(businessCurrency === 'EUR' ? (purchaseModal.offering.price || 0) : convertCurrency(purchaseModal.offering.price || 0, businessCurrency, 'EUR'), 'EUR')}
+                {userCurrency && userCurrency !== 'EUR' && (
+                  <span className="text-sm font-normal ml-1" style={{ color: modalAccent.text, opacity: 0.6 }}>
+                    (~{formatCurrency(convertCurrency(purchaseModal.offering.price || 0, businessCurrency, userCurrency), userCurrency)})
+                  </span>
+                )}
                 {purchaseModal.offering.period && (
                   <span className="text-sm font-normal" style={{ color: modalAccent.text, opacity: 0.7 }}> / {purchaseModal.offering.period}</span>
                 )}

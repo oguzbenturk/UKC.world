@@ -33,10 +33,12 @@ const StayBookingPage = () => {
     description: 'Find the perfect accommodation for your kitesurfing vacation. Hotels, pool studios, and home options in Urla.'
   });
 
-  // Convert EUR prices to user currency
+  // Show EUR price with user's local currency equivalent
   const formatPrice = (eurPrice) => {
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const handleBookAccommodation = () => {

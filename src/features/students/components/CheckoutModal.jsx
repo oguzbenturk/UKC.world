@@ -2,7 +2,7 @@
 // Checkout modal with wallet/credit card payment options + delivery address confirmation
 
 import { useState, useEffect } from 'react';
-import { Modal, Button, Typography, Radio, Space, Divider, Tag, Alert, Spin, Result, Input } from 'antd';
+import { Modal, Button, Typography, Radio, Tag, Alert, Spin, Result, Input } from 'antd';
 import {
   WalletOutlined,
   CreditCardOutlined,
@@ -10,8 +10,7 @@ import {
   ShoppingCartOutlined,
   SafetyCertificateOutlined,
   LoadingOutlined,
-  EnvironmentOutlined,
-  EditOutlined
+  EnvironmentOutlined
 } from '@ant-design/icons';
 import { useCart } from '@/shared/contexts/CartContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -19,7 +18,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const { cart, getCartTotal, getCartCount, clearCart } = useCart();
@@ -68,9 +67,11 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const showDualCurrency = storageCurrency !== userCurrency && convertCurrency;
 
   const formatDualAmount = (amount, baseCurrency = storageCurrency) => {
-    if (!showDualCurrency) return formatCurrency(amount, baseCurrency);
+    const eurAmount = baseCurrency === 'EUR' ? amount : (convertCurrency ? convertCurrency(amount, baseCurrency, 'EUR') : amount);
+    const eurFormatted = formatCurrency(eurAmount, 'EUR');
+    if (!showDualCurrency) return eurFormatted;
     const converted = convertCurrency(amount, baseCurrency, userCurrency);
-    return `${formatCurrency(amount, baseCurrency)} / ${formatCurrency(converted, userCurrency)}`;
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const total = getCartTotal();
@@ -99,8 +100,13 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       ? 'wallet_hybrid'
       : paymentMethod;
 
+    const creditCardHasWallet = effectiveMethod === 'credit_card' && (userBalance || 0) > 0;
+    const cardOnlyAmount = creditCardHasWallet ? Math.max(0, finalTotal - (userBalance || 0)) : finalTotal;
+
     const paymentLabel = effectiveMethod === 'wallet_hybrid'
       ? `Wallet (${formatCurrency(userBalance, storageCurrency)}) + Card (${formatCurrency(amountNeeded, storageCurrency)})`
+      : creditCardHasWallet
+      ? `Wallet (${formatCurrency(userBalance, storageCurrency)}) + Card (${formatCurrency(cardOnlyAmount, storageCurrency)})`
       : effectiveMethod === 'wallet' ? 'Wallet'
       : effectiveMethod === 'credit_card' ? 'Credit Card'
       : 'Cash at Pickup';
@@ -114,10 +120,10 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, storageCurrency)}</p>
           <p style={{ color: '#888' }}>Delivery to: {formatShippingAddress()}</p>
           <p style={{ color: '#888' }}>Payment: {paymentLabel}</p>
-          {effectiveMethod === 'wallet_hybrid' && (
+          {(effectiveMethod === 'wallet_hybrid' || creditCardHasWallet) && (
             <div style={{ marginTop: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
               <p style={{ color: '#1d4ed8', fontSize: 13, margin: 0 }}>
-                Your wallet balance of <strong>{formatCurrency(userBalance, storageCurrency)}</strong> will be used, and the remaining <strong>{formatCurrency(amountNeeded, storageCurrency)}</strong> will be charged from your card.
+                Your wallet balance of <strong>{formatCurrency(Math.min(userBalance || 0, finalTotal), storageCurrency)}</strong> will be used first{cardOnlyAmount > 0 || amountNeeded > 0 ? <>, and the remaining <strong>{formatCurrency(effectiveMethod === 'wallet_hybrid' ? amountNeeded : cardOnlyAmount, storageCurrency)}</strong> will be charged from your card.</> : '.'}
               </p>
             </div>
           )}
@@ -209,10 +215,11 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
           title="Order Placed Successfully!"
           subTitle={
-            <Space direction="vertical" size={4}>
+            <div>
               <Text>Order Number: <Text strong>{orderDetails.order_number}</Text></Text>
+              <br />
               <Text type="secondary">Thank you for your purchase!</Text>
-            </Space>
+            </div>
           }
           extra={[
             <Button key="continue" type="primary" onClick={handleClose} size="large">
@@ -224,340 +231,228 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     );
   }
 
+  const paymentOptionStyle = (value) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: paymentMethod === value ? '2px solid #3B82F6' : '1px solid #e5e7eb',
+    background: paymentMethod === value ? '#eff6ff' : '#fff',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  });
+
+  // Compute hybrid info text
+  const walletBal = userBalance || 0;
+  const cardPortion = Math.max(0, finalTotal - walletBal);
+  const showHybridInfo = (paymentMethod === 'credit_card' && walletBal > 0) ||
+    (paymentMethod === 'wallet' && !canAffordWallet && canUseHybridWallet);
+
   return (
     <Modal
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ShoppingCartOutlined style={{ fontSize: 20 }} />
-          <span>Checkout</span>
-        </div>
-      }
       open={visible}
       onCancel={handleClose}
       footer={null}
-      width={440}
+      width={400}
       centered
+      title={null}
+      closable
+      styles={{ body: { padding: '20px 24px 16px' } }}
     >
-      <Spin spinning={loading} indicator={<LoadingOutlined spin />} tip="Processing your order...">
-        <div style={{ padding: '8px 0' }}>
-          {/* Order Summary */}
-          <div style={{ 
-            background: '#f8f9fa', 
-            borderRadius: 12, 
-            padding: 16, 
-            marginBottom: 20 
-          }}>
-            <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Order Summary
-            </Text>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text>{itemCount} {itemCount === 1 ? 'item' : 'items'}</Text>
-                <Text strong>{formatDualAmount(total)}</Text>
-              </div>
-              {voucherDiscount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={{ color: '#52c41a' }}>
-                    Promo: {appliedVoucher?.code}
-                  </Text>
-                  <Text style={{ color: '#52c41a' }} strong>
-                    -{formatCurrency(voucherDiscount, storageCurrency)}
-                  </Text>
-                </div>
-              )}
-              <Divider style={{ margin: '12px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Title level={5} style={{ margin: 0 }}>Total</Title>
-                <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-                  {formatDualAmount(finalTotal)}
-                </Title>
-              </div>
-            </div>
+      <Spin spinning={loading} indicator={<LoadingOutlined spin />} tip="Processing...">
+        {/* Header with total */}
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <ShoppingCartOutlined style={{ fontSize: 28, color: '#3B82F6', marginBottom: 4 }} />
+          <div style={{ fontSize: 28, fontWeight: 700, color: '#111', lineHeight: 1.2 }}>
+            {formatDualAmount(finalTotal)}
           </div>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            {voucherDiscount > 0 && (
+              <span style={{ color: '#52c41a', marginLeft: 6 }}>
+                (-{formatCurrency(voucherDiscount, storageCurrency)} promo)
+              </span>
+            )}
+          </Text>
+        </div>
 
-          {/* Promo Code */}
-          <div style={{ marginBottom: 20 }}>
-            <PromoCodeInput
-              context="shop"
-              amount={total}
-              currency={storageCurrency}
-              appliedVoucher={appliedVoucher}
-              onValidCode={(voucherData) => setAppliedVoucher(voucherData)}
-              onClear={() => setAppliedVoucher(null)}
-              disabled={loading}
-            />
-          </div>
+        {/* Promo Code - compact */}
+        <div style={{ marginBottom: 12 }}>
+          <PromoCodeInput
+            context="shop"
+            amount={total}
+            currency={storageCurrency}
+            appliedVoucher={appliedVoucher}
+            onValidCode={(voucherData) => setAppliedVoucher(voucherData)}
+            onClear={() => setAppliedVoucher(null)}
+            disabled={loading}
+          />
+        </div>
 
-          {/* Delivery Address */}
-          <div style={{ 
-            background: '#f8f9fa', 
-            borderRadius: 12, 
-            padding: 16, 
-            marginBottom: 20 
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                <EnvironmentOutlined style={{ marginRight: 6 }} />
-                Delivery Address
-              </Text>
-              {hasCompleteAddress && !editingAddress && (
-                <Button 
-                  type="link" 
-                  size="small" 
-                  icon={<EditOutlined />}
-                  onClick={() => setEditingAddress(true)}
-                >
-                  Edit
-                </Button>
+        {/* Delivery Address - inline */}
+        <div style={{
+          background: '#f9fafb',
+          borderRadius: 10,
+          padding: '10px 14px',
+          marginBottom: 12,
+          border: '1px solid #f0f0f0',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              <EnvironmentOutlined style={{ color: '#6b7280', flexShrink: 0 }} />
+              {editingAddress ? (
+                <Text type="secondary" style={{ fontSize: 12 }}>Edit address</Text>
+              ) : hasCompleteAddress ? (
+                <Text style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {formatShippingAddress()}
+                </Text>
+              ) : (
+                <Text type="warning" style={{ fontSize: 13 }}>Add delivery address</Text>
               )}
             </div>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: 'auto', fontSize: 12 }}
+              onClick={() => setEditingAddress(!editingAddress)}
+            >
+              {editingAddress ? 'Cancel' : hasCompleteAddress ? 'Edit' : 'Add'}
+            </Button>
+          </div>
 
-            {editingAddress ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Input
-                  placeholder="Street address"
-                  value={deliveryAddress.address}
-                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address: e.target.value }))}
-                  size="middle"
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <Input
-                    placeholder="City"
-                    value={deliveryAddress.city}
-                    onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
-                    size="middle"
-                  />
-                  <Input
-                    placeholder="ZIP / Postal code"
-                    value={deliveryAddress.zip_code}
-                    onChange={(e) => setDeliveryAddress(prev => ({ ...prev, zip_code: e.target.value }))}
-                    size="middle"
-                  />
-                </div>
-                <Input
-                  placeholder="Country"
-                  value={deliveryAddress.country}
-                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
-                  size="middle"
-                />
-                <Button 
-                  type="primary" 
-                  size="small" 
-                  disabled={!hasCompleteAddress}
-                  onClick={() => setEditingAddress(false)}
-                  style={{ alignSelf: 'flex-end', marginTop: 4 }}
-                >
-                  Confirm Address
-                </Button>
-              </div>
-            ) : hasCompleteAddress ? (
-              <Text style={{ fontSize: 13 }}>{formatShippingAddress()}</Text>
-            ) : (
-              <Alert
-                message="No delivery address on file"
-                description="Please add your delivery address to continue."
-                type="warning"
-                showIcon
-                style={{ borderRadius: 8 }}
+          {editingAddress && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              <Input
+                placeholder="Street address"
+                value={deliveryAddress.address}
+                onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address: e.target.value }))}
+                size="small"
               />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <Input
+                  placeholder="City"
+                  value={deliveryAddress.city}
+                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
+                  size="small"
+                />
+                <Input
+                  placeholder="ZIP"
+                  value={deliveryAddress.zip_code}
+                  onChange={(e) => setDeliveryAddress(prev => ({ ...prev, zip_code: e.target.value }))}
+                  size="small"
+                />
+              </div>
+              <Input
+                placeholder="Country"
+                value={deliveryAddress.country}
+                onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
+                size="small"
+              />
+              <Button
+                type="primary"
+                size="small"
+                disabled={!hasCompleteAddress}
+                onClick={() => setEditingAddress(false)}
+                style={{ alignSelf: 'flex-end' }}
+              >
+                Confirm
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Payment Methods - compact cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          <div style={paymentOptionStyle('wallet')} onClick={() => setPaymentMethod('wallet')}>
+            <Radio checked={paymentMethod === 'wallet'} style={{ margin: 0 }} />
+            <WalletOutlined style={{ fontSize: 18, color: canAffordWallet ? '#52c41a' : '#f59e0b' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text strong style={{ fontSize: 13 }}>Wallet</Text>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                Balance: {formatDualAmount(walletBal)}
+              </Text>
+            </div>
+            {canAffordWallet ? (
+              <Tag color="success" style={{ margin: 0, fontSize: 11 }}>Full</Tag>
+            ) : walletBal > 0 ? (
+              <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>Partial</Tag>
+            ) : (
+              <Tag style={{ margin: 0, fontSize: 11 }}>Empty</Tag>
             )}
           </div>
 
-          {/* Payment Method Selection */}
-          <div style={{ marginBottom: 20 }}>
-            <Text strong style={{ display: 'block', marginBottom: 12 }}>
-              Select Payment Method
-            </Text>
-            <Radio.Group 
-              value={paymentMethod} 
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {/* Wallet Option */}
-                <Radio 
-                  value="wallet" 
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: paymentMethod === 'wallet' ? '#e6f7ff' : '#f5f5f5',
-                    borderRadius: 10,
-                    border: paymentMethod === 'wallet' ? '2px solid #1890ff' : '2px solid transparent',
-                    margin: 0
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <Space>
-                      <WalletOutlined style={{ fontSize: 20, color: canAffordWallet ? '#52c41a' : '#ff4d4f' }} />
-                      <div>
-                        <Text strong>Pay with Wallet</Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Balance: {formatDualAmount(userBalance || 0)}
-                        </Text>
-                      </div>
-                    </Space>
-                    {canAffordWallet ? (
-                      <Tag color="success">Available</Tag>
-                    ) : (
-                      <Tag color="error">Need {formatDualAmount(amountNeeded)}</Tag>
-                    )}
-                  </div>
-                </Radio>
-
-                {/* Credit Card Option */}
-                <Radio 
-                  value="credit_card"
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: paymentMethod === 'credit_card' ? '#e6f7ff' : '#f5f5f5',
-                    borderRadius: 10,
-                    border: paymentMethod === 'credit_card' ? '2px solid #1890ff' : '2px solid transparent',
-                    margin: 0
-                  }}
-                >
-                  <Space>
-                    <CreditCardOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-                    <div>
-                      <Text strong>Credit/Debit Card</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Secure payment via Iyzico
-                      </Text>
-                    </div>
-                  </Space>
-                </Radio>
-
-                {/* Cash Option (for in-store pickup) */}
-                <Radio 
-                  value="cash"
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: paymentMethod === 'cash' ? '#e6f7ff' : '#f5f5f5',
-                    borderRadius: 10,
-                    border: paymentMethod === 'cash' ? '2px solid #1890ff' : '2px solid transparent',
-                    margin: 0
-                  }}
-                >
-                  <Space>
-                    <ShoppingCartOutlined style={{ fontSize: 20, color: '#faad14' }} />
-                    <div>
-                      <Text strong>Pay at Pickup</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Pay when you collect your order
-                      </Text>
-                    </div>
-                  </Space>
-                </Radio>
-              </Space>
-            </Radio.Group>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <Alert 
-              message={error} 
-              type="error" 
-              showIcon 
-              style={{ marginBottom: 16, borderRadius: 8 }} 
-            />
-          )}
-
-          {/* Wallet Insufficient Warning */}
-          {paymentMethod === 'wallet' && !canAffordWallet && (
-            <Alert
-              message="Insufficient Balance"
-              description={`You need ${formatDualAmount(amountNeeded)} more in your wallet. Please top up or choose a different payment method.`}
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16, borderRadius: 8 }}
-            />
-          )}
-
-          {/* Credit Card Notice */}
-          {paymentMethod === 'credit_card' && (
-            <Alert
-              message="Card Payment"
-              description="You will be redirected to complete your payment securely. Your order will be confirmed once payment is successful."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16, borderRadius: 8 }}
-            />
-          )}
-
-          {/* Cash Payment Notice */}
-          {paymentMethod === 'cash' && (
-            <Alert
-              message="Pay at Pickup"
-              description="Your order will be reserved for you. Please pay when you collect your items from our store."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16, borderRadius: 8 }}
-            />
-          )}
-
-          {/* Wallet Hybrid Payment Notice */}
-          {paymentMethod === 'wallet' && !canAffordWallet && canUseHybridWallet && (
-            <Alert
-              message="Partial Wallet Payment"
-              description={`Your wallet balance (${formatCurrency(userBalance, storageCurrency)}) will be used, and the remaining ${formatCurrency(amountNeeded, storageCurrency)} will be charged from your card.`}
-              type="info"
-              showIcon
-              style={{ marginBottom: 16, borderRadius: 8 }}
-            />
-          )}
-
-          {/* Checkout Button */}
-          <Button
-            type="primary"
-            size="large"
-            block
-            icon={paymentMethod === 'wallet' ? <WalletOutlined /> : <CreditCardOutlined />}
-            onClick={handleCheckout}
-            disabled={(paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress}
-            loading={loading}
-            style={{
-              height: 52,
-              borderRadius: 12,
-              fontWeight: 600,
-              fontSize: 16,
-              background: '#3B82F6',
-              border: 'none'
-            }}
-          >
-            {paymentMethod === 'wallet' && canAffordWallet
-              ? `Pay ${formatCurrency(finalTotal, storageCurrency)} from Wallet`
-              : paymentMethod === 'wallet' && canUseHybridWallet
-              ? `Pay with Wallet + Card`
-              : paymentMethod === 'credit_card'
-              ? `Pay ${formatCurrency(finalTotal, storageCurrency)} by Card`
-              : 'Place Order'
-            }
-          </Button>
-
-          {(!hasCompleteAddress || editingAddress) && (
-            <Text type="warning" style={{ display: 'block', textAlign: 'center', marginTop: 8, fontSize: 13, color: '#faad14' }}>
-              {editingAddress ? '⚠ Please confirm your address to continue' : '⚠ A complete delivery address is required'}
-            </Text>
-          )}
-
-          {/* Security Note */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: 8, 
-            marginTop: 16 
-          }}>
+          <div style={paymentOptionStyle('credit_card')} onClick={() => setPaymentMethod('credit_card')}>
+            <Radio checked={paymentMethod === 'credit_card'} style={{ margin: 0 }} />
+            <CreditCardOutlined style={{ fontSize: 18, color: '#3B82F6' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text strong style={{ fontSize: 13 }}>Card</Text>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                {walletBal > 0 ? 'Wallet balance used first' : 'Secure payment via Iyzico'}
+              </Text>
+            </div>
             <SafetyCertificateOutlined style={{ color: '#52c41a', fontSize: 14 }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Secure checkout • SSL encrypted
-            </Text>
           </div>
         </div>
+
+        {/* Hybrid wallet+card info - single compact line */}
+        {showHybridInfo && (
+          <div style={{
+            padding: '8px 12px',
+            background: '#eff6ff',
+            borderRadius: 8,
+            border: '1px solid #bfdbfe',
+            marginBottom: 12,
+            fontSize: 12,
+            color: '#1d4ed8',
+            lineHeight: 1.5,
+          }}>
+            <WalletOutlined style={{ marginRight: 4 }} />
+            <strong>{formatCurrency(Math.min(walletBal, finalTotal), storageCurrency)}</strong> from wallet
+            {cardPortion > 0 && (
+              <> + <CreditCardOutlined style={{ marginLeft: 2, marginRight: 4 }} />
+              <strong>{formatCurrency(cardPortion, storageCurrency)}</strong> by card</>
+            )}
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <Alert message={error} type="error" showIcon style={{ marginBottom: 12, borderRadius: 8 }} />
+        )}
+
+        {/* Checkout Button */}
+        <Button
+          type="primary"
+          size="large"
+          block
+          onClick={handleCheckout}
+          disabled={(paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress}
+          loading={loading}
+          style={{
+            height: 48,
+            borderRadius: 10,
+            fontWeight: 600,
+            fontSize: 15,
+            background: (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress ? undefined : '#3B82F6',
+            border: 'none',
+          }}
+        >
+          {paymentMethod === 'wallet' && canAffordWallet
+            ? `Pay ${formatCurrency(finalTotal, storageCurrency)}`
+            : paymentMethod === 'wallet' && canUseHybridWallet
+            ? 'Pay with Wallet + Card'
+            : paymentMethod === 'credit_card'
+            ? `Pay ${formatCurrency(finalTotal, storageCurrency)}`
+            : 'Place Order'
+          }
+        </Button>
+
+        {(!hasCompleteAddress || editingAddress) && (
+          <Text style={{ display: 'block', textAlign: 'center', marginTop: 6, fontSize: 12, color: '#faad14' }}>
+            {editingAddress ? 'Please confirm your address' : 'Delivery address required'}
+          </Text>
+        )}
       </Spin>
     </Modal>
   );

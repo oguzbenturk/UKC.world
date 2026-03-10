@@ -83,7 +83,7 @@ const AcademyServicePackagesPage = ({
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!user?.id,
-    staleTime: 120_000,
+    staleTime: 30_000,
   });
 
   // Build a map: service_package_id → owned customer package (active + has remaining hours)
@@ -936,7 +936,9 @@ const AcademyServicePackagesPage = ({
   }, [dynamicPackages, packages, dynamicServiceKey, disciplineFilter]);
 
   // Handle booking: auth-gate then open inline modal (wizard or accommodation picker)
-  const handleBookNow = (pkg, durationHours) => {
+  const handleBookNow = (pkg, durationIndex) => {
+    const selectedDur = pkg?.durations?.[durationIndex];
+    const durationHours = selectedDur?.hours;
     if (!user) {
       // Close any open card/stay modals so the auth modal is visible on top
       setModalVisible(false);
@@ -977,10 +979,9 @@ const AcademyServicePackagesPage = ({
       // Resolve service ID and package ID from the selected card + duration
       let resolvedServiceId = null;
       let resolvedPackageId = null;
-      if (pkg) {
-        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
-        if (matchingDuration?.serviceId) resolvedServiceId = matchingDuration.serviceId;
-        if (matchingDuration?.packageId) resolvedPackageId = matchingDuration.packageId;
+      if (pkg && selectedDur) {
+        if (selectedDur.serviceId) resolvedServiceId = selectedDur.serviceId;
+        if (selectedDur.packageId) resolvedPackageId = selectedDur.packageId;
         if (!resolvedServiceId && pkg.serviceId) resolvedServiceId = pkg.serviceId;
       }
 
@@ -1001,12 +1002,11 @@ const AcademyServicePackagesPage = ({
 
       // For standalone lesson services (no package): also use QuickBookingModal
       if (!isRental && resolvedServiceId && !resolvedPackageId) {
-        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
         setQuickBookingData({
           packageData: null,
           serviceId: resolvedServiceId,
           durationHours: parsedDurationHours,
-          servicePrice: matchingDuration?.price || 0,
+          servicePrice: selectedDur?.price || 0,
           serviceName: pkg.name || 'Lesson',
         });
         setQuickBookingOpen(true);
@@ -1016,11 +1016,10 @@ const AcademyServicePackagesPage = ({
 
       // For rentals: use the streamlined RentalBookingModal
       if (isRental && resolvedServiceId) {
-        const matchingDuration = (pkg.durations || []).find(d => d.hours === durationHours);
         setRentalBookingData({
           serviceId: resolvedServiceId,
           serviceName: pkg.name || 'Equipment Rental',
-          servicePrice: matchingDuration?.price || 0,
+          servicePrice: selectedDur?.price || 0,
           serviceCurrency: 'EUR',
           durationHours: parsedDurationHours || 1,
           serviceDescription: pkg.description || '',
@@ -1072,7 +1071,7 @@ const AcademyServicePackagesPage = ({
       setStayModalVisible(true);
     } else {
       setSelectedPackage(pkg);
-      setSelectedDuration((pkg.durations[1] || pkg.durations[0])?.hours || null);
+      setSelectedDuration(pkg.durations.length > 1 ? 1 : 0);
       setModalVisible(true);
     }
   };
@@ -1095,13 +1094,15 @@ const AcademyServicePackagesPage = ({
 
   const getCurrentPrice = () => {
     if (!selectedPackage) return 0;
-    const duration = selectedPackage.durations.find(d => d.hours === selectedDuration);
+    const duration = selectedPackage.durations[selectedDuration];
     return duration ? duration.price : 0;
   };
 
   const formatPrice = (eurPrice) => {
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const getThemeColor = (pkg) => defaultColors[pkg?.color] || defaultColors.blue;
@@ -1494,16 +1495,15 @@ const AcademyServicePackagesPage = ({
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selectedPackage.durations.map((dur) => {
-                    const durKey = dur.hours;
-                    const isSelected = selectedDuration === durKey;
+                  {selectedPackage.durations.map((dur, durIdx) => {
+                    const isSelected = selectedDuration === durIdx;
                     const theme = getThemeColor(selectedPackage);
                     const ownedPkg = dur.packageId ? ownedByPackageId.get(String(dur.packageId)) : null;
                     const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
                     return (
                       <div
-                        key={`${selectedPackage.id}-${dur.serviceId || dur.hours}-${dur.price}`}
-                        onClick={() => setSelectedDuration(durKey)}
+                        key={`${selectedPackage.id}-${dur.serviceId || dur.hours}-${durIdx}`}
+                        onClick={() => setSelectedDuration(durIdx)}
                         className={`
                           relative cursor-pointer rounded-xl p-3 sm:p-4 border-2 transition-all duration-300
                           ${ownedPkg
@@ -1553,7 +1553,7 @@ const AcademyServicePackagesPage = ({
 
               <div className="mt-auto bg-[#0f1013] rounded-2xl p-4 sm:p-5 border border-white/5">
                 {(() => {
-                  const selDur = selectedPackage.durations.find(d => d.hours === selectedDuration);
+                  const selDur = selectedPackage.durations[selectedDuration];
                   const selOwned = selDur?.packageId ? ownedByPackageId.get(String(selDur.packageId)) : null;
                   const selOwnedRemaining = selOwned ? (parseFloat(selOwned.remainingHours ?? selOwned.remaining_hours) || 0) : 0;
                   return (

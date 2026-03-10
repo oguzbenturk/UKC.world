@@ -133,18 +133,31 @@ const DownwinderBookingModal = ({
     ? Math.round((currentParticipants / maxParticipants) * 100)
     : 0;
 
-  // Get display price
+  // Get display price (dual: EUR first, then local currency)
   const getDisplayPrice = useCallback(() => {
-    const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
-    let finalPrice = price;
+    const eurBase = pkg?.price || 0;
+    let eurFinal = eurBase;
     if (appliedVoucher) {
       if (appliedVoucher.discountType === 'percentage') {
-        finalPrice = price * (1 - appliedVoucher.discountValue / 100);
+        eurFinal = eurBase * (1 - appliedVoucher.discountValue / 100);
       } else {
-        finalPrice = Math.max(0, price - appliedVoucher.discountValue);
+        eurFinal = Math.max(0, eurBase - appliedVoucher.discountValue);
       }
     }
-    return formatCurrency(finalPrice, currency);
+    const eurFormatted = formatCurrency(eurFinal, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
+    const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
+    if (currency === 'EUR') return eurFormatted;
+    let localFinal = price;
+    if (appliedVoucher) {
+      if (appliedVoucher.discountType === 'percentage') {
+        localFinal = price * (1 - appliedVoucher.discountValue / 100);
+      } else {
+        const discountInLocal = convertCurrency ? convertCurrency(appliedVoucher.discountValue, 'EUR', currency) : appliedVoucher.discountValue;
+        localFinal = Math.max(0, price - discountInLocal);
+      }
+    }
+    return `${eurFormatted} (~${formatCurrency(localFinal, currency)})`;
   }, [pkg, userCurrency, convertCurrency, appliedVoucher, formatCurrency]);
 
   const getRawPrice = useCallback(() => {

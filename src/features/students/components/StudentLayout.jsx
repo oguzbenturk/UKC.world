@@ -7,7 +7,6 @@ import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import StudentBookingWizard from './StudentBookingWizard';
 import StudentQuickActions from './StudentQuickActions';
 import { getPreferredCurrency } from '../utils/getPreferredCurrency';
-import { getWalletBalance } from '../utils/getWalletBalance';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 
@@ -97,27 +96,28 @@ const StudentLayout = () => {
     return getPreferredCurrency(user, walletSummary, data, fallback);
   }, [user, walletSummary, data, userCurrency, getCurrencySymbol]);
   
-  // Get raw balance in storage currency (EUR)
-  const rawWalletBalance = useMemo(() => {
-    if (typeof walletSummary?.available === 'number') {
-      return Number(walletSummary.available);
-    }
-    const extracted = getWalletBalance(data, user);
-    return typeof extracted === 'number' && Number.isFinite(extracted) ? extracted : 0;
-  }, [walletSummary, data, user]);
-  
-  // Convert balance from EUR to user's display currency
   const displayCurrency = currency?.code || userCurrency || storageCurrency;
+
+  // Compute wallet balance by summing ALL currency rows, each converted
+  // to the display currency.  This avoids the old bug where only the EUR
+  // row was read and TRY deposits were either ignored or double-converted.
   const walletBalance = useMemo(() => {
-    if (!rawWalletBalance || rawWalletBalance === 0) {
-      return 0;
+    const allBalances = walletSummary?.balances;
+    if (Array.isArray(allBalances) && allBalances.length > 0) {
+      return allBalances.reduce((sum, row) => {
+        const amt = Number(row.available) || 0;
+        if (amt === 0) return sum;
+        if (row.currency === displayCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, displayCurrency);
+      }, 0);
     }
-    // Convert from storage currency (EUR) to display currency
-    if (convertCurrency && displayCurrency !== storageCurrency) {
-      return convertCurrency(rawWalletBalance, storageCurrency, displayCurrency);
-    }
-    return rawWalletBalance;
-  }, [rawWalletBalance, convertCurrency, storageCurrency, displayCurrency]);
+    // Single-currency fallback (walletSummary.available + its currency)
+    const singleAmt = Number(walletSummary?.available) || 0;
+    if (singleAmt === 0) return 0;
+    const singleCur = walletSummary?.currency || storageCurrency;
+    if (singleCur === displayCurrency || !convertCurrency) return singleAmt;
+    return convertCurrency(singleAmt, singleCur, displayCurrency);
+  }, [walletSummary, convertCurrency, displayCurrency, storageCurrency]);
   const handleWalletOpen = () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('wallet:open'));
@@ -180,7 +180,7 @@ const StudentLayout = () => {
   }), [data]);
 
   const fullName = user?.first_name ? `${user.first_name} ${user?.last_name ?? ''}`.trim() : user?.name || 'Student';
-  const outletContext = useMemo(() => ({ overview: data, layout: { showHeroNav } }), [data, showHeroNav]);
+  const outletContext = useMemo(() => ({ overview: data, layout: { showHeroNav }, walletSummary }), [data, showHeroNav, walletSummary]);
 
   if (!featureFlags.studentPortal) {
     return <StudentPortalDisabled />;

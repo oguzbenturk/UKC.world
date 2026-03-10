@@ -169,6 +169,13 @@ export async function forceDeleteCustomerPackage({
   const usedAmount = usedHours * pricePerHour;
   const partialRefundAmount = remainingHours * pricePerHour;
 
+  // Resolve refund currency: use the package's stored currency, or fall back to user's preferred currency
+  let refundCurrency = deletedPackage.currency;
+  if (!refundCurrency) {
+    const userPrefRow = await client.query('SELECT preferred_currency FROM users WHERE id = $1', [deletedPackage.customer_id]);
+    refundCurrency = userPrefRow.rows[0]?.preferred_currency || 'EUR';
+  }
+
   let walletTransaction = null;
   let walletSummary = null;
   let usageSettlementTransaction = null;
@@ -183,7 +190,7 @@ export async function forceDeleteCustomerPackage({
         status: 'completed',
         direction: 'credit',
         description: `Package Partial Refund: ${deletedPackage.package_name} (${remainingHours}h/${totalHours}h unused)`,
-        currency: deletedPackage.currency || 'EUR',
+        currency: refundCurrency,
         paymentMethod: 'package_refund',
         referenceNumber: deletedPackage.id,
         metadata: {
@@ -232,7 +239,7 @@ export async function forceDeleteCustomerPackage({
           status: 'completed',
           direction: 'debit',
           description: `Charge for used hours from package ${deletedPackage.package_name}`,
-          currency: deletedPackage.currency || 'EUR',
+          currency: refundCurrency,
           paymentMethod: 'package_usage_settlement',
           referenceNumber: deletedPackage.id,
           metadata: {

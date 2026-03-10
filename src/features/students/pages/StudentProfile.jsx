@@ -1242,7 +1242,7 @@ const useStudentDisplayData = (overview, bookings, rentals, businessCurrency) =>
 };
 
 const StudentProfile = () => {
-  const { overview } = useOutletContext() || {};
+  const { overview, walletSummary } = useOutletContext() || {};
   const { user } = useAuth();
   const { formatCurrency, businessCurrency, userCurrency, convertCurrency } = useCurrency();
 
@@ -1252,12 +1252,27 @@ const StudentProfile = () => {
   const studentId = overview?.student?.id || user?.id;
   const { bookings, rentals, memberships, shopHistory, events, loading: dataLoading, error } = useStudentActivity(studentId);
 
-  const { displayCurrency, stats, transactions, account, packages, upcomingSessions } = useStudentDisplayData(
+  const { displayCurrency, stats, transactions, account: rawAccount, packages, upcomingSessions } = useStudentDisplayData(
     overview,
     bookings,
     rentals,
     businessCurrency,
   );
+
+  // Override account balance with properly currency-aware wallet data.
+  // The transaction-based aggregate in rawAccount mixes currencies and is unreliable.
+  const account = useMemo(() => {
+    const allBalances = walletSummary?.balances;
+    if (!Array.isArray(allBalances) || allBalances.length === 0) return rawAccount;
+    // Sum all wallet rows, converting each to storageCurrency so formatDual can work correctly
+    const totalInStorage = allBalances.reduce((sum, row) => {
+      const amt = Number(row.available) || 0;
+      if (amt === 0) return sum;
+      if (row.currency === storageCurrency || !convertCurrency) return sum + amt;
+      return sum + convertCurrency(amt, row.currency, storageCurrency);
+    }, 0);
+    return { ...rawAccount, balance: Math.round(totalInStorage * 100) / 100 };
+  }, [rawAccount, walletSummary, convertCurrency, storageCurrency]);
 
   const activityRows = useMemo(() => buildActivityRows(bookings, rentals), [bookings, rentals]);
   const { bookingColumns, rentalColumns, membershipColumns, financialColumns, shopColumns, eventColumns, formatDualPrice } = useStudentTables(displayCurrency, formatCurrency, storageCurrency, convertCurrency);

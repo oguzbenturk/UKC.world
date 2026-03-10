@@ -161,10 +161,12 @@ export default RentalStandardPage;
     description: 'Rent quality kitesurfing equipment. Full sets, boards, and wetsuits available hourly, daily, or weekly.'
   });
 
-  // Convert EUR prices to user currency
+  // Show EUR price with user's local currency equivalent
   const formatPrice = (eurPrice) => {
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const handleBookRental = () => {

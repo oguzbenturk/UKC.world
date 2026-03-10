@@ -145,7 +145,7 @@ export async function initiateDeposit({
         }
     }
     
-    // Iyzico has a hard limit per transaction
+    // Iyzico has a hard limit per transaction (100,000 in any currency)
     const IYZICO_MAX_AMOUNT = 99999.99;
     if (gatewayAmount >= IYZICO_MAX_AMOUNT) {
         return reject(new Error(
@@ -215,7 +215,13 @@ export async function initiateDeposit({
         address: userData?.address || 'N/A',
         zipCode: userData?.zip_code || '34732'
       },
-      basketItems: items.length > 0 ? items : [
+      basketItems: items.length > 0 ? items.map(item => ({
+          category1: 'General',
+          category2: 'Service',
+          itemType: Iyzipay.BASKET_ITEM_TYPE.VIRTUAL,
+          ...item,
+          price: String(item.price)
+        })) : [
         {
           id: 'WALLET-TOPUP',
           name: gatewayCurrency !== displayCurrency

@@ -159,6 +159,13 @@ const resolvePkgPrice = (pkg, userCurrency, convertCurrency) => {
 // eslint-disable-next-line complexity
 const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater, onCreateGroupLesson, onCreateGroupWithFriend }) => {
   const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group';
+  // Dual-price: show EUR first, then user's local currency equivalent
+  const dualPrice = (() => {
+    const eurPrice = packageData?.price || 0;
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    if (!userCurrency || userCurrency === 'EUR' || priceCurrency === 'EUR') return eurFormatted;
+    return `${eurFormatted} (~${formatCurrency(displayPrice, priceCurrency)})`;
+  })();
 
   return (
   <div className="space-y-4 sm:space-y-5">
@@ -185,7 +192,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
         <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-end justify-between">
           <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">Package Total</span>
           <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-            {formatCurrency(displayPrice, priceCurrency)}
+            {dualPrice}
           </span>
         </div>
       </div>
@@ -320,9 +327,9 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
           icon={<ShoppingOutlined />}
         >
           {paymentMethod === 'wallet'
-            ? `Pay ${formatCurrency(displayPrice, priceCurrency)}`
+            ? `Pay ${dualPrice}`
             : paymentMethod === 'credit_card'
-              ? `Pay ${formatCurrency(displayPrice, priceCurrency)} with Card`
+              ? `Pay ${dualPrice} with Card`
               : 'Confirm — Pay Later'}
         </Button>
 
@@ -517,7 +524,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
 );
 
 // eslint-disable-next-line complexity
-const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, instructorName, onClose }) => {
+const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose }) => {
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
 
@@ -560,7 +567,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
         {isStandalone && displayPrice > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Price</span>
-            <span className="font-semibold text-slate-800">{formatCurrency(displayPrice, priceCurrency)}</span>
+            <span className="font-semibold text-slate-800">{(() => { const ef = formatCurrency(eurPrice || displayPrice, 'EUR'); if (!userCurrency || userCurrency === 'EUR' || priceCurrency === 'EUR') return ef; return `${ef} (~${formatCurrency(displayPrice, priceCurrency)})`; })()}</span>
           </div>
         )}
         {!isExistingPackage && !isStandalone && (
@@ -589,7 +596,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Remaining</span>
             <span className="font-semibold text-emerald-600">
-              {usedBooking ? remaining - (perSessionHours || 1) : remaining}h left
+              {remaining}h left
             </span>
           </div>
         )}
@@ -626,6 +633,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [isExistingPackage, setIsExistingPackage] = useState(false);
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+  const [pendingCustomerPackageId, setPendingCustomerPackageId] = useState(null);
 
   const [selectedInstructorId, setSelectedInstructorId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -659,7 +667,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled: open && !!studentId,
-    staleTime: 120_000,
+    staleTime: 15_000,
   });
 
   // Find a matching active customer package by service_package_id
@@ -686,6 +694,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setSelectedDurationMinutes(null);
       setIyzicoPaymentUrl(null);
       setShowIyzicoModal(false);
+      setPendingCustomerPackageId(null);
       // Initial step detection happens in the effect below once ownedPackages load
       setStep(0);
       setPurchasedPackage(null);
@@ -765,11 +774,23 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   }, [step, durationOptions, defaultPerSessionMinutes, selectedDurationMinutes]);
 
   const { data: walletSummary } = useWalletSummary({
-    userId: studentId,
+    currency: userCurrency,
     enabled: open && !!studentId,
   });
-  const walletBalance = normalizeNumeric(walletSummary?.available, 0);
-  const walletCurrency = walletSummary?.currency || 'EUR';
+  // Aggregate ALL wallet currency rows (EUR + TRY etc.) into a single display amount
+  const walletBalance = useMemo(() => {
+    const allBalances = walletSummary?.balances;
+    if (Array.isArray(allBalances) && allBalances.length > 0) {
+      return allBalances.reduce((sum, row) => {
+        const amt = Number(row.available) || 0;
+        if (amt === 0) return sum;
+        if (row.currency === userCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, userCurrency);
+      }, 0);
+    }
+    return normalizeNumeric(walletSummary?.available, 0);
+  }, [walletSummary, convertCurrency, userCurrency]);
+  const walletCurrency = userCurrency || 'EUR';
 
   const { price: displayPrice, currency: priceCurrency } = useMemo(
     () => resolvePkgPrice(packageData, userCurrency, convertCurrency),
@@ -810,6 +831,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       // For credit card payments, show the Iyzico payment modal
       if (res.data?.paymentPageUrl) {
         setIyzicoPaymentUrl(res.data.paymentPageUrl);
+        setPendingCustomerPackageId(res.data.customerPackage?.id || null);
         setShowIyzicoModal(true);
         setPurchasing(false);
         return;
@@ -841,6 +863,21 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
       queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
       queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
+      // Update local purchased package state to reflect deducted hours immediately
+      if (!isStandalone) {
+        setPurchasedPackage(prev => {
+          if (!prev) return prev;
+          const currentRemaining = parseFloat(prev.remainingHours ?? prev.remaining_hours) || 0;
+          const newRemaining = Math.max(0, currentRemaining - activeDurationHours);
+          return {
+            ...prev,
+            remainingHours: newRemaining,
+            remaining_hours: newRemaining,
+            usedHours: (parseFloat(prev.usedHours ?? prev.used_hours) || 0) + activeDurationHours,
+            used_hours: (parseFloat(prev.usedHours ?? prev.used_hours) || 0) + activeDurationHours,
+          };
+        });
+      }
       message.success('Lesson booked!');
       setStep(2);
     },
@@ -1083,6 +1120,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           isExistingPackage={isExistingPackage}
           isStandalone={isStandalone}
           displayPrice={isStandalone ? (servicePrice || 0) : displayPrice}
+          eurPrice={isStandalone ? (servicePrice || 0) : (packageData?.price || 0)}
+          userCurrency={userCurrency}
           formatCurrency={formatCurrency}
           priceCurrency={priceCurrency}
           instructorName={selectedInstructorId ? (instructorsData.find((i) => i.id === selectedInstructorId)?.name || `${instructorsData.find((i) => i.id === selectedInstructorId)?.first_name || ''} ${instructorsData.find((i) => i.id === selectedInstructorId)?.last_name || ''}`.trim() || null) : null}
@@ -1099,6 +1138,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       onSuccess={() => {
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
+        setPendingCustomerPackageId(null);
         queryClient.invalidateQueries({ queryKey: ['wallet'] });
         queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
         queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
@@ -1108,10 +1148,20 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       onClose={() => {
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
+        if (pendingCustomerPackageId) {
+          apiClient.post(`/services/customer-packages/${pendingCustomerPackageId}/cancel`).catch(() => {});
+          setPendingCustomerPackageId(null);
+          queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
+        }
       }}
       onError={(msg) => {
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
+        if (pendingCustomerPackageId) {
+          apiClient.post(`/services/customer-packages/${pendingCustomerPackageId}/cancel`).catch(() => {});
+          setPendingCustomerPackageId(null);
+          queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
+        }
         message.error(msg || 'Payment failed');
       }}
     />

@@ -856,11 +856,18 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
       // Just delete the transaction record directly - no reversal, no balance adjustment
       await client.query('DELETE FROM wallet_transactions WHERE id = $1', [id]);
       
+      // Resolve the currency from the transaction, falling back to user's preferred currency
+      let txCurrency = transaction.currency;
+      if (!txCurrency) {
+        const userPrefRow = await client.query('SELECT preferred_currency FROM users WHERE id = $1', [transaction.user_id]);
+        txCurrency = userPrefRow.rows[0]?.preferred_currency || 'EUR';
+      }
+
       // Check if there are any remaining transactions for this user/currency
       const remainingTxns = await client.query(
         `SELECT COUNT(*) as count FROM wallet_transactions 
          WHERE user_id = $1 AND currency = $2 AND status != 'cancelled'`,
-        [transaction.user_id, transaction.currency || 'EUR']
+        [transaction.user_id, txCurrency]
       );
       
       const hasRemainingTransactions = parseInt(remainingTxns.rows[0]?.count || 0, 10) > 0;
@@ -884,7 +891,7 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
              pending_amount = EXCLUDED.pending_amount,
              non_withdrawable_amount = EXCLUDED.non_withdrawable_amount,
              updated_at = NOW()`,
-          [transaction.user_id, transaction.currency || 'EUR']
+          [transaction.user_id, txCurrency]
         );
       } else {
         // No remaining transactions - reset wallet balance to zero or delete the record
@@ -893,7 +900,7 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
            SET available_amount = 0, pending_amount = 0, non_withdrawable_amount = 0, 
                last_transaction_at = NULL, updated_at = NOW()
            WHERE user_id = $1 AND currency = $2`,
-          [transaction.user_id, transaction.currency || 'EUR']
+          [transaction.user_id, txCurrency]
         );
         
         // Also update the legacy users.balance column
@@ -1039,11 +1046,13 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       return res.status(400).json({ message: 'Amount must be greater than 0' });
     }
 
-    // IMPORTANT: All financial transactions are stored in EUR (base currency)
-    // This ensures consistent reporting and prevents currency confusion
-    // The provided currency parameter is only used as metadata for audit purposes
-    const storageCurrency = 'EUR'; // Always store in base currency
-    const providedCurrency = currency || 'EUR'; // Track what admin intended
+    // Use the currency specified by admin, or fall back to user's preferred currency
+    // This ensures funds go to the correct wallet row for multi-currency users
+    let targetCurrency = currency;
+    if (!targetCurrency) {
+      const userRow = await pool.query('SELECT preferred_currency FROM users WHERE id = $1', [id]);
+      targetCurrency = userRow.rows[0]?.preferred_currency || 'EUR';
+    }
 
     const actorId = resolveActorId(req);
 
@@ -1051,7 +1060,7 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       userId: id,
       amount: resolveWalletAmount('payment', numericAmount),
       transactionType: 'payment',
-      currency: storageCurrency, // Store in EUR
+      currency: targetCurrency,
       description: description || 'Funds added',
       paymentMethod: payment_method || null,
       referenceNumber: reference_number || null,
@@ -1059,12 +1068,12 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
         origin: 'finances_add_funds',
         paymentMethod: payment_method || null,
         referenceNumber: reference_number || null,
-        inputCurrency: providedCurrency // Track what was entered for audit
+        inputCurrency: currency || null // Track what admin entered for audit
       },
       createdBy: actorId || null
     });
 
-    const { walletSummary } = await calculateUserBalance(id, storageCurrency);
+    const { walletSummary } = await calculateUserBalance(id, targetCurrency);
 
     return res.status(200).json({
       message: 'Funds added successfully',
@@ -1204,10 +1213,12 @@ router.post('/accounts/:id/process-refund', authenticateJWT, authorizeRoles(['ad
       return res.status(400).json({ message: 'Amount must be greater than 0' });
     }
 
-    // Storage currency is always EUR (base currency)
-    // The currency param from request is the input currency for audit purposes
-    const storageCurrency = 'EUR';
-    const inputCurrency = currency || 'EUR';
+    // Use the currency specified by admin, or fall back to user's preferred currency
+    let targetCurrency = currency;
+    if (!targetCurrency) {
+      const userRow = await pool.query('SELECT preferred_currency FROM users WHERE id = $1', [id]);
+      targetCurrency = userRow.rows[0]?.preferred_currency || 'EUR';
+    }
 
     const actorId = resolveActorId(req);
 
@@ -1215,7 +1226,7 @@ router.post('/accounts/:id/process-refund', authenticateJWT, authorizeRoles(['ad
       userId: id,
       amount: resolveWalletAmount('refund', numericAmount),
       transactionType: 'refund',
-      currency: storageCurrency, // Always store in EUR
+      currency: targetCurrency,
       description: description || 'Refund processed',
       bookingId: booking_id || null,
       entityType: entity_type || null,
@@ -1223,14 +1234,14 @@ router.post('/accounts/:id/process-refund', authenticateJWT, authorizeRoles(['ad
         origin: 'finances_process_refund',
         bookingId: booking_id || null,
         entityType: entity_type || null,
-        inputCurrency // Track original input currency for audit
+        inputCurrency: currency || null
       },
       relatedEntityType: entity_type || null,
       relatedEntityId: booking_id || null,
       createdBy: actorId || null
     });
 
-    const { walletSummary } = await calculateUserBalance(id, storageCurrency);
+    const { walletSummary } = await calculateUserBalance(id, targetCurrency);
 
     return res.status(200).json({
       message: 'Refund processed successfully',
@@ -1257,10 +1268,12 @@ router.post('/accounts/:id/process-charge', authenticateJWT, authorizeRoles(['ad
       return res.status(400).json({ message: 'Amount must be greater than 0' });
     }
 
-    // Storage currency is always EUR (base currency)
-    // The currency param from request is the input currency for audit purposes
-    const storageCurrency = 'EUR';
-    const inputCurrency = currency || 'EUR';
+    // Use the currency specified by admin, or fall back to user's preferred currency
+    let targetCurrency = currency;
+    if (!targetCurrency) {
+      const userRow = await pool.query('SELECT preferred_currency FROM users WHERE id = $1', [id]);
+      targetCurrency = userRow.rows[0]?.preferred_currency || 'EUR';
+    }
 
     const actorId = resolveActorId(req);
 
@@ -1268,7 +1281,7 @@ router.post('/accounts/:id/process-charge', authenticateJWT, authorizeRoles(['ad
       userId: id,
       amount: resolveWalletAmount('charge', numericAmount),
       transactionType: 'charge',
-      currency: storageCurrency, // Always store in EUR
+      currency: targetCurrency,
       description: description || 'Account charged',
       bookingId: booking_id || null,
       entityType: entity_type || null,
@@ -1276,7 +1289,7 @@ router.post('/accounts/:id/process-charge', authenticateJWT, authorizeRoles(['ad
         origin: 'finances_process_charge',
         bookingId: booking_id || null,
         entityType: entity_type || null,
-        inputCurrency // Track original input currency for audit
+        inputCurrency: currency || null
       },
       relatedEntityType: entity_type || null,
       relatedEntityId: booking_id || null,
@@ -1284,7 +1297,7 @@ router.post('/accounts/:id/process-charge', authenticateJWT, authorizeRoles(['ad
       allowNegative: true
     });
 
-    const { walletSummary } = await calculateUserBalance(id, storageCurrency);
+    const { walletSummary } = await calculateUserBalance(id, targetCurrency);
 
     return res.status(200).json({
       message: 'Charge processed successfully',

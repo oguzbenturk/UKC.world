@@ -129,15 +129,10 @@ const StudentQuickActions = ({
   const hasRatings = ratingsCount > 0;
   const totalBadge = hasRatings ? ratingsCount : 0;
 
-  // Format wallet label with dual currency
+  // Format wallet label – balance is already in the display currency
+  const displayCode = currency?.code || userCurrency || storageCurrency;
   const walletLabel = balance !== undefined
-    ? (() => {
-        if (showDualCurrency) {
-          const converted = convertCurrency(balance, storageCurrency, userCurrency);
-          return `${formatCurrency(balance, storageCurrency)} / ${formatCurrency(converted, userCurrency)}`;
-        }
-        return `${currency?.symbol || '€'}${balance.toFixed(2)}`;
-      })()
+    ? formatCurrency(balance, displayCode)
     : 'Wallet';
 
   if (!isOnStudentPage) return null;

@@ -122,17 +122,21 @@ const getSectionOrder = (sectionKey) => {
 };
 
 const getPriceForUserCurrency = (pkg, userCurrency, convertCurrency, formatCurrency) => {
+  const basePrice = Number(pkg.price) || 0;
+  const baseCurrency = pkg.currency || 'EUR';
+  const eurFormatted = formatCurrency(baseCurrency === 'EUR' ? basePrice : (convertCurrency ? convertCurrency(basePrice, baseCurrency, 'EUR') : basePrice), 'EUR');
+
+  if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
+
   const priceRows = Array.isArray(pkg.prices) ? pkg.prices : [];
   const directPrice = priceRows.find((p) => normalize(p.currencyCode || p.currency_code) === normalize(userCurrency));
   if (directPrice?.price != null) {
-    return formatCurrency(Number(directPrice.price), userCurrency);
+    return `${eurFormatted} (~${formatCurrency(Number(directPrice.price), userCurrency)})`;
   }
 
-  const basePrice = Number(pkg.price) || 0;
-  const baseCurrency = pkg.currency || 'EUR';
   if (baseCurrency === userCurrency) return formatCurrency(basePrice, userCurrency);
   const converted = convertCurrency(basePrice, baseCurrency, userCurrency);
-  return formatCurrency(converted, userCurrency);
+  return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
 };
 
 const getFallbackImageByDiscipline = (disciplineKey) => {
@@ -211,6 +215,23 @@ const ExperiencePackagesPage = ({
 
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary, refetch: refetchWallet } = useWalletSummary({ currency: storageCurrency });
+
+  // Aggregate ALL wallet currency rows into user's display currency
+  const aggregatedWalletBalance = useMemo(() => {
+    const allBalances = walletSummary?.balances;
+    if (Array.isArray(allBalances) && allBalances.length > 0) {
+      return allBalances.reduce((sum, row) => {
+        const amt = Number(row.available) || 0;
+        if (amt === 0) return sum;
+        if (row.currency === userCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, userCurrency);
+      }, 0);
+    }
+    const singleAmt = Number(walletSummary?.available) || 0;
+    const singleCur = walletSummary?.currency || storageCurrency;
+    if (singleCur === userCurrency || !convertCurrency) return singleAmt;
+    return convertCurrency(singleAmt, singleCur, userCurrency);
+  }, [walletSummary, convertCurrency, userCurrency, storageCurrency]);
 
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState([]);
@@ -583,7 +604,7 @@ const ExperiencePackagesPage = ({
         open={purchaseModalOpen}
         onCancel={() => setPurchaseModalOpen(false)}
         selectedPackage={selectedPackage}
-        walletBalance={walletSummary?.available || 0}
+        walletBalance={aggregatedWalletBalance}
         onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
         isPurchasing={purchaseMutation.isPending}
         destroyOnHidden
@@ -593,7 +614,7 @@ const ExperiencePackagesPage = ({
         open={allInclusiveModalOpen}
         onCancel={() => setAllInclusiveModalOpen(false)}
         selectedPackage={selectedPackage}
-        walletBalance={walletSummary?.available || 0}
+        walletBalance={aggregatedWalletBalance}
         onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
         isPurchasing={purchaseMutation.isPending}
       />
@@ -602,7 +623,7 @@ const ExperiencePackagesPage = ({
         open={downwinderModalOpen}
         onCancel={() => setDownwinderModalOpen(false)}
         selectedPackage={selectedPackage}
-        walletBalance={walletSummary?.available || 0}
+        walletBalance={aggregatedWalletBalance}
         onPurchase={(purchaseData) => purchaseMutation.mutate(purchaseData)}
         isPurchasing={purchaseMutation.isPending}
       />

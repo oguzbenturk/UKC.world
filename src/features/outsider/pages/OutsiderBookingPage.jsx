@@ -704,6 +704,9 @@ const OutsiderBookingPage = () => {
                       // Get price in user's currency (with live conversion)
                       const { price: pkgPrice, currency: pkgCurrency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
                       const pkgPricePerHour = pkg.totalHours > 0 ? pkgPrice / pkg.totalHours : 0;
+                      const eurBase = pkg.price || 0;
+                      const eurPerHour = pkg.totalHours > 0 ? eurBase / pkg.totalHours : 0;
+                      const showLocal = userCurrency && userCurrency !== 'EUR' && pkgCurrency !== 'EUR';
                       
                       return (
                         <div
@@ -728,11 +731,16 @@ const OutsiderBookingPage = () => {
                               <div className="flex items-center gap-4">
                                 <div>
                                   <Text strong className="text-2xl text-sky-600">
-                                    {formatCurrency(pkgPrice, pkgCurrency)}
+                                    {formatCurrency(eurBase, 'EUR')}
                                   </Text>
-                                  {pkgPricePerHour > 0 && (
+                                  {showLocal && (
+                                    <Text type="secondary" className="text-sm ml-1">
+                                      (~{formatCurrency(pkgPrice, pkgCurrency)})
+                                    </Text>
+                                  )}
+                                  {eurPerHour > 0 && (
                                     <Text type="secondary" className="text-xs ml-2">
-                                      ({formatCurrency(pkgPricePerHour, pkgCurrency)}/hour)
+                                      ({formatCurrency(eurPerHour, 'EUR')}/hour)
                                     </Text>
                                   )}
                                 </div>

@@ -85,8 +85,7 @@ const ShopPage = () => {
 
     const { isGuest, isAuthenticated } = useAuth();
     const { openAuthModal } = useAuthModal();
-    const { data: walletSummary } = useWalletSummary({ enabled: isAuthenticated });
-    const userBalance = Number(walletSummary?.available ?? 0);
+    const { data: walletSummary, refetch: refetchWallet } = useWalletSummary({ enabled: isAuthenticated });
 
     // Use shared filter context
     const {
@@ -122,6 +121,20 @@ const ShopPage = () => {
     const [masterProductsLoaded, setMasterProductsLoaded] = useState(false); // Trigger re-filter after load
     
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+
+    // Aggregate all wallet balances into EUR equivalent
+    const userBalance = useMemo(() => {
+        if (walletSummary?.balances?.length) {
+            return walletSummary.balances.reduce((sum, row) => {
+                const amt = Number(row.available) || 0;
+                if (amt === 0) return sum;
+                if (row.currency === 'EUR') return sum + amt;
+                return sum + (convertCurrency ? convertCurrency(amt, row.currency, 'EUR') : amt);
+            }, 0);
+        }
+        return Number(walletSummary?.available ?? 0);
+    }, [walletSummary, convertCurrency]);
+
     const {
         addToCart: addToCartContext,
         addToWishlist,
@@ -746,6 +759,7 @@ const ShopPage = () => {
                     visible={cartVisible}
                     onClose={() => setCartVisible(false)}
                     userBalance={userBalance}
+                    onRefreshBalance={isAuthenticated ? refetchWallet : undefined}
                 />
                 
                 <ProductPreviewModal

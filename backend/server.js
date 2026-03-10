@@ -498,25 +498,32 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
     if (depositResult.rows.length === 0) {
       // No deposit request found — check if this is a shop order payment
-      // Shop orders use order_number as conversationId when calling initiateDeposit
+      // Primary lookup: by gateway_token (reliable — stored on the order)
+      // Fallback: by conversationId/order_number (Iyzico may not return conversationId in retrieve response)
       const conversationId = payment.raw?.conversationId;
-      logger.info('No deposit request found, checking for shop order', { token, conversationId });
+      logger.info('No deposit request found, checking for shop order', { token, conversationId, rawKeys: Object.keys(payment.raw || {}) });
 
-      if (conversationId && conversationId.startsWith('ORD-')) {
-        // This is a shop order credit card payment
-        const orderResult = await pool.query(
-          `SELECT id, user_id, order_number, status, payment_status, total_amount, subtotal, discount_amount, voucher_id, voucher_code, currency
+      // Try to find shop order: first by gateway_token, then by conversationId
+      let orderResult = await pool.query(
+        `SELECT id, user_id, order_number, status, payment_status, total_amount, subtotal, discount_amount, voucher_id, voucher_code, currency, wallet_deduction_data
+         FROM shop_orders
+         WHERE gateway_token = $1 AND payment_method IN ('credit_card', 'wallet_hybrid')
+         LIMIT 1`,
+        [token]
+      );
+
+      // Fallback: try by conversationId (order_number)
+      if (orderResult.rows.length === 0 && conversationId && conversationId.startsWith('ORD-')) {
+        orderResult = await pool.query(
+          `SELECT id, user_id, order_number, status, payment_status, total_amount, subtotal, discount_amount, voucher_id, voucher_code, currency, wallet_deduction_data
            FROM shop_orders
-           WHERE order_number = $1 AND payment_method = 'credit_card'
+           WHERE order_number = $1 AND payment_method IN ('credit_card', 'wallet_hybrid')
            LIMIT 1`,
           [conversationId]
         );
+      }
 
-        if (orderResult.rows.length === 0) {
-          logger.error('Iyzico Callback: No matching shop order found', { conversationId, token });
-          return res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=order_not_found`);
-        }
-
+      if (orderResult.rows.length > 0) {
         const order = orderResult.rows[0];
 
         // Idempotent: skip if already completed
@@ -525,13 +532,38 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
         }
 
-        // Update shop order: mark payment as completed, confirm order
+        // Execute deferred wallet deductions now that card payment is confirmed
+        if (order.wallet_deduction_data && order.wallet_deduction_data.plan) {
+          try {
+            const { recordTransaction: recordWalletTx } = await import('./services/walletService.js');
+            for (const wd of order.wallet_deduction_data.plan) {
+              await recordWalletTx({
+                userId: order.user_id,
+                amount: wd.amount,
+                currency: wd.currency,
+                transactionType: 'payment',
+                direction: 'debit',
+                availableDelta: -wd.amount,
+                description: `Shop Order #${order.order_number} (wallet portion - ${wd.currency})`,
+                relatedEntityType: 'shop_order',
+                metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: order.wallet_deduction_data.totalDeductedEUR, deductedCurrency: wd.currency, deductedAmount: wd.amount }
+              });
+            }
+            logger.info('Wallet deductions executed for shop order', { orderNumber: order.order_number, deductions: order.wallet_deduction_data.plan });
+          } catch (walletErr) {
+            logger.error('Failed to execute wallet deductions for shop order', { orderNumber: order.order_number, error: walletErr.message });
+            // Don't fail the whole callback — card payment is confirmed, log for manual resolution
+          }
+        }
+
+        // Update shop order: mark payment as completed, confirm order, clear deduction data
         await pool.query(`
           UPDATE shop_orders 
           SET payment_status = 'completed', 
               status = 'confirmed', 
               confirmed_at = NOW(),
-              updated_at = NOW()
+              updated_at = NOW(),
+              wallet_deduction_data = NULL
           WHERE id = $1
         `, [order.id]);
 
@@ -844,14 +876,22 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
         }
       }
 
-      // === Package purchase (PKG-{customerPackageId}) ===
-      if (conversationId && conversationId.startsWith('PKG-')) {
-        const customerPackageId = conversationId.replace('PKG-', '');
+      // === Package purchase — look up by iyzico token first (most reliable) ===
+      const pkgByToken = await pool.query(
+        `SELECT id, customer_id AS user_id, status, package_name FROM customer_packages WHERE gateway_transaction_id = $1 LIMIT 1`,
+        [token]
+      );
+      if (pkgByToken.rows.length > 0 || (conversationId && conversationId.startsWith('PKG-'))) {
+        const customerPackageId = pkgByToken.rows.length > 0
+          ? pkgByToken.rows[0].id
+          : conversationId.replace('PKG-', '');
         try {
-          const pkgResult = await pool.query(
-            `SELECT id, user_id, payment_status, package_name FROM customer_packages WHERE id = $1`,
-            [customerPackageId]
-          );
+          const pkgResult = pkgByToken.rows.length > 0
+            ? pkgByToken
+            : await pool.query(
+                `SELECT id, customer_id AS user_id, status, package_name FROM customer_packages WHERE id = $1`,
+                [customerPackageId]
+              );
 
           if (pkgResult.rows.length === 0) {
             logger.error('Iyzico Callback: Package not found', { customerPackageId, token });
@@ -860,16 +900,32 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
           const cp = pkgResult.rows[0];
 
-          // Idempotent: if already paid, just redirect success
-          if (cp.payment_status === 'paid') {
+          // Idempotent: if already active, just redirect success
+          if (cp.status === 'active') {
             return res.redirect(`${frontendUrl}/payment/callback?status=success&type=package_purchase`);
           }
 
-          // Update payment status to paid
+          // Activate the package
           await pool.query(
-            `UPDATE customer_packages SET payment_status = 'paid', notes = COALESCE(notes, '') || ' | Iyzico payment confirmed' WHERE id = $1`,
+            `UPDATE customer_packages
+             SET status = 'active',
+                 notes = COALESCE(notes, '') || ' | Iyzico payment confirmed',
+                 updated_at = NOW()
+             WHERE id = $1`,
             [customerPackageId]
           );
+
+          // Upgrade outsider → student now that a paid package exists
+          try {
+            const userRow = await pool.query(`SELECT role FROM users WHERE id = $1`, [cp.user_id]);
+            if (userRow.rows[0]?.role === 'outsider') {
+              const { upgradeOutsiderToStudent } = await import('./services/roleUpgradeService.js');
+              await upgradeOutsiderToStudent(cp.user_id);
+              logger.info('Outsider upgraded to student after credit-card package payment', { userId: cp.user_id, customerPackageId });
+            }
+          } catch (upgradeErr) {
+            logger.warn('Role upgrade after package payment failed (non-blocking)', { userId: cp.user_id, error: upgradeErr.message });
+          }
 
           try {
             const { recordTransaction: recordWalletTx } = await import('./services/walletService.js');
@@ -988,6 +1044,25 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
       hasToken: !!req.body?.token,
       ip: req.ip
     });
+
+    // If payment verification failed, cancel any pending_payment customer package tied to this token
+    const failedToken = req.body?.token;
+    if (failedToken && error.message?.includes('Payment not successful')) {
+      try {
+        await pool.query(
+          `UPDATE customer_packages
+           SET status = 'cancelled',
+               notes = COALESCE(notes, '') || ' | Cancelled: Iyzico payment failed',
+               updated_at = NOW()
+           WHERE gateway_transaction_id = $1 AND status = 'pending_payment'`,
+          [failedToken]
+        );
+        logger.info('Cancelled pending_payment package after Iyzico payment failure', { token: failedToken });
+      } catch (cancelErr) {
+        logger.warn('Failed to cancel pending package after payment failure', { error: cancelErr.message });
+      }
+    }
+
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(`${frontendUrl}/payment/callback?status=failed`);
   }

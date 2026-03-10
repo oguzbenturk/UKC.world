@@ -20,15 +20,18 @@ import CheckoutModal from './CheckoutModal';
 
 const { Text, Title } = Typography;
 
-const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess }) => {
+const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefreshBalance }) => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, addToWishlist, refreshCartPrices } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
 
-  // Refresh cart prices from backend when drawer opens
+  // Refresh cart prices and wallet balance from backend when drawer opens
   useEffect(() => {
     if (visible && cart.length > 0) {
       refreshCartPrices();
+    }
+    if (visible && onRefreshBalance) {
+      onRefreshBalance();
     }
   }, [visible]); // intentionally only depend on visible
 
@@ -36,9 +39,11 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess }) => {
   const showDualCurrency = storageCurrency !== userCurrency && convertCurrency;
 
   const formatDualAmount = (amount, baseCurrency = storageCurrency) => {
-    if (!showDualCurrency) return formatCurrency(amount, baseCurrency);
+    const eurAmount = baseCurrency === 'EUR' ? amount : (convertCurrency ? convertCurrency(amount, baseCurrency, 'EUR') : amount);
+    const eurFormatted = formatCurrency(eurAmount, 'EUR');
+    if (!showDualCurrency) return eurFormatted;
     const converted = convertCurrency(amount, baseCurrency, userCurrency);
-    return `${formatCurrency(amount, baseCurrency)} / ${formatCurrency(converted, userCurrency)}`;
+    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
   const total = getCartTotal();

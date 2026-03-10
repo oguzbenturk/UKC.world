@@ -488,6 +488,7 @@ export async function createUserFromRegistration(registrationId) {
     const additionalData = reg.additional_data || {};
     const contactPreference = additionalData.contact_preference || 'email';
     const phoneCountryCode = additionalData.phone_country_code || null;
+    const userCurrency = additionalData.preferred_currency || reg.preferred_currency || (process.env.DEFAULT_WALLET_CURRENCY || 'EUR').toUpperCase();
 
     // Create user
     const userResult = await client.query(`
@@ -507,7 +508,7 @@ export async function createUserFromRegistration(registrationId) {
         created_at, 
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'EUR', $8, 'quick_link', false, $9, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $10, $8, 'quick_link', false, $9, NOW(), NOW())
       RETURNING id, email
     `, [
       email,
@@ -518,17 +519,18 @@ export async function createUserFromRegistration(registrationId) {
       reg.phone || null,
       phoneCountryCode,
       outsiderRoleId,
-      contactPreference
+      contactPreference,
+      userCurrency
     ]);
 
     const userId = userResult.rows[0].id;
 
-    // Create wallet for new user
+    // Create wallet for new user in their preferred currency
     await client.query(
       `INSERT INTO wallet_balances (user_id, currency, available_amount, pending_amount, non_withdrawable_amount)
-       VALUES ($1, 'EUR', 0, 0, 0)
+       VALUES ($1, $2, 0, 0, 0)
        ON CONFLICT (user_id, currency) DO NOTHING`,
-      [userId]
+      [userId, userCurrency]
     );
 
     // Link user to registration

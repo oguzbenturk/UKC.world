@@ -912,28 +912,49 @@ router.post('/',
     // Check user's choice: use package or pay individually
     if (student_user_id && use_package === true) {
       
-      // Check if customer has available package hours matching the service type/name
-      // Use flexible matching: exact match, or fuzzy match (trim 's' suffix for singular/plural)
-      const params = [student_user_id, parseFloat(bookingDuration)];
-      let sql = `
-        SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
-        FROM customer_packages 
-        WHERE customer_id = $1 
-          AND status = 'active' 
-          AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $2)
-          AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
-      `;
-      if (bookingServiceName) {
-        // Flexible matching: allow singular/plural mismatch (e.g., "Private Lesson" matches "Private Lessons")
-        sql += ` AND (
-          lesson_service_name IS NULL 
-          OR LOWER(lesson_service_name) = LOWER($3)
-          OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
-        )`;
-        params.push(bookingServiceName);
+      // Prefer the specific customer_package_id when provided by the frontend
+      const requestedPackageId = req.body.customer_package_id || req.body.selected_package_id;
+      let packageCheck = { rows: [] };
+      
+      if (requestedPackageId) {
+        // Look up the specifically requested package (validates ownership + active + enough hours)
+        const specificParams = [requestedPackageId, student_user_id, parseFloat(bookingDuration)];
+        const specificSql = `
+          SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
+          FROM customer_packages 
+          WHERE id = $1 
+            AND customer_id = $2
+            AND status = 'active' 
+            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $3)
+            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
+          LIMIT 1
+        `;
+        packageCheck = await client.query(specificSql, specificParams);
       }
-      sql += ' ORDER BY purchase_date ASC LIMIT 1';
-      const packageCheck = await client.query(sql, params);
+      
+      // Fallback: search by customer_id + service name if no specific package provided or it didn't match
+      if (packageCheck.rows.length === 0) {
+        const params = [student_user_id, parseFloat(bookingDuration)];
+        let sql = `
+          SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
+          FROM customer_packages 
+          WHERE customer_id = $1 
+            AND status = 'active' 
+            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $2)
+            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
+        `;
+        if (bookingServiceName) {
+          // Flexible matching: allow singular/plural mismatch (e.g., "Private Lesson" matches "Private Lessons")
+          sql += ` AND (
+            lesson_service_name IS NULL 
+            OR LOWER(lesson_service_name) = LOWER($3)
+            OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
+          )`;
+          params.push(bookingServiceName);
+        }
+        sql += ' ORDER BY purchase_date ASC LIMIT 1';
+        packageCheck = await client.query(sql, params);
+      }
       
       if (packageCheck.rows.length > 0) {
         // Customer has package hours available - use them

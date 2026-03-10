@@ -38,15 +38,19 @@ const ProductCard = memo(({
     const [imgError, setImgError] = useState(false);
     const handleImgError = useCallback(() => setImgError(true), []);
 
-    const formattedPrice = formatCurrency(
-        convertCurrency ? convertCurrency(product.price, product.currency || 'EUR', userCurrency) : product.price,
-        userCurrency
-    );
+    const productCurrency = product.currency || 'EUR';
+    const eurPrice = productCurrency === 'EUR' ? product.price : (convertCurrency ? convertCurrency(product.price, productCurrency, 'EUR') : product.price);
+    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    const showLocal = userCurrency && userCurrency !== 'EUR';
+
+    const formattedPrice = showLocal
+        ? `${eurFormatted} (~${formatCurrency(convertCurrency ? convertCurrency(product.price, productCurrency, userCurrency) : product.price, userCurrency)})`
+        : eurFormatted;
 
     const formattedOriginal = (product.original_price && product.original_price > product.price)
         ? formatCurrency(
-            convertCurrency ? convertCurrency(product.original_price, product.currency || 'EUR', userCurrency) : product.original_price,
-            userCurrency
+            productCurrency === 'EUR' ? product.original_price : (convertCurrency ? convertCurrency(product.original_price, productCurrency, 'EUR') : product.original_price),
+            'EUR'
         )
         : null;
 

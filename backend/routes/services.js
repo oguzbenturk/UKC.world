@@ -5,7 +5,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles as authorize } from '../middlewares/authorize.js';
 import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
-// import CurrencyService from '../services/currencyService.js';
+import CurrencyService from '../services/currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
 import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
@@ -1032,7 +1032,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     // Handle wallet payment
     if (normalizedPaymentMethod === 'wallet') {
-      // Check user's wallet balance in the price currency
+      // Check user's wallet balance in the price currency first
       const balanceResult = await client.query(
         `SELECT available_amount FROM wallet_balances 
          WHERE user_id = $1 AND currency = $2`,
@@ -1043,24 +1043,48 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         ? parseFloat(balanceResult.rows[0].available_amount) 
         : 0;
       
-      // If no balance found in price currency, check for any non-zero balance
-      if (availableBalance === 0) {
-        const anyBalanceResult = await client.query(
+      // If balance in price currency is insufficient, check all wallet balances
+      // to find a currency where the user CAN afford the package
+      if (availableBalance < packagePrice) {
+        const allBalancesResult = await client.query(
           `SELECT available_amount, currency FROM wallet_balances 
            WHERE user_id = $1 AND available_amount > 0
-           ORDER BY updated_at DESC LIMIT 1`,
+           ORDER BY available_amount DESC`,
           [userId]
         );
         
-        if (anyBalanceResult.rows.length > 0) {
-          availableBalance = parseFloat(anyBalanceResult.rows[0].available_amount);
-          const walletCurrency = anyBalanceResult.rows[0].currency;
+        for (const walletRow of allBalancesResult.rows) {
+          const walletCurrency = walletRow.currency;
+          const walletBalance = parseFloat(walletRow.available_amount);
           
-          // Try to get price in wallet currency
+          // Skip the currency we already checked
+          if (walletCurrency === priceCurrency) continue;
+          
+          // Try to get explicit price in this wallet currency
+          let priceInWalletCurrency = null;
           const walletCurrencyPrice = await getPackagePriceInCurrency(packageId, walletCurrency);
           if (walletCurrencyPrice && walletCurrencyPrice.price > 0) {
-            packagePrice = walletCurrencyPrice.price;
-            priceCurrency = walletCurrencyPrice.currencyCode;
+            priceInWalletCurrency = walletCurrencyPrice.price;
+          } else {
+            // No explicit price — convert using exchange rates
+            try {
+              const converted = await CurrencyService.convertCurrency(packagePrice, priceCurrency, walletCurrency);
+              if (converted > 0) {
+                priceInWalletCurrency = converted;
+              }
+            } catch (convErr) {
+              logger.warn('Failed to convert package price to wallet currency', {
+                packageId, fromCurrency: priceCurrency, toWalletCurrency: walletCurrency, error: convErr.message
+              });
+            }
+          }
+          
+          // If user can afford it in this currency, use it
+          if (priceInWalletCurrency !== null && walletBalance >= priceInWalletCurrency) {
+            availableBalance = walletBalance;
+            packagePrice = priceInWalletCurrency;
+            priceCurrency = walletCurrency;
+            break;
           }
         }
       }
@@ -1103,6 +1127,11 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     const pkgIncludesRental = pkg.includes_rental || false;
     const pkgIncludesAccommodation = pkg.includes_accommodation || false;
     
+    // Credit card packages start as 'pending_payment' and are only activated by the
+    // Iyzico payment callback once the payment is confirmed. All other methods are
+    // immediately active (wallet deducted above, or pay_later accepted by policy).
+    const initialStatus = normalizedPaymentMethod === 'credit_card' ? 'pending_payment' : 'active';
+
     const customerPackageQuery = `
       INSERT INTO customer_packages (
         id, customer_id, service_package_id, package_name, lesson_service_name,
@@ -1113,7 +1142,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         package_type, includes_lessons, includes_rental, includes_accommodation,
         rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, 'active', NOW(), $10, $11, $12,
+      VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $23, NOW(), $10, $11, $12,
               $13, $13, 0,
               $14, $14, 0,
               $15, $16, $17, $18,
@@ -1151,7 +1180,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       pkg.rental_service_id || null,
       pkg.rental_service_name || null,
       pkg.accommodation_unit_id || null,
-      pkg.accommodation_unit_name || null
+      pkg.accommodation_unit_name || null,
+      initialStatus  // $23
     ]);
 
     // Create accommodation booking if package includes accommodation
@@ -1214,7 +1244,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
           await client.query(
             `INSERT INTO bookings (
               id, service_id, student_user_id, instructor_user_id,
-              date, start_time, end_time, duration,
+              date, start_hour, end_hour, duration,
               status, payment_method, payment_status,
               amount, final_amount,
               customer_package_id, package_id,
@@ -1339,7 +1369,73 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     await client.query('COMMIT');
 
+    // For credit card payments, initiate Iyzico checkout after commit
+    // NOTE: ledger entry is recorded AFTER this block so failed iyzico attempts
+    // don't leave ghost pending transactions in the wallet.
+    let iyzicoPaymentPageUrl = null;
+    if (normalizedPaymentMethod === 'credit_card' && packagePrice > 0) {
+      try {
+        // Prefer charging in the user's preferred currency so the Iyzico checkout
+        // shows the amount they expect (e.g. TRY for Turkish users).
+        let iyzicoAmount = packagePrice;
+        let iyzicoCurrency = priceCurrency || 'EUR';
+        if (userCurrency && userCurrency !== priceCurrency) {
+          try {
+            // First check if there is an explicit price in the user's currency
+            const userCurrencyPrice = await getPackagePriceInCurrency(packageId, userCurrency);
+            if (userCurrencyPrice && userCurrencyPrice.price > 0) {
+              iyzicoAmount = userCurrencyPrice.price;
+              iyzicoCurrency = userCurrencyPrice.currencyCode;
+            } else {
+              // Fall back to exchange-rate conversion
+              const converted = await CurrencyService.convertCurrency(packagePrice, priceCurrency, userCurrency);
+              if (converted > 0) {
+                iyzicoAmount = converted;
+                iyzicoCurrency = userCurrency;
+              }
+            }
+          } catch (convErr) {
+            logger.warn('Could not convert package price to user currency for Iyzico, using base currency', {
+              packageId, from: priceCurrency, to: userCurrency, error: convErr.message
+            });
+          }
+        }
+
+        const iyzicoItems = [{
+          id: String(packageId),
+          name: pkg.name || 'Package Purchase',
+          price: parseFloat(iyzicoAmount).toFixed(2)
+        }];
+
+        const gatewayResult = await initiateDeposit({
+          amount: iyzicoAmount,
+          currency: iyzicoCurrency,
+          userId,
+          referenceCode: `PKG-${customerPackageId}`,
+          items: iyzicoItems
+        });
+
+        iyzicoPaymentPageUrl = gatewayResult.paymentPageUrl;
+
+        // Store the iyzico token so the callback can find this package by token
+        if (gatewayResult.gatewayTransactionId) {
+          await pool.query(
+            `UPDATE customer_packages SET gateway_transaction_id = $1 WHERE id = $2`,
+            [gatewayResult.gatewayTransactionId, customerPackageId]
+          );
+        }
+      } catch (iyzicoErr) {
+        logger.error('Failed to initiate Iyzico payment for package purchase', {
+          customerPackageId,
+          userId,
+          error: iyzicoErr.message
+        });
+        return res.status(500).json({ error: 'Failed to initiate card payment. Please try again.' });
+      }
+    }
+
     // Record a ledger entry for non-wallet purchases so they appear in financial history
+    // For credit card this only runs once iyzico initiation has succeeded above.
     if (!walletDeducted && packagePrice > 0) {
       try {
         const paymentLabel = normalizedPaymentMethod === 'credit_card' ? 'Credit Card'
@@ -1374,35 +1470,6 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         logger.warn('Failed to record non-wallet package purchase ledger entry', {
           userId, packageId: customerPackageId, error: ledgerErr.message
         });
-      }
-    }
-
-    // For credit card payments, initiate Iyzico checkout after commit
-    let iyzicoPaymentPageUrl = null;
-    if (normalizedPaymentMethod === 'credit_card' && packagePrice > 0) {
-      try {
-        const iyzicoItems = [{
-          id: String(packageId),
-          name: pkg.name || 'Package Purchase',
-          price: parseFloat(packagePrice).toFixed(2)
-        }];
-
-        const gatewayResult = await initiateDeposit({
-          amount: packagePrice,
-          currency: priceCurrency || 'EUR',
-          userId,
-          referenceCode: `PKG-${customerPackageId}`,
-          items: iyzicoItems
-        });
-
-        iyzicoPaymentPageUrl = gatewayResult.paymentPageUrl;
-      } catch (iyzicoErr) {
-        logger.error('Failed to initiate Iyzico payment for package purchase', {
-          customerPackageId,
-          userId,
-          error: iyzicoErr.message
-        });
-        return res.status(500).json({ error: 'Failed to initiate card payment. Please try again.' });
       }
     }
     
@@ -1472,9 +1539,10 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       }
     }
     
-    // Check if user should be upgraded from outsider to student after first package purchase
+    // Check if user should be upgraded from outsider to student after first package purchase.
+    // For credit card payments the package is not yet paid, defer upgrade to the payment callback.
     let roleUpgradeInfo = null;
-    if (req.user?.role === 'outsider') {
+    if (req.user?.role === 'outsider' && normalizedPaymentMethod !== 'credit_card') {
       const upgradeResult = await upgradeOutsiderToStudent(userId);
       
       if (upgradeResult.success && upgradeResult.newRole === 'student') {
@@ -1499,7 +1567,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         purchasePrice: packagePrice,
         currency: priceCurrency,
         expiryDate,
-        status: 'active',
+        status: initialStatus,
         checkInDate: checkInDate || null,
         checkOutDate: checkOutDate || null
       }
@@ -1728,6 +1796,61 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
     res.status(500).json({ error: 'Failed to update package' });
   } finally {
     client.release();
+  }
+});
+
+// Cancel a pending_payment customer package (called by the student when iyzico payment is abandoned/failed)
+router.post('/customer-packages/:id/cancel', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId || req.user?.id;
+
+    // Fetch the package — must be owned by this user and in pending_payment state
+    const { rows } = await pool.query(
+      `SELECT id, customer_id, status, package_name FROM customer_packages WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
+
+    const cp = rows[0];
+
+    // Security: only the owner (or admin/manager) can cancel
+    const isOwner = String(cp.customer_id) === String(userId);
+    const isPrivileged = ['admin', 'manager', 'super_admin'].includes(req.user?.role);
+    if (!isOwner && !isPrivileged) {
+      return res.status(403).json({ error: 'Not authorized to cancel this package' });
+    }
+
+    // Idempotent: already cancelled — treat as success
+    if (cp.status === 'cancelled') {
+      return res.json({ success: true, message: 'Package already cancelled' });
+    }
+
+    // Only allow cancelling pending_payment packages via this endpoint
+    if (cp.status !== 'pending_payment') {
+      return res.status(409).json({ error: `Cannot cancel a package with status '${cp.status}'` });
+    }
+
+    await pool.query(
+      `UPDATE customer_packages
+       SET status = 'cancelled',
+           notes = COALESCE(notes, '') || ' | Cancelled: payment not completed',
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id]
+    );
+
+    logger.info('Customer package cancelled due to failed/abandoned payment', {
+      customerPackageId: id, userId, packageName: cp.package_name
+    });
+
+    return res.json({ success: true, message: 'Package cancelled' });
+  } catch (err) {
+    logger.error('Error cancelling customer package', { error: err.message, packageId: req.params.id });
+    return res.status(500).json({ error: 'Failed to cancel package' });
   }
 });
 

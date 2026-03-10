@@ -173,6 +173,38 @@ export function PaymentCallback() {
     );
   }
 
+  // Generic failure screen (no_match, unknown type, etc.)
+  if (!isSuccess && status === 'failed') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-8 w-8 text-red-500">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-1">Payment Issue</h2>
+          <p className="text-xs text-gray-400 mb-6">
+            {reason === 'no_match'
+              ? 'We could not match your payment to an order. Please contact support if you were charged.'
+              : 'Your payment could not be processed. Please try again or contact support.'}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 cursor-pointer"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Default: wallet deposit — fallback UI (only visible if window.close() is blocked)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
