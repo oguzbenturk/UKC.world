@@ -20,8 +20,6 @@ const getPackageName = (id) => {
   return segments[0].startsWith('@') ? `${segments[0]}/${segments[1]}` : segments[0];
 };
 
-const sanitizeChunkName = (name) => name.replace(/^@/, '').replace(/[\/]/g, '-');
-
 const getVendorChunkName = (id) => {
   const normalizedId = normalizeModuleId(id);
 
@@ -35,16 +33,10 @@ const getVendorChunkName = (id) => {
     return 'vendor';
   }
 
-  if (packageName === 'antd') {
-    return 'antd-core';
-  }
-
-  if (packageName.startsWith('@ant-design/')) {
-    return `antd-${sanitizeChunkName(packageName)}`;
-  }
-
-  if (packageName.startsWith('rc-')) {
-    return 'antd-rc';
+  // Keep Ant Design ecosystem together to avoid runtime ordering issues
+  // between cssinjs/rc-* internals and React exports.
+  if (packageName === 'antd' || packageName.startsWith('@ant-design/') || packageName.startsWith('rc-')) {
+    return 'antd';
   }
 
   if (packageName.startsWith('@tanstack/')) {
