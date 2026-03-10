@@ -1115,7 +1115,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         message.error(msg || 'Payment failed');
       }}
     />
-  </>;
+  </>
+  );
 };
 
 QuickBookingModal.propTypes = {
