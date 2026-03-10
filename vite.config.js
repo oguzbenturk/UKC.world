@@ -6,70 +6,6 @@ import path from 'path'
 const devPort = Number(process.env.VITE_DEV_PORT || process.env.PORT || 3000);
 const runtimeNodeEnv = process.env.VITEST ? 'test' : (process.env.NODE_ENV || 'production');
 
-const normalizeModuleId = (id) => id.replace(/\\/g, '/');
-
-const getPackageName = (id) => {
-  const normalizedId = normalizeModuleId(id);
-  const [, modulePath = ''] = normalizedId.split('node_modules/');
-  const segments = modulePath.split('/');
-
-  if (!segments[0]) {
-    return undefined;
-  }
-
-  return segments[0].startsWith('@') ? `${segments[0]}/${segments[1]}` : segments[0];
-};
-
-const getVendorChunkName = (id) => {
-  const normalizedId = normalizeModuleId(id);
-
-  if (!normalizedId.includes('node_modules')) {
-    return undefined;
-  }
-
-  const packageName = getPackageName(normalizedId);
-
-  if (!packageName) {
-    return 'vendor';
-  }
-
-  // Keep Ant Design ecosystem together to avoid runtime ordering issues
-  // between cssinjs/rc-* internals and React exports.
-  if (packageName === 'antd' || packageName.startsWith('@ant-design/') || packageName.startsWith('rc-')) {
-    return 'antd';
-  }
-
-  if (packageName.startsWith('@tanstack/')) {
-    return 'tanstack';
-  }
-
-  if (packageName === 'recharts' || packageName.startsWith('d3-') || packageName.startsWith('victory')) {
-    return 'charts';
-  }
-
-  if (packageName === 'jspdf' || packageName === 'jspdf-autotable' || packageName === 'html2canvas') {
-    return 'pdf-export';
-  }
-
-  if (packageName === 'tinymce' || packageName === '@tinymce/tinymce-react' || packageName === 'react-quill' || packageName === 'quill') {
-    return 'editors';
-  }
-
-  if (packageName === 'react-big-calendar' || packageName === 'react-calendar-timeline' || packageName === 'dayjs' || packageName === 'date-fns' || packageName === 'moment') {
-    return 'calendar';
-  }
-
-  if (packageName.startsWith('@mui/') || packageName.startsWith('@emotion/')) {
-    return 'mui';
-  }
-
-  if (packageName === 'xlsx' || packageName === 'decimal.js' || packageName === 'axios' || packageName === 'socket.io-client' || packageName === 'libphonenumber-js' || packageName === 'uuid') {
-    return 'data-utils';
-  }
-
-  return 'vendor';
-};
-
 export default defineConfig({
   plugins: [react()],  
   base: '/',
@@ -85,7 +21,7 @@ export default defineConfig({
     sourcemap: false, // Disable sourcemaps in production for smaller builds
     target: 'es2015', // Better browser compatibility
     minify: 'terser',
-    chunkSizeWarningLimit: 1600, // Increased limit to reduce warnings for large libraries
+    chunkSizeWarningLimit: 1800,
     
     // Enable CSS code splitting
     cssCodeSplit: true,
@@ -94,9 +30,9 @@ export default defineConfig({
     assetsInlineLimit: 4096, // Files smaller than 4kb will be inlined
     rollupOptions: {
       output: {
-        // Split only third-party dependencies to reduce the main entry bundle
-        // without reordering application modules.
-        manualChunks: getVendorChunkName,
+        // Let Rollup handle chunking automatically to preserve correct
+        // module execution order.  Manual vendor splitting caused
+        // runtime errors (React undefined in antd / rc-* chunks).
         chunkFileNames: () => {
           return `assets/js/[name]-[hash].js`;
         },
