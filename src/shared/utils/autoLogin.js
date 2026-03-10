@@ -3,8 +3,8 @@
  * This ensures authentication is always available
  */
 
-import { getAuthHeaders, isTokenValid } from './authUtils.js';
 import { getAccessToken, setAccessToken } from '../services/apiClient.js';
+import { isTokenValid } from './tokenUtils.js';
 
 export const autoLogin = async () => {
   try {
