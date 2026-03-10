@@ -48,7 +48,7 @@ const getVendorChunkName = (id) => {
   }
 
   if (packageName.startsWith('rc-')) {
-    return `antd-${sanitizeChunkName(packageName)}`;
+    return 'antd-rc';
   }
 
   if (packageName.startsWith('@tanstack/')) {
