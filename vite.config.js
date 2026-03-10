@@ -35,10 +35,6 @@ const getVendorChunkName = (id) => {
     return 'vendor';
   }
 
-  if (packageName === 'react' || packageName === 'react-dom' || packageName === 'scheduler' || packageName === 'react-router' || packageName === 'react-router-dom') {
-    return 'framework';
-  }
-
   if (packageName === 'antd') {
     return 'antd-core';
   }
