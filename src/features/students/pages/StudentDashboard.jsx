@@ -196,17 +196,20 @@ const PaymentItem = ({ payment, formatCurrency, convertCurrency, userCurrency })
   const isCompleted = ['succeeded', 'completed', 'paid'].includes(status);
   
   let amountDisplay;
+  const absAmount = Math.abs(payment.amount || 0);
+  const sign = payment.amount < 0 ? '−' : '';
+  
   if (isCompleted) {
     // Show original recorded amount - historical value
-    amountDisplay = payment.amount > 0 ? formatCurrency(payment.amount, paymentCurrency) : payment.amount;
+    amountDisplay = absAmount > 0 ? `${sign}${formatCurrency(absAmount, paymentCurrency)}` : formatCurrency(0, paymentCurrency);
   } else {
     // For pending payments, show dual currency with current rates
-    const showDual = paymentCurrency !== userCurrency && payment.amount > 0;
+    const showDual = paymentCurrency !== userCurrency && absAmount > 0;
     if (showDual && convertCurrency) {
-      const convertedAmount = convertCurrency(payment.amount, paymentCurrency, userCurrency);
-      amountDisplay = `${formatCurrency(payment.amount, paymentCurrency)} / ${formatCurrency(convertedAmount, userCurrency)}`;
+      const convertedAmount = convertCurrency(absAmount, paymentCurrency, userCurrency);
+      amountDisplay = `${sign}${formatCurrency(absAmount, paymentCurrency)} / ${sign}${formatCurrency(convertedAmount, userCurrency)}`;
     } else {
-      amountDisplay = payment.amount > 0 ? formatCurrency(payment.amount, paymentCurrency) : payment.amount;
+      amountDisplay = absAmount > 0 ? `${sign}${formatCurrency(absAmount, paymentCurrency)}` : formatCurrency(0, paymentCurrency);
     }
   }
   

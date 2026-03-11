@@ -91,8 +91,8 @@ export const ToastProvider = ({ children }) => {
     <ToastContext.Provider value={value}>
       {children}
       
-      {/* Toast container - positioned at top right */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      {/* Toast container - positioned at top right, above navbar z-[70] */}
+      <div className="fixed top-4 right-4 z-[100] space-y-2">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

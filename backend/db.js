@@ -96,6 +96,13 @@ const maybeWarnQueueSaturation = (context = {}) => {
     return;
   }
 
+  // If idle connections exist the backlog is transient — the pool will
+  // dispatch them on the next event-loop tick.  Only warn when every
+  // connection is busy (idleCount === 0) which signals real saturation.
+  if (pool.idleCount > 0) {
+    return;
+  }
+
   const now = Date.now();
   if (now - lastQueueWarningAt < poolGuardrailConfig.debounceMs) {
     return;

@@ -23,7 +23,9 @@ import {
   WalletOutlined,
   ClockCircleOutlined,
   CheckOutlined,
+  CreditCardOutlined,
 } from '@ant-design/icons';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -62,6 +64,8 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const [calendarMonth, setCalendarMonth] = useState(dayjs().startOf('month'));
   const [selectingCheckOut, setSelectingCheckOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
 
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
   const studentId = user?.userId || user?.id;
@@ -76,6 +80,8 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       setCalendarMonth(dayjs().startOf('month'));
       setSelectingCheckOut(false);
       setPaymentMethod('wallet');
+      setShowIyzicoModal(false);
+      setIyzicoPaymentUrl(null);
     }
   }, [open, unit?.id]);
 
@@ -273,6 +279,12 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       return res.data;
     },
     onSuccess: (data) => {
+      // Credit card: open Iyzico payment page instead of closing
+      if (data?.paymentPageUrl) {
+        setIyzicoPaymentUrl(data.paymentPageUrl);
+        setShowIyzicoModal(true);
+        return;
+      }
       msg.success(
         paymentMethod === 'pay_later'
           ? 'Booking confirmed — pay at the center.'
@@ -314,6 +326,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const unitName = unit?.name || unitDetail?.name || 'Accommodation';
 
   return (
+    <>
     <Modal
       open={open}
       onCancel={onClose}
@@ -485,7 +498,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
               Payment Method
             </p>
-            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {/* Wallet */}
               <button
                 type="button"
@@ -507,6 +520,30 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 </span>
                 <span className={`text-xs ${paymentMethod === 'wallet' ? 'text-blue-400/70' : 'text-white/30'}`}>
                   {formatCurrency(walletInUserCurrency, userCurrency)}
+                </span>
+              </button>
+
+              {/* Credit Card */}
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('credit_card')}
+                className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-all text-center ${
+                  paymentMethod === 'credit_card'
+                    ? 'border-emerald-500 bg-emerald-500/10 shadow-sm shadow-emerald-500/10'
+                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
+                }`}
+              >
+                {paymentMethod === 'credit_card' && (
+                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <CheckOutlined className="text-white text-[8px]" />
+                  </div>
+                )}
+                <CreditCardOutlined className={`text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-400' : 'text-white/40'}`} />
+                <span className={`text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-400' : 'text-white/60'}`}>
+                  Credit Card
+                </span>
+                <span className={`text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-400/70' : 'text-white/30'}`}>
+                  Pay with Iyzico
                 </span>
               </button>
 
@@ -611,7 +648,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     ? 'bg-white/5 text-white/20 cursor-not-allowed'
                     : paymentMethod === 'pay_later'
                       ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-sky-500 active:scale-[0.98]'
-                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98]'
+                      : paymentMethod === 'credit_card'
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.98]'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98]'
                   }
                 `}
               >
@@ -622,9 +661,11 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     <RocketOutlined />
                     {paymentMethod === 'pay_later'
                       ? 'Confirm — Pay Later'
-                      : isHotel
-                        ? 'Request Booking'
-                        : `Pay ${nights > 0 ? formatPrice(totalPrice) : ''}`}
+                      : paymentMethod === 'credit_card'
+                        ? `Pay ${nights > 0 ? formatPrice(totalPrice) : ''} with Card`
+                        : isHotel
+                          ? 'Request Booking'
+                          : `Pay ${nights > 0 ? formatPrice(totalPrice) : ''}`}
                   </>
                 )}
               </button>
@@ -633,9 +674,11 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 <InfoCircleOutlined />
                 {paymentMethod === 'pay_later'
                   ? 'Balance will be collected at the center upon check-in.'
-                  : isHotel
-                    ? 'Request — we\'ll check hotel availability and confirm.'
-                    : 'Funds will be reserved from your wallet.'}
+                  : paymentMethod === 'credit_card'
+                    ? 'You\'ll be redirected to a secure payment page.'
+                    : isHotel
+                      ? 'Request — we\'ll check hotel availability and confirm.'
+                      : 'Funds will be reserved from your wallet.'}
               </p>
             </div>
           </div>
@@ -664,6 +707,27 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         }
       `}</style>
     </Modal>
+
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="booking:payment_confirmed"
+        onSuccess={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+          msg.success('Payment successful! Your booking has been confirmed.');
+          queryClient.invalidateQueries({ queryKey: ['accommodation-unit-detail', unit?.id] });
+          queryClient.invalidateQueries({ queryKey: ['accommodation'] });
+          queryClient.invalidateQueries({ queryKey: ['wallet'] });
+          onSuccess?.();
+          onClose();
+        }}
+        onClose={() => {
+          setShowIyzicoModal(false);
+          setIyzicoPaymentUrl(null);
+        }}
+      />
+    </>
   );
 };
 

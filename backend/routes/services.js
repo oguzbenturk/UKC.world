@@ -386,7 +386,8 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       const value = String(tag || '').trim().toLowerCase();
       if (!value) return null;
       if (value === 'foil') return 'kite_foil';
-      return value;
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      return ALLOWED.includes(value) ? value : null;
     };
     
     if (needsLessonService && !hasLessonService) {
@@ -398,8 +399,9 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
     // Start transaction
     await client.query('BEGIN');
 
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
-    let resolvedLessonCategoryTag = lessonCategoryTag || null;
+    let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;
 
     if (lessonServiceId) {
@@ -609,10 +611,14 @@ router.get('/packages/available', authenticateJWT, authorize(['admin', 'manager'
   try {
     const { category, packageType: reqPackageType } = req.query;
     
-    // Base query - get all packages
+    // Base query - get all packages with JOINs to resolve service names
     let query = `
-      SELECT p.*
+      SELECT p.*,
+        ls.name as linked_lesson_service_name,
+        rs.name as linked_rental_service_name
       FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
       WHERE 1=1
     `;
     
@@ -707,7 +713,10 @@ router.get('/packages/available', authenticateJWT, authorize(['admin', 'manager'
         currencySymbol: row.currency === 'USD' ? '$' : '€',
         sessionsCount: row.sessions_count,
         totalHours: parseFloat(row.total_hours) || 0,
-        lessonServiceName: row.lesson_service_name || 'Unknown Service',
+        lessonServiceName: row.linked_lesson_service_name || row.lesson_service_name || null,
+        lessonServiceId: row.lesson_service_id || null,
+        rentalServiceId: row.rental_service_id || null,
+        rentalServiceName: row.linked_rental_service_name || row.rental_service_name || null,
         disciplineTag: row.discipline_tag || null,
         lessonCategoryTag: row.lesson_category_tag || null,
         levelTag: row.level_tag || null,
@@ -1158,6 +1167,12 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       purchaseNotes = 'Payment pending - Pay Later';
     }
     
+    // Always store the EUR base price in customer_packages so earnings
+    // calculations are currency-agnostic. The customer may have paid in TRY or
+    // another currency, but the canonical record price is always EUR.
+    const storagePrice = defaultPackagePrice;  // EUR price from service_packages
+    const storageCurrency = defaultPackageCurrency; // should be 'EUR'
+
     const { rows: customerPackageRows } = await client.query(customerPackageQuery, [
       customerPackageId,
       userId,
@@ -1165,8 +1180,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       pkg.name,
       pkg.lesson_service_name || pkg.name,
       pkgTotalHours,
-      packagePrice,
-      priceCurrency,
+      storagePrice,
+      storageCurrency,
       expiryDate,
       purchaseNotes,
       checkInDate || null,
@@ -1656,7 +1671,8 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
       const value = String(tag || '').trim().toLowerCase();
       if (!value) return null;
       if (value === 'foil') return 'kite_foil';
-      return value;
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      return ALLOWED.includes(value) ? value : null;
     };
     
     if (needsLessonService && !hasLessonService) {
@@ -1667,8 +1683,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
     
     await client.query('BEGIN');
 
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
-    let resolvedLessonCategoryTag = lessonCategoryTag || null;
+    let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;
 
     if (lessonServiceId) {

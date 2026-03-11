@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Form, 
+  Input,
   InputNumber, 
   Select, 
   Button, 
@@ -49,7 +50,7 @@ function MultiCurrencyPriceInput({
   // Initialize with business currency if no initial prices
   useEffect(() => {
     if ((!prices || prices.length === 0) && businessCurrency) {
-      const defaultPrice = { currencyCode: businessCurrency, price: null };
+      const defaultPrice = { currencyCode: businessCurrency, price: undefined };
       setPrices([defaultPrice]);
       if (form) {
         form.setFieldValue(name, [defaultPrice]);
@@ -210,13 +211,13 @@ function MultiCurrencyPriceInput({
         
         {/* Hidden fields for backward compatibility */}
         <Form.Item name={name} hidden>
-          <input type="hidden" />
+          <Input type="hidden" />
         </Form.Item>
         <Form.Item name={primaryCurrencyName} hidden>
-          <input type="hidden" />
+          <Input type="hidden" />
         </Form.Item>
         <Form.Item name={primaryPriceName} hidden>
-          <input type="hidden" />
+          <Input type="hidden" />
         </Form.Item>
       </Form.Item>
     );
@@ -295,13 +296,13 @@ function MultiCurrencyPriceInput({
 
       {/* Hidden fields for backward compatibility with legacy single-price API */}
       <Form.Item name={name} hidden noStyle>
-        <input type="hidden" />
+        <Input type="hidden" />
       </Form.Item>
       <Form.Item name={primaryCurrencyName} hidden noStyle>
-        <input type="hidden" />
+        <Input type="hidden" />
       </Form.Item>
       <Form.Item name={primaryPriceName} hidden noStyle>
-        <input type="hidden" />
+        <Input type="hidden" />
       </Form.Item>
     </Card>
   );

@@ -150,6 +150,23 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         rentalSegment: values.rentalSegment || null,
       };
 
+      // For rental services, auto-construct the stored name so that the duration
+      // prefix always matches the actual duration field and the segment label is
+      // included.  Format: "{duration}H - {SEGMENT} - {descriptive name}"
+      if (isRentalCategory && formattedValues.duration && formattedValues.rentalSegment) {
+        const SEGMENT_LABELS = { sls: 'SLS', dlab: 'D/LAB', standard: 'Standart', efoil: 'E-Foil', board: 'Board', accessory: 'Accessory' };
+        const segLabel = SEGMENT_LABELS[formattedValues.rentalSegment] || formattedValues.rentalSegment.toUpperCase();
+        // Strip any existing duration prefix (e.g. "4H - ") and segment from the typed name
+        let baseName = (formattedValues.name || '')
+          .replace(/^\d+\.?\d*[Hh]\s*[-–]\s*/u, '')
+          .replace(new RegExp(`^${segLabel}\\s*[-–]\\s*`, 'i'), '')
+          .trim();
+        if (!baseName) baseName = formattedValues.name?.trim() || 'Rental Service';
+        const dH = parseFloat(formattedValues.duration);
+        const durationTag = dH % 1 === 0 ? `${dH}H` : `${dH}H`;
+        formattedValues.name = `${durationTag} - ${segLabel} - ${baseName}`;
+      }
+
       // Calculate savings for package if applicable
       if (isPackage && formattedValues.price && formattedValues.sessionsCount) {
         const singlePrice = formattedValues.price;
@@ -209,6 +226,17 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
     setSelectedCurrency(initialValues.currency || businessCurrency || 'EUR');
   };
 
+  // For rental edits, strip the auto-generated prefix so the admin sees only the descriptive part
+  const deriveEditName = (iv) => {
+    if (!isEditing || !isRentalCategory || !iv.name) return iv.name;
+    const SEGMENT_LABELS = { sls: 'SLS', dlab: 'D/LAB', standard: 'Standart', efoil: 'E-Foil', board: 'Board', accessory: 'Accessory' };
+    let n = iv.name.replace(/^\d+\.?\d*[Hh]\s*[-–]\s*/u, '').trim();
+    const seg = iv.rentalSegment || '';
+    const segLabel = SEGMENT_LABELS[seg] || seg.toUpperCase();
+    if (segLabel) n = n.replace(new RegExp(`^${segLabel.replace('/', '\\/')}\\s*[-–]\\s*`, 'i'), '').trim();
+    return n || iv.name;
+  };
+
   return (
     <Form
       form={form}
@@ -216,6 +244,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
       onFinish={handleSubmit}
       initialValues={{
         ...initialValues,
+        name: deriveEditName(initialValues),
         startTime: initialValues.startTime ? moment(initialValues.startTime, 'HH:mm') : undefined,
         endTime: initialValues.endTime ? moment(initialValues.endTime, 'HH:mm') : undefined,
         isPackage: initialValues.isPackage || false,
@@ -241,8 +270,9 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
             name="name"
             label={`${categoryLabelCapitalized} name`}
             rules={[{ required: true, message: `Please enter the ${categoryLabel} name` }]}
+            extra={isRentalCategory ? 'Duration and equipment class are added to the name automatically' : undefined}
           >
-            <Input placeholder={isLessonCategory ? "e.g. Private Kitesurfing Lesson" : "e.g. 2025 Duotone Rebel 9m"} allowClear />
+            <Input placeholder={isLessonCategory ? "e.g. Private Kitesurfing Lesson" : isRentalCategory ? "e.g. Full Equipment Rental Service" : "e.g. 2025 Duotone Rebel 9m"} allowClear />
           </Form.Item>
           {isLessonCategory && (
             <Form.Item
@@ -291,33 +321,35 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
               </Form.Item>
             </>
           )}
-          <Row gutter={16} className="gap-y-4">
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="maxParticipants"
-                label="Required people"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="Optional" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="color"
-                label="Calendar color"
-              >
-                <Select placeholder="Choose a color swatch" allowClear>
-                  {COLORS.map(color => (
-                    <Option key={color.value} value={color.value}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ width: '14px', height: '14px', backgroundColor: color.value, marginRight: '8px', borderRadius: '2px' }} />
-                        {color.label}
-                      </div>
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+          {!isRentalCategory && (
+            <Row gutter={16} className="gap-y-4">
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="maxParticipants"
+                  label="Required people"
+                >
+                  <InputNumber min={0} style={{ width: '100%' }} placeholder="Optional" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="color"
+                  label="Calendar color"
+                >
+                  <Select placeholder="Choose a color swatch" allowClear>
+                    {COLORS.map(color => (
+                      <Option key={color.value} value={color.value}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ width: '14px', height: '14px', backgroundColor: color.value, marginRight: '8px', borderRadius: '2px' }} />
+                          {color.label}
+                        </div>
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
           {isCategoryLocked ? (
             <>
               <Form.Item name="category" hidden>
@@ -381,43 +413,63 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
 
         <section className="space-y-4 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Session details</p>
-            <h3 className="mt-1 text-lg font-semibold text-slate-900">Timing & capacity</h3>
-            <p className="text-sm text-slate-500">Choose the {categoryLabel} duration and capacity shown to the team.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">{isRentalCategory ? 'Rental period' : 'Session details'}</p>
+            <h3 className="mt-1 text-lg font-semibold text-slate-900">{isRentalCategory ? 'Duration & availability' : 'Timing & capacity'}</h3>
+            <p className="text-sm text-slate-500">{isRentalCategory ? 'Set how long each rental slot lasts (e.g. 1h, 4h, 8h per day).' : `Choose the ${categoryLabel} duration and capacity shown to the team.`}</p>
           </div>
           <Row gutter={16} className="gap-y-4">
             <Col xs={24} md={12}>
               <Form.Item
                 name="duration"
-                label="Duration (hours)"
+                label={isRentalCategory ? 'Rental duration (hours)' : 'Duration (hours)'}
                 rules={[{ required: true, message: 'Please enter a duration' }]}
+                extra={isRentalCategory ? 'Common durations: 1h, 4h, 8h' : undefined}
               >
                 <InputNumber 
                   min={0.5} 
                   max={48} 
                   step={0.5} 
                   style={{ width: '100%' }} 
-                  placeholder="e.g. 2" 
+                  placeholder={isRentalCategory ? 'e.g. 1, 4 or 8' : 'e.g. 2'} 
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item
-                name="max_participants"
-                label="Maximum participants"
-                rules={[
-                  { required: true, message: 'Please set maximum participants' },
-                  { type: 'number', min: 1, max: 50, message: 'Must be between 1-50 participants' }
-                ]}
-                extra={participantsValue && participantsValue > 1 ? `Shown as a group ${categoryLabel}` : `Shown as a single-person ${categoryLabel}`}
-              >
-                <InputNumber 
-                  min={1} 
-                  max={50}
-                  style={{ width: '100%' }} 
-                  placeholder="e.g. 1"
-                />
-              </Form.Item>
+              {isRentalCategory ? (
+                <Form.Item
+                  name="max_participants"
+                  label="Available units"
+                  rules={[
+                    { required: true, message: 'Please set available units' },
+                    { type: 'number', min: 1, max: 50, message: 'Must be between 1-50' }
+                  ]}
+                  extra="How many of this equipment can be rented at the same time"
+                >
+                  <InputNumber 
+                    min={1} 
+                    max={50}
+                    style={{ width: '100%' }} 
+                    placeholder="e.g. 3"
+                  />
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  name="max_participants"
+                  label="Maximum participants"
+                  rules={[
+                    { required: true, message: 'Please set maximum participants' },
+                    { type: 'number', min: 1, max: 50, message: 'Must be between 1-50 participants' }
+                  ]}
+                  extra={participantsValue && participantsValue > 1 ? `Shown as a group ${categoryLabel}` : `Shown as a single-person ${categoryLabel}`}
+                >
+                  <InputNumber 
+                    min={1} 
+                    max={50}
+                    style={{ width: '100%' }} 
+                    placeholder="e.g. 1"
+                  />
+                </Form.Item>
+              )}
             </Col>
           </Row>
         </section>

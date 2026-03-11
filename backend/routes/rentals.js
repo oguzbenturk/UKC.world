@@ -5,8 +5,9 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { requireWaiver, checkFamilyMemberWaiver } from '../middlewares/waiverCheck.js';
 import { resolveActorId } from '../utils/auditUtils.js';
-import { recordLegacyTransaction } from '../services/walletService.js';
+import { recordLegacyTransaction, createDepositRequest } from '../services/walletService.js';
 import { forceDeleteRental } from '../services/rentalCleanupService.js';
+import CurrencyService from '../services/currencyService.js';
 
 const router = Router();
 
@@ -311,7 +312,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
 /**
  * Create a new rental
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'student', 'outsider']), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -319,13 +320,14 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
   const actorId = resolveActorId(req);
   const actorRoleRaw = req.user?.role;
   const actorRole = typeof actorRoleRaw === 'string' ? actorRoleRaw.toLowerCase() : null;
+  const isStaff = actorRole ? ['admin', 'manager', 'owner', 'instructor'].includes(actorRole) : false;
   const allowNegativeBalance = actorRole ? ['admin', 'manager', 'owner'].includes(actorRole) : false;
     
     const { 
       user_id, // Changed from customer_id to user_id to match frontend
       equipment_ids, 
       rental_date,
-      status = 'active', // Changed default from 'upcoming' to 'active' 
+      status: requestedStatus = 'active',
       notes,
       start_date,
       end_date,
@@ -335,8 +337,12 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
       currency: requestedCurrency,
       use_package = false,
       customer_package_id,
-      rental_days = 1
+      rental_days = 1,
+      payment_method = 'wallet'
     } = req.body;
+
+    // Non-staff users get 'upcoming' status; staff can set any status
+    const status = isStaff ? requestedStatus : 'upcoming';
     
     // Storage currency is always EUR (base currency)
     // The requestedCurrency is tracked for audit purposes only
@@ -361,7 +367,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
     if (equipment_ids && equipment_ids.length > 0) {
       for (const equipmentId of equipment_ids) {
         const serviceResult = await client.query(
-          'SELECT id, name, duration, price, currency, category FROM services WHERE id = $1',
+          'SELECT id, name, duration, price, currency, category, description, image_url, service_type FROM services WHERE id = $1',
           [equipmentId]
         );
         
@@ -370,7 +376,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
           const servicePrice = parseFloat(service.price) || 0;
           
           if (!total_price) {
-            calculatedTotalPrice += servicePrice;
+            calculatedTotalPrice += servicePrice * daysToUse;
           }
           
           equipmentDetails[equipmentId] = {
@@ -378,7 +384,11 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
             name: service.name,
             category: service.category,
             price: servicePrice,
-            currency: service.currency
+            currency: service.currency,
+            description: service.description,
+            duration: service.duration,
+            imageUrl: service.image_url,
+            serviceType: service.service_type
           };
         }
       }
@@ -394,6 +404,15 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
     let finalPaymentStatus = payment_status;
     let skipWalletCharge = false;
     const daysToUse = parseInt(rental_days) || 1;
+
+    // Payment method routing (credit card / pay later / wallet)
+    if (payment_method === 'credit_card') {
+      finalPaymentStatus = 'pending_payment';
+      skipWalletCharge = true;
+    } else if (payment_method === 'pay_later') {
+      finalPaymentStatus = 'unpaid';
+      skipWalletCharge = true;
+    }
     
     // Handle package-based rental
     if (use_package && customer_package_id && user_id) {
@@ -560,10 +579,10 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
           typeof walletError?.message === 'string' && walletError.message.includes('Insufficient wallet balance');
 
         if (isInsufficientBalance) {
-          console.warn('Skipping wallet charge due to insufficient balance', {
-            rentalId: rental.id,
-            userId: user_id,
-            amount: calculatedTotalPrice
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'Insufficient wallet balance',
+            message: 'Your wallet balance is too low. Please top up your wallet or choose a different payment method.'
           });
         } else {
           console.error('Failed to record rental charge in wallet ledger', {
@@ -598,9 +617,36 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
     
     await client.query('COMMIT');
     
-    // Fetch the complete rental data using the rental_details view
-    const { rows } = await client.query(
-      'SELECT * FROM rental_details WHERE id = $1',
+    // Fetch the complete rental data with enriched equipment info
+    const { rows } = await pool.query(
+      `SELECT 
+        r.*,
+        u.name as customer_name,
+        u.email as customer_email,
+        creator.name as created_by_name,
+        COALESCE(
+          json_object_agg(
+            s.id, json_build_object(
+              'id', s.id,
+              'name', s.name,
+              'serviceType', s.service_type,
+              'dailyRate', re.daily_rate,
+              'duration', s.duration,
+              'description', s.description,
+              'imageUrl', s.image_url,
+              'category', s.category
+            )
+          ) FILTER (WHERE s.id IS NOT NULL), 
+          '{}'::json
+        ) as equipment_details,
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+      FROM rentals r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
+      LEFT JOIN rental_equipment re ON r.id = re.rental_id
+      LEFT JOIN services s ON re.equipment_id = s.id
+      WHERE r.id = $1
+      GROUP BY r.id, u.name, u.email, creator.name`,
       [rental.id]
     );
     const completeRental = rows[0];
@@ -613,8 +659,69 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
         console.error('Error broadcasting rental creation:', socketError);
       }
     }
+
+    // For credit card payments, create a deposit record and initiate Iyzico checkout
+    const response = { ...completeRental };
+    if (payment_method === 'credit_card' && calculatedTotalPrice > 0) {
+      try {
+        // Use the customer's preferred currency for Iyzico (e.g. TRY)
+        // Iyzico can't charge EUR from a TRY card — must match user's currency
+        const userRow = await pool.query(
+          'SELECT preferred_currency FROM users WHERE id = $1',
+          [user_id]
+        );
+        const userCurrency = userRow.rows[0]?.preferred_currency || inputCurrency || 'EUR';
+
+        // Convert EUR price to user's currency so Iyzico charges in their currency
+        let chargeAmount = calculatedTotalPrice;
+        if (userCurrency !== storageCurrency) {
+          try {
+            chargeAmount = await CurrencyService.convertCurrency(calculatedTotalPrice, storageCurrency, userCurrency);
+          } catch (convErr) {
+            console.warn('Currency conversion failed, falling back to EUR', { error: convErr.message });
+            // Fall back to EUR if conversion fails
+          }
+        }
+
+        const depositResult = await createDepositRequest({
+          userId: user_id,
+          amount: chargeAmount,
+          currency: userCurrency,
+          method: 'card',
+          gateway: 'iyzico',
+          metadata: { type: 'rental_payment', rentalId: rental.id, storageCurrency, storageAmount: calculatedTotalPrice },
+          referenceCode: `RNT-${rental.id}`,
+          clientIp: req.ip,
+          initiatedBy: actorId || user_id,
+        });
+
+        response.depositId = depositResult.deposit?.id;
+        response.paymentPageUrl = depositResult.gatewaySession?.paymentPageUrl;
+
+        console.log('Iyzico checkout initiated for rental', {
+          rentalId: rental.id,
+          depositId: depositResult.deposit?.id,
+          amount: chargeAmount,
+          currency: userCurrency,
+        });
+      } catch (iyzicoErr) {
+        console.error('Failed to initiate Iyzico checkout for rental', {
+          rentalId: rental.id,
+          error: iyzicoErr.message,
+        });
+        await pool.query(
+          'UPDATE rentals SET payment_status = $1, updated_at = NOW() WHERE id = $2',
+          ['failed', rental.id]
+        );
+        return res.status(500).json({
+          error: 'payment_initiation_failed',
+          message: 'Rental was created but payment could not be initiated. Please try again.',
+          rentalId: rental.id,
+        });
+      }
+    }
     
-    res.status(201).json(completeRental);
+    res.status(201).json(response);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating rental:', error);
@@ -707,8 +814,36 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
     await client.query('COMMIT');
     
     // Fetch the complete updated rental data for the response
-    const { rows } = await client.query(
-      'SELECT * FROM rental_details WHERE id = $1',
+    const { rows } = await pool.query(
+      `SELECT 
+        r.*,
+        u.name as customer_name,
+        u.email as customer_email,
+        u.phone as customer_phone,
+        creator.name as created_by_name,
+        COALESCE(
+          json_object_agg(
+            s.id, json_build_object(
+              'id', s.id,
+              'name', s.name,
+              'serviceType', s.service_type,
+              'dailyRate', re.daily_rate,
+              'duration', s.duration,
+              'description', s.description,
+              'imageUrl', s.image_url,
+              'category', s.category
+            )
+          ) FILTER (WHERE s.id IS NOT NULL), 
+          '{}'::json
+        ) as equipment_details,
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+      FROM rentals r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
+      LEFT JOIN rental_equipment re ON r.id = re.rental_id
+      LEFT JOIN services s ON re.equipment_id = s.id
+      WHERE r.id = $1
+      GROUP BY r.id, u.name, u.email, u.phone, creator.name`,
       [id]
     );
     const completeRental = rows[0];
@@ -998,6 +1133,8 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
         r.end_date,
         r.total_price,
         r.status,
+        r.payment_status,
+        r.notes,
         r.created_at,
         r.updated_at,
         EXTRACT(EPOCH FROM (r.end_date - r.start_date))/3600 as duration_hours,
@@ -1007,7 +1144,11 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
               'id', s.id,
               'name', s.name,
               'service_type', s.service_type,
-              'daily_rate', COALESCE(re.daily_rate, s.price)
+              'daily_rate', COALESCE(re.daily_rate, s.price),
+              'duration', s.duration,
+              'description', s.description,
+              'category', s.category,
+              'image_url', s.image_url
             )
           ) FILTER (WHERE s.id IS NOT NULL), 
           '[]'::json

@@ -21,7 +21,7 @@ import {
   CloseCircleOutlined, CarOutlined, InboxOutlined, CreditCardOutlined,
   WalletOutlined, DollarOutlined, ArrowLeftOutlined, MessageOutlined,
   SendOutlined, UserOutlined, CustomerServiceOutlined, GiftOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined, ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -58,7 +58,19 @@ const FILTER_OPTIONS = [
   { label: 'Cancelled', value: 'cancelled' },
 ];
 
+const FILTER_STATUS_MAP = {
+  active: 'pending,confirmed,processing,shipped',
+  completed: 'delivered',
+  cancelled: 'cancelled,refunded'
+};
+
 const STATUS_FLOW = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+const PAYMENT_LABELS = {
+  wallet: 'Wallet',
+  credit_card: 'Credit Card',
+  cash: 'Cash'
+};
 
 function MyOrdersPage() {
   const navigate = useNavigate();
@@ -90,9 +102,8 @@ function MyOrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const statusMap = { active: 'confirmed', completed: 'completed', cancelled: 'cancelled' };
       const params = { page, limit: pageSize };
-      if (filter !== 'all') params.status = statusMap[filter] || filter;
+      if (filter !== 'all') params.status = FILTER_STATUS_MAP[filter] || filter;
       const response = await apiClient.get('/shop-orders/my-orders', { params });
       setOrders(response.data.orders || []);
       setTotal(response.data.total || 0);
@@ -151,6 +162,12 @@ function MyOrdersPage() {
     }
   }, [messages.length]);
 
+  const activeOrdersCount = orders.filter((order) => ['pending', 'confirmed', 'processing', 'shipped'].includes(order.status)).length;
+  const completedOrdersCount = orders.filter((order) => ['delivered', 'completed'].includes(order.status)).length;
+  const unreadThreadCount = Object.keys(unreadCounts).length;
+  const unreadMessageCount = Object.values(unreadCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+  const latestOrder = orders[0] || null;
+
   /* ─── Helpers ─── */
   const formatPrice = (price, currency = 'EUR') => {
     const converted = convertCurrency(price, currency, userCurrency);
@@ -178,6 +195,8 @@ function MyOrdersPage() {
     setMessages([]);
   };
 
+  const getPaymentLabel = (method) => PAYMENT_LABELS[method] || 'Other';
+
   /* ─── Order Card ─── */
   const renderOrderCard = (order) => {
     const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
@@ -189,22 +208,22 @@ function MyOrdersPage() {
     return (
       <Card
         key={order.id}
-        className="rounded-xl border-gray-200 hover:shadow-md transition-all cursor-pointer mb-4"
+        className="group mb-4 cursor-pointer overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_20px_45px_rgba(14,105,194,0.12)]"
         onClick={() => openDetail(order)}
         hoverable
       >
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-sky-400 to-sky-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 text-white shadow-[0_12px_28px_rgba(37,99,235,0.22)]">
               <ShoppingOutlined className="text-lg text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <Text strong className="text-base font-mono">{order.order_number}</Text>
+                <Text strong className="font-mono text-base text-slate-800">{order.order_number}</Text>
                 {unread > 0 && <Badge count={unread} size="small" />}
               </div>
-              <div className="text-xs text-gray-400">{dayjs(order.created_at).fromNow()}</div>
+              <div className="text-xs text-slate-400">Placed {dayjs(order.created_at).fromNow()}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -215,9 +234,15 @@ function MyOrdersPage() {
         </div>
 
         {/* Items preview */}
-        <div className="space-y-2 mb-4">
+        <div className="mb-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 shadow-inner shadow-slate-100/40">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+            <span>•</span>
+            <span>{getPaymentLabel(order.payment_method)}</span>
+          </div>
+          <div className="space-y-2">
           {items.slice(0, 3).map((item, idx) => (
-            <div key={item.id || `item-${idx}`} className="flex items-center gap-3">
+            <div key={item.id || `item-${idx}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
               {item.product_image ? (
                 <Image
                   src={getImageUrl(item.product_image)}
@@ -228,42 +253,43 @@ function MyOrdersPage() {
                   fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDQiIGhlaWdodD0iNDQiIHZpZXdCb3g9IjAgMCA0NCA0NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDQiIGhlaWdodD0iNDQiIHJ4PSI4IiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+"
                 />
               ) : (
-                <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100">
                   <ShoppingOutlined className="text-gray-400" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <Text className="text-sm truncate block">{item.product_name}</Text>
-                <div className="flex items-center gap-2 text-xs text-gray-400">
+                <Text className="block truncate text-sm font-medium text-slate-700">{item.product_name}</Text>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
                   <span>Qty: {item.quantity}</span>
                   {item.selected_size && <span>• Size: {item.selected_size}</span>}
                   {item.selected_color && <span>• {item.selected_color}</span>}
                 </div>
               </div>
-              <Text className="text-sm font-medium">{formatPrice(item.unit_price * item.quantity)}</Text>
+              <Text className="text-sm font-semibold text-slate-700">{formatPrice(item.unit_price * item.quantity)}</Text>
             </div>
           ))}
           {items.length > 3 && (
-            <Text type="secondary" className="text-xs">+{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</Text>
+            <Text type="secondary" className="px-1 text-xs">+{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</Text>
           )}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+          <div className="flex items-center gap-3 text-xs text-slate-400">
             <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
             <span>•</span>
             <span>{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</span>
             {unread > 0 && (
               <>
                 <span>•</span>
-                <span className="text-sky-500 flex items-center gap-1">
+                <span className="flex items-center gap-1 text-sky-500">
                   <MessageOutlined /> {unread} new
                 </span>
               </>
             )}
           </div>
-          <Text strong className="text-base">{formatPrice(order.total_amount)}</Text>
+          <Text strong className="text-base text-slate-800 transition-colors group-hover:text-sky-700">{formatPrice(order.total_amount)}</Text>
         </div>
       </Card>
     );
@@ -277,7 +303,7 @@ function MyOrdersPage() {
 
     if (isCancelled) {
       return (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
           <div className="flex items-center gap-2 text-red-600">
             {order.status === 'cancelled' ? <CloseCircleOutlined /> : <DollarOutlined />}
             <Text strong className="text-red-600">
@@ -294,7 +320,7 @@ function MyOrdersPage() {
     }
 
     return (
-      <div className="mb-6">
+      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
         <div className="flex items-start justify-between relative">
           {/* Background line */}
           <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
@@ -336,8 +362,8 @@ function MyOrdersPage() {
     if (history.length === 0) return null;
 
     return (
-      <div className="mb-4">
-        <Text strong className="text-sm block mb-3">Status History</Text>
+      <div className="mb-4 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+        <Text strong className="mb-3 block text-sm text-slate-700">Status History</Text>
         <Timeline
           items={history.map((h) => {
             const cfg = STATUS_CONFIG[h.new_status] || {};
@@ -367,14 +393,14 @@ function MyOrdersPage() {
 
   /* ─── Messages Panel ─── */
   const renderMessages = () => (
-    <div className="flex flex-col" style={{ height: 320 }}>
-      <div className="flex items-center gap-2 mb-3">
+    <div className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm" style={{ height: 360 }}>
+      <div className="mb-3 flex items-center gap-2">
         <MessageOutlined className="text-sky-500" />
-        <Text strong className="text-sm">Order Messages</Text>
+        <Text strong className="text-sm text-slate-700">Order Messages</Text>
       </div>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 rounded-xl p-3 space-y-3 mb-3">
+      <div className="mb-3 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-3">
         {messagesLoading ? (
           <div className="flex justify-center py-8"><Spin size="small" /></div>
         ) : messages.length === 0 ? (
@@ -440,7 +466,7 @@ function MyOrdersPage() {
 
   /* ─── Order Info Panel ─── */
   const renderOrderInfo = (order) => (
-    <div className="bg-gray-50 rounded-xl p-4 mb-4">
+    <div className="mb-4 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <Text type="secondary" className="text-xs block">Status</Text>
@@ -451,7 +477,7 @@ function MyOrdersPage() {
         <div>
           <Text type="secondary" className="text-xs block">Payment</Text>
           <Tag color={order.payment_status === 'completed' ? 'green' : 'orange'} icon={PAYMENT_ICONS[order.payment_method]}>
-            {order.payment_method === 'credit_card' ? 'Credit Card' : order.payment_method === 'wallet' ? 'Wallet' : 'Cash'} · {order.payment_status}
+            {getPaymentLabel(order.payment_method)} · {order.payment_status}
           </Tag>
         </div>
         {order.voucher_code && (
@@ -478,9 +504,9 @@ function MyOrdersPage() {
   const renderOrderItems = (order) => (
     <div className="mb-4">
       <Text strong className="text-sm block mb-3">Items</Text>
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
         {(order.items || []).map((item, idx) => (
-          <div key={item.id || idx} className="flex items-center gap-3">
+          <div key={item.id || idx} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
             {item.product_image ? (
               <Image
                 src={getImageUrl(item.product_image)}
@@ -510,7 +536,7 @@ function MyOrdersPage() {
       </div>
 
       {/* Totals */}
-      <div className="mt-3 pt-3 border-t border-gray-100 space-y-1">
+      <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
         {order.discount_amount > 0 && (
           <div className="flex justify-between text-sm">
             <Text type="secondary">Subtotal</Text>
@@ -538,7 +564,9 @@ function MyOrdersPage() {
       <Drawer
         title={order ? (
           <div className="flex items-center gap-3">
-            <ShoppingOutlined className="text-sky-500" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 text-white shadow-sm">
+              <ShoppingOutlined />
+            </div>
             <div>
               <Text strong>{order.order_number}</Text>
               <Text type="secondary" className="text-xs block">{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</Text>
@@ -548,21 +576,22 @@ function MyOrdersPage() {
         open={drawerOpen}
         onClose={closeDetail}
         width={520}
-        destroyOnClose
+        className="shop-order-drawer"
+        destroyOnHidden
       >
         {detailLoading || !order ? (
           <div className="flex justify-center py-16"><Spin size="large" /></div>
         ) : (
-          <div>
+          <div className="space-y-4">
             {renderStatusProgress(order)}
             {renderOrderInfo(order)}
             {renderOrderItems(order)}
 
-            <Divider className="!my-3" />
+            <Divider className="!my-1" />
             {renderTimeline(order)}
 
             {order.notes && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+              <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <ExclamationCircleOutlined className="text-amber-500" />
                   <Text strong className="text-xs text-amber-700">Order Notes</Text>
@@ -571,7 +600,7 @@ function MyOrdersPage() {
               </div>
             )}
 
-            <Divider className="!my-3" />
+            <Divider className="!my-1" />
             {renderMessages()}
           </div>
         )}
@@ -581,39 +610,132 @@ function MyOrdersPage() {
 
   /* ─── Main Render ─── */
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} className="flex items-center" />
-          <div>
-            <Title level={4} className="!mb-0">My Orders</Title>
-            <Text type="secondary" className="text-sm">Track your shop purchases and chat with staff</Text>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} block />
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-16"><Spin size="large" /></div>
-        ) : orders.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={filter === 'all' ? "You haven't placed any orders yet" : `No ${filter} orders found`}
-          >
-            <Button type="primary" onClick={() => navigate('/shop')}>Browse Shop</Button>
-          </Empty>
-        ) : (
-          <>
-            {orders.map(renderOrderCard)}
-            {total > pageSize && (
-              <div className="flex justify-center mt-4">
-                <Pagination current={page} total={total} pageSize={pageSize} onChange={setPage} showSizeChanger={false} size="small" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50/60">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-700 p-6 text-white shadow-[0_22px_50px_rgba(30,64,175,0.28)]">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
+            <div className="flex-1 space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/85 shadow-sm">
+                <ShoppingOutlined /> Order Tracking
               </div>
-            )}
-          </>
-        )}
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Button
+                    type="text"
+                    icon={<ArrowLeftOutlined />}
+                    onClick={() => navigate(-1)}
+                    className="!mt-0.5 !flex !h-10 !w-10 !items-center !justify-center !rounded-2xl !border !border-white/20 !bg-white/10 !text-white hover:!border-white/35 hover:!bg-white/20 hover:!text-white"
+                  />
+                  <div>
+                    <Title level={2} className="!mb-2 !text-white">My Orders</Title>
+                    <Text className="max-w-2xl text-sm !text-white/75">
+                      Follow your shop purchases, check payment progress, and keep conversations with the team in one place.
+                    </Text>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-white/20 bg-white/12 p-4 shadow-[0_10px_24px_rgba(24,64,192,0.24)] backdrop-blur">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Visible Orders</p>
+                  <p className="mt-3 text-3xl font-semibold text-white">{orders.length}</p>
+                  <p className="mt-1 text-xs text-white/70">Orders loaded on this page</p>
+                </div>
+                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(13,139,255,0.24)] backdrop-blur">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Active</p>
+                  <p className="mt-3 text-3xl font-semibold text-white">{activeOrdersCount}</p>
+                  <p className="mt-1 text-xs text-white/70">Pending, processing, or shipped</p>
+                </div>
+                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(53,231,138,0.24)] backdrop-blur">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Completed</p>
+                  <p className="mt-3 text-3xl font-semibold text-white">{completedOrdersCount}</p>
+                  <p className="mt-1 text-xs text-white/70">Delivered or fully completed</p>
+                </div>
+                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(251,191,36,0.20)] backdrop-blur">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Unread</p>
+                  <p className="mt-3 text-3xl font-semibold text-white">{unreadMessageCount}</p>
+                  <p className="mt-1 text-xs text-white/70">Across {unreadThreadCount} order thread{unreadThreadCount === 1 ? '' : 's'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex w-full max-w-sm flex-col gap-3 rounded-3xl border border-white/18 bg-white/14 p-5 backdrop-blur-xl shadow-[0_16px_36px_rgba(14,58,190,0.32)]">
+              <p className="text-sm text-white/80">
+                {latestOrder
+                  ? `Latest order ${latestOrder.order_number} was placed ${dayjs(latestOrder.created_at).fromNow()}. Open it to see updates or message the team.`
+                  : 'Once you place a shop order, its status, payment progress, and support messages will appear here.'}
+              </p>
+              <Button
+                type="primary"
+                icon={<ShoppingOutlined />}
+                onClick={() => navigate('/shop')}
+                className="h-11 rounded-2xl border-0 bg-white text-sky-600 shadow-[0_10px_25px_rgba(11,78,240,0.35)] transition hover:bg-slate-100"
+              >
+                Browse Shop
+              </Button>
+              <Button
+                ghost
+                icon={<ReloadOutlined />}
+                onClick={() => {
+                  fetchOrders();
+                  fetchUnreadCounts();
+                }}
+                loading={loading}
+                className="h-11 rounded-2xl border-white/45 text-white shadow-[0_8px_22px_rgba(255,255,255,0.22)] hover:bg-white/15"
+              >
+                Refresh Orders
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <Title level={5} className="!mb-1 !text-slate-800">Order history</Title>
+              <Text type="secondary" className="text-sm">Review purchases, watch status changes, and open any order to continue the conversation.</Text>
+            </div>
+            <div className="w-full lg:max-w-md">
+              <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} block />
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-20"><Spin size="large" /></div>
+          ) : orders.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-sky-50/70 px-6 py-16 text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-2xl text-white shadow-[0_16px_36px_rgba(37,99,235,0.22)]">
+                <ShoppingOutlined />
+              </div>
+              <Title level={4} className="!mb-2 !text-slate-800">
+                {filter === 'all' ? 'No orders yet' : `No ${filter} orders found`}
+              </Title>
+              <Text className="mx-auto block max-w-md text-sm text-slate-500">
+                {filter === 'all'
+                  ? 'Your purchases will show up here with payment details, shipping updates, and direct messaging once you place an order.'
+                  : 'Try another filter or refresh the list to see the latest activity for your orders.'}
+              </Text>
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button type="primary" onClick={() => navigate('/shop')} className="h-11 rounded-2xl border-0 bg-gradient-to-r from-sky-500 to-indigo-600 px-6 shadow-[0_12px_28px_rgba(37,99,235,0.25)]">
+                  Browse Shop
+                </Button>
+                <Button onClick={() => setFilter('all')} className="h-11 rounded-2xl px-6">
+                  Clear Filter
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {orders.map(renderOrderCard)}
+              </div>
+              {total > pageSize && (
+                <div className="mt-6 flex justify-center">
+                  <Pagination current={page} total={total} pageSize={pageSize} onChange={setPage} showSizeChanger={false} />
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
       {renderDrawer()}
     </div>

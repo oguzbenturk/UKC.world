@@ -13,6 +13,7 @@ import {
     Select
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     SearchOutlined,
     WalletOutlined,
@@ -75,6 +76,8 @@ const renderLoadingSkeletons = () => (
     </Row>
 );
 const ShopPage = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -185,6 +188,20 @@ const ShopPage = () => {
     useEffect(() => {
         fetchAllProducts();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!location.state?.openCart) {
+            return;
+        }
+
+        setCartVisible(true);
+
+        const { openCart, ...restState } = location.state;
+        navigate(`${location.pathname}${location.search}${location.hash}`, {
+            replace: true,
+            state: Object.keys(restState).length > 0 ? restState : null
+        });
+    }, [location, navigate]);
 
     // Instant client-side filtering when category/subcategory changes
     useEffect(() => {
@@ -499,7 +516,7 @@ const ShopPage = () => {
                         style={{ 
                             width: 200,
                         }}
-                        dropdownStyle={{ borderRadius: '8px', padding: '4px' }}
+                        styles={{ popup: { root: { borderRadius: '8px', padding: '4px' } } }}
                     >
                         {SORT_OPTIONS.map(opt => (
                             <Option key={opt.value} value={opt.value}>

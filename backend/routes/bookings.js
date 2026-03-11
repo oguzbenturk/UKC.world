@@ -16,6 +16,7 @@ import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
 import { insertNotification } from '../services/notificationWriter.js';
+import socketService from '../services/socketService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
 const router = express.Router();
@@ -5247,21 +5248,25 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       await ensureRentalFromBooking(client, booking, req.user.id);
     }
 
+    // Fetch service name once for notifications (shared by confirmed & cancelled paths)
+    let notifServiceName = 'Lesson';
+    let notifBookingDate = '';
+    if ((status === 'confirmed' || status === 'cancelled') && booking.student_user_id) {
+      try {
+        const svcRes = await client.query('SELECT name FROM services WHERE id = $1', [booking.service_id]);
+        notifServiceName = svcRes.rows[0]?.name || 'Lesson';
+        notifBookingDate = booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      } catch { /* non-critical */ }
+    }
+
     // === Notify student when booking is confirmed/approved ===
     if (status === 'confirmed' && booking.student_user_id) {
       try {
-        // Get service name for the notification
-        const serviceResult = await client.query(
-          'SELECT name FROM services WHERE id = $1',
-          [booking.service_id]
-        );
-        const serviceName = serviceResult.rows[0]?.name || 'Lesson';
-        const bookingDate = booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
         await insertNotification({
           userId: booking.student_user_id,
           title: 'Booking Confirmed',
-          message: `Your ${serviceName} booking${bookingDate ? ` on ${bookingDate}` : ''} has been confirmed!`,
+          message: `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been confirmed!`,
           type: 'booking_confirmed',
           data: {
             bookingId: booking.id,
@@ -5281,17 +5286,10 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     // === Notify student when booking is cancelled/declined ===
     if (status === 'cancelled' && booking.student_user_id) {
       try {
-        const serviceResult = await client.query(
-          'SELECT name FROM services WHERE id = $1',
-          [booking.service_id]
-        );
-        const serviceName = serviceResult.rows[0]?.name || 'Lesson';
-        const bookingDate = booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-
         await insertNotification({
           userId: booking.student_user_id,
           title: 'Booking Declined',
-          message: `Your ${serviceName} booking${bookingDate ? ` on ${bookingDate}` : ''} has been declined. Any charges have been refunded.`,
+          message: `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been declined. Any charges have been refunded.`,
           type: 'booking_declined',
           data: {
             bookingId: booking.id,
@@ -5349,6 +5347,26 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     
     await client.query('COMMIT');
     
+    // Emit real-time notification to the student after commit
+    if ((status === 'confirmed' || status === 'cancelled') && booking.student_user_id) {
+      try {
+        socketService.emitToChannel(`user:${booking.student_user_id}`, 'notification:new', {
+          notification: {
+            user_id: booking.student_user_id,
+            title: status === 'confirmed' ? 'Booking Confirmed' : 'Booking Declined',
+            message: status === 'confirmed'
+              ? `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been confirmed!`
+              : `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been declined.`,
+            type: status === 'confirmed' ? 'booking_confirmed' : 'booking_declined',
+            data: { bookingId: booking.id, serviceId: booking.service_id, date: booking.date, link: '/student/bookings' },
+            created_at: new Date().toISOString()
+          }
+        });
+      } catch (emitErr) {
+        logger.warn('Failed to emit real-time notification', { error: emitErr?.message });
+      }
+    }
+
     res.json({ 
       success: true, 
       message: `Booking ${status === 'confirmed' ? 'approved' : status === 'cancelled' ? 'declined' : 'updated'}`,

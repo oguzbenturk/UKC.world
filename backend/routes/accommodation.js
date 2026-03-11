@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { logger } from '../middlewares/errorHandler.js';
+import CurrencyService from '../services/currencyService.js';
 
 /**
  * Extract extended pricing metadata stored inside the amenities JSONB array.
@@ -125,6 +126,7 @@ router.get('/units', async (req, res) => {
 					FROM accommodation_bookings b 
 					WHERE b.unit_id = u.id 
 					AND b.status NOT IN ('cancelled')
+					AND COALESCE(b.payment_status, '') NOT IN ('pending_payment', 'failed')
 					AND b.check_out_date >= CURRENT_DATE
 					), '[]'
 				) as upcoming_bookings
@@ -173,8 +175,7 @@ router.get('/units/:id', async (req, res) => {
 					) ORDER BY b.check_in_date)
 					FROM accommodation_bookings b 
 					WHERE b.unit_id = u.id 
-					AND b.status NOT IN ('cancelled')
-					), '[]'
+					AND b.status NOT IN ('cancelled')				AND COALESCE(b.payment_status, '') NOT IN ('pending_payment', 'failed')					), '[]'
 				) as bookings
 			FROM accommodation_units u
 			WHERE u.id = $1`,
@@ -190,6 +191,7 @@ router.get('/units/:id', async (req, res) => {
 			 FROM accommodation_bookings
 			 WHERE unit_id = $1
 			   AND status NOT IN ('cancelled', 'completed')
+			   AND COALESCE(payment_status, '') NOT IN ('pending_payment', 'failed')
 			   AND check_out_date >= CURRENT_DATE
 			 ORDER BY check_in_date`,
 			[id]
@@ -568,11 +570,12 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			return res.status(400).json({ error: `Unit capacity is ${unitData.capacity} guests` });
 		}
 
-		// Check for overlapping bookings
+		// Check for overlapping bookings (exclude unpaid credit card bookings)
 		const overlap = await client.query(
 			`SELECT id FROM accommodation_bookings 
 			 WHERE unit_id = $1 
 			 AND status NOT IN ('cancelled')
+			 AND COALESCE(payment_status, '') NOT IN ('pending_payment', 'failed')
 			 AND (check_in_date, check_out_date) OVERLAPS ($2::date, $3::date)`,
 			[unit_id, check_in_date, check_out_date]
 		);
@@ -646,17 +649,37 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		// For credit card payments, initiate Iyzico checkout
 		if (payment_method === 'credit_card') {
 			try {
+				// Convert to user's preferred currency so Iyzico shows the right amount
+				let iyzicoAmount = total_price;
+				let iyzicoCurrency = 'EUR';
+				try {
+					const userRow = await pool.query('SELECT preferred_currency FROM users WHERE id = $1', [guest_id]);
+					const userCurrency = userRow.rows[0]?.preferred_currency;
+					if (userCurrency && userCurrency !== 'EUR') {
+						const converted = await CurrencyService.convertCurrency(total_price, 'EUR', userCurrency);
+						if (converted > 0) {
+							iyzicoAmount = converted;
+							iyzicoCurrency = userCurrency;
+						}
+					}
+				} catch (convErr) {
+					logger.warn('Could not convert accommodation price to user currency for Iyzico, using EUR', {
+						bookingId, error: convErr.message
+					});
+				}
+
+				// Use the same call signature as wallet deposit (finances.js)
 				const gatewayResult = await initiateDeposit({
-					amount: total_price,
-					currency: 'EUR',
+					amount: iyzicoAmount,
+					currency: iyzicoCurrency,
 					userId: guest_id,
-					clientIp: req.ip,
 					referenceCode: `ACC-${bookingId}`,
-					items: [{
-						id: `accom-${unit_id}`,
-						name: `${unitData.name || 'Accommodation'} (${nights} night${nights !== 1 ? 's' : ''})`,
-						price: total_price
-					}]
+					metadata: {
+						source: 'accommodation_booking',
+						bookingId,
+						unitId: unit_id,
+						userId: guest_id
+					}
 				});
 
 				booking.paymentPageUrl = gatewayResult.paymentPageUrl;

@@ -269,7 +269,7 @@ function LessonServices() {
 
   const handleEdit = (service) => {
     // If the drawer is already open for a different service, close it first
-    // so destroyOnClose unmounts the old form and React creates a fresh one.
+    // so destroyOnHidden unmounts the old form and React creates a fresh one.
     if (formDrawerVisible && selectedService?.id !== service.id) {
       setFormDrawerVisible(false);
       setSelectedService(null);
@@ -662,7 +662,7 @@ function LessonServices() {
       <Drawer
         title={editMode ? "Edit Lesson" : "Add New Lesson"}
         width={600}
-        destroyOnClose
+        destroyOnHidden
         onClose={() => {
           setFormDrawerVisible(false);
           setEditMode(false);

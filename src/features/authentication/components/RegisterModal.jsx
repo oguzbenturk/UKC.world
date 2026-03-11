@@ -617,7 +617,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
       maskClosable={!loading}
       closable={true}
       closeIcon={<span className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 mt-1">✕</span>}
-      destroyOnClose
+      destroyOnHidden
       styles={{ 
         content: { 
           padding: 0, 

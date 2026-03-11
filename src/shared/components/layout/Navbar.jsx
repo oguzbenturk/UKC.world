@@ -473,13 +473,19 @@ export const Navbar = ({ toggleSidebar }) => {
                         My Orders
                       </NavLink>
                       <NavLink
-                        to="/shop"
+                        to="/shop/browse"
                         className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
                           setIsProfileDropdownOpen(false);
-                          navigate('/shop');
+                          navigate('/shop/browse', {
+                            state: {
+                              openCart: true,
+                              openedFrom: 'profile-menu',
+                              requestedAt: Date.now()
+                            }
+                          });
                         }}
                       >
                         <span>Shopping Cart</span>

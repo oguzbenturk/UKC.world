@@ -654,15 +654,27 @@ router.get('/my-orders', authenticateJWT, async (req, res) => {
   try {
     const userId = req.user.id;
     const { page = 1, limit = 10, status } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
+    const offset = (pageNumber - 1) * limitNumber;
 
     let whereClause = 'WHERE o.user_id = $1';
     const params = [userId];
     let paramIndex = 2;
 
     if (status && status !== 'all') {
-      whereClause += ` AND o.status = $${paramIndex++}`;
-      params.push(status);
+      const statuses = String(status)
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (statuses.length === 1) {
+        whereClause += ` AND o.status = $${paramIndex++}`;
+        params.push(statuses[0]);
+      } else if (statuses.length > 1) {
+        whereClause += ` AND o.status = ANY($${paramIndex++}::text[])`;
+        params.push(statuses);
+      }
     }
 
     // Get orders with item count
@@ -683,7 +695,7 @@ router.get('/my-orders', authenticateJWT, async (req, res) => {
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
-    `, [...params, limit, offset]);
+    `, [...params, limitNumber, offset]);
 
     const countResult = await pool.query(`
       SELECT COUNT(*) FROM shop_orders o ${whereClause}
@@ -692,8 +704,8 @@ router.get('/my-orders', authenticateJWT, async (req, res) => {
     res.json({
       orders: ordersResult.rows,
       total: parseInt(countResult.rows[0].count),
-      page: parseInt(page),
-      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+      page: pageNumber,
+      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limitNumber)
     });
 
   } catch (error) {

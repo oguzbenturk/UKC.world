@@ -70,7 +70,11 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
         srv.price as service_price,
         srv.duration as service_duration,
         cp.package_name,
-        cp.purchase_price as package_price,
+        CASE
+          WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
+          THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
+          ELSE cp.purchase_price
+        END as package_price,
         cp.total_hours as package_total_hours,
         cp.remaining_hours as package_remaining_hours,
         cp.used_hours as package_used_hours,
@@ -82,6 +86,7 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
       LEFT JOIN services srv ON srv.id = b.service_id
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+      LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
@@ -147,14 +152,15 @@ export async function getInstructorPayrollHistory(instructorId, options = {}) {
     `SELECT 
         id,
         amount,
-        type,
+        transaction_type as type,
         description,
         payment_method,
         reference_number,
         created_at as payment_date
-      FROM transactions 
+      FROM wallet_transactions 
       WHERE user_id = $1 
-        AND type IN ('payment', 'deduction')
+        AND transaction_type IN ('payment', 'deduction')
+        AND status != 'cancelled'
       ORDER BY created_at DESC${limitClause}`,
     params
   );
@@ -166,15 +172,17 @@ export async function getInstructorPaymentsSummary(instructorId) {
     SELECT 
       COALESCE(SUM(amount), 0) AS net_payments,
       COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS total_paid
-    FROM transactions
+    FROM wallet_transactions
     WHERE user_id = $1
-      AND type IN ('payment', 'deduction');
+      AND transaction_type IN ('payment', 'deduction')
+      AND status != 'cancelled';
   `;
 
   const lastPaymentQuery = `
     SELECT amount, created_at
-    FROM transactions
-    WHERE user_id = $1 AND type = 'payment'
+    FROM wallet_transactions
+    WHERE user_id = $1 AND transaction_type = 'payment'
+      AND status != 'cancelled'
     ORDER BY created_at DESC
     LIMIT 1;
   `;

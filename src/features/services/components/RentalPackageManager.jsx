@@ -10,12 +10,11 @@ import {
   Tag, 
   Tooltip,
   Spin,
-  Grid,
-  Card,
   Row,
   Col,
   Space,
   App,
+  Grid,
   Divider,
   Alert
 } from 'antd';
@@ -78,7 +77,7 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
       try {
         setLoading(true);
         // Fetch packages with rental category
-        const response = await apiClient.get('/services/packages/available?category=rental');
+        const response = await apiClient.get('/services/packages/available?packageType=rental');
         setPackages(response.data || []);
       } catch (error) {
         // Error loading rental packages - silent fail
@@ -222,12 +221,18 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
       prices: prices.filter(p => p.price != null && p.price > 0),
       sessionsCount: values.totalDays || 1,
       totalHours: totalHours,
-      lessonType: values.rentalType,
-      lessonServiceName: selectedRentalService?.name,
+      lessonServiceName: selectedRentalService?.name || null,
       description: values.description || '',
-      // Mark as rental package
-      disciplineTag: 'rental',
-      lessonCategoryTag: 'rental',
+      // Rental-specific fields
+      packageType: 'rental',
+      includesRental: true,
+      includesLessons: false,
+      includesAccommodation: false,
+      rentalDays: values.totalDays || 1,
+      rentalServiceId: values.rentalType,
+      rentalServiceName: selectedRentalService?.name || null,
+      disciplineTag: null,
+      lessonCategoryTag: null,
       levelTag: null,
     };
   };
@@ -375,42 +380,55 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
     }
   };
 
+  // Resolve equipment name from rentalServices list (more reliable than stored names)
+  const resolveEquipmentName = (pkg) => {
+    // Try matching by rental service ID first, then lesson service ID
+    const serviceId = pkg.rentalServiceId || pkg.lessonServiceId;
+    if (serviceId && rentalServices?.length) {
+      const match = rentalServices.find(s => String(s.id) === String(serviceId));
+      if (match) return match.name;
+    }
+    return pkg.rentalServiceName || pkg.lessonServiceName || null;
+  };
+
+  // Calculate days for a rental package, preferring rentalDays > sessionsCount > totalHours/24
+  const getDays = (pkg) => {
+    if (pkg.rentalDays && pkg.rentalDays > 0) return pkg.rentalDays;
+    if (pkg.sessionsCount && pkg.sessionsCount > 0) return pkg.sessionsCount;
+    if (pkg.totalHours && pkg.totalHours > 0) return Math.round(pkg.totalHours / 24);
+    return 1;
+  };
+
   // Table columns for rental packages
   const columns = [
     {
-      title: 'Package Name',
+      title: 'Package',
       dataIndex: 'name',
       key: 'name',
-      render: (text, record) => (
-        <div>
-          <div className="font-medium">{text}</div>
-          <div className="text-sm text-gray-500">{record.description}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Equipment Type',
-      dataIndex: 'lessonServiceName',
-      key: 'lessonServiceName',
-      render: (lessonServiceName) => {
-        const displayName = lessonServiceName || 'Unknown Equipment';
+      render: (text, record) => {
+        const equipName = resolveEquipmentName(record);
         return (
-          <Tag color="orange">
-            {displayName}
-          </Tag>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+              {(text || 'RP').substring(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold text-slate-900 truncate">{text}</div>
+              {equipName && <div className="text-xs text-slate-500 truncate">{equipName}</div>}
+            </div>
+          </div>
         );
-      }
+      },
     },
     {
       title: 'Duration',
       dataIndex: 'totalHours',
       key: 'totalHours',
-      render: (hours, record) => {
-        const days = hours ? Math.round(hours / 24) : record.sessionsCount || 1;
+      width: 100,
+      render: (_hours, record) => {
+        const days = getDays(record);
         return (
-          <div className="text-center">
-            <div className="font-semibold">{days} day{days > 1 ? 's' : ''}</div>
-          </div>
+          <span className="font-medium text-slate-700">{days} day{days > 1 ? 's' : ''}</span>
         );
       },
     },
@@ -418,24 +436,14 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
       title: 'Price',
       dataIndex: 'price',
       key: 'price',
+      width: 140,
       render: (price, record) => {
-        const prices = record.prices && record.prices.length > 0 
-          ? record.prices 
-          : [{ currencyCode: record.currency, price }];
-        
-        const days = record.totalHours ? Math.round(record.totalHours / 24) : record.sessionsCount || 1;
+        const days = getDays(record);
         const pricePerDay = days > 0 ? price / days : price;
-        
         return (
-          <div className="text-right">
-            {prices.map((p) => (
-              <div key={`${p.currencyCode}-${p.price}`} className={p === prices[0] ? 'font-semibold' : 'text-sm text-gray-500'}>
-                {formatCurrency(p.price, p.currencyCode)}
-              </div>
-            ))}
-            <div className="text-xs text-gray-400 mt-1">
-              {formatCurrency(pricePerDay, record.currency)}/day
-            </div>
+          <div>
+            <div className="font-semibold text-slate-900">{formatCurrency(price, record.currency)}</div>
+            <div className="text-xs text-slate-400">{formatCurrency(pricePerDay, record.currency)}/day</div>
           </div>
         );
       },
@@ -444,33 +452,26 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 90,
       render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {(status || 'active').toUpperCase()}
+        <Tag color={status === 'active' ? 'green' : 'default'} className="!rounded-full !text-xs !px-2.5 !m-0">
+          {(status || 'active').charAt(0).toUpperCase() + (status || 'active').slice(1)}
         </Tag>
       )
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
+      width: 100,
       render: (_, record) => (
-        <div className="space-x-2">
-          <Button 
-            size="small" 
-            icon={<EditOutlined />}
-            onClick={() => handleEditPackage(record)}
-          >
-            Edit
-          </Button>
-          <Button 
-            size="small" 
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeletePackage(record.id)}
-          >
-            Delete
-          </Button>
-        </div>
+        <Space size={4}>
+          <Tooltip title="Edit">
+            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleEditPackage(record)} />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeletePackage(record.id)} />
+          </Tooltip>
+        </Space>
       )
     }
   ];
@@ -480,136 +481,142 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
       title={null}
       open={visible}
       onCancel={onClose}
-      width={1200}
+      width={1000}
       footer={null}
-      style={{ top: 20 }}
+      className="clean-modal-override"
+      styles={{
+        content: { padding: 0, borderRadius: '16px', overflow: 'hidden', backgroundColor: '#f8fafc' },
+        body: { padding: 0 }
+      }}
     >
-      <div className="space-y-6">
+      <div>
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5 -mx-6 -mt-5 mb-4 rounded-t-lg">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            🏄 Rental Package Manager
-          </h2>
-          <p className="text-orange-100 text-sm mt-1">
-            Create and manage rental equipment packages for your customers
-          </p>
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                📦 Rental Packages
+              </h2>
+              <p className="text-orange-100/90 text-xs mt-0.5">
+                Create and manage multi-day rental bundles for your customers.
+              </p>
+            </div>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              className="!bg-white/20 !border-white/30 !text-white hover:!bg-white/30 !rounded-lg !shadow-none"
+              onClick={() => {
+                setEditMode(false);
+                setSelectedPackage(null);
+                setIsAutoCalculated(true);
+                setManualPriceOverride(false);
+                setPriceCalculationDisplay('💡 Price automatically calculated from daily rate × total days');
+                form.resetFields();
+                form.setFieldsValue({
+                  currency: 'EUR',
+                  totalDays: 1
+                });
+                setPackageModalVisible(true);
+              }}
+            >
+              New Package
+            </Button>
+          </div>
         </div>
 
-        {/* Actions Row */}
-        <div className="flex justify-between items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Space.Compact>
-              <Button 
-                type={viewMode === 'table' ? 'primary' : 'default'}
-                icon={<TableOutlined />}
-                onClick={() => setViewMode('table')}
-              >
-                Table
-              </Button>
-              <Button 
-                type={viewMode === 'cards' ? 'primary' : 'default'}
-                icon={<AppstoreOutlined />}
-                onClick={() => setViewMode('cards')}
-              >
-                Cards
-              </Button>
-            </Space.Compact>
-          </div>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            className="bg-orange-500 hover:bg-orange-600 border-orange-500"
-            onClick={() => {
-              setEditMode(false);
-              setSelectedPackage(null);
-              setIsAutoCalculated(true);
-              setManualPriceOverride(false);
-              setPriceCalculationDisplay('💡 Price automatically calculated from daily rate × total days');
-              form.resetFields();
-              form.setFieldsValue({
-                currency: 'EUR',
-                totalDays: 1
-              });
-              setPackageModalVisible(true);
-            }}
-          >
-            Create Rental Package
-          </Button>
+        {/* View toggle */}
+        <div className="flex items-center gap-2 px-6 pt-4 pb-2">
+          <Space.Compact size="small">
+            <Button
+              type={viewMode === 'table' ? 'primary' : 'default'}
+              icon={<TableOutlined />}
+              onClick={() => setViewMode('table')}
+              className="!rounded-l-lg"
+            />
+            <Button
+              type={viewMode === 'cards' ? 'primary' : 'default'}
+              icon={<AppstoreOutlined />}
+              onClick={() => setViewMode('cards')}
+              className="!rounded-r-lg"
+            />
+          </Space.Compact>
+          <span className="text-xs text-slate-400 ml-1">{packages.length} package{packages.length !== 1 ? 's' : ''}</span>
         </div>
 
         {/* Packages List */}
-        <Spin spinning={loading}>
-          {viewMode === 'table' ? (
-            <Table
-              columns={columns}
-              dataSource={packages}
-              rowKey="id"
-              pagination={{ pageSize: 10 }}
-              size="middle"
-              locale={{ emptyText: 'No rental packages found. Create your first rental package!' }}
-            />
-          ) : (
-            <div>
-              {(!packages || packages.length === 0) ? (
-                <div className="text-center text-gray-500 py-8">No rental packages found. Create your first rental package!</div>
-              ) : (
-                <Row gutter={[16, 16]}>
-                  {packages.map((pkg) => {
-                    const days = pkg.totalHours ? Math.round(pkg.totalHours / 24) : pkg.sessionsCount || 1;
-                    const perDay = days > 0 ? (pkg.price || 0) / days : pkg.price;
-                    return (
-                      <Col key={pkg.id} xs={24} sm={12} md={8} lg={6}>
-                        <Card
-                          size="small"
-                          className="h-full"
-                          title={
-                            <div className="flex flex-col gap-1">
-                              <div className="font-medium leading-snug">{pkg.name}</div>
-                              {pkg.description ? (
-                                <div className="text-xs text-gray-500 leading-snug">{pkg.description}</div>
-                              ) : null}
-                              <div className="flex flex-wrap items-center gap-1 pt-1">
-                                <Tag color={pkg.status === 'active' ? 'green' : 'red'} className="m-0">
-                                  {(pkg.status || 'active').toUpperCase()}
-                                </Tag>
-                                <Tag color="orange" className="m-0">
-                                  {pkg.lessonServiceName || 'Unknown Equipment'}
-                                </Tag>
+        <div className="px-6 pb-6">
+          <Spin spinning={loading}>
+            {viewMode === 'table' ? (
+              <Table
+                columns={columns}
+                dataSource={packages}
+                rowKey="id"
+                pagination={packages.length > 8 ? { pageSize: 8 } : false}
+                size="small"
+                className="rounded-xl overflow-hidden border border-slate-200/60"
+                locale={{ emptyText: <div className="py-8 text-slate-400 text-sm">No packages yet. Create your first rental package!</div> }}
+              />
+            ) : (
+              <div>
+                {(!packages || packages.length === 0) ? (
+                  <div className="text-center text-slate-400 py-12 text-sm">No packages yet. Create your first rental package!</div>
+                ) : (
+                  <Row gutter={[12, 12]}>
+                    {packages.map((pkg) => {
+                      const days = getDays(pkg);
+                      const perDay = days > 0 ? (pkg.price || 0) / days : pkg.price;
+                      const equipName = resolveEquipmentName(pkg);
+                      return (
+                        <Col key={pkg.id} xs={24} sm={12} lg={8}>
+                          <div className="group relative rounded-xl border border-slate-200/70 bg-white p-4 shadow-sm hover:shadow-md hover:border-slate-300/80 transition-all h-full flex flex-col">
+                            {/* Status badge */}
+                            <div className="absolute top-3 right-3">
+                              <Tag color={pkg.status === 'active' ? 'green' : 'default'} className="!rounded-full !text-[10px] !px-2 !m-0 !leading-[18px]">
+                                {(pkg.status || 'active').charAt(0).toUpperCase() + (pkg.status || 'active').slice(1)}
+                              </Tag>
+                            </div>
+
+                            {/* Title */}
+                            <h4 className="font-semibold text-slate-900 text-sm leading-snug pr-16 mb-1">{pkg.name}</h4>
+                            {equipName && (
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                                <p className="text-xs text-slate-500 truncate">{equipName}</p>
+                              </div>
+                            )}
+                            {pkg.description && <p className="text-xs text-slate-400 line-clamp-2 mb-3">{pkg.description}</p>}
+
+                            {/* Stats row */}
+                            <div className="flex items-end justify-between mt-auto pt-3 border-t border-slate-100">
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Duration</div>
+                                <div className="text-sm font-semibold text-slate-700">{days} day{days > 1 ? 's' : ''}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-base font-bold text-slate-900">{formatCurrency(pkg.price, pkg.currency)}</div>
+                                <div className="text-[10px] text-slate-400">{formatCurrency(perDay, pkg.currency)}/day</div>
                               </div>
                             </div>
-                          }
-                          actions={[
-                            <Button key="edit" size="small" icon={<EditOutlined />} onClick={() => handleEditPackage(pkg)}>Edit</Button>,
-                            <Button key="delete" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeletePackage(pkg.id)}>Delete</Button>
-                          ]}
-                        >
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <div className="text-xs text-gray-500">Duration</div>
-                              <div className="font-semibold">{days} day{days > 1 ? 's' : ''}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xs text-gray-500">Prices</div>
-                              {(pkg.prices && pkg.prices.length > 0 
-                                ? pkg.prices 
-                                : [{ currencyCode: pkg.currency, price: pkg.price }]
-                              ).map((p) => (
-                                <div key={`${p.currencyCode}-${p.price}`} className={p === (pkg.prices && pkg.prices.length > 0 ? pkg.prices : [{ currencyCode: pkg.currency, price: pkg.price }])[0] ? 'font-semibold' : 'text-xs text-gray-500'}>
-                                  {formatCurrency(p.price, p.currencyCode)}
-                                </div>
-                              ))}
-                              <div className="text-xs text-gray-400 mt-1">{perDay != null ? `${formatCurrency(perDay, pkg.currency)}/day` : '-'}</div>
+
+                            {/* Actions (visible on hover) */}
+                            <div className="flex gap-1.5 mt-3 pt-2 border-t border-slate-100">
+                              <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleEditPackage(pkg)} className="flex-1 !text-xs">
+                                Edit
+                              </Button>
+                              <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeletePackage(pkg.id)} className="flex-1 !text-xs">
+                                Delete
+                              </Button>
                             </div>
                           </div>
-                        </Card>
-                      </Col>
-                    );
-                  })}
-                </Row>
-              )}
-            </div>
-          )}
-        </Spin>
+                        </Col>
+                      );
+                    })}
+                  </Row>
+                )}
+              </div>
+            )}
+          </Spin>
+        </div>
       </div>
 
       {/* Create/Edit Package Modal */}
@@ -627,6 +634,7 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
         }}
         footer={null}
         width={800}
+        zIndex={1100}
         className="clean-modal-override"
         closeIcon={<div className="bg-white/10 hover:bg-white/20 w-7 h-7 flex items-center justify-center rounded-full text-white transition-colors">×</div>}
         styles={{
@@ -710,6 +718,7 @@ function RentalPackageManagerInner({ visible, onClose, rentalServices }) {
                     placeholder="Select equipment type"
                     onChange={handleRentalTypeChange}
                     className="rounded-lg"
+                    getPopupContainer={(trigger) => trigger.closest('.ant-modal-content') || document.body}
                   >
                     {availableRentalTypes.map(type => (
                       <Option key={type.value} value={type.value}>

@@ -45,6 +45,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import Rental from '@/shared/models/Rental';
 import { useData } from '@/shared/hooks/useData';
 import { serviceApi } from '@/shared/services/serviceApi';
+import apiClientDefault from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 dayjs.extend(isBetween);
@@ -167,6 +168,9 @@ function Rentals() {
   const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [availableRentalPackages, setAvailableRentalPackages] = useState([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
+
+  // All rental packages for the overview card
+  const [rentalPackages, setRentalPackages] = useState([]);
   
   const actorDirectory = useMemo(() => {
     const directory = {};
@@ -345,12 +349,40 @@ function Rentals() {
     }
   }, []);
 
+  // Load all rental packages for the overview card
+  const loadRentalPackages = useCallback(async () => {
+    try {
+      const client = apiClient || apiClientDefault;
+      const res = await client.get('/services/packages/available?packageType=rental');
+      setRentalPackages(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setRentalPackages([]);
+    }
+  }, [apiClient]);
+
   useEffect(() => {
     if (apiClient) {
       loadCustomers();
       loadEquipment();
+      loadRentalPackages();
     }
-  }, [apiClient, loadCustomers, loadEquipment]);
+  }, [apiClient, loadCustomers, loadEquipment, loadRentalPackages]);
+
+  // Group rental packages by equipment/service for the overview card
+  const groupedRentalPackages = useMemo(() => {
+    if (!rentalPackages.length) return [];
+    const groups = new Map();
+    rentalPackages.forEach((pkg) => {
+      const key = pkg.rentalServiceName || pkg.rentalServiceId || 'Other';
+      if (!groups.has(key)) groups.set(key, { name: key, packages: [] });
+      groups.get(key).packages.push(pkg);
+    });
+    // Sort each group's packages by rentalDays then price
+    groups.forEach((group) => {
+      group.packages.sort((a, b) => (a.rentalDays || 0) - (b.rentalDays || 0) || (a.price || 0) - (b.price || 0));
+    });
+    return Array.from(groups.values());
+  }, [rentalPackages]);
 
   // Family participant state
   const [participantMode, setParticipantMode] = useState('single');
@@ -1280,6 +1312,81 @@ function Rentals() {
             </div>
           </div>
         </Card>
+
+      {/* Rental Packages by Category */}
+      {groupedRentalPackages.length > 0 && (
+        <Card
+          variant="borderless"
+          className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+          styles={{ body: { padding: '24px' } }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <Title level={3} className="!mb-0 text-slate-900">Rental Packages</Title>
+              <p className="text-sm text-slate-500 mt-1">Available packages grouped by equipment type</p>
+            </div>
+            <Tag color="blue" className="!text-sm !px-3 !py-0.5 !rounded-full">
+              {rentalPackages.length} package{rentalPackages.length !== 1 ? 's' : ''}
+            </Tag>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {groupedRentalPackages.map((group) => {
+              const palette = [
+                { bg: 'bg-blue-50', accent: 'text-blue-600', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-700' },
+                { bg: 'bg-orange-50', accent: 'text-orange-600', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-700' },
+                { bg: 'bg-emerald-50', accent: 'text-emerald-600', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
+                { bg: 'bg-violet-50', accent: 'text-violet-600', border: 'border-violet-200', badge: 'bg-violet-100 text-violet-700' },
+                { bg: 'bg-cyan-50', accent: 'text-cyan-600', border: 'border-cyan-200', badge: 'bg-cyan-100 text-cyan-700' },
+              ];
+              const theme = palette[groupedRentalPackages.indexOf(group) % palette.length];
+              return (
+                <div
+                  key={group.name}
+                  className={`rounded-xl border ${theme.border} ${theme.bg} p-4 transition-shadow hover:shadow-md`}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <ToolOutlined className={`text-lg ${theme.accent}`} />
+                    <h4 className={`font-semibold text-sm ${theme.accent} truncate`}>{group.name}</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {group.packages.map((pkg) => {
+                      const days = pkg.rentalDays || 0;
+                      const hours = pkg.totalHours || 0;
+                      let durationLabel;
+                      if (days > 0) {
+                        durationLabel = `${days} day${days !== 1 ? 's' : ''}`;
+                      } else if (hours > 0) {
+                        durationLabel = hours >= 24 ? `${Math.round(hours / 24)} day${Math.round(hours / 24) !== 1 ? 's' : ''}` : `${hours}h`;
+                      } else {
+                        durationLabel = pkg.sessionsCount ? `${pkg.sessionsCount} session${pkg.sessionsCount !== 1 ? 's' : ''}` : '—';
+                      }
+                      return (
+                        <div key={pkg.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2 text-sm border border-white">
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-slate-800 truncate" title={pkg.name}>{pkg.name}</span>
+                            <span className="text-xs text-slate-500">{durationLabel}</span>
+                          </div>
+                          <span className={`font-semibold ${theme.accent} whitespace-nowrap ml-2`}>
+                            {formatCurrency(pkg.price, pkg.currency || businessCurrency)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-white/60 flex items-center justify-between text-xs text-slate-500">
+                    <span>{group.packages.length} option{group.packages.length !== 1 ? 's' : ''}</span>
+                    {group.packages[0]?.disciplineTag && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${theme.badge}`}>
+                        {group.packages[0].disciplineTag.replace(/_/g, ' ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="mb-6">

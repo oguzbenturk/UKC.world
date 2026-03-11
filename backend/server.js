@@ -488,7 +488,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
     // Find the matching deposit request by gateway_transaction_id (the iyzico token)
     const depositResult = await pool.query(
-      `SELECT id, user_id, status, amount, currency FROM wallet_deposit_requests
+      `SELECT id, user_id, status, amount, currency, metadata FROM wallet_deposit_requests
        WHERE gateway_transaction_id = $1
        LIMIT 1`,
       [token]
@@ -1025,6 +1025,45 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
         });
       } catch (socketErr) {
         logger.warn('Failed to emit deposit_approved socket event', { error: socketErr.message });
+      }
+
+      // Handle rental payment: debit wallet for rental charge and update rental status
+      const depositMeta = typeof depositRow.metadata === 'string' ? JSON.parse(depositRow.metadata) : (depositRow.metadata || {});
+      if (depositMeta.type === 'rental_payment' && depositMeta.rentalId) {
+        try {
+          const { recordLegacyTransaction: recordRentalCharge } = await import('./services/walletService.js');
+          await recordRentalCharge({
+            userId: targetUserId,
+            amount: -Math.abs(depositRow.amount),
+            transactionType: 'rental_charge',
+            status: 'completed',
+            direction: 'debit',
+            description: `Rental payment (credit card) - Rental #${depositMeta.rentalId}`,
+            currency: depositRow.currency,
+            metadata: { rentalId: depositMeta.rentalId, paymentMethod: 'credit_card', depositId: depositRow.id, source: 'iyzico_callback' },
+            entityType: 'rental',
+            relatedEntityType: 'rental',
+            relatedEntityId: depositMeta.rentalId,
+            rentalId: depositMeta.rentalId
+          });
+          await pool.query(
+            'UPDATE rentals SET payment_status = $1, updated_at = NOW() WHERE id = $2',
+            ['paid', depositMeta.rentalId]
+          );
+          socketService.emitToChannel(`user:${targetUserId}`, 'rental:payment_confirmed', {
+            rentalId: depositMeta.rentalId,
+            depositId: depositRow.id,
+            amount: depositRow.amount,
+            completedAt: new Date().toISOString()
+          });
+          logger.info('Rental payment processed via deposit callback', {
+            rentalId: depositMeta.rentalId, depositId: depositRow.id, userId: targetUserId
+          });
+        } catch (rentalErr) {
+          logger.error('Failed to process rental payment after deposit approval', {
+            rentalId: depositMeta.rentalId, depositId: depositRow.id, error: rentalErr.message
+          });
+        }
       }
     } else {
       logger.info('Deposit already completed, skipping (idempotent)', { 

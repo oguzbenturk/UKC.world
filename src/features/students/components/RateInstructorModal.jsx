@@ -34,7 +34,6 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
       form.setFieldsValue({ rating: 5, isAnonymous: false, feedbackText: '' });
       setCurrentRating(5);
     } else {
-      form.resetFields();
       setCurrentRating(5);
     }
   }, [shouldShowModal, form]);

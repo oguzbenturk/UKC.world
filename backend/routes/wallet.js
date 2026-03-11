@@ -11,6 +11,7 @@ import {
   getAllBalances,
   fetchTransactions,
   recordTransaction,
+  recordLegacyTransaction,
   getWalletSettings,
   saveWalletSettings,
   updateWalletPreferences,
@@ -468,7 +469,7 @@ router.post('/deposits/:id/verify', authenticateJWT, verifyDepositLimiter, async
 
     // Fetch the deposit and verify ownership
     const { rows } = await pool.query(
-      `SELECT id, status, amount, currency, gateway_transaction_id, user_id
+      `SELECT id, status, amount, currency, gateway_transaction_id, user_id, metadata
        FROM wallet_deposit_requests
        WHERE id = $1 AND user_id = $2`,
       [depositId, userId]
@@ -556,6 +557,44 @@ router.post('/deposits/:id/verify', authenticateJWT, verifyDepositLimiter, async
       });
     } catch (socketErr) {
       logger.warn('Failed to emit deposit_approved socket event (manual verify)', { error: socketErr.message });
+    }
+
+    // Handle rental payment: debit wallet for rental charge and update rental status
+    const depositMeta = typeof deposit.metadata === 'string' ? JSON.parse(deposit.metadata) : (deposit.metadata || {});
+    if (depositMeta.type === 'rental_payment' && depositMeta.rentalId) {
+      try {
+        await recordLegacyTransaction({
+          userId,
+          amount: -Math.abs(deposit.amount),
+          transactionType: 'rental_charge',
+          status: 'completed',
+          direction: 'debit',
+          description: `Rental payment (credit card) - Rental #${depositMeta.rentalId}`,
+          currency: deposit.currency,
+          metadata: { rentalId: depositMeta.rentalId, paymentMethod: 'credit_card', depositId: deposit.id, source: 'manual_verify' },
+          entityType: 'rental',
+          relatedEntityType: 'rental',
+          relatedEntityId: depositMeta.rentalId,
+          rentalId: depositMeta.rentalId
+        });
+        await pool.query(
+          'UPDATE rentals SET payment_status = $1, updated_at = NOW() WHERE id = $2',
+          ['paid', depositMeta.rentalId]
+        );
+        req.socketService?.emitToChannel(`user:${userId}`, 'rental:payment_confirmed', {
+          rentalId: depositMeta.rentalId,
+          depositId: deposit.id,
+          amount: deposit.amount,
+          completedAt: new Date().toISOString()
+        });
+        logger.info('Rental payment processed via manual verify', {
+          rentalId: depositMeta.rentalId, depositId: deposit.id, userId
+        });
+      } catch (rentalErr) {
+        logger.error('Failed to process rental payment after manual verify', {
+          rentalId: depositMeta.rentalId, depositId: deposit.id, error: rentalErr.message
+        });
+      }
     }
 
     res.json({

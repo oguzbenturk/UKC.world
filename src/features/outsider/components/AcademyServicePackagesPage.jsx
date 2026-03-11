@@ -149,6 +149,8 @@ const AcademyServicePackagesPage = ({
       const disc = (s.disciplineTag || '').toLowerCase();
       // Accessories always appear on every rental page (discipline filter pill handles isolation)
       if (seg === 'accessory' || disc === 'accessory') return true;
+      // "premium" is a virtual segment combining sls + dlab
+      if (segment === 'premium') return seg === 'sls' || seg === 'dlab';
       if (seg) return seg === segment;
       // legacy fallback: infer segment from name when rentalSegment not stored
       const text = (s.name || '').toLowerCase();
@@ -160,8 +162,11 @@ const AcademyServicePackagesPage = ({
     const groups = new Map();
     segmentServices.forEach(s => {
       const baseName = normalizeBaseName(s.name);
-      if (!groups.has(baseName)) groups.set(baseName, []);
-      groups.get(baseName).push(s);
+      const disc = (s.disciplineTag || '').toLowerCase();
+      // Group by base name AND discipline so kite/wing/foil variants stay separate
+      const groupKey = `${baseName}|${disc}`;
+      if (!groups.has(groupKey)) groups.set(groupKey, { baseName, disc, items: [] });
+      groups.get(groupKey).items.push(s);
     });
 
     const cardPalette = [
@@ -184,7 +189,7 @@ const AcademyServicePackagesPage = ({
       efoil:    '/Images/ukc/e-foil.png',
     };
 
-    return Array.from(groups.entries()).map(([baseName, items], idx) => {
+    return Array.from(groups.entries()).map(([groupKey, { baseName, items }], idx) => {
       const first = items[0];
       const theme = cardPalette[idx % cardPalette.length];
       const disc = first.disciplineTag || '';
@@ -206,8 +211,8 @@ const AcademyServicePackagesPage = ({
 
       const image = first.imageUrl || DISC_IMG[disc] || SEGMENT_IMG[segment] || '/Images/ukc/evo-rent-standart.png';
 
-      // Use the service's own name — subtitle/badges already show the segment/discipline
-      const displayName = baseName;
+      // Use the service name with segment prefix (strip only the duration prefix)
+      const displayName = stripDurationPrefix(first.name);
 
       return {
         id: `rent-${segment}-${idx}`,
@@ -221,7 +226,7 @@ const AcademyServicePackagesPage = ({
         shadow: theme.shadow,
         border: theme.border,
         image,
-        description: first.description || `${baseName} — available in multiple durations.`,
+        description: first.description || `${displayName} — available in multiple durations.`,
         highlights: [
           'Equipment included',
           `${items.length} duration option${items.length > 1 ? 's' : ''}`,
