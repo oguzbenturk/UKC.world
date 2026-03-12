@@ -38,6 +38,101 @@ async function getRolePermissions(roleName) {
   }
 }
 
+// Map route base paths to permission scopes
+const ROUTE_SCOPE_MAP = {
+  '/bookings': 'bookings',
+  '/enhanced-bookings': 'bookings',
+  '/group-bookings': 'bookings',
+  '/group-lesson-requests': 'bookings',
+  '/events': 'bookings',
+  '/reschedule-notifications': 'bookings',
+  '/users': 'users',
+  '/students': 'users',
+  '/student-portal': 'users',
+  '/family': 'users',
+  '/roles': 'users',
+  '/user-consents': 'users',
+  '/user-relationships': 'users',
+  '/finances': 'finances',
+  '/payments': 'finances',
+  '/currencies': 'finances',
+  '/business-expenses': 'finances',
+  '/admin-reconciliation': 'finances',
+  '/financial-settings': 'finances',
+  '/finance-daily': 'finances',
+  '/manager-commissions': 'finances',
+  '/vouchers': 'finances',
+  '/shop-orders': 'finances',
+  '/wallet': 'wallet',
+  '/instructors': 'instructors',
+  '/instructor': 'instructors',
+  '/instructor-commissions': 'instructors',
+  '/equipment': 'equipment',
+  '/rentals': 'equipment',
+  '/repair-requests': 'equipment',
+  '/spare-parts': 'equipment',
+  '/services': 'services',
+  '/accommodation': 'services',
+  '/products': 'services',
+  '/member-offerings': 'services',
+  '/forms': 'services',
+  '/form-templates': 'services',
+  '/form-submissions': 'services',
+  '/ratings': 'services',
+  '/feedback': 'services',
+  '/waivers': 'services',
+  '/settings': 'settings',
+  '/quick-links': 'settings',
+  '/weather': 'settings',
+  '/dashboard': 'reports',
+  '/metrics': 'reports',
+  '/notifications': 'notifications',
+  '/chat': 'notifications',
+  '/marketing': 'notifications',
+  '/popups': 'notifications',
+  '/audit-logs': 'audit',
+  '/admin': 'system',
+  '/system': 'system',
+  '/debug': 'system',
+  '/upload': 'system',
+};
+
+// Derive permission scope from request path
+function getPermissionScope(reqPath) {
+  // Strip /api prefix if present
+  const path = reqPath.replace(/^\/api/, '');
+  
+  // Try exact segment match first (e.g., /bookings/123 → /bookings)
+  const basePath = '/' + (path.split('/')[1] || '');
+  return ROUTE_SCOPE_MAP[basePath] || null;
+}
+
+// Derive permission action from HTTP method
+function getPermissionAction(method) {
+  switch (method) {
+    case 'GET': return 'read';
+    case 'POST': return 'write';
+    case 'PUT':
+    case 'PATCH': return 'write';
+    case 'DELETE': return 'delete';
+    default: return 'read';
+  }
+}
+
+// Check if a permissions object grants a specific permission
+function checkPermission(permissions, scope, action) {
+  if (!permissions || typeof permissions !== 'object') return false;
+  // Full wildcard access
+  if (permissions['*'] === true) return true;
+  // Scope wildcard (e.g., "bookings:*")
+  if (permissions[`${scope}:*`] === true) return true;
+  // Exact match (e.g., "bookings:read")
+  if (permissions[`${scope}:${action}`] === true) return true;
+  // Write implies read
+  if (action === 'read' && permissions[`${scope}:write`] === true) return true;
+  return false;
+}
+
 // Middleware to authorize based on user roles AND permissions
 // SEC-014 FIX: Added granular permission checking
 export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
@@ -56,39 +151,38 @@ export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
       effectiveRoles.add('trusted_customer');
     }
     
-    // Log authorization checks for sensitive operations in development
-    if (process.env.NODE_ENV === 'development' && (req.method === 'DELETE' || req.method === 'POST')) {
-      console.log('🔐 Authorization check:');
-      console.log('   User role:', userRole);
-      console.log('   Required roles:', allowedRoles);
-      console.log('   Required permission:', requiredPermission || 'none');
-    }
-    
     // First check: Direct role name match (backward compatible)
     if (userRole && effectiveRoles.has(userRole)) {
       return next();
     }
     
-    // SEC-014 FIX: For custom roles, require SPECIFIC permission check
-    // No longer grant blanket access if ANY permission exists
-    if (userRole && !effectiveRoles.has(userRole) && requiredPermission) {
+    // Second check: JSONB permission-based access for custom/non-matching roles
+    if (userRole) {
       try {
         const permissions = await getRolePermissions(userRole);
         
-        // Check if the custom role has the SPECIFIC required permission
-        if (permissions && permissions[requiredPermission] === true) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`✅ Custom role "${userRole}" has required permission: ${requiredPermission}`);
+        // Determine the required permission
+        let permToCheck = requiredPermission;
+
+        if (!permToCheck) {
+          // Auto-derive from route path + HTTP method
+          const scope = getPermissionScope(req.originalUrl || req.path);
+          const action = getPermissionAction(req.method);
+          if (scope) {
+            permToCheck = `${scope}:${action}`;
           }
+        }
+
+        if (permToCheck) {
+          const [scope, action] = permToCheck.split(':');
+          if (checkPermission(permissions, scope, action || 'read')) {
+            return next();
+          }
+        }
+        
+        // Full access wildcard check (even if scope couldn't be derived)
+        if (permissions && permissions['*'] === true) {
           return next();
-        } else {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`❌ Custom role "${userRole}" lacks required permission: ${requiredPermission}`);
-          }
-          return res.status(403).json({ 
-            error: 'Forbidden: insufficient permissions',
-            requiredPermission 
-          });
         }
       } catch (error) {
         console.error('Permission check error:', error);
@@ -96,11 +190,6 @@ export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
       }
     }
     
-    // If no specific permission required and role doesn't match, deny access
-    // SEC-014 FIX: Removed the permissive "any permission = full access" logic
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`❌ Authorization denied for role "${userRole}"`);
-    }
     return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
   };
 };
