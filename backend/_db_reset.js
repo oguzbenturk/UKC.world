@@ -1,18 +1,29 @@
 import { pool } from './db.js';
 
 // ============================================================
-// DATABASE RESET SCRIPT
-// Keeps: admin+manager users, roles, schema_migrations,
-//        settings, currency_settings, legal_documents,
-//        form templates/fields/steps, form submissions,
-//        form analytics, marketing, vouchers, quick_links
-// Deletes: everything else (catalog, transactional, users)
+// DATABASE FULL RESET SCRIPT
+// Keeps ONLY:
+//   - users table: admin + manager accounts (login credentials)
+//   - roles table: all role definitions & permissions
+//   - schema_migrations: so migrations don't re-run
+//
+// Wipes EVERYTHING else — true clean slate.
+// Configure your app from scratch after running this.
 //
 // ⚠ Run _db_backup.js FIRST!
+// Usage:
+//   node _db_reset.js            → dry run (preview only)
+//   node _db_reset.js --execute  → apply for real
 // ============================================================
 
 const ADMIN_USER_ID = '9f64cebb-8dd0-4ff3-be66-77beb73b0750';   // System Administrator
-const MANAGER_USER_ID = 'e001e942-710e-43c6-b8af-5a5aa795c65f'; // Oguzhan Bentürk
+
+// Tables to NEVER touch
+const PROTECTED_TABLES = new Set([
+  'users',              // handled separately (keep admin/manager, delete rest)
+  'roles',              // role definitions & permissions
+  'schema_migrations',  // migration tracking
+]);
 
 const DRY_RUN = !process.argv.includes('--execute');
 
@@ -33,220 +44,129 @@ async function main() {
 
     await client.query('BEGIN');
 
-    // ── Step 1: Reassign ownership in KEPT tables ──────────────
-    console.log('── Step 1: Reassigning created_by/updated_by in kept tables ──');
+    // ── Step 1: Discover all tables ────────────────────────────
+    console.log('── Step 1: Discovering all tables ──');
 
-    const reassignQueries = [
-      { table: 'form_templates',      cols: ['created_by'] },
-      { table: 'voucher_codes',       cols: ['created_by'] },
-      { table: 'marketing_campaigns', cols: ['created_by'] },
-      { table: 'quick_links',         cols: ['created_by'] },
-      { table: 'waiver_versions',     cols: ['created_by'] },
-    ];
+    const allTablesResult = await client.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_type = 'BASE TABLE'
+      ORDER BY table_name
+    `);
+    const allTables = allTablesResult.rows.map(r => r.table_name);
+    const tablesToTruncate = allTables.filter(t => !PROTECTED_TABLES.has(t));
 
-    for (const { table, cols } of reassignQueries) {
-      for (const col of cols) {
-        const sql = `UPDATE ${table} SET ${col} = $1 WHERE ${col} IS NOT NULL AND ${col} NOT IN ($1, $2)`;
-        const result = await client.query(sql, [ADMIN_USER_ID, MANAGER_USER_ID]);
-        if (result.rowCount > 0) {
-          console.log(`  ${table}.${col}: ${result.rowCount} rows → admin`);
-        }
-      }
-    }
-    console.log('  Done.\n');
+    console.log(`  Total tables in DB: ${allTables.length}`);
+    console.log(`  Protected (kept):   ${PROTECTED_TABLES.size} → ${[...PROTECTED_TABLES].join(', ')}`);
+    console.log(`  Will truncate:      ${tablesToTruncate.length}\n`);
 
-    // ── Step 2: Truncate all transactional tables ──────────────
-    console.log('── Step 2: Truncating transactional tables ──');
+    // ── Step 2: Pre-count rows in all tables to truncate ───────
+    console.log('── Step 2: Pre-counting rows ──');
 
-    const truncateTables = [
-      // Catalog (services, products, packages, equipment, accommodation)
-      'services',
-      'service_categories',
-      'service_packages',
-      'service_prices',
-      'package_prices',
-      'products',
-      'product_subcategories',
-      'equipment',
-      'rental_equipment',
-      'accommodation_units',
-      'member_offerings',
-
-      // Bookings
-      'accommodation_bookings',
-      'booking_custom_commissions',
-      'booking_equipment',
-      'booking_participants',
-      'booking_reschedule_notifications',
-      'booking_series',
-      'booking_series_customers',
-      'bookings',
-
-      // Customer packages & purchases
-      'customer_packages',
-      'member_purchases',
-
-      // Shop orders
-      'shop_order_items',
-      'shop_order_messages',
-      'shop_order_status_history',
-      'shop_orders',
-
-      // Rentals
-      'rentals',
-
-      // Events
-      'events',
-      'event_registrations',
-
-      // Financial / earnings
-      'financial_events',
-      'service_revenue_ledger',
-      'revenue_items',
-      'transactions',
-      'refunds',
-      'business_expenses',
-      'financial_settings',
-      'financial_settings_overrides',
-      'earnings_audit_log',
-      'instructor_commission_history',
-      'instructor_default_commissions',
-      'instructor_earnings',
-      'instructor_payroll',
-      'instructor_rate_history',
-      'instructor_ratings',
-      'instructor_service_commissions',
-      'instructor_services',
-      'instructor_student_notes',
-      'manager_commission_settings',
-      'manager_commissions',
-      'manager_payout_items',
-      'manager_payouts',
-
-      // Wallet
-      'wallet_transactions',
-      'wallet_deposit_requests',
-      'wallet_balances',
-      'wallet_audit_logs',
-      'wallet_bank_accounts',
-      'wallet_export_jobs',
-      'wallet_kyc_documents',
-      'wallet_notification_delivery_logs',
-      'wallet_notification_preferences',
-      'wallet_payment_methods',
-      'wallet_promotions',
-      'wallet_settings',
-      'wallet_withdrawal_requests',
-
-      // Communication
-      'notifications',
-      'notification_settings',
-      'messages',
-      'message_reactions',
-      'conversations',
-      'conversation_participants',
-      'push_subscriptions',
-
-      // Form transactional (NOT templates/fields/steps/submissions/analytics — those stay)
-      'form_email_logs',
-      'form_email_notifications',
-      'form_quick_action_tokens',
-      'form_template_versions',
-
-      // User data (will be deleted with users)
-      'user_consents',
-      'user_popup_preferences',
-      'user_preferences',
-      'user_relationships',
-      'user_sessions',
-      'user_vouchers',
-      'voucher_redemptions',
-      'family_members',
-      'liability_waivers',
-      'student_accounts',
-      'student_achievements',
-      'student_progress',
-      'student_support_requests',
-      'password_reset_tokens',
-      'api_keys',
-      'feedback',
-      'skill_levels',
-      'skills',
-
-      // Payments
-      'payment_gateway_webhook_events',
-      'payment_intents',
-
-      // Logs (transactional — can be regenerated)
-      'audit_logs',
-      'security_audit',
-      'currency_update_logs',
-
-      // Popup system
-      'popup_analytics',
-      'popup_configurations',
-      'popup_content_blocks',
-      'popup_media_assets',
-      'popup_targeting_rules',
-      'popup_templates',
-      'popup_user_interactions',
-
-      // Misc transactional
-      'quick_link_registrations',
-      'recommended_products',
-      'repair_request_comments',
-      'repair_requests',
-      'spare_parts_orders',
-      'group_booking_participants',
-      'group_bookings',
-      'group_lesson_requests',
-      'package_hour_fixes',
-
-      // Archives / backups
-      'archive_legacy_transactions',
-      'archive_student_accounts',
-      'deleted_booking_relations_backup',
-      'deleted_bookings_backup',
-      'deleted_entities_backup',
-    ];
-
-    // Pre-count rows
     let totalRows = 0;
-    for (const t of truncateTables) {
-      const { rows } = await client.query(`SELECT COUNT(*) as c FROM ${t}`);
-      const count = parseInt(rows[0].c);
-      if (count > 0) {
-        console.log(`  ${t}: ${count} rows`);
-        totalRows += count;
+    for (const t of tablesToTruncate) {
+      try {
+        const { rows } = await client.query(`SELECT COUNT(*) as c FROM "${t}"`);
+        const count = parseInt(rows[0].c);
+        if (count > 0) {
+          console.log(`  ${t}: ${count} rows`);
+          totalRows += count;
+        }
+      } catch {
+        console.log(`  ${t}: (could not count — skipping)`);
       }
     }
+    console.log(`  Total rows to wipe: ${totalRows}\n`);
 
-    await client.query(`TRUNCATE TABLE ${truncateTables.join(', ')} CASCADE`);
-    console.log(`  → Truncated ${truncateTables.length} tables (${totalRows} total rows)\n`);
+    // ── Step 3: Truncate everything except protected tables ────
+    console.log('── Step 3: Truncating all data tables ──');
 
-    // ── Step 3: Delete non-admin/manager users ─────────────────
-    console.log('── Step 3: Deleting non-admin users ──');
+    const truncateSQL = `TRUNCATE TABLE ${tablesToTruncate.map(t => `"${t}"`).join(', ')} CASCADE`;
+    await client.query(truncateSQL);
+    console.log(`  → Truncated ${tablesToTruncate.length} tables\n`);
 
-    // Show who will be deleted
+    // ── Step 4: Delete non-admin/manager users ─────────────────
+    console.log('── Step 4: Deleting non-admin users ──');
+
     const toDelete = await client.query(
       `SELECT u.name, u.email, r.name as role
        FROM users u JOIN roles r ON r.id = u.role_id
-       WHERE u.id NOT IN ($1, $2)
+       WHERE u.id != $1
        ORDER BY r.name, u.name`,
-      [ADMIN_USER_ID, MANAGER_USER_ID]
+      [ADMIN_USER_ID]
     );
-    for (const u of toDelete.rows) {
-      console.log(`  [DELETE] ${u.name} (${u.email}) [${u.role}]`);
+    if (toDelete.rows.length > 10) {
+      console.log(`  Will delete ${toDelete.rows.length} users (showing first 10):`);
+      for (const u of toDelete.rows.slice(0, 10)) {
+        console.log(`    [DELETE] ${u.name} (${u.email}) [${u.role}]`);
+      }
+      console.log(`    ... and ${toDelete.rows.length - 10} more`);
+    } else {
+      for (const u of toDelete.rows) {
+        console.log(`  [DELETE] ${u.name} (${u.email}) [${u.role}]`);
+      }
     }
 
     const deleteResult = await client.query(
-      'DELETE FROM users WHERE id NOT IN ($1, $2)',
-      [ADMIN_USER_ID, MANAGER_USER_ID]
+      'DELETE FROM users WHERE id != $1',
+      [ADMIN_USER_ID]
     );
     console.log(`  → Deleted ${deleteResult.rowCount} users\n`);
 
-    // ── Step 4: Verification ───────────────────────────────────
-    console.log('── Step 4: Verification ──');
+    // ── Step 5: Reset admin user fields to clean state ─────────
+    console.log('── Step 5: Resetting admin user fields ──');
+
+    await client.query(`
+      UPDATE users SET
+        balance = 0,
+        total_spent = 0,
+        remaining_hours = 0,
+        package_hours = 0,
+        failed_login_attempts = 0,
+        account_locked = false,
+        account_locked_at = NULL,
+        deleted_at = NULL,
+        deleted_by = NULL,
+        last_failed_login_at = NULL
+      WHERE id = $1
+    `, [ADMIN_USER_ID]);
+    console.log('  → Admin account reset to clean state\n');
+
+    // ── Step 6: Seed essential data ────────────────────────────
+    console.log('── Step 6: Seeding essential data ──');
+
+    // Currency settings (required — without this all financial ops break)
+    await client.query(`
+      INSERT INTO currency_settings (
+        currency_code, currency_name, symbol, decimal_places,
+        exchange_rate, base_currency, is_active,
+        auto_update_enabled, update_frequency_hours
+      ) VALUES
+        ('EUR', 'Euro', '€', 2, 1.00000, true, true, false, 24),
+        ('USD', 'US Dollar', '$', 2, 1.08000, false, true, true, 12),
+        ('TRY', 'Turkish Lira', '₺', 2, 38.50000, false, true, true, 4),
+        ('GBP', 'British Pound', '£', 2, 0.86000, false, true, true, 12)
+      ON CONFLICT (currency_code) DO NOTHING
+    `);
+    console.log('  ✓ currency_settings: 4 currencies (EUR base, USD, TRY, GBP)');
+
+    // App settings (recommended — backend returns defaults if empty, but
+    // having these makes the Settings admin page work correctly from day 1)
+    await client.query(`
+      INSERT INTO settings (key, value, description, updated_at) VALUES
+        ('business_info', '{"name":"Plannivo Business Center","email":"info@plannivo.com","phone":"","address":""}', 'Business information', NOW()),
+        ('booking_defaults', '{"defaultDuration":120,"allowedDurations":[60,90,120,150,180]}', 'Default booking durations', NOW()),
+        ('defaultCurrency', '"EUR"', 'Default currency', NOW()),
+        ('allowed_registration_currencies', '["EUR","USD","TRY"]', 'Currencies available during registration', NOW())
+      ON CONFLICT (key) DO NOTHING
+    `);
+    console.log('  ✓ settings: business_info, booking_defaults, defaultCurrency, registration currencies');
+
+    console.log('  Done.\n');
+
+    // ── Step 7: Verification ───────────────────────────────────
+    console.log('── Step 7: Verification ──');
 
     const remaining = await client.query(
       `SELECT u.name, u.email, r.name as role
@@ -258,18 +178,31 @@ async function main() {
       console.log(`    ✓ ${u.name} (${u.email}) [${u.role}]`);
     }
 
-    // Quick count of kept tables
-    const keptChecks = [
-      'roles', 'schema_migrations', 'currency_settings', 'settings',
-      'form_templates', 'form_fields', 'form_steps',
-      'form_submissions', 'form_analytics_events',
-      'quick_links', 'voucher_codes', 'marketing_campaigns',
-      'legal_documents', 'waiver_versions',
-    ];
-    console.log('\n  Kept tables:');
-    for (const t of keptChecks) {
-      const { rows } = await client.query(`SELECT COUNT(*) as c FROM ${t}`);
+    // Verify protected tables still have data
+    console.log('\n  Protected tables:');
+    for (const t of PROTECTED_TABLES) {
+      const { rows } = await client.query(`SELECT COUNT(*) as c FROM "${t}"`);
       console.log(`    ${t}: ${rows[0].c} rows`);
+    }
+
+    // Spot-check wiped vs seeded tables
+    console.log('\n  Seeded tables:');
+    for (const t of ['currency_settings', 'settings']) {
+      const { rows } = await client.query(`SELECT COUNT(*) as c FROM "${t}"`);
+      console.log(`    ${t}: ${rows[0].c} rows`);
+    }
+
+    console.log('\n  Sample wiped tables (should all be 0):');
+    const spotChecks = ['services', 'bookings', 'products',
+      'form_templates', 'voucher_codes',
+      'quick_links', 'notifications', 'wallet_balances'];
+    for (const t of spotChecks) {
+      try {
+        const { rows } = await client.query(`SELECT COUNT(*) as c FROM "${t}"`);
+        console.log(`    ${t}: ${rows[0].c} rows`);
+      } catch {
+        // table might not exist
+      }
     }
 
     // ── Commit or Rollback ─────────────────────────────────────
@@ -282,7 +215,8 @@ async function main() {
     } else {
       await client.query('COMMIT');
       console.log('\n╔══════════════════════════════════════════════════╗');
-      console.log('║       ✓ DATABASE RESET COMPLETE                  ║');
+      console.log('║       ✓ FULL DATABASE RESET COMPLETE             ║');
+      console.log('║   Only admin users + roles + migrations remain   ║');
       console.log('╚══════════════════════════════════════════════════╝');
     }
 

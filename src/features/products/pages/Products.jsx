@@ -57,21 +57,17 @@ const PRODUCT_CATEGORIES = [
   ...CATEGORY_OPTIONS,
 ];
 
-// Simple stat card component
-const StatCard = ({ title, value, icon, iconBg, suffix = '' }) => (
-  <Card className="rounded-xl border-slate-200">
-    <div className="flex items-center gap-4">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${iconBg}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm text-slate-500">{title}</p>
-        <p className="text-2xl font-semibold text-slate-800">
-          {typeof value === 'number' ? value.toLocaleString() : value}{suffix}
-        </p>
-      </div>
+// Compact inline stat badge
+const StatBadge = ({ title, value, icon, iconClass = 'text-slate-400' }) => (
+  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <span className={`text-sm leading-none ${iconClass}`}>{icon}</span>
+    <div>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400 leading-none">{title}</p>
+      <p className="mt-0.5 text-sm font-semibold leading-none text-slate-800">
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </p>
     </div>
-  </Card>
+  </div>
 );
 
 // eslint-disable-next-line complexity
@@ -657,77 +653,73 @@ const Products = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 sm:p-6">
-      {/* Header Section */}
-      <div className="mb-4 sm:mb-6">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-slate-900">Product Management</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage your shop inventory and product catalog</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { value: 'grid', icon: <AppstoreOutlined /> },
-                { value: 'list', icon: <UnorderedListOutlined /> }
-              ]}
-              className="shrink-0"
-            />
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => loadProducts()}
-              size="middle"
-              className="shrink-0"
-            >
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setFormDrawerVisible(true)}
-              size="middle"
-              className="shrink-0"
-            >
-              <span className="hidden sm:inline">Add Product</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-          </div>
+    <div className="p-3 sm:p-4">
+      {/* Header */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800">Products</h2>
+          <p className="text-xs text-slate-400">Manage inventory and catalog</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Segmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'grid', icon: <AppstoreOutlined /> },
+              { value: 'list', icon: <UnorderedListOutlined /> }
+            ]}
+            size="small"
+          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadProducts()}
+            size="small"
+          >
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setFormDrawerVisible(true)}
+            size="small"
+          >
+            <span className="hidden sm:inline">Add Product</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="Total Products"
+      {/* Stats */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        <StatBadge
+          title="Total"
           value={stats.totalProducts}
-          icon={<ShoppingCartOutlined className="text-lg text-purple-600" />}
-          iconBg="bg-purple-100"
+          icon={<ShoppingCartOutlined />}
+          iconClass="text-purple-500"
         />
-        <StatCard
-          title="Low Stock Items"
+        <StatBadge
+          title="Low Stock"
           value={stats.lowStockProducts}
-          icon={<WarningOutlined className={`text-lg ${stats.lowStockProducts > 0 ? 'text-orange-600' : 'text-emerald-600'}`} />}
-          iconBg={stats.lowStockProducts > 0 ? 'bg-orange-100' : 'bg-emerald-100'}
+          icon={<WarningOutlined />}
+          iconClass={stats.lowStockProducts > 0 ? 'text-orange-500' : 'text-emerald-500'}
         />
-        <StatCard
-          title="Inventory Value"
+        <StatBadge
+          title="Inv. Value"
           value={`€${stats.totalValue.toLocaleString()}`}
-          icon={<DollarOutlined className="text-lg text-emerald-600" />}
-          iconBg="bg-emerald-100"
+          icon={<DollarOutlined />}
+          iconClass="text-emerald-500"
         />
-        <StatCard
-          title="Featured Products"
+        <StatBadge
+          title="Featured"
           value={stats.featuredProducts}
-          icon={<StarFilled className="text-lg text-amber-600" />}
-          iconBg="bg-amber-100"
+          icon={<StarFilled />}
+          iconClass="text-amber-500"
         />
       </div>
 
-      {/* Filters Card */}
-      <Card className="mb-6 rounded-lg">
-        <Row gutter={[16, 16]} align="middle">
+      {/* Filters */}
+      <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
+        <Row gutter={[8, 8]} align="middle">
           <Col xs={24} md={8}>
             <Input
               placeholder="Search by name, SKU, or brand..."
@@ -789,10 +781,10 @@ const Products = () => {
             </Button>
           </Col>
         </Row>
-      </Card>
+      </div>
 
       {/* Products Count and Bulk Actions */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-slate-600">
           Showing {products.length} of {pagination.total} products
         </p>
@@ -849,7 +841,7 @@ const Products = () => {
       {/* Products Grid/List */}
       <div style={{ minHeight: '400px' }}>
         {loading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex items-center justify-center py-10">
             <Spin size="large" />
           </div>
         ) : products.length > 0 ? (
@@ -893,7 +885,7 @@ const Products = () => {
             )}
             
             {/* Pagination */}
-            <div className="text-center mt-8">
+            <div className="text-center mt-4">
               <Pagination
                 current={pagination.page}
                 pageSize={pagination.limit}
@@ -907,7 +899,7 @@ const Products = () => {
             </div>
           </>
         ) : (
-          <div className="text-center py-16">
+          <div className="text-center py-10">
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={

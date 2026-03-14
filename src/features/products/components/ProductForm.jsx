@@ -427,573 +427,293 @@ const ProductForm = ({
     }
   }, [watchedVariants, form]);
 
-  // Tab items configuration — 2 tabs: Product | Stock & Media
+  // Tab items — Product | Stock & Pricing
   const tabItems = [
     {
       key: 'product',
-      label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <TagsOutlined />
-          Product
-        </span>
-      ),
+      label: <span className="flex items-center gap-1.5"><TagsOutlined /> Product</span>,
       children: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* ─── Product Identity ─────────────────────────────── */}
-          <Card 
-            size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><TagsOutlined /> Product Identity</span>}
-            styles={{ body: { padding: 20 } }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={16}>
-                <Form.Item
-                  name="name"
-                  label="Product Name"
-                  rules={[
-                    { required: true, message: 'Please enter product name' },
-                    { min: 2, message: 'Name must be at least 2 characters' }
-                  ]}
-                >
-                  <Input 
-                    placeholder="e.g., Duotone Rebel D/LAB 2026" 
-                    size="large"
-                    style={{ fontWeight: 500 }}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={8}>
-                <Form.Item
-                  name="sku"
-                  label={
-                    <span>
-                      SKU 
-                      <Tooltip title="Stock Keeping Unit - auto-generated if empty">
-                        <InfoCircleOutlined style={{ marginLeft: 4, color: '#999' }} />
-                      </Tooltip>
-                    </span>
-                  }
-                >
-                  <Input placeholder="Auto-generated" size="large" />
-                </Form.Item>
-              </Col>
-            </Row>
+        <div className="space-y-3 pt-1">
+          {/* ── Identity ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><TagsOutlined /> Identity</p>
+          <Row gutter={[8, 0]}>
+            <Col xs={24} md={16}>
+              <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Required' }, { min: 2 }]}>
+                <Input placeholder="e.g., Duotone Rebel D/LAB 2026" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="sku" label="SKU">
+                <Input placeholder="Auto-generated" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="category" label="Category" rules={[{ required: true, message: 'Required' }]}>
+                <CreatableSelect
+                  options={categoryOptions}
+                  placeholder="Select or create"
+                  onChange={handleCategoryChange}
+                  onCreateNew={async (slug, label) => { message.info(`"${label}" will be saved with this product`); }}
+                  createLabel="Create category"
+                  createPlaceholder="e.g., Surfboards"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="subcategory" label="Subcategory">
+                <CreatableSelect
+                  options={subcategoryOptions}
+                  placeholder={selectedCategory ? 'Select or create' : 'Select category first'}
+                  disabled={!selectedCategory}
+                  hierarchical={hasSubcategories(selectedCategory)}
+                  onCreateNew={handleCreateSubcategory}
+                  onDelete={handleDeleteSubcategory}
+                  createLabel="Create subcategory"
+                  createPlaceholder="e.g., Harnesses"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="brand" label="Brand">
+                <Select placeholder="Select brand" showSearch allowClear>
+                  {BRANDS.map(b => <Option key={b} value={b}>{b}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
 
-            {/* Category & Subcategory */}
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
-                <Form.Item
-                  name="category"
-                  label="Category"
-                  rules={[{ required: true, message: 'Please select a category' }]}
-                >
-                  <CreatableSelect
-                    options={categoryOptions}
-                    placeholder="Select or create category"
-                    onChange={handleCategoryChange}
-                    onCreateNew={async (slug, label) => {
-                      message.info(`New category "${label}" will be saved with this product`);
-                    }}
-                    createLabel="Create new category"
-                    createPlaceholder="e.g., Surfboards"
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={8}>
-                <Form.Item 
-                  name="subcategory" 
-                  label="Subcategory"
-                  tooltip={selectedCategory ? "Select or create a subcategory" : "Select a category first"}
-                >
-                  <CreatableSelect
-                    options={subcategoryOptions}
-                    placeholder={selectedCategory ? "Select or create subcategory" : "Select category first"}
-                    disabled={!selectedCategory}
-                    hierarchical={hasSubcategories(selectedCategory)}
-                    onCreateNew={handleCreateSubcategory}
-                    onDelete={handleDeleteSubcategory}
-                    createLabel="Create new subcategory"
-                    createPlaceholder="e.g., Harnesses"
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={8}>
-                <Form.Item name="brand" label="Brand">
-                  <Select 
-                    placeholder="Select or type brand" 
-                    size="large"
-                    showSearch
-                    allowClear
-                  >
-                    {BRANDS.map(brand => (
-                      <Option key={brand} value={brand}>{brand}</Option>
-                    ))}
+          <div className="h-px bg-slate-100" />
+
+          {/* ── Details ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InfoCircleOutlined /> Details</p>
+          <Row gutter={[8, 0]}>
+            {fieldConfig.showGender && (
+              <Col xs={12} md={8}>
+                <Form.Item name="gender" label="Gender">
+                  <Select placeholder="Gender" allowClear>
+                    <Option value="Men">Men</Option>
+                    <Option value="Women">Women</Option>
+                    <Option value="Unisex">Unisex</Option>
                   </Select>
                 </Form.Item>
               </Col>
-            </Row>
-          </Card>
-
-          {/* ─── Additional Details ──────────────────────────── */}
-          <Card
-            size="small"
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><InfoCircleOutlined /> Details</span>}
-            styles={{ body: { padding: 20 } }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Row gutter={[16, 16]}>
-                {fieldConfig.showGender && (
-                  <Col xs={24} md={8}>
-                    <Form.Item name="gender" label="Gender">
-                      <Select placeholder="Select gender" size="large" allowClear>
-                        <Option value="Men">👨 Men</Option>
-                        <Option value="Women">👩 Women</Option>
-                        <Option value="Unisex">👥 Unisex</Option>
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                )}
-                <Col xs={24} md={8}>
-                  <Form.Item name="status" label="Status" rules={[{ required: true }]}>
-                    <Select size="large">
-                      {PRODUCT_STATUS.map(s => (
-                        <Option key={s.value} value={s.value}>
-                          <Badge status={s.color} text={s.label} />
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={8}>
-                  <Form.Item 
-                    name="is_featured" 
-                    label="Featured Product" 
-                    valuePropName="checked"
-                  >
-                    <Switch 
-                      checkedChildren={<><StarOutlined /> Featured</>}
-                      unCheckedChildren="Not Featured"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} md={12}>
-                  <Form.Item 
-                    name="source_url" 
-                    label={<span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><LinkOutlined /> Source URL</span>}
-                  >
-                    <Input placeholder="https://..." />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item name="tags" label="Tags">
-                    <Select
-                      mode="tags"
-                      placeholder="Add tags (press Enter after each)"
-                      tokenSeparators={[',']}
-                      suffixIcon={<TagsOutlined />}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item name="description" label="Description">
-                <TextArea 
-                  rows={3} 
-                  placeholder="Detailed product description..."
-                  showCount
-                  maxLength={1000}
-                />
+            )}
+            <Col xs={12} md={8}>
+              <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+                <Select>
+                  {PRODUCT_STATUS.map(s => (
+                    <Option key={s.value} value={s.value}>
+                      <Badge status={s.color} text={s.label} />
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
-            </div>
-          </Card>
+            </Col>
+            <Col xs={12} md={8}>
+              <Form.Item name="is_featured" label="Featured" valuePropName="checked">
+                <Switch checkedChildren="Yes" unCheckedChildren="No" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="source_url" label="Source URL">
+                <Input placeholder="https://..." prefix={<LinkOutlined className="text-slate-300" />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="tags" label="Tags">
+                <Select mode="tags" placeholder="Add tags" tokenSeparators={[',']} />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item name="description" label="Description">
+                <TextArea rows={2} placeholder="Product description..." showCount maxLength={1000} className="resize-none" />
+              </Form.Item>
+            </Col>
+          </Row>
         </div>
-      )
+      ),
     },
     {
       key: 'stock-media',
       label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <DollarOutlined />
-          Stock & Pricing
+        <span className="flex items-center gap-1.5">
+          <DollarOutlined /> Stock & Pricing
           {liveStockSummary.variantCount > 0 && (
-            <Badge 
-              count={`${liveStockSummary.total} pcs`} 
-              style={{ backgroundColor: '#1677ff', fontSize: 11 }} 
-              size="small" 
-            />
-          )}
-          {(imageUrl || images.length > 0) && (
-            <Badge count={images.length + (imageUrl ? 1 : 0)} size="small" />
+            <Badge count={`${liveStockSummary.total}`} style={{ backgroundColor: '#1677ff', fontSize: 10 }} size="small" />
           )}
         </span>
       ),
       children: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* ─── Pricing ─────────────────────────────────────── */}
-          <Card 
-            size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><DollarOutlined /> Base Pricing</span>}
-            styles={{ body: { padding: 20 } }}
-            extra={
-              profitMargin && (
-                <Tag color={parseFloat(profitMargin) >= 30 ? 'success' : parseFloat(profitMargin) >= 15 ? 'warning' : 'error'}>
-                  Margin: {profitMargin}%
-                </Tag>
-              )
-            }
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
-                <Form.Item name="currency" label="Currency">
-                  <CurrencySelector 
-                    value={selectedCurrency}
-                    onChange={setSelectedCurrency}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
-                <Form.Item
-                  name="price"
-                  label="Selling Price"
-                  rules={[
-                    { required: true, message: 'Required' },
-                    { type: 'number', min: 0.01, message: 'Must be > 0' }
-                  ]}
-                >
-                  <InputNumber 
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    step={0.01}
-                    precision={2}
-                    prefix={getCurrencySymbol(selectedCurrency)}
-                    placeholder="0.00"
-                    onChange={calculateMargin}
-                  />
-                </Form.Item>
-              </Col>
-              {fieldConfig.showCostPrice && (
-                <Col xs={24} md={8}>
-                  <Form.Item name="cost_price" label="Cost Price">
-                    <InputNumber 
-                      style={{ width: '100%' }}
-                      size="large"
-                      min={0}
-                      step={0.01}
-                      precision={2}
-                      prefix={getCurrencySymbol(selectedCurrency)}
-                      placeholder="0.00"
-                      onChange={calculateMargin}
-                    />
-                  </Form.Item>
-                </Col>
-              )}
-            </Row>
-            {fieldConfig.showVariants && (
-              <div style={{ marginTop: 8, padding: '8px 12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, fontSize: 12, color: '#52c41a' }}>
-                💡 Variants below can override this price per size. Leave blank on a variant to use this base price.
-              </div>
+        <div className="space-y-3 pt-1">
+          {/* ── Pricing ── */}
+          <div className="flex items-center gap-2">
+            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><DollarOutlined /> Pricing</p>
+            {profitMargin && (
+              <Tag className="ml-1" color={parseFloat(profitMargin) >= 30 ? 'success' : parseFloat(profitMargin) >= 15 ? 'warning' : 'error'}>
+                {profitMargin}% margin
+              </Tag>
             )}
-          </Card>
+          </div>
+          <Row gutter={[8, 0]}>
+            <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
+              <Form.Item name="currency" label="Currency">
+                <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
+              <Form.Item name="price" label="Selling Price" rules={[{ required: true, message: 'Required' }, { type: 'number', min: 0.01 }]}>
+                <InputNumber style={{ width: '100%' }} min={0} step={0.01} precision={2} prefix={getCurrencySymbol(selectedCurrency)} placeholder="0.00" onChange={calculateMargin} />
+              </Form.Item>
+            </Col>
+            {fieldConfig.showCostPrice && (
+              <Col xs={24} md={8}>
+                <Form.Item name="cost_price" label="Cost Price">
+                  <InputNumber style={{ width: '100%' }} min={0} step={0.01} precision={2} prefix={getCurrencySymbol(selectedCurrency)} placeholder="0.00" onChange={calculateMargin} />
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
 
-          {/* ─── Size & Price Variants ────────────────────────── */}
+          {fieldConfig.showVariants && <div className="h-px bg-slate-100" />}
+
+          {/* ── Variants ── */}
           {fieldConfig.showVariants && (
-            <Card 
-              size="small" 
-              title={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AppstoreOutlined /> Size & Stock Variants
-                </span>
-              }
-              styles={{ body: { padding: 20 } }}
-              extra={
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Set quantity and price per size
-                </Text>
-              }
-            >
-              <Form.Item name="variants">
+            <>
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> Size & Stock Variants</p>
+              <Form.Item name="variants" noStyle>
                 <VariantTable currency={selectedCurrency} category={selectedCategory} />
               </Form.Item>
-            </Card>
+            </>
           )}
 
-          {/* Simple Sizes — only when showSizes & NOT showVariants (avoid duplication) */}
+          {/* ── Simple Sizes ── */}
           {fieldConfig.showSizes && !fieldConfig.showVariants && (
-            <Card 
-              size="small" 
-              title="Quick Size List"
-              styles={{ body: { padding: 20 } }}
-            >
-              <Form.Item 
-                name="sizes" 
-                label={fieldConfig.sizeLabel}
-                extra="Press Enter after each size"
-              >
-                <Select
-                  mode="tags"
-                  style={{ width: '100%' }}
-                  placeholder={fieldConfig.sizePlaceholder}
-                  tokenSeparators={[',', ' ']}
-                  size="large"
-                />
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sizes</p>
+              <Form.Item name="sizes" noStyle>
+                <Select mode="tags" style={{ width: '100%' }} placeholder={fieldConfig.sizePlaceholder} tokenSeparators={[',', ' ']} />
               </Form.Item>
-            </Card>
+            </>
           )}
 
-          {/* ─── Inventory ───────────────────────────────────── */}
-          <Card 
-            size="small" 
-            title={<span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><InboxOutlined /> Inventory</span>}
-            styles={{ body: { padding: 20 } }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
-                <Form.Item
-                  name="stock_quantity"
-                  label="Total Stock"
-                  rules={[
-                    { required: true, message: 'Required' },
-                    { type: 'number', min: 0, message: 'Must be >= 0' }
-                  ]}
-                  extra={
-                    liveStockSummary.variantCount > 0
-                      ? `Auto-synced from ${liveStockSummary.sizeCount} variant${liveStockSummary.sizeCount !== 1 ? 's' : ''}: ${liveStockSummary.total} total`
-                      : 'Add variants above to auto-calculate, or enter manually'
-                  }
-                >
-                  <InputNumber 
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    placeholder="0"
-                    disabled={liveStockSummary.variantCount > 0}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
-                <Form.Item
-                  name="min_stock_level"
-                  label={
-                    <span>
-                      Low Stock Alert
-                      <Tooltip title="Alert when stock drops below this level">
-                        <InfoCircleOutlined style={{ marginLeft: 4, color: '#999' }} />
-                      </Tooltip>
-                    </span>
-                  }
-                >
-                  <InputNumber 
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    placeholder="5"
-                  />
-                </Form.Item>
-              </Col>
-              {fieldConfig.showWeight && (
-                <Col xs={24} md={8}>
-                  <Form.Item name="weight" label="Weight (kg)">
-                    <InputNumber 
-                      style={{ width: '100%' }}
-                      size="large"
-                      min={0}
-                      step={0.1}
-                      precision={2}
-                      placeholder="0.00"
-                    />
-                  </Form.Item>
-                </Col>
-              )}
-            </Row>
-          </Card>
+          <div className="h-px bg-slate-100" />
 
-          {/* Color Options */}
+          {/* ── Inventory ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InboxOutlined /> Inventory</p>
+          <Row gutter={[8, 0]}>
+            <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
+              <Form.Item
+                name="stock_quantity"
+                label="Total Stock"
+                rules={[{ required: true, message: 'Required' }, { type: 'number', min: 0 }]}
+                extra={liveStockSummary.variantCount > 0 ? `Synced from variants: ${liveStockSummary.total}` : undefined}
+              >
+                <InputNumber style={{ width: '100%' }} min={0} placeholder="0" disabled={liveStockSummary.variantCount > 0} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
+              <Form.Item name="min_stock_level" label="Low Stock Alert">
+                <InputNumber style={{ width: '100%' }} min={0} placeholder="5" />
+              </Form.Item>
+            </Col>
+            {fieldConfig.showWeight && (
+              <Col xs={24} md={8}>
+                <Form.Item name="weight" label="Weight (kg)">
+                  <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} placeholder="0.00" />
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
+
+          {/* ── Colors ── */}
           {fieldConfig.showColors && (
-            <Card 
-              size="small" 
-              title={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <BgColorsOutlined /> Color Options
-                </span>
-              }
-              styles={{ body: { padding: 20 } }}
-            >
-              <Form.Item name="colors">
+            <>
+              <div className="h-px bg-slate-100" />
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><BgColorsOutlined /> Colors</p>
+              <Form.Item name="colors" noStyle>
                 <ColorTable />
               </Form.Item>
-            </Card>
+            </>
           )}
 
-          {/* No variant hint */}
-          {!fieldConfig.showVariants && !fieldConfig.showSizes && !fieldConfig.showColors && (
-            <Alert
-              type="info"
-              showIcon
-              message="No variant options for this category"
-              description="Variant pricing, sizes, and colors are not typically used for this product category."
-            />
-          )}
+          <div className="h-px bg-slate-100" />
 
-          {/* ─── Images ──────────────────────────────────────── */}
-          <Card 
-            size="small" 
-            title={
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <PictureOutlined /> Main Product Image
-              </span>
-            }
-            styles={{ body: { padding: 20 } }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}>
-              <Upload
-                name="image"
-                listType="picture-card"
-                showUploadList={false}
-                onChange={handleImageUpload}
-                customRequest={async ({ file, onSuccess, onError, onProgress }) => {
-                  try {
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    const response = await apiClient.post('/upload/image', formData, {
-                      headers: { 'Content-Type': 'multipart/form-data' },
-                      onUploadProgress: ({ total, loaded }) => {
-                        if (total) onProgress?.({ percent: Math.round((loaded / total) * 100) });
-                      }
-                    });
-                    onSuccess?.(response.data);
-                  } catch (err) {
-                    onError?.(err);
-                  }
-                }}
-              >
-                {imageUrl ? (
-                  <div style={{ position: 'relative', width: 128, height: 128, overflow: 'hidden', borderRadius: 8 }}>
-                    <img 
-                      src={imageUrl} 
-                      alt="main" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{ 
-                    width: 128, 
-                    height: 128, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    border: '2px dashed #d9d9d9',
-                    borderRadius: 8
-                  }}>
-                    {imageLoading ? <LoadingOutlined style={{ fontSize: 24 }} /> : <PlusOutlined style={{ fontSize: 24, color: '#999' }} />}
-                    <span style={{ marginTop: 8, fontSize: 14, color: '#666' }}>Upload</span>
-                  </div>
-                )}
-              </Upload>
-              <div style={{ flex: 1 }}>
-                <Title level={5} style={{ marginBottom: 8 }}>Primary Display Image</Title>
-                <Text type="secondary" style={{ fontSize: 14 }}>
-                  This image appears in product listings. Recommended: 800×800px, max 5MB.
-                </Text>
-              </div>
-            </div>
-          </Card>
+          {/* ── Main Image ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><PictureOutlined /> Main Image</p>
+          <div className="flex items-center gap-3">
+            <Upload
+              name="image"
+              listType="picture-card"
+              showUploadList={false}
+              onChange={handleImageUpload}
+              customRequest={async ({ file, onSuccess, onError, onProgress }) => {
+                try {
+                  const formData = new FormData();
+                  formData.append('image', file);
+                  const response = await apiClient.post('/upload/image', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                    onUploadProgress: ({ total, loaded }) => {
+                      if (total) onProgress?.({ percent: Math.round((loaded / total) * 100) });
+                    },
+                  });
+                  onSuccess?.(response.data);
+                } catch (err) { onError?.(err); }
+              }}
+            >
+              {imageUrl ? (
+                <div className="w-20 h-20 overflow-hidden rounded-lg">
+                  <img src={imageUrl} alt="main" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg">
+                  {imageLoading ? <LoadingOutlined className="text-slate-400" /> : <PlusOutlined className="text-slate-400" />}
+                  <span className="text-xs text-slate-400 mt-1">Upload</span>
+                </div>
+              )}
+            </Upload>
+            <p className="text-xs text-slate-400">800×800px · max 5 MB</p>
+          </div>
 
-          {/* Gallery */}
-          <Card 
-            size="small" 
-            title={
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AppstoreOutlined /> Product Gallery
-                <Tag>{images.length}/10</Tag>
-              </span>
-            }
-            styles={{ body: { padding: 20 } }}
-          >
+          {/* ── Gallery ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <AppstoreOutlined /> Gallery <span className="ml-1 font-normal normal-case text-slate-300">{images.length}/10</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
             <Upload
               multiple
               listType="picture-card"
               showUploadList={false}
               beforeUpload={(file, fileList) => {
-                if (images.length + fileList.length > 10) {
-                  message.error('Maximum 10 images allowed');
-                  return false;
-                }
+                if (images.length + fileList.length > 10) { message.error('Maximum 10 images'); return false; }
                 handleMultipleImagesUpload(fileList);
                 return false;
               }}
               disabled={imageLoading || images.length >= 10}
             >
-              {images.length < 10 && uploadButton}
+              {images.length < 10 && (
+                <div className="flex flex-col items-center justify-center w-16 h-16">
+                  {imageLoading ? <LoadingOutlined /> : <PlusOutlined />}
+                  <span className="text-xs mt-1">Add</span>
+                </div>
+              )}
             </Upload>
-
-            {images.length > 0 && (
-              <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
-                {images.map((imgUrl, index) => (
-                  <Col key={index} xs={12} sm={8} md={6} lg={4}>
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ 
-                        aspectRatio: '1/1', 
-                        overflow: 'hidden', 
-                        borderRadius: 8, 
-                        border: '1px solid #f0f0f0' 
-                      }}>
-                        <Image
-                          src={imgUrl}
-                          alt={`Product ${index + 1}`}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          preview={{ mask: 'Preview' }}
-                        />
-                      </div>
-                      <Button
-                        type="primary"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        style={{ 
-                          position: 'absolute', 
-                          top: -8, 
-                          right: -8,
-                          borderRadius: '50%',
-                          width: 24,
-                          height: 24,
-                          padding: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onClick={() => removeImage(index)}
-                      />
-                      <div style={{ 
-                        position: 'absolute', 
-                        bottom: 4, 
-                        left: 4, 
-                        background: 'rgba(0,0,0,0.6)', 
-                        color: 'white', 
-                        fontSize: 11, 
-                        padding: '2px 6px', 
-                        borderRadius: 4 
-                      }}>
-                        {index + 1}
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            )}
-
-            {images.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: '#999' }}>
-                <PictureOutlined style={{ fontSize: 48, marginBottom: 8 }} />
-                <div>No gallery images uploaded yet</div>
+            {images.map((imgUrl, index) => (
+              <div key={index} className="relative w-16 h-16 flex-shrink-0">
+                <div className="w-full h-full overflow-hidden rounded-lg border border-slate-100">
+                  <Image src={imgUrl} alt={`${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={{ mask: false }} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeImage(index)}
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                  style={{ fontSize: 9 }}
+                >✕</button>
               </div>
-            )}
-          </Card>
+            ))}
+          </div>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -1001,6 +721,7 @@ const ProductForm = ({
       form={form}
       layout="vertical"
       onFinish={handleSubmit}
+      className="[&_.ant-form-item]:mb-2 [&_.ant-form-item-label]:py-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:text-slate-500 [&_.ant-form-item-label>label]:font-medium"
       initialValues={{
         currency: selectedCurrency,
         status: 'active',
@@ -1014,51 +735,34 @@ const ProductForm = ({
         cost_price: product?.cost_price ? parseFloat(product.cost_price) : undefined,
         weight: product?.weight ? parseFloat(product.weight) : undefined,
         stock_quantity: product?.stock_quantity ? parseInt(product.stock_quantity) : 0,
-        min_stock_level: product?.min_stock_level ? parseInt(product.min_stock_level) : 5
+        min_stock_level: product?.min_stock_level ? parseInt(product.min_stock_level) : 5,
       }}
     >
-      <Tabs 
+      <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
-        style={{ marginBottom: 0 }}
-        tabBarStyle={{ marginBottom: 24 }}
+        size="small"
+        tabBarStyle={{ marginBottom: 8 }}
       />
 
-      {/* Footer Actions */}
-      <div style={{ 
-        position: 'sticky', 
-        bottom: 0, 
-        background: '#fff', 
-        borderTop: '1px solid #f0f0f0', 
-        padding: '16px 0',
-        marginTop: 24,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div>
-          {isEditing && (
-            <Text type="secondary" style={{ fontSize: 14 }}>
-              <CheckCircleOutlined style={{ marginRight: 4 }} />
-              Editing: {product.name}
-            </Text>
-          )}
-        </div>
-        <Space>
-          <Button onClick={onCancel} size="large">
-            Cancel
-          </Button>
-          <Button 
-            type="primary" 
-            htmlType="submit" 
-            loading={loading}
-            size="large"
-            icon={isEditing ? <CheckCircleOutlined /> : <PlusOutlined />}
-          >
-            {isEditing ? 'Update Product' : 'Create Product'}
-          </Button>
-        </Space>
+      {/* Footer */}
+      <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-slate-100 bg-white pt-2 mt-2">
+        {isEditing && (
+          <span className="mr-auto text-xs text-slate-400">
+            <CheckCircleOutlined className="mr-1" />{product.name}
+          </span>
+        )}
+        <Button onClick={onCancel} size="small">Cancel</Button>
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          size="small"
+          icon={isEditing ? <CheckCircleOutlined /> : <PlusOutlined />}
+        >
+          {isEditing ? 'Update Product' : '+ Create Product'}
+        </Button>
       </div>
     </Form>
   );

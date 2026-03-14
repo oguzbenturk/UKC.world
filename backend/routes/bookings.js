@@ -478,7 +478,7 @@ router.get('/',
       }
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     
@@ -874,15 +874,60 @@ router.post('/',
     let finalAmount = parseFloat(amount) || 0;
     let usedPackageId = null;
 
-    // Fetch service name and capacity limits
+    // Fetch service name, capacity limits, and discipline tags
     let bookingServiceName = null;
     let maxParticipants = null;
+    let serviceDisciplineTag = null;
+    let serviceLessonCategoryTag = null;
+    let serviceLevelTag = null;
     if (service_id) {
       try {
-        const sres = await client.query('SELECT name, max_participants FROM services WHERE id = $1', [service_id]);
+        const sres = await client.query(
+          'SELECT name, max_participants, discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1',
+          [service_id]
+        );
         bookingServiceName = sres.rows[0]?.name || null;
         maxParticipants = sres.rows[0]?.max_participants || null;
+        serviceDisciplineTag = sres.rows[0]?.discipline_tag || null;
+        serviceLessonCategoryTag = sres.rows[0]?.lesson_category_tag || null;
+        serviceLevelTag = sres.rows[0]?.level_tag || null;
       } catch {}
+    }
+
+    // Validate instructor is qualified for this service's discipline
+    const forceSkipSkillCheck = req.query.force === 'true';
+    if (instructor_user_id && serviceDisciplineTag && !forceSkipSkillCheck) {
+      const skillResult = await client.query(
+        `SELECT lesson_categories, max_level FROM instructor_skills
+         WHERE instructor_id = $1 AND discipline_tag = $2`,
+        [instructor_user_id, serviceDisciplineTag]
+      );
+      if (skillResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({
+          error: 'Instructor is not qualified for this discipline',
+          details: { discipline: serviceDisciplineTag, instructorId: instructor_user_id }
+        });
+      }
+      const skill = skillResult.rows[0];
+      if (serviceLessonCategoryTag && !skill.lesson_categories.includes(serviceLessonCategoryTag)) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({
+          error: `Instructor is not qualified for ${serviceLessonCategoryTag} lessons in ${serviceDisciplineTag}`,
+          details: { discipline: serviceDisciplineTag, category: serviceLessonCategoryTag }
+        });
+      }
+      const levelRank = { beginner: 1, intermediate: 2, advanced: 3 };
+      if (serviceLevelTag && (levelRank[skill.max_level] || 1) < (levelRank[serviceLevelTag] || 1)) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({
+          error: `Instructor max level (${skill.max_level}) is insufficient for ${serviceLevelTag} lessons`,
+          details: { discipline: serviceDisciplineTag, requiredLevel: serviceLevelTag, instructorLevel: skill.max_level }
+        });
+      }
     }
     
     // Check capacity limits for group bookings

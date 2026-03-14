@@ -5,9 +5,10 @@ import {
   UserOutlined, MailOutlined, PhoneOutlined,
   CalendarOutlined, TrophyOutlined, EnvironmentOutlined,
   DollarOutlined, WalletOutlined, IdcardOutlined,
-  BarChartOutlined, CloseOutlined
+  BarChartOutlined, CloseOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
 import InstructorServiceCommission from './InstructorServiceCommission';
+import InstructorSkillsManager from './InstructorSkillsManager';
 import InstructorPayments from './InstructorPayments';
 import PayrollDashboard from './PayrollDashboard';
 import { useData } from '@/shared/hooks/useData';
@@ -19,6 +20,7 @@ const { Text } = Typography;
 
 const NAV_ITEMS = [
   { key: 'info', icon: <UserOutlined />, label: 'Profile' },
+  { key: 'skills', icon: <ThunderboltOutlined />, label: 'Skills' },
   { key: 'commissions', icon: <DollarOutlined />, label: 'Commissions' },
   { key: 'dashboard', icon: <BarChartOutlined />, label: 'Earnings' },
   { key: 'payments', icon: <WalletOutlined />, label: 'Payroll' },
@@ -213,6 +215,13 @@ const EnhancedInstructorDetailModal = ({
     switch (activeSection) {
       case 'info':
         return renderProfile();
+      case 'skills':
+        return (
+          <InstructorSkillsManager
+            instructorId={instructor.id}
+            onSave={refreshActiveSection}
+          />
+        );
       case 'commissions':
         return (
           <InstructorServiceCommission
@@ -245,7 +254,7 @@ const EnhancedInstructorDetailModal = ({
       onClose={onClose}
       width={960}
       closable={false}
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 0, display: 'flex', overflow: 'hidden' }, header: { display: 'none' } }}
     >
       <div className="flex h-full w-full">

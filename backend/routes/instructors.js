@@ -15,17 +15,29 @@ const publicApiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// GET all instructors - Public endpoint for guest browsing - Public endpoint for guest browsing
+// GET all instructors - Public endpoint for guest browsing
 router.get('/', publicApiLimiter, async (req, res) => {
   try {
     const query = `
       SELECT u.*, r.name as role_name, 
              COALESCE(idc.commission_value, 0) as commission_rate,
-             COALESCE(idc.commission_type, 'percent') as commission_type
+             COALESCE(idc.commission_type, 'percent') as commission_type,
+             COALESCE(
+               json_agg(
+                 json_build_object(
+                   'discipline_tag', isk.discipline_tag,
+                   'lesson_categories', isk.lesson_categories,
+                   'max_level', isk.max_level
+                 )
+               ) FILTER (WHERE isk.id IS NOT NULL),
+               '[]'::json
+             ) as skills
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
+      LEFT JOIN instructor_skills isk ON isk.instructor_id = u.id
       WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+      GROUP BY u.id, r.name, idc.commission_value, idc.commission_type
       ORDER BY u.name
     `;
     
@@ -45,6 +57,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
       bio: row.bio,
       language: row.language,
       role_name: row.role_name,
+      skills: row.skills || [],
       // Hide commission details from guests
       ...(req.user ? {
         commission_rate: row.commission_rate,

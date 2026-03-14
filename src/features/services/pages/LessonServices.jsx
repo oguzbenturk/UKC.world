@@ -4,7 +4,6 @@ import {
   Button, 
   Input, 
   Empty, 
-  Drawer,
   Card,
   Alert,
   Skeleton,
@@ -31,7 +30,6 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { serviceApi } from '@/shared/services/serviceApi';
-import ServiceForm from '../components/ServiceForm';
 import ServiceDetailModal from '../components/ServiceDetailModal';
 import StepLessonServiceModal from '../components/StepLessonServiceModal';
 import LessonPackageManager from '../components/LessonPackageManager';
@@ -60,11 +58,9 @@ function LessonServices() {
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [disciplineTab, setDisciplineTab] = useState('all');
   
-  const [formDrawerVisible, setFormDrawerVisible] = useState(false);
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
-  const [editMode, setEditMode] = useState(false);
   const [packageManagerVisible, setPackageManagerVisible] = useState(false);
   const [_customers, setCustomers] = useState([]);
 
@@ -241,17 +237,17 @@ function LessonServices() {
     
     if (isLessonService) {
       setServices(prev => [...prev, newService]);
-      message.success('Lesson service created successfully!');
     }
-    setFormDrawerVisible(false);
+    setLessonModalOpen(false);
+    setSelectedService(null);
+    message.success('Lesson service created successfully!');
   };
 
   const handleServiceUpdated = async (updatedService) => {
     setServices(prev => prev.map(service => 
       service.id === updatedService.id ? updatedService : service
     ));
-    setFormDrawerVisible(false);
-    setEditMode(false);
+    setLessonModalOpen(false);
     setSelectedService(null);
     message.success('Lesson service updated successfully!');
   };
@@ -268,22 +264,8 @@ function LessonServices() {
   };
 
   const handleEdit = (service) => {
-    // If the drawer is already open for a different service, close it first
-    // so destroyOnHidden unmounts the old form and React creates a fresh one.
-    if (formDrawerVisible && selectedService?.id !== service.id) {
-      setFormDrawerVisible(false);
-      setSelectedService(null);
-      // Wait a tick for the drawer to close / form to unmount, then reopen
-      setTimeout(() => {
-        setSelectedService(service);
-        setEditMode(true);
-        setFormDrawerVisible(true);
-      }, 50);
-      return;
-    }
     setSelectedService(service);
-    setEditMode(true);
-    setFormDrawerVisible(true);
+    setLessonModalOpen(true);
   };
 
   const handleView = (service) => {
@@ -386,7 +368,7 @@ function LessonServices() {
           <Button 
             type="primary" 
             icon={<PlusOutlined />}
-            onClick={() => setLessonModalOpen(true)}
+            onClick={() => { setSelectedService(null); setLessonModalOpen(true); }}
             size="large"
             className="w-full sm:w-auto"
           >
@@ -462,7 +444,7 @@ function LessonServices() {
                 <Button 
                   type="primary" 
                   icon={<PlusOutlined />}
-                  onClick={() => setLessonModalOpen(true)}
+                  onClick={() => { setSelectedService(null); setLessonModalOpen(true); }}
                 >
                   Add First Session
                 </Button>
@@ -648,7 +630,7 @@ function LessonServices() {
           locale={{
             emptyText: (
               <Empty description="No lesson sessions found" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setLessonModalOpen(true)}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => { setSelectedService(null); setLessonModalOpen(true); }}>
                   Add First Session
                 </Button>
               </Empty>
@@ -658,36 +640,13 @@ function LessonServices() {
         </UnifiedTable>
       )}
 
-      {/* Service Form Drawer (Edit only) */}
-      <Drawer
-        title={editMode ? "Edit Lesson" : "Add New Lesson"}
-        width={600}
-        destroyOnHidden
-        onClose={() => {
-          setFormDrawerVisible(false);
-          setEditMode(false);
-          setSelectedService(null);
-        }}
-        open={formDrawerVisible}
-        styles={{ body: { paddingBottom: 80 } }}
-      >
-        <ServiceForm
-          key={selectedService?.id || 'new'}
-          initialValues={editMode ? selectedService : {}}
-          isEditing={editMode}
-          defaultCategory={lessonCategories.length > 0 ? lessonCategories[0].name.toLowerCase() : "lesson"}
-          onSubmit={editMode ? handleServiceUpdated : handleServiceCreated}
-        />
-      </Drawer>
-
-      {/* Step-based Lesson Creator */}
+      {/* Step-based Lesson Creator / Editor */}
       <StepLessonServiceModal
         open={lessonModalOpen}
-        onClose={() => setLessonModalOpen(false)}
-        onCreated={(created) => {
-          handleServiceCreated(created);
-          setLessonModalOpen(false);
-        }}
+        onClose={() => { setLessonModalOpen(false); setSelectedService(null); }}
+        service={selectedService}
+        onCreated={handleServiceCreated}
+        onUpdated={handleServiceUpdated}
       />
 
       {/* Service Detail Modal */}

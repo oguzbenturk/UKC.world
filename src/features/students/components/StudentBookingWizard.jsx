@@ -706,13 +706,19 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   };
 
   const { data: instructorsData = [], isLoading: instructorsLoading } = useQuery({
-    queryKey: ['student-booking', 'instructors'],
+    queryKey: ['student-booking', 'instructors', selectedServiceId],
     queryFn: async () => {
+      // If a service is selected, fetch qualified instructors for that service
+      if (selectedServiceId) {
+        const response = await apiClient.get(`/instructors/qualified?service_id=${selectedServiceId}`);
+        return Array.isArray(response.data) ? response.data : [];
+      }
+      // Otherwise fetch all instructors
       const response = await apiClient.get('/instructors');
       return Array.isArray(response.data) ? response.data : [];
     },
     enabled: open,
-    staleTime: 300_000
+    staleTime: 60_000
   });
 
   const { data: familyMembers = [], isLoading: familyLoading, refetch: refetchFamilyMembers } = useQuery({
@@ -2772,9 +2778,16 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   }, [availableServices, serviceSearch]);
 
   const filteredInstructors = useMemo(() => {
+    let list = [...instructorsData];
+    // Sort qualified instructors first
+    list.sort((a, b) => {
+      const aQ = a.qualified !== false ? 1 : 0;
+      const bQ = b.qualified !== false ? 1 : 0;
+      return bQ - aQ;
+    });
     const q = (instructorSearch || '').trim().toLowerCase();
-    if (!q) return instructorsData;
-    return instructorsData.filter((instructor) => {
+    if (!q) return list;
+    return list.filter((instructor) => {
       const name = (instructor?.name || `${instructor?.first_name || ''} ${instructor?.last_name || ''}`.trim()).toLowerCase();
       const email = (instructor?.email || '').toLowerCase();
       return name.includes(q) || email.includes(q);
@@ -3023,25 +3036,45 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           {filteredInstructors.map((instructor) => {
             const isSelected = selectedInstructorId === instructor.id;
             const displayName = instructor.name || `${instructor.first_name || ''} ${instructor.last_name || ''}`.trim();
+            const isQualified = instructor.qualified !== false;
+            const disciplineLabels = { kite: '🪁 Kite', wing: '🦅 Wing', kite_foil: '🏄 Foil', efoil: '⚡ E-Foil', premium: '⭐ Premium' };
 
             return (
               <button
                 key={instructor.id}
-                onClick={() => handleInstructorSelect(instructor.id)}
+                onClick={() => isQualified && handleInstructorSelect(instructor.id)}
                 className={`p-3 border-2 rounded-lg transition-all duration-200 text-left hover:shadow-sm ${
-                  isSelected
+                  !isQualified
+                    ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                    : isSelected
                     ? 'bg-sky-50 border-sky-500 shadow-sm'
                     : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                 }`}
+                disabled={!isQualified}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <Title level={5} className="mb-1 text-sm">{displayName}</Title>
-                    {instructor.email && (
-                      <Text type="secondary" className="text-xs block mb-1 truncate">{instructor.email}</Text>
-                    )}
-                    {instructor.specialization && (
-                      <Tag color="blue" className="text-xs">{instructor.specialization}</Tag>
+                    {instructor.skills?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {instructor.skills.map(s => (
+                          <span key={s.discipline_tag} className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            {disciplineLabels[s.discipline_tag] || s.discipline_tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : instructor.skill?.discipline_tag ? (
+                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 mb-1">
+                        {disciplineLabels[instructor.skill.discipline_tag] || instructor.skill.discipline_tag}
+                      </span>
+                    ) : null}
+                    {!isQualified && instructor.matchReason && (
+                      <Text type="secondary" className="text-[10px] block text-orange-500">
+                        {instructor.matchReason === 'no_skill_for_discipline' ? 'Not qualified for this discipline'
+                          : instructor.matchReason === 'category_mismatch' ? 'Not qualified for this lesson type'
+                          : instructor.matchReason === 'level_insufficient' ? 'Level insufficient'
+                          : 'Not qualified'}
+                      </Text>
                     )}
                   </div>
                   {isSelected && (

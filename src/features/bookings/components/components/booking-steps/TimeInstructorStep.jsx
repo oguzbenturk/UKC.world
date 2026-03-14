@@ -782,11 +782,22 @@ const TimeInstructorStep = ({ formData, updateFormData, instructors, onNext, onP
                       <p className="text-sm font-medium text-slate-800 truncate">
                         {instructor.name}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {instructor.specialties?.length
-                          ? instructor.specialties.slice(0, 2).join(', ')
-                          : instructor.email || 'No specialties listed'}
-                      </p>
+                      {instructor.skills?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {instructor.skills.map(s => {
+                            const labels = { kite: '🪁 Kite', wing: '🦅 Wing', kite_foil: '🏄 Foil', efoil: '⚡ E-Foil', premium: '⭐ Premium' };
+                            return (
+                              <span key={s.discipline_tag} className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                {labels[s.discipline_tag] || s.discipline_tag}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 truncate">
+                          {instructor.email || 'No skills configured'}
+                        </p>
+                      )}
                     </div>
                     {isSelected && (
                       <div className="flex-shrink-0 text-green-600">

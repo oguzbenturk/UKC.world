@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Modal, Steps, Form, Input, InputNumber, Select, Row, Col, Button, App } from 'antd';
 import { BookOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
 import { serviceApi } from '@/shared/services/serviceApi';
@@ -14,13 +14,34 @@ const DISCIPLINE_OPTIONS = [
   { value: 'premium', label: '💎 Premium', color: 'gold' },
 ];
 
-// A lightweight, step-based creator for Lesson services inspired by StepBookingModal
-export default function StepLessonServiceModal({ open, onClose, onCreated }) {
+// Step-based modal for creating AND editing Lesson services
+export default function StepLessonServiceModal({ open, onClose, onCreated, service, onUpdated }) {
+  const isEditMode = Boolean(service?.id);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [current, setCurrent] = useState(0);
   const { message } = App.useApp();
   const { businessCurrency, getSupportedCurrencies, getCurrencySymbol } = useCurrency();
+
+  // Pre-fill form when opening in edit mode; reset when opening for create
+  useEffect(() => {
+    if (!open) return;
+    if (isEditMode) {
+      const maxP = service.max_participants || service.maxParticipants || 1;
+      form.setFieldsValue({
+        name: service.name || '',
+        disciplineTag: service.disciplineTag || undefined,
+        duration: service.duration ?? 1.0,
+        maxParticipants: maxP,
+        currency: service.currency || businessCurrency || 'EUR',
+        price: service.price ?? undefined,
+        description: service.description || '',
+      });
+    } else {
+      form.resetFields();
+    }
+    setCurrent(0);
+  }, [open, service?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps = useMemo(
     () => [
@@ -43,8 +64,6 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
     const price = values.price != null ? parseFloat(values.price) : undefined;
     const maxParticipants = values.maxParticipants != null ? parseInt(values.maxParticipants, 10) : undefined;
     const serviceType = maxParticipants > 1 ? 'group' : 'private';
-
-    // Derive lessonCategoryTag from participants + serviceType
     const lessonCategoryTag = maxParticipants > 1 ? 'group' : 'private';
 
     return {
@@ -53,7 +72,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
       duration,
       level: 'all-levels',
       maxParticipants,
-      max_participants: maxParticipants, // legacy compatibility
+      max_participants: maxParticipants,
       price,
       currency: values.currency || businessCurrency || 'EUR',
       description: values.description || '',
@@ -64,9 +83,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
     };
   };
 
-  const showSuccessAndReset = async (created) => {
-    message.success('Lesson service created');
-    onCreated?.(created);
+  const handleClose = () => {
     form.resetFields();
     setCurrent(0);
     onClose?.();
@@ -82,51 +99,53 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
 
   const handleSubmit = async () => {
     try {
-      // Validate all fields across steps, even if some inputs are unmounted
       await form.validateFields(allFieldNames);
-      // Get the full set of values from the form store
       const values = form.getFieldsValue(true);
       setSubmitting(true);
       const payload = buildPayload(values);
-      const created = await serviceApi.createService(payload);
-      await showSuccessAndReset(created);
+
+      if (isEditMode) {
+        const updated = await serviceApi.updateService(service.id, payload);
+        message.success('Lesson service updated');
+        onUpdated?.(updated);
+      } else {
+        const created = await serviceApi.createService(payload);
+        message.success('Lesson service created');
+        onCreated?.(created);
+      }
+
+      handleClose();
     } catch (err) {
-      if (err?.errorFields) return; // validation error already shown
+      if (err?.errorFields) return;
       const serverMsg = err?.response?.data?.error || err?.message;
-      message.error(serverMsg || 'Failed to create service');
+      message.error(serverMsg || `Failed to ${isEditMode ? 'update' : 'create'} service`);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-  <Modal
-      title="Add Lesson Service"
+    <Modal
+      title={isEditMode ? `Edit — ${service.name}` : 'Add Lesson Service'}
       open={open}
-      onCancel={() => {
-        form.resetFields();
-        setCurrent(0);
-        onClose?.();
-      }}
+      onCancel={handleClose}
       width={720}
       footer={
         <div className="flex justify-between w-full">
           <div />
           <div className="flex gap-2">
-            {current > 0 && (
-              <Button onClick={prev}>Back</Button>
-            )}
+            {current > 0 && <Button onClick={prev}>Back</Button>}
             {current < steps.length - 1 ? (
               <Button type="primary" onClick={next}>Next</Button>
             ) : (
               <Button type="primary" loading={submitting} onClick={handleSubmit}>
-                Save Service
+                {isEditMode ? 'Update Service' : 'Save Service'}
               </Button>
             )}
           </div>
         </div>
-  }
-  destroyOnHidden
+      }
+      destroyOnHidden
     >
       <Steps
         current={current}
@@ -134,13 +153,13 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
         className="mb-6"
       />
 
-    <Form
+      <Form
         form={form}
         layout="vertical"
         initialValues={{
-      duration: 1.0,
+          duration: 1.0,
           maxParticipants: 1,
-      currency: businessCurrency || 'EUR',
+          currency: businessCurrency || 'EUR',
         }}
       >
         {current === 0 && (
@@ -201,7 +220,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
           <>
             <Row gutter={16}>
               <Col span={8}>
-                <Form.Item name="currency" label="Currency" rules={[{ required: true }]}> 
+                <Form.Item name="currency" label="Currency" rules={[{ required: true }]}>
                   <Select
                     showSearch
                     optionFilterProp="label"
@@ -216,7 +235,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated }) {
                 </Form.Item>
               </Col>
               <Col span={16}>
-                <Form.Item name="price" label="Hourly Price Per Person" rules={[{ required: true }]}> 
+                <Form.Item name="price" label="Hourly Price Per Person" rules={[{ required: true }]}>
                   <InputNumber
                     min={0}
                     style={{ width: '100%' }}

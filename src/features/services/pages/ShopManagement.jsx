@@ -2,12 +2,10 @@
 // Combined Shop Management page with Products and Orders tabs
 
 import { useState } from 'react';
-import { Tabs, Card, Typography } from 'antd';
+import { Tabs } from 'antd';
 import { ShoppingOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import Products from '../../products/pages/Products';
 import OrderManagement from '../../dashboard/pages/OrderManagement';
-
-const { Title } = Typography;
 
 const ShopManagement = () => {
   const [activeTab, setActiveTab] = useState('products');
@@ -16,44 +14,49 @@ const ShopManagement = () => {
     {
       key: 'products',
       label: (
-        <span>
-          <ShoppingOutlined style={{ marginRight: 8 }} />
+        <span className="flex items-center gap-1.5">
+          <ShoppingOutlined />
           Products
         </span>
       ),
-      children: <Products />
+      children: <Products />,
     },
     {
       key: 'orders',
       label: (
-        <span>
-          <UnorderedListOutlined style={{ marginRight: 8 }} />
+        <span className="flex items-center gap-1.5">
+          <UnorderedListOutlined />
           Orders
         </span>
       ),
-      children: <OrderManagement embedded />
-    }
+      children: <OrderManagement embedded />,
+    },
   ];
 
   return (
-    <div className="p-3 sm:p-6">
-      <Title 
-        level={3} 
-        className="!text-lg sm:!text-xl md:!text-2xl !mb-4 sm:!mb-6"
-      >
-        <ShoppingOutlined className="mr-2 sm:mr-3" />
-        Shop Management
-      </Title>
-      
-      <Card>
-        <Tabs 
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          size="middle"
-          className="-mt-3"
-        />
-      </Card>
+    <div className="min-h-screen bg-slate-50">
+      {/* Page header */}
+      <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100">
+          <ShoppingOutlined className="text-sm text-purple-600" />
+        </div>
+        <h1 className="text-sm font-semibold text-slate-800">Shop Management</h1>
+      </div>
+
+      {/* Tabs — tab bar sits flush against the header */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+        size="small"
+        tabBarStyle={{
+          margin: 0,
+          paddingLeft: 16,
+          paddingRight: 16,
+          background: 'white',
+          borderBottom: '1px solid #e2e8f0',
+        }}
+      />
     </div>
   );
 };

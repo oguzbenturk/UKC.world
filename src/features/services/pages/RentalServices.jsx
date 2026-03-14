@@ -3,7 +3,6 @@ import {
   Button, 
   Input, 
   Empty, 
-  Drawer,
   Table,
   Alert,
   Skeleton,
@@ -27,7 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { serviceApi } from '@/shared/services/serviceApi';
-import ServiceForm from '../components/ServiceForm';
+import StepRentalServiceModal from '../components/StepRentalServiceModal';
 import ServiceDetailModal from '../components/ServiceDetailModal';
 import RentalPackageManager from '../components/RentalPackageManager';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -279,10 +278,9 @@ function RentalServices() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [disciplineFilter, setDisciplineFilter] = useState('all');
   
-  const [formDrawerVisible, setFormDrawerVisible] = useState(false);
+  const [rentalModalOpen, setRentalModalOpen] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
-  const [editMode, setEditMode] = useState(false);
   const [packageManagerVisible, setPackageManagerVisible] = useState(false);
 
   // Load rental services on component mount
@@ -388,17 +386,17 @@ function RentalServices() {
     
     if (isRentalService) {
       setServices(prev => [...prev, newService]);
-      message.success('Rental service created successfully!');
     }
-    setFormDrawerVisible(false);
+    setRentalModalOpen(false);
+    setSelectedService(null);
+    message.success('Rental service created successfully!');
   };
 
   const handleServiceUpdated = async (updatedService) => {
     setServices(prev => prev.map(service => 
       service.id === updatedService.id ? updatedService : service
     ));
-    setFormDrawerVisible(false);
-    setEditMode(false);
+    setRentalModalOpen(false);
     setSelectedService(null);
     message.success('Rental service updated successfully!');
   };
@@ -411,8 +409,7 @@ function RentalServices() {
 
   const handleEdit = (service) => {
     setSelectedService(service);
-    setEditMode(true);
-    setFormDrawerVisible(true);
+    setRentalModalOpen(true);
   };
 
   const handleView = (service) => {
@@ -631,7 +628,7 @@ function RentalServices() {
             type="primary"
             icon={<PlusOutlined />}
             size="middle"
-            onClick={() => setFormDrawerVisible(true)}
+            onClick={() => { setSelectedService(null); setRentalModalOpen(true); }}
             className="flex-1 sm:flex-none"
           >
             <span className="hidden sm:inline">Add Rental Service</span>
@@ -661,7 +658,7 @@ function RentalServices() {
               <Button 
                 type="primary" 
                 icon={<PlusOutlined />}
-                onClick={() => setFormDrawerVisible(true)}
+                onClick={() => { setSelectedService(null); setRentalModalOpen(true); }}
               >
                 Add First Rental Service
               </Button>
@@ -678,26 +675,14 @@ function RentalServices() {
         )}
       />
 
-      {/* Service Form Drawer */}
-      <Drawer
-        title={editMode ? "Edit Rental Service" : "Add New Rental Service"}
-        width={600}
-        onClose={() => {
-          setFormDrawerVisible(false);
-          setEditMode(false);
-          setSelectedService(null);
-        }}
-        open={formDrawerVisible}
-        styles={{ body: { paddingBottom: 80 } }}
-      >
-        <ServiceForm
-          key={selectedService?.id ?? 'new'}
-          initialValues={editMode ? selectedService : {}}
-          isEditing={editMode}
-          defaultCategory={rentalCategories.length > 0 ? rentalCategories[0].name.toLowerCase() : "rental"}
-          onSubmit={editMode ? handleServiceUpdated : handleServiceCreated}
-        />
-      </Drawer>
+      {/* Step-based Rental Creator / Editor */}
+      <StepRentalServiceModal
+        open={rentalModalOpen}
+        onClose={() => { setRentalModalOpen(false); setSelectedService(null); }}
+        service={selectedService}
+        onCreated={handleServiceCreated}
+        onUpdated={handleServiceUpdated}
+      />
 
       {/* Service Detail Modal */}
       <ServiceDetailModal

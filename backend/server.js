@@ -44,6 +44,7 @@ import ratingsRouter from './routes/ratings.js';
 import rolesRouter from './routes/roles.js';
 import uploadRouter from './routes/upload.js';
 import instructorCommissionsRouter from './routes/instructorCommissions.js';
+import instructorSkillsRouter from './routes/instructorSkills.js';
 import debugRouter from './routes/debug.js';
 import currenciesRouter from './routes/currencies.js';
 import popupsRouter from './routes/popups.js';
@@ -422,6 +423,8 @@ app.use('/api/equipment', authenticateJWT, equipmentRouter);
 app.use('/api/instructors', authenticateJWT, instructorsRouter);
 // Feature-specific instructor self-service endpoints
 app.use('/api/instructors', authenticateJWT, instructorFeatureRouter);
+// Instructor skills (teaching qualifications per discipline)
+app.use('/api/instructors', instructorSkillsRouter);
 app.use('/api/students', authenticateJWT, familyRouter); // Family management routes (must be before studentsRouter)
 app.use('/api/students', authenticateJWT, studentsRouter);
 app.use('/api/waivers', waiversRouter); // Liability waiver routes (template endpoints allow public access)

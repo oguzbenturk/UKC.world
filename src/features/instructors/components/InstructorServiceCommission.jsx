@@ -46,6 +46,7 @@ const InstructorServiceCommission = forwardRef(({
   const [categoryRatesLoading, setCategoryRatesLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [categoryForm] = Form.useForm();
+  const addFormCommissionType = Form.useWatch('commissionType', addForm);
 
   const hasFetchedRef = useRef(false);
 
@@ -462,7 +463,7 @@ const InstructorServiceCommission = forwardRef(({
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
         onOk={handleAddCommissions}
-        destroyOnClose
+        destroyOnHidden
         width={480}
       >
         <Form form={addForm} layout="vertical" initialValues={{ commissionType: 'fixed', commissionValue: 50 }}>
@@ -498,7 +499,7 @@ const InstructorServiceCommission = forwardRef(({
             <InputNumber
               min={0}
               className="w-full"
-              addonAfter={addForm.getFieldValue('commissionType') === 'percentage' ? '%' : currencySymbol}
+              addonAfter={addFormCommissionType === 'percentage' ? '%' : currencySymbol}
             />
           </Form.Item>
         </Form>

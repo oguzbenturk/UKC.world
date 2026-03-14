@@ -134,9 +134,11 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
       const primaryPrice = prices.length > 0 ? prices[0].price : values.price;
       const primaryCurrency = prices.length > 0 ? prices[0].currencyCode : selectedCurrency;
       
+      const derivedMaxParticipants = parseInt(values.max_participants || 1, 10);
+      const derivedServiceType = derivedMaxParticipants > 1 ? 'group' : 'private';
       const formattedValues = {
         ...values,
-        serviceType: serviceType, // Add serviceType from state
+        serviceType: derivedServiceType,
         isPackage: isPackage, // Add isPackage from state
         category: categoryValue, // Respect locked category when provided
         startTime: values.startTime ? values.startTime.format('HH:mm') : undefined,
@@ -146,8 +148,10 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         price: primaryPrice,
         prices: prices.filter(p => p.price != null && p.price > 0), // Only send valid prices
         disciplineTag: values.disciplineTag || null,
-        lessonCategoryTag: values.lessonCategoryTag || (serviceType === 'group' ? 'group' : 'private'),
+        lessonCategoryTag: values.lessonCategoryTag || derivedServiceType,
         rentalSegment: values.rentalSegment || null,
+        max_participants: derivedMaxParticipants,
+        maxParticipants: derivedMaxParticipants,
       };
 
       // For rental services, auto-construct the stored name so that the duration
@@ -321,34 +325,36 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
               </Form.Item>
             </>
           )}
+          {isLessonCategory && (
+            <Form.Item
+              name="lessonCategoryTag"
+              label="Lesson type"
+              extra="Private = 1 person, group = 2+ people in the same booking"
+            >
+              <Select placeholder="Derived from max participants if left blank" allowClear>
+                <Option value="private">🧑 Private</Option>
+                <Option value="semi-private">👥 Semi-private</Option>
+                <Option value="group">👨‍👩‍👧 Group</Option>
+                <Option value="supervision">🎓 Supervision</Option>
+              </Select>
+            </Form.Item>
+          )}
           {!isRentalCategory && (
-            <Row gutter={16} className="gap-y-4">
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="maxParticipants"
-                  label="Required people"
-                >
-                  <InputNumber min={0} style={{ width: '100%' }} placeholder="Optional" />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="color"
-                  label="Calendar color"
-                >
-                  <Select placeholder="Choose a color swatch" allowClear>
-                    {COLORS.map(color => (
-                      <Option key={color.value} value={color.value}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <div style={{ width: '14px', height: '14px', backgroundColor: color.value, marginRight: '8px', borderRadius: '2px' }} />
-                          {color.label}
-                        </div>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+            <Form.Item
+              name="color"
+              label="Calendar color"
+            >
+              <Select placeholder="Choose a color swatch" allowClear>
+                {COLORS.map(color => (
+                  <Option key={color.value} value={color.value}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: '14px', height: '14px', backgroundColor: color.value, marginRight: '8px', borderRadius: '2px' }} />
+                      {color.label}
+                    </div>
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
           )}
           {isCategoryLocked ? (
             <>
