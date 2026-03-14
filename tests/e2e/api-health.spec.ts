@@ -13,7 +13,8 @@ const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD || 'asdasd35';
 let authToken: string;
 
 test.describe('🏥 API Health Checks', () => {
-  
+  test.beforeEach(async ({}, testInfo) => { test.skip(testInfo.project.name === 'mobile-chrome', 'API-only tests — skip on mobile'); });
+
   test.beforeAll(async ({ }) => {
     // Get auth token first
     const apiContext = await request.newContext();

@@ -285,7 +285,8 @@ export const formatPaymentMethodLabel = (method) => {
     'card': 'Credit/Debit Card',
     'bank_transfer': 'Bank Transfer',
     'paypal': 'PayPal',
-    'stripe': 'Online Payment',
+    'online': 'Online Payment',
+    'iyzico': 'Online Payment',
     'unknown': 'Unknown'
   };
   
@@ -349,7 +350,8 @@ export const PAYMENT_METHOD_COLORS = {
   'card': '#3B82F6',
   'bank_transfer': '#8B5CF6',
   'paypal': '#F59E0B',
-  'stripe': '#06B6D4'
+  'online': '#06B6D4',
+  'iyzico': '#06B6D4'
 };
 
 export const CLV_SEGMENT_COLORS = [

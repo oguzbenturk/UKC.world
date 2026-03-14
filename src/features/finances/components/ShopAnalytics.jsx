@@ -14,8 +14,8 @@ const ShopAnalytics = ({ summaryData, chartData = [] }) => {
     const revenue = summaryData.revenue || {};
 
     const shopRevenue = Number(revenue.shop_revenue || 0);
-    const totalTransactions = 0; // Would need separate query for order count
-    const avgTransactionValue = shopRevenue > 0 ? shopRevenue : 0;
+    const totalTransactions = Number(revenue.shop_order_count || 0);
+    const avgTransactionValue = totalTransactions > 0 ? shopRevenue / totalTransactions : 0;
     const collectionRate = 100; // Shop orders are always paid upfront
 
     return {

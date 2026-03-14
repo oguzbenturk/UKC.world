@@ -6,7 +6,7 @@ const numberOrZero = (value) => {
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
-const PREFERRED_PAYMENT_KEYS = ['card', 'default', 'pos', 'online', 'stripe', 'terminal'];
+const PREFERRED_PAYMENT_KEYS = ['card', 'default', 'pos', 'online', 'iyzico', 'terminal'];
 
 const normalizeFeeEntry = (entry) => {
   if (!entry || typeof entry !== 'object') {

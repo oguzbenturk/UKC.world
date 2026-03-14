@@ -46,7 +46,7 @@ describe('walletService preference helpers', () => {
 
   test('resolveEnabledGateways falls back to defaults when not configured', () => {
     const gatewaySet = resolveEnabledGateways({ enabledGateways: [] });
-    expect(gatewaySet.has('stripe')).toBe(true);
+    expect(gatewaySet.has('iyzico')).toBe(true);
     expect(gatewaySet.has('binance_pay')).toBe(true);
   });
 

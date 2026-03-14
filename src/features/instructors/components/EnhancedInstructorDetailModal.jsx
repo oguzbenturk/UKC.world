@@ -1,40 +1,43 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Modal, Tabs, Button, Descriptions, Tag, Spin, 
-  Avatar, Typography, Divider, Card 
-} from 'antd';
+import { Drawer, Tag, Spin, Avatar, Typography } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { 
-  UserOutlined, MailOutlined, PhoneOutlined, 
+import {
+  UserOutlined, MailOutlined, PhoneOutlined,
   CalendarOutlined, TrophyOutlined, EnvironmentOutlined,
-  DollarOutlined, TeamOutlined, IdcardOutlined, BarChartOutlined
+  DollarOutlined, WalletOutlined, IdcardOutlined,
+  BarChartOutlined, CloseOutlined
 } from '@ant-design/icons';
 import InstructorServiceCommission from './InstructorServiceCommission';
 import InstructorPayments from './InstructorPayments';
 import PayrollDashboard from './PayrollDashboard';
 import { useData } from '@/shared/hooks/useData';
-import globalRequestThrottle from '@/shared/utils/requestThrottle';
 import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { formatCurrency } from '@/shared/utils/formatters';
 
 const { Text } = Typography;
 
-// eslint-disable-next-line complexity
-const EnhancedInstructorDetailModal = ({ 
-  instructor, 
-  isOpen, 
+const NAV_ITEMS = [
+  { key: 'info', icon: <UserOutlined />, label: 'Profile' },
+  { key: 'commissions', icon: <DollarOutlined />, label: 'Commissions' },
+  { key: 'dashboard', icon: <BarChartOutlined />, label: 'Earnings' },
+  { key: 'payments', icon: <WalletOutlined />, label: 'Payroll' },
+];
+
+const EnhancedInstructorDetailModal = ({
+  instructor,
+  isOpen,
   onClose,
   onUpdate = () => {}
 }) => {
   const { businessCurrency } = useCurrency();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeSection, setActiveSection] = useState('info');
   const [loading, setLoading] = useState(false);
   const [instructorServices, setInstructorServices] = useState([]);
   const [recentLessons, setRecentLessons] = useState([]);
   const { apiClient } = useData();
-  
-  // Refs for child components to trigger their refresh methods
+  const hasFetchedRef = useRef(false);
+
   const instructorPaymentsRef = useRef(null);
   const payrollDashboardRef = useRef(null);
   const serviceCommissionRef = useRef(null);
@@ -43,30 +46,12 @@ const EnhancedInstructorDetailModal = ({
     if (!instructor?.id) return;
     setLoading(true);
     try {
-      // Get instructor's assigned services with throttling
-      logger.info(`Fetching services for instructor ${instructor.id}`);
-      try {
-        const servicesRes = await globalRequestThrottle.execute(() => 
-          apiClient.get(`/instructors/${instructor.id}/services`)
-        );
-        setInstructorServices(servicesRes.data || []);
-        logger.debug(`Found ${servicesRes.data?.length || 0} services for instructor`);
-      } catch (servicesError) {
-        logger.warn('Error fetching instructor services', { error: String(servicesError) });
-        // Non-critical
-      }
-
-      // Get instructor's recent lessons with throttling
-      try {
-        const lessonsRes = await globalRequestThrottle.execute(() => 
-          apiClient.get(`/instructors/${instructor.id}/lessons?limit=5`)
-        );
-        setRecentLessons(lessonsRes.data || []);
-        logger.debug(`Found ${lessonsRes.data?.length || 0} lessons for instructor`);
-      } catch (lessonsError) {
-        logger.warn('Error fetching instructor lessons', { error: String(lessonsError) });
-        // PayrollDashboard will handle this
-      }
+      const [servicesRes, lessonsRes] = await Promise.allSettled([
+        apiClient.get(`/instructors/${instructor.id}/services`),
+        apiClient.get(`/instructors/${instructor.id}/lessons?limit=5`),
+      ]);
+      if (servicesRes.status === 'fulfilled') setInstructorServices(servicesRes.value.data || []);
+      if (lessonsRes.status === 'fulfilled') setRecentLessons(lessonsRes.value.data || []);
     } catch (error) {
       logger.error('Error fetching instructor data', { error: String(error) });
     } finally {
@@ -74,254 +59,266 @@ const EnhancedInstructorDetailModal = ({
     }
   }, [apiClient, instructor?.id]);
 
+  // Fetch once on open, not on every re-render
   useEffect(() => {
-    if (isOpen && instructor?.id) {
+    if (isOpen && instructor?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchInstructorData();
+    }
+    if (!isOpen) {
+      hasFetchedRef.current = false;
     }
   }, [isOpen, instructor?.id, fetchInstructorData]);
 
-  // Add page visibility refresh handler
-  // Centralized refresh function for all instructor data (defined before usage in effects)
-  const refreshAllInstructorData = useCallback(async () => {
-    logger.info('Refreshing all instructor data...');
-    try {
-      // Refresh basic instructor data
-      await fetchInstructorData();
-      
-      // Refresh all child component data
-      if (instructorPaymentsRef.current?.refreshData) {
-        await instructorPaymentsRef.current.refreshData();
-      }
-      
-      if (payrollDashboardRef.current?.refreshData) {
-        await payrollDashboardRef.current.refreshData();
-      }
-      
-      if (serviceCommissionRef.current?.refreshData) {
-        await serviceCommissionRef.current.refreshData();
-      }
-      
-      // Notify parent component of updates
-      onUpdate();
-      logger.info('All instructor data refreshed successfully');
-    } catch (error) {
-      logger.error('Error refreshing instructor data', { error: String(error) });
-      message.error('Failed to refresh instructor data');
+  const refreshActiveSection = useCallback(async () => {
+    await fetchInstructorData();
+    if (activeSection === 'payments' && instructorPaymentsRef.current?.refreshData) {
+      await instructorPaymentsRef.current.refreshData();
     }
-  }, [fetchInstructorData, onUpdate]);
+    if (activeSection === 'dashboard' && payrollDashboardRef.current?.refreshData) {
+      await payrollDashboardRef.current.refreshData();
+    }
+    if (activeSection === 'commissions' && serviceCommissionRef.current?.refreshData) {
+      await serviceCommissionRef.current.refreshData();
+    }
+    onUpdate();
+  }, [fetchInstructorData, activeSection, onUpdate]);
 
-  // Add page visibility refresh handler
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && isOpen && instructor?.id) {
-        logger.info('Page became visible, refreshing instructor data...');
-        refreshAllInstructorData();
-      }
-    };
+  if (!instructor) return null;
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isOpen, instructor?.id, refreshAllInstructorData]);
+  const statusColor = instructor.status === 'active' ? 'green' : 'red';
 
-  if (!isOpen || !instructor) return null;
+  const renderInfoRow = (icon, label, value) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+        <span className="text-gray-400 mt-0.5 text-base">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</div>
+          <div className="text-sm text-gray-800 mt-0.5">{value}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderProfile = () => (
+    <div className="space-y-5">
+      {/* Profile header card */}
+      <div className="rounded-xl bg-gradient-to-br from-slate-50 to-blue-50/40 p-5">
+        <div className="flex items-center gap-4">
+          <Avatar
+            size={56}
+            src={instructor.profile_image_url}
+            icon={!instructor.profile_image_url && <UserOutlined />}
+            className="shadow-sm flex-shrink-0"
+            style={{ backgroundColor: !instructor.profile_image_url ? '#3B82F6' : undefined }}
+          />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">{instructor.name}</h3>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Tag color={statusColor} bordered={false} className="rounded-full text-xs">{(instructor.status || 'active').toUpperCase()}</Tag>
+              {instructor.level && <Tag color="blue" bordered={false} className="rounded-full text-xs">{instructor.level}</Tag>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact info */}
+      <div className="rounded-xl border border-gray-100 bg-white px-5 py-1">
+        {renderInfoRow(<MailOutlined />, 'Email', instructor.email)}
+        {renderInfoRow(<PhoneOutlined />, 'Phone', instructor.phone)}
+        {renderInfoRow(<CalendarOutlined />, 'Date of Birth', instructor.date_of_birth)}
+        {renderInfoRow(<EnvironmentOutlined />, 'Address',
+          [instructor.address, instructor.city, instructor.country].filter(Boolean).join(', ') || null
+        )}
+        {renderInfoRow(<CalendarOutlined />, 'Joined',
+          instructor.created_at ? new Date(instructor.created_at).toLocaleDateString() : null
+        )}
+        {instructor.hourly_rate && renderInfoRow(<DollarOutlined />, 'Hourly Rate',
+          `${formatCurrency(Number(instructor.hourly_rate) || 0, businessCurrency || 'EUR')}/hour`
+        )}
+      </div>
+
+      {/* Tags section */}
+      {(instructor.specializations?.length > 0 || instructor.certificates?.length > 0 || instructor.languages?.length > 0) && (
+        <div className="rounded-xl border border-gray-100 bg-white p-5 space-y-4">
+          {instructor.specializations?.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <TrophyOutlined /> Specializations
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {instructor.specializations.map((spec) => (
+                  <Tag key={spec} color="green" bordered={false} className="rounded-full">{spec}</Tag>
+                ))}
+              </div>
+            </div>
+          )}
+          {instructor.certificates?.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <IdcardOutlined /> Certificates
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {instructor.certificates.map((cert) => (
+                  <Tag key={cert} color="purple" bordered={false} className="rounded-full">{cert}</Tag>
+                ))}
+              </div>
+            </div>
+          )}
+          {instructor.languages?.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                Languages
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {instructor.languages.map((lang) => (
+                  <Tag key={lang} color="cyan" bordered={false} className="rounded-full">{lang}</Tag>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quick stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
+          <div className="text-2xl font-bold text-blue-600">{instructorServices.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Services Assigned</div>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
+          <div className="text-2xl font-bold text-emerald-600">{recentLessons.length}</div>
+          <div className="text-xs text-gray-500 mt-1">Recent Lessons</div>
+        </div>
+      </div>
+
+      {/* Bio & notes */}
+      {instructor.bio && (
+        <div className="rounded-xl border border-gray-100 bg-white p-5">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Biography</div>
+          <Text className="text-sm text-gray-700 leading-relaxed">{instructor.bio}</Text>
+        </div>
+      )}
+      {instructor.notes && (
+        <div className="rounded-xl border border-gray-100 bg-white p-5">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Notes</div>
+          <Text className="text-sm text-gray-700 leading-relaxed">{instructor.notes}</Text>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'info':
+        return renderProfile();
+      case 'commissions':
+        return (
+          <InstructorServiceCommission
+            ref={serviceCommissionRef}
+            instructorId={instructor.id}
+            onSave={() => {
+              message.success('Commission settings saved');
+              refreshActiveSection();
+            }}
+          />
+        );
+      case 'dashboard':
+        return <PayrollDashboard ref={payrollDashboardRef} instructor={instructor} />;
+      case 'payments':
+        return (
+          <InstructorPayments
+            ref={instructorPaymentsRef}
+            instructor={instructor}
+            onPaymentSuccess={refreshActiveSection}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <Modal
-      title={
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Avatar 
-            size={40} 
-            src={instructor.profile_image_url} 
-            icon={!instructor.profile_image_url && <UserOutlined />}
-            style={{ marginRight: 12 }}
-          />
-          <span>Instructor Profile: {instructor.name}</span>
-        </div>
-      }
+    <Drawer
       open={isOpen}
-      onCancel={onClose}
-      width={800}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          Close
-        </Button>
-      ]}
+      onClose={onClose}
+      width={960}
+      closable={false}
+      destroyOnClose
+      styles={{ body: { padding: 0, display: 'flex', overflow: 'hidden' }, header: { display: 'none' } }}
     >
-      <Spin spinning={loading}>
-        
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'info',
-              label: (
-                <span>
-                  <UserOutlined />
-                  Basic Info
-                </span>
-              ),
-              children: (
-                <Card variant="outlined">
-                  <Descriptions bordered column={2}>
-                    <Descriptions.Item label="Full Name" span={2}>
-                      {instructor.name}
-                    </Descriptions.Item>
-                    
-                    <Descriptions.Item label={<><MailOutlined /> Email</>} span={1}>
-                      {instructor.email}
-                    </Descriptions.Item>
-                    
-                    <Descriptions.Item label={<><PhoneOutlined /> Phone</>} span={1}>
-                      {instructor.phone || 'N/A'}
-                    </Descriptions.Item>
-                    
-                    {instructor.date_of_birth && (
-                      <Descriptions.Item label={<><CalendarOutlined /> Date of Birth</>} span={2}>
-                        {instructor.date_of_birth}
-                      </Descriptions.Item>
-                    )}
-                    
-                    {instructor.address && (
-                      <Descriptions.Item label={<><EnvironmentOutlined /> Address</>} span={2}>
-                        {`${instructor.address || ''} ${instructor.city || ''} ${instructor.country || ''}`}
-                      </Descriptions.Item>
-                    )}
-                    
-                    {instructor.level && (
-                      <Descriptions.Item label="Skill Level" span={2}>
-                        <Tag color="blue">{instructor.level}</Tag>
-                      </Descriptions.Item>
-                    )}
-                    
-                    {instructor.specializations?.length > 0 && (
-                      <Descriptions.Item label={<><TrophyOutlined /> Specializations</>} span={2}>
-                        {instructor.specializations.map((spec) => (
-                          <Tag color="green" key={spec} style={{ margin: '2px' }}>
-                            {spec}
-                          </Tag>
-                        ))}
-                      </Descriptions.Item>
-                    )}
-                    
-                    {instructor.certificates?.length > 0 && (
-                      <Descriptions.Item label={<><IdcardOutlined /> Certificates</>} span={2}>
-                        {instructor.certificates.map((cert) => (
-                          <Tag color="purple" key={cert} style={{ margin: '2px' }}>
-                            {cert}
-                          </Tag>
-                        ))}
-                      </Descriptions.Item>
-                    )}
-                    
-                    <Descriptions.Item label="Account Status" span={1}>
-                      <Tag color={instructor.status === 'active' ? 'green' : 'red'}>
-                        {instructor.status?.toUpperCase() || 'ACTIVE'}
-                      </Tag>
-                    </Descriptions.Item>
-                    
-                    <Descriptions.Item label="Joining Date" span={1}>
-                      {instructor.created_at ? new Date(instructor.created_at).toLocaleDateString() : 'N/A'}
-                    </Descriptions.Item>
-                    
-                    <Descriptions.Item label="Total Services" span={1}>
-                      {instructorServices.length} assigned
-                    </Descriptions.Item>
-                    
-                    <Descriptions.Item label="Recent Lessons" span={1}>
-                      {recentLessons.length} completed
-                    </Descriptions.Item>
-                    
-                    {instructor.hourly_rate && (
-                      <Descriptions.Item label={<><DollarOutlined /> Hourly Rate</>} span={2}>
-                        {formatCurrency(Number(instructor.hourly_rate) || 0, businessCurrency || 'EUR')}/hour
-                      </Descriptions.Item>
-                    )}
-                    
-                    {instructor.languages?.length > 0 && (
-                      <Descriptions.Item label="Languages" span={2}>
-                        {instructor.languages.map((lang) => (
-                          <Tag color="cyan" key={lang} style={{ margin: '2px' }}>
-                            {lang}
-                          </Tag>
-                        ))}
-                      </Descriptions.Item>
-                    )}
-                  </Descriptions>
+      <div className="flex h-full w-full">
+        {/* Left sidebar nav */}
+        <div className="w-[200px] flex-shrink-0 bg-slate-50 border-r border-gray-200 flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <Avatar
+                size={36}
+                src={instructor.profile_image_url}
+                icon={!instructor.profile_image_url && <UserOutlined />}
+                style={{ backgroundColor: !instructor.profile_image_url ? '#3B82F6' : undefined }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-gray-800 truncate">{instructor.name}</div>
+                <Tag color={statusColor} bordered={false} className="rounded-full text-[10px] mt-0.5 px-1.5 py-0 leading-4">
+                  {(instructor.status || 'active').toUpperCase()}
+                </Tag>
+              </div>
+            </div>
+          </div>
 
-                  {instructor.bio && (
-                    <>
-                      <Divider orientation="left">Biography</Divider>
-                      <Text>{instructor.bio}</Text>
-                    </>
-                  )}
+          {/* Nav items */}
+          <nav className="flex-1 py-2 space-y-0.5 px-2">
+            {NAV_ITEMS.map(item => (
+              <button
+                key={item.key}
+                onClick={() => setActiveSection(item.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 cursor-pointer border-0 text-left ${
+                  activeSection === item.key
+                    ? 'bg-blue-50 text-blue-700 font-medium shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 font-normal bg-transparent'
+                }`}
+              >
+                <span className="text-base">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </nav>
 
-                  {instructor.notes && (
-                    <>
-                      <Divider orientation="left">Additional Notes</Divider>
-                      <Text>{instructor.notes}</Text>
-                    </>
-                  )}
-                </Card>
-              )
-            },
-            {
-              key: 'commissions',
-              label: (
-                <span>
-                  <DollarOutlined />
-                  Service Commissions
-                </span>
-              ),
-              children: (
-                <InstructorServiceCommission
-                  ref={serviceCommissionRef}
-                  instructorId={instructor.id}
-                  onSave={() => {
-                    message.success('Commission settings saved');
-                    refreshAllInstructorData();
-                  }}
-                  onCancel={() => setActiveTab('info')}
-                />
-              )
-            },
-            {
-              key: 'dashboard',
-              label: (
-                <span>
-                  <BarChartOutlined />
-                  Earnings Dashboard
-                </span>
-              ),
-              children: (
-                <PayrollDashboard
-                  ref={payrollDashboardRef}
-                  instructor={instructor}
-                />
-              )
-            },
-            {
-              key: 'payments',
-              label: (
-                <span>
-                  <TeamOutlined />
-                  Payroll & Payments
-                </span>
-              ),
-              children: (
-                <InstructorPayments
-                  ref={instructorPaymentsRef}
-                  instructor={instructor}
-                  onPaymentSuccess={refreshAllInstructorData}
-                />
-              )
-            }
-          ]}
-        />
-      </Spin>
-    </Modal>
+          {/* Close at bottom */}
+          <div className="p-3 border-t border-gray-200">
+            <button
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer border-0 bg-transparent"
+            >
+              <CloseOutlined className="text-xs" /> Close
+            </button>
+          </div>
+        </div>
+
+        {/* Right content */}
+        <div className="flex-1 overflow-y-auto bg-gray-50/50">
+          <div className="p-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {NAV_ITEMS.find(n => n.key === activeSection)?.label}
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {activeSection === 'info' && 'Personal information and details'}
+                {activeSection === 'commissions' && 'Manage commission rates and category overrides'}
+                {activeSection === 'dashboard' && 'Earnings overview and analytics'}
+                {activeSection === 'payments' && 'Payment history and payroll management'}
+              </p>
+            </div>
+            <Spin spinning={loading && activeSection === 'info'}>
+              {renderContent()}
+            </Spin>
+          </div>
+        </div>
+      </div>
+    </Drawer>
   );
 };
 

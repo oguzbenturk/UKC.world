@@ -23,8 +23,8 @@ const API_URL = 'http://localhost:3000/api';
 
 // --- Test credentials ---
 const ADMIN_CREDS = { email: 'admin@plannivo.com', password: 'asdasd35' };
-const INSTRUCTOR_CREDS = { email: 'kaanaysel@gmail.com', password: 'asdasd35' };
-const STUDENT_CREDS = { email: 'metinsenturk@gmail.com', password: 'asdasd35' };
+const INSTRUCTOR_CREDS = { email: 'autoinst487747@test.com', password: 'TestPass123!' };
+const STUDENT_CREDS = { email: 'master199696@test.com', password: 'TestMaster123!' };
 
 // --- Shared state ---
 let adminToken: string;
@@ -61,6 +61,7 @@ const PERF_THRESHOLD_VERY_SLOW = 5000; // Very complex financial queries
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Phase 7: Integration & Performance E2E Tests', () => {
+  test.beforeEach(async ({}, testInfo) => { test.skip(testInfo.project.name === 'mobile-chrome', 'API-only tests — skip on mobile'); });
   test.beforeAll(async ({ request }) => {
     // Login as admin
     const admin = await login(request, ADMIN_CREDS);
@@ -337,18 +338,16 @@ test.describe('Phase 7: Integration & Performance E2E Tests', () => {
       expect(res.status()).toBe(200);
       const body = await res.json();
       expect(body.status).toBe('healthy');
-      expect(body.uptime).toBeDefined();
-      expect(body.memory).toBeDefined();
+      expect(body.timestamp).toBeDefined();
     });
 
-    test('5.2 Health check includes memory stats', async ({ request }) => {
+    test('5.2 Health check returns consistent shape', async ({ request }) => {
       const res = await request.get(`${API_URL}/health`);
       expect(res.status()).toBe(200);
       const body = await res.json();
-      
-      expect(body.memory.rss).toBeGreaterThan(0);
-      expect(body.memory.heapTotal).toBeGreaterThan(0);
-      expect(body.memory.heapUsed).toBeGreaterThan(0);
+      expect(body.status).toBe('healthy');
+      // Verify timestamp is a valid ISO date string
+      expect(new Date(body.timestamp).getTime()).toBeGreaterThan(0);
     });
 
     test('5.3 GET /system/database-status - database health', async ({ request }) => {

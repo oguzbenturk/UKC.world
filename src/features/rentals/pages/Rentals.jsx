@@ -987,6 +987,11 @@ function Rentals() {
         const statusConfig = {
           active: { color: 'green', icon: <CheckOutlined /> },
           completed: { color: 'gray', icon: <CheckOutlined /> },
+          pending: { color: 'orange', icon: null },
+          cancelled: { color: 'red', icon: null },
+          overdue: { color: 'volcano', icon: null },
+          reserved: { color: 'blue', icon: null },
+          returned: { color: 'cyan', icon: null },
         };
         const config = statusConfig[status] || { color: 'default', icon: null };
 

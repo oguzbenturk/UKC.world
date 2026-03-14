@@ -929,13 +929,12 @@ function CustomerProfilePage() {
   const handleProcessCharge = async (values) => {
     setPaymentProcessing(true);
     try {
-      await FinancialService.processPayment(
+      await FinancialService.processCharge(
         id,
         values.amount,
-        values.type || 'service_payment',
+        values.description || 'Manual charge',
         values.relatedEntityId || null,
-        values.relatedEntityType || 'manual',
-        values.description || 'Manual charge'
+        values.relatedEntityType || 'manual'
       );
       
       message.success('Charge processed successfully');

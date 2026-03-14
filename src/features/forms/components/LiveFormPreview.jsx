@@ -304,7 +304,7 @@ const LiveFormPreview = ({
           field={field}
           form={form}
           allValues={formValues}
-          disabled={false}
+          disabled={true}
           skipColWrapper={true}
         />
       </SelectableFieldWrapper>

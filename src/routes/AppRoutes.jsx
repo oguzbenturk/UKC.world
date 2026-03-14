@@ -138,6 +138,8 @@ const GroupLessonRequestPage = lazyWithRetry(() => import('../features/bookings/
 const UserSettings = lazyWithRetry(() => import('../features/settings/pages/UserSettings'));
 const ManagerDashboard = lazyWithRetry(() => import('../features/manager/pages/ManagerDashboard'));
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
+const ManagerPayroll = lazyWithRetry(() => import('../features/manager/pages/ManagerPayroll'));
+const ManagerProfile = lazyWithRetry(() => import('../features/manager/pages/ManagerProfile'));
 const ChatPage = lazyWithRetry(() => import('../features/chat/pages/ChatPage'));
 
 // Calendar views
@@ -262,7 +264,7 @@ const AppRoutes = () => {
   };
   
   // Define a ProtectedRoute component with role-based access
-  const ProtectedRoute = ({ allowedRoles = [], staffOnly = false }) => {
+  const ProtectedRoute = ({ allowedRoles = [], staffOnly = false, requiredPermissions = [] }) => {
     let canAccess = false;
     
     if (!isAuthenticated) {
@@ -277,10 +279,33 @@ const AppRoutes = () => {
       // Specific roles required - check exact match
       canAccess = true;
     } else if (user && isStaffRole(user.role)) {
-      // For custom staff roles, allow access to routes meant for manager/admin
-      const staffRoles = [ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER];
-      if (allowedRoles.some(r => staffRoles.includes(r))) {
-        canAccess = true;
+      // Custom roles: check actual permissions from the role's permission object
+      const builtInRoles = [ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER, ROLES.OUTSIDER, ROLES.STUDENT, ROLES.TRUSTED_CUSTOMER];
+      const isCustomRole = !builtInRoles.includes(user.role?.toLowerCase());
+      if (isCustomRole && user.permissions) {
+        if (requiredPermissions.length > 0) {
+          // If explicit permissions are specified, check those
+          canAccess = requiredPermissions.some(p => user.permissions[p] === true);
+        } else {
+          // Infer required permissions from allowedRoles
+          // If route requires manager/admin level, the custom role must have matching permissions
+          const needsFinance = allowedRoles.includes(ROLES.MANAGER) && !allowedRoles.includes(ROLES.INSTRUCTOR);
+          const needsAdmin = allowedRoles.includes(ROLES.ADMIN) && allowedRoles.length === 1;
+          
+          if (needsAdmin) {
+            // Admin-only routes: custom roles need system:admin
+            canAccess = user.permissions['system:admin'] === true;
+          } else if (needsFinance) {
+            // Manager+ routes (settings, finance settings, roles, etc.): need settings:read or finances:read
+            canAccess = user.permissions['settings:read'] === true || user.permissions['finances:read'] === true;
+          } else {
+            // Instructor+ routes (bookings, equipment, customers, etc.): check relevant permissions
+            canAccess = user.permissions['bookings:read'] === true || 
+                        user.permissions['equipment:read'] === true ||
+                        user.permissions['users:read'] === true ||
+                        user.permissions['services:read'] === true;
+          }
+        }
       }
     }
 
@@ -427,7 +452,7 @@ const AppRoutes = () => {
         <Route path="/stay/my-accommodation" element={<StudentMyAccommodationPage />} />
       </Route>
       {/* Customer management routes - instructors and above */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['users:read', 'bookings:read']} />}>
         <Route path="/customers" element={<Customers />} />
   <Route path="/instructor/students" element={<MyStudents />} />
   <Route path="/instructor/students/:id" element={<StudentDetail />} />
@@ -446,7 +471,7 @@ const AppRoutes = () => {
       </Route>
       
       {/* Routes accessible to managers and above */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ROLES.ADMIN]} />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['settings:read', 'system:admin']} />}>
     <Route path="/instructors" element={<Instructors />} />
     <Route path="/instructors/new" element={<InstructorFormPage />} /> {/* Unified user form for new instructor */}
     <Route path="/instructors/edit/:id" element={<InstructorFormPage />} /> {/* Unified user form for editing instructor */}
@@ -459,6 +484,8 @@ const AppRoutes = () => {
   <Route path="/admin/vouchers" element={<VoucherManagement />} />
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
         <Route path="/admin/manager-commissions" element={<ManagerCommissionSettings />} />
+        <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />
+        <Route path="/admin/manager-profile/:managerId" element={<ManagerProfile />} />
         <Route path="/manager/commissions" element={<ManagerDashboard />} />
         {/* Services - Package Management (managers and above only) */}
         <Route path="/services/packages" element={<PackageManagement />} />
@@ -478,7 +505,7 @@ const AppRoutes = () => {
   <Route path="/admin/spare-parts" element={<SparePartsOrders />} />
       </Route>
         {/* Routes for operations staff (instructors and above) */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} />}>
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['bookings:read', 'equipment:read', 'services:read']} />}>
         <Route path="/equipment" element={<Equipment />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/bookings" element={<BookingsPage />} />
@@ -505,7 +532,9 @@ const AppRoutes = () => {
         <Route path="/services/orders" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/memberships" element={<MembershipSettings />} />
         <Route path="/services/categories" element={<Categories />} />
-        {/* Finance routes */}
+      </Route>
+      {/* Finance routes - require finances:read permission for custom roles */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['finances:read', 'finances:write']} />}>
         <Route path="/finance" element={<Finance />} />
         <Route path="/finance/lessons" element={<FinanceLessons />} />
         <Route path="/finance/rentals" element={<FinanceRentals />} />

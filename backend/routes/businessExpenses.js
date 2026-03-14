@@ -31,7 +31,7 @@ const EXPENSE_CATEGORIES = [
  * GET /api/business-expenses
  * Get all business expenses with filtering
  */
-router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontdesk']), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
   try {
     const {
       page = 1,
@@ -159,7 +159,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontdesk'
  * GET /api/business-expenses/:id
  * Get a single expense by ID
  */
-router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontdesk']), async (req, res) => {
+router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -192,7 +192,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontde
  * POST /api/business-expenses
  * Create a new business expense
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontdesk']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
   try {
     const {
       amount,
@@ -228,7 +228,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'frontdesk
       return res.status(400).json({ error: 'Description is required' });
     }
 
-    // Auto-approve for admin/manager, pending for frontdesk
+    // Auto-approve for admin/manager, pending for front_desk
     const status = ['admin', 'manager'].includes(req.user.role) ? 'approved' : 'pending';
     const approvedBy = status === 'approved' ? createdBy : null;
 

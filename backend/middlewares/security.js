@@ -72,9 +72,10 @@ const ensureDevMinimum = (value, fallback) => (
 );
 
 const defaultApiLimit = () => {
-  const fallback = CURRENT_ENV === 'production' ? 300 : 15000;
+  const fallback = CURRENT_ENV === 'production' ? 300 : 50000;
   const parsed = parsePositiveInt(process.env.API_RATE_LIMIT_MAX, fallback);
-  return ensureDevMinimum(parsed, fallback);
+  // Respect explicit env var override even in development
+  return process.env.API_RATE_LIMIT_MAX ? parsed : ensureDevMinimum(parsed, fallback);
 };
 
 const defaultApiWindow = () => (

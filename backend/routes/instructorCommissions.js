@@ -264,4 +264,103 @@ router.delete('/instructors/:instructorId/commissions/:serviceId', authenticateJ
   }
 });
 
+// ============ CATEGORY RATE ENDPOINTS ============
+
+// Get all category rates for an instructor
+router.get('/instructors/:instructorId/category-rates', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { instructorId } = req.params;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, lesson_category, rate_type, rate_value
+       FROM instructor_category_rates
+       WHERE instructor_id = $1
+       ORDER BY lesson_category`,
+      [instructorId]
+    );
+
+    res.json({ categoryRates: rows });
+  } catch (err) {
+    console.error('Error fetching category rates:', err);
+    res.status(500).json({ error: 'Failed to fetch category rates' });
+  }
+});
+
+// Bulk upsert category rates for an instructor
+router.put('/instructors/:instructorId/category-rates', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { instructorId } = req.params;
+  const { rates } = req.body;
+
+  if (!Array.isArray(rates)) {
+    return res.status(400).json({ error: 'rates must be an array' });
+  }
+
+  const VALID_CATEGORIES = ['private', 'semi-private', 'group', 'supervision'];
+  const VALID_TYPES = ['fixed', 'percentage'];
+
+  for (const r of rates) {
+    if (!VALID_CATEGORIES.includes(r.lessonCategory)) {
+      return res.status(400).json({ error: `Invalid lesson category: ${r.lessonCategory}` });
+    }
+    if (!VALID_TYPES.includes(r.rateType || 'fixed')) {
+      return res.status(400).json({ error: `Invalid rate type: ${r.rateType}` });
+    }
+    if (r.rateValue === undefined || r.rateValue === null || Number(r.rateValue) < 0) {
+      return res.status(400).json({ error: 'Rate value must be a non-negative number' });
+    }
+    if (r.rateType === 'percentage' && Number(r.rateValue) > 100) {
+      return res.status(400).json({ error: 'Percentage rate cannot exceed 100' });
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const results = [];
+    for (const r of rates) {
+      const { rows } = await client.query(
+        `INSERT INTO instructor_category_rates
+           (instructor_id, lesson_category, rate_type, rate_value, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (instructor_id, lesson_category)
+         DO UPDATE SET rate_type = $3, rate_value = $4, updated_at = NOW()
+         RETURNING *`,
+        [instructorId, r.lessonCategory, r.rateType || 'fixed', r.rateValue]
+      );
+      results.push(rows[0]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ categoryRates: results });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error upserting category rates:', err);
+    res.status(500).json({ error: 'Failed to save category rates' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete a specific category rate
+router.delete('/instructors/:instructorId/category-rates/:category', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { instructorId, category } = req.params;
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM instructor_category_rates WHERE instructor_id = $1 AND lesson_category = $2 RETURNING id',
+      [instructorId, category]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Category rate not found' });
+    }
+
+    res.json({ message: 'Category rate deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting category rate:', err);
+    res.status(500).json({ error: 'Failed to delete category rate' });
+  }
+});
+
 export default router;

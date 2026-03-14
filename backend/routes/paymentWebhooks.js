@@ -1,7 +1,6 @@
 import express from 'express';
 
 import {
-  handleStripeWebhook,
   handleIyzicoWebhook,
   handlePaytrWebhook,
   handleBinancePayWebhook
@@ -53,7 +52,7 @@ function buildContext(req) {
   return {
     payload: parseBody(req.body),
     headers: req.headers,
-    signature: req.headers['stripe-signature'] || req.headers['x-signature'] || null,
+    signature: req.headers['x-signature'] || null,
     rawBody,
     query: req.query
   };
@@ -63,14 +62,6 @@ function sendAcknowledgement(res, result) {
   const statusCode = Number.isInteger(result?.statusCode) ? result.statusCode : 202;
   res.status(statusCode).json(result);
 }
-
-router.post(
-  '/stripe',
-  asyncHandler(async (req, res) => {
-    const result = await handleStripeWebhook(buildContext(req));
-    sendAcknowledgement(res, result);
-  })
-);
 
 router.post(
   '/iyzico',

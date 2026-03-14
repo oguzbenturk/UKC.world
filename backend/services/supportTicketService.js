@@ -82,12 +82,12 @@ export async function updateSupportTicketStatus(ticketId, status) {
     SET 
       status = $1,
       updated_at = NOW(),
-      resolved_at = CASE WHEN $1 IN ('resolved', 'closed') THEN NOW() ELSE resolved_at END
+      resolved_at = CASE WHEN $3 IN ('resolved', 'closed') THEN NOW() ELSE resolved_at END
     WHERE id = $2
     RETURNING *
   `;
 
-  const result = await pool.query(query, [status, ticketId]);
+  const result = await pool.query(query, [status, ticketId, status]);
   
   if (result.rows.length === 0) {
     throw new Error('Support ticket not found');
@@ -114,7 +114,7 @@ export async function addTicketNote(ticketId, note, adminId) {
         COALESCE(metadata->'notes', '[]'::jsonb) || jsonb_build_object(
           'timestamp', to_jsonb(NOW()),
           'admin_id', to_jsonb($2::text),
-          'note', to_jsonb($3)
+          'note', to_jsonb($3::text)
         )
       ),
       updated_at = NOW()

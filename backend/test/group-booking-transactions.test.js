@@ -100,10 +100,10 @@ describe('Group booking cash transactions', () => {
           return { rows: [] };
         }
 
-        if (normalized.includes('SELECT price, name, category FROM services')) {
+        if (normalized.includes('FROM services')) {
           return {
             rows: [
-              { price: '120', name: 'Group Lesson', category: 'group' }
+              { price: '120', name: 'Group Lesson', category: 'group', currency: 'EUR' }
             ]
           };
         }
@@ -169,9 +169,10 @@ describe('Group booking cash transactions', () => {
     };
 
     pool.connect = jest.fn().mockResolvedValue(mockClient);
-    pool.query = jest.fn();
+    pool.query = jest.fn().mockResolvedValue({ rows: [] });
 
     const req = {
+      user: { id: 'admin-1', role: 'admin', email: 'admin@test.com' },
       body: {
         date: '2025-10-01',
         start_hour: 9,
@@ -253,9 +254,10 @@ describe('Group booking cash transactions', () => {
           };
         }
 
-        // Wallet transactions INSERT
+        // Wallet transactions INSERT - track these
         if (normalized.includes('INSERT INTO wallet_transactions')) {
-          return { rows: [{ id: 'wtx-1' }] };
+          recordedWalletTransactions.push({ params });
+          return { rows: [{ id: 'wtx-' + recordedWalletTransactions.length }] };
         }
 
         // Wallet balances UPDATE
@@ -276,26 +278,10 @@ describe('Group booking cash transactions', () => {
           return { rows: [] };
         }
 
-        // Wallet transactions INSERT - track these
-        if (normalized.includes('INSERT INTO wallet_transactions')) {
-          recordedWalletTransactions.push({ params });
-          return { rows: [{ id: 'wtx-' + recordedWalletTransactions.length }] };
-        }
-
-        // Wallet balances UPDATE
-        if (normalized.includes('UPDATE wallet_balances')) {
-          return { rows: [{ id: 'bal-1' }] };
-        }
-
-        // Wallet audit logs
-        if (normalized.includes('wallet_audit_logs')) {
-          return { rows: [] };
-        }
-
-        if (normalized.includes('SELECT price, name, category FROM services')) {
+        if (normalized.includes('FROM services')) {
           return {
             rows: [
-              { price: '150', name: 'Group Lesson', category: 'group' }
+              { price: '150', name: 'Group Lesson', category: 'group', currency: 'EUR' }
             ]
           };
         }
@@ -359,9 +345,10 @@ describe('Group booking cash transactions', () => {
     };
 
     pool.connect = jest.fn().mockResolvedValue(mockClient);
-    pool.query = jest.fn();
+    pool.query = jest.fn().mockResolvedValue({ rows: [] });
 
     const req = {
+      user: { id: 'admin-1', role: 'admin', email: 'admin@test.com' },
       body: {
         date: '2025-10-02',
         start_hour: 10,
@@ -444,10 +431,10 @@ describe('Group booking cash transactions', () => {
           return { rows: [] };
         }
 
-        if (normalized.includes('SELECT price, name, category FROM services')) {
+        if (normalized.includes('FROM services')) {
           return {
             rows: [
-              { price: '120', name: 'Group Lesson', category: 'group' }
+              { price: '120', name: 'Group Lesson', category: 'group', currency: 'EUR' }
             ]
           };
         }
@@ -546,9 +533,10 @@ describe('Group booking cash transactions', () => {
     };
 
     pool.connect = jest.fn().mockResolvedValue(mockClient);
-    pool.query = jest.fn();
+    pool.query = jest.fn().mockResolvedValue({ rows: [] });
 
     const req = {
+      user: { id: 'admin-1', role: 'admin', email: 'admin@test.com' },
       body: {
         date: '2025-10-01',
         start_hour: 9,

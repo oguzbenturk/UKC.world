@@ -1,14 +1,13 @@
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
 import Decimal from 'decimal.js';
-import { 
-  Card, Row, Col, Statistic, Spin, Alert, Table, Button, Modal, Form, Input, 
-  InputNumber, DatePicker, Select, Popconfirm, Tooltip, Empty, Tag
+import {
+  Spin, Alert, Table, Button, Modal, Form, Input, InputNumber, DatePicker,
+  Select, Popconfirm, Empty, Tag
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { 
-  DownloadOutlined, DollarCircleOutlined, 
-  CheckCircleOutlined, ArrowUpOutlined, 
-  QuestionCircleOutlined, EditOutlined
+import {
+  DownloadOutlined, DollarCircleOutlined, CheckCircleOutlined,
+  ArrowUpOutlined, EditOutlined
 } from '@ant-design/icons';
 import { useData } from '@/shared/hooks/useData';
 import { formatCurrency } from '@/shared/utils/formatters';
@@ -16,170 +15,93 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import UnifiedTable from '@/shared/components/tables/UnifiedTable';
-
 
 const { Option } = Select;
 
-// eslint-disable-next-line complexity
 const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly = false }, ref) => {
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const managementEnabled = !readOnly;
-  
-  const [payrollHistory, setPayrollHistory] = useState([]);
+  const hasFetchedRef = useRef(false);
 
+  const [payrollHistory, setPayrollHistory] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalConfig, setModalConfig] = useState({ type: 'payment', record: null });
-  
   const [form] = Form.useForm();
 
-  // State for total earnings and payments
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
   const [unpaidEarnings, setUnpaidEarnings] = useState([]);
-  
-  // State for commission editing
+
   const [isCommissionModalVisible, setIsCommissionModalVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [commissionForm] = Form.useForm();
   const [isUpdatingCommission, setIsUpdatingCommission] = useState(false);
 
-  // eslint-disable-next-line complexity
   const fetchPayrollData = useCallback(async () => {
     if (!instructor?.id) return;
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Use the unified endpoint for all instructor financial data
       const response = await apiClient.get(`/finances/instructor-earnings/${instructor.id}`);
-      
-      // Extract data from the actual response structure
-      const { 
-        earnings = [], 
-        payrollHistory = []
-      } = response.data;
-      
-      // Calculate total earnings based on the actual database values
-      let calculatedTotalEarnings = new Decimal(0);
-      
-      // Process earnings data using actual database values
-      const processedEarnings = earnings.map(earning => {
-        // Use actual database values instead of calculating
-        const commissionAmount = parseFloat(earning.total_earnings || 0);
-        const lessonAmount = parseFloat(earning.lesson_amount || 0);
-        const duration = parseFloat(earning.lesson_duration || 0);
-        
-        // Add to running total
-        calculatedTotalEarnings = calculatedTotalEarnings.plus(commissionAmount);
-        
-        // Return enhanced earning object using database values
+      const { earnings = [], payrollHistory: history = [] } = response.data;
+
+      let calcEarnings = new Decimal(0);
+      const processed = earnings.map(e => {
+        const commAmt = parseFloat(e.total_earnings || 0);
+        calcEarnings = calcEarnings.plus(commAmt);
         return {
-          ...earning,
-          duration: duration,
-          lesson_amount: lessonAmount,
-          commission_amount: commissionAmount,
-          service_name: earning.service_name || "Kite Surfing Lesson",
-          student_name: earning.student_name || "Student",
-          booking_id: earning.booking_id
+          ...e,
+          duration: parseFloat(e.lesson_duration || 0),
+          lesson_amount: parseFloat(e.lesson_amount || 0),
+          commission_amount: commAmt,
+          service_name: e.service_name || 'Lesson',
+          student_name: e.student_name || 'Student',
+          booking_id: e.booking_id,
         };
       });
-      
-      // Calculate total paid from payment history
-      let totalPaidAmount = new Decimal(0);
-      
-      if (payrollHistory && payrollHistory.length > 0) {
-        for (const payment of payrollHistory) {
-          const paymentAmount = new Decimal(payment.amount || 0);
-          totalPaidAmount = totalPaidAmount.plus(paymentAmount);
-        }
-      }
-      
-      const totalPaidFinal = totalPaidAmount.toNumber();
-      
-      // Instructor earnings that haven't been paid out yet (instructor payroll context, not customer booking payments)
-      const availableBalance = calculatedTotalEarnings.minus(totalPaidAmount);
-      
-      // Track earnings pending payout to instructor
-      const unpaidEarnings = availableBalance.greaterThan(0) ? processedEarnings : [];
-      
-      setTotalEarnings(calculatedTotalEarnings.toNumber());
-      setTotalPaid(totalPaidFinal);
-      setPayrollHistory(payrollHistory || []);
-      setUnpaidEarnings(unpaidEarnings);
 
-  } catch (err) {
-      let errorMessage = 'Failed to load instructor payroll data.';
-      if (err.response?.status === 404) {
-        errorMessage = 'Instructor earnings data not found.';
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      setError(errorMessage);
+      let paidTotal = new Decimal(0);
+      for (const p of history) paidTotal = paidTotal.plus(new Decimal(p.amount || 0));
+
+      const balance = calcEarnings.minus(paidTotal);
+
+      setTotalEarnings(calcEarnings.toNumber());
+      setTotalPaid(paidTotal.toNumber());
+      setPayrollHistory(history);
+      setUnpaidEarnings(balance.greaterThan(0) ? processed : []);
+    } catch (err) {
+      setError(err.response?.status === 404
+        ? 'Instructor earnings data not found.'
+        : err.response?.data?.message || 'Failed to load payroll data.');
     } finally {
       setIsLoading(false);
     }
   }, [apiClient, instructor?.id]);
 
   useEffect(() => {
-    fetchPayrollData();
-  }, [fetchPayrollData]);
+    if (instructor?.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchPayrollData();
+    }
+  }, [instructor?.id, fetchPayrollData]);
 
-  // Expose refresh method to parent component
   useImperativeHandle(ref, () => ({
-    refreshData: fetchPayrollData
+    refreshData: () => { hasFetchedRef.current = false; fetchPayrollData(); }
   }));
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const tableColumn = ["Payment Date", "Amount", "Type", "Method", "Notes"];
-    const tableRows = [];
+  const fmt = (v) => formatCurrency(Number(v) || 0, businessCurrency || 'EUR');
+  const availableBalance = new Decimal(totalEarnings || 0).minus(new Decimal(totalPaid || 0)).toNumber();
 
-    payrollHistory.forEach(item => {
-      const rowData = [
-        item.payment_date ? moment(item.payment_date).format('YYYY-MM-DD') : 'N/A',
-        formatCurrency(item.amount),
-        item.amount >= 0 ? 'Payment' : 'Deduction',
-        item.payment_method || 'N/A',
-        item.notes || ''
-      ];
-      tableRows.push(rowData);
-    });
-    
-    doc.text(`Payment History for ${instructor.name}`, 14, 15);
-    doc.autoTable(tableColumn, tableRows, { startY: 20 });
-    doc.save(`${instructor.name}_payment_history.pdf`);
+  // ── Actions ──
+  const refresh = async () => {
+    if (onPaymentSuccess) await onPaymentSuccess();
+    else await fetchPayrollData();
   };
-
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <Spin />
-        <span className="ml-2">Loading payroll data...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <Alert message="Error" description={error} type="error" showIcon />;
-  }
-  
-  // TESTING: Use hardcoded values to verify UI displays correctly
-  const hardcodedEarnings = 160;
-  const hardcodedPaid = 0;
-  
-  // Use hardcoded values or calculated values
-  const displayEarnings = totalEarnings > 0 ? totalEarnings : hardcodedEarnings;
-  const displayPaid = totalPaid > 0 ? totalPaid : hardcodedPaid;
-  const availableBalance = new Decimal(displayEarnings || 0).minus(new Decimal(displayPaid || 0)).toNumber();
-  
-  // Use actual unpaid earnings from database
-  const displayUnpaidEarnings = unpaidEarnings;
 
   const showModal = (type, record = null) => {
     if (!managementEnabled) return;
@@ -191,35 +113,24 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     if (!managementEnabled) return;
     setIsSubmitting(true);
     const { type, record } = modalConfig;
-
     const payload = {
       ...values,
       amount: type === 'deduction' ? -Math.abs(values.amount) : Math.abs(values.amount),
       payment_date: values.payment_date.format('YYYY-MM-DD'),
       instructor_id: instructor.id,
       description: values.notes || `${type === 'deduction' ? 'Deduction' : 'Payment'} for ${instructor.name}`,
-      // The backend should determine the type based on the amount sign
     };
-
     try {
       if (type === 'edit' && record) {
         await apiClient.put(`/finances/instructor-payments/${record.id}`, payload);
-        message.success('Payment updated successfully!');
+        message.success('Payment updated!');
       } else {
         await apiClient.post('/finances/instructor-payments', payload);
-        message.success(`New ${type} recorded successfully!`);
+        message.success(`${type === 'deduction' ? 'Deduction' : 'Payment'} recorded!`);
       }
-      
-      // Call parent refresh function to update all instructor data
-      if(onPaymentSuccess) {
-        await onPaymentSuccess();
-      } else {
-        // Fallback to local refresh if no parent callback
-        await fetchPayrollData();
-      }
-      
+      await refresh();
       setIsModalVisible(false);
-  } catch (err) {
+    } catch (err) {
       message.error(err.response?.data?.message || `Failed to record ${type}.`);
     } finally {
       setIsSubmitting(false);
@@ -230,72 +141,31 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     if (!managementEnabled) return;
     try {
       await apiClient.delete(`/finances/instructor-payments/${paymentId}`);
-      message.success('Payment deleted successfully!');
-      
-      // Call parent refresh function to update all instructor data
-      if(onPaymentSuccess) {
-        await onPaymentSuccess();
-      } else {
-        // Fallback to local refresh if no parent callback
-        await fetchPayrollData();
-      }
-  } catch (err) {
+      message.success('Payment deleted!');
+      await refresh();
+    } catch (err) {
       message.error(err.response?.data?.message || 'Failed to delete payment.');
     }
   };
 
-  const showCommissionModal = (record) => {
-    if (!managementEnabled) return;
-    setSelectedBooking(record);
-    setIsCommissionModalVisible(true);
-  };
-
-  const handleCommissionModalCancel = () => {
-    setIsCommissionModalVisible(false);
-    setSelectedBooking(null);
-    commissionForm.resetFields();
-  };
-
   const handleCommissionUpdate = async (values) => {
     if (!managementEnabled || !selectedBooking || !instructor?.id) return;
-    
     setIsUpdatingCommission(true);
-    
     try {
-      // API expects commissionRate as a percentage (e.g., 50 for 50%)
-  await apiClient.put(
+      await apiClient.put(
         `/finances/instructor-earnings/${instructor.id}/${selectedBooking.booking_id}/commission`,
         { commissionRate: values.commissionRate }
       );
-      
-      // Calculate new commission amount based on the updated rate
-      const newCommissionRate = parseFloat(values.commissionRate) / 100;
-      const newCommissionAmount = selectedBooking.lesson_amount * newCommissionRate;
-      
-      // Update local state with the new commission rate and amount
-      // Store commission_rate as a percentage (e.g., 50 for 50%) to match backend format
-      setUnpaidEarnings(prevEarnings => prevEarnings.map(earning => {
-        if (earning.booking_id === selectedBooking.booking_id) {
-          return {
-            ...earning,
-            commission_rate: parseFloat(values.commissionRate),
-            commission_amount: newCommissionAmount
-          };
-        }
-        return earning;
-      }));
-      
-      message.success('Commission rate updated successfully');
+      const rate = parseFloat(values.commissionRate) / 100;
+      setUnpaidEarnings(prev => prev.map(e =>
+        e.booking_id === selectedBooking.booking_id
+          ? { ...e, commission_rate: parseFloat(values.commissionRate), commission_amount: e.lesson_amount * rate }
+          : e
+      ));
+      message.success('Commission rate updated');
       setIsCommissionModalVisible(false);
-      
-      // Call parent refresh function to update all instructor data
-      if(onPaymentSuccess) {
-        await onPaymentSuccess();
-      } else {
-        // Fallback to local refresh if no parent callback
-        await fetchPayrollData();
-      }
-  } catch (err) {
+      await refresh();
+    } catch (err) {
       message.error(err.response?.data?.message || 'Failed to update commission rate');
     } finally {
       setIsUpdatingCommission(false);
@@ -304,176 +174,121 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     }
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const cols = ['Date', 'Amount', 'Type', 'Method', 'Notes'];
+    const rows = payrollHistory.map(p => [
+      p.payment_date ? moment(p.payment_date).format('YYYY-MM-DD') : '—',
+      formatCurrency(p.amount), p.amount >= 0 ? 'Payment' : 'Deduction',
+      p.payment_method || '—', p.notes || '',
+    ]);
+    doc.text(`Payment History — ${instructor.name}`, 14, 15);
+    doc.autoTable(cols, rows, { startY: 20 });
+    doc.save(`${instructor.name}_payments.pdf`);
+  };
 
-  const baseUnpaidEarningsColumns = [
-    { title: 'Lesson Date', dataIndex: 'lesson_date', key: 'date', render: (text) => moment(text).format('YYYY-MM-DD') },
-    { title: 'Student', dataIndex: 'student_name', key: 'student', render: (text) => text || 'N/A' },
-    { title: 'Service', dataIndex: 'service_name', key: 'service', render: (text) => text || 'N/A' },
-    { title: 'Lesson Amount', dataIndex: 'lesson_amount', key: 'amount', render: (text, record) => formatCurrency(text || 0, record.currency || businessCurrency || 'EUR') },
-    { 
-      title: 'Commission Rate', 
-      dataIndex: 'commission_rate', 
-      key: 'commission_rate', 
-      render: (value, record) => {
-        const rateValue = typeof value === 'number' ? value : parseFloat(value || '0');
-        // If commission_type is 'fixed', display as hourly rate
-        if (record.commission_type === 'fixed') {
-          return formatCurrency(rateValue, record.currency || businessCurrency || 'EUR') + '/h';
-        }
-        // Handle percentage: if it's a small decimal (like 0.5), multiply by 100
-        return `${(rateValue < 1 ? rateValue * 100 : rateValue).toFixed(2)}%`;
-      }
-    },
-    { title: 'Commission Earned', dataIndex: 'commission_amount', key: 'earned', render: (text, record) => formatCurrency(text || 0, record.currency || businessCurrency || 'EUR') }
-  ];
-
-  const unpaidEarningsColumns = managementEnabled
-    ? [
-        ...baseUnpaidEarningsColumns,
-        {
-          title: 'Actions',
-          key: 'actions',
-          render: (_, record) => (
-            <Button 
-              type="link" 
-              icon={<EditOutlined />} 
-              onClick={() => showCommissionModal(record)}
-            >
-              Edit Commission
-            </Button>
-          ),
-        },
-      ]
-    : baseUnpaidEarningsColumns;
-
-  const baseHistoryColumns = [
-    { title: 'Payment Date', dataIndex: 'payment_date', key: 'payment_date', render: (text) => text ? moment(text).format('YYYY-MM-DD') : 'N/A' },
-    { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (text) => formatCurrency(text, businessCurrency || 'EUR') },
-    { title: 'Type', dataIndex: 'amount', key: 'type', render: (amount) => 
-      amount >= 0 ? <Tag color="green">PAYMENT</Tag> : <Tag color="red">DEDUCTION</Tag> 
-    },
-    { title: 'Method', dataIndex: 'payment_method', key: 'method' },
-    { title: 'Notes', dataIndex: 'notes', key: 'notes' }
-  ];
-
-  const historyColumns = managementEnabled
-    ? [
-        ...baseHistoryColumns,
-        {
-          title: 'Actions',
-          key: 'actions',
-          render: (_, record) => (
-            <span>
-              <Button type="link" onClick={() => showModal('edit', record)}>Edit</Button>
-              <Popconfirm
-                title="Are you sure you want to delete this payment?"
-                onConfirm={() => handleDeletePayment(record.id)}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button type="link" danger>Delete</Button>
-              </Popconfirm>
-            </span>
-          ),
-        },
-      ]
-    : baseHistoryColumns;
+  // ── Render ──
+  if (isLoading) return <div className="flex justify-center items-center h-48"><Spin size="large"><div className="p-8">Loading payroll...</div></Spin></div>;
+  if (error) return <Alert message="Error" description={error} type="error" showIcon action={<Button size="small" type="primary" onClick={() => { hasFetchedRef.current = false; fetchPayrollData(); }}>Retry</Button>} />;
 
   return (
     <Spin spinning={isSubmitting}>
-      <div className="space-y-6">
-        <Card variant="outlined">
-          <Row gutter={[16, 24]}>
-            <Col xs={24} md={8}>
-              <Statistic
-                title={
-                  <Tooltip title="The total gross earnings generated by the instructor over their entire history.">
-                    <span>Total Lifetime Earnings <QuestionCircleOutlined /></span>
-                  </Tooltip>
-                }
-                value={displayEarnings}
-                precision={2}
-                formatter={(value) => formatCurrency(Number(value) || 0, businessCurrency || 'EUR')}
-                prefix={<DollarCircleOutlined />}
-                valueStyle={{ color: 'var(--brand-success)' }}
-              />
-            </Col>
-            <Col xs={24} md={8}>
-              <Statistic
-                title={
-                  <Tooltip title="The total amount paid out to the instructor.">
-                    <span>Total Paid Out <QuestionCircleOutlined /></span>
-                  </Tooltip>
-                }
-                value={displayPaid}
-                precision={2}
-                formatter={(value) => formatCurrency(Number(value) || 0, businessCurrency || 'EUR')}
-                prefix={<ArrowUpOutlined />}
-                valueStyle={{ color: '#cf1322' }}
-              />
-            </Col>
-            <Col xs={24} md={8}>
-              <Statistic
-                title={
-                  <Tooltip title="The current amount owed to the instructor (Total Earnings - Total Paid Out). This is the balance available for the next payout.">
-                    <span>Available Balance <QuestionCircleOutlined /></span>
-                  </Tooltip>
-                }
-                value={availableBalance}
-                precision={2}
-                formatter={(value) => formatCurrency(Number(value) || 0, businessCurrency || 'EUR')}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: 'var(--brand-primary)' }}
-              />
-            </Col>
-          </Row>
-        </Card>
+      <div className="space-y-5">
+        {/* ── Summary cards ── */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Lifetime Earnings', value: fmt(totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Total Paid Out', value: fmt(totalPaid), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
+            { label: 'Balance Owed', value: fmt(availableBalance), icon: <CheckCircleOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
+          ].map(s => (
+            <div key={s.label} className="rounded-xl border border-gray-100 bg-white p-4">
+              <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${s.bg} ${s.color} text-base mb-2`}>{s.icon}</div>
+              <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
+            </div>
+          ))}
+        </div>
 
-        <Card>
-          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <h3 className="text-lg font-medium">Unpaid Earnings</h3>
+        {/* ── Unpaid Earnings ── */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <h4 className="text-sm font-semibold text-gray-800">Unpaid Earnings</h4>
           </div>
-          <UnifiedTable density="comfortable">
-            <Table 
-              columns={unpaidEarningsColumns} 
-              dataSource={displayUnpaidEarnings} 
-              rowKey="booking_id" 
-              pagination={{ pageSize: 5, hideOnSinglePage: true }}
-              locale={{ emptyText: <Empty description="No unpaid earnings found." /> }}
-            />
-          </UnifiedTable>
-        </Card>
+          <Table
+            columns={[
+              { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
+              { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true },
+              { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true },
+              { title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: (t, r) => formatCurrency(t || 0, r.currency || businessCurrency || 'EUR'), width: 100 },
+              { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
+                render: (v, r) => {
+                  const rv = typeof v === 'number' ? v : parseFloat(v || '0');
+                  return r.commission_type === 'fixed'
+                    ? formatCurrency(rv, r.currency || businessCurrency || 'EUR') + '/h'
+                    : `${(rv < 1 ? rv * 100 : rv).toFixed(1)}%`;
+                }
+              },
+              { title: 'Commission', dataIndex: 'commission_amount', key: 'comm',
+                render: (t, r) => <span className="font-medium text-emerald-700">{formatCurrency(t || 0, r.currency || businessCurrency || 'EUR')}</span>, width: 110 },
+              ...(managementEnabled ? [{
+                title: '', key: 'actions', width: 50,
+                render: (_, r) => <Button type="text" size="small" icon={<EditOutlined />} onClick={() => { setSelectedBooking(r); setIsCommissionModalVisible(true); }} />,
+              }] : []),
+            ]}
+            dataSource={unpaidEarnings}
+            rowKey="booking_id"
+            pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
+            size="small"
+            locale={{ emptyText: <Empty description="No unpaid earnings." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          />
+        </div>
 
-        <Card>
-          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <h3 className="text-lg font-medium">Payment History</h3>
-            <div className="flex items-center gap-2 flex-wrap justify-end sm:justify-end">
-              {managementEnabled ? (
+        {/* ── Payment History ── */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h4 className="text-sm font-semibold text-gray-800">Payment History</h4>
+            <div className="flex items-center gap-2">
+              {managementEnabled && (
                 <>
-                  <Button type="primary" onClick={() => showModal('payment')}>
-                    Make Payment
-                  </Button>
-                  <Button onClick={() => showModal('deduction')}>
-                    Add Deduction
-                  </Button>
+                  <Button size="small" type="primary" onClick={() => showModal('payment')}>Pay</Button>
+                  <Button size="small" onClick={() => showModal('deduction')}>Deduct</Button>
                 </>
-              ) : null}
-              <Button onClick={exportToPDF}>
-                <DownloadOutlined /> Export PDF
-              </Button>
+              )}
+              <Button size="small" icon={<DownloadOutlined />} onClick={exportToPDF}>PDF</Button>
             </div>
           </div>
-          <UnifiedTable density="comfortable">
-            <Table 
-              columns={historyColumns} 
-              dataSource={payrollHistory} 
-              rowKey="id" 
-              pagination={{ pageSize: 5 }}
-              locale={{ emptyText: <Empty description="No payment history found." /> }}
-            />
-          </UnifiedTable>
-        </Card>
+          <Table
+            columns={[
+              { title: 'Date', dataIndex: 'payment_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
+              { title: 'Amount', dataIndex: 'amount', key: 'amount', render: t => fmt(t), width: 110 },
+              { title: 'Type', dataIndex: 'amount', key: 'type', width: 100,
+                render: a => a >= 0
+                  ? <Tag color="green" bordered={false} className="rounded-full m-0">Payment</Tag>
+                  : <Tag color="red" bordered={false} className="rounded-full m-0">Deduction</Tag>
+              },
+              { title: 'Method', dataIndex: 'payment_method', key: 'method', render: t => t || '—', width: 110 },
+              { title: 'Notes', dataIndex: 'notes', key: 'notes', ellipsis: true },
+              ...(managementEnabled ? [{
+                title: '', key: 'actions', width: 100,
+                render: (_, r) => (
+                  <span className="flex gap-1">
+                    <Button type="text" size="small" onClick={() => showModal('edit', r)}>Edit</Button>
+                    <Popconfirm title="Delete this payment?" onConfirm={() => handleDeletePayment(r.id)} okText="Yes" cancelText="No">
+                      <Button type="text" size="small" danger>Del</Button>
+                    </Popconfirm>
+                  </span>
+                ),
+              }] : []),
+            ]}
+            dataSource={payrollHistory}
+            rowKey="id"
+            pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
+            size="small"
+            locale={{ emptyText: <Empty description="No payments yet." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          />
+        </div>
 
+        {/* ── Payment / Deduction Modal ── */}
         {managementEnabled && (
           <Modal
             title={`${modalConfig.type === 'edit' ? 'Edit' : 'New'} ${modalConfig.type === 'deduction' ? 'Deduction' : 'Payment'}`}
@@ -485,35 +300,25 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
               if (open && modalConfig) {
                 form.resetFields();
                 if (modalConfig.record) {
-                  form.setFieldsValue({
-                    ...modalConfig.record,
-                    payment_date: moment(modalConfig.record.payment_date),
-                  });
+                  form.setFieldsValue({ ...modalConfig.record, payment_date: moment(modalConfig.record.payment_date) });
                 } else {
                   form.setFieldsValue({
-                    amount: modalConfig.type === 'payment' ? availableBalance > 0 ? availableBalance : null : null,
-                    payment_date: moment(),
-                    payment_method: 'bank_transfer',
-                    notes: '',
-                    reference: ''
+                    amount: modalConfig.type === 'payment' && availableBalance > 0 ? availableBalance : null,
+                    payment_date: moment(), payment_method: 'bank_transfer', notes: '', reference: '',
                   });
                 }
               }
             }}
           >
             <Form form={form} layout="vertical" onFinish={handleModalSubmit} initialValues={{ payment_date: moment(), payment_method: 'bank_transfer' }}>
-        <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Please enter the amount' }]}>
-                <InputNumber
-          prefix={getCurrencySymbol(businessCurrency || 'EUR')}
-                  style={{ width: '100%' }}
-                  formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          parser={value => value.replace(/[^0-9.\-]/g, '')}
-                />
+              <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Enter the amount' }]}>
+                <InputNumber prefix={getCurrencySymbol(businessCurrency || 'EUR')} style={{ width: '100%' }}
+                  formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={v => v.replace(/[^0-9.\-]/g, '')} />
               </Form.Item>
-              <Form.Item name="payment_date" label="Payment Date" rules={[{ required: true, message: 'Please select the payment date' }]}>
+              <Form.Item name="payment_date" label="Payment Date" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="payment_method" label="Payment Method" rules={[{ required: true, message: 'Please select a payment method' }]}>
+              <Form.Item name="payment_method" label="Method" rules={[{ required: true }]}>
                 <Select>
                   <Option value="bank_transfer">Bank Transfer</Option>
                   <Option value="cash">Cash</Option>
@@ -521,75 +326,40 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                   <Option value="other">Other</Option>
                 </Select>
               </Form.Item>
-              <Form.Item name="reference" label="Reference / Transaction ID">
-                <Input />
-              </Form.Item>
-              <Form.Item name="notes" label="Notes">
-                <Input.TextArea rows={3} />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={isSubmitting} block>
-                  {modalConfig.type === 'edit' ? 'Update' : 'Submit'}
-                </Button>
-              </Form.Item>
+              <Form.Item name="reference" label="Reference"><Input /></Form.Item>
+              <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item>
+              <Form.Item><Button type="primary" htmlType="submit" loading={isSubmitting} block>{modalConfig.type === 'edit' ? 'Update' : 'Submit'}</Button></Form.Item>
             </Form>
           </Modal>
         )}
 
-        {/* Commission Edit Modal */}
+        {/* ── Commission Edit Modal ── */}
         {managementEnabled && (
-          <Modal
-            title="Edit Commission Rate"
-            open={isCommissionModalVisible}
-            onCancel={handleCommissionModalCancel}
-            footer={null}
-            destroyOnHidden
+          <Modal title="Edit Commission Rate" open={isCommissionModalVisible}
+            onCancel={() => { setIsCommissionModalVisible(false); setSelectedBooking(null); commissionForm.resetFields(); }}
+            footer={null} destroyOnHidden
             afterOpenChange={(open) => {
               if (open && selectedBooking) {
                 commissionForm.resetFields();
-                commissionForm.setFieldsValue({
-                  commissionRate: selectedBooking.commission_rate * 100 // Convert decimal to percentage for display
-                });
+                commissionForm.setFieldsValue({ commissionRate: selectedBooking.commission_rate * 100 });
               }
             }}
           >
             <Form form={commissionForm} layout="vertical" onFinish={handleCommissionUpdate}>
               {selectedBooking && (
                 <>
-                  <div className="mb-4">
-                    <p><strong>Lesson Date:</strong> {moment(selectedBooking.lesson_date).format('YYYY-MM-DD')}</p>
-                    <p><strong>Student:</strong> {selectedBooking.student_name || 'N/A'}</p>
-                    <p><strong>Service:</strong> {selectedBooking.service_name || 'N/A'}</p>
-                    <p><strong>Lesson Amount:</strong> {formatCurrency(selectedBooking.lesson_amount || 0)}</p>
+                  <div className="mb-4 rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+                    <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{moment(selectedBooking.lesson_date).format('YYYY-MM-DD')}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Student</span><span>{selectedBooking.student_name || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Service</span><span>{selectedBooking.service_name || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Amount</span><span>{formatCurrency(selectedBooking.lesson_amount || 0)}</span></div>
                   </div>
-                  <Form.Item 
-                    name="commissionRate" 
-                    label="Commission Rate (%)"
-                    rules={[
-                      { required: true, message: 'Please enter the commission rate' },
-                      { type: 'number', min: 0, max: 100, message: 'Commission rate must be between 0% and 100%' }
-                    ]}
-                  >
-                    <InputNumber
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      precision={2}
-                      style={{ width: '100%' }}
-                      formatter={value => `${value}%`}
-                      parser={value => value.replace('%', '')}
-                    />
+                  <Form.Item name="commissionRate" label="Commission Rate (%)"
+                    rules={[{ required: true, message: 'Enter commission rate' }, { type: 'number', min: 0, max: 100, message: '0-100%' }]}>
+                    <InputNumber min={0} max={100} step={0.5} precision={2} style={{ width: '100%' }}
+                      formatter={v => `${v}%`} parser={v => v.replace('%', '')} />
                   </Form.Item>
-                  <Form.Item>
-                    <Button 
-                      type="primary" 
-                      htmlType="submit" 
-                      loading={isUpdatingCommission} 
-                      block
-                    >
-                      Update Commission Rate
-                    </Button>
-                  </Form.Item>
+                  <Form.Item><Button type="primary" htmlType="submit" loading={isUpdatingCommission} block>Update</Button></Form.Item>
                 </>
               )}
             </Form>

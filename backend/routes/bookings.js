@@ -360,7 +360,7 @@ router.get('/',
         srv.duration as service_duration,
         cp.package_name as customer_package_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
-        COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value) as instructor_commission,
+        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value) as instructor_commission,
         t.id as transaction_id,
         creator.name as created_by_name,
         creator.email as created_by_email,
@@ -403,6 +403,7 @@ router.get('/',
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
   LEFT JOIN wallet_transactions t ON t.booking_id = b.id AND t.transaction_type IN ('charge', 'booking_charge')
       LEFT JOIN booking_participants bp ON bp.booking_id = b.id
@@ -734,14 +735,15 @@ router.get('/:id', async (req, res) => {
         cp.total_hours as package_total_hours,
         cp.purchase_price as package_price,
         COALESCE(b.final_amount, b.amount, srv.price, 0) as display_amount,
-        COALESCE(isc.commission_value, idc.commission_value, 30) as instructor_commission,
-        COALESCE(isc.commission_type, idc.commission_type, 'percentage') as commission_type
+        COALESCE(isc.commission_value, icr.rate_value, idc.commission_value, 30) as instructor_commission,
+        COALESCE(isc.commission_type, icr.rate_type, idc.commission_type, 'percentage') as commission_type
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN users i ON i.id = b.instructor_user_id
       LEFT JOIN services srv ON srv.id = b.service_id
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       WHERE b.id = $1 AND b.deleted_at IS NULL
     `, [req.params.id]);

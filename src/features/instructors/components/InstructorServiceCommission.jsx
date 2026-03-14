@@ -1,15 +1,14 @@
-// src/components/InstructorServiceCommission.jsx
-import { useState, useEffect, useMemo, forwardRef, useImperativeHandle, useCallback } from 'react';
-import { 
-  Table, Form, Input, Select, Button, Spin, 
-  Card, Tabs, Modal, InputNumber, Radio, Tag, Typography, 
-  Tooltip, Space
+// src/features/instructors/components/InstructorServiceCommission.jsx
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
+import {
+  Form, Select, Button, Spin, Modal, InputNumber, Radio, Tag,
+  Typography, Tooltip, Space, Empty
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { 
-  PlusOutlined, EditOutlined, DeleteOutlined, 
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined,
   SaveOutlined, CloseOutlined, InfoCircleOutlined,
-  DollarOutlined, PercentageOutlined
+  DollarOutlined, PercentageOutlined, CheckOutlined
 } from '@ant-design/icons';
 import { useData } from '@/shared/hooks/useData';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -18,702 +17,479 @@ import { formatCurrency } from '@/shared/utils/formatters';
 const { Text } = Typography;
 const { Option } = Select;
 
-const InstructorServiceCommission = forwardRef(({ 
-  instructorId, 
-  onSave = () => {}, 
-  onCancel = () => {}
+const LESSON_CATEGORIES = ['private', 'semi-private', 'group', 'supervision'];
+const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple' };
+
+const InstructorServiceCommission = forwardRef(({
+  instructorId,
+  onSave = () => {},
 }, ref) => {
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
+  const currencySymbol = getCurrencySymbol(businessCurrency || 'EUR');
+
   const [services, setServices] = useState([]);
   const [commissions, setCommissions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [editingKey, setEditingKey] = useState('');
-  const [form] = Form.useForm();
-  const [activeTab, setActiveTab] = useState('commissions');
-  const [defaultCommission, setDefaultCommission] = useState({
-    commissionType: 'percentage',
-    commissionValue: 50 // Set reasonable default of 50%
-  });
+  const [editingServiceId, setEditingServiceId] = useState(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [form] = Form.useForm();
+  const [addForm] = Form.useForm();
+
+  // Default commission
+  const [defaultCommission, setDefaultCommission] = useState({ commissionType: 'percentage', commissionValue: 50 });
+  const [defaultDirty, setDefaultDirty] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
+
+  // Category rates
+  const [categoryRates, setCategoryRates] = useState([]);
+  const [categoryRatesLoading, setCategoryRatesLoading] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryForm] = Form.useForm();
+
+  const hasFetchedRef = useRef(false);
 
   const fetchData = useCallback(async () => {
-    if (!instructorId) {
-      message.error('Cannot load commission data: missing instructor information');
-      return;
-    }
-    
+    if (!instructorId) return;
     setLoading(true);
-    try {      
-      // Fetch all services
-      const servicesRes = await apiClient.get('/services');
-      if (!servicesRes.data) {
-        message.warning('No services returned from API');
-      }
+    try {
+      const [servicesRes, commissionsRes] = await Promise.all([
+        apiClient.get('/services'),
+        apiClient.get(`/instructor-commissions/instructors/${instructorId}/commissions`),
+      ]);
+
       setServices(servicesRes.data || []);
-      
-      // Fetch commission data directly (this includes service details)
-      const commissionsRes = await apiClient.get(`/instructor-commissions/instructors/${instructorId}/commissions`);
-      const commissionData = commissionsRes.data || {};
-      
-      if (commissionsRes.data && commissionsRes.data.defaultCommission) {
+      const data = commissionsRes.data || {};
+
+      if (data.defaultCommission) {
         setDefaultCommission({
-          commissionType: commissionsRes.data.defaultCommission.type || 'fixed',
-          commissionValue: commissionsRes.data.defaultCommission.value || 50
-        });
-      } else {
-        // If no default commission exists, set UI defaults to fixed €50/hour
-        setDefaultCommission({
-          commissionType: 'fixed',
-          commissionValue: 50
+          commissionType: data.defaultCommission.type || 'fixed',
+          commissionValue: data.defaultCommission.value || 50,
         });
       }
-      
-      // Use the commissions data directly from the API
-      // The backend already provides service details with commission data
-      const instructorCommissions = (commissionData.commissions || []).map(commission => {
-        return {
-          key: commission.serviceId,
-          serviceId: commission.serviceId,
-          serviceName: commission.serviceName,
-          serviceCategory: commission.serviceCategory,
-          serviceLevel: commission.serviceLevel,
-          commissionType: commission.commissionType,
-          commissionValue: commission.commissionValue,
-        };
-      });
-      
-      setCommissions(instructorCommissions);
-      
-      if (instructorCommissions.length === 0) {
-        message.info('No service commissions found for this instructor. You can add them using the "Add Commission" button.');
-      }
-      
+
+      setCommissions((data.commissions || []).map(c => ({
+        key: c.serviceId,
+        serviceId: c.serviceId,
+        serviceName: c.serviceName,
+        serviceCategory: c.serviceCategory,
+        serviceLevel: c.serviceLevel,
+        commissionType: c.commissionType,
+        commissionValue: c.commissionValue,
+      })));
     } catch (error) {
-      message.error(`Failed to load commission data: ${error.response?.data?.error || error.message}`);
+      message.error(`Failed to load commissions: ${error.response?.data?.error || error.message}`);
     } finally {
       setLoading(false);
     }
   }, [apiClient, instructorId]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const fetchCategoryRates = useCallback(async () => {
+    if (!instructorId) return;
+    setCategoryRatesLoading(true);
+    try {
+      const res = await apiClient.get(`/instructor-commissions/instructors/${instructorId}/category-rates`);
+      setCategoryRates(res.data?.categoryRates || []);
+    } catch {
+      setCategoryRates([]);
+    } finally {
+      setCategoryRatesLoading(false);
+    }
+  }, [apiClient, instructorId]);
 
-  // Expose refresh method to parent component
+  // Only fetch once when mounted, not on every re-render
+  useEffect(() => {
+    if (instructorId && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchData();
+      fetchCategoryRates();
+    }
+  }, [instructorId, fetchData, fetchCategoryRates]);
+
   useImperativeHandle(ref, () => ({
-    refreshData: fetchData
+    refreshData: () => { fetchData(); fetchCategoryRates(); }
   }));
 
-  const isEditing = (record) => record.key === editingKey;
-
-  const edit = (record) => {
-    if (!record || !record.serviceId) {
-      message.error('Cannot edit this commission: missing service information');
-      return;
-    }
-    
-    // Set all fields from the record to the form, ensuring serviceId is included
+  // ── Service commission handlers ──
+  const handleEditService = (record) => {
     form.setFieldsValue({
-      serviceId: record.serviceId,
-      key: record.key,
-      serviceName: record.serviceName,
-      serviceCategory: record.serviceCategory,
-      serviceLevel: record.serviceLevel,
       commissionType: record.commissionType || 'percentage',
       commissionValue: record.commissionValue || 0,
     });
-    
-    // Set the editingKey to the record's key to enable editing mode
-    setEditingKey(record.key);
+    setEditingServiceId(record.serviceId);
   };
 
-  const cancel = () => {
-    setEditingKey('');
-  };
-
-  const save = async (key) => {
+  const handleSaveService = async (serviceId) => {
     try {
-      const row = await form.validateFields();
-      
-      // Find the original record to get the serviceId
-      const originalRecord = commissions.find(item => item.key === key);
-      if (!originalRecord) {
-        message.error('Failed to save commission: record not found');
-        return;
-      }
-      
-      // Make sure we have the serviceId
-      if (!row.serviceId && originalRecord.serviceId) {
-        row.serviceId = originalRecord.serviceId;
-      }
-      
-      // Double check that we have a serviceId
-      if (!row.serviceId) {
-        message.error('Failed to save commission: service ID is missing');
-        return;
-      }
-      
-      const newData = [...commissions];
-      const index = newData.findIndex((item) => key === item.key);
-      
-      if (index > -1) {
-        const item = newData[index];
-        // Create updated item with serviceId explicitly preserved
-        const updatedItem = { 
-          ...item, 
-          ...row,
-          serviceId: row.serviceId, // Ensure we keep the serviceId
-          key: key // Make sure key is retained
-        };
-        newData.splice(index, 1, updatedItem);
-        setCommissions(newData);
-        setEditingKey('');
-      } else {
-        newData.push({...row, key: row.serviceId});
-        setCommissions(newData);
-        setEditingKey('');
-      }
-        try {
-        // Double check that we have a serviceId for the API call
-        if (!row.serviceId) {
-          message.error('Cannot update: service ID is missing');
-          return;
-        }
-        
-        // Explicitly log the API endpoint for debugging
-        const apiEndpoint = `/instructor-commissions/instructors/${instructorId}/commissions/${row.serviceId}`;
-        
-  await apiClient.put(apiEndpoint, {
-          commissionType: row.commissionType,
-          commissionValue: row.commissionValue,
-        });
-        
-        message.success('Commission updated successfully');
-        
-        // Trigger parent refresh to update all instructor data
-        onSave();
-      } catch (error) {
-        message.error(`Failed to save commission: ${error.response?.data?.error || error.message}`);
-      }
-  } catch {
-      message.error('Validation failed. Please check your inputs.');
-    }
-  };
-
-  const handleDelete = useCallback(async (serviceId) => {
-    if (!serviceId) {
-      message.error('Cannot delete commission: missing service information');
-      return;
-    }
-    
-  setDeleteTarget(serviceId);
-  }, []);
-  const handleAdd = useCallback(() => {
-    // Use the existing form instance instead of creating a new one
-    
-    // Initialize form with default values
-    form.setFieldsValue({
-      commissionType: 'percentage',
-      commissionValue: 0
-    });
-  setAddModalVisible(true);
-  }, [form]);
-  
-  const handleSaveDefaultCommission = useCallback(async () => {
-    try {
-      await apiClient.put(`/instructor-commissions/instructors/${instructorId}/default-commission`, defaultCommission);
-      message.success('Default commission updated successfully');
-      
-      // Trigger parent refresh to update all instructor data
+      const values = await form.validateFields();
+      await apiClient.put(`/instructor-commissions/instructors/${instructorId}/commissions/${serviceId}`, {
+        commissionType: values.commissionType,
+        commissionValue: values.commissionValue,
+      });
+      setEditingServiceId(null);
+      fetchData();
       onSave();
     } catch {
-      message.error('Failed to update default commission');
+      message.error('Failed to save commission');
     }
-  }, [apiClient, instructorId, defaultCommission, onSave]);
+  };
 
-  // Calculate estimated earnings with useMemo to avoid recalculation on every render
-  const getEstimatedEarnings = useMemo(() => {
-    return (record) => {
-      if (!record || !record.serviceId) return 'N/A';
-      
-      const service = services.find(s => s.id === record.serviceId);
-      if (!service) return 'N/A';
-      
-      const price = service.price || 0;
-      const duration = service.duration || 1; // Duration in hours
-      let estimated = 0;
-      
-      if (record.commissionType === 'percentage' && record.commissionValue !== undefined) {
-        estimated = price * (record.commissionValue / 100);
-      } else if (record.commissionType === 'fixed_per_lesson' && record.commissionValue !== undefined) {
-        // Fixed per lesson - flat rate regardless of duration
-        estimated = record.commissionValue;
-      } else if (record.commissionValue !== undefined) {
-        // 'fixed' or 'fixed_per_hour' - multiply by duration (per hour rate)
-        estimated = record.commissionValue * duration;
+  const handleDeleteService = async (serviceId) => {
+    try {
+      await apiClient.delete(`/instructor-commissions/instructors/${instructorId}/commissions/${serviceId}`);
+      setCommissions(prev => prev.filter(c => c.serviceId !== serviceId));
+      message.success('Commission removed');
+      onSave();
+    } catch {
+      message.error('Failed to delete commission');
+    }
+  };
+
+  const handleAddCommissions = async () => {
+    try {
+      const values = await addForm.validateFields();
+      const ids = Array.isArray(values.serviceIds) ? values.serviceIds : [];
+      if (!ids.length) { message.error('Select at least one service'); return; }
+
+      const tasks = ids.map(id => {
+        const svc = services.find(s => s.id === id);
+        if (!svc) return Promise.resolve({ ok: false, id });
+        return apiClient
+          .post(`/instructor-commissions/instructors/${instructorId}/commissions`, {
+            serviceId: id,
+            commissionType: values.commissionType || 'fixed',
+            commissionValue: values.commissionValue || 0,
+          })
+          .then(() => ({ ok: true, id, svc }))
+          .catch(() => ({ ok: false, id, svc }));
+      });
+
+      const results = await Promise.all(tasks);
+      const ok = results.filter(r => r.ok);
+      const fail = results.filter(r => !r.ok);
+      if (ok.length) {
+        setCommissions(prev => [
+          ...prev,
+          ...ok.map(({ id, svc }) => ({
+            key: id, serviceId: id, serviceName: svc.name,
+            serviceCategory: svc.category, serviceLevel: svc.level,
+            commissionType: values.commissionType || 'fixed',
+            commissionValue: values.commissionValue || 0,
+          })),
+        ]);
+        message.success(`Added ${ok.length} commission(s)`);
+        onSave();
       }
+      if (fail.length) message.warning(`${fail.length} service(s) failed`);
+      setAddModalVisible(false);
+      addForm.resetFields();
+    } catch { /* validation */ }
+  };
 
-      return formatCurrency(estimated, service.currency || businessCurrency || 'EUR');
-    };
-  }, [services, businessCurrency]);
-
-  const columns = [
-    {
-      title: 'Service Name',
-      dataIndex: 'serviceName',
-      key: 'serviceName',
-      editable: false,
-      render: (text, record) => (
-        <span>
-          {text}
-          <Tag color="blue" style={{ marginLeft: 8 }}>{record.serviceCategory}</Tag>
-          <Tag color="green">{record.serviceLevel}</Tag>
-        </span>
-      ),
-    },
-    {
-      title: 'Commission Type',
-      dataIndex: 'commissionType',
-      key: 'commissionType',
-      editable: true,
-      width: '20%',
-      render: (text) => (
-        <span>
-          {text === 'percentage' ? (
-            <Tag color="blue" icon={<PercentageOutlined />}>Percentage</Tag>
-          ) : (
-            <Tag color="green" icon={<DollarOutlined />}>Fixed Amount</Tag>
-          )}
-        </span>
-      ),
-    },
-    {
-      title: 'Value',
-      dataIndex: 'commissionValue',
-      key: 'commissionValue',
-      editable: true,
-      width: '15%',
-      render: (text, record) => (
-        <span>
-          {record.commissionType === 'percentage'
-            ? `${text}%`
-            : formatCurrency(Number(text || 0), businessCurrency || 'EUR')}
-        </span>
-      ),
-    },
-    {
-      title: 'Est. Earnings',
-      key: 'estimatedEarnings',
-      width: '15%',
-      render: (_, record) => getEstimatedEarnings(record),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: '15%',
-      render: (_, record) => {
-        const editable = isEditing(record);
-        return editable ? (
-          <span>
-            <Button
-              icon={<SaveOutlined />}
-              type="link"
-              onClick={() => save(record.key)}
-              style={{ marginRight: 8 }}
-            >
-              Save
-            </Button>
-            <Button icon={<CloseOutlined />} type="link" onClick={cancel}>
-              Cancel
-            </Button>
-          </span>
-        ) : (
-          <span>
-            <Button
-              disabled={editingKey !== ''}
-              icon={<EditOutlined />}
-              type="link"
-              onClick={() => edit(record)}
-              style={{ marginRight: 8 }}
-            >
-              Edit
-            </Button>
-            <Button
-              disabled={editingKey !== ''}
-              icon={<DeleteOutlined />}
-              type="link"
-              danger
-              onClick={() => handleDelete(record.serviceId)}
-            >
-              Delete
-            </Button>
-          </span>
-        );
-      },
-    },
-  ];
-
-  const mergedColumns = columns.map((col) => {
-    if (!col.editable) {
-      return col;
+  // ── Default commission handlers ──
+  const handleSaveDefault = async () => {
+    setSavingDefault(true);
+    try {
+      await apiClient.put(`/instructor-commissions/instructors/${instructorId}/default-commission`, defaultCommission);
+      setDefaultDirty(false);
+      onSave();
+    } catch {
+      message.error('Failed to save default commission');
+    } finally {
+      setSavingDefault(false);
     }
-    return {
-      ...col,
-      onCell: (record) => ({
-        record,
-        inputType: col.dataIndex === 'commissionType' ? 'select' : 'number',
-        dataIndex: col.dataIndex,
-        title: col.title,
-        editing: isEditing(record),
-      }),
-    };
-  });
+  };
 
-  const EditableCell = useCallback(({ 
-    editing,
-    dataIndex,
-    title,
-    inputType,
-    children,
-    ...restProps
-  }) => {
-    let inputNode;
-    
-    if (inputType === 'select') {
-      inputNode = (
-        <Select>
+  // ── Category rate handlers ──
+  const handleSaveCategoryRate = async (category) => {
+    try {
+      const values = await categoryForm.validateFields();
+      await apiClient.put(`/instructor-commissions/instructors/${instructorId}/category-rates`, {
+        rates: [{ lessonCategory: category, rateType: values.rateType, rateValue: values.rateValue }],
+      });
+      message.success(`${category} rate saved`);
+      setEditingCategory(null);
+      fetchCategoryRates();
+      onSave();
+    } catch {
+      message.error('Failed to save category rate');
+    }
+  };
+
+  const handleDeleteCategoryRate = async (category) => {
+    try {
+      await apiClient.delete(`/instructor-commissions/instructors/${instructorId}/category-rates/${category}`);
+      message.success(`${category} rate removed`);
+      fetchCategoryRates();
+      onSave();
+    } catch {
+      message.error('Failed to delete category rate');
+    }
+  };
+
+  // ── Render helpers ──
+  const renderCommissionBadge = (type, value) => {
+    if (type === 'percentage') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-xs font-medium"><PercentageOutlined /> {value}%</span>;
+    }
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-medium"><DollarOutlined /> {formatCurrency(Number(value || 0), businessCurrency || 'EUR')}/h</span>;
+  };
+
+  const renderEditableRate = (formInstance, typeField, valueField) => (
+    <div className="flex items-center gap-2">
+      <Form.Item name={typeField || 'commissionType'} noStyle>
+        <Select size="small" className="w-28">
+          <Option value="fixed">Fixed /h</Option>
           <Option value="percentage">Percentage</Option>
-          <Option value="fixed">Fixed Amount</Option>
         </Select>
-      );
-    } else {
-      // Get commission type from form or use percentage as fallback
-      const isPercentage = form.getFieldValue('commissionType') === 'percentage';
-      inputNode = (
+      </Form.Item>
+      <Form.Item name={valueField || 'commissionValue'} noStyle rules={[{ required: true, message: 'Required' }]}>
         <InputNumber
+          size="small"
           min={0}
-          max={isPercentage ? 100 : undefined}
-          addonAfter={isPercentage ? '%' : getCurrencySymbol(businessCurrency || 'EUR')}
+          max={formInstance.getFieldValue(typeField || 'commissionType') === 'percentage' ? 100 : undefined}
+          className="w-24"
+          addonAfter={formInstance.getFieldValue(typeField || 'commissionType') === 'percentage' ? '%' : currencySymbol}
         />
-      );
-    }
-    
-    return (
-      <td {...restProps}>
-        {editing ? (
-          <Form.Item
-            name={dataIndex}
-            style={{ margin: 0 }}
-            rules={[
-              {
-                required: true,
-                message: `Please Input ${title}!`,
-              },
-            ]}
-          >
-            {inputNode}
-          </Form.Item>
-        ) : (
-          children
-        )}
-      </td>
-    );
-  }, [form, businessCurrency, getCurrencySymbol]);
-
-  const tabItems = useMemo(() => [
-    {
-      key: 'commissions',
-      label: 'Service Commissions',
-      children: (
-        <Card
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Service Commissions</span>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAdd}
-                disabled={editingKey !== ''}
-              >
-                Add Service Commissions
-              </Button>
-            </div>
-          }
-          variant="outlined"
-        >
-          <Spin spinning={loading}>
-            <Form form={form} component={false}>
-              <Table
-                components={{
-                  body: { cell: EditableCell },
-                }}
-                bordered
-                dataSource={commissions}
-                columns={mergedColumns}
-                rowClassName="editable-row"
-                pagination={false}
-                rowKey="key"
-                locale={{
-                  emptyText: (
-                    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                      <DollarOutlined style={{ fontSize: '48px', color: '#d9d9d9', marginBottom: '16px' }} />
-                      <div style={{ fontSize: '16px', color: '#595959', marginBottom: '8px' }}>
-                        No Service Commissions Set
-                      </div>
-                      <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '16px' }}>
-                        This instructor doesn't have any specific service commission rates configured.
-                        <br />
-                        Add commission rates to track earnings for different services.
-                      </div>
-                      <Button 
-                        type="primary" 
-                        icon={<PlusOutlined />} 
-                        onClick={handleAdd}
-                        size="small"
-                      >
-                        Add First Commissions
-                      </Button>
-                    </div>
-                  )
-                }}
-              />
-              {/* Delete confirmation */}
-  <Modal
-                title="Confirm Delete"
-                open={!!deleteTarget}
-                onCancel={() => setDeleteTarget(null)}
-                onOk={async () => {
-                  if (!deleteTarget) return;
-                  try {
-        await apiClient.delete(`/instructor-commissions/instructors/${instructorId}/commissions/${deleteTarget}`);
-                    setCommissions(commissions.filter(item => item.serviceId !== deleteTarget));
-                    message.success('Commission removed successfully');
-                    onSave();
-                  } catch {
-                    message.error('Failed to delete commission');
-                  } finally {
-                    setDeleteTarget(null);
-                  }
-                }}
-                okButtonProps={{ danger: true }}
-              >
-                This will reset to the default commission settings. Are you sure?
-              </Modal>
-              {/* Hidden Form Fields to ensure critical data is always in the form */}
-              {editingKey !== '' && (
-                <div style={{ display: 'none' }}>
-                  <Form.Item name="serviceId">
-                    <Input />
-                  </Form.Item>
-                  <Form.Item name="key">
-                    <Input />
-                  </Form.Item>
-                </div>
-              )}
-            </Form>
-          </Spin>
-        </Card>
-      )
-    },
-    {
-      key: 'default',
-      label: 'Default Commission',
-      children: (
-        <Card title="Default Commission Settings" variant="outlined">
-          <Spin spinning={loading}>
-            <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-              <Text type="secondary">
-                These settings will be applied to all services that don't have specific commission rules.
-              </Text>
-              
-              <div style={{ marginTop: 20 }}>
-                <Form layout="vertical">
-                  <Form.Item label="Commission Type">
-                    <Radio.Group
-                      value={defaultCommission.commissionType}
-                      onChange={(e) => setDefaultCommission({
-                        ...defaultCommission,
-                        commissionType: e.target.value,
-                      })}
-                    >
-                      <Radio value="fixed">
-                        <Space>
-                          Fixed Rate (per hour)
-                          <Tooltip title="Instructor earns a fixed hourly rate (e.g., €50/hour)">
-                            <InfoCircleOutlined />
-                          </Tooltip>
-                        </Space>
-                      </Radio>
-                      <Radio value="percentage">
-                        <Space>
-                          Percentage
-                          <Tooltip title="Instructor earns a percentage of the service price">
-                            <InfoCircleOutlined />
-                          </Tooltip>
-                        </Space>
-                      </Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  
-                  <Form.Item label="Value">
-                    <InputNumber
-                      min={0}
-                      max={defaultCommission.commissionType === 'percentage' ? 100 : undefined}
-                      value={defaultCommission.commissionValue}
-                      onChange={(value) => setDefaultCommission({
-                        ...defaultCommission,
-                        commissionValue: value,
-                      })}
-                      addonAfter={defaultCommission.commissionType === 'percentage' ? '%' : getCurrencySymbol(businessCurrency || 'EUR')}
-                      style={{ width: '200px' }}
-                      placeholder={defaultCommission.commissionType === 'fixed' ? '50' : '50'}
-                    />
-                    <div style={{ marginTop: 8 }}>
-                      <Text type="secondary">
-                        {defaultCommission.commissionType === 'fixed' 
-                          ? 'Fixed hourly rate (recommended: €40-60/hour)'
-                          : 'Percentage of the lesson price (recommended: 40-60%)'
-                        }
-                      </Text>
-                    </div>
-                  </Form.Item>
-                  
-                  <Form.Item>
-                    <Button
-                      type="primary"
-                      onClick={handleSaveDefaultCommission}
-                      icon={<SaveOutlined />}
-                    >
-                      Save Default Commission
-                    </Button>
-                  </Form.Item>
-                </Form>
-              </div>
-            </div>
-          </Spin>
-        </Card>
-      )
-    }
-  // Dependencies include all referenced values to satisfy hooks lint
-  ], [commissions, loading, editingKey, form, mergedColumns, defaultCommission, handleAdd, handleSaveDefaultCommission, onSave, deleteTarget, apiClient, instructorId, EditableCell, businessCurrency, getCurrencySymbol]);
+      </Form.Item>
+    </div>
+  );
 
   return (
-    <div className="instructor-service-commission">
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={setActiveTab}
-        items={tabItems}
-      />
+    <Spin spinning={loading}>
+      <div className="space-y-6">
+        {/* ── SECTION 1: Default Commission ── */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800">Default Commission</h4>
+                <p className="text-xs text-gray-400 mt-0.5">Applies to all services without a specific rate</p>
+              </div>
+              {defaultDirty && (
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SaveOutlined />}
+                  loading={savingDefault}
+                  onClick={handleSaveDefault}
+                >
+                  Save
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-2">Commission Type</div>
+                <Radio.Group
+                  value={defaultCommission.commissionType}
+                  onChange={(e) => {
+                    setDefaultCommission(prev => ({ ...prev, commissionType: e.target.value }));
+                    setDefaultDirty(true);
+                  }}
+                  size="small"
+                  optionType="button"
+                  buttonStyle="solid"
+                >
+                  <Radio.Button value="fixed">
+                    <DollarOutlined className="mr-1" /> Fixed /h
+                  </Radio.Button>
+                  <Radio.Button value="percentage">
+                    <PercentageOutlined className="mr-1" /> Percentage
+                  </Radio.Button>
+                </Radio.Group>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-2">Value</div>
+                <InputNumber
+                  min={0}
+                  max={defaultCommission.commissionType === 'percentage' ? 100 : undefined}
+                  value={defaultCommission.commissionValue}
+                  onChange={(value) => {
+                    setDefaultCommission(prev => ({ ...prev, commissionValue: value }));
+                    setDefaultDirty(true);
+                  }}
+                  addonAfter={defaultCommission.commissionType === 'percentage' ? '%' : currencySymbol}
+                  className="w-36"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── SECTION 2: Category Rates ── */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+            <h4 className="text-sm font-semibold text-gray-800">Lesson Category Rates</h4>
+            <p className="text-xs text-gray-400 mt-0.5">Override the default rate by lesson type — applies to all services of that category</p>
+          </div>
+          <Spin spinning={categoryRatesLoading}>
+            <div className="divide-y divide-gray-100">
+              {LESSON_CATEGORIES.map(cat => {
+                const existing = categoryRates.find(r => r.lesson_category === cat);
+                const hasRate = !!existing;
+                const isEditing = editingCategory === cat;
+
+                return (
+                  <div key={cat} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Tag color={CATEGORY_COLORS[cat]} bordered={false} className="rounded-full capitalize m-0">{cat}</Tag>
+                    </div>
+
+                    {isEditing ? (
+                      <Form form={categoryForm} component={false}>
+                        <div className="flex items-center gap-2">
+                          {renderEditableRate(categoryForm, 'rateType', 'rateValue')}
+                          <Button type="text" size="small" icon={<CheckOutlined />} className="text-green-600" onClick={() => handleSaveCategoryRate(cat)} />
+                          <Button type="text" size="small" icon={<CloseOutlined />} className="text-gray-400" onClick={() => setEditingCategory(null)} />
+                        </div>
+                      </Form>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {hasRate ? (
+                          <>
+                            {renderCommissionBadge(existing.rate_type, parseFloat(existing.rate_value))}
+                            <Button type="text" size="small" icon={<EditOutlined />} className="text-gray-400 hover:text-blue-600"
+                              onClick={() => {
+                                categoryForm.setFieldsValue({ rateType: existing.rate_type || 'fixed', rateValue: parseFloat(existing.rate_value) || 0 });
+                                setEditingCategory(cat);
+                              }}
+                            />
+                            <Button type="text" size="small" icon={<DeleteOutlined />} className="text-gray-400 hover:text-red-500"
+                              onClick={() => handleDeleteCategoryRate(cat)}
+                            />
+                          </>
+                        ) : (
+                          <Button type="dashed" size="small" icon={<PlusOutlined />}
+                            onClick={() => {
+                              categoryForm.setFieldsValue({ rateType: 'fixed', rateValue: 0 });
+                              setEditingCategory(cat);
+                            }}
+                          >
+                            Set rate
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Spin>
+          <div className="px-5 py-2.5 bg-gray-50/70 border-t border-gray-100">
+            <Text className="text-[11px] text-gray-400">
+              <InfoCircleOutlined className="mr-1" />
+              Priority: Booking custom → Service-specific → <strong>Category rate</strong> → Default
+            </Text>
+          </div>
+        </div>
+
+        {/* ── SECTION 3: Service Commissions ── */}
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800">Service Commissions</h4>
+                <p className="text-xs text-gray-400 mt-0.5">Override rates for specific services — highest priority after per-booking</p>
+              </div>
+              <Button size="small" icon={<PlusOutlined />} onClick={() => { addForm.resetFields(); setAddModalVisible(true); }}>
+                Add
+              </Button>
+            </div>
+          </div>
+
+          {commissions.length === 0 ? (
+            <div className="py-10">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <span className="text-gray-400 text-sm">
+                    No service-specific commissions configured.
+                    <br />
+                    <span className="text-xs">All services will use the default or category rates above.</span>
+                  </span>
+                }
+              >
+                <Button type="dashed" icon={<PlusOutlined />} onClick={() => { addForm.resetFields(); setAddModalVisible(true); }}>
+                  Add Service Commission
+                </Button>
+              </Empty>
+            </div>
+          ) : (
+            <Form form={form} component={false}>
+              <div className="divide-y divide-gray-100">
+                {commissions.map(record => {
+                  const isEditing = editingServiceId === record.serviceId;
+                  return (
+                    <div key={record.serviceId} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50/50 transition-colors gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-800 truncate">{record.serviceName}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {record.serviceCategory && <Tag bordered={false} className="text-[10px] rounded-full m-0 px-1.5 py-0 leading-4">{record.serviceCategory}</Tag>}
+                          {record.serviceLevel && <Tag bordered={false} color="green" className="text-[10px] rounded-full m-0 px-1.5 py-0 leading-4">{record.serviceLevel}</Tag>}
+                        </div>
+                      </div>
+
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          {renderEditableRate(form, 'commissionType', 'commissionValue')}
+                          <Button type="text" size="small" icon={<CheckOutlined />} className="text-green-600" onClick={() => handleSaveService(record.serviceId)} />
+                          <Button type="text" size="small" icon={<CloseOutlined />} className="text-gray-400" onClick={() => setEditingServiceId(null)} />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {renderCommissionBadge(record.commissionType, record.commissionValue)}
+                          <Button type="text" size="small" icon={<EditOutlined />} className="text-gray-400 hover:text-blue-600"
+                            onClick={() => handleEditService(record)} />
+                          <Button type="text" size="small" icon={<DeleteOutlined />} className="text-gray-400 hover:text-red-500"
+                            onClick={() => handleDeleteService(record.serviceId)} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Form>
+          )}
+        </div>
+      </div>
+
       {/* Add Commission Modal */}
       <Modal
         title="Add Service Commissions"
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
-        onOk={async () => {
-          try {
-            const values = await form.validateFields();
-            const ids = Array.isArray(values.serviceIds) ? values.serviceIds : [];
-            if (!ids.length) {
-              message.error('Please select at least one service');
-              return;
-            }
-
-            const commissionType = values.commissionType || 'percentage';
-            const commissionValue = values.commissionValue || 0;
-
-            // Prepare API calls for each selected service
-            const tasks = ids.map((id) => {
-              const svc = services.find((s) => s.id === id);
-              if (!svc) return Promise.resolve({ ok: false, id });
-              return apiClient
-                .post(`/instructor-commissions/instructors/${instructorId}/commissions`, {
-                  serviceId: id,
-                  commissionType,
-                  commissionValue,
-                })
-                .then(() => ({ ok: true, id, svc }))
-                .catch(() => ({ ok: false, id, svc }));
-            });
-
-            const results = await Promise.all(tasks);
-            const successes = results.filter((r) => r.ok);
-            const failures = results.filter((r) => !r.ok);
-
-            if (successes.length) {
-              // Add new commissions to local state
-              setCommissions((prev) => [
-                ...prev,
-                ...successes.map(({ id, svc }) => ({
-                  key: id,
-                  serviceId: id,
-                  serviceName: svc.name,
-                  serviceCategory: svc.category,
-                  serviceLevel: svc.level,
-                  commissionType,
-                  commissionValue,
-                })),
-              ]);
-              message.success(`Added commissions for ${successes.length} service(s)`);
-            }
-            if (failures.length) {
-              message.warning(`${failures.length} service(s) failed`);
-            }
-
-            if (successes.length) onSave();
-            if (results.length) setAddModalVisible(false);
-          } catch {
-            // validation or API error is shown via message already
-          }
-        }}
-        destroyOnHidden
-        width={500}
+        onOk={handleAddCommissions}
+        destroyOnClose
+        width={480}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="serviceIds"
-            label="Select Services"
-            rules={[{ required: true, message: 'Please select at least one service' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select one or more services"
-              showSearch
-              optionFilterProp="children"
-              maxTagCount="responsive"
-            >
+        <Form form={addForm} layout="vertical" initialValues={{ commissionType: 'fixed', commissionValue: 50 }}>
+          <Form.Item name="serviceIds" label="Select Services" rules={[{ required: true, message: 'Select at least one service' }]}>
+            <Select mode="multiple" placeholder="Search and select services..." showSearch optionFilterProp="children" maxTagCount="responsive">
               {services
-                .filter((service) => !commissions.some((c) => c.serviceId === service.id))
-                .map((service) => (
-                  <Option key={service.id} value={service.id}>
-                    {service.name} - {service.category} - {service.level}
-                  </Option>
+                .filter(s => !commissions.some(c => c.serviceId === s.id))
+                .map(s => (
+                  <Option key={s.id} value={s.id}>{s.name} — {s.category} · {s.level}</Option>
                 ))}
             </Select>
           </Form.Item>
-          <Form.Item name="commissionType" label="Commission Type" initialValue="fixed">
-            <Radio.Group>
-              <Radio value="fixed">Fixed Rate (per hour)</Radio>
-              <Radio value="percentage">Percentage (%)</Radio>
+          <Form.Item name="commissionType" label="Commission Type">
+            <Radio.Group optionType="button" buttonStyle="solid" size="small">
+              <Radio.Button value="fixed"><DollarOutlined className="mr-1" />Fixed /h</Radio.Button>
+              <Radio.Button value="percentage"><PercentageOutlined className="mr-1" />Percentage</Radio.Button>
             </Radio.Group>
           </Form.Item>
-          <Form.Item 
-            name="commissionValue" 
-            label="Commission Value" 
-            initialValue={50}
+          <Form.Item
+            name="commissionValue"
+            label="Value"
             rules={[
-              { required: true, message: 'Please enter a commission value' },
-              { type: 'number', min: 0, message: 'Commission value must be positive' },
+              { required: true, message: 'Enter a value' },
+              { type: 'number', min: 0, message: 'Must be positive' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  const commissionType = getFieldValue('commissionType');
-                  if (commissionType === 'percentage' && value > 100) {
-                    return Promise.reject(new Error('Percentage cannot exceed 100%'));
-                  }
-                  if (commissionType === 'fixed' && value > 10000) {
-                    return Promise.reject(new Error('Fixed amount seems unreasonably high'));
-                  }
+                  if (getFieldValue('commissionType') === 'percentage' && value > 100) return Promise.reject('Max 100%');
                   return Promise.resolve();
                 },
               }),
@@ -721,24 +497,13 @@ const InstructorServiceCommission = forwardRef(({
           >
             <InputNumber
               min={0}
-              max={form.getFieldValue('commissionType') === 'percentage' ? 100 : undefined}
-              addonAfter={form.getFieldValue('commissionType') === 'percentage' ? '%' : getCurrencySymbol(businessCurrency || 'EUR')}
-              placeholder="Enter commission value"
-              style={{ width: '100%' }}
+              className="w-full"
+              addonAfter={addForm.getFieldValue('commissionType') === 'percentage' ? '%' : currencySymbol}
             />
           </Form.Item>
         </Form>
       </Modal>
-      
-      <div style={{ marginTop: 16, textAlign: 'right' }}>
-        <Button onClick={onCancel} style={{ marginRight: 8 }}>
-          Cancel
-        </Button>
-        <Button type="primary" onClick={onSave}>
-          Done
-        </Button>
-      </div>
-    </div>
+    </Spin>
   );
 });
 

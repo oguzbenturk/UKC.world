@@ -5,7 +5,7 @@
  */
 import { test, expect, request } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:4000';
 const BASE_URL = process.env.TEST_URL || 'http://localhost:5173';
 
 let authToken: string;
@@ -18,7 +18,7 @@ test.describe('📅 Booking Flow Tests', () => {
       const loginResponse = await apiContext.post(`${API_URL}/api/auth/login`, {
         data: {
           email: process.env.TEST_ADMIN_EMAIL || 'admin@plannivo.com',
-          password: process.env.TEST_ADMIN_PASSWORD || 'admin123'
+          password: process.env.TEST_ADMIN_PASSWORD || 'asdasd35'
         }
       });
       
@@ -95,7 +95,7 @@ test.describe('📅 Booking Flow Tests', () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(`${BASE_URL}/login`);
       await page.fill('input[type="email"], input[name="email"]', process.env.TEST_ADMIN_EMAIL || 'admin@plannivo.com');
-      await page.fill('input[type="password"]', process.env.TEST_ADMIN_PASSWORD || 'admin123');
+      await page.fill('input[type="password"]', process.env.TEST_ADMIN_PASSWORD || 'asdasd35');
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/(admin|dashboard)/, { timeout: 10000 });
     });

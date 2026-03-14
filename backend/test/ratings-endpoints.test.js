@@ -56,9 +56,10 @@ describe('Ratings admin endpoints', () => {
     const unauthenticated = await request(app).get(`${base}/overview`);
     expect(unauthenticated.status).toBe(401);
 
+    const unprivilegedToken = createToken({ id: '33333333-3333-3333-3333-333333333333', role: 'test_no_access_role' });
     const forbidden = await request(app)
       .get(`${base}/overview`)
-      .set('Authorization', `Bearer ${instructorToken}`);
+      .set('Authorization', `Bearer ${unprivilegedToken}`);
     expect([401, 403]).toContain(forbidden.status);
   });
 

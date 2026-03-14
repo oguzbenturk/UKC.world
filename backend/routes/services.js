@@ -784,7 +784,7 @@ router.get('/packages/my-packages', authenticateJWT, authorize(['admin', 'manage
 });
 
 // Purchase a package (for students/outsiders)
-// Supports: wallet, external processors (stripe, paytr, binance_pay, etc.), pay_later
+// Supports: wallet, external processors (iyzico, paytr, binance_pay, etc.), pay_later
 router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
   const client = await pool.connect();
   

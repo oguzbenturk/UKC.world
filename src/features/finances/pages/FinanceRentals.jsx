@@ -145,11 +145,12 @@ const FinanceRentals = () => {
     const balances = summaryData.balances || {};
     
     const rentalRevenue = Number(revenue.rental_revenue || 0);
+    const rentalCount = Number(revenue.rental_count || 0);
     const customerDebt = Number(balances.total_customer_debt || 0);
 
     return [
       { key: 'rentals', label: 'Rental Revenue', value: formatCurrency(rentalRevenue), accent: 'orange' },
-      { key: 'active', label: 'Active Rentals', value: '--', accent: 'emerald' },
+      { key: 'active', label: 'Total Rentals', value: rentalCount.toLocaleString(), accent: 'emerald' },
       { key: 'outstanding', label: 'Customer Debt', value: formatCurrency(customerDebt), accent: 'amber' },
       { key: 'net', label: 'Net Rental Revenue', value: formatCurrency(rentalRevenue), accent: 'slate' }
     ];

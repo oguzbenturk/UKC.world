@@ -15,7 +15,8 @@ import {
   getManagerCommissionSummary,
   getManagerCommissions,
   upsertManagerCommissionSettings,
-  getAllManagersWithCommissionSettings
+  getAllManagersWithCommissionSettings,
+  getManagerPayrollEarnings
 } from '../services/managerCommissionService.js';
 
 const router = express.Router();
@@ -69,10 +70,14 @@ router.get('/dashboard', authenticateJWT, authorizeRoles(['manager']), async (re
           commissionType: settings.commission_type,
           defaultRate: parseFloat(settings.default_rate) || 10,
           bookingRate: settings.booking_rate ? parseFloat(settings.booking_rate) : null,
-          rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null
+          rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
+          salaryType: settings.salary_type || 'commission',
+          fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
+          perLessonAmount: parseFloat(settings.per_lesson_amount) || 0
         } : {
           commissionType: 'flat',
-          defaultRate: 10
+          defaultRate: 10,
+          salaryType: 'commission'
         },
         comparison: {
           earningsChange: currentSummary.totalEarned - prevSummary.totalEarned,
@@ -197,6 +202,11 @@ router.get('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
         rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
         accommodationRate: settings.accommodation_rate ? parseFloat(settings.accommodation_rate) : null,
         packageRate: settings.package_rate ? parseFloat(settings.package_rate) : null,
+        shopRate: settings.shop_rate ? parseFloat(settings.shop_rate) : null,
+        membershipRate: settings.membership_rate ? parseFloat(settings.membership_rate) : null,
+        salaryType: settings.salary_type || 'commission',
+        fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
+        perLessonAmount: parseFloat(settings.per_lesson_amount) || 0,
         tierSettings: settings.tier_settings,
         isActive: settings.is_active,
         effectiveFrom: settings.effective_from,
@@ -227,10 +237,24 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
       rentalRate,
       accommodationRate,
       packageRate,
+      shopRate,
+      membershipRate,
+      salaryType,
+      fixedSalaryAmount,
+      perLessonAmount,
       tierSettings,
       effectiveFrom,
       effectiveUntil
     } = req.body;
+
+    // Validate salary type
+    const validSalaryTypes = ['commission', 'fixed_per_lesson', 'monthly_salary'];
+    if (salaryType && !validSalaryTypes.includes(salaryType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid salary type. Must be one of: ${validSalaryTypes.join(', ')}`
+      });
+    }
 
     // Validate commission type
     const validTypes = ['flat', 'per_category', 'tiered'];
@@ -241,12 +265,23 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
       });
     }
 
-    // Validate rates
-    if (defaultRate !== undefined && (defaultRate < 0 || defaultRate > 100)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Default rate must be between 0 and 100' 
-      });
+    // Validate rates (0-100)
+    const rateFields = { defaultRate, bookingRate, rentalRate, accommodationRate, packageRate, shopRate, membershipRate };
+    for (const [name, value] of Object.entries(rateFields)) {
+      if (value !== undefined && value !== null && (value < 0 || value > 100)) {
+        return res.status(400).json({
+          success: false,
+          error: `${name} must be between 0 and 100`
+        });
+      }
+    }
+
+    // Validate fixed amounts
+    if (fixedSalaryAmount !== undefined && fixedSalaryAmount < 0) {
+      return res.status(400).json({ success: false, error: 'Fixed salary amount must be >= 0' });
+    }
+    if (perLessonAmount !== undefined && perLessonAmount < 0) {
+      return res.status(400).json({ success: false, error: 'Per-lesson amount must be >= 0' });
     }
 
     const settings = await upsertManagerCommissionSettings(managerId, {
@@ -256,6 +291,11 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
       rentalRate,
       accommodationRate,
       packageRate,
+      shopRate,
+      membershipRate,
+      salaryType,
+      fixedSalaryAmount,
+      perLessonAmount,
       tierSettings,
       effectiveFrom,
       effectiveUntil
@@ -265,6 +305,7 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
       managerId, 
       adminId, 
       commissionType: settings.commission_type,
+      salaryType: settings.salary_type,
       defaultRate: settings.default_rate 
     });
 
@@ -278,6 +319,13 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
         defaultRate: parseFloat(settings.default_rate) || 10,
         bookingRate: settings.booking_rate ? parseFloat(settings.booking_rate) : null,
         rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
+        accommodationRate: settings.accommodation_rate ? parseFloat(settings.accommodation_rate) : null,
+        packageRate: settings.package_rate ? parseFloat(settings.package_rate) : null,
+        shopRate: settings.shop_rate ? parseFloat(settings.shop_rate) : null,
+        membershipRate: settings.membership_rate ? parseFloat(settings.membership_rate) : null,
+        salaryType: settings.salary_type || 'commission',
+        fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
+        perLessonAmount: parseFloat(settings.per_lesson_amount) || 0,
         isActive: settings.is_active
       }
     });
@@ -349,6 +397,30 @@ router.get('/admin/managers/:managerId/summary', authenticateJWT, authorizeRoles
   } catch (error) {
     logger.error('Error fetching manager summary:', { error: error.message, managerId: req.params.managerId });
     res.status(500).json({ success: false, error: 'Failed to fetch commission summary' });
+  }
+});
+
+/**
+ * @route   GET /api/manager/commissions/admin/managers/:managerId/payroll
+ * @desc    Get manager's payroll earnings breakdown (monthly + seasonal)
+ * @access  Admin only
+ */
+router.get('/admin/managers/:managerId/payroll', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    const { year } = req.query;
+
+    const payroll = await getManagerPayrollEarnings(managerId, {
+      year: year ? parseInt(year) : undefined
+    });
+
+    res.json({
+      success: true,
+      data: payroll
+    });
+  } catch (error) {
+    logger.error('Error fetching manager payroll:', { error: error.message, managerId: req.params.managerId });
+    res.status(500).json({ success: false, error: 'Failed to fetch payroll data' });
   }
 });
 

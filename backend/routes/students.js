@@ -2,11 +2,12 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
+import { authorizeRoles } from '../middlewares/authorize.js';
 
 const router = express.Router();
 
 // GET all students and outsiders (customers)
-router.get('/', async (req, res) => {
+router.get('/', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const query = `
       SELECT u.*, r.name as role_name
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET student or outsider by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const userQuery = `
       SELECT u.*, r.name as role_name
@@ -73,7 +74,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET /:id/shop-history - Get shop purchase history for a student
-router.get('/:id/shop-history', authenticateJWT, async (req, res) => {
+router.get('/:id/shop-history', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const query = `
       SELECT t.*
@@ -93,7 +94,7 @@ router.get('/:id/shop-history', authenticateJWT, async (req, res) => {
 });
 
 // Import students via CSV
-router.post('/import', authenticateJWT, async (req, res) => {
+router.post('/import', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   const { csvData } = req.body;
   if (!csvData) {
     return res.status(400).json({ error: 'CSV data is required' });

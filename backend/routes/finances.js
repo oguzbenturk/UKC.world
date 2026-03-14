@@ -1516,7 +1516,7 @@ router.post('/bulk-statistics', authenticateJWT, authorizeRoles(['admin', 'manag
           'N/A'
         ) as last_used_service
       FROM users u
-      LEFT JOIN bookings b ON u.id = b.student_user_id
+      LEFT JOIN bookings b ON u.id = b.student_user_id AND b.deleted_at IS NULL
       WHERE u.id IN (${placeholders})
       GROUP BY u.id, u.name, u.email
       ORDER BY u.name`;
@@ -2057,7 +2057,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
     
     // Rental revenue: support either single-date rentals (rental_date) or start/end period overlap
     const rentalRevenueQuery = `
-      SELECT COALESCE(SUM(total_price), 0) AS rental_revenue
+      SELECT COALESCE(SUM(total_price), 0) AS rental_revenue,
+        COUNT(*) AS rental_count
       FROM rentals
       WHERE (
         (rental_date IS NOT NULL AND rental_date >= $1::date AND rental_date <= $2::date)
@@ -2074,6 +2075,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
     const rentalResult = await pool.query(rentalRevenueQuery, [dateStart, dateEnd]);
     let lessonRevenue = 0; // will derive from bookings analytics below
     const rentalRevenue = parseFloat(rentalResult.rows[0].rental_revenue) || 0;
+    const rentalCount = parseInt(rentalResult.rows[0].rental_count) || 0;
     const totalWalletRevenue = parseFloat(walletResult.rows[0].total_revenue) || 0;
 
     // (Postpone revenueResult until after bookingsResult so we can inject booking_revenue)
@@ -2116,6 +2118,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
         FROM users u
         LEFT JOIN wallet_balances wb ON wb.user_id = u.id
         WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('student', 'outsider'))
+          AND u.deleted_at IS NULL
         GROUP BY u.id
       )
       SELECT 
@@ -2257,7 +2260,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
 
     // Shop/Product revenue: From wallet transactions with product-related transaction types
     const shopRevenueQuery = `
-      SELECT COALESCE(SUM(ABS(amount)), 0) AS shop_revenue
+      SELECT COALESCE(SUM(ABS(amount)), 0) AS shop_revenue,
+        COUNT(*) AS shop_order_count
       FROM wallet_transactions
       WHERE transaction_date >= $1::date AND transaction_date <= $2::date
         AND status = 'completed'
@@ -2269,6 +2273,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
     `;
     const shopResult = await pool.query(shopRevenueQuery, [dateStart, dateEnd]);
     const shopRevenue = parseFloat(shopResult.rows[0]?.shop_revenue) || 0;
+    const shopOrderCount = parseInt(shopResult.rows[0]?.shop_order_count) || 0;
 
     // Use the higher of: booking table revenue OR wallet charges for lessons
     // This handles cases where bookings may be paid via package (no wallet charge) or cash (wallet charge)
@@ -2302,7 +2307,9 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
           rentals_table_revenue: rentalRevenue
         },
         total_refunds: walletResult.rows[0].total_refunds,
-        total_transactions: walletResult.rows[0].total_transactions
+        total_transactions: walletResult.rows[0].total_transactions,
+        rental_count: rentalCount,
+        shop_order_count: shopOrderCount
       }]
     };
 
@@ -2539,8 +2546,9 @@ router.get('/outstanding-balances', authenticateJWT, authorizeRoles(['admin', 'm
         COUNT(CASE WHEN b.payment_status = 'unpaid' THEN 1 END) as unpaid_bookings,
         COALESCE(SUM(CASE WHEN b.payment_status = 'unpaid' THEN b.final_amount ELSE 0 END), 0) as unpaid_amount
       FROM users u
-      LEFT JOIN bookings b ON u.id = b.student_user_id
+      LEFT JOIN bookings b ON u.id = b.student_user_id AND b.deleted_at IS NULL
       WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('student', 'outsider'))
+        AND u.deleted_at IS NULL
         AND ABS(u.balance) >= $1
       GROUP BY u.id, u.name, u.email, u.balance, u.total_spent, u.last_payment_date, u.created_at
       ORDER BY ${sortColumn} ${sortOrder}
@@ -2695,6 +2703,7 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       FROM rentals 
       WHERE created_at >= $1::timestamp
         AND created_at <= $2::timestamp
+        AND status NOT IN ('cancelled', 'canceled')
     `;
     
     let rentalMetricsResult = { rows: [] };

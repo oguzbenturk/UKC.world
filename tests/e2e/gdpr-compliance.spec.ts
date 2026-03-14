@@ -25,8 +25,8 @@ const ADMIN_CREDENTIALS = {
 
 // Regular user for self-service GDPR tests
 const USER_CREDENTIALS = {
-  email: 'kaanaysel@gmail.com',
-  password: 'asdasd35'
+  email: 'autoinst487747@test.com',
+  password: 'TestPass123!'
 };
 
 // Add delay between requests to avoid rate limiting
@@ -42,6 +42,7 @@ test.describe('GDPR Compliance', () => {
   
   // Run tests in serial mode to maintain isolation
   test.describe.configure({ mode: 'serial' });
+  test.beforeEach(async ({}, testInfo) => { test.skip(testInfo.project.name === 'mobile-chrome', 'API-only tests — skip on mobile'); });
   
   // Store tokens for reuse across tests
   let adminToken: string;

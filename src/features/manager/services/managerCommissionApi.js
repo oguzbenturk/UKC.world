@@ -108,6 +108,17 @@ export async function getManagerSummaryAdmin(managerId, options = {}) {
   return response.data;
 }
 
+/**
+ * Get manager's payroll earnings breakdown (admin view)
+ */
+export async function getManagerPayroll(managerId, options = {}) {
+  const params = {};
+  if (options.year) params.year = options.year;
+  
+  const response = await apiClient.get(`/manager/commissions/admin/managers/${managerId}/payroll`, { params });
+  return response.data;
+}
+
 export default {
   getManagerDashboard,
   getManagerCommissionHistory,
@@ -116,5 +127,6 @@ export default {
   getManagerSettings,
   updateManagerSettings,
   getManagerCommissionsAdmin,
-  getManagerSummaryAdmin
+  getManagerSummaryAdmin,
+  getManagerPayroll
 };

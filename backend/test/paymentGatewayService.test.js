@@ -5,7 +5,7 @@ const initiateDepositMock = jest.fn(async () => ({}));
 await jest.unstable_mockModule('../services/paymentGateways/index.js', () => ({
   __esModule: true,
   getGateway: () => ({ initiateDeposit: initiateDepositMock }),
-  supportedGateways: ['stripe', 'binance_pay']
+  supportedGateways: ['iyzico', 'binance_pay']
 }));
 
 const { initiateGatewayDeposit } = await import('../services/paymentGatewayService.js');
@@ -25,12 +25,12 @@ describe('paymentGatewayService initiateGatewayDeposit', () => {
 
   test('rejects non-positive amounts', async () => {
     await expect(
-      initiateGatewayDeposit({ ...baseParams, gateway: 'stripe', amount: 0 })
+      initiateGatewayDeposit({ ...baseParams, gateway: 'iyzico', amount: 0 })
     ).rejects.toThrow('Deposit amount must be greater than zero');
   });
 
   test('normalizes currency and enforces 3DS for card deposits', async () => {
-    await initiateGatewayDeposit({ ...baseParams, gateway: 'stripe' });
+    await initiateGatewayDeposit({ ...baseParams, gateway: 'iyzico' });
 
     expect(initiateDepositMock).toHaveBeenCalledTimes(1);
     const callArgs = initiateDepositMock.mock.calls[0][0];
@@ -53,7 +53,7 @@ describe('paymentGatewayService initiateGatewayDeposit', () => {
   });
 
   test('generates an idempotency key when not provided', async () => {
-    await initiateGatewayDeposit({ ...baseParams, gateway: 'stripe' });
+    await initiateGatewayDeposit({ ...baseParams, gateway: 'iyzico' });
 
     const callArgs = initiateDepositMock.mock.calls[0][0];
     expect(typeof callArgs.idempotencyKey).toBe('string');
@@ -63,7 +63,7 @@ describe('paymentGatewayService initiateGatewayDeposit', () => {
 
   test('honours provided idempotency key', async () => {
     const customKey = 'custom-key-123';
-    await initiateGatewayDeposit({ ...baseParams, gateway: 'stripe', idempotencyKey: customKey });
+    await initiateGatewayDeposit({ ...baseParams, gateway: 'iyzico', idempotencyKey: customKey });
 
     const callArgs = initiateDepositMock.mock.calls[0][0];
     expect(callArgs.idempotencyKey).toBe(customKey);
@@ -80,7 +80,7 @@ describe('paymentGatewayService initiateGatewayDeposit', () => {
 
     await initiateGatewayDeposit({
       ...baseParams,
-      gateway: 'stripe',
+      gateway: 'iyzico',
       retryAttempts: 2
     });
 
@@ -97,7 +97,7 @@ describe('paymentGatewayService initiateGatewayDeposit', () => {
     await expect(
       initiateGatewayDeposit({
         ...baseParams,
-        gateway: 'stripe',
+        gateway: 'iyzico',
         retryAttempts: 2
       })
     ).rejects.toThrow('temporarily unavailable');

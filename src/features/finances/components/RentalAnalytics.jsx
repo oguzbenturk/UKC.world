@@ -15,14 +15,15 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
     const balances = summaryData.balances || {};
 
     const rentalRevenue = Number(revenue.rental_revenue || 0);
+    const rentalCount = Number(revenue.rental_count || 0);
     const outstandingBalance = Number(balances.total_customer_debt || 0);
     const collectedPayments = Number(balances.total_customer_credit || 0);
-    const avgRentalValue = rentalRevenue > 0 ? rentalRevenue / 10 : 0; // Placeholder for actual rental count
+    const avgRentalValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
     const collectionRate = rentalRevenue > 0 ? 100 : 0;
     const overdueAmount = outstandingBalance;
 
     return {
-      totalRentals: 0, // Would need separate query for actual count
+      totalRentals: rentalCount,
       rentalRevenue,
       outstandingBalance,
       collectedPayments,

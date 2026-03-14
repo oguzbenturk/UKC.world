@@ -52,7 +52,6 @@
     "sharp": "^0.33.4",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "stripe": "^18.2.1",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
     "xml2js": "^0.6.2",

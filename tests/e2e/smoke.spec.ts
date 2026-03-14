@@ -23,7 +23,7 @@ async function loginAsAdmin(page: import('@playwright/test').Page) {
   await page.click('button[type="submit"]');
   
   // Wait for redirect to dashboard - more flexible
-  await page.waitForURL(/\/admin/, { timeout: 20000 });
+  await page.waitForURL(/\/(admin|dashboard)/, { timeout: 20000 });
 }
 
 test.describe('🔥 Smoke Tests - Critical Paths', () => {
@@ -44,8 +44,8 @@ test.describe('🔥 Smoke Tests - Critical Paths', () => {
     test('Admin can login successfully', async ({ page }) => {
       await loginAsAdmin(page);
       
-      // Should be on admin area
-      await expect(page).toHaveURL(/\/admin/);
+      // Should be on admin area (could be /admin or /dashboard)
+      await expect(page).toHaveURL(/\/(admin|dashboard)/);
       await expect(page).not.toHaveURL(/login/);
     });
   });
@@ -83,15 +83,15 @@ test.describe('🔥 Smoke Tests - Critical Paths', () => {
     });
 
     test('Bookings page loads', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/bookings`);
+      await page.goto(`${BASE_URL}/bookings`);
       await page.waitForLoadState('networkidle');
       
-      // Either we're on bookings page or redirected to dashboard (both are valid if logged in)
-      await expect(page).toHaveURL(/\/admin\//);
+      // Should be on bookings page (not redirected to login)
+      await expect(page).not.toHaveURL(/\/login/);
     });
 
     test('Can access booking creation', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/bookings`);
+      await page.goto(`${BASE_URL}/bookings/calendar`);
       await page.waitForLoadState('networkidle');
       
       // Look for "New Booking" or "Add" button
@@ -101,7 +101,7 @@ test.describe('🔥 Smoke Tests - Critical Paths', () => {
         await page.waitForTimeout(500);
       }
       // Test passes as long as we're logged in
-      await expect(page).toHaveURL(/\/admin\//);
+      await expect(page).not.toHaveURL(/\/login/);
     });
   });
 
@@ -111,11 +111,11 @@ test.describe('🔥 Smoke Tests - Critical Paths', () => {
     });
 
     test('Customers page loads', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/customers`);
+      await page.goto(`${BASE_URL}/customers`);
       await page.waitForLoadState('networkidle');
       
-      // Either we're on customers page or admin area
-      await expect(page).toHaveURL(/\/admin\//);
+      // Should not be on login page
+      await expect(page).not.toHaveURL(/\/login/);
     });
   });
 
@@ -125,11 +125,11 @@ test.describe('🔥 Smoke Tests - Critical Paths', () => {
     });
 
     test('Finances page loads', async ({ page }) => {
-      await page.goto(`${BASE_URL}/admin/finances`);
+      await page.goto(`${BASE_URL}/finance`);
       await page.waitForLoadState('networkidle');
       
-      // Either we're on finances page or admin area
-      await expect(page).toHaveURL(/\/admin\//);
+      // Should not be on login page
+      await expect(page).not.toHaveURL(/\/login/);
     });
   });
 });

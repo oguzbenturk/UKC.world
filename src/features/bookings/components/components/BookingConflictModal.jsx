@@ -56,6 +56,20 @@ const BookingConflictModal = ({
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'booked':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'no_show':
+      case 'no-show':
+        return 'bg-rose-100 text-rose-800';
+      case 'tentative':
+        return 'bg-purple-100 text-purple-800';
+      case 'in_progress':
+      case 'in-progress':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'blocked_out':
+        return 'bg-gray-200 text-gray-600';
       default:
         return 'bg-gray-100 text-gray-800';
     }

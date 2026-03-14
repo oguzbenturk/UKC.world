@@ -5,19 +5,20 @@
  */
 import { test, expect, request } from '@playwright/test';
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || 'http://localhost:4000';
 
 let authToken: string;
 
 test.describe('💰 Financial Accuracy Tests', () => {
-  
+  test.beforeEach(async ({}, testInfo) => { test.skip(testInfo.project.name === 'mobile-chrome', 'API-only tests — skip on mobile'); });
+
   test.beforeAll(async ({ }) => {
     const apiContext = await request.newContext();
     try {
       const loginResponse = await apiContext.post(`${API_URL}/api/auth/login`, {
         data: {
           email: process.env.TEST_ADMIN_EMAIL || 'admin@plannivo.com',
-          password: process.env.TEST_ADMIN_PASSWORD || 'admin123'
+          password: process.env.TEST_ADMIN_PASSWORD || 'asdasd35'
         }
       });
       

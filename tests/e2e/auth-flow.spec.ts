@@ -21,8 +21,8 @@ const ADMIN_CREDENTIALS = {
 };
 
 const INSTRUCTOR_CREDENTIALS = {
-  email: 'oguz@gmail.com',
-  password: 'asdasd35'
+  email: 'autoinst487747@test.com',
+  password: 'TestPass123!'
 };
 
 // Generate unique email for test users
@@ -755,8 +755,8 @@ test.describe('Security Features', () => {
       }
     });
 
-    // Should return 401 (not crash or execute script)
-    expect([401, 429]).toContain(response.status());
+    // Should return 400 (invalid input), 401, or 429 — but never 500 or 200
+    expect([400, 401, 429]).toContain(response.status());
   });
 });
 

@@ -286,15 +286,34 @@ class BookingUpdateCascadeService {
         commissionType = serviceCommission.rows[0].commission_type;
         commissionValue = parseFloat(serviceCommission.rows[0].commission_value);
       } else {
-        // 3. Fallback to default commission
-        const defaultCommission = await client.query(
-          'SELECT commission_type, commission_value FROM instructor_default_commissions WHERE instructor_id = $1',
-          [booking.instructor_user_id]
-        );
-        
-        if (defaultCommission.rows.length > 0) {
-          commissionType = defaultCommission.rows[0].commission_type;
-          commissionValue = parseFloat(defaultCommission.rows[0].commission_value);
+        // 3. Check for lesson-category-level rate
+        let foundCategoryRate = false;
+        if (booking.service_id) {
+          const categoryRate = await client.query(
+            `SELECT icr.rate_type, icr.rate_value
+             FROM instructor_category_rates icr
+             JOIN services s ON s.lesson_category_tag = icr.lesson_category
+             WHERE icr.instructor_id = $1 AND s.id = $2`,
+            [booking.instructor_user_id, booking.service_id]
+          );
+          if (categoryRate.rows.length > 0) {
+            commissionType = categoryRate.rows[0].rate_type;
+            commissionValue = parseFloat(categoryRate.rows[0].rate_value);
+            foundCategoryRate = true;
+          }
+        }
+
+        if (!foundCategoryRate) {
+          // 4. Fallback to default commission
+          const defaultCommission = await client.query(
+            'SELECT commission_type, commission_value FROM instructor_default_commissions WHERE instructor_id = $1',
+            [booking.instructor_user_id]
+          );
+          
+          if (defaultCommission.rows.length > 0) {
+            commissionType = defaultCommission.rows[0].commission_type;
+            commissionValue = parseFloat(defaultCommission.rows[0].commission_value);
+          }
         }
       }
     }

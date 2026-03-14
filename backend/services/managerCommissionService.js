@@ -93,6 +93,10 @@ function getCommissionRate(settings, sourceType) {
         return parseFloat(settings.accommodation_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
       case 'package':
         return parseFloat(settings.package_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+      case 'shop':
+        return parseFloat(settings.shop_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+      case 'membership':
+        return parseFloat(settings.membership_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
       default:
         return parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
     }
@@ -188,7 +192,7 @@ export async function recordBookingCommission(booking, options = {}) {
         commission_currency,
         period_month,
         status,
-        booking_date,
+        source_date,
         calculated_at,
         metadata
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
@@ -324,7 +328,7 @@ export async function recordRentalCommission(rental, options = {}) {
         commission_currency,
         period_month,
         status,
-        booking_date,
+        source_date,
         calculated_at,
         metadata
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
@@ -431,12 +435,12 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
       paramIndex++;
     } else {
       if (startDate) {
-        whereClause += ` AND booking_date >= $${paramIndex}`;
+        whereClause += ` AND source_date >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
       if (endDate) {
-        whereClause += ` AND booking_date <= $${paramIndex}`;
+        whereClause += ` AND source_date <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
@@ -533,12 +537,12 @@ export async function getManagerCommissions(managerUserId, options = {}) {
       paramIndex++;
     } else {
       if (startDate) {
-        whereClause += ` AND mc.booking_date >= $${paramIndex}`;
+        whereClause += ` AND mc.source_date >= $${paramIndex}`;
         params.push(startDate);
         paramIndex++;
       }
       if (endDate) {
-        whereClause += ` AND mc.booking_date <= $${paramIndex}`;
+        whereClause += ` AND mc.source_date <= $${paramIndex}`;
         params.push(endDate);
         paramIndex++;
       }
@@ -575,20 +579,22 @@ export async function getManagerCommissions(managerUserId, options = {}) {
           WHEN mc.source_type = 'rental' THEN (
             SELECT jsonb_build_object(
               'customer_name', COALESCE(c.name, 'Unknown'),
-              'equipment_name', COALESCE(e.name, 'Unknown'),
+              'equipment_name', COALESCE(s.name, 'Unknown'),
               'start_date', r.start_date,
               'end_date', r.end_date
             )
             FROM rentals r
-            LEFT JOIN users c ON c.id = r.customer_id
-            LEFT JOIN equipment e ON e.id = r.equipment_id
+            LEFT JOIN users c ON c.id = r.user_id
+            LEFT JOIN rental_equipment re ON re.rental_id = r.id
+            LEFT JOIN services s ON s.id = re.equipment_id
             WHERE r.id = mc.source_id::uuid
+            LIMIT 1
           )
           ELSE NULL
         END as source_details
        FROM manager_commissions mc
        ${whereClause}
-       ORDER BY mc.booking_date DESC, mc.created_at DESC
+       ORDER BY mc.source_date DESC, mc.created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -623,9 +629,14 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
     rentalRate,
     accommodationRate,
     packageRate,
+    shopRate,
+    membershipRate,
     tierSettings,
     effectiveFrom,
-    effectiveUntil
+    effectiveUntil,
+    salaryType = 'commission',
+    fixedSalaryAmount = 0,
+    perLessonAmount = 0
   } = settings;
 
   try {
@@ -648,8 +659,13 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
           tier_settings = $7,
           effective_from = $8,
           effective_until = $9,
+          salary_type = $10,
+          fixed_salary_amount = $11,
+          per_lesson_amount = $12,
+          shop_rate = $13,
+          membership_rate = $14,
           updated_at = NOW()
-         WHERE id = $10
+         WHERE id = $15
          RETURNING *`,
         [
           commissionType,
@@ -661,6 +677,11 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
           tierSettings ? JSON.stringify(tierSettings) : null,
           effectiveFrom || null,
           effectiveUntil || null,
+          salaryType,
+          fixedSalaryAmount || 0,
+          perLessonAmount || 0,
+          shopRate || null,
+          membershipRate || null,
           existingResult.rows[0].id
         ]
       );
@@ -687,8 +708,13 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
           is_active,
           effective_from,
           effective_until,
-          created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10, $11)
+          created_by,
+          salary_type,
+          fixed_salary_amount,
+          per_lesson_amount,
+          shop_rate,
+          membership_rate
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *`,
         [
           managerUserId,
@@ -701,7 +727,12 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
           tierSettings ? JSON.stringify(tierSettings) : null,
           effectiveFrom || null,
           effectiveUntil || null,
-          createdBy
+          createdBy,
+          salaryType,
+          fixedSalaryAmount || 0,
+          perLessonAmount || 0,
+          shopRate || null,
+          membershipRate || null
         ]
       );
 
@@ -741,6 +772,11 @@ export async function getAllManagersWithCommissionSettings() {
         mcs.rental_rate,
         mcs.accommodation_rate,
         mcs.package_rate,
+        mcs.shop_rate,
+        mcs.membership_rate,
+        mcs.salary_type,
+        mcs.fixed_salary_amount,
+        mcs.per_lesson_amount,
         mcs.is_active as settings_active,
         mcs.effective_from,
         mcs.effective_until,
@@ -772,6 +808,11 @@ export async function getAllManagersWithCommissionSettings() {
         rentalRate: row.rental_rate ? parseFloat(row.rental_rate) : null,
         accommodationRate: row.accommodation_rate ? parseFloat(row.accommodation_rate) : null,
         packageRate: row.package_rate ? parseFloat(row.package_rate) : null,
+        shopRate: row.shop_rate ? parseFloat(row.shop_rate) : null,
+        membershipRate: row.membership_rate ? parseFloat(row.membership_rate) : null,
+        salaryType: row.salary_type || 'commission',
+        fixedSalaryAmount: parseFloat(row.fixed_salary_amount) || 0,
+        perLessonAmount: parseFloat(row.per_lesson_amount) || 0,
         isActive: row.settings_active,
         effectiveFrom: row.effective_from,
         effectiveUntil: row.effective_until
@@ -785,6 +826,124 @@ export async function getAllManagersWithCommissionSettings() {
   }
 }
 
+/**
+ * Get manager payroll earnings broken down by month (seasonal view)
+ * @param {string} managerUserId - Manager user ID
+ * @param {Object} options - { year }
+ * @returns {Promise<Object>} Payroll breakdown by month
+ */
+export async function getManagerPayrollEarnings(managerUserId, options = {}) {
+  const year = options.year || new Date().getFullYear();
+
+  try {
+    const settings = await getManagerCommissionSettings(managerUserId);
+    const salaryType = settings?.salary_type || 'commission';
+
+    // Get commission earnings grouped by month
+    const commissionResult = await pool.query(
+      `SELECT 
+        period_month,
+        COUNT(*) FILTER (WHERE source_type = 'booking' AND status != 'cancelled') as booking_count,
+        COUNT(*) FILTER (WHERE source_type = 'rental' AND status != 'cancelled') as rental_count,
+        COUNT(*) FILTER (WHERE source_type = 'accommodation' AND status != 'cancelled') as accommodation_count,
+        COUNT(*) FILTER (WHERE source_type = 'package' AND status != 'cancelled') as package_count,
+        COUNT(*) FILTER (WHERE source_type = 'shop' AND status != 'cancelled') as shop_count,
+        COUNT(*) FILTER (WHERE source_type = 'membership' AND status != 'cancelled') as membership_count,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'booking' AND status != 'cancelled'), 0) as booking_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'rental' AND status != 'cancelled'), 0) as rental_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'accommodation' AND status != 'cancelled'), 0) as accommodation_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'package' AND status != 'cancelled'), 0) as package_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'shop' AND status != 'cancelled'), 0) as shop_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'membership' AND status != 'cancelled'), 0) as membership_earnings,
+        COALESCE(SUM(commission_amount) FILTER (WHERE status != 'cancelled'), 0) as total_commission,
+        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'paid'), 0) as paid_amount,
+        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'pending'), 0) as pending_amount
+       FROM manager_commissions
+       WHERE manager_user_id = $1
+         AND period_month LIKE $2
+       GROUP BY period_month
+       ORDER BY period_month`,
+      [managerUserId, `${year}-%`]
+    );
+
+    // Build months array (Jan-Dec)
+    const months = [];
+    for (let m = 1; m <= 12; m++) {
+      const pm = `${year}-${String(m).padStart(2, '0')}`;
+      const row = commissionResult.rows.find(r => r.period_month === pm);
+      
+      let grossAmount = 0;
+      if (salaryType === 'monthly_salary') {
+        grossAmount = parseFloat(settings?.fixed_salary_amount) || 0;
+      } else if (salaryType === 'fixed_per_lesson') {
+        const lessonCount = parseInt(row?.booking_count) || 0;
+        grossAmount = lessonCount * (parseFloat(settings?.per_lesson_amount) || 0);
+      } else {
+        grossAmount = parseFloat(row?.total_commission) || 0;
+      }
+
+      months.push({
+        period: pm,
+        month: m,
+        monthName: new Date(year, m - 1, 1).toLocaleString('en', { month: 'long' }),
+        bookings: { count: parseInt(row?.booking_count) || 0, earnings: parseFloat(row?.booking_earnings) || 0 },
+        rentals: { count: parseInt(row?.rental_count) || 0, earnings: parseFloat(row?.rental_earnings) || 0 },
+        accommodation: { count: parseInt(row?.accommodation_count) || 0, earnings: parseFloat(row?.accommodation_earnings) || 0 },
+        packages: { count: parseInt(row?.package_count) || 0, earnings: parseFloat(row?.package_earnings) || 0 },
+        shop: { count: parseInt(row?.shop_count) || 0, earnings: parseFloat(row?.shop_earnings) || 0 },
+        membership: { count: parseInt(row?.membership_count) || 0, earnings: parseFloat(row?.membership_earnings) || 0 },
+        grossAmount,
+        paidAmount: parseFloat(row?.paid_amount) || 0,
+        pendingAmount: parseFloat(row?.pending_amount) || 0,
+      });
+    }
+
+    // Calculate seasonal totals (Q1-Q4)
+    const seasons = [
+      { name: 'Winter', label: 'Q1 (Jan-Mar)', months: [1, 2, 3] },
+      { name: 'Spring', label: 'Q2 (Apr-Jun)', months: [4, 5, 6] },
+      { name: 'Summer', label: 'Q3 (Jul-Sep)', months: [7, 8, 9] },
+      { name: 'Autumn', label: 'Q4 (Oct-Dec)', months: [10, 11, 12] }
+    ].map(s => {
+      const seasonMonths = months.filter(m => s.months.includes(m.month));
+      return {
+        ...s,
+        grossAmount: seasonMonths.reduce((sum, m) => sum + m.grossAmount, 0),
+        paidAmount: seasonMonths.reduce((sum, m) => sum + m.paidAmount, 0),
+        pendingAmount: seasonMonths.reduce((sum, m) => sum + m.pendingAmount, 0),
+        bookingCount: seasonMonths.reduce((sum, m) => sum + m.bookings.count, 0),
+        rentalCount: seasonMonths.reduce((sum, m) => sum + m.rentals.count, 0),
+      };
+    });
+
+    const yearTotal = months.reduce((sum, m) => sum + m.grossAmount, 0);
+    const yearPaid = months.reduce((sum, m) => sum + m.paidAmount, 0);
+    const yearPending = months.reduce((sum, m) => sum + m.pendingAmount, 0);
+
+    return {
+      year,
+      salaryType,
+      settings: settings ? {
+        commissionType: settings.commission_type,
+        defaultRate: parseFloat(settings.default_rate) || 0,
+        fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
+        perLessonAmount: parseFloat(settings.per_lesson_amount) || 0
+      } : null,
+      months,
+      seasons,
+      totals: {
+        gross: yearTotal,
+        paid: yearPaid,
+        pending: yearPending
+      },
+      currency: 'EUR'
+    };
+  } catch (error) {
+    logger.error('Error fetching manager payroll earnings:', { error: error.message, managerUserId });
+    throw error;
+  }
+}
+
 export default {
   getManagerCommissionSettings,
   getDefaultManager,
@@ -794,5 +953,6 @@ export default {
   getManagerCommissionSummary,
   getManagerCommissions,
   upsertManagerCommissionSettings,
-  getAllManagersWithCommissionSettings
+  getAllManagersWithCommissionSettings,
+  getManagerPayrollEarnings
 };

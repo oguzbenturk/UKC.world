@@ -28,8 +28,8 @@ const API_BASE = 'http://localhost:4000/api';
 // Test credentials
 const ADMIN_EMAIL = 'admin@plannivo.com';
 const ADMIN_PASSWORD = 'asdasd35';
-const INSTRUCTOR_EMAIL = 'kaanaysel@gmail.com';
-const INSTRUCTOR_PASSWORD = 'asdasd35';
+const INSTRUCTOR_EMAIL = 'autoinst487747@test.com';
+const INSTRUCTOR_PASSWORD = 'TestPass123!';
 
 // Token cache
 let adminToken: string | null = null;
@@ -90,7 +90,8 @@ test.afterAll(async () => {
   await apiContext.dispose();
 });
 
-test.beforeEach(async () => {
+test.beforeEach(async ({}, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chrome', 'API-only tests — skip on mobile');
   await delay(200);
 });
 

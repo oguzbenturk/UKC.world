@@ -83,7 +83,7 @@ describe('database guardrails', () => {
     }));
 
     await jest.unstable_mockModule('pg', () => ({
-      default: { Pool: StubPool },
+      default: { Pool: StubPool, types: { setTypeParser: jest.fn() } },
       Pool: StubPool
     }));
 
@@ -117,7 +117,11 @@ describe('database guardrails', () => {
     
     await pool.query('SELECT * FROM bookings WHERE id = $1', ['123']);
     
-    const warnCalls = mockLogger.warn.mock.calls.filter(([message]) => message === 'Slow database query detected');
+    // Filter for the specific test query to avoid counting any stray warnings
+    // from the async initialization IIFE (pool.connect / SELECT NOW)
+    const warnCalls = mockLogger.warn.mock.calls.filter(
+      ([message, meta]) => message === 'Slow database query detected' && meta?.sqlPreview?.includes('bookings')
+    );
     expect(warnCalls).toHaveLength(1);
     const [, metadata] = warnCalls[0];
     expect(metadata).toMatchObject({

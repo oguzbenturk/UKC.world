@@ -195,7 +195,7 @@ const StudentPayments = () => {
         duration: 6,
         placement: 'topRight'
       });
-      // Refresh wallet data
+      // Refresh wallet data after showing notification
       refetch();
       // Clear the query params
       navigate('/student/payments', { replace: true });
@@ -415,9 +415,9 @@ const StudentPayments = () => {
       <WalletDepositModal
         visible={depositModalVisible}
         onClose={() => setDepositModalVisible(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setDepositModalVisible(false);
-          refetch(); // Refresh list after payment
+          await refetch(); // Refresh list after payment
           notification.success({
             message: 'Funds Added',
             description: 'The amount has been successfully added to your wallet.',

@@ -384,7 +384,9 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   );
 
   // eslint-disable-next-line complexity
-  const handleAssignPackage = async (values) => {
+  const handleAssignPackage = useCallback(async (values) => {
+    // Capture customer reference at call time to prevent stale closure
+    const currentCustomer = customer;
     try {
       setLoading(true);
       
@@ -464,7 +466,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       } else {
         // Handle single customer assignment (existing logic)
         const customerId = selectedParticipants.length === 1 ? 
-          selectedParticipants[0].userId : customer.id;
+          selectedParticipants[0].userId : currentCustomer.id;
         
         const response = await fetch('/api/services/customer-packages', {
           method: 'POST',
@@ -489,12 +491,12 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
           const newCustomerPackage = await response.json();
           
           // Only update local state if assigning to current customer
-          if (customerId === customer.id) {
+          if (customerId === currentCustomer.id) {
             setPackages(prev => [...prev, newCustomerPackage]);
           }
           
           const assignedCustomerName = selectedParticipants.length === 1 ? 
-            selectedParticipants[0].userName : customer.name;
+            selectedParticipants[0].userName : currentCustomer.name;
           
           message.success(`Package "${selectedServicePackage.name}" assigned to ${assignedCustomerName}!`);
           eventBus.emit('packages:changed', { reason: 'assign', customers: [customerId] });
@@ -524,7 +526,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     } finally {
       setLoading(false);
     }
-  };
+  }, [customer, availablePackages, selectedParticipants, form, loadCustomerFinancialData, onPackageAssigned, startAssignFlow, onClose]);
 
   const handleDeletePackage = async (packageId) => {
     try {

@@ -165,7 +165,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (re
 // === USER-SPECIFIC ENDPOINTS FOR STUDENT ROLE ===
 
 // GET all users with student or outsider role (customers who can book services)
-router.get('/students', async (req, res) => {
+router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     console.log('🔍 STUDENTS ENDPOINT: Fetching users with student and outsider roles...');
     
@@ -188,8 +188,8 @@ router.get('/students', async (req, res) => {
   }
 });
 
-// === GET ALL USERS FOR BOOKING PURPOSES (PUBLIC ENDPOINT WITH LIMITED FIELDS) ===
-router.get('/for-booking', async (req, res) => {
+// === GET ALL USERS FOR BOOKING PURPOSES (STAFF ONLY) ===
+router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {    const query = `
       SELECT u.id, 
              CONCAT(u.first_name, ' ', u.last_name) as name,
@@ -215,7 +215,7 @@ router.get('/for-booking', async (req, res) => {
 // === HIGH-PERFORMANCE CUSTOMERS LIST (Keyset pagination + aggregated fields) ===
 // GET /users/customers/list?q=&limit=&cursor=&balance=&friendsOnly=true
 // Returns: { items: [...], nextCursor: string|null, totalHint?: number }
-router.get('/customers/list', async (req, res) => {
+router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim();
     const balanceFilter = (req.query.balance || 'all').toString(); // all|unpaid|paid|pending
@@ -437,7 +437,7 @@ router.put('/preferences', authenticateJWT, async (req, res) => {
 });
 
 // === GET INSTRUCTORS LIST ===
-router.get('/instructors', authenticateJWT, async (req, res) => {
+router.get('/instructors', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const query = `
       SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.phone, r.name as role_name
@@ -1050,7 +1050,7 @@ router.get('/avatar/debug/self', authenticateJWT, authorizeRoles(['admin','manag
 // === USER-SPECIFIC ENDPOINTS FOR STUDENT ROLE ===
 
 // GET customer (student/outsider) details by ID
-router.get('/:id/student-details', async (req, res) => {
+router.get('/:id/student-details', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const userQuery = `
       SELECT u.*, r.name as role_name
@@ -1146,7 +1146,7 @@ router.post('/import-students', authenticateJWT, async (req, res) => {
 });
 
 // Get lessons for a user with student role
-router.get('/:id/lessons', authenticateJWT, async (req, res) => {
+router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT * FROM bookings WHERE student_user_id = $1 AND deleted_at IS NULL ORDER BY date DESC`,

@@ -22,7 +22,7 @@ async function createTestUser(userId) {
     `INSERT INTO users (id, name, email, password_hash, role_id, created_at, updated_at)
      VALUES ($1, $2, $3, 'test-hash', $4, NOW(), NOW())
      ON CONFLICT (id) DO NOTHING`,
-    [userId, 'Test User', `test-${userId.slice(0, 8)}@test.local`, roleId]
+    [userId, 'Test User', `test-${userId.slice(0, 8)}@test.com`, roleId]
   );
 }
 
@@ -92,7 +92,7 @@ describe('walletService deposit policy', () => {
       scopeId: userId,
       currency: TEST_CURRENCY,
       settings: {
-        enabledGateways: ['stripe', 'iyzico'],
+        enabledGateways: ['iyzico'],
         preferences: {
           depositPolicy: {
             allowUnlimitedDeposits: true

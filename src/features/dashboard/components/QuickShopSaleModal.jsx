@@ -125,8 +125,6 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
 
       await apiClient.post('/shop/orders/admin/quick-sale', orderData);
 
-      message.success('Sale completed successfully!');
-      
       form.resetFields();
       setSelectedProduct(null);
       setQuantity(1);
@@ -134,6 +132,8 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
       if (onSuccess) {
         onSuccess();
       }
+      
+      message.success('Sale completed successfully!');
       
       onClose();
     } catch (error) {

@@ -117,8 +117,8 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
       };
 
       await apiClient.post('/accommodation/bookings', payload);
-      message.success('Accommodation booked successfully!');
       onSuccess?.();
+      message.success('Accommodation booked successfully!');
     } catch (err) {
       message.error(err.response?.data?.error || 'Failed to create booking');
     } finally {

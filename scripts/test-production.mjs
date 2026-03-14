@@ -1406,11 +1406,11 @@ async function phase16_PaymentProcessing() {
   if (settingsRes.ok && settingsRes.data) {
     // Check for payment provider settings
     const data = JSON.stringify(settingsRes.data);
-    const hasStripe = data.toLowerCase().includes('stripe');
+    const hasIyzico = data.toLowerCase().includes('iyzico');
     const hasPayment = data.toLowerCase().includes('payment');
 
-    if (hasStripe) {
-      pass('Stripe configuration found');
+    if (hasIyzico) {
+      pass('Iyzico configuration found');
     } else if (hasPayment) {
       pass('Payment configuration exists');
     } else {
@@ -1444,7 +1444,7 @@ async function phase16_PaymentProcessing() {
   }
 
   // Test 16.3: Check payment webhooks endpoint
-  const webhookRes = await api('/api/webhooks/stripe', {
+  const webhookRes = await api('/api/webhooks/iyzico', {
     method: 'POST',
     body: { type: 'test' }
   });

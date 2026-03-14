@@ -1,11 +1,12 @@
 // src/pages/Instructors.jsx
 import { useState } from 'react';
-import { Button, Card, Tag, Space, Avatar } from 'antd';
+import { Button, Card, Tag, Space, Avatar, Select, Input, Row, Col, Statistic, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined, SearchOutlined, TeamOutlined, CheckCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useData } from '@/shared/hooks/useData';
+import { useNavigate } from 'react-router-dom';
 import EnhancedInstructorDetailModal from '../components/EnhancedInstructorDetailModal';
 
 const InstructorMobileCard = ({ record, onAction, isAdmin }) => (
@@ -49,6 +50,7 @@ function Instructors() {
   const [filterSpecialization, setFilterSpecialization] = useState('all');
   const [selectedInstructor, setSelectedInstructor] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Check if user has administrator permissions
   const isAdmin = user && ['manager', 'admin'].includes(user.role);
@@ -95,6 +97,10 @@ function Instructors() {
       }
     }
   };
+
+  // Summary stats
+  const activeCount = instructors.filter(i => i.status === 'active' || !i.status).length;
+  const inactiveCount = instructors.filter(i => i.status === 'inactive').length;
   
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-6 max-w-7xl mx-auto">
@@ -118,7 +124,7 @@ function Instructors() {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => (window.location.href = '/instructors/new')}
+                onClick={() => navigate('/instructors/new')}
                 size="middle"
                 className="w-full sm:w-auto shrink-0"
               >
@@ -129,47 +135,79 @@ function Instructors() {
           </div>
         </div>
       </Card>
+
+      {/* Summary Stats */}
+      <Row gutter={[16, 16]}>
+        <Col xs={8}>
+          <Card className="shadow-sm border-l-4 border-l-blue-400" size="small">
+            <Statistic
+              title={<span className="flex items-center gap-1 text-xs"><TeamOutlined /> Total</span>}
+              value={instructors.length}
+              valueStyle={{ color: '#1890ff', fontSize: '1.25rem' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={8}>
+          <Card className="shadow-sm border-l-4 border-l-green-400" size="small">
+            <Statistic
+              title={<span className="flex items-center gap-1 text-xs"><CheckCircleOutlined /> Active</span>}
+              value={activeCount}
+              valueStyle={{ color: '#52c41a', fontSize: '1.25rem' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={8}>
+          <Card className="shadow-sm border-l-4 border-l-gray-400" size="small">
+            <Statistic
+              title={<span className="flex items-center gap-1 text-xs"><PauseCircleOutlined /> Inactive</span>}
+              value={inactiveCount}
+              valueStyle={{ color: '#8c8c8c', fontSize: '1.25rem' }}
+            />
+          </Card>
+        </Col>
+      </Row>
       
       {/* Filters */}
       <Card className="rounded-2xl border border-slate-200 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Search</label>
-            <input
-              type="text"
+            <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Search by name, email, specialization..."
+              prefix={<SearchOutlined className="text-gray-400" />}
+              allowClear
             />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
-            <select
+            <Select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="on_leave">On Leave</option>
-            </select>
+              onChange={setFilterStatus}
+              className="w-full"
+              options={[
+                { value: 'all', label: 'All Statuses' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'on_leave', label: 'On Leave' }
+              ]}
+            />
           </div>
           
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Specialization</label>
-            <select
+            <Select
               value={filterSpecialization}
-              onChange={(e) => setFilterSpecialization(e.target.value)}
-              className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Specializations</option>
-              {allSpecializations.map(spec => (
-                <option key={spec} value={spec}>{spec}</option>
-              ))}
-            </select>
+              onChange={setFilterSpecialization}
+              className="w-full"
+              showSearch
+              options={[
+                { value: 'all', label: 'All Specializations' },
+                ...allSpecializations.map(spec => ({ value: spec, label: spec }))
+              ]}
+            />
           </div>
         </div>
       </Card>
@@ -205,7 +243,7 @@ function Instructors() {
                       setSelectedInstructor(record);
                       setIsDetailOpen(true);
                    } else if (action === 'edit') {
-                      window.location.href = `/instructors/edit/${record.id}`;
+                      navigate(`/instructors/edit/${record.id}`);
                    } else if (action === 'delete') {
                       handleDeleteInstructor(record.id);
                    }
@@ -213,31 +251,87 @@ function Instructors() {
              />
           )}
           columns={[
-            { title: 'Name', dataIndex: 'name', key: 'name', fixed: 'left', render: (text) => <span className="font-medium">{text}</span> },
-            { title: 'Email', dataIndex: 'email', key: 'email' },
-            { title: 'Specializations', dataIndex: 'specializations', key: 'specializations', render: (val) => (val || []).join(', ') || '—' },
-            { title: 'Status', dataIndex: 'status', key: 'status', render: (val) => <Tag color={val === 'active' ? 'green' : 'default'} className="capitalize">{val || 'active'}</Tag> },
+            {
+              title: 'Instructor',
+              key: 'name',
+              fixed: 'left',
+              render: (_, record) => (
+                <div className="flex items-center gap-3">
+                  <Avatar src={record.avatar_url} icon={<UserOutlined />} size={36} />
+                  <div>
+                    <div className="font-medium text-gray-800">{record.name}</div>
+                    <div className="text-xs text-gray-500">{record.email}</div>
+                  </div>
+                </div>
+              )
+            },
+            {
+              title: 'Specializations',
+              dataIndex: 'specializations',
+              key: 'specializations',
+              render: (val) => {
+                const specs = val || [];
+                if (specs.length === 0) return <span className="text-gray-400">—</span>;
+                return (
+                  <Space size={[0, 4]} wrap>
+                    {specs.map(s => (
+                      <Tag key={s} color="blue" bordered={false}>{s}</Tag>
+                    ))}
+                  </Space>
+                );
+              }
+            },
+            {
+              title: 'Status',
+              dataIndex: 'status',
+              key: 'status',
+              width: 100,
+              render: (val) => {
+                const statusMap = {
+                  active: { color: 'green', label: 'Active' },
+                  inactive: { color: 'default', label: 'Inactive' },
+                  on_leave: { color: 'orange', label: 'On Leave' }
+                };
+                const info = statusMap[val] || statusMap.active;
+                return <Tag color={info.color}>{info.label}</Tag>;
+              }
+            },
+            {
+              title: 'Phone',
+              dataIndex: 'phone',
+              key: 'phone',
+              width: 140,
+              render: (val) => val || <span className="text-gray-400">—</span>
+            },
             { 
                title: 'Actions', 
-               key: 'actions', 
+               key: 'actions',
+               width: 200,
                render: (_, instructor) => (
-                  <div className="flex gap-2">
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        setSelectedInstructor(instructor);
-                        setIsDetailOpen(true);
-                      }}
-                    >
-                      Open
-                    </Button>
-                    <Button size="small" onClick={() => (window.location.href = `/instructors/edit/${instructor.id}`)}>
-                      Edit
-                    </Button>
+                  <Space>
+                    <Tooltip title="View Details">
+                      <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => {
+                          setSelectedInstructor(instructor);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        Open
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="Edit Instructor">
+                      <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/instructors/edit/${instructor.id}`)}>
+                        Edit
+                      </Button>
+                    </Tooltip>
                     {isAdmin && (
-                      <Button size="small" danger onClick={() => handleDeleteInstructor(instructor.id)}>Delete</Button>
+                      <Tooltip title="Delete Instructor">
+                        <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteInstructor(instructor.id)} />
+                      </Tooltip>
                     )}
-                  </div>
+                  </Space>
                )
             }
           ]}

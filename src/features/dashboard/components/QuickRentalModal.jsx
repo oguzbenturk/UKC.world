@@ -111,8 +111,8 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
       };
 
       await apiClient.post('/rentals', payload);
-      message.success('Rental created successfully!');
       onSuccess?.();
+      message.success('Rental created successfully!');
     } catch (err) {
       message.error(err.response?.data?.error || 'Failed to create rental');
     } finally {

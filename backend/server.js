@@ -64,6 +64,7 @@ import adminWaiversRouter from './routes/adminWaivers.js';
 import adminSupportTicketsRouter from './routes/adminSupportTickets.js';
 import walletRouter from './routes/wallet.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
+import feedbackRouter from './routes/feedback.js';
 import groupBookingsRouter from './routes/groupBookings.js';
 import { processParticipantPayment, processOrganizerPayment } from './services/groupBookingService.js';
 import groupLessonRequestsRouter from './routes/groupLessonRequests.js';
@@ -1250,7 +1251,7 @@ app.use('/api/vouchers', authenticateJWT, vouchersRouter);
 app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars
 app.use('/api/weather', weatherRouter);
-app.use('/api/admin/financial-reconciliation', authenticateJWT, adminReconciliationRouter);
+app.use('/api/feedback', authenticateJWT, feedbackRouter);
 app.use('/api/chat', authenticateJWT, chatRouter);
 
 // === WebSocket Test Endpoint ===

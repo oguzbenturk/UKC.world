@@ -157,6 +157,7 @@ export function BankTransferModal({ visible, onClose, onSuccess }) {
       });
 
       onSuccess?.();
+      message.success('Bank transfer deposit submitted successfully');
     } catch (error) {
       console.error('Bank transfer submission failed:', error);
       // express-validator returns { errors: [...] }, route handler returns { error: '...' }

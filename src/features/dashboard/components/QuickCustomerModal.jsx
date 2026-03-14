@@ -55,8 +55,8 @@ function QuickCustomerModal({ open, onClose, onSuccess }) {
       };
 
       await apiClient.post('/users', payload);
-      message.success(`${values.first_name} ${values.last_name} registered successfully!`);
       onSuccess?.();
+      message.success(`${values.first_name} ${values.last_name} registered successfully!`);
     } catch (err) {
       const errorMessage = err.response?.data?.error || 'Failed to register customer';
       if (errorMessage.includes('email') && errorMessage.includes('exists')) {

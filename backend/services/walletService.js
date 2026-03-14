@@ -35,7 +35,7 @@ const DEFAULT_SETTINGS = {
   autoUseWalletFirst: true,
   requireKycForWithdrawals: true,
   kycDocumentRequirements: [],
-  enabledGateways: ['stripe', 'iyzico', 'paytr', 'binance_pay'],
+  enabledGateways: ['iyzico', 'paytr', 'binance_pay'],
   preferences: DEFAULT_PREFERENCES,
   isDefault: false
 };
@@ -2574,7 +2574,7 @@ export async function createDepositRequest({
         instructions: bankAccount.instructions
       };
     } else if (normalizedMethod === 'card' || normalizedMethod === 'binance_pay') {
-      const defaultGateway = normalizedMethod === 'card' ? 'stripe' : 'binance_pay';
+      const defaultGateway = normalizedMethod === 'card' ? 'iyzico' : 'binance_pay';
       resolvedGateway = (resolvedGateway || defaultGateway).toLowerCase();
 
       assertGatewayEnabled(resolvedGateway);

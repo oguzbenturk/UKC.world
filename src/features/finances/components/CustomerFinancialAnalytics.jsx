@@ -91,16 +91,19 @@ function CustomerFinancialAnalytics() {
       const totalBookings = parseInt(customer.total_bookings) || 0;
       const monthsActive = parseInt(customer.months_active) || 1;
       const daysSinceLastBooking = parseInt(customer.days_since_last_booking) || 0;
+      const outstandingBalance = parseFloat(customer.outstanding_balance) || 0;
       
-      const clv = calculateCLV(totalSpent, totalBookings, monthsActive);
+      const avgMonthlySpend = monthsActive > 0 ? totalSpent / monthsActive : 0;
+      const clv = calculateCLV(avgMonthlySpend, monthsActive);
       const avgBookingValue = totalBookings > 0 ? totalSpent / totalBookings : 0;
       const bookingFrequency = monthsActive > 0 ? totalBookings / monthsActive : 0;
+      const profitMargin = totalSpent > 0 ? ((totalSpent - outstandingBalance) / totalSpent) * 100 : 0;
       const healthScore = calculateFinancialHealthScore({
-        totalSpent,
-        totalBookings,
-        monthsActive,
-        daysSinceLastBooking,
-        outstandingBalance: parseFloat(customer.outstanding_balance) || 0
+        profitMargin,
+        paymentEfficiency: totalBookings > 0 ? Math.min(100, ((totalBookings - (outstandingBalance > 0 ? 1 : 0)) / totalBookings) * 100) : 0,
+        refundRate: 0,
+        debtRatio: totalSpent > 0 ? (Math.abs(outstandingBalance) / totalSpent) * 100 : 0,
+        growthRate: 0
       });
 
       // Customer segment classification

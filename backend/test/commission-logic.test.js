@@ -81,6 +81,7 @@ describe('BookingUpdateCascadeService.getCommissionRate precedence', () => {
     const mockClient = createMockClient([
       { rows: [] }, // booking_custom_commissions
       { rows: [] }, // instructor_service_commissions
+      { rows: [] }, // instructor_category_rates (no category rate)
       { rows: [{ commission_type: 'percentage', commission_value: 55 }] }, // instructor_default_commissions
     ]);
 
@@ -88,6 +89,45 @@ describe('BookingUpdateCascadeService.getCommissionRate precedence', () => {
     const { commissionType, commissionValue } = await BookingUpdateCascadeService.getCommissionRate(mockClient, booking);
     expect(commissionType).toBe('percentage');
     expect(commissionValue).toBe(55);
+  });
+
+  test('category rate used when no custom or service commission', async () => {
+    const mockClient = createMockClient([
+      { rows: [] }, // booking_custom_commissions
+      { rows: [] }, // instructor_service_commissions
+      { rows: [{ rate_type: 'fixed', rate_value: 25 }] }, // instructor_category_rates match
+    ]);
+
+    const booking = { id: 'b4', instructor_user_id: 'i4', service_id: 's4' };
+    const { commissionType, commissionValue } = await BookingUpdateCascadeService.getCommissionRate(mockClient, booking);
+    expect(commissionType).toBe('fixed');
+    expect(commissionValue).toBe(25);
+  });
+
+  test('category rate is skipped when service commission exists', async () => {
+    const mockClient = createMockClient([
+      { rows: [] }, // booking_custom_commissions
+      { rows: [{ commission_type: 'fixed', commission_value: 40 }] }, // instructor_service_commissions
+    ]);
+
+    const booking = { id: 'b5', instructor_user_id: 'i5', service_id: 's5' };
+    const { commissionType, commissionValue } = await BookingUpdateCascadeService.getCommissionRate(mockClient, booking);
+    expect(commissionType).toBe('fixed');
+    expect(commissionValue).toBe(40);
+  });
+
+  test('falls back to 50% default when nothing configured', async () => {
+    const mockClient = createMockClient([
+      { rows: [] }, // booking_custom_commissions
+      { rows: [] }, // instructor_service_commissions
+      { rows: [] }, // instructor_category_rates
+      { rows: [] }, // instructor_default_commissions
+    ]);
+
+    const booking = { id: 'b6', instructor_user_id: 'i6', service_id: 's6' };
+    const { commissionType, commissionValue } = await BookingUpdateCascadeService.getCommissionRate(mockClient, booking);
+    expect(commissionType).toBe('percentage');
+    expect(commissionValue).toBe(50);
   });
 });
 

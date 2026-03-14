@@ -105,14 +105,14 @@ function QuickMembershipModal({ open, onClose, onSuccess }) {
 
       await apiClient.post('/member-offerings/admin/purchases', purchaseData);
 
-      message.success('Member registered successfully!');
-      
       form.resetFields();
       setSelectedOffering(null);
       
       if (onSuccess) {
         onSuccess();
       }
+      
+      message.success('Member registered successfully!');
       
       onClose();
     } catch (error) {

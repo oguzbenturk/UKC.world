@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import Stripe from 'stripe';
 
 import { pool } from '../db.js';
 import { logger, AppError } from '../middlewares/errorHandler.js';
@@ -100,10 +99,6 @@ function shouldTreatAsSuccess(provider, eventType, status) {
 	const normalizedProvider = provider?.toLowerCase();
 	const normalizedType = eventType?.toLowerCase();
 
-	if (normalizedProvider === 'stripe') {
-		return normalizedType === 'payment_intent.succeeded' || normalizedType === 'charge.succeeded';
-	}
-
 	if (normalizedProvider === 'binance_pay') {
 		return normalizedStatus === 'pay_success';
 	}
@@ -119,10 +114,6 @@ function shouldTreatAsFailure(provider, eventType, status) {
 
 	const normalizedProvider = provider?.toLowerCase();
 	const normalizedType = eventType?.toLowerCase();
-
-	if (normalizedProvider === 'stripe') {
-		return normalizedType === 'payment_intent.payment_failed' || normalizedType === 'charge.failed';
-	}
 
 	if (normalizedProvider === 'binance_pay') {
 		return normalizedStatus === 'pay_fail';
@@ -518,127 +509,6 @@ async function processNormalizedEvent(event) {
 	}
 }
 
-function extractLatestCharge(object) {
-	const charges = Array.isArray(object?.charges?.data) ? object.charges.data : [];
-	if (charges.length === 0) {
-		return null;
-	}
-	return charges[charges.length - 1];
-}
-
-function buildStripeVerification(object) {
-	const verification = {};
-	const latestCharge = extractLatestCharge(object);
-	const details = ensurePlainObject(latestCharge?.payment_method_details);
-	const card = ensurePlainObject(details?.card);
-
-	if (Object.keys(card).length > 0) {
-		verification.card = {
-			brand: card.brand || null,
-			last4: card.last4 || null,
-			expMonth: card.exp_month || null,
-			expYear: card.exp_year || null,
-			fingerprint: card.fingerprint || null
-		};
-	}
-
-	const threeDS = ensurePlainObject(card?.three_d_secure);
-	if (Object.keys(threeDS).length > 0) {
-		verification.threeDS = {
-			result: threeDS.result || null,
-			version: threeDS.version || null,
-			method: threeDS.authentication_flow || threeDS.eci || null
-		};
-	}
-
-	return verification;
-}
-
-function getStripeClient() {
-	if (!getStripeClient.instance) {
-		const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
-		getStripeClient.instance = new Stripe(apiKey, { apiVersion: '2022-11-15' });
-	}
-	return getStripeClient.instance;
-}
-
-function constructStripeEvent(rawBody, signature) {
-	const secret = process.env.STRIPE_WEBHOOK_SECRET;
-	if (!secret) {
-		logger.warn('STRIPE_WEBHOOK_SECRET is not configured; skipping signature verification');
-		return null;
-	}
-
-	if (!signature || !rawBody) {
-		throw new WebhookSignatureError('stripe', 'Missing Stripe webhook signature or payload');
-	}
-
-	try {
-		const stripe = getStripeClient();
-		return stripe.webhooks.constructEvent(rawBody, signature, secret);
-	} catch (error) {
-		throw new WebhookSignatureError('stripe', error?.message || 'Invalid Stripe webhook signature');
-	}
-}
-
-function normalizeStripeEvent({ payload, rawBody, signature }) {
-	let event = ensurePlainObject(payload);
-	try {
-		const verified = constructStripeEvent(rawBody, signature);
-		if (verified) {
-			event = verified;
-		}
-	} catch (error) {
-		if (error instanceof WebhookSignatureError) {
-			throw error;
-		}
-		logger.warn('Stripe signature verification failed; falling back to provided payload', {
-			error: error?.message
-		});
-	}
-
-	const dataObject = ensurePlainObject(event?.data?.object);
-	const metadata = ensurePlainObject(dataObject?.metadata);
-	const latestCharge = extractLatestCharge(dataObject);
-
-	const transactionId = dataObject.id || dataObject.payment_intent || latestCharge?.payment_intent || null;
-	const depositId = metadata.depositId || metadata.walletDepositId || metadata.deposit_id || null;
-	const referenceCode = metadata.referenceCode || metadata.reference_code || dataObject.description || null;
-
-	const amount = typeof dataObject.amount_received === 'number'
-		? dataObject.amount_received / 100
-		: typeof dataObject.amount === 'number'
-			? dataObject.amount / 100
-			: null;
-
-	const failureReason = latestCharge?.failure_message
-		|| dataObject.cancellation_reason
-		|| dataObject?.last_payment_error?.message
-		|| null;
-
-	return {
-		provider: 'stripe',
-		payload: event,
-		rawEvent: event,
-		rawBody,
-		eventType: event.type || null,
-		externalId: event.id || null,
-		transactionId,
-		depositId,
-		referenceCode,
-		status: dataObject.status || event.type || null,
-		amount,
-		currency: normalizeCurrency(dataObject.currency),
-		verification: buildStripeVerification(dataObject),
-		metadata: {
-			livemode: event.livemode ?? false,
-			paymentMethod: dataObject.payment_method || latestCharge?.payment_method || null,
-			attemptCount: dataObject.attempt_count ?? null
-		},
-		failureReason
-	};
-}
-
 function normalizeIyzicoEvent({ payload }) {
 	const body = ensurePlainObject(payload);
 	
@@ -752,20 +622,6 @@ function normalizeBinancePayEvent({ payload }) {
 	};
 }
 
-export async function handleStripeWebhook(context) {
-	const normalizedEvent = normalizeStripeEvent(context);
-	const result = await processNormalizedEvent(normalizedEvent);
-
-	return buildAckResponse('stripe', {
-		eventId: normalizedEvent.externalId,
-		status: normalizedEvent.status || null,
-		depositId: result.outcome?.depositId || normalizedEvent.depositId || null,
-		outcome: result.outcome,
-		alreadyProcessed: result.alreadyProcessed === true,
-		dedupeKey: normalizedEvent.dedupeKey
-	});
-}
-
 export async function handleIyzicoWebhook(context) {
 	const normalizedEvent = normalizeIyzicoEvent(context);
 	const result = await processNormalizedEvent(normalizedEvent);
@@ -810,8 +666,6 @@ export async function handleBinancePayWebhook(context) {
 
 export async function handleGatewayWebhook(provider, context) {
 	switch (provider) {
-		case 'stripe':
-			return handleStripeWebhook(context);
 		case 'iyzico':
 			return handleIyzicoWebhook(context);
 		case 'paytr':
@@ -824,7 +678,6 @@ export async function handleGatewayWebhook(provider, context) {
 }
 
 export default {
-	handleStripeWebhook,
 	handleIyzicoWebhook,
 	handlePaytrWebhook,
 	handleBinancePayWebhook,

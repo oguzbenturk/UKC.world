@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { weatherService } from '../services/weatherService';
 import { notificationService } from '../services/notificationService';
-import { paymentService } from '../services/paymentService';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../utils/logger';
 
@@ -280,49 +279,17 @@ export const FeaturesProvider = ({ children }) => {
   };
 
   // Payment functions
-  const createPaymentIntent = async (amount, currency, bookingId, description) => {
-    dispatch({ type: ACTIONS.PAYMENT_PROCESSING });
-    try {
-      const paymentIntent = await paymentService.createPaymentIntent({
-        amount,
-        currency,
-        bookingId,
-        description
-      });
-      
-      dispatch({ type: ACTIONS.PAYMENT_SUCCESS });
-      return paymentIntent;
-    } catch (error) {
-      logger.error('Error creating payment intent:', error);
-      dispatch({ type: ACTIONS.PAYMENT_ERROR, payload: error.message });
-      throw error;
-    }
-  };
-
-  const processPayment = async (paymentIntentId, paymentMethodId) => {
-    dispatch({ type: ACTIONS.PAYMENT_PROCESSING });
-    try {
-      const result = await paymentService.confirmPayment(paymentIntentId, paymentMethodId);
-      dispatch({ type: ACTIONS.PAYMENT_SUCCESS });
-      return result;
-    } catch (error) {
-      logger.error('Error processing payment:', error);
-      dispatch({ type: ACTIONS.PAYMENT_ERROR, payload: error.message });
-      throw error;
-    }
-  };
-
   const loadPaymentHistory = async () => {
     try {
-      const response = await fetch('/api/payments/history', {
+      const response = await fetch('/api/wallet/transactions', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
       if (response.ok) {
-        const history = await response.json();
-        dispatch({ type: ACTIONS.PAYMENT_HISTORY_SUCCESS, payload: history });
+        const data = await response.json();
+        dispatch({ type: ACTIONS.PAYMENT_HISTORY_SUCCESS, payload: data.results || data });
       }
     } catch (error) {
       logger.error('Error loading payment history:', error);
@@ -398,8 +365,6 @@ export const FeaturesProvider = ({ children }) => {
     subscribeToNotifications,
     
     // Payment methods
-    createPaymentIntent,
-    processPayment,
     loadPaymentHistory,
     
     // Feedback methods

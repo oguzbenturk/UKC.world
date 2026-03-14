@@ -48,6 +48,7 @@ const mapEarningRow = (row) => {
     total_earnings: totalEarnings,
     commission_amount: totalEarnings,
     currency: row.currency || 'EUR',
+    lesson_category: row.lesson_category || null,
   };
 };
 
@@ -69,6 +70,7 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
         srv.name as service_name,
         srv.price as service_price,
         srv.duration as service_duration,
+        srv.lesson_category_tag as lesson_category,
         cp.package_name,
         CASE
           WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
@@ -79,8 +81,8 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
         cp.remaining_hours as package_remaining_hours,
         cp.used_hours as package_used_hours,
         sp.sessions_count as package_sessions_count,
-        COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50.0) as commission_rate,
-        COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type, 'percentage') as commission_type
+        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 50.0) as commission_rate,
+        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'percentage') as commission_type
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN services srv ON srv.id = b.service_id
@@ -89,6 +91,7 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
       LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       WHERE b.instructor_user_id = $1
         AND b.deleted_at IS NULL
