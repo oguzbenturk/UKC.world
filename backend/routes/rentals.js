@@ -8,6 +8,9 @@ import { resolveActorId } from '../utils/auditUtils.js';
 import { recordLegacyTransaction, createDepositRequest } from '../services/walletService.js';
 import { forceDeleteRental } from '../services/rentalCleanupService.js';
 import CurrencyService from '../services/currencyService.js';
+import bookingNotificationService from '../services/bookingNotificationService.js';
+import { insertNotification } from '../services/notificationWriter.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = Router();
 
@@ -261,6 +264,47 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
 });
 
 /**
+ * Get all pending rentals (awaiting approval)
+ */
+router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        r.*,
+        u.name as customer_name,
+        u.email as customer_email,
+        creator.name as created_by_name,
+        COALESCE(
+          json_object_agg(
+            s.id, json_build_object(
+              'id', s.id,
+              'name', s.name,
+              'serviceType', s.service_type,
+              'dailyRate', re.daily_rate,
+              'duration', s.duration
+            )
+          ) FILTER (WHERE s.id IS NOT NULL), 
+          '{}'::json
+        ) as equipment_details,
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+      FROM rentals r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN users creator ON r.created_by = creator.id
+      LEFT JOIN rental_equipment re ON r.id = re.rental_id
+      LEFT JOIN services s ON re.equipment_id = s.id
+      WHERE r.status = 'pending'
+      GROUP BY r.id, u.name, u.email, creator.name
+      ORDER BY r.created_at DESC
+    `;
+    const { rows } = await pool.query(query);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching pending rentals:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Get rental by ID with enriched data
  */
 router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
@@ -341,8 +385,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
       payment_method = 'wallet'
     } = req.body;
 
-    // Non-staff users get 'upcoming' status; staff can set any status
-    const status = isStaff ? requestedStatus : 'upcoming';
+    // Non-staff users get 'pending' status requiring admin approval; staff can set any status
+    const status = isStaff ? requestedStatus : 'pending';
     
     // Storage currency is always EUR (base currency)
     // The requestedCurrency is tracked for audit purposes only
@@ -361,6 +405,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     }
     
     // Calculate rental duration and price based on selected services if not provided
+    const daysToUse = parseInt(rental_days) || 1;
     let calculatedTotalPrice = total_price || 0;
     const equipmentDetails = {};
     
@@ -403,7 +448,6 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     let usedPackageId = null;
     let finalPaymentStatus = payment_status;
     let skipWalletCharge = false;
-    const daysToUse = parseInt(rental_days) || 1;
 
     // Payment method routing (credit card / pay later / wallet)
     if (payment_method === 'credit_card') {
@@ -658,6 +702,16 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
       } catch (socketError) {
         console.error('Error broadcasting rental creation:', socketError);
       }
+    }
+
+    // Send rental notifications (customer + staff)
+    try {
+      await bookingNotificationService.sendRentalCreated({ rentalId: rental.id });
+    } catch (notifError) {
+      console.warn('Failed to dispatch rental notifications', {
+        rentalId: rental.id,
+        error: notifError?.message
+      });
     }
 
     // For credit card payments, create a deposit record and initiate Iyzico checkout
@@ -972,7 +1026,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(['admin', 'manager', 'i
 });
 
 /**
- * Mark a rental as activated
+ * Mark a rental as activated (approve a pending rental)
  */
 router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
   try {
@@ -987,16 +1041,53 @@ router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
       return res.status(404).json({ error: 'Rental not found' });
     }
     
+    const rental = result.rows[0];
+    
     // Broadcast real-time event for rental activation
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'rental:activated', result.rows[0]);
+        req.socketService.emitToChannel('general', 'rental:activated', rental);
       } catch (socketError) {
         console.error('Error broadcasting rental activation:', socketError);
       }
     }
     
-    res.json(result.rows[0]);
+    // Notify the student that their rental has been approved
+    if (rental.user_id) {
+      try {
+        const equipmentLabel = rental.equipment_details
+          ? Object.values(typeof rental.equipment_details === 'string' ? JSON.parse(rental.equipment_details) : rental.equipment_details)
+              .map(e => e.name).filter(Boolean).join(', ') || 'Equipment'
+          : 'Equipment';
+        const rentalDate = rental.rental_date
+          ? new Date(rental.rental_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '';
+        await insertNotification({
+          userId: rental.user_id,
+          title: 'Rental Approved',
+          message: `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been approved!`,
+          type: 'rental_approved',
+          data: { rentalId: rental.id, link: '/student/my-rentals' },
+        });
+        // Emit real-time notification
+        if (req.socketService) {
+          req.socketService.emitToChannel(`user:${rental.user_id}`, 'notification:new', {
+            notification: {
+              user_id: rental.user_id,
+              title: 'Rental Approved',
+              message: `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been approved!`,
+              type: 'rental_approved',
+              data: { rentalId: rental.id, link: '/student/my-rentals' },
+              created_at: new Date().toISOString(),
+            },
+          });
+        }
+      } catch (notifErr) {
+        logger.warn('Failed to send rental approval notification', { rentalId: id, error: notifErr?.message });
+      }
+    }
+    
+    res.json(rental);
   } catch (error) {
     console.error('Error activating rental:', error);
     res.status(500).json({ error: error.message });
@@ -1054,27 +1145,123 @@ router.patch('/:id/complete', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
 });
 
 /**
- * Mark a rental as cancelled
+ * Mark a rental as cancelled (decline a pending rental or cancel an active one)
  */
 router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const { id } = req.params;
     
-    const result = await pool.query(
+    // Fetch current rental before updating
+    const currentResult = await client.query('SELECT * FROM rentals WHERE id = $1', [id]);
+    if (currentResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Rental not found' });
+    }
+    const rental = currentResult.rows[0];
+    const wasPending = rental.status === 'pending';
+    
+    // Update status
+    const result = await client.query(
       `UPDATE rentals SET status = 'cancelled', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id]
     );
+    const cancelledRental = result.rows[0];
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Rental not found' });
+    // Refund wallet if the rental was charged (pending or active with paid status)
+    const chargedAmount = parseFloat(rental.total_price) || 0;
+    if (chargedAmount > 0 && rental.user_id && rental.payment_status === 'paid' && !rental.customer_package_id) {
+      try {
+        await recordLegacyTransaction({
+          client,
+          userId: rental.user_id,
+          amount: Math.abs(chargedAmount),
+          transactionType: 'rental_cancelled_refund',
+          status: 'completed',
+          direction: 'credit',
+          description: `Rental ${wasPending ? 'declined' : 'cancelled'} — refund`,
+          metadata: { rentalId: rental.id, cancelledVia: 'admin_action' },
+          entityType: 'rental',
+          relatedEntityType: 'rental',
+          relatedEntityId: rental.id,
+          rentalId: rental.id,
+          createdBy: req.user.id,
+        });
+        logger.info(`Refunded €${chargedAmount} for rental ${id} to user ${rental.user_id}`);
+      } catch (refundErr) {
+        logger.error('Failed to refund rental charge', { rentalId: id, error: refundErr?.message });
+        throw refundErr;
+      }
     }
+    
+    // Restore package rental days if package-based
+    if (rental.customer_package_id) {
+      const startMs = new Date(rental.start_date).getTime();
+      const endMs = new Date(rental.end_date).getTime();
+      const daysToRestore = Math.max(1, Math.round((endMs - startMs) / (24 * 60 * 60 * 1000)));
+      try {
+        await client.query(
+          `UPDATE customer_packages
+           SET rental_days_used = GREATEST(rental_days_used - $1, 0),
+               rental_days_remaining = rental_days_remaining + $1,
+               status = CASE WHEN status = 'used_up' THEN 'active' ELSE status END,
+               updated_at = NOW()
+           WHERE id = $2`,
+          [daysToRestore, rental.customer_package_id]
+        );
+        logger.info(`Restored ${daysToRestore} rental day(s) to package ${rental.customer_package_id}`);
+      } catch (pkgErr) {
+        logger.error('Failed to restore package rental days', { rentalId: id, error: pkgErr?.message });
+      }
+    }
+    
+    await client.query('COMMIT');
     
     // Broadcast real-time event for rental cancellation
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'rental:cancelled', result.rows[0]);
+        req.socketService.emitToChannel('general', 'rental:cancelled', cancelledRental);
       } catch (socketError) {
         console.error('Error broadcasting rental cancellation:', socketError);
+      }
+    }
+    
+    // Notify the student that their rental has been declined/cancelled
+    if (rental.user_id) {
+      try {
+        const equipmentLabel = rental.equipment_details
+          ? Object.values(typeof rental.equipment_details === 'string' ? JSON.parse(rental.equipment_details) : rental.equipment_details)
+              .map(e => e.name).filter(Boolean).join(', ') || 'Equipment'
+          : 'Equipment';
+        const rentalDate = rental.rental_date
+          ? new Date(rental.rental_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '';
+        const title = wasPending ? 'Rental Declined' : 'Rental Cancelled';
+        const message = wasPending
+          ? `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been declined. Any charges have been refunded.`
+          : `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been cancelled.`;
+        await insertNotification({
+          userId: rental.user_id,
+          title,
+          message,
+          type: 'rental_declined',
+          data: { rentalId: rental.id, link: '/student/my-rentals' },
+        });
+        if (req.socketService) {
+          req.socketService.emitToChannel(`user:${rental.user_id}`, 'notification:new', {
+            notification: {
+              user_id: rental.user_id,
+              title,
+              message,
+              type: 'rental_declined',
+              data: { rentalId: rental.id, link: '/student/my-rentals' },
+              created_at: new Date().toISOString(),
+            },
+          });
+        }
+      } catch (notifErr) {
+        logger.warn('Failed to send rental decline notification', { rentalId: id, error: notifErr?.message });
       }
     }
 
@@ -1088,10 +1275,13 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
       console.error('Failed to import manager commission service:', commissionErr.message);
     }
     
-    res.json(result.rows[0]);
+    res.json(cancelledRental);
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Error cancelling rental:', error);
     res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 

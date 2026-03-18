@@ -321,6 +321,31 @@ class BookingNotificationService {
     return Promise.resolve();
   }
 
+  async sendLessonCheckedIn({ bookingId, immediate = false } = {}) {
+    if (!bookingId) {
+      return;
+    }
+
+    if (immediate || !this.queueEnabled) {
+      try {
+        await this._processLessonCheckedIn({ bookingId });
+      } catch (error) {
+        // Already logged downstream; swallow to preserve legacy behavior.
+      }
+      return;
+    }
+
+    this._enqueueJob({
+      type: 'lesson-checked-in',
+      meta: { type: 'lesson-checked-in', bookingId },
+      idempotencyKey: `lesson-checked-in:${bookingId}`,
+      tenantKey: `booking:${bookingId}`,
+      execute: () => this._processLessonCheckedIn({ bookingId })
+    });
+
+    return Promise.resolve();
+  }
+
   async sendLessonCompleted({ bookingId, bookingIds, immediate = false } = {}) {
     const normalizedIds = Array.isArray(bookingIds)
       ? bookingIds
@@ -770,6 +795,81 @@ class BookingNotificationService {
     }
   }
 
+  async _processLessonCheckedIn({ bookingId }) {
+    if (!bookingId) {
+      return;
+    }
+
+    const client = await pool.connect();
+
+    try {
+      const context = await fetchBookingContext(client, bookingId);
+      if (!context) {
+        return;
+      }
+
+      const {
+        booking,
+        isoDate,
+        dateLabel,
+        timeLabel,
+        serviceName,
+        durationHours,
+        students,
+        instructor
+      } = context;
+
+      if (!students.length) {
+        return;
+      }
+
+      const serviceLabel = normalizeServiceLabel(serviceName);
+      const instructorName = instructor?.name || 'your instructor';
+      const durationLabel = formatDurationLabel(durationHours);
+      const messageSubject = durationLabel
+        ? `${durationLabel} of ${serviceLabel}`
+        : serviceLabel.charAt(0).toUpperCase() + serviceLabel.slice(1);
+      const message = `${messageSubject} with ${instructorName} on ${dateLabel} at ${timeLabel} has been confirmed.`;
+
+      await Promise.all(
+        students.map((student) =>
+          insertNotification({
+            client,
+            userId: student.id,
+            title: `Lesson confirmed: ${serviceName}`,
+            message,
+            type: 'booking_checkin_student',
+            data: {
+              bookingId: booking.id,
+              role: 'student',
+              date: isoDate,
+              startTime: timeLabel,
+              durationHours,
+              serviceName,
+              instructor,
+              student: { id: student.id, name: student.name },
+              cta: {
+                label: 'View lesson schedule',
+                href: isoDate ? `/student/schedule?date=${isoDate}` : '/student/schedule'
+              }
+            },
+            idempotencyKey: `lesson-checked-in:${booking.id}:student:${student.id}`
+          })
+        )
+      );
+
+      logger.info('Lesson check-in notification sent to students', {
+        bookingId,
+        studentsNotified: students.length
+      });
+    } catch (error) {
+      logger.error('Failed to send lesson check-in notification', { bookingId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async _processLessonCompleted({ bookingId }) {
     if (!bookingId) {
       return;
@@ -1043,6 +1143,134 @@ class BookingNotificationService {
   _calculateRetryDelay(attempt) {
     const delay = this.retryDelayMs * 2 ** Math.max(0, attempt - 1);
     return Math.min(delay, this.maxRetryDelayMs);
+  }
+
+  // ── Rental notifications ──────────────────────────────────────────────────
+
+  async sendRentalCreated({ rentalId, immediate = false } = {}) {
+    if (!rentalId) return;
+
+    if (immediate || !this.queueEnabled) {
+      try {
+        await this._processRentalCreated({ rentalId });
+      } catch (error) {
+        // Already logged downstream
+      }
+      return;
+    }
+
+    this._enqueueJob({
+      type: 'rental-created',
+      meta: { type: 'rental-created', rentalId },
+      idempotencyKey: `rental-created:${rentalId}`,
+      tenantKey: `rental:${rentalId}`,
+      execute: () => this._processRentalCreated({ rentalId })
+    });
+  }
+
+  async _processRentalCreated({ rentalId }) {
+    const client = await pool.connect();
+    try {
+      // Fetch rental with customer + equipment info
+      const rentalQuery = await client.query(
+        `SELECT r.id, r.user_id, r.rental_date, r.start_date, r.end_date,
+                r.total_price, r.payment_status, r.status, r.created_by,
+                r.equipment_details, r.customer_package_id,
+                u.name AS customer_name, u.id AS customer_id,
+                creator.name AS creator_name
+         FROM rentals r
+         LEFT JOIN users u ON u.id = r.user_id
+         LEFT JOIN users creator ON creator.id = r.created_by
+         WHERE r.id = $1`,
+        [rentalId]
+      );
+
+      if (!rentalQuery.rows.length) {
+        logger.warn('Rental not found for notification', { rentalId });
+        return;
+      }
+
+      const rental = rentalQuery.rows[0];
+      const equipmentDetails = rental.equipment_details || {};
+      const equipmentNames = Object.values(equipmentDetails).map(e => e.name).filter(Boolean);
+      const equipmentLabel = equipmentNames.length > 0 ? equipmentNames.join(', ') : 'Equipment';
+      const dateLabel = formatDateLabel(toIsoDate(rental.rental_date || rental.start_date));
+      const customerName = rental.customer_name || 'A customer';
+      const isPackage = rental.customer_package_id != null;
+
+      // 1) Notify the customer
+      if (rental.customer_id) {
+        const customerMessage = isPackage
+          ? `Your rental of ${equipmentLabel} on ${dateLabel} has been confirmed using your package.`
+          : `Your rental of ${equipmentLabel} on ${dateLabel} has been confirmed.`;
+
+        await insertNotification({
+          client,
+          userId: rental.customer_id,
+          title: `Rental confirmed: ${equipmentLabel}`,
+          message: customerMessage,
+          type: 'rental_customer',
+          data: {
+            rentalId: rental.id,
+            role: 'customer',
+            date: toIsoDate(rental.rental_date || rental.start_date),
+            equipmentNames,
+            totalPrice: rental.total_price,
+            paymentStatus: rental.payment_status,
+            cta: { label: 'View my rentals', href: '/rental/my-rentals' }
+          },
+          idempotencyKey: `rental-created:${rental.id}:customer:${rental.customer_id}`
+        });
+      }
+
+      // 2) Notify managers/admins
+      const staffQuery = await client.query(
+        `SELECT u.id, u.name
+         FROM users u
+         JOIN roles r ON r.id = u.role_id
+         LEFT JOIN notification_settings ns ON ns.user_id = u.id
+         WHERE r.name IN ('super_admin', 'admin', 'manager', 'owner')
+           AND u.status = 'active'
+           AND u.deleted_at IS NULL
+           AND COALESCE(ns.new_booking_alerts, true) = true
+           AND u.id != $1`,
+        [rental.created_by || '00000000-0000-0000-0000-000000000000']
+      );
+
+      const staffMessage = `${customerName} rented ${equipmentLabel} for ${dateLabel}.`;
+
+      await Promise.all(
+        staffQuery.rows.map(staff =>
+          insertNotification({
+            client,
+            userId: staff.id,
+            title: `New rental: ${equipmentLabel}`,
+            message: staffMessage,
+            type: 'new_rental_alert',
+            data: {
+              rentalId: rental.id,
+              role: 'staff',
+              customerName,
+              equipmentNames,
+              date: toIsoDate(rental.rental_date || rental.start_date),
+              cta: { label: 'View rental', href: '/calendars/rentals' }
+            },
+            idempotencyKey: `rental-created:${rental.id}:staff:${staff.id}`
+          })
+        )
+      );
+
+      logger.info('Rental notifications sent', {
+        rentalId,
+        customerNotified: !!rental.customer_id,
+        staffNotified: staffQuery.rows.length
+      });
+    } catch (error) {
+      logger.error('Failed to send rental notifications', { rentalId, error: error.message });
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 

@@ -199,6 +199,10 @@ const ServiceSelectionStep = (props) => {
     const serviceName = service.name.toLowerCase();
     const serviceCategory = (service.category || '').toLowerCase();
     
+    if (serviceName.includes('semi-private') || serviceName.includes('semi private') ||
+        serviceCategory.includes('semi-private') || serviceCategory.includes('semi private')) {
+      return 'semi-private';
+    }
     if (serviceName.includes('private') || serviceCategory.includes('private')) {
       return 'private';
     }

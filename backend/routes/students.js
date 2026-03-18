@@ -13,7 +13,7 @@ router.get('/', authorizeRoles(['admin', 'manager', 'instructor']), async (req, 
       SELECT u.*, r.name as role_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE r.name IN ('student', 'outsider')
+      WHERE r.name IN ('student', 'outsider') AND u.deleted_at IS NULL
       ORDER BY u.name
     `;
     
@@ -32,7 +32,7 @@ router.get('/:id', authorizeRoles(['admin', 'manager', 'instructor']), async (re
       SELECT u.*, r.name as role_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE u.id = $1 AND r.name IN ('student', 'outsider')
+      WHERE u.id = $1 AND r.name IN ('student', 'outsider') AND u.deleted_at IS NULL
     `;
     
     const userResult = await pool.query(userQuery, [req.params.id]);

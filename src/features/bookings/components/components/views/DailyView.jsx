@@ -465,9 +465,23 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     if (selectedInstructors.length > 0) {
       filtered = filtered.filter(instructor => selectedInstructors.includes(instructor.id));
     }
+
+    // Hide freelance instructors who have no bookings on this day
+    if (effectiveDate && bookings) {
+      const dateStr = format(effectiveDate, 'yyyy-MM-dd');
+      filtered = filtered.filter(instructor => {
+        if (!instructor.is_freelance) return true;
+        return bookings.some(b => {
+          let bDate = b.date || b.formatted_date || b.formattedDate;
+          if (bDate instanceof Date) bDate = bDate.toISOString().split('T')[0];
+          if (typeof bDate === 'string' && bDate.includes('T')) bDate = bDate.split('T')[0];
+          return bDate === dateStr && String(b.instructorId) === String(instructor.id);
+        });
+      });
+    }
     
     return filtered;
-  }, [instructors, searchTerm, selectedInstructors]);
+  }, [instructors, searchTerm, selectedInstructors, effectiveDate, bookings]);
 
   // Filter instructors for display in the calendar columns
   const displayedInstructors = useMemo(() => {

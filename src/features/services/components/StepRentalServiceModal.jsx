@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Modal, Steps, Form, Input, InputNumber, Select, Row, Col, Button, App } from 'antd';
-import { ToolOutlined, ClockCircleOutlined, DollarOutlined } from '@ant-design/icons';
+import { ToolOutlined, ClockCircleOutlined, DollarOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { serviceApi } from '@/shared/services/serviceApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
@@ -32,6 +32,13 @@ const SEGMENT_LABELS = {
   accessory: 'Accessory',
 };
 
+const QUICK_DURATIONS = [
+  { label: '1h', value: 1 },
+  { label: '4h', value: 4 },
+  { label: '8h (Full Day)', value: 8 },
+  { label: '1 Week', value: 168 },
+];
+
 /** Strip auto-generated "{duration}H - {SEGMENT} - " prefix so the admin sees only the descriptive part */
 const stripAutoPrefix = (name, rentalSegment) => {
   if (!name) return '';
@@ -52,6 +59,9 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
   const { message } = App.useApp();
   const { businessCurrency, getSupportedCurrencies, getCurrencySymbol } = useCurrency();
 
+  // Multi-duration tiers (create mode only)
+  const [tiers, setTiers] = useState([{ duration: 1, price: '', units: 1 }]);
+
   // Pre-fill form when opening in edit mode; reset for create
   useEffect(() => {
     if (!open) return;
@@ -68,35 +78,36 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
       });
     } else {
       form.resetFields();
+      setTiers([{ duration: 1, price: '', units: 1 }]);
     }
     setCurrent(0);
   }, [open, service?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps = useMemo(
-    () => [
-      { key: 'equipment', title: 'Equipment', icon: <ToolOutlined /> },
-      { key: 'duration', title: 'Duration & Stock', icon: <ClockCircleOutlined /> },
-      { key: 'pricing', title: 'Pricing', icon: <DollarOutlined /> },
-    ],
-    []
+    () => isEditMode
+      ? [
+          { key: 'equipment', title: 'Equipment', icon: <ToolOutlined /> },
+          { key: 'duration', title: 'Duration & Stock', icon: <ClockCircleOutlined /> },
+          { key: 'pricing', title: 'Pricing', icon: <DollarOutlined /> },
+        ]
+      : [
+          { key: 'equipment', title: 'Equipment', icon: <ToolOutlined /> },
+          { key: 'tiers', title: 'Duration & Pricing', icon: <ClockCircleOutlined /> },
+        ],
+    [isEditMode]
   );
 
-  const fieldsPerStep = {
+  // Edit-mode field validation per step
+  const editFieldsPerStep = {
     equipment: ['name', 'rentalSegment'],
     duration: ['duration', 'availableUnits'],
     pricing: ['currency', 'price'],
   };
-  const allFieldNames = Object.values(fieldsPerStep).flat();
 
-  const buildPayload = (values) => {
-    const duration = values.duration != null ? parseFloat(values.duration) : undefined;
-    const price = values.price != null ? parseFloat(values.price) : undefined;
-    const units = values.availableUnits != null ? parseInt(values.availableUnits, 10) : 1;
+  const buildPayload = (values, duration, price, units) => {
     const segment = values.rentalSegment || 'standard';
     const segLabel = SEGMENT_LABELS[segment] || segment.toUpperCase();
-
-    // Auto-construct stored name: "{duration}H - {SEGMENT} - {descriptive name}"
-    let baseName = (values.name || '').trim() || 'Rental Service';
+    const baseName = (values.name || '').trim() || 'Rental Service';
     const dH = parseFloat(duration);
     const durationTag = Number.isFinite(dH) ? `${dH % 1 === 0 ? dH : dH}H` : '';
     const storedName = durationTag ? `${durationTag} - ${segLabel} - ${baseName}` : `${segLabel} - ${baseName}`;
@@ -104,48 +115,106 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
     return {
       name: storedName,
       category: 'rental',
-      duration,
-      price,
+      duration: parseFloat(duration),
+      price: parseFloat(price),
       currency: values.currency || businessCurrency || 'EUR',
       description: values.description || '',
       serviceType: 'rental',
       isPackage: false,
       disciplineTag: values.disciplineTag || null,
       rentalSegment: segment,
-      max_participants: units,
-      maxParticipants: units,
+      max_participants: parseInt(units, 10) || 1,
+      maxParticipants: parseInt(units, 10) || 1,
     };
   };
 
   const handleClose = () => {
     form.resetFields();
+    setTiers([{ duration: 1, price: '', units: 1 }]);
     setCurrent(0);
     onClose?.();
   };
 
+  const validateTiers = () => {
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      if (!t.duration || t.duration <= 0) {
+        message.error(`Tier ${i + 1}: Duration is required`);
+        return false;
+      }
+      if (t.price === '' || t.price === null || t.price === undefined || parseFloat(t.price) < 0) {
+        message.error(`Tier ${i + 1}: Price is required`);
+        return false;
+      }
+    }
+    // Check for duplicate durations
+    const durations = tiers.map(t => parseFloat(t.duration));
+    const unique = new Set(durations);
+    if (unique.size !== durations.length) {
+      message.error('Each duration must be unique');
+      return false;
+    }
+    return true;
+  };
+
   const next = async () => {
     const stepKey = steps[current].key;
-    await form.validateFields(fieldsPerStep[stepKey]);
+    if (stepKey === 'equipment') {
+      await form.validateFields(['name', 'rentalSegment']);
+    } else if (isEditMode && editFieldsPerStep[stepKey]) {
+      await form.validateFields(editFieldsPerStep[stepKey]);
+    }
     setCurrent((c) => c + 1);
   };
 
   const prev = () => setCurrent((c) => c - 1);
 
+  const updateTier = (index, field, value) => {
+    setTiers(prev => prev.map((t, i) => i === index ? { ...t, [field]: value } : t));
+  };
+
+  const addTier = () => {
+    setTiers(prev => [...prev, { duration: '', price: '', units: 1 }]);
+  };
+
+  const removeTier = (index) => {
+    if (tiers.length <= 1) return;
+    setTiers(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addQuickDuration = (dur) => {
+    if (tiers.some(t => parseFloat(t.duration) === dur)) return;
+    setTiers(prev => [...prev, { duration: dur, price: '', units: 1 }]);
+  };
+
   const handleSubmit = async () => {
     try {
-      await form.validateFields(allFieldNames);
       const values = form.getFieldsValue(true);
       setSubmitting(true);
-      const payload = buildPayload(values);
 
       if (isEditMode) {
+        // Edit mode: single service update
+        await form.validateFields(['name', 'rentalSegment', 'currency', 'price', 'duration', 'availableUnits']);
+        const payload = buildPayload(values, values.duration, values.price, values.availableUnits);
         const updated = await serviceApi.updateService(service.id, payload);
         message.success('Rental service updated');
         onUpdated?.(updated);
       } else {
-        const created = await serviceApi.createService(payload);
-        message.success('Rental service created');
-        onCreated?.(created);
+        // Create mode: validate equipment fields + tiers
+        await form.validateFields(['name', 'rentalSegment']);
+        if (!validateTiers()) {
+          setSubmitting(false);
+          return;
+        }
+
+        // Create one service per duration tier
+        let lastCreated = null;
+        for (const tier of tiers) {
+          const payload = buildPayload(values, tier.duration, tier.price, tier.units);
+          lastCreated = await serviceApi.createService(payload);
+        }
+        message.success(`Created ${tiers.length} rental service${tiers.length > 1 ? 's' : ''}`);
+        onCreated?.(lastCreated);
       }
 
       handleClose();
@@ -157,6 +226,8 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
       setSubmitting(false);
     }
   };
+
+  const currencySymbol = getCurrencySymbol?.(form.getFieldValue('currency') || businessCurrency || 'EUR') || '€';
 
   return (
     <Modal
@@ -173,7 +244,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
               <Button type="primary" onClick={next}>Next</Button>
             ) : (
               <Button type="primary" loading={submitting} onClick={handleSubmit}>
-                {isEditMode ? 'Update Service' : 'Save Service'}
+                {isEditMode ? 'Update Service' : `Create ${tiers.length > 1 ? `${tiers.length} Services` : 'Service'}`}
               </Button>
             )}
           </div>
@@ -232,20 +303,121 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
                 ))}
               </Select>
             </Form.Item>
+
+            <Form.Item name="description" label="Description / Notes">
+              <Input.TextArea rows={3} placeholder="Equipment description visible to customers" />
+            </Form.Item>
+
+            <Form.Item name="currency" label="Currency" rules={[{ required: true }]}>
+              <Select showSearch optionFilterProp="label" placeholder={businessCurrency || 'EUR'} style={{ width: 160 }}>
+                {(getSupportedCurrencies?.() || ['EUR', 'USD', 'GBP']).map((code) => (
+                  <Option key={code} value={code} label={code}>
+                    {getCurrencySymbol?.(code) || ''} {code}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
           </>
         )}
 
-        {/* Step 1 — Duration & Stock */}
-        {current === 1 && (
+        {/* Create mode — Step 1: Duration & Pricing tiers */}
+        {!isEditMode && current === 1 && (
+          <div>
+            <div className="mb-3">
+              <div className="text-sm text-gray-500 mb-2">Quick add common durations:</div>
+              <div className="flex gap-2 flex-wrap">
+                {QUICK_DURATIONS.map((qd) => {
+                  const exists = tiers.some(t => parseFloat(t.duration) === qd.value);
+                  return (
+                    <Button
+                      key={qd.value}
+                      size="small"
+                      type={exists ? 'default' : 'dashed'}
+                      disabled={exists}
+                      onClick={() => addQuickDuration(qd.value)}
+                    >
+                      + {qd.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {tiers.map((tier, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-400 mb-1">Duration (hours)</div>
+                    <InputNumber
+                      min={0.5}
+                      max={720}
+                      step={0.5}
+                      value={tier.duration}
+                      onChange={(v) => updateTier(idx, 'duration', v)}
+                      style={{ width: '100%' }}
+                      placeholder="e.g. 1, 4, 8"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-400 mb-1">Price ({currencySymbol})</div>
+                    <InputNumber
+                      min={0}
+                      value={tier.price}
+                      onChange={(v) => updateTier(idx, 'price', v)}
+                      style={{ width: '100%' }}
+                      placeholder="e.g. 35"
+                      addonBefore={currencySymbol}
+                    />
+                  </div>
+                  <div style={{ width: 100 }}>
+                    <div className="text-xs text-gray-400 mb-1">Units</div>
+                    <InputNumber
+                      min={1}
+                      max={50}
+                      value={tier.units}
+                      onChange={(v) => updateTier(idx, 'units', v)}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div className="pt-5">
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      disabled={tiers.length <= 1}
+                      onClick={() => removeTier(idx)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={addTier}
+              className="mt-3 w-full"
+            >
+              Add Duration Tier
+            </Button>
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+              <strong>💡 Tip:</strong> Adding multiple durations (e.g. 1h, 4h, 8h) for the same equipment 
+              creates one grouped card on the customer page where they can choose their preferred duration.
+            </div>
+          </div>
+        )}
+
+        {/* Edit mode — Step 1: Single duration & stock */}
+        {isEditMode && current === 1 && (
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="duration"
                 label="Rental Duration (Hours)"
                 rules={[{ required: true, message: 'Please enter a duration' }]}
-                extra="Common durations: 1h, 4h, 8h"
               >
-                <InputNumber min={0.5} max={48} step={0.5} style={{ width: '100%' }} placeholder="e.g. 1, 4 or 8" />
+                <InputNumber min={0.5} max={720} step={0.5} style={{ width: '100%' }} placeholder="e.g. 1, 4 or 8" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -253,7 +425,6 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
                 name="availableUnits"
                 label="Available Units"
                 rules={[{ required: true, type: 'number', min: 1, max: 50 }]}
-                extra="How many of this equipment can be rented at the same time"
               >
                 <InputNumber min={1} max={50} style={{ width: '100%' }} placeholder="e.g. 3" />
               </Form.Item>
@@ -261,17 +432,13 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
           </Row>
         )}
 
-        {/* Step 2 — Pricing */}
-        {current === 2 && (
+        {/* Edit mode — Step 2: Pricing */}
+        {isEditMode && current === 2 && (
           <>
             <Row gutter={16}>
               <Col span={8}>
                 <Form.Item name="currency" label="Currency" rules={[{ required: true }]}>
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder={businessCurrency || 'EUR'}
-                  >
+                  <Select showSearch optionFilterProp="label" placeholder={businessCurrency || 'EUR'}>
                     {(getSupportedCurrencies?.() || ['EUR', 'USD', 'GBP']).map((code) => (
                       <Option key={code} value={code} label={code}>
                         {getCurrencySymbol?.(code) || ''} {code}

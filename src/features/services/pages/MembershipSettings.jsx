@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Table,
   Button,
-  Modal,
   Form,
   Input,
   InputNumber,
@@ -10,7 +9,6 @@ import {
   Tag,
   Space,
   Card,
-  Typography,
   Popconfirm,
   Badge,
   Alert,
@@ -18,7 +16,8 @@ import {
   Switch,
   Checkbox,
   Slider,
-  Grid
+  Grid,
+  Drawer,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -42,7 +41,6 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { usePageSEO } from '@/shared/utils/seo';
 import { logger } from '@/shared/utils/logger';
 
-const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { useBreakpoint } = Grid;
 
@@ -420,8 +418,8 @@ function MembershipSettings() {
       <Card className="shadow-sm border-slate-200 rounded-xl md:rounded-2xl">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
           <div>
-            <Title level={isMobile ? 4 : 3} className="!mb-1">Membership Settings</Title>
-            <Text type="secondary" className="text-sm hidden sm:block">Configure VIP memberships and subscription packages</Text>
+            <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-slate-900 !mb-1`}>Membership Settings</h3>
+            <p className="text-sm text-slate-500 hidden sm:block">Configure VIP memberships and subscription packages</p>
           </div>
           <Button 
             type="primary" 
@@ -464,570 +462,115 @@ function MembershipSettings() {
         )}
       </Card>
 
-      <Modal
-        title={null}
+      <Drawer
         open={modalVisible}
-        onCancel={() => {
+        onClose={() => {
           setModalVisible(false);
           setEditingOffering(null);
           setImageUrl(null);
           form.resetFields();
         }}
-        footer={null}
-        width={isMobile ? '100%' : 1100}
-        style={isMobile ? { top: 20, margin: '0 10px' } : undefined}
+        width={isMobile ? '100%' : 520}
+        closable={false}
         destroyOnHidden
-        className="clean-modal-override"
-        closeIcon={<div className="bg-white/10 hover:bg-white/20 w-7 h-7 flex items-center justify-center rounded-full text-white transition-colors">×</div>}
-        styles={{
-          content: { padding: 0, borderRadius: '16px', overflow: 'hidden', backgroundColor: '#f8fafc' },
-          body: { padding: 0 }
-        }}
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
       >
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-5 border-b border-violet-500/30">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shadow-sm ring-1 ring-white/10">
-              {editingOffering ? '✏️' : '✨'}
+        {/* ── Sticky Header ── */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shadow-sm ring-1 ring-white/10">
+                {editingOffering ? '✏️' : '✨'}
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white leading-tight">
+                  {editingOffering ? 'Edit Membership' : 'New Membership'}
+                </h2>
+                <p className="text-violet-200 text-xs mt-0.5">Configure details, visuals & pricing</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-white leading-tight">
-                {editingOffering ? 'Edit Membership' : 'New Membership'}
-              </h2>
-              <p className="text-violet-100/90 text-xs mt-0.5">
-                Configure membership details, visuals, and pricing.
-              </p>
-            </div>
+            <button
+              onClick={() => { setModalVisible(false); setEditingOffering(null); setImageUrl(null); form.resetFields(); }}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white border-0 cursor-pointer transition-colors text-base"
+            >
+              ×
+            </button>
           </div>
         </div>
 
-        <div className={`p-6 flex ${isMobile ? 'flex-col' : 'gap-6'}`}>
-          <div className="flex-1" style={{ maxWidth: isMobile ? '100%' : '600px' }}>
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSave}
-              requiredMark={false}
-              className="package-creator-form"
-            >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <Form.Item
-              name="name"
-              label="Membership Name"
-              rules={[{ required: true, message: 'Please enter a name' }]}
-              tooltip={!isMobile ? "The main title displayed on the membership card" : undefined}
-            >
-              <Input placeholder="e.g. VIP Gold" />
-            </Form.Item>
-
-            <Form.Item
-              name="price"
-              label={`Price (${businessCurrency})`}
-              rules={[{ required: true, message: 'Please enter price' }]}
-            >
-              <InputNumber 
-                className="w-full" 
-                min={0} 
-                precision={2}
-                prefix={businessCurrency === 'EUR' ? '€' : businessCurrency} 
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="period"
-              label="Billing Period"
-              rules={[{ required: true, message: 'Select period' }]}
-            >
-              <Select options={PERIOD_OPTIONS} />
-            </Form.Item>
-
-             <Form.Item
-              name="duration_days"
-              label={isMobile ? 'Duration (Days)' : 'Duration (Days)'}
-            >
-              <InputNumber className="w-full" min={1} placeholder="30" />
-            </Form.Item>
-            
-            <Form.Item name="badge_color" label="Badge Color">
-              <Select 
-                options={BADGE_COLORS}
-                optionRender={(option) => (
-                  <Space>
-                    <div style={{ 
-                      width: '16px', 
-                      height: '16px', 
-                      borderRadius: '4px', 
-                      backgroundColor: option.data.color,
-                      border: '1px solid #d9d9d9'
-                    }} />
-                    {option.data.label}
-                  </Space>
-                )}
-              />
-            </Form.Item>
-            
-            <Form.Item name="badge" label="Badge Text">
-              <Input placeholder="e.g. VIP" maxLength={10} />
-            </Form.Item>
-            
-            <Form.Item name="sort_order" label="Display Order">
-              <InputNumber className="w-full" min={0} />
-            </Form.Item>
-
-            <Form.Item name="highlighted" valuePropName="checked" label={isMobile ? 'Featured' : 'Highlight as Popular'}>
-              <Checkbox>Featured</Checkbox>
-            </Form.Item>
-          </div>
-
-          <Form.Item name="description" label="Description" tooltip="Brief description shown on the card">
-            <TextArea rows={2} placeholder="Short description for the card" maxLength={150} showCount />
-          </Form.Item>
-
-          <Form.Item 
-            label="Card Image" 
-            tooltip="Upload a custom designed image (recommended 400x250px)"
-            extra="This will be displayed on the membership card"
-          >
-            <div className="flex items-start gap-4">
-              {imageUrl ? (
-                <div className="relative group">
-                  <img
-                    src={imageUrl}
-                    alt="Card preview"
-                    style={{ 
-                      width: '200px',
-                      height: '125px',
-                      objectFit: 'cover', 
-                      borderRadius: '8px', 
-                      border: '1px solid #e5e7eb' 
-                    }}
-                  />
-                  <Button
-                    type="text"
-                    danger
-                    icon={<CloseCircleOutlined />}
-                    onClick={removeImage}
-                    className="absolute -top-2 -right-2 bg-white shadow-sm rounded-full"
-                    size="small"
-                  />
-                </div>
-              ) : (
-                <Upload
-                  name="image"
-                  listType="picture-card"
-                  showUploadList={false}
-                  customRequest={postMembershipImageUpload}
-                  accept="image/*"
-                  beforeUpload={(file) => {
-                    const isImage = file.type.startsWith('image/');
-                    if (!isImage) {
-                      message.error('You can only upload image files!');
-                    }
-                    const isLt5M = file.size / 1024 / 1024 < 5;
-                    if (!isLt5M) {
-                      message.error('Image must be smaller than 5MB!');
-                    }
-                    setImageLoading(isImage && isLt5M);
-                    return isImage && isLt5M;
-                  }}
-                >
-                  <div className="flex flex-col items-center justify-center p-2">
-                    {imageLoading ? (
-                      <>
-                        <span className="text-xs">Uploading...</span>
-                        {uploadProgress > 0 && (
-                          <span className="text-xs text-blue-500">{uploadProgress}%</span>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <UploadOutlined className="text-2xl mb-1" />
-                        <span className="text-xs text-center">Upload Image</span>
-                      </>
-                    )}
-                  </div>
-                </Upload>
-              )}
-            </div>
-          </Form.Item>
-
-          <Form.Item
-            name="use_image_background"
-            label="Display Mode"
-            valuePropName="checked"
-            tooltip="Choose how the image is displayed on the card"
-            extra="Background: Image fills the entire card. Inline: Image shown as content within card."
-            hidden={!imageUrl}
-          >
-            <Switch 
-              checkedChildren="Background" 
-              unCheckedChildren="Inline"
-              disabled={!imageUrl}
-            />
-          </Form.Item>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Form.Item
-              name="card_style"
-              label="Card Style"
-              tooltip="Choose the visual template for this card"
-            >
-              <Select
-                options={CARD_STYLE_OPTIONS}
-                optionRender={(option) => (
-                  <div>
-                    <div className="font-medium">{option.data.label}</div>
-                    <div className="text-xs text-gray-500">{option.data.description}</div>
-                  </div>
-                )}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="button_text"
-              label="Button Text"
-              tooltip="Text displayed on the action button"
-            >
-              <Input placeholder="e.g. Get Started, Choose Plan" maxLength={30} />
-            </Form.Item>
-
-            <Form.Item
-              name="gradient_color"
-              label="Gradient Color"
-              tooltip="Second color for gradient style headers"
-              extra={formValues?.card_style === 'gradient' ? 'Works with badge color' : 'Only used with Gradient Header style'}
-            >
-              <Select 
-                allowClear
-                placeholder="Select gradient color"
-                options={BADGE_COLORS}
-                optionRender={(option) => (
-                  <Space>
-                    <div style={{ 
-                      width: '16px', 
-                      height: '16px', 
-                      borderRadius: '4px', 
-                      backgroundColor: option.data.color,
-                      border: '1px solid #d9d9d9'
-                    }} />
-                    {option.data.label}
-                  </Space>
-                )}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="text_color"
-              label="Text Color"
-              tooltip="Choose light text for dark backgrounds"
-            >
-              <Select
-                options={TEXT_COLOR_OPTIONS}
-                optionRender={(option) => (
-                  <Space>
-                    <div style={{ 
-                      width: '16px', 
-                      height: '16px', 
-                      borderRadius: '4px', 
-                      backgroundColor: option.data.color,
-                      border: '1px solid #d9d9d9'
-                    }} />
-                    {option.data.label}
-                  </Space>
-                )}
-              />
-            </Form.Item>
-          </div>
-
-          {(formValues?.card_style === 'gradient' || formValues?.card_style === 'image_background') && imageUrl && (
-            <Form.Item
-              name="gradient_opacity"
-              label="Overlay Transparency"
-              tooltip="Adjust how visible the image is behind the gradient/overlay. Lower = more image visible, Higher = more overlay"
-              extra={`Current: ${formValues?.gradient_opacity || 70}% overlay`}
-            >
-              <Slider
-                min={0}
-                max={100}
-                marks={{
-                  0: 'Clear',
-                  30: 'Light',
-                  50: 'Medium',
-                  70: 'Strong',
-                  100: 'Solid'
-                }}
-                defaultValue={70}
-              />
-            </Form.Item>
-          )}
-
-          <Form.Item name="features" label="Features" tooltip="Benefits included with this membership">
-             <Select 
-               mode="tags" 
-               placeholder="Type a feature and press enter" 
-               tokenSeparators={[',']}
-               maxTagCount="responsive"
-             />
-          </Form.Item>
-          
-          <Form.Item name="icon" label="Card Icon" tooltip="Select an icon to display on the membership card">
-            <Select
-              placeholder="Select an icon"
-              options={ICON_OPTIONS}
-              optionRender={(option) => (
-                <Space>
-                  {option.data.icon}
-                  {option.data.label}
-                </Space>
-              )}
-            />
-          </Form.Item>
-
-          <Form.Item className="!mb-0">
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <Button
-                onClick={() => {
-                  setModalVisible(false);
-                  setEditingOffering(null);
-                  setImageUrl(null);
-                  form.resetFields();
-                }}
-                className="rounded-lg !px-5"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                className="rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 border-0 shadow-md hover:shadow-lg transition-all !px-6"
-              >
-                {editingOffering ? 'Update Membership' : 'Create Membership'}
-              </Button>
-            </div>
-          </Form.Item>
-            </Form>
-          </div>
-
-          {/* Live Preview - Hidden on mobile */}
-          {!isMobile && (
-          <div className="flex-shrink-0" style={{ width: '380px', borderLeft: '1px solid #f0f0f0', paddingLeft: '24px' }}>
-            <Text strong className="block mb-3">Live Preview</Text>
-            <div style={{ position: 'sticky', top: '20px' }}>
+        {/* ── Scrollable Content ── */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Live Preview Card */}
+          <div className="px-5 pt-5 pb-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Preview</div>
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               {formValues?.card_style === 'image_background' && imageUrl ? (
-                // Full Image Background Style
-                <div style={{
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  position: 'relative',
-                  minHeight: '280px',
-                }}>
-                  <div style={{
-                    backgroundImage: `url(${imageUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    minHeight: '280px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}>
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: '60%',
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)',
-                    }} />
-                    <div style={{
-                      marginTop: 'auto',
-                      padding: '16px',
-                      position: 'relative',
-                      zIndex: 1,
-                      color: 'white',
-                    }}>
-                      <div style={{ fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>
-                        {formValues?.name || 'Membership Name'}
-                      </div>
-                      <div style={{ fontSize: '24px', fontWeight: '800' }}>
-                        {formatCurrency(formValues?.price || 0, businessCurrency)}
-                      </div>
-                      <Button size="small" style={{ marginTop: '8px' }}>{formValues?.button_text || 'Get Started'}</Button>
+                <div className="relative" style={{ minHeight: 160 }}>
+                  <div style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', minHeight: 160, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70%', background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)' }} />
+                    <div style={{ marginTop: 'auto', padding: 16, position: 'relative', zIndex: 1, color: 'white' }}>
+                      <div className="text-lg font-bold">{formValues?.name || 'Membership Name'}</div>
+                      <div className="text-2xl font-extrabold mt-1">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
+                      <div className="text-xs opacity-80 mt-0.5">per {formValues?.period || 'month'}</div>
                     </div>
                   </div>
                 </div>
               ) : formValues?.card_style === 'gradient' ? (
-                // Gradient Header Style
-                <div style={{
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  backgroundColor: '#fff',
-                }}>
-                  {/* Gradient Header - with optional image */}
-                  <div style={{
-                    position: 'relative',
-                    padding: '24px 20px',
-                    textAlign: 'center',
-                    color: '#fff',
-                  }}>
-                    {/* Background Image Layer */}
-                    {imageUrl && (
-                      <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundImage: `url(${imageUrl})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        zIndex: 0,
-                      }} />
-                    )}
-                    {/* Gradient Overlay Layer */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: `linear-gradient(135deg, ${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea'} 0%, ${BADGE_COLORS.find(c => c.value === formValues?.gradient_color)?.color || '#764ba2'} 100%)`,
-                      opacity: imageUrl ? (formValues?.gradient_opacity ?? 70) / 100 : 1,
-                      zIndex: 1,
-                    }} />
+                <div>
+                  <div className="relative text-center py-5 px-4" style={{ color: '#fff', minHeight: 100 }}>
+                    {imageUrl && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0 }} />}
+                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea'} 0%, ${BADGE_COLORS.find(c => c.value === formValues?.gradient_color)?.color || '#764ba2'} 100%)`, opacity: imageUrl ? (formValues?.gradient_opacity ?? 70) / 100 : 1, zIndex: 1 }} />
                     {formValues?.badge && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'rgba(255,255,255,0.2)',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px',
-                        zIndex: 2,
-                      }}>
+                      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[2] bg-white/20 px-3 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider">
                         ⚡ {formValues.badge}
                       </div>
                     )}
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      background: 'rgba(255,255,255,0.2)', 
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: formValues?.badge ? '24px auto 12px' : '0 auto 12px',
-                      fontSize: '24px',
-                      position: 'relative',
-                      zIndex: 2,
-                    }}>
-                      {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
-                    </div>
-                    <div style={{ fontSize: '18px', fontWeight: '700', position: 'relative', zIndex: 2 }}>
-                      {formValues?.name || 'Membership Name'}
-                    </div>
-                    <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px', position: 'relative', zIndex: 2 }}>
-                      {formValues?.description || 'Add a description...'}
+                    <div className="relative z-[2]" style={{ marginTop: formValues?.badge ? 20 : 0 }}>
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl mx-auto mb-2">
+                        {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
+                      </div>
+                      <div className="text-base font-bold">{formValues?.name || 'Membership Name'}</div>
+                      <div className="text-xs opacity-90 mt-1">{formValues?.description || 'Add a description...'}</div>
                     </div>
                   </div>
-                  {/* Card Body */}
-                  <div style={{ padding: '20px' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <div style={{ fontSize: '28px', fontWeight: '800', color: '#1f2937' }}>
-                        {formatCurrency(formValues?.price || 0, businessCurrency)}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        per {formValues?.period || 'month'}
-                      </div>
-                    </div>
+                  <div className="px-5 py-4 text-center">
+                    <div className="text-2xl font-extrabold text-slate-900">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">per {formValues?.period || 'month'}</div>
                     {formValues?.features?.length > 0 && (
-                      <div style={{ marginBottom: '16px' }}>
+                      <div className="mt-3 text-left">
                         {formValues.features.slice(0, 4).map((f, i) => (
-                          <div key={i} style={{ fontSize: '13px', color: '#4b5563', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div key={i} className="text-xs text-slate-600 mb-1 flex items-center gap-2">
                             <span style={{ color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#52c41a' }}>✓</span> {f}
                           </div>
                         ))}
                       </div>
                     )}
-                    <Button 
-                      type="primary" 
-                      block
-                      style={{ 
-                        borderRadius: '8px',
-                        height: '40px',
-                        fontWeight: '600',
-                        background: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea',
-                        borderColor: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea',
-                      }}
-                    >
-                      {formValues?.button_text || 'Get Started Now'}
+                    <Button type="primary" block className="mt-3" style={{ borderRadius: 8, height: 36, fontWeight: 600, background: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea', borderColor: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea' }}>
+                      {formValues?.button_text || 'Choose Plan'}
                     </Button>
                   </div>
                 </div>
               ) : (
-                // Simple Card Style (Default)
-                <div style={{
-                  background: formValues?.highlighted ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#fff',
-                  borderRadius: '16px',
-                  padding: formValues?.highlighted ? '2px' : '0',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                }}>
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: formValues?.highlighted ? '14px' : '16px',
-                    padding: '20px',
-                    textAlign: 'center',
-                  }}>
-                    {/* Icon */}
-                    <div style={{ 
-                      width: '48px', 
-                      height: '48px', 
-                      background: `${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#f0f0f0'}20`, 
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto 12px',
-                      fontSize: '24px',
-                      color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea',
-                    }}>
+                <div style={{ background: formValues?.highlighted ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent', padding: formValues?.highlighted ? 2 : 0, borderRadius: 16 }}>
+                  <div className="bg-white rounded-2xl p-5 text-center">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mx-auto mb-2" style={{ backgroundColor: `${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#f0f0f0'}20`, color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea' }}>
                       {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
                     </div>
                     {imageUrl && formValues?.card_style !== 'image_background' && (
-                      <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden' }}>
-                        <img src={imageUrl} alt="preview" style={{ width: '100%', height: 'auto', maxHeight: '100px', objectFit: 'cover' }} />
-                      </div>
+                      <div className="mb-3 rounded-lg overflow-hidden"><img src={imageUrl} alt="preview" style={{ width: '100%', height: 'auto', maxHeight: 80, objectFit: 'cover' }} /></div>
                     )}
-                    <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px', color: formValues?.text_color === 'light' ? '#fff' : '#1f2937' }}>
-                      {formValues?.name || 'Membership Name'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>
-                      {formValues?.description || 'Add a description...'}
-                    </div>
-                    <div style={{ fontSize: '28px', fontWeight: '800', color: formValues?.text_color === 'light' ? '#fff' : '#1f2937', marginBottom: '4px' }}>
-                      {formatCurrency(formValues?.price || 0, businessCurrency)}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
-                      per {formValues?.period || 'month'}
-                    </div>
+                    <div className="text-base font-bold text-slate-900">{formValues?.name || 'Membership Name'}</div>
+                    <div className="text-xs text-slate-500 mb-3">{formValues?.description || 'Add a description...'}</div>
+                    <div className="text-2xl font-extrabold text-slate-900">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
+                    <div className="text-xs text-slate-500 mb-3">per {formValues?.period || 'month'}</div>
                     {formValues?.features?.length > 0 && (
-                      <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                      <div className="mb-3 text-left">
                         {formValues.features.slice(0, 4).map((f, i) => (
-                          <div key={i} style={{ fontSize: '12px', color: '#4b5563', marginBottom: '4px' }}>
-                            <span style={{ color: '#52c41a' }}>✓</span> {f}
-                          </div>
+                          <div key={i} className="text-xs text-slate-600 mb-1"><span className="text-green-500">✓</span> {f}</div>
                         ))}
                       </div>
                     )}
-                    <Button 
-                      type={formValues?.highlighted ? 'primary' : 'default'} 
-                      block
-                      style={{ borderRadius: '8px', height: '36px' }}
-                    >
+                    <Button type={formValues?.highlighted ? 'primary' : 'default'} block style={{ borderRadius: 8, height: 36 }}>
                       {formValues?.button_text || 'Choose Plan'}
                     </Button>
                   </div>
@@ -1035,22 +578,132 @@ function MembershipSettings() {
               )}
             </div>
           </div>
-          )}
+
+          {/* Form */}
+          <div className="px-5 pb-5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 mt-2">Details</div>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSave}
+              requiredMark={false}
+              className="package-creator-form"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Required' }]} tooltip="The title on the card">
+                  <Input placeholder="e.g. VIP Gold" />
+                </Form.Item>
+                <Form.Item name="price" label={`Price (${businessCurrency})`} rules={[{ required: true, message: 'Required' }]}>
+                  <InputNumber className="w-full" min={0} precision={2} prefix={businessCurrency === 'EUR' ? '€' : businessCurrency} />
+                </Form.Item>
+                <Form.Item name="period" label="Billing Period" rules={[{ required: true, message: 'Required' }]}>
+                  <Select options={PERIOD_OPTIONS} />
+                </Form.Item>
+                <Form.Item name="duration_days" label="Duration (Days)">
+                  <InputNumber className="w-full" min={1} placeholder="30" />
+                </Form.Item>
+                <Form.Item name="badge_color" label="Badge Color">
+                  <Select options={BADGE_COLORS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
+                </Form.Item>
+                <Form.Item name="badge" label="Badge Text">
+                  <Input placeholder="e.g. VIP" maxLength={10} />
+                </Form.Item>
+                <Form.Item name="icon" label="Icon">
+                  <Select placeholder="Select icon" options={ICON_OPTIONS} optionRender={(option) => (<Space>{option.data.icon}{option.data.label}</Space>)} />
+                </Form.Item>
+                <Form.Item name="sort_order" label="Display Order">
+                  <InputNumber className="w-full" min={0} />
+                </Form.Item>
+              </div>
+
+              <Form.Item name="description" label="Description" tooltip="Brief description shown on the card">
+                <TextArea rows={2} placeholder="Short description for the card" maxLength={150} showCount />
+              </Form.Item>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="highlighted" valuePropName="checked" label="Featured">
+                  <Checkbox>Highlight as popular</Checkbox>
+                </Form.Item>
+                <Form.Item name="card_style" label="Card Style">
+                  <Select options={CARD_STYLE_OPTIONS} optionRender={(option) => (<div><div className="font-medium text-xs">{option.data.label}</div><div className="text-[10px] text-gray-400">{option.data.description}</div></div>)} />
+                </Form.Item>
+              </div>
+
+              <Form.Item name="button_text" label="Button Text">
+                <Input placeholder="e.g. Get Started, Choose Plan" maxLength={30} />
+              </Form.Item>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="gradient_color" label="Gradient Color" extra={formValues?.card_style === 'gradient' ? 'Works with badge color' : 'Gradient header only'}>
+                  <Select allowClear placeholder="Select color" options={BADGE_COLORS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
+                </Form.Item>
+                <Form.Item name="text_color" label="Text Color">
+                  <Select options={TEXT_COLOR_OPTIONS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
+                </Form.Item>
+              </div>
+
+              {(formValues?.card_style === 'gradient' || formValues?.card_style === 'image_background') && imageUrl && (
+                <Form.Item name="gradient_opacity" label="Overlay Transparency" extra={`${formValues?.gradient_opacity || 70}% overlay`}>
+                  <Slider min={0} max={100} marks={{ 0: 'Clear', 50: 'Medium', 100: 'Solid' }} />
+                </Form.Item>
+              )}
+
+              <Form.Item label="Card Image" extra="Displayed on the membership card">
+                <div className="flex items-start gap-3">
+                  {imageUrl ? (
+                    <div className="relative group">
+                      <img src={imageUrl} alt="Card preview" style={{ width: 160, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+                      <Button type="text" danger icon={<CloseCircleOutlined />} onClick={removeImage} className="absolute -top-2 -right-2 bg-white shadow-sm rounded-full" size="small" />
+                    </div>
+                  ) : (
+                    <Upload name="image" listType="picture-card" showUploadList={false} customRequest={postMembershipImageUpload} accept="image/*"
+                      beforeUpload={(file) => { const ok = file.type.startsWith('image/') && file.size / 1024 / 1024 < 5; if (!file.type.startsWith('image/')) message.error('Only images!'); if (file.size / 1024 / 1024 >= 5) message.error('Max 5MB!'); setImageLoading(ok); return ok; }}
+                    >
+                      <div className="flex flex-col items-center justify-center p-2">
+                        {imageLoading ? <span className="text-xs">Uploading...{uploadProgress > 0 && ` ${uploadProgress}%`}</span> : <><UploadOutlined className="text-xl mb-1" /><span className="text-xs">Upload</span></>}
+                      </div>
+                    </Upload>
+                  )}
+                </div>
+              </Form.Item>
+
+              {imageUrl && (
+                <Form.Item name="use_image_background" label="Display Mode" valuePropName="checked">
+                  <Switch checkedChildren="Background" unCheckedChildren="Inline" />
+                </Form.Item>
+              )}
+
+              <Form.Item name="features" label="Features" tooltip="Benefits included">
+                <Select mode="tags" placeholder="Type a feature and press enter" tokenSeparators={[',']} maxTagCount="responsive" />
+              </Form.Item>
+
+              {/* ── Sticky Footer ── */}
+              <Form.Item className="!mb-0">
+                <div className="flex gap-3 pt-4 border-t border-slate-200">
+                  <Button
+                    onClick={() => { setModalVisible(false); setEditingOffering(null); setImageUrl(null); form.resetFields(); }}
+                    className="flex-1 rounded-xl !h-10"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="primary" htmlType="submit" className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-violet-600 to-indigo-600 border-0 shadow-md hover:shadow-lg transition-all font-semibold">
+                    {editingOffering ? 'Update' : 'Create Membership'}
+                  </Button>
+                </div>
+              </Form.Item>
+            </Form>
+          </div>
         </div>
 
         <style>{`
-          .package-creator-form .ant-form-item-label > label {
-            color: #334155;
-            font-weight: 600;
-          }
+          .package-creator-form .ant-form-item { margin-bottom: 12px; }
+          .package-creator-form .ant-form-item-label > label { color: #334155; font-weight: 600; font-size: 12px; }
           .package-creator-form .ant-input,
           .package-creator-form .ant-input-number,
           .package-creator-form .ant-input-number-group-addon,
-          .package-creator-form .ant-select-selector {
-            border-radius: 10px !important;
-          }
+          .package-creator-form .ant-select-selector { border-radius: 10px !important; }
         `}</style>
-      </Modal>
+      </Drawer>
     </div>
   );
 }

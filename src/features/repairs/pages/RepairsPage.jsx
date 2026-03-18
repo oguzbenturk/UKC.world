@@ -3,12 +3,13 @@ import { Card, Typography, Table, Button, Tag, Modal, Form, Input, Select, Uploa
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, ToolOutlined, CameraOutlined, EditOutlined, EyeOutlined, MessageOutlined, SendOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useData } from '@/shared/hooks/useData';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import SparePartsOrders from '@/features/admin/pages/SparePartsOrders';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const RepairMobileCard = ({ record, onAction, isAdmin }) => (
@@ -244,7 +245,9 @@ const RepairChat = ({ repairId, isAdmin, userId }) => {
  */
 const RepairsPage = () => {
   const { user } = useAuth();
+  const { usersWithStudentRole = [] } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('pending');
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [repairs, setRepairs] = useState([]);
@@ -438,7 +441,8 @@ const RepairsPage = () => {
         description: values.description,
         priority: values.priority,
         location: values.location,
-        photos
+        photos,
+        ...(isAdmin && values.userId ? { userId: values.userId } : {}),
       });
 
       message.success('Repair request submitted successfully');
@@ -504,194 +508,271 @@ const RepairsPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Hero Section */}
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-              <ToolOutlined /> Care Center
+      {/* ── Header ── */}
+      {isAdmin ? (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+              <ToolOutlined className="text-orange-500" /> Equipment Care
+            </h2>
+            <p className="text-sm text-slate-500 mt-0.5">Manage repair requests and spare parts</p>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsModalOpen(true)}
+            className="h-10 rounded-xl"
+          >
+            New Request
+          </Button>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 text-white shadow-lg">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
+                <ToolOutlined /> Care Center
+              </div>
+              <h1 className="text-3xl font-semibold">Equipment Care</h1>
+              <p className="text-sm text-white/75">
+                Submit and track repair requests for your equipment
+              </p>
             </div>
-            <h1 className="text-3xl font-semibold">Equipment Care</h1>
-            <p className="text-sm text-white/75">
-              Manage repairs and spare parts orders for equipment maintenance
-            </p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Tabs for Repairs and Spare Parts */}
-      <Tabs
-        defaultActiveKey="repairs"
-        items={[
-          {
-            key: 'repairs',
-            label: 'Repairs',
-            children: (
-              <div className="space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Card className="rounded-2xl shadow-sm text-center">
-                    <div className="text-2xl font-bold text-orange-500">
-                      {repairs.filter(r => r.status === 'pending').length}
-                    </div>
-                    <Text className="text-slate-500">Pending</Text>
-                  </Card>
-                  <Card className="rounded-2xl shadow-sm text-center">
-                    <div className="text-2xl font-bold text-blue-500">
-                      {repairs.filter(r => r.status === 'in_progress').length}
-                    </div>
-                    <Text className="text-slate-500">In Progress</Text>
-                  </Card>
-                  <Card className="rounded-2xl shadow-sm text-center">
-                    <div className="text-2xl font-bold text-green-500">
-                      {repairs.filter(r => r.status === 'completed').length}
-                    </div>
-                    <Text className="text-slate-500">Completed</Text>
-                  </Card>
-                  <Card className="rounded-2xl shadow-sm text-center">
-                    <div className="text-2xl font-bold text-slate-500">{repairs.length}</div>
-                    <Text className="text-slate-500">Total Requests</Text>
-                  </Card>
-                </div>
-
-                {/* New Repair Button */}
-                <div className="flex justify-end">
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsModalOpen(true)}
-                    className="h-11 rounded-2xl"
-                  >
-                    New Repair Request
-                  </Button>
-                </div>
-
-                {/* Repairs Table */}
+      {/* ── Admin Tabs: Pending | All | Spare Parts ── */}
+      {isAdmin ? (
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'pending',
+              label: <span>Pending <Tag color="orange" className="ml-1">{repairs.filter(r => r.status === 'pending').length}</Tag></span>,
+              children: (
                 <Card className="rounded-2xl shadow-sm">
-        <Title level={4} className="mb-4">
-          {user?.role === 'admin' || user?.role === 'manager' ? 'All Repair Requests' : 'My Repair Requests'}
-        </Title>
-        <Spin spinning={loading}>
-          {repairs.length > 0 ? (
-            <UnifiedResponsiveTable
-              dataSource={repairs}
-              columns={columns}
-              rowKey="id"
-              pagination={{ pageSize: 10 }}
-              mobileCardRenderer={(props) => (
-                 <RepairMobileCard 
-                    {...props} 
-                    isAdmin={user?.role === 'admin' || user?.role === 'manager'}
-                    onAction={(action, record) => {
-                       if (action === 'view') handleViewDetails(record);
-                       if (action === 'edit') handleEditStatus(record);
-                    }} 
-                 />
-              )}
-            />
-          ) : (
-            <Empty
-            image={<ToolOutlined className="text-6xl text-slate-300" />}
-            description={
-              <div className="space-y-2">
-                <Text className="text-slate-500">No Repair Requests</Text>
-                <p className="text-xs text-slate-400">
-                  Submit a repair request when equipment or facilities need fixing
-                </p>
-              </div>
-            }
-          >
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-              Submit First Request
-            </Button>
-          </Empty>
-        )}
-        </Spin>
-      </Card>
-              </div>
-            ),
-          },
-          {
-            key: 'spare-parts',
-            label: 'Spare Parts',
-            children: <SparePartsOrders />,
-          },
-        ]}
-      />
-
-      {/* Create Repair Request Modal */}
-      <Modal
-        title="New Repair Request"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        footer={null}
-        width={500}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmitRepair}
-          className="mt-4"
-        >
-          <Form.Item
-            name="equipmentType"
-            label="Brand and Model"
-            rules={[{ required: true, message: 'Please enter brand and model' }]}
-          >
-            <Input placeholder="e.g., Surfboard, Diving Gear, Bicycle, Yoga Mat..." />
-          </Form.Item>
-
-          <Form.Item
-            name="itemName"
-            label="Item Name / ID"
-            rules={[{ required: true, message: 'Please enter item name or ID' }]}
-          >
-            <Input placeholder="e.g., Surfboard #12, BCD Size L, Yoga Mat Blue" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="What's Wrong?"
-            rules={[{ required: true, message: 'Please describe the issue' }]}
-          >
-            <TextArea rows={3} placeholder="Describe the problem in detail..." />
-          </Form.Item>
-
-          <Form.Item
-            name="photos"
-            label="Photos (optional)"
-          >
-            <Upload {...uploadProps}>
-              {fileList.length >= 4 ? null : (
-                <div>
-                  <CameraOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
-
-          <Form.Item
-            name="priority"
-            label="Priority"
-            rules={[{ required: true, message: 'Please select priority' }]}
-          >
-            <Select placeholder="How urgent is this?" options={priorityOptions} />
-          </Form.Item>
-
-          <Form.Item
-            name="location"
-            label="Current Location"
-          >
-            <Input placeholder="Where is the item now?" />
-          </Form.Item>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit">Submit Request</Button>
+                  <Spin spinning={loading}>
+                    {repairs.filter(r => r.status === 'pending').length > 0 ? (
+                      <UnifiedResponsiveTable
+                        dataSource={repairs.filter(r => r.status === 'pending')}
+                        columns={columns}
+                        rowKey="id"
+                        pagination={{ pageSize: 10 }}
+                        mobileCardRenderer={(props) => (
+                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
+                            if (action === 'view') handleViewDetails(record);
+                            if (action === 'edit') handleEditStatus(record);
+                          }} />
+                        )}
+                      />
+                    ) : (
+                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No pending requests</p>} />
+                    )}
+                  </Spin>
+                </Card>
+              ),
+            },
+            {
+              key: 'in_progress',
+              label: <span>In Progress <Tag color="blue" className="ml-1">{repairs.filter(r => r.status === 'in_progress').length}</Tag></span>,
+              children: (
+                <Card className="rounded-2xl shadow-sm">
+                  <Spin spinning={loading}>
+                    {repairs.filter(r => r.status === 'in_progress').length > 0 ? (
+                      <UnifiedResponsiveTable
+                        dataSource={repairs.filter(r => r.status === 'in_progress')}
+                        columns={columns}
+                        rowKey="id"
+                        pagination={{ pageSize: 10 }}
+                        mobileCardRenderer={(props) => (
+                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
+                            if (action === 'view') handleViewDetails(record);
+                            if (action === 'edit') handleEditStatus(record);
+                          }} />
+                        )}
+                      />
+                    ) : (
+                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No in-progress repairs</p>} />
+                    )}
+                  </Spin>
+                </Card>
+              ),
+            },
+            {
+              key: 'all',
+              label: <span>All <Tag className="ml-1">{repairs.length}</Tag></span>,
+              children: (
+                <Card className="rounded-2xl shadow-sm">
+                  <Spin spinning={loading}>
+                    {repairs.length > 0 ? (
+                      <UnifiedResponsiveTable
+                        dataSource={repairs}
+                        columns={columns}
+                        rowKey="id"
+                        pagination={{ pageSize: 10 }}
+                        mobileCardRenderer={(props) => (
+                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
+                            if (action === 'view') handleViewDetails(record);
+                            if (action === 'edit') handleEditStatus(record);
+                          }} />
+                        )}
+                      />
+                    ) : (
+                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No repair requests yet</p>}>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Create Request</Button>
+                      </Empty>
+                    )}
+                  </Spin>
+                </Card>
+              ),
+            },
+            {
+              key: 'spare-parts',
+              label: 'Spare Parts',
+              children: <SparePartsOrders />,
+            },
+          ]}
+        />
+      ) : (
+        /* ── Customer view: single repairs list ── */
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="rounded-2xl shadow-sm text-center" size="small">
+              <div className="text-xl font-bold text-orange-500">{repairs.filter(r => r.status === 'pending').length}</div>
+              <div className="text-xs text-slate-500">Pending</div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm text-center" size="small">
+              <div className="text-xl font-bold text-blue-500">{repairs.filter(r => r.status === 'in_progress').length}</div>
+              <div className="text-xs text-slate-500">In Progress</div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm text-center" size="small">
+              <div className="text-xl font-bold text-green-500">{repairs.filter(r => r.status === 'completed').length}</div>
+              <div className="text-xs text-slate-500">Completed</div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm text-center" size="small">
+              <div className="text-xl font-bold text-slate-500">{repairs.length}</div>
+              <div className="text-xs text-slate-500">Total</div>
+            </Card>
           </div>
-        </Form>
-      </Modal>
+          <div className="flex justify-end">
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)} className="h-11 rounded-2xl">
+              New Repair Request
+            </Button>
+          </div>
+          <Card className="rounded-2xl shadow-sm">
+            <h4 className="text-base font-semibold text-slate-800 mb-4">My Repair Requests</h4>
+            <Spin spinning={loading}>
+              {repairs.length > 0 ? (
+                <UnifiedResponsiveTable
+                  dataSource={repairs}
+                  columns={columns}
+                  rowKey="id"
+                  pagination={{ pageSize: 10 }}
+                  mobileCardRenderer={(props) => (
+                    <RepairMobileCard {...props} isAdmin={false} onAction={(action, record) => {
+                      if (action === 'view') handleViewDetails(record);
+                    }} />
+                  )}
+                />
+              ) : (
+                <Empty image={<ToolOutlined className="text-6xl text-slate-300" />} description={
+                  <div className="space-y-2">
+                    <p className="text-slate-500">No Repair Requests</p>
+                    <p className="text-xs text-slate-400">Submit a repair request when equipment needs fixing</p>
+                  </div>
+                }>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Submit First Request</Button>
+                </Empty>
+              )}
+            </Spin>
+          </Card>
+        </>
+      )}
+
+      {/* Create Repair Request Drawer */}
+      <Drawer
+        open={isModalOpen}
+        onClose={() => { setIsModalOpen(false); form.resetFields(); setFileList([]); }}
+        width={480}
+        closable={false}
+        destroyOnHidden
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+      >
+        <div className="flex-shrink-0 bg-gradient-to-r from-orange-500 to-red-500 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shadow-sm ring-1 ring-white/10">
+                <ToolOutlined className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white leading-tight">New Repair Request</h2>
+                <p className="text-orange-200 text-xs mt-0.5">Submit an equipment repair or maintenance request</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setIsModalOpen(false); form.resetFields(); setFileList([]); }}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white border-0 cursor-pointer transition-colors text-base"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmitRepair}
+          >
+            {isAdmin && (
+              <Form.Item name="userId" label="Submit on behalf of" extra="Leave empty to submit as yourself">
+                <Select showSearch allowClear placeholder="Search customer..." optionFilterProp="label"
+                  options={usersWithStudentRole.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name}`.trim() || u.email }))} />
+              </Form.Item>
+            )}
+
+            <Form.Item name="equipmentType" label="Brand and Model" rules={[{ required: true, message: 'Please enter brand and model' }]}>
+              <Input placeholder="e.g., Surfboard, Diving Gear, Bicycle, Yoga Mat..." />
+            </Form.Item>
+
+            <Form.Item name="itemName" label="Item Name / ID" rules={[{ required: true, message: 'Please enter item name or ID' }]}>
+              <Input placeholder="e.g., Surfboard #12, BCD Size L, Yoga Mat Blue" />
+            </Form.Item>
+
+            <Form.Item name="description" label="What's Wrong?" rules={[{ required: true, message: 'Please describe the issue' }]}>
+              <TextArea rows={3} placeholder="Describe the problem in detail..." />
+            </Form.Item>
+
+            <Form.Item name="photos" label="Photos (optional)">
+              <Upload {...uploadProps}>
+                {fileList.length >= 4 ? null : (
+                  <div><CameraOutlined /><div style={{ marginTop: 8 }}>Upload</div></div>
+                )}
+              </Upload>
+            </Form.Item>
+
+            <Form.Item name="priority" label="Priority" rules={[{ required: true, message: 'Please select priority' }]}>
+              <Select placeholder="How urgent is this?" options={priorityOptions} />
+            </Form.Item>
+
+            <Form.Item name="location" label="Current Location">
+              <Input placeholder="Where is the item now?" />
+            </Form.Item>
+
+            <Form.Item className="!mb-0">
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
+                <Button onClick={() => { setIsModalOpen(false); form.resetFields(); setFileList([]); }} className="flex-1 rounded-xl !h-10">
+                  Cancel
+                </Button>
+                <Button type="primary" htmlType="submit" className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-orange-500 to-red-500 border-0 shadow-md hover:shadow-lg transition-all font-semibold">
+                  Submit Request
+                </Button>
+              </div>
+            </Form.Item>
+          </Form>
+        </div>
+      </Drawer>
 
       {/* Repair Detail Drawer */}
       <Drawer

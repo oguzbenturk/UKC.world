@@ -17,42 +17,42 @@ import {
 
 const router = express.Router();
 
-router.get('/me/students', authorizeRoles(['instructor']), async (req, res, next) => {
+router.get('/me/students', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const data = await getInstructorStudents(req.user.id);
     res.json(data);
   } catch (err) { next(err); }
 });
 
-router.get('/me/students/:studentId/profile', authorizeRoles(['instructor']), async (req, res, next) => {
+router.get('/me/students/:studentId/profile', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const data = await getInstructorStudentProfile(req.user.id, req.params.studentId);
     res.json(data);
   } catch (err) { next(err); }
 });
 
-router.patch('/me/students/:studentId/profile', authorizeRoles(['instructor']), async (req, res, next) => {
+router.patch('/me/students/:studentId/profile', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const updated = await updateInstructorStudentProfile(req.user.id, req.params.studentId, req.body || {});
     res.json(updated);
   } catch (err) { next(err); }
 });
 
-router.post('/me/students/:studentId/progress', authorizeRoles(['instructor']), async (req, res, next) => {
+router.post('/me/students/:studentId/progress', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const created = await addInstructorStudentProgress(req.user.id, req.params.studentId, req.body || {});
     res.status(201).json(created);
   } catch (err) { next(err); }
 });
 
-router.delete('/me/students/:studentId/progress/:progressId', authorizeRoles(['instructor']), async (req, res, next) => {
+router.delete('/me/students/:studentId/progress/:progressId', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     await removeInstructorStudentProgress(req.user.id, req.params.studentId, req.params.progressId);
     res.status(204).send();
   } catch (err) { next(err); }
 });
 
-router.get('/me/students/:studentId/notes', authorizeRoles(['instructor']), async (req, res, next) => {
+router.get('/me/students/:studentId/notes', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const notes = await listInstructorNotes(req.user.id, req.params.studentId, {
       includePrivate: req.query.includePrivate === 'true' || req.query.includePrivate === '1',
@@ -65,7 +65,7 @@ router.get('/me/students/:studentId/notes', authorizeRoles(['instructor']), asyn
   }
 });
 
-router.post('/me/students/:studentId/notes', authorizeRoles(['instructor']), async (req, res, next) => {
+router.post('/me/students/:studentId/notes', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const payload = req.body || {};
     const note = await createInstructorNote(req.user.id, req.params.studentId, {
@@ -81,7 +81,7 @@ router.post('/me/students/:studentId/notes', authorizeRoles(['instructor']), asy
   }
 });
 
-router.put('/me/notes/:noteId', authorizeRoles(['instructor']), async (req, res, next) => {
+router.put('/me/notes/:noteId', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const note = await updateInstructorNote(req.user.id, req.params.noteId, req.body || {});
     res.json(note);
@@ -90,7 +90,7 @@ router.put('/me/notes/:noteId', authorizeRoles(['instructor']), async (req, res,
   }
 });
 
-router.delete('/me/notes/:noteId', authorizeRoles(['instructor']), async (req, res, next) => {
+router.delete('/me/notes/:noteId', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     await deleteInstructorNote(req.user.id, req.params.noteId);
     res.status(204).send();
@@ -99,7 +99,7 @@ router.delete('/me/notes/:noteId', authorizeRoles(['instructor']), async (req, r
   }
 });
 
-router.get('/me/dashboard', authorizeRoles(['instructor']), async (req, res, next) => {
+router.get('/me/dashboard', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {
     const data = await getInstructorDashboard(req.user.id);
     res.json(data);

@@ -2,20 +2,17 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
 import { Switch, Select, Tag, Spin, Button, Typography, Tooltip, Empty } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import {
-  CheckOutlined, InfoCircleOutlined, ThunderboltOutlined,
-  TrophyOutlined, SafetyCertificateOutlined
-} from '@ant-design/icons';
+import { CheckOutlined } from '@ant-design/icons';
 import { useData } from '@/shared/hooks/useData';
 
 const { Text } = Typography;
 
 const DISCIPLINES = [
-  { key: 'kite', label: 'Kitesurfing', emoji: '🪁', color: '#3B82F6', description: 'Kite lessons & coaching' },
-  { key: 'wing', label: 'Wingsurfing', emoji: '🦅', color: '#8B5CF6', description: 'Wing foil & wing surf' },
-  { key: 'kite_foil', label: 'Kite Foil', emoji: '🏄', color: '#06B6D4', description: 'Kite foil racing & training' },
-  { key: 'efoil', label: 'E-Foil', emoji: '⚡', color: '#F59E0B', description: 'Electric foil board' },
-  { key: 'premium', label: 'Premium', emoji: '⭐', color: '#EF4444', description: 'Premium / VIP sessions' },
+  { key: 'kite', label: 'Kitesurfing', color: '#3B82F6', description: 'Kite lessons & coaching' },
+  { key: 'wing', label: 'Wingsurfing', color: '#8B5CF6', description: 'Wing foil & wing surf' },
+  { key: 'kite_foil', label: 'Kite Foil', color: '#06B6D4', description: 'Kite foil racing & training' },
+  { key: 'efoil', label: 'E-Foil', color: '#F59E0B', description: 'Electric foil board' },
+  { key: 'premium', label: 'Premium', color: '#EF4444', description: 'Premium / VIP sessions' },
 ];
 
 const LESSON_CATEGORIES = [
@@ -26,9 +23,9 @@ const LESSON_CATEGORIES = [
 ];
 
 const LEVELS = [
-  { key: 'beginner', label: 'Beginner', icon: '🟢' },
-  { key: 'intermediate', label: 'Intermediate', icon: '🟡' },
-  { key: 'advanced', label: 'Advanced', icon: '🔴' },
+  { key: 'beginner', label: 'Beginner' },
+  { key: 'intermediate', label: 'Intermediate' },
+  { key: 'advanced', label: 'Advanced' },
 ];
 
 const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} }, ref) => {
@@ -172,8 +169,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
               >
                 {/* Discipline header row */}
                 <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{disc.emoji}</span>
+                  <div className="flex items-center gap-2">
                     <div>
                       <div className="text-sm font-semibold text-gray-800">{disc.label}</div>
                       <div className="text-[11px] text-gray-400">{disc.description}</div>
@@ -192,7 +188,6 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                     {/* Lesson categories */}
                     <div>
                       <Text className="text-xs text-gray-500 font-medium block mb-1.5">
-                        <SafetyCertificateOutlined className="mr-1" />
                         Lesson Types
                       </Text>
                       <div className="flex flex-wrap gap-1.5">
@@ -229,10 +224,9 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                     {/* Max level */}
                     <div>
                       <Text className="text-xs text-gray-500 font-medium block mb-1.5">
-                        <TrophyOutlined className="mr-1" />
                         Maximum Teaching Level
                       </Text>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {LEVELS.map((lvl) => {
                           const active = skill.max_level === lvl.key;
                           return (
@@ -240,13 +234,12 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                               key={lvl.key}
                               type="button"
                               onClick={() => updateMaxLevel(disc.key, lvl.key)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all ${
                                 active
                                   ? 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm'
                                   : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
                               }`}
                             >
-                              <span>{lvl.icon}</span>
                               {lvl.label}
                             </button>
                           );
@@ -263,7 +256,6 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
         {/* Info footer */}
         <div className="rounded-lg bg-blue-50/60 border border-blue-100 px-4 py-2.5">
           <Text className="text-[11px] text-blue-600/80">
-            <InfoCircleOutlined className="mr-1" />
             Skills determine which instructors appear when booking a lesson.
             Only instructors with matching discipline, lesson type, and level will be shown.
           </Text>

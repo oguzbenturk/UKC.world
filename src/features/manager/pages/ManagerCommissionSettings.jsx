@@ -1,35 +1,26 @@
 // src/features/manager/pages/ManagerCommissionSettings.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Modal, Form, InputNumber, Select, Space, Tag, Spin, Empty, Avatar, Tooltip, Radio, Divider, Row, Col, Statistic } from 'antd';
+import { Table, Button, Space, Tag, Spin, Empty, Avatar, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
-  SettingOutlined, 
-  EditOutlined, 
   UserOutlined,
   PercentageOutlined,
   DollarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  EyeOutlined,
-  TeamOutlined,
-  BarChartOutlined,
-  RiseOutlined
+  BarChartOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { getAllManagersWithSettings, updateManagerSettings } from '../services/managerCommissionApi';
+import { useNavigate } from 'react-router-dom';
+import { getAllManagersWithSettings } from '../services/managerCommissionApi';
 import { formatCurrency } from '@/shared/utils/formatters';
-
-const { Option } = Select;
+import EnhancedManagerDetailPanel from '../components/EnhancedManagerDetailPanel';
 
 function ManagerCommissionSettings() {
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [selectedManager, setSelectedManager] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [form] = Form.useForm();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelManager, setPanelManager] = useState(null);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const fetchManagers = useCallback(async () => {
     setLoading(true);
@@ -51,81 +42,9 @@ function ManagerCommissionSettings() {
     fetchManagers();
   }, [fetchManagers]);
 
-  // Handle edit trigger from manager profile page via navigation state
-  useEffect(() => {
-    if (location.state?.editManagerId && managers.length > 0) {
-      const mgr = managers.find(m => m.id === location.state.editManagerId);
-      if (mgr) {
-        handleEdit(mgr);
-        // Clear the state so it doesn't re-trigger
-        window.history.replaceState({}, '');
-      }
-    }
-  }, [location.state, managers]);
-
-  const handleEdit = (manager) => {
-    setSelectedManager(manager);
-    form.setFieldsValue({
-      salaryType: manager.settings?.salaryType || 'commission',
-      commissionType: manager.settings?.commissionType || 'flat',
-      defaultRate: manager.settings?.defaultRate || 10,
-      bookingRate: manager.settings?.bookingRate || null,
-      rentalRate: manager.settings?.rentalRate || null,
-      accommodationRate: manager.settings?.accommodationRate || null,
-      packageRate: manager.settings?.packageRate || null,
-      shopRate: manager.settings?.shopRate || null,
-      membershipRate: manager.settings?.membershipRate || null,
-      fixedSalaryAmount: manager.settings?.fixedSalaryAmount || null,
-      perLessonAmount: manager.settings?.perLessonAmount || null
-    });
-    setEditModalVisible(true);
-  };
-
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      const values = await form.validateFields();
-      const isCommission = values.salaryType === 'commission';
-      const isPerCategory = isCommission && values.commissionType === 'per_category';
-      
-      const response = await updateManagerSettings(selectedManager.id, {
-        salaryType: values.salaryType,
-        commissionType: isCommission ? values.commissionType : 'flat',
-        defaultRate: isCommission ? values.defaultRate : 0,
-        bookingRate: isPerCategory ? values.bookingRate : null,
-        rentalRate: isPerCategory ? values.rentalRate : null,
-        accommodationRate: isPerCategory ? values.accommodationRate : null,
-        packageRate: isPerCategory ? values.packageRate : null,
-        shopRate: isPerCategory ? values.shopRate : null,
-        membershipRate: isPerCategory ? values.membershipRate : null,
-        fixedSalaryAmount: values.salaryType === 'monthly_salary' ? values.fixedSalaryAmount : null,
-        perLessonAmount: values.salaryType === 'fixed_per_lesson' ? values.perLessonAmount : null
-      });
-
-      if (response.success) {
-        message.success('Commission settings saved successfully');
-        setEditModalVisible(false);
-        fetchManagers();
-      } else {
-        message.error(response.error || 'Failed to save settings');
-      }
-    } catch (error) {
-      if (!error.errorFields) {
-        message.error(error.message || 'Failed to save settings');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const navigateToProfile = (record) => {
-    navigate(`/admin/manager-profile/${record.id}`, {
-      state: {
-        managerName: record.name,
-        managerEmail: record.email,
-        managerImage: record.profileImage
-      }
-    });
+  const openPanel = (record) => {
+    setPanelManager(record);
+    setPanelOpen(true);
   };
 
   const columns = [
@@ -135,7 +54,7 @@ function ManagerCommissionSettings() {
       render: (_, record) => (
         <div
           className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => navigateToProfile(record)}
+          onClick={() => openPanel(record)}
         >
           <Avatar 
             src={record.profileImage} 
@@ -176,7 +95,7 @@ function ManagerCommissionSettings() {
         if (type === 'fixed_per_lesson') {
           return <span className="font-semibold text-green-600">{formatCurrency(s.perLessonAmount || 0, 'EUR')}/lesson</span>;
         }
-        return <span className="font-semibold text-blue-600">{s.defaultRate || 10}%</span>;
+        return <span className="font-semibold text-blue-600">{s.defaultRate ?? 0}%</span>;
       }
     },
     {
@@ -245,26 +164,16 @@ function ManagerCommissionSettings() {
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 160,
       render: (_, record) => (
         <Space>
-          <Tooltip title="View Profile">
+          <Tooltip title="View Details">
             <Button
               icon={<UserOutlined />}
-              onClick={() => navigateToProfile(record)}
+              onClick={(e) => { e.stopPropagation(); openPanel(record); }}
               size="small"
             >
-              Profile
-            </Button>
-          </Tooltip>
-          <Tooltip title="Edit Settings">
-            <Button 
-              type="primary" 
-              icon={<EditOutlined />}
-              onClick={(e) => { e.stopPropagation(); handleEdit(record); }}
-              size="small"
-            >
-              Edit
+              Details
             </Button>
           </Tooltip>
           <Tooltip title="View Payroll">
@@ -279,275 +188,40 @@ function ManagerCommissionSettings() {
     }
   ];
 
-  const commissionType = Form.useWatch('commissionType', form);
-  const salaryType = Form.useWatch('salaryType', form);
-
   // Summary calculations
   const totalPending = managers.reduce((sum, m) => sum + (m.pendingCommission || 0), 0);
   const totalPaid = managers.reduce((sum, m) => sum + (m.paidCommission || 0), 0);
-  const totalEarnings = totalPending + totalPaid;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <SettingOutlined className="text-blue-500" />
-            Manager Commission Settings
-          </h1>
-          <p className="text-gray-600">
-            Configure commission rates for each manager. Click on a manager to view their full profile.
-          </p>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Spin size="large" />
         </div>
-      </div>
-
-      {/* Summary Stats */}
-      {!loading && managers.length > 0 && (
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={8}>
-            <Card className="shadow-sm border-l-4 border-l-blue-400">
-              <Statistic
-                title={<span className="flex items-center gap-1"><TeamOutlined /> Total Managers</span>}
-                value={managers.length}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card className="shadow-sm border-l-4 border-l-green-400">
-              <Statistic
-                title={<span className="flex items-center gap-1"><CheckCircleOutlined /> Total Paid</span>}
-                value={totalPaid}
-                precision={2}
-                prefix="€"
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card className="shadow-sm border-l-4 border-l-amber-400">
-              <Statistic
-                title={<span className="flex items-center gap-1"><ClockCircleOutlined /> Total Pending</span>}
-                value={totalPending}
-                precision={2}
-                prefix="€"
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-        </Row>
+      ) : managers.length === 0 ? (
+        <Empty 
+          description="No managers found. Change a user's role to Manager to get started."
+        />
+      ) : (
+        <Table 
+          columns={columns} 
+          dataSource={managers}
+          rowKey="id"
+          pagination={false}
+          scroll={{ x: 900 }}
+          onRow={(record) => ({
+            onClick: () => openPanel(record),
+            className: 'cursor-pointer hover:bg-blue-50/50 transition-colors'
+          })}
+        />
       )}
 
-      <Card className="shadow-sm">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <Spin size="large" />
-          </div>
-        ) : managers.length === 0 ? (
-          <Empty 
-            description={
-              <span>
-                No managers found. <br />
-                To add a manager, go to a customer's profile and change their role to "Manager".
-              </span>
-            }
-          />
-        ) : (
-          <Table 
-            columns={columns} 
-            dataSource={managers}
-            rowKey="id"
-            pagination={false}
-            scroll={{ x: 900 }}
-            onRow={(record) => ({
-              onClick: () => navigateToProfile(record),
-              className: 'cursor-pointer hover:bg-blue-50 transition-colors'
-            })}
-          />
-        )}
-      </Card>
-
-      <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <SettingOutlined className="text-blue-500" />
-            <span>Edit Salary & Commission Settings</span>
-          </div>
-        }
-        open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setEditModalVisible(false)}>
-            Cancel
-          </Button>,
-          <Button key="save" type="primary" loading={saving} onClick={handleSave}>
-            Save Settings
-          </Button>
-        ]}
-        width={600}
-      >
-        {selectedManager && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg flex items-center gap-3">
-            <Avatar 
-              src={selectedManager.profileImage} 
-              icon={<UserOutlined />}
-              size={48}
-            />
-            <div>
-              <div className="font-semibold">{selectedManager.name}</div>
-              <div className="text-sm text-gray-500">{selectedManager.email}</div>
-            </div>
-          </div>
-        )}
-
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="salaryType"
-            label="Salary Type"
-            rules={[{ required: true, message: 'Please select salary type' }]}
-          >
-            <Radio.Group buttonStyle="solid" style={{ width: '100%' }}>
-              <Radio.Button value="commission" style={{ width: '33.33%', textAlign: 'center' }}>
-                Commission %
-              </Radio.Button>
-              <Radio.Button value="fixed_per_lesson" style={{ width: '33.33%', textAlign: 'center' }}>
-                Per Lesson €
-              </Radio.Button>
-              <Radio.Button value="monthly_salary" style={{ width: '33.33%', textAlign: 'center' }}>
-                Monthly Salary
-              </Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
-          {salaryType === 'monthly_salary' && (
-            <Form.Item
-              name="fixedSalaryAmount"
-              label="Monthly Salary Amount (€)"
-              rules={[
-                { required: true, message: 'Please enter monthly salary amount' },
-                { type: 'number', min: 0, message: 'Amount must be positive' }
-              ]}
-            >
-              <InputNumber
-                min={0}
-                step={50}
-                addonAfter="€"
-                style={{ width: '100%' }}
-                placeholder="e.g. 2000"
-              />
-            </Form.Item>
-          )}
-
-          {salaryType === 'fixed_per_lesson' && (
-            <Form.Item
-              name="perLessonAmount"
-              label="Amount Per Lesson (€)"
-              rules={[
-                { required: true, message: 'Please enter per-lesson amount' },
-                { type: 'number', min: 0, message: 'Amount must be positive' }
-              ]}
-              extra="Manager earns this fixed amount for each completed lesson/booking"
-            >
-              <InputNumber
-                min={0}
-                step={5}
-                addonAfter="€"
-                style={{ width: '100%' }}
-                placeholder="e.g. 25"
-              />
-            </Form.Item>
-          )}
-
-          {salaryType === 'commission' && (
-            <>
-              <Divider plain>Commission Configuration</Divider>
-
-              <Form.Item
-                name="commissionType"
-                label="Commission Type"
-                rules={[{ required: true, message: 'Please select commission type' }]}
-              >
-                <Select>
-                  <Option value="flat">
-                    <div className="flex items-center gap-2">
-                      <PercentageOutlined />
-                      <span>Flat Rate — Same % for all revenue</span>
-                    </div>
-                  </Option>
-                  <Option value="per_category">
-                    <div className="flex items-center gap-2">
-                      <DollarOutlined />
-                      <span>Per Category — Different % per revenue type</span>
-                    </div>
-                  </Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item
-                name="defaultRate"
-                label="Default Commission Rate (%)"
-                rules={[
-                  { required: true, message: 'Please enter commission rate' },
-                  { type: 'number', min: 0, max: 100, message: 'Rate must be between 0 and 100' }
-                ]}
-                extra={commissionType === 'per_category' 
-                  ? 'Fallback rate for categories without a specific rate'
-                  : 'This rate applies to all revenue types'}
-              >
-                <InputNumber 
-                  min={0} 
-                  max={100} 
-                  step={0.5}
-                  addonAfter="%" 
-                  style={{ width: '100%' }}
-                  placeholder="10"
-                />
-              </Form.Item>
-
-              {commissionType === 'per_category' && (
-                <>
-                  <Divider plain>Category Rates</Divider>
-                  <p className="text-gray-500 text-sm mb-4">
-                    Leave empty to use the default rate above.
-                  </p>
-                  <Row gutter={16}>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="bookingRate" label="Booking Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="rentalRate" label="Rental Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="accommodationRate" label="Accommodation Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="shopRate" label="Shop/Sales Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="membershipRate" label="Membership Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="packageRate" label="Package Rate (%)">
-                        <InputNumber min={0} max={100} step={0.5} addonAfter="%" style={{ width: '100%' }} placeholder="Default" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </>
-              )}
-            </>
-          )}
-        </Form>
-      </Modal>
+      <EnhancedManagerDetailPanel
+        manager={panelManager}
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        onUpdate={fetchManagers}
+      />
     </div>
   );
 }

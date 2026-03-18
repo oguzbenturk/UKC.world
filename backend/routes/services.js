@@ -210,6 +210,10 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         accommodationUnitName: accommodationUnitName,
         accommodationUnitType: accommodationUnitType,
         rentalServiceName: rentalServiceName,
+        // Per-component pricing
+        packageHourlyRate: row.package_hourly_rate ? parseFloat(row.package_hourly_rate) : null,
+        packageDailyRate: row.package_daily_rate ? parseFloat(row.package_daily_rate) : null,
+        packageNightlyRate: row.package_nightly_rate ? parseFloat(row.package_nightly_rate) : null,
         // Event-specific fields
         eventStartDate: row.event_start_date || null,
         eventEndDate: row.event_end_date || null,
@@ -368,6 +372,8 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       // Service reference fields
       lessonServiceId, equipmentId, accommodationUnitId, rentalServiceId,
       equipmentName, accommodationUnitName, rentalServiceName,
+      // Per-component pricing
+      packageHourlyRate, packageDailyRate, packageNightlyRate,
       // Event-specific fields (for downwinders/camps)
       eventStartDate, eventEndDate, eventLocation, departureLocation, destinationLocation,
       maxParticipants, minSkillLevel, minAge, maxAge, itinerary, eventStatus
@@ -464,6 +470,9 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       'max_age',
       'itinerary',
       'event_status',
+      'package_hourly_rate',
+      'package_daily_rate',
+      'package_nightly_rate',
       'created_at',
       'updated_at'
     ];
@@ -506,6 +515,9 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       maxAge ? parseInt(maxAge) : null,
       itinerary ? JSON.stringify(itinerary) : null,
       eventStatus || 'scheduled',
+      packageHourlyRate ? parseFloat(packageHourlyRate) : null,
+      packageDailyRate ? parseFloat(packageDailyRate) : null,
+      packageNightlyRate ? parseFloat(packageNightlyRate) : null,
       now,
       now
     ];
@@ -569,6 +581,10 @@ router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
       equipmentName: rows[0].equipment_name || null,
       accommodationUnitName: rows[0].accommodation_unit_name || null,
       rentalServiceName: rows[0].rental_service_name || null,
+      // Per-component pricing
+      packageHourlyRate: rows[0].package_hourly_rate ? parseFloat(rows[0].package_hourly_rate) : null,
+      packageDailyRate: rows[0].package_daily_rate ? parseFloat(rows[0].package_daily_rate) : null,
+      packageNightlyRate: rows[0].package_nightly_rate ? parseFloat(rows[0].package_nightly_rate) : null,
       // Event-specific fields
       eventStartDate: rows[0].event_start_date || null,
       eventEndDate: rows[0].event_end_date || null,
@@ -1657,7 +1673,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
       accommodationNights, rentalDays, imageUrl,
       // Service reference fields
       lessonServiceId, equipmentId, accommodationUnitId, rentalServiceId,
-      equipmentName, accommodationUnitName, rentalServiceName
+      equipmentName, accommodationUnitName, rentalServiceName,
+      // Per-component pricing
+      packageHourlyRate, packageDailyRate, packageNightlyRate
     } = req.body;
     
     // Validate based on package type
@@ -1715,8 +1733,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
           package_type = $11, includes_accommodation = $12, includes_rental = $13, includes_lessons = $14,
           accommodation_nights = $15, rental_days = $16, image_url = $17,
           lesson_service_id = $18, equipment_id = $19, accommodation_unit_id = $20, rental_service_id = $21,
-          equipment_name = $22, accommodation_unit_name = $23, rental_service_name = $24, updated_at = NOW()
-      WHERE id = $25
+          equipment_name = $22, accommodation_unit_name = $23, rental_service_name = $24,
+          package_hourly_rate = $25, package_daily_rate = $26, package_nightly_rate = $27, updated_at = NOW()
+      WHERE id = $28
       RETURNING *
     `;
     
@@ -1746,6 +1765,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
       equipmentName || null,
       accommodationUnitName || null,
       rentalServiceName || null,
+      packageHourlyRate ? parseFloat(packageHourlyRate) : null,
+      packageDailyRate ? parseFloat(packageDailyRate) : null,
+      packageNightlyRate ? parseFloat(packageNightlyRate) : null,
       id
     ]);
     
@@ -1801,6 +1823,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
       equipmentName: rows[0].equipment_name || null,
       accommodationUnitName: rows[0].accommodation_unit_name || null,
       rentalServiceName: rows[0].rental_service_name || null,
+      packageHourlyRate: rows[0].package_hourly_rate ? parseFloat(rows[0].package_hourly_rate) : null,
+      packageDailyRate: rows[0].package_daily_rate ? parseFloat(rows[0].package_daily_rate) : null,
+      packageNightlyRate: rows[0].package_nightly_rate ? parseFloat(rows[0].package_nightly_rate) : null,
       createdAt: rows[0].created_at,
       updatedAt: rows[0].updated_at,
       status: 'active'
@@ -2988,7 +3013,10 @@ router.post('/customer-packages/:id/use-hours', authorize(['admin', 'manager']),
     // Update package hours
     const newUsedHours = (parseFloat(currentPackage.used_hours) || 0) + parseFloat(hoursToUse);
     const newRemainingHours = remainingHours - parseFloat(hoursToUse);
-    const newStatus = newRemainingHours <= 0 ? 'used_up' : currentPackage.status;
+    const rentalDaysRemaining = parseInt(currentPackage.rental_days_remaining) || 0;
+    const accommodationNightsRemaining = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    const isFullyUsed = newRemainingHours <= 0 && rentalDaysRemaining <= 0 && accommodationNightsRemaining <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
     
     const updateQuery = `
       UPDATE customer_packages 
@@ -3200,7 +3228,66 @@ router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin
       remainingNights: newRemainingNights,
       accommodationBookingId
     });
-    
+
+    // Record manager commission for the consumed accommodation nights
+    try {
+      const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
+
+      // Look up nightly rate — prefer package_nightly_rate from service_packages
+      let accomAmount = 0;
+      const unitId = currentPackage.accommodation_unit_id;
+
+      // 1. Try stored package nightly rate
+      if (currentPackage.service_package_id) {
+        const spRes = await pool.query(
+          'SELECT package_nightly_rate FROM service_packages WHERE id = $1',
+          [currentPackage.service_package_id]
+        );
+        const storedRate = parseFloat(spRes.rows[0]?.package_nightly_rate) || 0;
+        if (storedRate > 0) {
+          accomAmount = storedRate * parseInt(nightsToUse);
+        }
+      }
+
+      // 2. Fallback to accommodation unit price_per_night
+      if (accomAmount <= 0 && unitId) {
+        const unitRes = await pool.query(
+          'SELECT price_per_night FROM accommodation_units WHERE id = $1',
+          [unitId]
+        );
+        if (unitRes.rows.length > 0) {
+          accomAmount = parseFloat(unitRes.rows[0].price_per_night) * parseInt(nightsToUse);
+        }
+      }
+      // 3. Last fallback: pro-rata from package purchase price
+      if (accomAmount <= 0) {
+        const totalNights = parseInt(currentPackage.accommodation_nights_total) || 1;
+        let pkgPrice = parseFloat(currentPackage.purchase_price) || 0;
+        accomAmount = Math.round((pkgPrice / totalNights * parseInt(nightsToUse)) * 100) / 100;
+      }
+
+      if (accomAmount > 0) {
+        const checkOut = checkOutDate || (() => {
+          const d = new Date(checkInDate || Date.now());
+          d.setDate(d.getDate() + parseInt(nightsToUse));
+          return d.toISOString().split('T')[0];
+        })();
+        await recordAccommodationCommission({
+          id: `pkg-accom-${id}`,
+          total_price: accomAmount,
+          currency: currentPackage.currency || 'EUR',
+          check_in_date: checkInDate,
+          check_out_date: checkOut,
+          guest_id: currentPackage.customer_id,
+          unit_id: unitId,
+          guests_count: 1,
+        });
+        logger.info('Accommodation commission recorded from package', { packageId: id, amount: accomAmount });
+      }
+    } catch (commErr) {
+      logger.warn('Failed to record accommodation commission from package:', commErr.message);
+    }
+
     res.json({
       package: {
         id: rows[0].id,

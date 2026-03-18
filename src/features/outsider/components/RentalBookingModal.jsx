@@ -28,7 +28,7 @@ import {
   ShoppingOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -425,34 +425,7 @@ const RentalBookingModal = ({
     }
   }, [open]);
 
-  // ── Rental creation mutation (POST /rentals) ──────────────────────────────
-  const rentalMutation = useMutation({
-    mutationFn: (payload) => apiClient.post('/rentals', payload),
-    onSuccess: async (res) => {
-      // For credit card payments, show the Iyzico payment modal
-      if (res.data?.paymentPageUrl) {
-        setIyzicoPaymentUrl(res.data.paymentPageUrl);
-        setIyzicoDepositId(res.data.depositId || null);
-        setShowIyzicoModal(true);
-        setSubmitting(false);
-        return;
-      }
-
-      if (res.data?.roleUpgrade?.upgraded) {
-        try { await refreshToken(); } catch { /* ignore */ }
-      }
-      queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      queryClient.invalidateQueries({ queryKey: ['rentals'] });
-      queryClient.invalidateQueries({ queryKey: ['student-booking'] });
-      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
-      message.success('Rental booked!');
-      setStep(2);
-    },
-    onError: (err) => {
-      message.error(err.response?.data?.error || err.message || 'Booking failed');
-    },
-    onSettled: () => setSubmitting(false),
-  });
+  // ── Rental creation is handled inline in handleConfirmPayment ───────────
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -463,9 +436,7 @@ const RentalBookingModal = ({
 
   const handleConfirmPayment = useCallback(() => {
     if (!studentId || !serviceId || numberOfDays === 0) return;
-    const price = normalizeNumeric(servicePrice, 0) * numberOfDays;
-    const startStr = startDate.format('YYYY-MM-DD');
-    const endStr = endDate.format('YYYY-MM-DD');
+    const unitPrice = normalizeNumeric(servicePrice, 0);
 
     Modal.confirm({
       title: 'Confirm Rental',
@@ -474,6 +445,9 @@ const RentalBookingModal = ({
         <div style={{ marginTop: 8 }}>
           <p><strong>{serviceName || 'Equipment Rental'}</strong></p>
           <p style={{ color: '#555' }}>{startDate.format('ddd, MMM D')} → {endDate.format('ddd, MMM D')} ({numberOfDays} day{numberOfDays !== 1 ? 's' : ''})</p>
+          {numberOfDays > 1 && (
+            <p style={{ color: '#888', fontSize: 12 }}>{numberOfDays} separate rentals will be created</p>
+          )}
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(totalPrice, priceCurrency)}</p>
           <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
         </div>
@@ -481,24 +455,54 @@ const RentalBookingModal = ({
       okText: 'Confirm & Pay',
       cancelText: 'Go Back',
       centered: true,
-      onOk: () => {
+      onOk: async () => {
         setSubmitting(true);
-        rentalMutation.mutate({
-          user_id: studentId,
-          equipment_ids: [serviceId],
-          rental_date: startStr,
-          start_date: startStr,
-          end_date: endStr,
-          rental_days: numberOfDays,
-          total_price: price,
-          payment_status: paymentMethod === 'pay_later' ? 'unpaid' : 'unpaid',
-          notes: `Equipment rental: ${serviceName || 'Rental'} (${numberOfDays} day${numberOfDays !== 1 ? 's' : ''})`,
-          currency: serviceCurrency || 'EUR',
-          payment_method: paymentMethod,
-        });
+        try {
+          // Create one rental per day so each can be managed individually
+          let lastRes = null;
+          for (let i = 0; i < numberOfDays; i++) {
+            const day = startDate.add(i, 'day');
+            const dayStr = day.format('YYYY-MM-DD');
+            const res = await apiClient.post('/rentals', {
+              user_id: studentId,
+              equipment_ids: [serviceId],
+              rental_date: dayStr,
+              start_date: dayStr,
+              end_date: dayStr,
+              rental_days: 1,
+              total_price: unitPrice,
+              payment_status: 'unpaid',
+              notes: `Equipment rental: ${serviceName || 'Rental'} — ${day.format('ddd, MMM D')}`,
+              currency: serviceCurrency || 'EUR',
+              payment_method: paymentMethod,
+            });
+            lastRes = res;
+          }
+          // Handle credit card flow (only first response will have the URL)
+          if (lastRes?.data?.paymentPageUrl) {
+            setIyzicoPaymentUrl(lastRes.data.paymentPageUrl);
+            setIyzicoDepositId(lastRes.data.depositId || null);
+            setShowIyzicoModal(true);
+            setSubmitting(false);
+            return;
+          }
+          if (lastRes?.data?.roleUpgrade?.upgraded) {
+            try { await refreshToken(); } catch { /* ignore */ }
+          }
+          queryClient.invalidateQueries({ queryKey: ['wallet'] });
+          queryClient.invalidateQueries({ queryKey: ['rentals'] });
+          queryClient.invalidateQueries({ queryKey: ['student-booking'] });
+          queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+          message.success(`${numberOfDays} rental${numberOfDays !== 1 ? 's' : ''} booked!`);
+          setStep(2);
+        } catch (err) {
+          message.error(err.response?.data?.error || err.message || 'Booking failed');
+        } finally {
+          setSubmitting(false);
+        }
       },
     });
-  }, [studentId, serviceId, numberOfDays, servicePrice, startDate, endDate, serviceName, totalPrice, priceCurrency, formatCurrency, paymentMethod, rentalMutation, serviceCurrency]);
+  }, [studentId, serviceId, numberOfDays, servicePrice, startDate, endDate, serviceName, totalPrice, priceCurrency, formatCurrency, paymentMethod, serviceCurrency, message, queryClient, refreshToken]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 

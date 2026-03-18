@@ -379,17 +379,11 @@ function RentalServices() {
     setFilteredServices(result);
   }, [services, searchText, categoryFilter, disciplineFilter]);
 
-  const handleServiceCreated = async (newService) => {
-    // Check if it's a rental service or has rental-related category
-    const isRentalService = newService.category === 'rental' || 
-      rentalCategories.some(cat => cat.name.toLowerCase() === newService.category?.toLowerCase());
-    
-    if (isRentalService) {
-      setServices(prev => [...prev, newService]);
-    }
+  const handleServiceCreated = async () => {
+    // Reload all services to pick up all batch-created items
+    await loadServices();
     setRentalModalOpen(false);
     setSelectedService(null);
-    message.success('Rental service created successfully!');
   };
 
   const handleServiceUpdated = async (updatedService) => {

@@ -40,7 +40,7 @@ subjects AS (
     u.created_at
   FROM users u
   LEFT JOIN roles r ON r.id = u.role_id
-  WHERE COALESCE(r.name, 'student') IN ('student', 'customer')
+  WHERE COALESCE(r.name, 'student') IN ('student', 'customer') AND u.deleted_at IS NULL
   UNION ALL
   SELECT
     fm.id::text AS subject_id,

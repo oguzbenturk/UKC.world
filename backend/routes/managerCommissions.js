@@ -10,6 +10,13 @@ import express from 'express';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { pool } from '../db.js';
+import { resolveActorId } from '../utils/auditUtils.js';
+import {
+  recordTransaction as recordWalletTransaction,
+  recordLegacyTransaction,
+  getTransactionById as getWalletTransactionById
+} from '../services/walletService.js';
 import {
   getManagerCommissionSettings,
   getManagerCommissionSummary,
@@ -68,9 +75,9 @@ router.get('/dashboard', authenticateJWT, authorizeRoles(['manager']), async (re
         yearToDate: ytdSummary,
         settings: settings ? {
           commissionType: settings.commission_type,
-          defaultRate: parseFloat(settings.default_rate) || 10,
-          bookingRate: settings.booking_rate ? parseFloat(settings.booking_rate) : null,
-          rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
+          defaultRate: settings.default_rate != null ? parseFloat(settings.default_rate) : 10,
+          bookingRate: settings.booking_rate != null ? parseFloat(settings.booking_rate) : null,
+          rentalRate: settings.rental_rate != null ? parseFloat(settings.rental_rate) : null,
           salaryType: settings.salary_type || 'commission',
           fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
           perLessonAmount: parseFloat(settings.per_lesson_amount) || 0
@@ -197,13 +204,13 @@ router.get('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
         id: settings.id,
         managerUserId: settings.manager_user_id,
         commissionType: settings.commission_type,
-        defaultRate: parseFloat(settings.default_rate) || 10,
-        bookingRate: settings.booking_rate ? parseFloat(settings.booking_rate) : null,
-        rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
-        accommodationRate: settings.accommodation_rate ? parseFloat(settings.accommodation_rate) : null,
-        packageRate: settings.package_rate ? parseFloat(settings.package_rate) : null,
-        shopRate: settings.shop_rate ? parseFloat(settings.shop_rate) : null,
-        membershipRate: settings.membership_rate ? parseFloat(settings.membership_rate) : null,
+        defaultRate: settings.default_rate != null ? parseFloat(settings.default_rate) : 10,
+        bookingRate: settings.booking_rate != null ? parseFloat(settings.booking_rate) : null,
+        rentalRate: settings.rental_rate != null ? parseFloat(settings.rental_rate) : null,
+        accommodationRate: settings.accommodation_rate != null ? parseFloat(settings.accommodation_rate) : null,
+        packageRate: settings.package_rate != null ? parseFloat(settings.package_rate) : null,
+        shopRate: settings.shop_rate != null ? parseFloat(settings.shop_rate) : null,
+        membershipRate: settings.membership_rate != null ? parseFloat(settings.membership_rate) : null,
         salaryType: settings.salary_type || 'commission',
         fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
         perLessonAmount: parseFloat(settings.per_lesson_amount) || 0,
@@ -316,13 +323,13 @@ router.put('/admin/managers/:managerId/settings', authenticateJWT, authorizeRole
         id: settings.id,
         managerUserId: settings.manager_user_id,
         commissionType: settings.commission_type,
-        defaultRate: parseFloat(settings.default_rate) || 10,
-        bookingRate: settings.booking_rate ? parseFloat(settings.booking_rate) : null,
-        rentalRate: settings.rental_rate ? parseFloat(settings.rental_rate) : null,
-        accommodationRate: settings.accommodation_rate ? parseFloat(settings.accommodation_rate) : null,
-        packageRate: settings.package_rate ? parseFloat(settings.package_rate) : null,
-        shopRate: settings.shop_rate ? parseFloat(settings.shop_rate) : null,
-        membershipRate: settings.membership_rate ? parseFloat(settings.membership_rate) : null,
+        defaultRate: settings.default_rate != null ? parseFloat(settings.default_rate) : 10,
+        bookingRate: settings.booking_rate != null ? parseFloat(settings.booking_rate) : null,
+        rentalRate: settings.rental_rate != null ? parseFloat(settings.rental_rate) : null,
+        accommodationRate: settings.accommodation_rate != null ? parseFloat(settings.accommodation_rate) : null,
+        packageRate: settings.package_rate != null ? parseFloat(settings.package_rate) : null,
+        shopRate: settings.shop_rate != null ? parseFloat(settings.shop_rate) : null,
+        membershipRate: settings.membership_rate != null ? parseFloat(settings.membership_rate) : null,
         salaryType: settings.salary_type || 'commission',
         fixedSalaryAmount: parseFloat(settings.fixed_salary_amount) || 0,
         perLessonAmount: parseFloat(settings.per_lesson_amount) || 0,
@@ -421,6 +428,254 @@ router.get('/admin/managers/:managerId/payroll', authenticateJWT, authorizeRoles
   } catch (error) {
     logger.error('Error fetching manager payroll:', { error: error.message, managerId: req.params.managerId });
     res.status(500).json({ success: false, error: 'Failed to fetch payroll data' });
+  }
+});
+
+// ============================================
+// MANAGER PAYMENT ENDPOINTS
+// ============================================
+
+/**
+ * @route   GET /api/manager/commissions/admin/managers/:managerId/payment-history
+ * @desc    Get manager's payment/deduction history
+ * @access  Admin only
+ */
+router.get('/admin/managers/:managerId/payment-history', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT id, amount, transaction_type as type, description, payment_method,
+              reference_number, created_at as payment_date
+       FROM wallet_transactions
+       WHERE user_id = $1
+         AND entity_type = 'manager_payment'
+         AND status != 'cancelled'
+       ORDER BY created_at DESC`,
+      [managerId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    logger.error('Error fetching manager payment history:', { error: error.message, managerId: req.params.managerId });
+    res.status(500).json({ success: false, error: 'Failed to fetch payment history' });
+  }
+});
+
+/**
+ * @route   POST /api/manager/commissions/admin/managers/:managerId/payments
+ * @desc    Record a manager payment or deduction
+ * @access  Admin only
+ */
+router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    const { amount, description, payment_date, payment_method = 'cash' } = req.body;
+
+    if (!amount || !description || !payment_date) {
+      return res.status(400).json({ error: 'Missing required fields: amount, description, payment_date' });
+    }
+
+    const transactionAmount = parseFloat(amount);
+    const transactionType = transactionAmount < 0 ? 'deduction' : 'payment';
+    const actorId = resolveActorId(req);
+    const paymentDate = payment_date ? new Date(payment_date) : new Date();
+    const referenceNumber = `MGR_${Date.now()}`;
+
+    const transactionRecord = await recordLegacyTransaction({
+      userId: managerId,
+      amount: transactionAmount,
+      transactionType,
+      status: 'completed',
+      direction: transactionAmount >= 0 ? 'credit' : 'debit',
+      description,
+      paymentMethod: payment_method || null,
+      referenceNumber,
+      metadata: {
+        source: 'manager-commissions:payments:create',
+        paymentDate: paymentDate.toISOString(),
+        referenceNumber
+      },
+      entityType: 'manager_payment',
+      relatedEntityType: 'manager',
+      relatedEntityId: managerId,
+      createdBy: actorId || null
+    });
+
+    res.json({
+      success: true,
+      transaction: transactionRecord,
+      message: `Manager ${transactionType} recorded successfully`
+    });
+  } catch (error) {
+    logger.error('Error recording manager payment:', { error: error.message, managerId: req.params.managerId });
+    res.status(500).json({ error: 'Failed to record manager payment' });
+  }
+});
+
+/**
+ * @route   PUT /api/manager/commissions/admin/managers/:managerId/payments/:paymentId
+ * @desc    Update an existing manager payment
+ * @access  Admin only
+ */
+router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { paymentId } = req.params;
+    const { amount, description, payment_date, payment_method = 'cash' } = req.body;
+
+    if (!amount || !description || !payment_date) {
+      client.release();
+      return res.status(400).json({ error: 'Missing required fields: amount, description, payment_date' });
+    }
+
+    const transaction = await getWalletTransactionById(paymentId);
+    if (!transaction) {
+      client.release();
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
+      client.release();
+      return res.status(400).json({ error: 'Only payment/deduction transactions can be updated' });
+    }
+
+    const actorId = resolveActorId(req) || null;
+    const newAmount = parseFloat(amount);
+    const transactionType = newAmount < 0 ? 'deduction' : 'payment';
+
+    await client.query('BEGIN');
+
+    const originalAmount = parseFloat(transaction.amount) || 0;
+    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
+    const pendingDelta = parseFloat(transaction.pending_delta) || 0;
+    const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
+
+    // Cancel old transaction
+    await client.query(
+      `UPDATE wallet_transactions SET status = 'cancelled',
+         metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+         updated_at = NOW()
+       WHERE id = $1`,
+      [paymentId, JSON.stringify({ updatedBy: actorId, updatedAt: new Date().toISOString() })]
+    );
+
+    // Reversal
+    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
+      await recordWalletTransaction({
+        userId: transaction.user_id,
+        amount: -originalAmount,
+        availableDelta: -availableDelta,
+        pendingDelta: -pendingDelta,
+        nonWithdrawableDelta: -nonWithdrawableDelta,
+        transactionType: `${transaction.transaction_type}_reversal`,
+        currency: transaction.currency || 'EUR',
+        description: `Reversal for manager payment ${transaction.id}`,
+        metadata: { origin: 'manager-commissions:payments:update:reversal', reversedTransactionId: transaction.id },
+        relatedEntityType: 'manager_payment',
+        relatedEntityId: transaction.related_entity_id || transaction.id,
+        createdBy: actorId,
+        allowNegative: true,
+        client
+      });
+    }
+
+    // New replacement transaction
+    const updated = await recordLegacyTransaction({
+      userId: transaction.user_id,
+      amount: newAmount,
+      transactionType,
+      status: 'completed',
+      direction: newAmount >= 0 ? 'credit' : 'debit',
+      description,
+      paymentMethod: payment_method || null,
+      referenceNumber: transaction.reference_number || `MGR_${Date.now()}`,
+      metadata: {
+        source: 'manager-commissions:payments:update',
+        replacesTransactionId: transaction.id,
+        paymentDate: (payment_date ? new Date(payment_date) : new Date()).toISOString(),
+        previousAmount: originalAmount
+      },
+      entityType: 'manager_payment',
+      relatedEntityType: 'manager',
+      relatedEntityId: transaction.user_id,
+      createdBy: actorId,
+      client
+    });
+
+    await client.query('COMMIT');
+    res.json({ success: true, transaction: updated, message: 'Manager payment updated successfully' });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    logger.error('Error updating manager payment:', { error: error.message });
+    res.status(500).json({ error: 'Failed to update manager payment' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @route   DELETE /api/manager/commissions/admin/managers/:managerId/payments/:paymentId
+ * @desc    Delete (cancel) a manager payment
+ * @access  Admin only
+ */
+router.delete('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { paymentId } = req.params;
+
+    await client.query('BEGIN');
+
+    const transaction = await getWalletTransactionById(paymentId);
+    if (!transaction) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({ error: 'Only payment/deduction transactions can be deleted' });
+    }
+
+    const actorId = resolveActorId(req) || null;
+    const originalAmount = parseFloat(transaction.amount) || 0;
+    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
+    const pendingDelta = parseFloat(transaction.pending_delta) || 0;
+    const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
+
+    await client.query(
+      `UPDATE wallet_transactions SET status = 'cancelled',
+         metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+         updated_at = NOW()
+       WHERE id = $1`,
+      [paymentId, JSON.stringify({ cancelledBy: actorId, cancelledAt: new Date().toISOString() })]
+    );
+
+    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
+      await recordWalletTransaction({
+        userId: transaction.user_id,
+        amount: -originalAmount,
+        availableDelta: -availableDelta,
+        pendingDelta: -pendingDelta,
+        nonWithdrawableDelta: -nonWithdrawableDelta,
+        transactionType: `${transaction.transaction_type}_reversal`,
+        currency: transaction.currency || 'EUR',
+        description: `Reversal for manager payment ${transaction.id}`,
+        metadata: { origin: 'manager-commissions:payments:delete:reversal', reversedTransactionId: transaction.id },
+        relatedEntityType: 'manager_payment',
+        relatedEntityId: transaction.related_entity_id || transaction.id,
+        createdBy: actorId,
+        allowNegative: true,
+        client
+      });
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Manager payment deleted successfully' });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    logger.error('Error deleting manager payment:', { error: error.message });
+    res.status(500).json({ error: 'Failed to delete manager payment' });
+  } finally {
+    client.release();
   }
 });
 

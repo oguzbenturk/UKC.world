@@ -138,8 +138,14 @@ function AccommodationAdminPage() {
   const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await accommodationApi.getBookings({ limit: 200 });
-      setBookings(data);
+      const [standaloneData, packageData] = await Promise.allSettled([
+        accommodationApi.getBookings({ limit: 500 }),
+        accommodationApi.getPackageStays(),
+      ]);
+      const standalone = standaloneData.status === 'fulfilled' ? standaloneData.value : [];
+      const packageStays = packageData.status === 'fulfilled' ? packageData.value : [];
+      // Merge: deduplicate by id (package stays have different UUIDs so no collision)
+      setBookings([...standalone, ...packageStays]);
     } catch {
       message.error('Failed to load bookings');
     } finally {
@@ -232,8 +238,14 @@ function AccommodationAdminPage() {
           <div className="font-medium flex items-center gap-2">
             <UserOutlined className="text-gray-400" />
             {record.guest_name || 'Unknown'}
+            {record.booking_source === 'package' && (
+              <Tag color="purple" bordered={false} className="rounded-full text-[10px] px-1.5 py-0 leading-4">PKG</Tag>
+            )}
           </div>
           <div className="text-xs text-gray-500">{record.guest_email}</div>
+          {record.package_name && (
+            <div className="text-[11px] text-purple-500">{record.package_name}</div>
+          )}
         </div>
       ),
     },

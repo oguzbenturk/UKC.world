@@ -11,9 +11,9 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
   const { instructorId } = req.params;
   
   try {
-    // First check if the instructor exists
+    // First check if the instructor/manager exists
     const instructorCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name = 'instructor')`,
+      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager'))`,
       [instructorId]
     );
     

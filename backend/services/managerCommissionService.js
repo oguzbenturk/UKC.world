@@ -16,6 +16,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from './currencyService.js';
+import { deriveLessonAmount, toNumber } from '../utils/instructorEarnings.js';
 
 // Default commission rate (10%)
 const DEFAULT_MANAGER_COMMISSION_RATE = 10.0;
@@ -52,11 +53,12 @@ export async function getManagerCommissionSettings(managerUserId) {
 export async function getDefaultManager() {
   try {
     const result = await pool.query(
-      `SELECT id, name, email 
-       FROM users 
-       WHERE role = 'manager' 
-       AND deleted_at IS NULL 
-       ORDER BY created_at ASC 
+      `SELECT u.id, u.name, u.email 
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+       WHERE r.name = 'manager' 
+       AND u.deleted_at IS NULL 
+       ORDER BY u.created_at ASC 
        LIMIT 1`
     );
     return result.rows[0] || null;
@@ -80,32 +82,34 @@ function getCommissionRate(settings, sourceType) {
   const type = settings.commission_type || 'flat';
 
   if (type === 'flat') {
-    return parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+    const rate = parseFloat(settings.default_rate);
+    return Number.isFinite(rate) ? rate : DEFAULT_MANAGER_COMMISSION_RATE;
   }
 
   if (type === 'per_category') {
     switch (sourceType) {
       case 'booking':
-        return parseFloat(settings.booking_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.booking_rate) || 0;
       case 'rental':
-        return parseFloat(settings.rental_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.rental_rate) || 0;
       case 'accommodation':
-        return parseFloat(settings.accommodation_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.accommodation_rate) || 0;
       case 'package':
-        return parseFloat(settings.package_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.package_rate) || 0;
       case 'shop':
-        return parseFloat(settings.shop_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.shop_rate) || 0;
       case 'membership':
-        return parseFloat(settings.membership_rate) || parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return parseFloat(settings.membership_rate) || 0;
       default:
-        return parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+        return 0;
     }
   }
 
   // TODO: Implement tiered commission based on volume
   // if (type === 'tiered') { ... }
 
-  return parseFloat(settings.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE;
+  const fallbackRate = parseFloat(settings.default_rate);
+  return Number.isFinite(fallbackRate) ? fallbackRate : DEFAULT_MANAGER_COMMISSION_RATE;
 }
 
 /**
@@ -147,9 +151,108 @@ export async function recordBookingCommission(booking, options = {}) {
     const settings = await getManagerCommissionSettings(manager.id);
     const commissionRate = getCommissionRate(settings, 'booking');
 
-    // Get the booking amount (use final_amount if available, otherwise amount)
-    const sourceAmount = parseFloat(booking.final_amount) || parseFloat(booking.amount) || 0;
+    if (commissionRate <= 0) {
+      logger.info('Booking commission rate is 0%, skipping', { bookingId: booking.id });
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // Get the booking amount — for package bookings derive the actual lesson
+    // value from the package price, exactly like instructor earnings does.
+    let sourceAmount = parseFloat(booking.final_amount) || parseFloat(booking.amount) || 0;
     const sourceCurrency = booking.currency || 'EUR';
+
+    if (booking.customer_package_id &&
+        (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
+      const cashAmount = sourceAmount; // Preserve the cash portion for partial
+      try {
+        const pkgRes = await client.query(
+          `SELECT cp.purchase_price, cp.total_hours, cp.remaining_hours, cp.used_hours,
+                  cp.service_package_id, cp.currency,
+                  sp.sessions_count, sp.total_hours as sp_total_hours,
+                  sp.package_hourly_rate, sp.rental_service_id, sp.accommodation_unit_id,
+                  sp.rental_days, sp.accommodation_nights,
+                  cs.exchange_rate
+           FROM customer_packages cp
+           LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+           LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
+           WHERE cp.id = $1`,
+          [booking.customer_package_id]
+        );
+        if (pkgRes.rows.length > 0) {
+          const pkg = pkgRes.rows[0];
+          // Convert package price to EUR if needed
+          let pkgPrice = toNumber(pkg.purchase_price);
+          if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
+            pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
+          }
+
+          // Derive lesson-only portion using stored hourly rate or subtraction fallback
+          const storedHourlyRate = toNumber(pkg.package_hourly_rate);
+          const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
+          let effectivePackagePrice = pkgPrice;
+
+          if (storedHourlyRate > 0 && pkgTotalHours > 0) {
+            effectivePackagePrice = storedHourlyRate * pkgTotalHours;
+          } else {
+            // Fallback: subtract rental + accommodation costs
+            let rentalCost = 0;
+            let accomCost = 0;
+            const rentalDays = parseInt(pkg.rental_days) || 0;
+            const accomNights = parseInt(pkg.accommodation_nights) || 0;
+            if (rentalDays > 0 && pkg.rental_service_id) {
+              try {
+                const { rows: rRows } = await client.query(
+                  'SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]
+                );
+                rentalCost = rentalDays * (toNumber(rRows[0]?.price) || 0);
+              } catch { /* ignore */ }
+            }
+            if (accomNights > 0 && pkg.accommodation_unit_id) {
+              try {
+                const { rows: aRows } = await client.query(
+                  'SELECT price_per_night FROM accommodation_units WHERE id = $1', [pkg.accommodation_unit_id]
+                );
+                accomCost = accomNights * (toNumber(aRows[0]?.price_per_night) || 0);
+              } catch { /* ignore */ }
+            }
+            if (rentalCost + accomCost > 0) {
+              effectivePackagePrice = Math.max(0, pkgPrice - rentalCost - accomCost);
+            }
+          }
+
+          sourceAmount = deriveLessonAmount({
+            paymentStatus: 'package', // Always treat as package for derivation
+            duration: booking.duration,
+            baseAmount: 0,
+            packagePrice: effectivePackagePrice,
+            packageTotalHours: pkgTotalHours,
+            packageRemainingHours: toNumber(pkg.remaining_hours),
+            packageUsedHours: toNumber(pkg.used_hours),
+            packageSessionsCount: toNumber(pkg.sessions_count),
+            fallbackSessionDuration: booking.duration,
+          });
+
+          // For fully package-paid group bookings, multiply per-person amount by group_size
+          // For partial bookings, add the per-person package portion to the cash amount
+          const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
+          if (booking.payment_status === 'partial') {
+            // packagePortion (per-person) + cashAmount (all cash participants)
+            sourceAmount = Number.parseFloat((sourceAmount + cashAmount).toFixed(2));
+          } else if (groupSize > 1) {
+            sourceAmount = Number.parseFloat((sourceAmount * groupSize).toFixed(2));
+          }
+
+          logger.info('Derived package lesson value for manager commission', {
+            bookingId: booking.id, packageId: booking.customer_package_id,
+            derivedAmount: sourceAmount, effectivePackagePrice, storedHourlyRate,
+            fullPackagePrice: pkgPrice, groupSize
+          });
+        }
+      } catch (err) {
+        logger.warn('Failed to derive package lesson value', { bookingId: booking.id, error: err.message });
+      }
+    }
 
     if (sourceAmount <= 0) {
       logger.warn('Booking has no amount for commission calculation', { bookingId: booking.id });
@@ -283,9 +386,69 @@ export async function recordRentalCommission(rental, options = {}) {
     const settings = await getManagerCommissionSettings(manager.id);
     const commissionRate = getCommissionRate(settings, 'rental');
 
-    // Get the rental amount (use total_price)
-    const sourceAmount = parseFloat(rental.total_price) || 0;
+    if (commissionRate <= 0) {
+      logger.info('Rental commission rate is 0%, skipping', { rentalId: rental.id });
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // Get the rental amount — for package rentals derive value from package price
+    let sourceAmount = parseFloat(rental.total_price) || 0;
     const sourceCurrency = rental.currency || 'EUR';
+
+    if (sourceAmount <= 0 && rental.payment_status === 'package' && rental.customer_package_id) {
+      try {
+        const pkgRes = await client.query(
+          `SELECT cp.purchase_price, cp.currency,
+                  sp.rental_days, sp.price as sp_price,
+                  sp.package_daily_rate, sp.rental_service_id,
+                  cs.exchange_rate
+           FROM customer_packages cp
+           LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+           LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
+           WHERE cp.id = $1`,
+          [rental.customer_package_id]
+        );
+        if (pkgRes.rows.length > 0) {
+          const pkg = pkgRes.rows[0];
+          const totalDays = toNumber(pkg.rental_days) || 1;
+          const daysUsed = toNumber(rental.rental_days_used) || 1;
+
+          // Use stored daily rate if available
+          const storedDailyRate = toNumber(pkg.package_daily_rate);
+          if (storedDailyRate > 0) {
+            sourceAmount = Math.round(storedDailyRate * daysUsed * 100) / 100;
+          } else {
+            // Fallback: use linked rental service price
+            let dailyRate = 0;
+            if (pkg.rental_service_id) {
+              try {
+                const { rows: rRows } = await client.query(
+                  'SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]
+                );
+                dailyRate = toNumber(rRows[0]?.price) || 0;
+              } catch { /* ignore */ }
+            }
+            if (dailyRate > 0) {
+              sourceAmount = Math.round(dailyRate * daysUsed * 100) / 100;
+            } else {
+              // Last fallback: proportional from full package price
+              let pkgPrice = toNumber(pkg.purchase_price);
+              if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
+                pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
+              }
+              sourceAmount = Math.round((pkgPrice / totalDays * daysUsed) * 100) / 100;
+            }
+          }
+          logger.info('Derived package rental value for manager commission', {
+            rentalId: rental.id, packageId: rental.customer_package_id,
+            derivedAmount: sourceAmount, storedDailyRate, totalDays, daysUsed
+          });
+        }
+      } catch (err) {
+        logger.warn('Failed to derive package rental value', { rentalId: rental.id, error: err.message });
+      }
+    }
 
     if (sourceAmount <= 0) {
       logger.warn('Rental has no amount for commission calculation', { rentalId: rental.id });
@@ -389,6 +552,7 @@ export async function recordRentalCommission(rental, options = {}) {
  */
 export async function cancelCommission(sourceType, sourceId, reason = 'cancelled') {
   try {
+    const sid = String(sourceId);
     const result = await pool.query(
       `UPDATE manager_commissions 
        SET status = 'cancelled', 
@@ -396,7 +560,7 @@ export async function cancelCommission(sourceType, sourceId, reason = 'cancelled
            updated_at = NOW()
        WHERE source_type = $2 AND source_id = $3 AND status = 'pending'
        RETURNING *`,
-      [`Cancelled: ${reason}`, sourceType, sourceId]
+      [`Cancelled: ${reason}`, sourceType, sid]
     );
 
     if (result.rows.length > 0) {
@@ -413,6 +577,164 @@ export async function cancelCommission(sourceType, sourceId, reason = 'cancelled
     logger.error('Error cancelling commission:', { error: error.message, sourceType, sourceId });
     return null;
   }
+}
+
+/**
+ * Generic helper – record a manager commission for any source type.
+ * Follows the same pattern as recordBookingCommission / recordRentalCommission
+ * but is parameterised so we don't duplicate 80 lines per category.
+ */
+async function recordGenericCommission(sourceType, { id, amount, currency, date, metadata }) {
+  const sourceId = String(id);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const manager = await getDefaultManager();
+    if (!manager) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    // Duplicate guard
+    const dup = await client.query(
+      `SELECT id FROM manager_commissions WHERE source_type = $1 AND source_id = $2 AND status != 'cancelled'`,
+      [sourceType, sourceId]
+    );
+    if (dup.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const settings = await getManagerCommissionSettings(manager.id);
+    const commissionRate = getCommissionRate(settings, sourceType);
+    if (commissionRate <= 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const sourceAmount = parseFloat(amount) || 0;
+    if (sourceAmount <= 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const sourceCurrency = currency || 'EUR';
+    let amountInEur = sourceAmount;
+    if (sourceCurrency !== 'EUR') {
+      try {
+        amountInEur = await CurrencyService.convertCurrency(sourceAmount, sourceCurrency, 'EUR');
+      } catch {
+        amountInEur = sourceAmount;
+      }
+    }
+
+    const commissionAmount = (amountInEur * commissionRate) / 100;
+    const sourceDate = date ? new Date(date) : new Date();
+    const periodMonth = `${sourceDate.getFullYear()}-${String(sourceDate.getMonth() + 1).padStart(2, '0')}`;
+
+    const result = await client.query(
+      `INSERT INTO manager_commissions (
+        manager_user_id, source_type, source_id,
+        source_amount, source_currency,
+        commission_rate, commission_amount, commission_currency,
+        period_month, status, source_date, calculated_at, metadata
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),$12)
+      RETURNING *`,
+      [
+        manager.id, sourceType, sourceId,
+        sourceAmount, sourceCurrency,
+        commissionRate, commissionAmount, 'EUR',
+        periodMonth, 'pending', sourceDate,
+        JSON.stringify({ ...metadata, calculatedBy: 'system' })
+      ]
+    );
+
+    await client.query('COMMIT');
+    const commission = result.rows[0];
+    logger.info(`Manager commission recorded for ${sourceType}`, {
+      commissionId: commission.id, sourceId, managerId: manager.id,
+      amount: commissionAmount, rate: commissionRate
+    });
+    return commission;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error(`Error recording ${sourceType} commission:`, { error: error.message, sourceId });
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Record manager commission for a completed accommodation booking
+ */
+export async function recordAccommodationCommission(booking) {
+  return recordGenericCommission('accommodation', {
+    id: booking.id,
+    amount: booking.total_price,
+    currency: booking.currency || 'EUR',
+    date: booking.check_in_date || booking.created_at,
+    metadata: {
+      guestId: booking.guest_id || null,
+      unitId: booking.unit_id || null,
+      checkIn: booking.check_in_date || null,
+      checkOut: booking.check_out_date || null,
+      guestsCount: booking.guests_count || null
+    }
+  });
+}
+
+/**
+ * Record manager commission for a completed/paid shop order
+ */
+export async function recordShopCommission(order) {
+  return recordGenericCommission('shop', {
+    id: order.id,
+    amount: order.total_amount,
+    currency: order.currency || 'EUR',
+    date: order.confirmed_at || order.created_at,
+    metadata: {
+      orderNumber: order.order_number || null,
+      customerName: order.customer_name || null,
+      itemCount: order.item_count || null
+    }
+  });
+}
+
+/**
+ * Record manager commission for a membership / seasonal pass purchase
+ */
+export async function recordMembershipCommission(purchase) {
+  return recordGenericCommission('membership', {
+    id: purchase.id,
+    amount: purchase.offering_price || purchase.price,
+    currency: purchase.currency || 'EUR',
+    date: purchase.purchased_at || purchase.created_at,
+    metadata: {
+      offeringName: purchase.offering_name || null,
+      userId: purchase.user_id || null,
+      durationDays: purchase.duration_days || null
+    }
+  });
+}
+
+/**
+ * Record manager commission for a package purchase
+ */
+export async function recordPackageCommission(pkg) {
+  return recordGenericCommission('package', {
+    id: pkg.id,
+    amount: pkg.purchase_price,
+    currency: pkg.currency || 'EUR',
+    date: pkg.purchase_date || pkg.created_at,
+    metadata: {
+      packageName: pkg.package_name || null,
+      customerId: pkg.customer_id || null,
+      totalHours: pkg.total_hours || null,
+      packageType: pkg.package_type || null
+    }
+  });
 }
 
 /**
@@ -457,8 +779,16 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
         COALESCE(SUM(commission_amount) FILTER (WHERE status IN ('pending', 'paid')), 0) as total_earned,
         COUNT(*) FILTER (WHERE source_type = 'booking') as booking_count,
         COUNT(*) FILTER (WHERE source_type = 'rental') as rental_count,
+        COUNT(*) FILTER (WHERE source_type = 'accommodation') as accommodation_count,
+        COUNT(*) FILTER (WHERE source_type = 'shop') as shop_count,
+        COUNT(*) FILTER (WHERE source_type = 'membership') as membership_count,
+        COUNT(*) FILTER (WHERE source_type = 'package') as package_count,
         COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'booking' AND status != 'cancelled'), 0) as booking_commission,
-        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'rental' AND status != 'cancelled'), 0) as rental_commission
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'rental' AND status != 'cancelled'), 0) as rental_commission,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'accommodation' AND status != 'cancelled'), 0) as accommodation_commission,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'shop' AND status != 'cancelled'), 0) as shop_commission,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'membership' AND status != 'cancelled'), 0) as membership_commission,
+        COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'package' AND status != 'cancelled'), 0) as package_commission
        FROM manager_commissions
        ${whereClause}`,
       params
@@ -487,6 +817,22 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
         rentals: {
           count: parseInt(row.rental_count) || 0,
           amount: parseFloat(row.rental_commission) || 0
+        },
+        accommodation: {
+          count: parseInt(row.accommodation_count) || 0,
+          amount: parseFloat(row.accommodation_commission) || 0
+        },
+        shop: {
+          count: parseInt(row.shop_count) || 0,
+          amount: parseFloat(row.shop_commission) || 0
+        },
+        membership: {
+          count: parseInt(row.membership_count) || 0,
+          amount: parseFloat(row.membership_commission) || 0
+        },
+        packages: {
+          count: parseInt(row.package_count) || 0,
+          amount: parseFloat(row.package_commission) || 0
         }
       },
       currency: 'EUR'
@@ -568,7 +914,14 @@ export async function getManagerCommissions(managerUserId, options = {}) {
               'instructor_name', COALESCE(i.name, 'Unknown'),
               'service_name', COALESCE(srv.name, 'Unknown'),
               'date', b.date,
-              'duration', b.duration
+              'duration', b.duration,
+              'group_size', COALESCE(b.group_size, 1),
+              'participant_names', (
+                SELECT string_agg(u2.first_name || ' ' || u2.last_name, ', ' ORDER BY bp.is_primary DESC, u2.first_name)
+                FROM booking_participants bp
+                JOIN users u2 ON u2.id = bp.user_id
+                WHERE bp.booking_id = b.id
+              )
             )
             FROM bookings b
             LEFT JOIN users s ON s.id = b.student_user_id
@@ -581,7 +934,8 @@ export async function getManagerCommissions(managerUserId, options = {}) {
               'customer_name', COALESCE(c.name, 'Unknown'),
               'equipment_name', COALESCE(s.name, 'Unknown'),
               'start_date', r.start_date,
-              'end_date', r.end_date
+              'end_date', r.end_date,
+              'duration', s.duration
             )
             FROM rentals r
             LEFT JOIN users c ON c.id = r.user_id
@@ -589,6 +943,49 @@ export async function getManagerCommissions(managerUserId, options = {}) {
             LEFT JOIN services s ON s.id = re.equipment_id
             WHERE r.id = mc.source_id::uuid
             LIMIT 1
+          )
+          WHEN mc.source_type = 'accommodation' THEN (
+            SELECT jsonb_build_object(
+              'guest_name', COALESCE(u.name, 'Unknown'),
+              'check_in', ab.check_in_date,
+              'check_out', ab.check_out_date,
+              'guests_count', ab.guests_count
+            )
+            FROM accommodation_bookings ab
+            LEFT JOIN users u ON u.id = ab.guest_id
+            WHERE ab.id = regexp_replace(mc.source_id, '^pkg-accom-', '')::uuid
+          )
+          WHEN mc.source_type = 'shop' THEN (
+            SELECT jsonb_build_object(
+              'customer_name', COALESCE(u.name, 'Unknown'),
+              'order_number', o.order_number,
+              'item_count', (SELECT COUNT(*) FROM shop_order_items oi WHERE oi.order_id = o.id)
+            )
+            FROM shop_orders o
+            LEFT JOIN users u ON u.id = o.user_id
+            WHERE o.id = mc.source_id::integer
+          )
+          WHEN mc.source_type = 'membership' THEN (
+            SELECT jsonb_build_object(
+              'customer_name', COALESCE(u.name, 'Unknown'),
+              'offering_name', COALESCE(mo.name, 'Unknown'),
+              'duration_days', mo.duration_days
+            )
+            FROM member_purchases mp
+            LEFT JOIN users u ON u.id = mp.user_id
+            LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+            WHERE mp.id = mc.source_id::integer
+          )
+          WHEN mc.source_type = 'package' THEN (
+            SELECT jsonb_build_object(
+              'customer_name', COALESCE(u.name, 'Unknown'),
+              'package_name', COALESCE(sp.name, 'Unknown'),
+              'total_hours', sp.total_hours
+            )
+            FROM customer_packages cp2
+            LEFT JOIN users u ON u.id = cp2.customer_id
+            LEFT JOIN service_packages sp ON sp.id = cp2.service_package_id
+            WHERE cp2.id = mc.source_id::uuid
           )
           ELSE NULL
         END as source_details
@@ -632,7 +1029,7 @@ export async function upsertManagerCommissionSettings(managerUserId, settings, c
     shopRate,
     membershipRate,
     tierSettings,
-    effectiveFrom,
+    effectiveFrom = new Date().toISOString().slice(0, 10),
     effectiveUntil,
     salaryType = 'commission',
     fixedSalaryAmount = 0,

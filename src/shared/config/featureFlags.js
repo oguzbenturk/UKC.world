@@ -16,7 +16,6 @@ const coerceBoolean = (value, defaultValue = true) => {
 };
 
 export const featureFlags = Object.freeze({
-  instructorDashboardRevamp: coerceBoolean(import.meta.env?.VITE_INSTRUCTOR_DASHBOARD_REVAMP, true),
   studentPortal: coerceBoolean(import.meta.env?.VITE_STUDENT_PORTAL, true),
 });
 

@@ -15,8 +15,23 @@ class BookingUpdateCascadeService {
   static async computeLessonAmount(client, booking) {
     const baseAmount = Number.parseFloat(booking.final_amount || booking.amount || 0) || 0;
     
-    // For non-package bookings, use the base amount
-    if (booking.payment_status !== 'package' || !booking.customer_package_id) {
+    // For non-package bookings without a package reference, use the base amount (with service price fallback)
+    if (!booking.customer_package_id || (booking.payment_status !== 'package' && booking.payment_status !== 'partial')) {
+      if (baseAmount > 0) return baseAmount;
+      // Fallback: derive from service price when booking has no amount
+      if (booking.service_id) {
+        try {
+          const { rows: svcRows } = await client.query(
+            'SELECT price, duration FROM services WHERE id = $1', [booking.service_id]
+          );
+          if (svcRows.length > 0) {
+            const svcPrice = Number.parseFloat(svcRows[0].price) || 0;
+            const svcDuration = Number.parseFloat(svcRows[0].duration) || 1;
+            const bkgDuration = Number.parseFloat(booking.duration) || 1;
+            if (svcPrice > 0) return Number.parseFloat(((svcPrice / svcDuration) * bkgDuration).toFixed(2));
+          }
+        } catch { /* ignore */ }
+      }
       return baseAmount;
     }
     
@@ -37,31 +52,67 @@ class BookingUpdateCascadeService {
       let servicePackage = null;
       if (pkg.service_package_id) {
         const serviceResult = await client.query(
-          'SELECT total_hours, sessions_count, duration_hours FROM service_packages WHERE id = $1',
+          'SELECT total_hours, sessions_count, rental_service_id, accommodation_unit_id, rental_days, accommodation_nights, package_hourly_rate FROM service_packages WHERE id = $1',
           [pkg.service_package_id]
         );
         servicePackage = serviceResult.rows[0] || null;
       }
 
+      // Derive lesson-only portion of the package price
+      let effectivePackagePrice = Number.parseFloat(pkg.purchase_price) || 0;
+      if (servicePackage) {
+        const storedHourlyRate = Number.parseFloat(servicePackage.package_hourly_rate) || 0;
+        const pkgTotalHours = Number.parseFloat(pkg.total_hours || servicePackage.total_hours) || 0;
+        if (storedHourlyRate > 0 && pkgTotalHours > 0) {
+          // Use explicitly stored per-hour lesson rate
+          effectivePackagePrice = storedHourlyRate * pkgTotalHours;
+        } else {
+          // Fallback: subtract rental + accommodation costs
+          let rentalCost = 0;
+          let accomCost = 0;
+          const rentalDays = Number.parseInt(servicePackage.rental_days) || 0;
+          const accomNights = Number.parseInt(servicePackage.accommodation_nights) || 0;
+          if (rentalDays > 0 && servicePackage.rental_service_id) {
+            try {
+              const { rows: rRows } = await client.query(
+                'SELECT price FROM services WHERE id = $1', [servicePackage.rental_service_id]
+              );
+              rentalCost = rentalDays * (Number.parseFloat(rRows[0]?.price) || 0);
+            } catch { /* ignore */ }
+          }
+          if (accomNights > 0 && servicePackage.accommodation_unit_id) {
+            try {
+              const { rows: aRows } = await client.query(
+                'SELECT price_per_night FROM accommodation_units WHERE id = $1', [servicePackage.accommodation_unit_id]
+              );
+              accomCost = accomNights * (Number.parseFloat(aRows[0]?.price_per_night) || 0);
+            } catch { /* ignore */ }
+          }
+          if (rentalCost + accomCost > 0) {
+            effectivePackagePrice = Math.max(0, effectivePackagePrice - rentalCost - accomCost);
+          }
+        }
+      }
+
+      // For partial bookings, force package derivation (use paymentStatus 'package' and baseAmount 0
+      // so deriveLessonAmount uses the package hourly rate, not the cash amount)
+      const isPartial = booking.payment_status === 'partial';
       const lessonAmount = deriveLessonAmount({
-        paymentStatus: booking.payment_status,
+        paymentStatus: 'package', // Always derive from package when we reach this point
         duration: booking.duration,
-        baseAmount,
-        packagePrice: pkg.purchase_price,
+        baseAmount: 0, // Don't use base amount for derivation — add cash portion separately for partial
+        packagePrice: effectivePackagePrice,
         packageTotalHours: pkg.total_hours || servicePackage?.total_hours,
         packageRemainingHours: pkg.remaining_hours,
         packageUsedHours: pkg.used_hours,
         packageSessionsCount: servicePackage?.sessions_count,
-        fallbackSessionDuration: servicePackage?.duration_hours || booking.duration,
+        fallbackSessionDuration: (servicePackage?.total_hours && servicePackage?.sessions_count ? servicePackage.total_hours / servicePackage.sessions_count : null) || booking.duration,
       });
 
-      console.log('[computeLessonAmount] Package lesson derived:', {
-        bookingId: booking.id,
-        packagePrice: pkg.purchase_price,
-        totalHours: pkg.total_hours || servicePackage?.total_hours,
-        duration: booking.duration,
-        derivedAmount: lessonAmount
-      });
+      // For 'partial' group bookings, total lesson value = package per-person value + cash portion
+      if (isPartial && baseAmount > 0) {
+        return Number.parseFloat((lessonAmount + baseAmount).toFixed(2));
+      }
 
       return lessonAmount;
     } catch (error) {
@@ -93,14 +144,10 @@ class BookingUpdateCascadeService {
     try {
       await client.query('BEGIN');
       
-  // log: cascade booking update start
-      
       // Track what needs updating
       const needsFinancialUpdate = this.needsFinancialUpdate(changes);
       const needsCommissionUpdate = this.needsCommissionUpdate(changes);
       const needsEarningsCreation = this.needsEarningsCreation(changes);
-      
-  // log: update requirements computed
       
       if (needsFinancialUpdate || needsCommissionUpdate || needsEarningsCreation) {
   // log: updating instructor earnings
@@ -193,7 +240,15 @@ class BookingUpdateCascadeService {
       
   // Recalculate commission
   const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  const lessonAmount = await this.computeLessonAmount(client, booking);
+  let lessonAmount = await this.computeLessonAmount(client, booking);
+
+  // For group/semi-private bookings using packages, lessonAmount is per-person.
+  // Multiply by group_size to get the true total lesson value.
+  const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
+  if (booking.payment_status === 'package' && groupSize > 1) {
+    lessonAmount = Number.parseFloat((lessonAmount * groupSize).toFixed(2));
+  }
+
   const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
   
   // Get booking currency (fallback to EUR if not set)
@@ -201,7 +256,7 @@ class BookingUpdateCascadeService {
       
       // Commission amount is what the instructor gets (not what company takes)
   // Update earnings record
-  await client.query(`
+  const updateResult = await client.query(`
         UPDATE instructor_earnings 
         SET 
           commission_rate = $1,
@@ -213,7 +268,7 @@ class BookingUpdateCascadeService {
         WHERE booking_id = $6
         RETURNING *
       `, [
-        commissionValue / 100, // Store as decimal (0.25 for 25%)
+        commissionValue / 100,
         instructorEarnings,     // What instructor gets for this lesson
         lessonAmount,           // Price of this lesson (or derived from package)
         booking.duration || 1,
@@ -233,7 +288,15 @@ class BookingUpdateCascadeService {
     if (!booking.instructor_user_id) return;
     
   const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  const lessonAmount = await this.computeLessonAmount(client, booking);
+  let lessonAmount = await this.computeLessonAmount(client, booking);
+
+  // For group/semi-private bookings using packages, lessonAmount is per-person.
+  // Multiply by group_size to get the true total lesson value.
+  const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
+  if (booking.payment_status === 'package' && groupSize > 1) {
+    lessonAmount = Number.parseFloat((lessonAmount * groupSize).toFixed(2));
+  }
+
   const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
   
   // Get booking currency (fallback to EUR if not set)

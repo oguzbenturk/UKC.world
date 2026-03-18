@@ -323,15 +323,16 @@ class BookingService {
             return bookings;
         }
 
-        const roleField = role === 'instructor' ? 'instructor_user_id' : 'student_user_id';
-        const otherRoleField = role === 'instructor' ? 'student_user_id' : 'instructor_user_id';
-        const otherRoleName = role === 'instructor' ? 'student_name' : 'instructor_name';
+        const isInstructorRole = role === 'instructor' || role === 'manager';
+        const roleField = isInstructorRole ? 'instructor_user_id' : 'student_user_id';
+        const otherRoleField = isInstructorRole ? 'student_user_id' : 'instructor_user_id';
+        const otherRoleName = isInstructorRole ? 'student_name' : 'instructor_name';
 
         const query = `
             SELECT 
                 b.*,
                 u.name as ${otherRoleName},
-                u.email as ${role === 'instructor' ? 'student_email' : 'instructor_email'},
+                u.email as ${isInstructorRole ? 'student_email' : 'instructor_email'},
                 srv.name as service_name,
                 srv.category as service_category
             FROM bookings b

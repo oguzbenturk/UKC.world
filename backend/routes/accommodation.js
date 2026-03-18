@@ -349,9 +349,13 @@ router.get('/unit-types', async (req, res) => {
 // List accommodation bookings with optional status filter
 router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
 	try {
-		const { status, limit = 50, offset = 0, startDate, endDate } = req.query;
+		const { status, limit = 50, offset = 0, startDate, endDate, guestId } = req.query;
 		const params = [];
 		let where = 'WHERE 1=1';
+		if (guestId) {
+			params.push(guestId);
+			where += ` AND ab.guest_id = $${params.length}`;
+		}
 		if (status) {
 			params.push(status);
 			where += ` AND ab.status = $${params.length}`;
@@ -388,6 +392,51 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 	}
 });
 
+// Package-based accommodation stays (from customer_packages with check-in dates)
+// Returns stays that are stored in customer_packages but don't have a corresponding accommodation_bookings record.
+router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+	try {
+		const { rows } = await pool.query(
+			`SELECT
+				cp.id,
+				cp.accommodation_unit_id AS unit_id,
+				cp.customer_id            AS guest_id,
+				cp.check_in_date,
+				cp.check_out_date,
+				1                         AS guests_count,
+				cp.purchase_price         AS total_price,
+				cp.status,
+				cp.notes,
+				cp.purchase_date          AS created_at,
+				cp.updated_at,
+				cp.package_name,
+				u.name                    AS guest_name,
+				u.email                   AS guest_email,
+				u.phone                   AS guest_phone,
+				au.name                   AS unit_name,
+				au.type                   AS unit_type,
+				'package'                 AS booking_source
+			 FROM customer_packages cp
+			 LEFT JOIN users u  ON u.id  = cp.customer_id
+			 LEFT JOIN accommodation_units au ON au.id = cp.accommodation_unit_id
+			 WHERE cp.check_in_date IS NOT NULL
+			   AND cp.status NOT IN ('cancelled', 'pending_payment')
+			   AND (cp.includes_accommodation = true OR COALESCE(cp.accommodation_nights_total, 0) > 0)
+			   AND NOT EXISTS (
+			       SELECT 1 FROM accommodation_bookings ab
+			       WHERE ab.guest_id      = cp.customer_id
+			         AND ab.check_in_date = cp.check_in_date
+			         AND ab.unit_id       = cp.accommodation_unit_id
+			         AND ab.status       != 'cancelled'
+			   )
+			 ORDER BY cp.check_in_date DESC`
+		);
+		res.json(rows);
+	} catch (err) {
+		res.status(500).json({ error: 'Failed to list package stays', details: err.message });
+	}
+});
+
 // Mark an accommodation booking as completed and write snapshot
 router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
 	const client = await pool.connect();
@@ -421,6 +470,14 @@ router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin',
 				payment_method: row.payment_method || null,
 			};
 			writeAccommodationSnapshot(payload).catch(() => {});
+		} catch {
+			// ignore
+		}
+
+		// Fire-and-forget manager commission calculation
+		try {
+			const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
+			recordAccommodationCommission(row).catch(() => {});
 		} catch {
 			// ignore
 		}
@@ -734,6 +791,13 @@ router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 
 			[id, req.user.id]
 		);
 		if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+		// Fire-and-forget manager commission (duplicate guard prevents double-recording if also completed later)
+		try {
+			const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
+			recordAccommodationCommission(rows[0]).catch(() => {});
+		} catch { /* ignore */ }
+
 		res.json(rows[0]);
 	} catch (err) {
 		res.status(500).json({ error: 'Failed to confirm booking', details: err.message });

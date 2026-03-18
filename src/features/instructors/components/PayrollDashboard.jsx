@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { Select, Spin, Alert, Table, Tag, Empty, Button, Dropdown } from 'antd';
+import { Select, Spin, Alert, Table, Tag, Empty, Button, Dropdown, Input } from 'antd';
 import {
   DollarCircleOutlined, CalendarOutlined, ClockCircleOutlined,
   DownloadOutlined
@@ -28,15 +28,16 @@ const latinize = (value) => {
 
 const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple' };
 
-const PayrollDashboard = forwardRef(({ instructor }, ref) => {
+const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
   const { apiClient } = useData();
   const { businessCurrency } = useCurrency();
   const [summaryData, setSummaryData] = useState(null);
   const [earnings, setEarnings] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('current_month');
+  const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod || 'current_month');
   const [autoExpanded, setAutoExpanded] = useState(false);
+  const [earningsSearch, setEarningsSearch] = useState('');
   const hasFetchedRef = useRef(false);
 
   const computeDateRange = (period) => {
@@ -72,10 +73,13 @@ const PayrollDashboard = forwardRef(({ instructor }, ref) => {
     commission_amount: parseFloat(earning.total_earnings || 0),
     lesson_amount: parseFloat(earning.lesson_amount || 0),
     commission_rate: parseFloat(earning.commission_rate || 0),
-    commission_type: earning.commission_type || 'percentage',
+    commission_type: earning.commission_type || 'fixed',
     student_name: earning.student_name,
+    group_size: parseInt(earning.group_size) || 1,
+    participant_names: earning.participant_names || null,
     status: earning.booking_status || 'completed',
     lesson_category: earning.lesson_category || null,
+    package_name: earning.package_name || null,
   });
 
   const fetchDashboardData = useCallback(async () => {
@@ -102,9 +106,13 @@ const PayrollDashboard = forwardRef(({ instructor }, ref) => {
       const earningsData = filteredEarnings.map(mapEarning);
       setEarnings(earningsData);
 
-      if (earningsData.length === 0 && selectedPeriod === 'current_month' && !autoExpanded) {
-        setAutoExpanded(true);
-        setSelectedPeriod('last_3_months');
+      if (earningsData.length === 0 && !autoExpanded) {
+        if (selectedPeriod === 'current_month') {
+          setSelectedPeriod('last_3_months');
+        } else if (selectedPeriod === 'last_3_months') {
+          setAutoExpanded(true);
+          setSelectedPeriod('all_time');
+        }
       }
     } catch {
       setError('Failed to load dashboard data.');
@@ -271,6 +279,14 @@ const PayrollDashboard = forwardRef(({ instructor }, ref) => {
         <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h4 className="text-sm font-semibold text-gray-800">Earnings Details</h4>
           <div className="flex items-center gap-2">
+            <Input.Search
+              size="small"
+              placeholder="Search…"
+              allowClear
+              value={earningsSearch}
+              onChange={e => setEarningsSearch(e.target.value)}
+              className="w-32"
+            />
             <Dropdown menu={{ items: [{ key: 'csv', label: 'CSV' }, { key: 'excel', label: 'Excel' }, { key: 'pdf', label: 'PDF' }], onClick: handleExport }}>
               <Button size="small" icon={<DownloadOutlined />}>Export</Button>
             </Dropdown>
@@ -296,8 +312,24 @@ const PayrollDashboard = forwardRef(({ instructor }, ref) => {
         <Table
           columns={[
             { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment.utc(t).format('YYYY-MM-DD') : '—', width: 110 },
-            { title: 'Student', dataIndex: 'student_name', key: 'student', render: t => latinize(t), ellipsis: true },
-            { title: 'Service', dataIndex: 'service_name', key: 'service', render: t => latinize(t || 'Private Lessons'), ellipsis: true },
+            { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true,
+              render: (t, r) => {
+                const name = latinize(r.participant_names || t);
+                return r.group_size > 1
+                  ? <span>{name} <Tag color="purple" bordered={false} className="rounded-full m-0 text-xs">{r.group_size}ppl</Tag></span>
+                  : name;
+              }
+            },
+            { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true,
+              render: (t, r) => (
+                <span className="inline-flex items-center gap-1">
+                  {latinize(t || 'Private Lessons')}
+                  {r.package_name && (
+                    <Tag color="purple" bordered={false} className="rounded-full m-0 text-[10px] leading-tight px-1.5 py-0 shrink-0">PKG</Tag>
+                  )}
+                </span>
+              )
+            },
             { title: 'Category', dataIndex: 'lesson_category', key: 'category', width: 100,
               render: cat => cat ? <Tag color={CATEGORY_COLORS[cat] || 'default'} bordered={false} className="rounded-full capitalize m-0">{cat}</Tag> : <span className="text-gray-300">—</span> },
             { title: 'Duration', dataIndex: 'lesson_duration', key: 'dur', render: t => `${t || 0}h`, width: 80 },
@@ -308,10 +340,22 @@ const PayrollDashboard = forwardRef(({ instructor }, ref) => {
             { title: 'Status', dataIndex: 'status', key: 'status', width: 100,
               render: s => <Tag color={s === 'completed' ? 'green' : s === 'confirmed' ? 'blue' : 'orange'} bordered={false} className="rounded-full capitalize m-0">{s || 'pending'}</Tag> },
           ]}
-          dataSource={earnings}
+          dataSource={earningsSearch.trim()
+            ? earnings.filter(e => {
+                const q = earningsSearch.toLowerCase();
+                return (
+                  (e.student_name || '').toLowerCase().includes(q) ||
+                  (e.participant_names || '').toLowerCase().includes(q) ||
+                  (e.service_name || '').toLowerCase().includes(q) ||
+                  (e.lesson_date || '').includes(q)
+                );
+              })
+            : earnings
+          }
           rowKey="id"
           pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
           size="small"
+          scroll={{ x: 'max-content' }}
           locale={{ emptyText: <Empty description="No earnings for this period." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
         />
       </div>

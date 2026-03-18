@@ -119,6 +119,30 @@ export async function getManagerPayroll(managerId, options = {}) {
   return response.data;
 }
 
+// ============================================
+// MANAGER PAYMENT ENDPOINTS
+// ============================================
+
+export async function getManagerPaymentHistory(managerId) {
+  const response = await apiClient.get(`/manager/commissions/admin/managers/${managerId}/payment-history`);
+  return response.data;
+}
+
+export async function createManagerPayment(managerId, payload) {
+  const response = await apiClient.post(`/manager/commissions/admin/managers/${managerId}/payments`, payload);
+  return response.data;
+}
+
+export async function updateManagerPayment(managerId, paymentId, payload) {
+  const response = await apiClient.put(`/manager/commissions/admin/managers/${managerId}/payments/${paymentId}`, payload);
+  return response.data;
+}
+
+export async function deleteManagerPayment(managerId, paymentId) {
+  const response = await apiClient.delete(`/manager/commissions/admin/managers/${managerId}/payments/${paymentId}`);
+  return response.data;
+}
+
 export default {
   getManagerDashboard,
   getManagerCommissionHistory,
@@ -128,5 +152,9 @@ export default {
   updateManagerSettings,
   getManagerCommissionsAdmin,
   getManagerSummaryAdmin,
-  getManagerPayroll
+  getManagerPayroll,
+  getManagerPaymentHistory,
+  createManagerPayment,
+  updateManagerPayment,
+  deleteManagerPayment,
 };

@@ -4,7 +4,7 @@ import { computeCashNetRevenue } from '../services/cashModeAggregator.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { getInstructorEarningsData, getInstructorPayrollHistory } from '../services/instructorFinanceService.js';
+import { getInstructorEarningsData, getInstructorPayrollHistory, getAllInstructorBalances } from '../services/instructorFinanceService.js';
 import { resolveActorId } from '../utils/auditUtils.js';
 import {
   getWalletAccountSummary,
@@ -1662,6 +1662,23 @@ router.get('/test', authenticateJWT, (req, res) => {
 });
 
 /**
+ * GET /api/finances/instructor-balances
+ * Get earnings & payment summaries for all instructors (bulk)
+ */
+router.get('/instructor-balances',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
+  async (req, res) => {
+  try {
+    const balances = await getAllInstructorBalances();
+    res.json(balances);
+  } catch (error) {
+    logger.error('Error fetching instructor balances:', error);
+    res.status(500).json({ error: 'Failed to fetch instructor balances' });
+  }
+});
+
+/**
  * GET /api/finances/instructor-earnings/:instructorId
  * Get instructor earnings, commission data and payment history
  */
@@ -2269,6 +2286,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
           transaction_type IN ('product_purchase', 'shop_purchase', 'merchandise_purchase')
           OR (transaction_type = 'charge' AND description ILIKE '%product%')
           OR (transaction_type = 'charge' AND description ILIKE '%shop%')
+          OR (transaction_type = 'payment' AND description ILIKE '%shop order%')
+          OR (related_entity_type = 'shop_order')
         )
     `;
     const shopResult = await pool.query(shopRevenueQuery, [dateStart, dateEnd]);
@@ -2796,7 +2815,7 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-      WHERE u.role_id IN (SELECT id FROM roles WHERE name = 'instructor')
+      WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager'))
       AND u.deleted_at IS NULL
       GROUP BY u.id, u.name
       ORDER BY total_revenue DESC

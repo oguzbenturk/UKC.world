@@ -81,6 +81,7 @@ export function SafeDataProvider({ children }) {
 
   const canLoadFinanceData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER]);
   const canLoadRentalsData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER]);
+  const canLoadAdminData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER, ROLES.INSTRUCTOR]);
 
   const actorDirectory = useMemo(() => {
     const lookup = {};
@@ -256,15 +257,22 @@ export function SafeDataProvider({ children }) {
 
       // OPTIMIZED: Load all data in parallel for faster dashboard loading
       // Group 1: Core data (users, instructors, equipment, bookings) - load in parallel
+      // Only fetch admin-level data (students list, equipment) for staff roles
       const [usersData, instructorsData, equipmentData, bookingsData] = await Promise.all([
-        apiCallManager.execute('getUsersWithStudentRole', 
-          () => DataService.getUsersWithStudentRole(), 10000),
+        canLoadAdminData
+          ? apiCallManager.execute('getUsersWithStudentRole', 
+              () => DataService.getUsersWithStudentRole(), 10000)
+          : Promise.resolve([]),
         apiCallManager.execute('getInstructors',
           () => DataService.getInstructors(), 10000),
-        apiCallManager.execute('getEquipment',
-          () => DataService.getEquipment(), 10000),
-        apiCallManager.execute('getBookings',
-          () => DataService.getBookings(), 5000)
+        canLoadAdminData
+          ? apiCallManager.execute('getEquipment',
+              () => DataService.getEquipment(), 10000)
+          : Promise.resolve([]),
+        canLoadAdminData
+          ? apiCallManager.execute('getBookings',
+              () => DataService.getBookings(), 5000)
+          : Promise.resolve([])
       ]);
 
       // Update state immediately after first batch
@@ -298,6 +306,7 @@ export function SafeDataProvider({ children }) {
       fetchingRef.current = false;
     }
   }, [
+    canLoadAdminData,
     loadServicesData,
     loadRentalsData,
     loadPaymentsData,

@@ -513,8 +513,9 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       return;
     }
 
-    const defaultRoleId = roles?.find(r => r.name === 'student')?.id || 'b8073752-02c0-40d6-8cba-24bb7dc95e23';
-    payload.role_id = payload.role_id ?? defaultRoleId;
+    if (!payload.role_id) {
+      throw new Error('Please select a role before creating a user.');
+    }
     await DataService.createUser(payload);
     message.success('User created successfully!');
     form.resetFields();

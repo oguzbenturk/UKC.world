@@ -12,6 +12,7 @@ import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
 import { insertNotification } from '../services/notificationWriter.js';
 import CurrencyService from '../services/currencyService.js';
+import { addTag } from '../services/userTagService.js';
 
 const router = express.Router();
 
@@ -596,6 +597,9 @@ router.post('/', authenticateJWT, async (req, res) => {
       }
     }
 
+    // Tag user as shop_customer (idempotent — ON CONFLICT DO NOTHING)
+    addTag(userId, 'shop_customer', 'Shop Customer', { firstOrderId: order.id });
+
     // Emit socket event to notify admins
     emitSocketEvent('shop:newOrder', {
       orderId: order.id,
@@ -633,6 +637,16 @@ router.post('/', authenticateJWT, async (req, res) => {
     }
 
     logger.info(`Shop order created: ${order.order_number} by user ${userId}`);
+
+    // Fire-and-forget manager commission for paid shop orders
+    if (completeOrder.payment_status === 'completed') {
+      try {
+        const { recordShopCommission } = await import('../services/managerCommissionService.js');
+        recordShopCommission(completeOrder).catch(() => {});
+      } catch {
+        // ignore
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -1246,6 +1260,12 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
     await client.query('COMMIT');
 
     const updatedOrder = await getOrderWithItems(orderId);
+
+    // Fire-and-forget cancel commission
+    try {
+      const { cancelCommission } = await import('../services/managerCommissionService.js');
+      cancelCommission('shop', orderId, 'order_cancelled').catch(() => {});
+    } catch { /* ignore */ }
 
     logger.info(`Order ${orderId} cancelled by customer ${userId}`);
 

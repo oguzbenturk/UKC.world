@@ -233,6 +233,16 @@ router.post(
 
       logger.info(`Member purchase created: user=${userId}, offering=${offering.name}, method=${paymentMethod}`);
 
+      // Fire-and-forget manager commission for completed membership purchases
+      if (paymentStatus === 'completed') {
+        try {
+          const { recordMembershipCommission } = await import('../services/managerCommissionService.js');
+          recordMembershipCommission(purchase).catch(() => {});
+        } catch {
+          // ignore
+        }
+      }
+
       // For credit card payments, initiate Iyzico checkout
       if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
         try {
@@ -535,17 +545,18 @@ router.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { status, payment_status, notes } = req.body;
+      const { status, payment_status, notes, expires_at } = req.body;
 
       const { rows: [purchase] } = await pool.query(`
         UPDATE member_purchases SET
           status = COALESCE($2, status),
           payment_status = COALESCE($3, payment_status),
           notes = COALESCE($4, notes),
+          expires_at = COALESCE($5, expires_at),
           updated_at = NOW()
         WHERE id = $1
         RETURNING *
-      `, [id, status, payment_status, notes]);
+      `, [id, status, payment_status, notes, expires_at || null]);
 
       if (!purchase) {
         return res.status(404).json({ error: 'Purchase not found' });

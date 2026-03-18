@@ -452,7 +452,7 @@ function PhotosSection({ formData, onChange, imageLoading, setImageLoading }) {
         </label>
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
           {(formData.images || []).map((img, index) => (
-            <div key={`gallery-${img}`} className="relative aspect-square rounded-xl overflow-hidden group border border-slate-200">
+            <div key={`gallery-${index}`} className="relative aspect-square rounded-xl overflow-hidden group border border-slate-200">
               <img
                 src={getImageUrl(img)}
                 alt={`Gallery ${index + 1}`}
@@ -843,7 +843,7 @@ function PricingSection({ formData, onChange }) {
           <div className="space-y-3">
             {customDiscounts.map((disc, idx) => (
               <DiscountRow
-                key={disc.label || `disc-${idx}`}
+                key={`disc-${idx}`}
                 discount={disc}
                 index={idx}
                 pricePerNight={formData.price_per_night || 0}
@@ -886,7 +886,7 @@ function PricingSection({ formData, onChange }) {
           <div className="space-y-3">
             {holidayPricing.map((holiday, idx) => (
               <HolidayRow
-                key={holiday.label || `holiday-${idx}`}
+                key={`holiday-${idx}`}
                 holiday={holiday}
                 index={idx}
                 onUpdate={updateHoliday}

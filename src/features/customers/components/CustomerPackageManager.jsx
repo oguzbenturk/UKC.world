@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
+  Drawer,
   Table,
   Button,
   Card,
@@ -244,144 +245,97 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   // moved above to avoid TDZ
 
   const selectPackageCard = (pkg) => {
-    // Set both form value AND state variable to ensure Next button enables
     form.setFieldsValue({ servicePackageId: pkg.id, purchasePrice: pkg.price });
     setManualSelectedPkgId(pkg.id);
-    
-    // For admin/manager assigning packages, always go directly to details step
-    // The participant selection step is only needed for student self-booking with friends
-    // Admin can assign the same package to multiple customers individually if needed
-    setAssignStep(2);
   };
 
-  const renderStepHeader = () => (
-    <div className="mb-3">
-      <Steps size="small" current={assignStep - 1} items={[
-        { title: 'Package' },
-        ...(hasParticipantStep() ? [{ title: 'Participants' }] : []),
-        { title: 'Details' },
-      ]} />
-    </div>
-  );
-
-  const renderStep1Package = () => {
+  const renderAssignDrawerContent = () => {
     const filtered = (availablePackages || []).filter(pkg =>
       (pkg?.name || '').toLowerCase().includes(pkgSearch.toLowerCase())
     );
-    // Debug info removed
+    const selPkg = availablePackages.find(p => p.id === manualSelectedPkgId) || selectedPkg;
+
     return (
-      <div className="space-y-3">
-        {selectedPkg && isGroupPackage() && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded mb-3">
-            <p className="text-sm text-blue-800">
-              ✓ Selected: <strong>{selectedPkg.name}</strong> (Group Package)
-              <br />
-              Click "Next" to select participants for this group package.
-            </p>
-          </div>
-        )}
-        <Input
-          placeholder="Search packages by name"
-          value={pkgSearch}
-          onChange={e => setPkgSearch(e.target.value)}
-          allowClear
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filtered.map(pkg => {
-            const selected = selectedPkgId === pkg.id;
-            return (
-              <Card
-                key={pkg.id}
-                hoverable
-                onClick={() => selectPackageCard(pkg)}
-                className={selected ? 'border-blue-500' : ''}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-medium">{pkg.name}</div>
-                    <div className="text-xs text-gray-500">{pkg.totalHours}h</div>
+      <Form form={form} layout="vertical" onFinish={handleAssignPackage}>
+        <Form.Item name="servicePackageId" hidden><InputNumber /></Form.Item>
+
+        {/* ── Package picker ── */}
+        <div className="mb-5">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Select Package</label>
+          <Input
+            placeholder="Search packages…"
+            prefix={<GiftOutlined className="text-gray-300" />}
+            value={pkgSearch}
+            onChange={e => setPkgSearch(e.target.value)}
+            allowClear
+            className="mb-3"
+          />
+          <div className="space-y-2 pr-1">
+            {filtered.map(pkg => {
+              const isSelected = (manualSelectedPkgId || selectedPkgId) === pkg.id;
+              return (
+                <div
+                  key={pkg.id}
+                  onClick={() => selectPackageCard(pkg)}
+                  className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-all duration-150
+                    ${isSelected
+                      ? 'border-blue-500 bg-blue-50/60 ring-1 ring-blue-200'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-sm font-medium truncate ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{pkg.name}</div>
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {(pkg.includesLessons || pkg.includes_lessons) && <Tag color="blue" className="text-[10px] leading-none px-1.5 py-0 m-0 border-0 rounded">Lesson</Tag>}
+                      {(pkg.includesRental || pkg.includes_rental) && <Tag color="green" className="text-[10px] leading-none px-1.5 py-0 m-0 border-0 rounded">Rental</Tag>}
+                      {(pkg.includesAccommodation || pkg.includes_accommodation) && <Tag color="purple" className="text-[10px] leading-none px-1.5 py-0 m-0 border-0 rounded">Accommodation</Tag>}
+                      {!(pkg.includesLessons || pkg.includes_lessons) && !(pkg.includesRental || pkg.includes_rental) && !(pkg.includesAccommodation || pkg.includes_accommodation) && <Tag color="default" className="text-[10px] leading-none px-1.5 py-0 m-0 border-0 rounded">Lesson</Tag>}
+                    </div>
+                    {pkg.description && <div className="text-[11px] text-gray-400 mt-0.5 truncate">{pkg.description.split(/[.\n]/)[0]}</div>}
                   </div>
-                  <div className="text-sm font-semibold">
-                    {formatCurrency(pkg.price || 0, pkg.currency || businessCurrency || 'EUR')}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-sm font-semibold ${isSelected ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {formatCurrency(pkg.price || 0, pkg.currency || businessCurrency || 'EUR')}
+                    </span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors
+                      ${isSelected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                      {isSelected && <CheckCircleOutlined className="text-white text-[10px]" />}
+                    </div>
                   </div>
                 </div>
-                {pkg.description && (
-                  <div className="mt-2 text-xs text-gray-600">{pkg.description}</div>
-                )}
-                {selected && <Tag color="blue" className="mt-2">Selected</Tag>}
-              </Card>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="text-center text-gray-500 col-span-2">No packages match your search.</div>
-          )}
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-6 text-gray-400 text-sm">No packages match your search.</div>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* ── Price & Notes (only visible when a package is selected) ── */}
+        {selPkg && (
+          <div className="space-y-4 border-t border-gray-100 pt-4">
+            <div className="rounded-lg bg-gray-50 px-3 py-2.5 flex items-center justify-between">
+              <span className="text-xs text-gray-500">Selected</span>
+              <span className="text-sm font-semibold text-gray-800">{selPkg.name} · {selPkg.totalHours}h</span>
+            </div>
+
+            <Form.Item name="purchasePrice" label={<span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Price</span>} rules={[{ required: true, message: 'Enter price' }]} className="mb-3">
+              <InputNumber
+                min={0}
+                precision={2}
+                style={{ width: '100%' }}
+                addonBefore={getCurrencySymbol(selPkg.currency || businessCurrency || 'EUR')}
+              />
+            </Form.Item>
+
+            <Form.Item name="notes" label={<span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Notes</span>} className="mb-0">
+              <Input.TextArea rows={2} placeholder="Optional notes…" className="resize-none" />
+            </Form.Item>
+          </div>
+        )}
+      </Form>
     );
   };
-
-  const renderStep2Participants = () => (
-    <div className="space-y-4">
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-        <p className="text-sm text-blue-800 mb-2">Select participants for this group package:</p>
-        {selectedParticipants.length > 0 && (
-          <div className="mb-3">
-            <p className="text-xs font-medium text-gray-700 mb-2">Selected Participants:</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedParticipants.map(participant => (
-                <Tag key={participant.userId} color={participant.isPrimary ? 'gold' : 'blue'} closable onClose={() => handleParticipantToggle(participant.userId)}>
-                  {participant.userName} {participant.isPrimary && '(Primary)'}
-                </Tag>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded">
-          {availableUsers.map(user => {
-            const isSelected = selectedParticipants.some(p => p.userId === user.id);
-            return (
-              <div key={user.id} className={`p-2 cursor-pointer hover:bg-gray-50 border-b border-gray-100 ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`} onClick={() => handleParticipantToggle(user.id)}>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-sm">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                  </div>
-                  <div className="flex items-center">
-                    {isSelected ? (
-                      <CheckCircleOutlined className="text-blue-500" />
-                    ) : (
-                      <div className="w-4 h-4 border-2 border-gray-300 rounded-full" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStepDetails = () => (
-    <div className="space-y-3">
-      {/* Keep fields wired to existing handler */}
-      <Form.Item name="servicePackageId" hidden>
-        <InputNumber />
-      </Form.Item>
-      <Form.Item name="purchasePrice" label="Purchase Price" rules={[{ required: true, message: 'Please enter purchase price' }]}> 
-        <InputNumber
-          min={0}
-          precision={2}
-          style={{ width: '100%' }}
-          addonBefore={getCurrencySymbol((availablePackages.find(pkg => pkg.id === form.getFieldValue('servicePackageId'))?.currency) || businessCurrency || 'EUR')}
-          placeholder="Package price"
-        />
-      </Form.Item>
-      <Form.Item name="notes" label="Notes">
-        <Input.TextArea rows={4} placeholder="Optional notes about this assignment" />
-      </Form.Item>
-    </div>
-  );
 
   // eslint-disable-next-line complexity
   const handleAssignPackage = useCallback(async (values) => {
@@ -1040,53 +994,34 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         )}
         {Body}
 
-        {/* Assign Package Modal (embedded context) - Wizard */}
-        <Modal
-          title="Assign Service Package"
+        {/* Assign Package Drawer (embedded context) */}
+        <Drawer
+          title={<span className="text-sm font-semibold text-gray-700">Assign Package</span>}
           open={assignModalVisible}
-          onCancel={() => {
+          onClose={() => {
             setAssignModalVisible(false);
             setSelectedParticipants([]);
             form.resetFields();
-            setAssignStep(1);
             setManualSelectedPkgId(null);
           }}
-          footer={(() => {
-            const currentTotalSteps = totalSteps();
-            const hasNext = assignStep < currentTotalSteps;
-            // Check form value directly instead of relying on state
-            const formPackageId = form.getFieldValue('servicePackageId');
-            const nextDisabled = assignStep === 1 && !(formPackageId || manualSelectedPkgId);
-            
-
-            
-            return [
-              <Button key="cancel" onClick={() => {
+          width={420}
+          placement="right"
+          extra={
+            <div className="flex items-center gap-2">
+              <Button size="small" onClick={() => {
                 setAssignModalVisible(false);
                 setSelectedParticipants([]);
                 form.resetFields();
-                setAssignStep(1);
                 setManualSelectedPkgId(null);
-              }}>Cancel</Button>,
-              assignStep > 1 && (
-                <Button key="back" onClick={() => setAssignStep(assignStep - 1)}>Back</Button>
-              ),
-              hasNext ? (
-                <Button key="next" type="primary" onClick={() => setAssignStep(assignStep + 1)} disabled={nextDisabled}>Next</Button>
-              ) : (
-                <Button key="assign" type="primary" loading={loading} onClick={() => form.submit()}>Assign</Button>
-              )
-            ];
-          })()}
-          width={800}
+              }}>Cancel</Button>
+              <Button size="small" type="primary" loading={loading} disabled={!manualSelectedPkgId && !selectedPkgId} onClick={() => form.submit()}>Assign</Button>
+            </div>
+          }
+          footer={null}
+          styles={{ body: { padding: '16px' } }}
         >
-          {renderStepHeader()}
-          <Form form={form} layout="vertical" onFinish={handleAssignPackage}>
-            {assignStep === 1 && renderStep1Package()}
-            {hasParticipantStep() && assignStep === 2 && renderStep2Participants()}
-            {assignStep === totalSteps() && renderStepDetails()}
-          </Form>
-        </Modal>
+          {renderAssignDrawerContent()}
+        </Drawer>
 
   {/* Use Hours Modal removed per requirements */}
       </div>
@@ -1111,46 +1046,38 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         {Body}
       </Modal>
 
-    {/* Assign Package Modal */}
-  {/* Assign Package Modal - Wizard */}
-  <Modal
-      title="Assign Service Package"
+    {/* Assign Package Drawer */}
+  <Drawer
+      title={<span className="text-sm font-semibold text-gray-700">Assign Package</span>}
       open={assignModalVisible || (visible && startAssignFlow)}
-      onCancel={() => {
+      onClose={() => {
         setAssignModalVisible(false);
         setSelectedParticipants([]);
         form.resetFields();
-        setAssignStep(1);
+        setManualSelectedPkgId(null);
         if (startAssignFlow && typeof onClose === 'function') {
           onClose();
           return;
         }
       }}
-      footer={[
-        <Button key="cancel" onClick={() => {
-          setAssignModalVisible(false);
-          setSelectedParticipants([]);
-          form.resetFields();
-          setAssignStep(1);
-        }}>Cancel</Button>,
-        assignStep > 1 && (
-          <Button key="back" onClick={() => setAssignStep(assignStep - 1)}>Back</Button>
-        ),
-        assignStep < totalSteps() ? (
-          <Button key="next" type="primary" onClick={() => setAssignStep(assignStep + 1)} disabled={assignStep === 1 && !selectedPkg}>Next</Button>
-        ) : (
-          <Button key="assign" type="primary" loading={loading} onClick={() => form.submit()}>Assign</Button>
-        )
-      ]}
-      width={800}
+      width={420}
+      placement="right"
+      extra={
+        <div className="flex items-center gap-2">
+          <Button size="small" onClick={() => {
+            setAssignModalVisible(false);
+            setSelectedParticipants([]);
+            form.resetFields();
+            setManualSelectedPkgId(null);
+          }}>Cancel</Button>
+          <Button size="small" type="primary" loading={loading} disabled={!manualSelectedPkgId && !selectedPkg} onClick={() => form.submit()}>Assign</Button>
+        </div>
+      }
+      footer={null}
+      styles={{ body: { padding: '16px' } }}
     >
-        {renderStepHeader()}
-        <Form form={form} layout="vertical" onFinish={handleAssignPackage}>
-          {assignStep === 1 && renderStep1Package()}
-          {hasParticipantStep() && assignStep === 2 && renderStep2Participants()}
-          {assignStep === totalSteps() && renderStepDetails()}
-        </Form>
-      </Modal>
+        {renderAssignDrawerContent()}
+      </Drawer>
 
   {/* Use Hours modal removed per requirements */}
     </div>

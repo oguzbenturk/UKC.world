@@ -143,7 +143,7 @@ router.get(
                  u.profile_image_url, u.avatar_url, u.bio
           FROM users u
           JOIN roles r ON r.id = u.role_id
-          WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+          WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
           ORDER BY u.name
         `);
         return res.json(rows.map(r => ({ ...r, qualified: true, matchReason: 'no_discipline_required' })));
@@ -163,7 +163,7 @@ router.get(
         LEFT JOIN instructor_skills isk
           ON isk.instructor_id = u.id
           AND isk.discipline_tag = $1
-        WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+        WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
         ORDER BY
           CASE WHEN isk.id IS NOT NULL THEN 0 ELSE 1 END,
           u.name

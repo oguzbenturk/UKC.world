@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Card, Typography, Empty, Button, Row, Col, Tag, Modal, Form, Input, DatePicker, Select, InputNumber, Upload, Table, Dropdown, Popconfirm } from 'antd';
-import { CalendarOutlined, PlusOutlined, UploadOutlined, UserOutlined, MoreOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { Button, Tag, Modal, Form, Input, DatePicker, Select, InputNumber, Upload, Table, Drawer, Popconfirm, Tooltip, Empty } from 'antd';
+import { CalendarOutlined, PlusOutlined, UploadOutlined, UserOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, EnvironmentOutlined, DollarOutlined, TeamOutlined, ClockCircleOutlined, PictureOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import CalendarViewSwitcher from '@/shared/components/CalendarViewSwitcher';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '@/shared/hooks/useData';
 import { message } from '@/shared/utils/antdStatic';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 
-const { Text } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
@@ -245,309 +245,474 @@ const EventsCalendar = () => {
   };
 
   const hasEvents = useMemo(() => events.length > 0, [events.length]);
+  const { getCurrencySymbol } = useCurrency();
+  const currencySymbol = getCurrencySymbol();
+
+  // Group events by status
+  const scheduledEvents = useMemo(() => events.filter(e => e.status === 'scheduled'), [events]);
+  const cancelledEvents = useMemo(() => events.filter(e => e.status !== 'scheduled'), [events]);
+
+  const getTypeColor = (type) => {
+    const found = eventTypes.find(t => t.value === type);
+    return found?.color || 'default';
+  };
+  const getTypeLabel = (type) => {
+    const found = eventTypes.find(t => t.value === type);
+    return found?.label || type || 'Event';
+  };
+
+  const isUpcoming = (event) => dayjs(event.start_at).isAfter(dayjs());
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with View Switcher */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left: View Switcher */}
+    <div className="flex flex-col h-full bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3">
+        <div className="flex items-center justify-between gap-3">
           <CalendarViewSwitcher
             currentView={view}
             onViewChange={setView}
             views={['list', 'calendar']}
             size="large"
           />
-
-          {/* Center: Title */}
-          <div className="text-lg font-semibold text-slate-800">
-            Events Calendar
-          </div>
-
-          {/* Right: Create Event Button */}
+          <h1 className="text-base sm:text-lg font-semibold text-slate-800 hidden sm:block">Events</h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setIsModalOpen(true)}
-            className="h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 border-0 shadow-md hover:shadow-lg"
+            onClick={() => { setEditingEvent(null); form.resetFields(); setUploadedImageUrl(null); setIsModalOpen(true); }}
+            className="h-9 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 border-0 shadow-sm hover:shadow-md text-sm"
           >
             <span className="hidden sm:inline">Create Event</span>
-            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Hero Section */}
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 p-6 text-white shadow-lg">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-                <CalendarOutlined /> Events Calendar
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        {/* Stats bar */}
+        {hasEvents && (
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+              <div className="text-xl font-bold text-slate-800">{events.length}</div>
+              <div className="text-xs text-slate-500">Total Events</div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+              <div className="text-xl font-bold text-emerald-600">{scheduledEvents.length}</div>
+              <div className="text-xs text-slate-500">Active</div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+              <div className="text-xl font-bold text-slate-700">
+                {events.reduce((sum, e) => sum + (e.registration_count || 0), 0)}
               </div>
-              <h1 className="text-3xl font-semibold">Events Management</h1>
-              <p className="text-sm text-white/75">
-                Create and manage special events: parties, diving trips, yoga sessions, workshops, and more
-              </p>
+              <div className="text-xs text-slate-500">Registrations</div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Event Type Tags */}
-        <Card className="rounded-2xl shadow-sm">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <Text className="text-slate-500 mr-2">Event Types:</Text>
-            {eventTypes.map((type) => (
-              <Tag key={type.value} color={type.color} className="cursor-pointer hover:opacity-80">
-                {type.label}
-              </Tag>
-            ))}
-          </div>
-        </Card>
-
-        {/* Content - Show Events List for Admin */}
+        {/* Events Grid */}
         {hasEvents ? (
-          <Card className="rounded-2xl shadow-sm">
-            <div className="mb-4">
-              <Typography.Title level={4}>Your Events</Typography.Title>
-              <Text className="text-slate-500">Manage and monitor event registrations</Text>
-            </div>
-            <Row gutter={[16, 16]}>
-              {events.map((event) => (
-                <Col xs={24} sm={12} lg={8} key={event.id}>
-                  <Card
-                    className="hover:shadow-md transition-shadow"
-                    title={<span className="text-sm">{event.name}</span>}
-                    extra={
-                      <div className="flex items-center gap-2">
-                        <Tag color={event.status === 'scheduled' ? 'green' : 'red'} className="m-0">
-                          {event.status === 'scheduled' ? 'Active' : 'Inactive'}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {events.map((event) => {
+              const upcoming = isUpcoming(event);
+              const isCancelled = event.status !== 'scheduled';
+              const capacityPercent = event.capacity ? Math.round(((event.registration_count || 0) / event.capacity) * 100) : null;
+              return (
+                <div
+                  key={event.id}
+                  className={`bg-white rounded-xl border overflow-hidden transition-all hover:shadow-md ${isCancelled ? 'opacity-60 border-slate-200' : 'border-slate-200'}`}
+                >
+                  {/* Card image or gradient */}
+                  {event.image_url ? (
+                    <div className="h-32 bg-slate-100 relative">
+                      <img src={event.image_url} alt={event.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-2 left-2 flex gap-1.5">
+                        <Tag color={getTypeColor(event.event_type)} className="m-0 text-[10px] rounded-full px-2">
+                          {getTypeLabel(event.event_type)}
                         </Tag>
-                        <Dropdown
-                          menu={{
-                            items: getEventActions(event).filter(item => item.key !== 'delete'),
-                          }}
-                          trigger={['click']}
-                        >
-                          <Button type="text" icon={<MoreOutlined />} size="small" />
-                        </Dropdown>
-                        <Popconfirm
-                          title="Delete Event"
-                          description="Are you sure you want to delete this event? This action cannot be undone."
-                          onConfirm={() => handleDeleteEvent(event.id)}
-                          okText="Yes, Delete"
-                          cancelText="Cancel"
-                          okButtonProps={{ danger: true }}
-                        >
-                          <Button type="text" icon={<DeleteOutlined />} size="small" danger />
-                        </Popconfirm>
                       </div>
-                    }
-                  >
-                    <div className="space-y-2">
-                      <div className="text-sm text-slate-600">
-                        <CalendarOutlined className="mr-2" />
-                        {dayjs(event.start_at).format('MMM D, YYYY HH:mm')}
+                      <div className="absolute top-2 right-2">
+                        <Tag color={isCancelled ? 'red' : upcoming ? 'green' : 'default'} className="m-0 text-[10px] rounded-full px-2">
+                          {isCancelled ? 'Cancelled' : upcoming ? 'Upcoming' : 'Past'}
+                        </Tag>
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div className="flex items-center gap-2 text-violet-600 font-semibold">
-                          <UserOutlined />
-                          <span>{event.registration_count || 0} registered</span>
-                        </div>
-                        {event.capacity && (
-                          <Text className="text-xs text-slate-500">/ {event.capacity} max</Text>
+                    </div>
+                  ) : (
+                    <div className={`h-20 relative ${isCancelled ? 'bg-gradient-to-r from-slate-200 to-slate-300' : 'bg-gradient-to-r from-slate-600 to-slate-700'}`}>
+                      <div className="absolute top-2 left-2 flex gap-1.5">
+                        <Tag color={getTypeColor(event.event_type)} className="m-0 text-[10px] rounded-full px-2">
+                          {getTypeLabel(event.event_type)}
+                        </Tag>
+                      </div>
+                      <div className="absolute top-2 right-2">
+                        <Tag color={isCancelled ? 'red' : upcoming ? 'green' : 'default'} className="m-0 text-[10px] rounded-full px-2">
+                          {isCancelled ? 'Cancelled' : upcoming ? 'Upcoming' : 'Past'}
+                        </Tag>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Card body */}
+                  <div className="p-3.5 space-y-2.5">
+                    <h3 className="font-semibold text-sm text-slate-800 truncate">{event.name}</h3>
+
+                    <div className="flex flex-col gap-1.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <ClockCircleOutlined className="text-slate-400" />
+                        <span>{dayjs(event.start_at).format('MMM D, YYYY · HH:mm')}</span>
+                        {event.end_at && (
+                          <span className="text-slate-300">– {dayjs(event.end_at).format('HH:mm')}</span>
                         )}
                       </div>
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => handleViewRegistrations(event)}
-                        className="p-0"
-                      >
-                        View Registrations →
-                      </Button>
+                      {event.location && (
+                        <div className="flex items-center gap-1.5">
+                          <EnvironmentOutlined className="text-slate-400" />
+                          <span className="truncate">{event.location}</span>
+                        </div>
+                      )}
                     </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        ) : (
-          <Card className="rounded-2xl shadow-sm">
-            <Empty
-              image={<CalendarOutlined className="text-6xl text-slate-300" />}
-              description={
-                <div className="space-y-2">
-                  <Text className="text-slate-500">No Events Scheduled</Text>
-                  <p className="text-xs text-slate-400">
-                    Create your first event to start organizing parties, diving trips, yoga sessions, and more
-                  </p>
+
+                    {/* Registration bar */}
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                        <TeamOutlined />
+                        <span>{event.registration_count || 0}{event.capacity ? ` / ${event.capacity}` : ''}</span>
+                      </div>
+                      {event.price > 0 && (
+                        <span className="text-emerald-600 font-semibold">{currencySymbol}{Number(event.price).toFixed(0)}</span>
+                      )}
+                      {(!event.price || event.price === 0 || event.price === '0' || event.price === '0.00') && (
+                        <span className="text-emerald-600 font-medium text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded-full">Free</span>
+                      )}
+                    </div>
+
+                    {/* Capacity progress bar */}
+                    {capacityPercent !== null && (
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${capacityPercent >= 90 ? 'bg-red-400' : capacityPercent >= 60 ? 'bg-amber-400' : 'bg-slate-400'}`}
+                          style={{ width: `${Math.min(capacityPercent, 100)}%` }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100">
+                      <Tooltip title="View Registrations">
+                        <button
+                          onClick={() => handleViewRegistrations(event)}
+                          className="flex-1 flex items-center justify-center gap-1 text-[11px] text-slate-600 hover:bg-slate-50 rounded-lg py-1.5 transition-colors"
+                        >
+                          <EyeOutlined /> Registrations
+                        </button>
+                      </Tooltip>
+                      <Tooltip title="Edit">
+                        <button
+                          onClick={() => handleEditEvent(event)}
+                          className="flex items-center justify-center w-7 h-7 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <EditOutlined className="text-xs" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip title={event.status === 'scheduled' ? 'Deactivate' : 'Activate'}>
+                        <button
+                          onClick={() => handleToggleStatus(event)}
+                          className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
+                            event.status === 'scheduled'
+                              ? 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'
+                              : 'text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'
+                          }`}
+                        >
+                          {event.status === 'scheduled' ? <StopOutlined className="text-xs" /> : <CheckCircleOutlined className="text-xs" />}
+                        </button>
+                      </Tooltip>
+                      <Popconfirm
+                        title="Delete this event?"
+                        description="This action cannot be undone."
+                        onConfirm={() => handleDeleteEvent(event.id)}
+                        okText="Delete"
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Tooltip title="Delete">
+                          <button
+                            className="flex items-center justify-center w-7 h-7 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <DeleteOutlined className="text-xs" />
+                          </button>
+                        </Tooltip>
+                      </Popconfirm>
+                    </div>
+                  </div>
                 </div>
-              }
-            >
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
-                Create Your First Event
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
+                <CalendarOutlined className="text-2xl text-slate-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-700">No Events Yet</h3>
+                <p className="text-sm text-slate-400 mt-1">Create your first event to get started</p>
+              </div>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => { setEditingEvent(null); form.resetFields(); setUploadedImageUrl(null); setIsModalOpen(true); }}
+                className="rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 border-0"
+              >
+                Create Event
               </Button>
-            </Empty>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Create/Edit Event Modal */}
-      <Modal
-        title={editingEvent ? 'Edit Event' : 'Create New Event'}
+      {/* Create/Edit Event Drawer */}
+      <Drawer
         open={isModalOpen}
-        onCancel={() => {
+        onClose={() => {
           setIsModalOpen(false);
           setEditingEvent(null);
           form.resetFields();
           setUploadedImageUrl(null);
         }}
-        footer={null}
-        width={600}
+        width={isMobile ? '100%' : 480}
+        closable={false}
+        destroyOnHidden
+        styles={{ body: { padding: 0 }, header: { display: 'none' } }}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateEvent}
-          className="mt-4"
-        >
-          <Form.Item
-            name="name"
-            label="Event Name"
-            rules={[{ required: true, message: 'Please enter event name' }]}
-          >
-            <Input placeholder="e.g., Beach Party, Morning Yoga, Night Dive" />
-          </Form.Item>
-
-          <Form.Item
-            name="type"
-            label="Event Type"
-            rules={[{ required: true, message: 'Please select event type' }]}
-          >
-            <Select placeholder="Select event type" options={eventTypes} />
-          </Form.Item>
-
-          <Form.Item
-            name="dateRange"
-            label="Date & Time"
-            rules={[{ required: true, message: 'Please select date and time' }]}
-          >
-            <RangePicker showTime className="w-full" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="maxParticipants"
-                label="Max Participants"
+        <div className="flex flex-col h-full">
+          {/* Drawer header */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-5 py-4 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">{editingEvent ? 'Edit Event' : 'Create Event'}</h2>
+                <p className="text-xs text-white/70 mt-0.5">
+                  {editingEvent ? 'Update event details' : 'Set up a new event for your community'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingEvent(null);
+                  form.resetFields();
+                  setUploadedImageUrl(null);
+                }}
+                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors text-white"
               >
-                <InputNumber min={1} max={500} className="w-full" placeholder="Leave empty for unlimited" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="price"
-                label="Price (per person)"
-              >
-                <InputNumber min={0} className="w-full" placeholder="0 for free events" prefix="€" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="location"
-            label="Location"
-          >
-            <Input placeholder="e.g., Main Beach, Studio A, Dive Center" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea rows={3} placeholder="Event details, what to bring, requirements..." />
-          </Form.Item>
-
-          <Form.Item
-            label="Event Image"
-            extra="Upload an image to represent this event (JPEG, PNG, GIF, WebP - Max 5MB)"
-          >
-            <Upload
-              listType="picture-card"
-              maxCount={1}
-              beforeUpload={handleImageUpload}
-              onRemove={handleRemoveImage}
-              accept="image/*"
-              disabled={uploading}
-            >
-              {!uploadedImageUrl && (
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
-                </div>
-              )}
-            </Upload>
-          </Form.Item>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={() => {
-              setIsModalOpen(false);
-              setEditingEvent(null);
-              form.resetFields();
-              setUploadedImageUrl(null);
-            }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={createEventMutation.isPending || updateEventMutation.isPending}>
-              {editingEvent ? 'Update Event' : 'Create Event'}
-            </Button>
+                ✕
+              </button>
+            </div>
           </div>
-        </Form>
-      </Modal>
+
+          {/* Drawer body */}
+          <div className="flex-1 overflow-y-auto px-5 py-5">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleCreateEvent}
+              className="space-y-0"
+              requiredMark={false}
+            >
+              {/* Event Name */}
+              <Form.Item
+                name="name"
+                label={<span className="text-xs font-medium text-slate-600">Event Name *</span>}
+                rules={[{ required: true, message: 'Enter a name' }]}
+              >
+                <Input
+                  placeholder="e.g., Beach Party, Morning Yoga, Night Dive"
+                  className="rounded-lg"
+                  size="large"
+                />
+              </Form.Item>
+
+              {/* Event Type */}
+              <Form.Item
+                name="type"
+                label={<span className="text-xs font-medium text-slate-600">Event Type *</span>}
+                rules={[{ required: true, message: 'Select a type' }]}
+              >
+                <Select
+                  placeholder="Select type..."
+                  options={eventTypes}
+                  className="w-full"
+                  size="large"
+                  optionRender={(option) => (
+                    <div className="flex items-center gap-2">
+                      <Tag color={option.data.color} className="m-0">{option.data.label}</Tag>
+                    </div>
+                  )}
+                />
+              </Form.Item>
+
+              {/* Date & Time */}
+              <Form.Item
+                name="dateRange"
+                label={<span className="text-xs font-medium text-slate-600">Date & Time *</span>}
+                rules={[{ required: true, message: 'Select date and time' }]}
+              >
+                <RangePicker
+                  showTime={{ format: 'HH:mm' }}
+                  format="MMM D, YYYY HH:mm"
+                  className="w-full rounded-lg"
+                  size="large"
+                  placeholder={['Start', 'End']}
+                />
+              </Form.Item>
+
+              {/* Capacity & Price row */}
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item
+                  name="maxParticipants"
+                  label={<span className="text-xs font-medium text-slate-600">Max Participants</span>}
+                >
+                  <InputNumber min={1} max={500} className="w-full rounded-lg" size="large" placeholder="Unlimited" />
+                </Form.Item>
+                <Form.Item
+                  name="price"
+                  label={<span className="text-xs font-medium text-slate-600">Price (per person)</span>}
+                >
+                  <InputNumber min={0} className="w-full rounded-lg" size="large" placeholder="0 = Free" prefix={currencySymbol} />
+                </Form.Item>
+              </div>
+
+              {/* Location */}
+              <Form.Item
+                name="location"
+                label={<span className="text-xs font-medium text-slate-600">Location</span>}
+              >
+                <Input
+                  placeholder="e.g., Main Beach, Studio A, Dive Center"
+                  className="rounded-lg"
+                  size="large"
+                  prefix={<EnvironmentOutlined className="text-slate-300" />}
+                />
+              </Form.Item>
+
+              {/* Description */}
+              <Form.Item
+                name="description"
+                label={<span className="text-xs font-medium text-slate-600">Description</span>}
+              >
+                <TextArea
+                  rows={3}
+                  placeholder="Event details, what to bring, requirements..."
+                  className="rounded-lg"
+                />
+              </Form.Item>
+
+              {/* Image Upload */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-600 mb-2">Event Image</label>
+                {uploadedImageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden h-36 border border-slate-200 group">
+                    <img src={uploadedImageUrl} alt="Event" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <Upload
+                    listType="picture-card"
+                    maxCount={1}
+                    beforeUpload={handleImageUpload}
+                    onRemove={handleRemoveImage}
+                    accept="image/*"
+                    disabled={uploading}
+                    showUploadList={false}
+                    className="[&_.ant-upload]:!rounded-xl [&_.ant-upload]:!border-dashed [&_.ant-upload]:!border-slate-300 [&_.ant-upload]:!w-full [&_.ant-upload]:!h-24"
+                  >
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <PictureOutlined className="text-lg" />
+                      <span className="text-xs">{uploading ? 'Uploading...' : 'Click to upload image'}</span>
+                    </div>
+                  </Upload>
+                )}
+              </div>
+            </Form>
+          </div>
+
+          {/* Drawer footer */}
+          <div className="border-t border-slate-200 px-5 py-3 bg-white flex items-center gap-3">
+            <button
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingEvent(null);
+                form.resetFields();
+                setUploadedImageUrl(null);
+              }}
+              className="flex-1 py-2.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => form.submit()}
+              disabled={createEventMutation.isPending || updateEventMutation.isPending}
+              className="flex-1 py-2.5 text-sm text-white bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 rounded-lg transition-all shadow-sm disabled:opacity-50"
+            >
+              {(createEventMutation.isPending || updateEventMutation.isPending) ? 'Saving...' : editingEvent ? 'Update Event' : 'Create Event'}
+            </button>
+          </div>
+        </div>
+      </Drawer>
 
       {/* Registrations Modal */}
       <Modal
         title={
           <div className="space-y-1">
-            <div className="font-semibold text-lg">{selectedEvent?.name}</div>
-            <div className="text-sm text-slate-500 font-normal">
-              {selectedEvent?.registration_count || 0} Registered Participants
+            <div className="font-semibold text-base">{selectedEvent?.name}</div>
+            <div className="text-xs text-slate-500 font-normal">
+              {selectedEvent?.registration_count || 0} registered participants
             </div>
           </div>
         }
         open={registrationsModalOpen}
         onCancel={() => setRegistrationsModalOpen(false)}
         footer={null}
-        width={700}
+        width={600}
       >
         <Table
           loading={registrationsLoading}
           dataSource={registrations}
           rowKey="id"
+          size="small"
           pagination={{ pageSize: 10 }}
           columns={[
             {
               title: 'Name',
               dataIndex: 'user_name',
               key: 'user_name',
-              render: (name) => <span className="font-medium">{name}</span>,
+              render: (name) => <span className="font-medium text-sm">{name}</span>,
             },
             {
               title: 'Email',
               dataIndex: 'user_email',
               key: 'user_email',
+              ellipsis: true,
+              render: (email) => <span className="text-xs text-slate-500">{email}</span>,
             },
             {
               title: 'Registered',
               dataIndex: 'registered_at',
               key: 'registered_at',
-              render: (date) => dayjs(date).format('MMM D, YYYY HH:mm'),
+              render: (date) => <span className="text-xs">{dayjs(date).format('MMM D, YYYY HH:mm')}</span>,
             },
             {
               title: 'Status',
               dataIndex: 'status',
               key: 'status',
+              width: 90,
               render: (status) => (
-                <Tag color={status === 'registered' ? 'green' : 'default'}>
+                <Tag color={status === 'registered' ? 'green' : 'default'} className="text-[10px]">
                   {status}
                 </Tag>
               ),

@@ -10,6 +10,7 @@ import MonthView from './views/MonthView';
 
 // Import modals and components
 import StepBookingModal from './StepBookingModal';
+import BookingDrawer from './BookingDrawer';
 import BulkBookingAssistant from './BulkBookingAssistant';
 import BookingDetailModal from './BookingDetailModal';
 import LoadingIndicator from '@/shared/components/ui/LoadingIndicator';
@@ -397,16 +398,10 @@ const ModernCalendar = () => {
           />
         )}
       </div>      {/* Modals */}
-      <StepBookingModal
+      <BookingDrawer
         isOpen={isBookingModalOpen}
         onClose={() => setIsBookingModalOpen(false)}
         prefilledDate={format(selectedDate, 'yyyy-MM-dd')}
-        onSwitchToBulk={() => {
-          // Close single booking and open bulk booking assistant
-          setIsBookingModalOpen(false);
-          // small timeout to ensure unmount before opening next modal
-          setTimeout(() => setIsBulkBookingModalOpen(true), 0);
-        }}
       />
       <BulkBookingAssistant
         isOpen={isBulkBookingModalOpen}

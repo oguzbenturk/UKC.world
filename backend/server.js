@@ -638,6 +638,12 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           }
         }
 
+        // Fire-and-forget manager commission for card-paid shop orders
+        try {
+          const { recordShopCommission } = await import('./services/managerCommissionService.js');
+          recordShopCommission(order).catch(() => {});
+        } catch { /* ignore */ }
+
         return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
       }
 
@@ -820,6 +826,12 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           } catch (socketErr) {
             logger.warn('Failed to emit membership payment socket events', { error: socketErr.message });
           }
+
+          // Fire-and-forget manager commission for card-paid membership
+          try {
+            const { recordMembershipCommission } = await import('./services/managerCommissionService.js');
+            recordMembershipCommission(mo).catch(() => {});
+          } catch { /* ignore */ }
 
           return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
         } catch (moErr) {

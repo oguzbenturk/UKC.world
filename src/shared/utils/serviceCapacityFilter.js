@@ -10,49 +10,33 @@
  * @returns {Array} Filtered services that can accommodate the participant count
  */
 export const filterServicesByCapacity = (services, participantCount) => {
-  if (!services || !Array.isArray(services)) {
-    console.warn('filterServicesByCapacity: Invalid services array provided');
-    return [];
-  }
-
-  if (!participantCount || participantCount < 1) {
-    console.warn('filterServicesByCapacity: Invalid participant count provided');
-    return services;
-  }
+  if (!services || !Array.isArray(services)) return [];
+  if (!participantCount || participantCount < 1) return services;
 
   return services.filter(service => {
-    // Handle both field name conventions: max_participants and maxParticipants
     const maxCapacity = service.max_participants || service.maxParticipants;
-    const category = (service.category || '').toLowerCase();
-    const name = (service.name || '').toLowerCase();
-    
-    // For single participant bookings (participantCount === 1)
+    const type = (service.service_type || service.serviceType || '').toLowerCase();
+    const tag = (service.lesson_category_tag || service.lessonCategoryTag || '').toLowerCase();
+
+    // Use structured type/tag to determine lesson kind
+    const isGroup = type === 'group' || tag === 'group';
+    const isSemiPrivate = type === 'semi-private' || tag === 'semi-private' || tag === 'semi private';
+    const isPrivate = type === 'private' || tag === 'private';
+
     if (participantCount === 1) {
-      // Explicitly reject services that are clearly group-oriented
-      if (category.includes('group') || name.includes('group')) {
-        return false;
-      }
-      
-      // If max capacity is set and is greater than 1, but less than a reasonable threshold,
-      // it's likely a small group service that can accommodate single participants
-      if (maxCapacity && maxCapacity > 1) {
-        // Services with capacity 2-4 might be flexible (e.g., "Private/Semi-Private")
-        // Services with capacity 5+ are likely group-only
-        if (maxCapacity >= 5) {
-          return false;
-        }
-      }
-    }
-    
-    if (!maxCapacity || maxCapacity === null || maxCapacity === undefined) {
-      // If no capacity limit is set, allow the service for any number of participants
-      return true;
+      // Single participant: exclude group and semi-private lessons
+      if (isGroup || isSemiPrivate) return false;
     }
 
-    // Filter out services that cannot accommodate the requested number of participants
-    const canAccommodate = maxCapacity >= participantCount;
-    
-    return canAccommodate;
+    if (participantCount > 1) {
+      // Multiple participants: exclude strictly private services (max 1)
+      if (isPrivate && maxCapacity === 1) return false;
+    }
+
+    // Respect max_participants ceiling
+    if (maxCapacity && maxCapacity >= 1 && maxCapacity < participantCount) return false;
+
+    return true;
   });
 };
 

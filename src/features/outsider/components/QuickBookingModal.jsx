@@ -48,7 +48,9 @@ import calendarConfig from '@/config/calendarConfig';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const HALF_HOUR_MINUTES = 30;
-const DEFAULT_DURATION_OPTIONS = [30, 60, 90, 120];
+const MIN_DURATION_MINUTES = 90;
+const DEFAULT_DURATION_MINUTES = 120;
+const DEFAULT_DURATION_OPTIONS = [90, 120, 150, 180];
 
 // Resolve a package price in the user's preferred currency
 const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
@@ -365,7 +367,98 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
   );
 };
 
-const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions, selectedDurationMinutes, setSelectedDurationMinutes, instructorsData, instructorsLoading, selectedInstructorId, setSelectedInstructorId, selectedDate, setSelectedDate, selectedDateString, selectedTime, setSelectedTime, slotsLoading, availableStarts, bookingPending, onBookSession, onSkip, setResetDateAndTime }) => (
+// Compute the set of 30-min sub-slot times occupied by a booking starting at `startTime` for `durationMinutes`
+const getOccupiedSubSlots = (startTime, durationMinutes) => {
+  const startMins = timeStringToMinutes(startTime);
+  if (startMins === null) return [];
+  const steps = Math.max(1, Math.round(durationMinutes / HALF_HOUR_MINUTES));
+  const occupied = [];
+  for (let i = 0; i < steps; i++) {
+    occupied.push(minutesToTimeString(startMins + i * HALF_HOUR_MINUTES));
+  }
+  return occupied;
+};
+
+// Session date+time row with its own availability query
+const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, onRemove, showRemove, excludedTimes = [] }) => {
+  const dateString = date?.isValid() ? date.format('YYYY-MM-DD') : null;
+
+  const { data: availabilityData, isLoading: slotsLoading } = useQuery({
+    queryKey: ['quick-booking', 'slots', dateString, instructorId],
+    queryFn: async () => {
+      const filters = { instructorIds: [instructorId] };
+      return getAvailableSlots(dateString, dateString, filters);
+    },
+    enabled: !!dateString && !!instructorId,
+    staleTime: 60_000,
+  });
+
+  const availableStarts = useMemo(() => {
+    if (!availabilityData?.length) return [];
+    const dayData = availabilityData.find(d => d.date === dateString);
+    if (!dayData?.slots) return [];
+    const instructorSlots = dayData.slots.filter(s => s.instructorId === instructorId);
+    const isToday = dayjs().format('YYYY-MM-DD') === dateString;
+    const allStarts = computeAvailableStarts(instructorSlots, durationMinutes, isToday);
+    if (excludedTimes.length === 0) return allStarts;
+    // Filter out starts whose sub-slots overlap with already-selected sibling sessions
+    const excludedSet = new Set(excludedTimes);
+    const stepsRequired = Math.max(1, Math.round(durationMinutes / HALF_HOUR_MINUTES));
+    return allStarts.filter(slot => {
+      const startMins = timeStringToMinutes(slot.value);
+      for (let i = 0; i < stepsRequired; i++) {
+        if (excludedSet.has(minutesToTimeString(startMins + i * HALF_HOUR_MINUTES))) return false;
+      }
+      return true;
+    });
+  }, [availabilityData, dateString, instructorId, durationMinutes, excludedTimes]);
+
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex-1 grid grid-cols-2 gap-2">
+        <DatePicker
+          className="w-full"
+          size="large"
+          value={date}
+          onChange={(val) => onChange({ date: val, time: null })}
+          disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
+          format="ddd, MMM D"
+          inputReadOnly
+          placeholder="Pick date"
+        />
+        {dateString ? (
+          slotsLoading ? (
+            <div className="flex items-center justify-center h-10"><Spin size="small" /></div>
+          ) : availableStarts.length === 0 ? (
+            <Select placeholder="No slots" disabled className="w-full" size="large" />
+          ) : (
+            <Select
+              placeholder="Pick time"
+              className="w-full"
+              size="large"
+              value={time}
+              onChange={(val) => onChange({ date, time: val })}
+              options={availableStarts}
+            />
+          )
+        ) : (
+          <Select placeholder="Pick date first" disabled className="w-full" size="large" />
+        )}
+      </div>
+      {showRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="mt-2 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors text-lg font-medium"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+};
+
+const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Status banner */}
     <div className={`rounded-2xl border p-3 sm:p-4 flex items-start sm:items-center gap-2.5 sm:gap-3 ${
@@ -413,13 +506,16 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
             key={minutes}
             type="button"
             onClick={() => setSelectedDurationMinutes(minutes)}
-            className={`px-2 py-2.5 sm:px-3 sm:py-2 border-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+            className={`relative px-2 py-2.5 sm:px-3 sm:py-2 border-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
               selectedDurationMinutes === minutes
                 ? 'bg-blue-500 text-white border-blue-500 shadow-sm shadow-blue-500/20'
                 : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
             }`}
           >
             {formatDurationLabel(minutes)}
+            {minutes === DEFAULT_DURATION_MINUTES && (
+              <span className={`block text-[9px] font-medium mt-0.5 ${selectedDurationMinutes === minutes ? 'text-blue-100' : 'text-blue-400'}`}>Recommended</span>
+            )}
           </button>
         ))}
       </div>
@@ -439,69 +535,67 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
           size="large"
           value={selectedInstructorId}
           onChange={(val) => {
-            setSelectedInstructorId(val);
-            setResetDateAndTime();
+            if (val === '__any__') {
+              const randomIdx = Math.floor(Math.random() * instructorsData.length);
+              setSelectedInstructorId(instructorsData[randomIdx].id);
+            } else {
+              setSelectedInstructorId(val);
+            }
+            onResetSessions();
           }}
-          options={instructorsData.map((inst) => ({
-            value: inst.id,
-            label: `${inst.first_name || ''} ${inst.last_name || ''}`.trim() || inst.name || inst.email,
-          }))}
+          options={[
+            { value: '__any__', label: '🎲 Any available instructor' },
+            ...instructorsData.map((inst) => ({
+              value: inst.id,
+              label: `${inst.first_name || ''} ${inst.last_name || ''}`.trim() || inst.name || inst.email,
+            })),
+          ]}
         />
       )}
     </div>
 
-    {/* Date */}
+    {/* Session date/time rows */}
     {selectedInstructorId && (
       <div>
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <CalendarOutlined className="mr-1" /> Date
+          <CalendarOutlined className="mr-1" /> Date & Time
         </p>
-        <DatePicker
-          className="w-full"
-          size="large"
-          value={selectedDate}
-          onChange={(val) => {
-            setSelectedDate(val);
-            setSelectedTime(null);
-          }}
-          disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
-          format="ddd, MMM D, YYYY"
-          inputReadOnly
-        />
+        <div className="space-y-2">
+          {sessions.map((session) => {
+            // Collect sub-slots occupied by sibling sessions on the same date
+            const dateStr = session.date?.isValid() ? session.date.format('YYYY-MM-DD') : null;
+            const excludedTimes = dateStr
+              ? sessions
+                  .filter(s => s.id !== session.id && s.time && s.date?.isValid() && s.date.format('YYYY-MM-DD') === dateStr)
+                  .flatMap(s => getOccupiedSubSlots(s.time, selectedDurationMinutes))
+              : [];
+            return (
+              <SessionSlotRow
+                key={session.id}
+                instructorId={selectedInstructorId}
+                durationMinutes={selectedDurationMinutes}
+                date={session.date}
+                time={session.time}
+                onChange={(changes) => onSessionChange(session.id, changes)}
+                onRemove={() => onRemoveSession(session.id)}
+                showRemove={sessions.length > 1}
+                excludedTimes={excludedTimes}
+              />
+            );
+          })}
+          <button
+            type="button"
+            onClick={onAddSession}
+            className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
+          >
+            + Add another day
+          </button>
+        </div>
       </div>
     )}
 
-    {/* Time */}
-    {selectedInstructorId && selectedDateString && (
-      <div>
-        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <ClockCircleOutlined className="mr-1" /> Time Slot
-        </p>
-        {slotsLoading ? (
-          <div className="flex justify-center py-4"><Spin size="small" /></div>
-        ) : availableStarts.length === 0 ? (
-          <Alert
-            type="info"
-            showIcon
-            message="No available slots for this date."
-            description="Try another date or a different instructor."
-            className="!rounded-xl !text-xs"
-          />
-        ) : (
-          <Select
-            placeholder="Pick a time slot"
-            className="w-full"
-            size="large"
-            value={selectedTime}
-            onChange={setSelectedTime}
-            options={availableStarts}
-          />
-        )}
-      </div>
-    )}
-
-    {/* Action buttons — stack on mobile */}
-    <div className={`flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1 sm:pt-2`}>
+    {/* Action buttons */}
+    <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1 sm:pt-2">
       {!isStandalone && (
         <Button size="large" block onClick={onSkip} className="!h-11 sm:!h-12 !rounded-xl !text-xs sm:!text-sm">
           Skip — Book Later
@@ -511,22 +605,25 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
         type="primary"
         size="large"
         block
-        disabled={!selectedInstructorId || !selectedDateString || !selectedTime}
+        disabled={!selectedInstructorId || !sessions.some(s => s.date?.isValid() && s.time)}
         loading={bookingPending}
         onClick={onBookSession}
         className="!h-11 sm:!h-12 !rounded-xl !font-bold !text-xs sm:!text-sm"
         icon={<CalendarOutlined />}
       >
-        Book Session
+        {sessions.filter(s => s.date?.isValid() && s.time).length > 1
+          ? `Book ${sessions.filter(s => s.date?.isValid() && s.time).length} Sessions`
+          : 'Book Session'}
       </Button>
     </div>
   </div>
 );
 
 // eslint-disable-next-line complexity
-const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString, selectedTime, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose }) => {
+const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose, sessions = [] }) => {
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
+  const bookedCount = sessions.filter(s => s.date?.isValid() && s.time).length;
 
   return (
     <div className="text-center space-y-4 sm:space-y-5 py-2 sm:py-4">
@@ -542,11 +639,11 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
         <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">All Done!</h3>
         <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
           {isStandalone
-            ? 'Your lesson session has been booked! Check your dashboard for details.'
+            ? (bookedCount > 1 ? `${bookedCount} lesson sessions booked! Check your dashboard for details.` : 'Your lesson session has been booked! Check your dashboard for details.')
             : usedBooking
               ? (isExistingPackage
-                ? 'Your session is booked from your existing package.'
-                : 'Package purchased & your first session is booked.')
+                ? (bookedCount > 1 ? `${bookedCount} sessions booked from your existing package.` : 'Your session is booked from your existing package.')
+                : (bookedCount > 1 ? `Package purchased & ${bookedCount} sessions booked.` : 'Package purchased & your first session is booked.'))
               : (isExistingPackage
                 ? 'No session booked — schedule anytime from your dashboard.'
                 : 'Package purchased — book sessions anytime from your dashboard.')}
@@ -584,12 +681,19 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
             <Tag color="blue" className="!m-0 !text-[10px] sm:!text-xs">Existing Package</Tag>
           </div>
         )}
-        {usedBooking && selectedDateString && (
-          <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Session</span>
-            <span className="font-semibold text-slate-800">
-              {dayjs(selectedDateString).format('ddd, MMM D')} at {selectedTime}
-            </span>
+        {usedBooking && bookedCount > 0 && (
+          <div className="text-xs sm:text-sm">
+            <span className="text-slate-500">Sessions ({bookedCount})</span>
+            <div className="mt-1.5 space-y-1">
+              {sessions.filter(s => s.date?.isValid() && s.time).map((session, idx) => (
+                <div key={idx} className="flex justify-between items-center">
+                  <span className="text-slate-400">#{idx + 1}</span>
+                  <span className="font-semibold text-slate-800">
+                    {session.date.format('ddd, MMM D')} at {session.time}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {!isStandalone && remaining > 0 && (
@@ -619,7 +723,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, selectedDateString
 
 // eslint-disable-next-line complexity
 const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours, servicePrice, serviceName }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refreshToken } = useAuth();
@@ -636,10 +740,13 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [pendingCustomerPackageId, setPendingCustomerPackageId] = useState(null);
 
   const [selectedInstructorId, setSelectedInstructorId] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
   const [skipSchedule, setSkipSchedule] = useState(false);
-  const [selectedDurationMinutes, setSelectedDurationMinutes] = useState(60);
+  const [selectedDurationMinutes, setSelectedDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
+
+  // Multi-session: each entry has { id, date, time }
+  const [sessions, setSessions] = useState([{ id: 1, date: null, time: null }]);
+  const sessionIdRef = useRef(1);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
 
   const studentId = user?.userId || user?.id;
 
@@ -688,13 +795,15 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setPaymentMethod('wallet');
       setPurchasing(false);
       setSelectedInstructorId(null);
-      setSelectedDate(null);
-      setSelectedTime(null);
       setSkipSchedule(false);
-      setSelectedDurationMinutes(null);
+      setSelectedDurationMinutes(DEFAULT_DURATION_MINUTES);
       setIyzicoPaymentUrl(null);
       setShowIyzicoModal(false);
       setPendingCustomerPackageId(null);
+      preferredAppliedRef.current = false;
+      setSessions([{ id: 1, date: null, time: null }]);
+      sessionIdRef.current = 1;
+      setBookingInProgress(false);
       // Initial step detection happens in the effect below once ownedPackages load
       setStep(0);
       setPurchasedPackage(null);
@@ -759,19 +868,19 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     // Cap at remaining package hours
     const maxMinutes = remainingMinutes > 0 ? remainingMinutes : Infinity;
     return Array.from(candidateSet)
-      .filter((m) => Number.isFinite(m) && m >= HALF_HOUR_MINUTES && m <= maxMinutes)
+      .filter((m) => Number.isFinite(m) && m >= MIN_DURATION_MINUTES && m <= maxMinutes)
       .sort((a, b) => a - b);
   }, [bookingDefaults, defaultPerSessionMinutes, remainingMinutes]);
 
   // Pre-select default duration once options are available
   useEffect(() => {
     if (step === 1 && durationOptions.length > 0 && !selectedDurationMinutes) {
-      const preferred = durationOptions.includes(defaultPerSessionMinutes)
-        ? defaultPerSessionMinutes
+      const preferred = durationOptions.includes(DEFAULT_DURATION_MINUTES)
+        ? DEFAULT_DURATION_MINUTES
         : durationOptions[0];
       setSelectedDurationMinutes(preferred);
     }
-  }, [step, durationOptions, defaultPerSessionMinutes, selectedDurationMinutes]);
+  }, [step, durationOptions, selectedDurationMinutes]);
 
   const { data: walletSummary } = useWalletSummary({
     currency: userCurrency,
@@ -800,30 +909,29 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
 
   const { data: instructorsData = [], isLoading: instructorsLoading } = useQuery({
     queryKey: ['quick-booking', 'instructors'],
-    queryFn: () => apiClient.get('/instructors').then((r) => r.data),
+    queryFn: () => apiClient.get('/instructors').then((r) => r.data.filter(i => !i.is_freelance)),
     enabled: open && step === 1,
     staleTime: 300_000,
   });
 
-  const selectedDateString = selectedDate?.isValid() ? selectedDate.format('YYYY-MM-DD') : null;
-  const { data: availabilityData, isLoading: slotsLoading } = useQuery({
-    queryKey: ['quick-booking', 'slots', selectedDateString, selectedInstructorId],
-    queryFn: async () => {
-      const filters = { instructorIds: [selectedInstructorId] };
-      return getAvailableSlots(selectedDateString, selectedDateString, filters);
-    },
-    enabled: open && step === 1 && !!selectedDateString && !!selectedInstructorId,
-    staleTime: 60_000,
+  // Fetch student's preferred (most recent) instructor
+  const { data: preferredData } = useQuery({
+    queryKey: ['quick-booking', 'preferred-instructor'],
+    queryFn: () => apiClient.get('/bookings/preferred-instructor').then((r) => r.data),
+    enabled: open && step === 1 && !!studentId,
+    staleTime: 300_000,
   });
 
-  const availableStarts = useMemo(() => {
-    if (!availabilityData?.length) return [];
-    const dayData = availabilityData.find((d) => d.date === selectedDateString);
-    if (!dayData?.slots) return [];
-    const instructorSlots = dayData.slots.filter((s) => s.instructorId === selectedInstructorId);
-    const isToday = dayjs().format('YYYY-MM-DD') === selectedDateString;
-    return computeAvailableStarts(instructorSlots, activeDurationMinutes, isToday);
-  }, [availabilityData, selectedDateString, selectedInstructorId, activeDurationMinutes]);
+  // Auto-select preferred instructor once data is available
+  const preferredAppliedRef = useRef(false);
+  useEffect(() => {
+    if (preferredAppliedRef.current || !instructorsData.length || selectedInstructorId) return;
+    const prefId = preferredData?.instructorId;
+    if (prefId && instructorsData.some(i => i.id === prefId)) {
+      setSelectedInstructorId(prefId);
+      preferredAppliedRef.current = true;
+    }
+  }, [instructorsData, preferredData, selectedInstructorId]);
 
   const purchaseMutation = useMutation({
     mutationFn: (payload) => apiClient.post('/services/packages/purchase', payload),
@@ -855,41 +963,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     onSettled: () => setPurchasing(false),
   });
 
-  const bookingMutation = useMutation({
-    mutationFn: (payload) => apiClient.post('/bookings', payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['student-booking'] });
-      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
-      queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
-      // Update local purchased package state to reflect deducted hours immediately
-      if (!isStandalone) {
-        setPurchasedPackage(prev => {
-          if (!prev) return prev;
-          const currentRemaining = parseFloat(prev.remainingHours ?? prev.remaining_hours) || 0;
-          const newRemaining = Math.max(0, currentRemaining - activeDurationHours);
-          return {
-            ...prev,
-            remainingHours: newRemaining,
-            remaining_hours: newRemaining,
-            usedHours: (parseFloat(prev.usedHours ?? prev.used_hours) || 0) + activeDurationHours,
-            used_hours: (parseFloat(prev.usedHours ?? prev.used_hours) || 0) + activeDurationHours,
-          };
-        });
-      }
-      message.success('Lesson booked!');
-      setStep(2);
-    },
-    onError: (err) => {
-      message.error(err.response?.data?.error || err.message || 'Booking failed');
-    },
-  });
-
   const handlePurchase = useCallback(() => {
     if (!packageData?.id || !studentId) return;
     const { price: pkgPrice, currency: pkgCurrency } = getPackagePriceInCurrency(packageData, userCurrency, convertCurrency);
-    Modal.confirm({
+    modal.confirm({
       title: 'Confirm Purchase',
       icon: <ShoppingOutlined style={{ color: '#1890ff' }} />,
       content: (
@@ -910,67 +987,106 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         });
       },
     });
-  }, [packageData, studentId, paymentMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName]);
+  }, [packageData, studentId, paymentMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName, modal]);
 
-  const executeBookSession = useCallback(() => {
-    if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
-    const [h, m] = selectedTime.split(':').map(Number);
-    const startHour = h + (m || 0) / 60;
+  const executeBookSessions = useCallback(async () => {
+    const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
+    if (!studentId || !selectedInstructorId || validSessions.length === 0) return;
 
-    if (isStandalone) {
-      // Standalone service: create a regular booking with proper pricing
-      const price = servicePrice || 0;
-      bookingMutation.mutate({
-        student_user_id: studentId, instructor_user_id: selectedInstructorId,
-        service_id: serviceId || null, date: selectedDateString,
-        start_hour: startHour, duration: activeDurationHours,
-        status: 'pending', notes: `Booked via academy: ${serviceName || 'Lesson'}`,
-        use_package: false,
-        amount: price, final_amount: price, base_amount: price,
-        discount_percent: 0, discount_amount: 0,
-        payment_method: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
-      });
-    } else {
-      // Package-based booking: use package credits
-      const pkgName = packageData?.name || 'Quick Booking';
-      bookingMutation.mutate({
-        student_user_id: studentId, instructor_user_id: selectedInstructorId,
-        service_id: serviceId || null, date: selectedDateString,
-        start_hour: startHour, duration: activeDurationHours,
-        status: 'pending', notes: `Booked via package: ${pkgName}`,
-        use_package: true,
-        customer_package_id: purchasedPackage?.id || null,
-        selected_package_id: purchasedPackage?.id || null,
-        amount: 0, final_amount: 0, base_amount: 0,
-        package_hours_applied: activeDurationHours,
-        package_chargeable_hours: activeDurationHours,
-        discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
-      });
+    setBookingInProgress(true);
+    let successCount = 0;
+
+    for (const session of validSessions) {
+      const dateStr = session.date.format('YYYY-MM-DD');
+      const [h, m] = session.time.split(':').map(Number);
+      const startHour = h + (m || 0) / 60;
+
+      try {
+        const payload = isStandalone
+          ? {
+              student_user_id: studentId, instructor_user_id: selectedInstructorId,
+              service_id: serviceId || null, date: dateStr,
+              start_hour: startHour, duration: activeDurationHours,
+              status: 'pending', notes: `Booked via academy: ${serviceName || 'Lesson'}`,
+              use_package: false,
+              amount: servicePrice || 0, final_amount: servicePrice || 0, base_amount: servicePrice || 0,
+              discount_percent: 0, discount_amount: 0,
+              payment_method: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+            }
+          : {
+              student_user_id: studentId, instructor_user_id: selectedInstructorId,
+              service_id: serviceId || null, date: dateStr,
+              start_hour: startHour, duration: activeDurationHours,
+              status: 'pending', notes: `Booked via package: ${packageData?.name || 'Quick Booking'}`,
+              use_package: true,
+              customer_package_id: purchasedPackage?.id || null,
+              selected_package_id: purchasedPackage?.id || null,
+              amount: 0, final_amount: 0, base_amount: 0,
+              package_hours_applied: activeDurationHours,
+              package_chargeable_hours: activeDurationHours,
+              discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
+            };
+
+        await apiClient.post('/bookings', payload);
+        successCount++;
+      } catch (err) {
+        message.error(`Failed to book ${dateStr} at ${session.time}: ${err.response?.data?.error || err.message}`);
+      }
     }
-  }, [studentId, selectedInstructorId, selectedDateString, selectedTime, serviceId, activeDurationHours, packageData, purchasedPackage, bookingMutation, isStandalone, servicePrice, serviceName, paymentMethod]);
 
-  const handleBookSession = useCallback(() => {
-    if (!studentId || !selectedInstructorId || !selectedDateString || !selectedTime) return;
+    if (successCount > 0) {
+      queryClient.invalidateQueries({ queryKey: ['student-booking'] });
+      queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['quick-booking', 'slots'] });
+
+      if (!isStandalone) {
+        const totalHoursUsed = activeDurationHours * successCount;
+        setPurchasedPackage(prev => {
+          if (!prev) return prev;
+          const currentRemaining = parseFloat(prev.remainingHours ?? prev.remaining_hours) || 0;
+          return { ...prev, remainingHours: Math.max(0, currentRemaining - totalHoursUsed), remaining_hours: Math.max(0, currentRemaining - totalHoursUsed) };
+        });
+      }
+
+      message.success(`${successCount} session${successCount > 1 ? 's' : ''} booked!`);
+      setStep(2);
+    }
+
+    setBookingInProgress(false);
+  }, [sessions, studentId, selectedInstructorId, serviceId, activeDurationHours, packageData, purchasedPackage, isStandalone, servicePrice, serviceName, paymentMethod, queryClient, message]);
+
+  const handleBookSessions = useCallback(() => {
+    const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
+    if (!studentId || !selectedInstructorId || validSessions.length === 0) return;
     const selectedInstr = (instructorsData || []).find(i => i.id === selectedInstructorId);
     const instructorName = selectedInstr?.name || `${selectedInstr?.first_name || ''} ${selectedInstr?.last_name || ''}`.trim() || 'Selected instructor';
-    Modal.confirm({
+    modal.confirm({
       title: 'Confirm Booking',
       icon: <CalendarOutlined style={{ color: '#1890ff' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
           <p><strong>{serviceName || packageData?.name || 'Lesson'}</strong></p>
           <p style={{ color: '#555' }}>Instructor: {instructorName}</p>
-          <p style={{ color: '#555' }}>Date: {selectedDateString} at {selectedTime}</p>
-          <p style={{ color: '#555' }}>Duration: {formatDurationLabel(activeDurationMinutes)}</p>
-          {isStandalone && servicePrice > 0 && <p style={{ fontSize: 16, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(servicePrice, userCurrency)}</p>}
+          <p style={{ color: '#555' }}>Duration: {formatDurationLabel(activeDurationMinutes)} per session</p>
+          <div style={{ margin: '8px 0' }}>
+            {validSessions.map((s, i) => (
+              <p key={i} style={{ color: '#555', margin: '2px 0' }}>
+                📅 {s.date.format('ddd, MMM D')} at {s.time}
+              </p>
+            ))}
+          </div>
+          {isStandalone && servicePrice > 0 && <p style={{ fontSize: 16, fontWeight: 700 }}>{formatCurrency(servicePrice * validSessions.length, userCurrency)}</p>}
         </div>
       ),
-      okText: 'Confirm Booking',
+      okText: `Book ${validSessions.length} Session${validSessions.length > 1 ? 's' : ''}`,
       cancelText: 'Go Back',
       centered: true,
-      onOk: executeBookSession,
+      onOk: executeBookSessions,
     });
-  }, [studentId, selectedInstructorId, selectedDateString, selectedTime, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSession]);
+  }, [sessions, studentId, selectedInstructorId, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSessions, modal]);
 
   const handleSkipSchedule = useCallback(() => {
     setSkipSchedule(true);
@@ -992,10 +1108,24 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   }, [onClose, navigate, serviceId, packageData, durationHours]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
-  const handleResetDateAndTime = useCallback(() => { setSelectedDate(null); setSelectedTime(null); }, []);
+  const handleSessionChange = useCallback((id, changes) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+  }, []);
+  const handleAddSession = useCallback(() => {
+    sessionIdRef.current += 1;
+    setSessions(prev => [...prev, { id: sessionIdRef.current, date: null, time: null }]);
+  }, []);
+  const handleRemoveSession = useCallback((id) => {
+    setSessions(prev => prev.filter(s => s.id !== id));
+  }, []);
+  const handleResetSessions = useCallback(() => {
+    setSessions([{ id: 1, date: null, time: null }]);
+    sessionIdRef.current = 1;
+  }, []);
   const handleDurationChange = useCallback((minutes) => {
     setSelectedDurationMinutes(minutes);
-    setSelectedTime(null); // reset time when duration changes (different slots)
+    // Reset all session times when duration changes (different slot availability)
+    setSessions(prev => prev.map(s => ({ ...s, time: null })));
   }, []);
 
   const totalSessions = packageData?.sessionsCount || Math.round(durationHours || 1);
@@ -1094,17 +1224,14 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           instructorsLoading={instructorsLoading}
           selectedInstructorId={selectedInstructorId}
           setSelectedInstructorId={setSelectedInstructorId}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          selectedDateString={selectedDateString}
-          selectedTime={selectedTime}
-          setSelectedTime={setSelectedTime}
-          slotsLoading={slotsLoading}
-          availableStarts={availableStarts}
-          bookingPending={bookingMutation.isPending}
-          onBookSession={handleBookSession}
+          sessions={sessions}
+          onSessionChange={handleSessionChange}
+          onAddSession={handleAddSession}
+          onRemoveSession={handleRemoveSession}
+          bookingPending={bookingInProgress}
+          onBookSession={handleBookSessions}
           onSkip={handleSkipSchedule}
-          setResetDateAndTime={handleResetDateAndTime}
+          onResetSessions={handleResetSessions}
         />
       )}
       {step === 2 && (
@@ -1112,8 +1239,6 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           packageName={packageName}
           paymentMethod={paymentMethod}
           skipSchedule={skipSchedule}
-          selectedDateString={selectedDateString}
-          selectedTime={selectedTime}
           purchasedPackage={purchasedPackage}
           durationHours={durationHours}
           perSessionHours={activeDurationHours}
@@ -1126,6 +1251,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           priceCurrency={priceCurrency}
           instructorName={selectedInstructorId ? (instructorsData.find((i) => i.id === selectedInstructorId)?.name || `${instructorsData.find((i) => i.id === selectedInstructorId)?.first_name || ''} ${instructorsData.find((i) => i.id === selectedInstructorId)?.last_name || ''}`.trim() || null) : null}
           onClose={handleClose}
+          sessions={sessions}
         />
       )}
     </Modal>

@@ -7,11 +7,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test/setup.js'],
+    setupFiles: ['./tests/setup/vitest.setup.js'],
     include: [
-      'src/**/*.{test,spec}.{js,jsx,ts,tsx}',
-      // Exclude backend tests - they use Jest
-      // 'backend/**/*.{test,spec}.{js,mjs}',
+      'tests/unit/frontend/**/*.{test,spec}.{js,jsx,ts,tsx}',
       'tests/security/**/*.test.js',
       'tests/integration/**/*.test.js'
     ],
@@ -33,7 +31,7 @@ export default defineConfig({
       exclude: [
         'node_modules',
         'tests/e2e',
-        'src/test',
+        'tests/setup',
         '**/*.config.js',
         '**/*.config.ts',
         '**/dist/**'

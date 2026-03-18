@@ -36,7 +36,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
       LEFT JOIN instructor_skills isk ON isk.instructor_id = u.id
-      WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+      WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
       GROUP BY u.id, r.name, idc.commission_value, idc.commission_type
       ORDER BY u.name
     `;
@@ -57,6 +57,8 @@ router.get('/', publicApiLimiter, async (req, res) => {
       bio: row.bio,
       language: row.language,
       role_name: row.role_name,
+      status: row.status || 'active',
+      is_freelance: row.is_freelance || false,
       skills: row.skills || [],
       // Hide commission details from guests
       ...(req.user ? {
@@ -82,7 +84,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
-      WHERE u.id = $1 AND r.name = 'instructor' AND u.deleted_at IS NULL
+      WHERE u.id = $1 AND r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
     `;
     
     const userResult = await pool.query(userQuery, [req.params.id]);
@@ -122,9 +124,9 @@ router.get('/:id/services', authenticateJWT, authorizeRoles(['admin', 'manager',
     // Get services assigned to this instructor
     console.log(`Fetching services for instructor ${req.params.id}`);
     
-    // First check if the instructor exists
+    // First check if the instructor/manager exists
     const instructorCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name = 'instructor') AND deleted_at IS NULL`,
+      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager')) AND deleted_at IS NULL`,
       [req.params.id]
     );
     
@@ -188,9 +190,9 @@ router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 
       return res.status(403).json({ error: 'Forbidden: You can only access your own lessons' });
     }
     
-    // First check if the instructor exists
+    // First check if the instructor/manager exists
     const instructorCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name = 'instructor') AND deleted_at IS NULL`,
+      `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager')) AND deleted_at IS NULL`,
       [req.params.id]
     );
     
@@ -218,6 +220,7 @@ router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN services sv ON sv.id = b.service_id
       WHERE b.instructor_user_id = $1
+        AND b.deleted_at IS NULL
       ORDER BY b.date DESC
       LIMIT $2
     `;

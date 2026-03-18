@@ -40,10 +40,9 @@ import ResetPassword from '../features/authentication/pages/ResetPassword';
 import RegisterPage from '../features/authentication/pages/RegisterPage';
 
 // ── Lazy-loaded pages (code-split for fast mobile load) ──
-const ExecutiveDashboard = lazyWithRetry(() => import('../features/dashboard/pages/ExecutiveDashboard'));
+const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/pages/AdminDashboard'));
 const DashboardRouter = lazyWithRetry(() => import('../features/dashboard/pages/DashboardRouter'));
 const InstructorDashboard = lazyWithRetry(() => import('../features/instructor/pages/InstructorDashboard'));
-const InstructorDashboardFallback = lazyWithRetry(() => import('../features/instructor/pages/InstructorDashboardFallback'));
 const MyStudents = lazyWithRetry(() => import('../features/instructor/pages/MyStudents'));
 const StudentDetail = lazyWithRetry(() => import('../features/instructor/pages/StudentDetail'));
 const Customers = lazyWithRetry(() => import('../features/customers/pages/Customers'));
@@ -139,7 +138,6 @@ const UserSettings = lazyWithRetry(() => import('../features/settings/pages/User
 const ManagerDashboard = lazyWithRetry(() => import('../features/manager/pages/ManagerDashboard'));
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
 const ManagerPayroll = lazyWithRetry(() => import('../features/manager/pages/ManagerPayroll'));
-const ManagerProfile = lazyWithRetry(() => import('../features/manager/pages/ManagerProfile'));
 const ChatPage = lazyWithRetry(() => import('../features/chat/pages/ChatPage'));
 
 // Calendar views
@@ -148,6 +146,7 @@ const RentalsCalendar = lazyWithRetry(() => import('../features/calendars/pages/
 const RentalsCalendarView = lazyWithRetry(() => import('../features/rentals/pages/RentalsCalendarView'));
 const EventsCalendar = lazyWithRetry(() => import('../features/calendars/pages/EventsCalendar'));
 const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPage'));
+const CommunitySettings = lazyWithRetry(() => import('../features/events/pages/CommunitySettings'));
 
 // Repairs
 const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
@@ -415,11 +414,11 @@ const AppRoutes = () => {
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route
           path="/instructor/dashboard"
-          element={featureFlags.instructorDashboardRevamp ? <InstructorDashboard /> : <InstructorDashboardFallback />}
+          element={<InstructorDashboard />}
         />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER]} />}>
-        <Route path="/admin/dashboard" element={<ExecutiveDashboard />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Route>
 
       {/* Student portal routes - accessible by students, trusted customers, and outsiders */}
@@ -485,7 +484,6 @@ const AppRoutes = () => {
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
         <Route path="/admin/manager-commissions" element={<ManagerCommissionSettings />} />
         <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />
-        <Route path="/admin/manager-profile/:managerId" element={<ManagerProfile />} />
         <Route path="/manager/commissions" element={<ManagerDashboard />} />
         {/* Services - Package Management (managers and above only) */}
         <Route path="/services/packages" element={<PackageManagement />} />
@@ -531,6 +529,7 @@ const AppRoutes = () => {
         <Route path="/services/sales" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/orders" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/memberships" element={<MembershipSettings />} />
+        <Route path="/services/community" element={<CommunitySettings />} />
         <Route path="/services/categories" element={<Categories />} />
       </Route>
       {/* Finance routes - require finances:read permission for custom roles */}

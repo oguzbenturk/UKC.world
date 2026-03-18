@@ -40,6 +40,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [commissionForm] = Form.useForm();
   const [isUpdatingCommission, setIsUpdatingCommission] = useState(false);
+  const [earningsSearch, setEarningsSearch] = useState('');
 
   const fetchPayrollData = useCallback(async () => {
     if (!instructor?.id) return;
@@ -61,6 +62,8 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
           commission_amount: commAmt,
           service_name: e.service_name || 'Lesson',
           student_name: e.student_name || 'Student',
+          group_size: parseInt(e.group_size) || 1,
+          participant_names: e.participant_names || null,
           booking_id: e.booking_id,
         };
       });
@@ -195,29 +198,44 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     <Spin spinning={isSubmitting}>
       <div className="space-y-5">
         {/* ── Summary cards ── */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Lifetime Earnings', value: fmt(totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Total Paid Out', value: fmt(totalPaid), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
             { label: 'Balance Owed', value: fmt(availableBalance), icon: <CheckCircleOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
           ].map(s => (
-            <div key={s.label} className="rounded-xl border border-gray-100 bg-white p-4">
-              <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${s.bg} ${s.color} text-base mb-2`}>{s.icon}</div>
-              <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
+            <div key={s.label} className="rounded-lg border border-gray-100 bg-white p-2.5">
+              <div className={`inline-flex items-center justify-center w-6 h-6 rounded-md ${s.bg} ${s.color} text-xs mb-1.5`}>{s.icon}</div>
+              <div className={`text-sm font-bold ${s.color} leading-tight`}>{s.value}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* ── Unpaid Earnings ── */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
             <h4 className="text-sm font-semibold text-gray-800">Unpaid Earnings</h4>
+            <Input.Search
+              size="small"
+              placeholder="Search…"
+              allowClear
+              value={earningsSearch}
+              onChange={e => setEarningsSearch(e.target.value)}
+              className="w-36"
+            />
           </div>
           <Table
             columns={[
               { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
-              { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true },
+              { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true,
+                render: (t, r) => {
+                  const name = r.participant_names || t;
+                  return r.group_size > 1
+                    ? <span>{name} <Tag color="purple" bordered={false} className="rounded-full m-0 text-xs">{r.group_size}ppl</Tag></span>
+                    : name;
+                }
+              },
               { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true },
               { title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: (t, r) => formatCurrency(t || 0, r.currency || businessCurrency || 'EUR'), width: 100 },
               { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
@@ -235,10 +253,22 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                 render: (_, r) => <Button type="text" size="small" icon={<EditOutlined />} onClick={() => { setSelectedBooking(r); setIsCommissionModalVisible(true); }} />,
               }] : []),
             ]}
-            dataSource={unpaidEarnings}
+            dataSource={earningsSearch.trim()
+              ? unpaidEarnings.filter(e => {
+                  const q = earningsSearch.toLowerCase();
+                  return (
+                    (e.student_name || '').toLowerCase().includes(q) ||
+                    (e.participant_names || '').toLowerCase().includes(q) ||
+                    (e.service_name || '').toLowerCase().includes(q) ||
+                    (e.lesson_date || '').includes(q)
+                  );
+                })
+              : unpaidEarnings
+            }
             rowKey="booking_id"
             pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
             size="small"
+            scroll={{ x: 'max-content' }}
             locale={{ emptyText: <Empty description="No unpaid earnings." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </div>
@@ -284,6 +314,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
             rowKey="id"
             pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
             size="small"
+            scroll={{ x: 'max-content' }}
             locale={{ emptyText: <Empty description="No payments yet." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </div>

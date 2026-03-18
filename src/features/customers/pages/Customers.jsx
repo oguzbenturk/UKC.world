@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
   Button, Space, Modal, Input, Card, 
-  Avatar, Row, Col, Tag, Segmented, Tooltip, Empty, Spin, Dropdown
+  Avatar, Row, Col, Tag, Segmented, Tooltip, Empty, Spin, Dropdown, Drawer
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -20,11 +20,15 @@ import DataService from '@/shared/services/dataService';
 import { 
   SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, AppstoreOutlined, BarsOutlined,
-  CheckCircleOutlined, ClockCircleOutlined, DollarCircleOutlined,
+  CheckCircleOutlined, ClockCircleOutlined,
   FilterOutlined
  } from '@ant-design/icons';
 
 const CustomerDeleteModal = lazy(() => import('../components/CustomerDeleteModal'));
+const EnhancedCustomerDetailModal = lazy(() => import('../components/EnhancedCustomerDetailModal'));
+
+import UserForm from '@/shared/components/ui/UserForm';
+import apiClient from '@/shared/services/apiClient';
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -55,6 +59,14 @@ const Customers = () => {
   // Delete modal state
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
+  
+  // Side panel state
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  
+  // Add/Edit customer drawer
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [formRoles, setFormRoles] = useState([]);
   
   const [stats, setStats] = useState({
     total: 0,
@@ -177,8 +189,17 @@ const Customers = () => {
   }, [fetchCustomers]);
   
   const handleAddClick = useCallback(() => {
-    navigate('/customers/new');
-  }, [navigate]);
+    // Fetch roles if not loaded yet
+    if (formRoles.length === 0) {
+      apiClient.get('/roles').then(res => setFormRoles(res.data || [])).catch(() => {});
+    }
+    setIsFormDrawerOpen(true);
+  }, [formRoles.length]);
+  
+  const handleFormSuccess = useCallback(() => {
+    setIsFormDrawerOpen(false);
+    fetchCustomers({ reset: true });
+  }, [fetchCustomers]);
   
   // Quick filter handled via Segmented in toolbar
 
@@ -220,20 +241,17 @@ const Customers = () => {
 
           return (
             <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                <Avatar
-                  size={32}
-                  src={record.profile_image_url || record.avatar}
-                  icon={<UserOutlined />}
-                />
+              <div className="shrink-0">
+                <Avatar size={28} src={record.profile_image_url || record.avatar} icon={<UserOutlined />} />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <a
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/customers/${record.id}/profile`);
+                    setSelectedCustomer(record);
+                    setIsDetailOpen(true);
                   }}
-                  className="text-gray-900 font-medium truncate block hover:text-blue-600 text-sm"
+                  className="text-gray-900 font-medium truncate block hover:text-blue-600 text-sm cursor-pointer"
                   title={displayName}
                 >
                   {displayName}
@@ -255,11 +273,13 @@ const Customers = () => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const role = getValue();
-          return (
-            <Tag color={role === 'outsider' ? 'orange' : 'blue'}>
-              {role === 'outsider' ? 'Outsider' : 'Student'}
-            </Tag>
-          );
+          const roleConfig = {
+            student: { color: 'blue', label: 'Student' },
+            outsider: { color: 'orange', label: 'Outsider' },
+            trusted_customer: { color: 'green', label: 'Trusted' },
+          };
+          const config = roleConfig[role] || { color: 'default', label: role };
+          return <Tag color={config.color}>{config.label}</Tag>;
         }
       },
       {
@@ -281,7 +301,7 @@ const Customers = () => {
         accessorKey: 'balance',
         header: () => (
           <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-            <span className="inline-flex items-center gap-1">Balance <DollarCircleOutlined /></span>
+            <span>Balance</span>
             <Dropdown
               trigger={['click']}
               menu={{
@@ -406,7 +426,7 @@ const Customers = () => {
           <Col xs={24} sm={12} md={8} lg={6} key={customer.id}>
             <Card 
               hoverable
-              onClick={() => navigate(`/customers/${customer.id}/profile`)}
+              onClick={() => { setSelectedCustomer(customer); setIsDetailOpen(true); }}
               title={
                 <Space>
                   <Avatar src={customer.profile_image_url || customer.avatar} icon={<UserOutlined />} />
@@ -487,48 +507,6 @@ const Customers = () => {
 
   return (
     <div className="p-6">
-  {/* Ultra-compact KPI tiles */}
-  <div className="mb-2 grid grid-cols-3 gap-2">
-        {/* Total Customers */}
-        <div className="rounded-lg p-2 bg-white border border-sky-100/70">
-          <div className="flex items-center gap-2 leading-tight">
-            <div className="h-6 w-6 rounded-full bg-sky-600 text-white flex items-center justify-center">
-              <UserOutlined />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-sky-600/90 font-medium">Total Customers</div>
-              <div className="text-base font-semibold text-gray-900">{stats.total}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Shop Customers */}
-        <div className="rounded-lg p-2 bg-white border border-emerald-100/70">
-          <div className="flex items-center gap-2 leading-tight">
-            <div className="h-6 w-6 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-              <CheckCircleOutlined />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-emerald-600/90 font-medium">Shop Customers</div>
-              <div className="text-base font-semibold text-gray-900">{stats.shopCustomers}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* School Customers */}
-        <div className="rounded-lg p-2 bg-white border border-amber-100/70">
-          <div className="flex items-center gap-2 leading-tight">
-            <div className="h-6 w-6 rounded-full bg-amber-500 text-white flex items-center justify-center">
-              <ClockCircleOutlined />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-amber-600/90 font-medium">School Customers</div>
-              <div className="text-base font-semibold text-gray-900">{stats.schoolCustomers}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    
       <div className="flex items-center mb-6" style={{ justifyContent: 'space-between' }}>
         <div style={{ flex: '1' }}>
           <Input
@@ -557,7 +535,7 @@ const Customers = () => {
       
       {/* Always show table view */}
       <>
-        <UnifiedTable stickyFirstCol density="comfortable">
+        <UnifiedTable density="comfortable">
             <div className="max-h-[600px] overflow-auto">
               <table className="min-w-full text-left border-separate border-spacing-0">
                   <thead className="bg-white">
@@ -579,17 +557,8 @@ const Customers = () => {
                           return (
                             <th
                               key={header.id}
-                              className={`sticky top-0 z-10 bg-white border-b border-gray-300 px-4 ${densityHead} ${headerAlignmentClass} font-semibold text-gray-800 select-none ${header.column.id === 'email' || header.column.id === 'payment_status' ? 'hidden md:table-cell' : ''}`}
+                              className={`sticky top-0 z-20 bg-white border-b border-gray-300 px-4 ${densityHead} ${headerAlignmentClass} font-semibold text-gray-800 select-none ${header.column.id === 'email' || header.column.id === 'payment_status' ? 'hidden md:table-cell' : ''}`}
                               onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
-                              style={{
-                                position: 'sticky',
-                                left: header.index === 0 ? 0 : undefined,
-                                zIndex: header.index === 0 ? 30 : 20,
-                                boxShadow: header.index === 0 ? '2px 0 0 rgba(0,0,0,0.05)' : undefined,
-                                minWidth: header.index === 0 ? '140px' : undefined,
-                                maxWidth: header.index === 0 ? '200px' : undefined,
-                                width: header.index === 0 ? '140px' : undefined
-                              }}
                             >
                               <div className={`flex items-center gap-1 ${headerAlignmentClass === 'text-right' ? 'justify-end' : headerAlignmentClass === 'text-center' ? 'justify-center' : 'justify-start'}`}>
                                 {flexRender(header.column.columnDef.header, header.getContext())}
@@ -611,7 +580,8 @@ const Customers = () => {
                           // Prevent row navigation when clicking interactive elements
                           const interactiveSelectors = 'button, a, input, [role="button"], .ant-dropdown-trigger, .ant-select, .ant-tooltip-open';
                           if (e.target.closest(interactiveSelectors)) return;
-                          navigate(`/customers/${row.original.id}/profile`);
+                          setSelectedCustomer(row.original);
+                          setIsDetailOpen(true);
                         }}
                       >
                         {row.getVisibleCells().map((cell, cellIdx) => {
@@ -624,24 +594,10 @@ const Customers = () => {
                           } else {
                             alignmentClass = 'text-left';
                           }
-                          const isFirstColumn = cellIdx === 0;
-                          const isStripedRow = idx % 2 === 0;
-                          const stickyBackground = isStripedRow ? '#f9fafb' : '#ffffff';
-                          
                           return (
                             <td
                               key={cell.id}
                               className={`px-4 ${densityRow} align-middle border-t border-gray-200 ${alignmentClass} ${cell.column.id === 'email' || cell.column.id === 'payment_status' ? 'hidden md:table-cell' : ''}`}
-                              style={{
-                                position: isFirstColumn ? 'sticky' : undefined,
-                                left: isFirstColumn ? 0 : undefined,
-                                zIndex: isFirstColumn ? 25 : 1,
-                                boxShadow: isFirstColumn ? '2px 0 0 rgba(0,0,0,0.05)' : undefined,
-                                minWidth: isFirstColumn ? '140px' : undefined,
-                                maxWidth: isFirstColumn ? '200px' : undefined,
-                                width: isFirstColumn ? '140px' : undefined,
-                                background: isFirstColumn ? stickyBackground : undefined
-                              }}
                             >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </td>
@@ -703,6 +659,54 @@ const Customers = () => {
             />
           )}
         </Suspense>
+        
+        {/* Customer Side Panel */}
+        <Suspense fallback={null}>
+          <EnhancedCustomerDetailModal
+            customer={selectedCustomer}
+            isOpen={isDetailOpen}
+            onClose={() => { setIsDetailOpen(false); setSelectedCustomer(null); }}
+            onUpdate={() => fetchCustomers({ reset: true })}
+          />
+        </Suspense>
+        
+        {/* Add Customer Drawer */}
+        <Drawer
+          open={isFormDrawerOpen}
+          onClose={() => setIsFormDrawerOpen(false)}
+          width={520}
+          closable={false}
+          destroyOnHidden
+          styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+        >
+          <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shadow-sm ring-1 ring-white/10">
+                  <UserOutlined className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white leading-tight">New Customer</h2>
+                  <p className="text-blue-200 text-xs mt-0.5">Register a new customer or student</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFormDrawerOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white border-0 cursor-pointer transition-colors text-base"
+              >
+                &times;
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5">
+            <UserForm
+              user={null}
+              roles={formRoles}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setIsFormDrawerOpen(false)}
+            />
+          </div>
+        </Drawer>
     </div>
   );
 };

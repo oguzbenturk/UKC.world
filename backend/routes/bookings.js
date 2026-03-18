@@ -183,7 +183,7 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
           SELECT u.id, u.name, u.email 
           FROM users u
           JOIN roles r ON u.role_id = r.id
-          WHERE LOWER(r.name) = 'instructor'
+          WHERE LOWER(r.name) IN ('instructor', 'manager') AND u.deleted_at IS NULL
           ORDER BY u.name
         `;
         const r = await pool.query(instructorsQuery);
@@ -719,6 +719,31 @@ router.get('/calendar', authenticateJWT, async (req, res) => {
   }
 });
 
+/**
+ * GET /bookings/preferred-instructor
+ * Returns the instructor the current student has had the most recent lesson with.
+ */
+router.get('/preferred-instructor', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT b.instructor_user_id
+       FROM bookings b
+       WHERE b.deleted_at IS NULL
+         AND b.instructor_user_id IS NOT NULL
+         AND (b.student_user_id = $1 OR b.customer_user_id = $1
+              OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
+       ORDER BY b.date DESC, b.start_hour DESC
+       LIMIT 1`,
+      [userId]
+    );
+    res.json({ instructorId: result.rows[0]?.instructor_user_id || null });
+  } catch (error) {
+    logger.error('Error fetching preferred instructor', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch preferred instructor' });
+  }
+});
+
 // GET a single booking by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -735,13 +760,14 @@ router.get('/:id', async (req, res) => {
         cp.total_hours as package_total_hours,
         cp.purchase_price as package_price,
         COALESCE(b.final_amount, b.amount, srv.price, 0) as display_amount,
-        COALESCE(isc.commission_value, icr.rate_value, idc.commission_value, 30) as instructor_commission,
-        COALESCE(isc.commission_type, icr.rate_type, idc.commission_type, 'percentage') as commission_type
+        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as instructor_commission,
+        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN users i ON i.id = b.instructor_user_id
       LEFT JOIN services srv ON srv.id = b.service_id
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
       LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
@@ -880,10 +906,12 @@ router.post('/',
     let serviceDisciplineTag = null;
     let serviceLessonCategoryTag = null;
     let serviceLevelTag = null;
+    let servicePrice = null;
+    let serviceDurationHours = null;
     if (service_id) {
       try {
         const sres = await client.query(
-          'SELECT name, max_participants, discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1',
+          'SELECT name, max_participants, discipline_tag, lesson_category_tag, level_tag, price, duration FROM services WHERE id = $1',
           [service_id]
         );
         bookingServiceName = sres.rows[0]?.name || null;
@@ -891,7 +919,17 @@ router.post('/',
         serviceDisciplineTag = sres.rows[0]?.discipline_tag || null;
         serviceLessonCategoryTag = sres.rows[0]?.lesson_category_tag || null;
         serviceLevelTag = sres.rows[0]?.level_tag || null;
+        servicePrice = parseFloat(sres.rows[0]?.price) || null;
+        serviceDurationHours = parseFloat(sres.rows[0]?.duration) || null;
       } catch {}
+    }
+
+    // Auto-resolve amount from service price when not provided
+    if (finalAmount === 0 && amount == null && servicePrice > 0 && !use_package) {
+      const dur = bookingDuration || 1;
+      finalAmount = serviceDurationHours > 0
+        ? parseFloat(((servicePrice / serviceDurationHours) * dur).toFixed(2))
+        : servicePrice;
     }
 
     // Validate instructor is qualified for this service's discipline
@@ -984,23 +1022,26 @@ router.post('/',
       if (packageCheck.rows.length === 0) {
         const params = [student_user_id, parseFloat(bookingDuration)];
         let sql = `
-          SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
-          FROM customer_packages 
-          WHERE customer_id = $1 
-            AND status = 'active' 
-            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $2)
-            AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
+          SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+          FROM customer_packages cp
+          LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+          WHERE cp.customer_id = $1 
+            AND cp.status = 'active' 
+            AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) >= $2)
+            AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
         `;
         if (bookingServiceName) {
-          // Flexible matching: allow singular/plural mismatch (e.g., "Private Lesson" matches "Private Lessons")
+          // Flexible matching: check both customer_packages AND service_packages lesson_service_name
           sql += ` AND (
-            lesson_service_name IS NULL 
-            OR LOWER(lesson_service_name) = LOWER($3)
-            OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
+            cp.lesson_service_name IS NULL 
+            OR LOWER(cp.lesson_service_name) = LOWER($3)
+            OR LOWER(RTRIM(cp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
+            OR LOWER(sp.lesson_service_name) = LOWER($3)
+            OR LOWER(RTRIM(sp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
           )`;
           params.push(bookingServiceName);
         }
-        sql += ' ORDER BY purchase_date ASC LIMIT 1';
+        sql += ' ORDER BY cp.purchase_date ASC LIMIT 1';
         packageCheck = await client.query(sql, params);
       }
       
@@ -1019,6 +1060,7 @@ router.post('/',
         const newUsedHours = currentUsed + parseFloat(bookingDuration);
         
         // Update the package with validation
+        // Check all 3 components for all_inclusive packages before marking used_up
         const packageUpdateResult = await client.query(`
           UPDATE customer_packages 
           SET used_hours = $1::numeric, 
@@ -1026,7 +1068,10 @@ router.post('/',
               last_used_date = $5,
               updated_at = CURRENT_TIMESTAMP,
               status = CASE 
-                WHEN $2::numeric <= 0 THEN 'used_up'
+                WHEN $2::numeric <= 0
+                  AND COALESCE(rental_days_remaining, 0) <= 0
+                  AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                THEN 'used_up'
                 ELSE 'active'
               END
           WHERE id = $3 AND status = 'active' 
@@ -1921,46 +1966,43 @@ router.post('/group',
         // Prefer a specific package if provided; otherwise pick the earliest active with some hours
         let packageCheck;
         if (participant.customerPackageId) {
-          // Validate the selected package matches the service type/name when known
+          // User explicitly selected this package — trust the choice, only verify
+          // ownership, active status, and expiry. Skip lesson_service_name matching
+          // because the frontend already filtered packages for the selected service.
           const params = [participant.customerPackageId, participant.userId, date];
-          let sql = `
-            SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
-            FROM customer_packages
-            WHERE id = $1 AND customer_id = $2
-              AND status = 'active'
-              AND (expiry_date IS NULL OR expiry_date >= $3)
+          const sql = `
+            SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+            FROM customer_packages cp
+            LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+            WHERE cp.id = $1 AND cp.customer_id = $2
+              AND cp.status = 'active'
+              AND (cp.expiry_date IS NULL OR cp.expiry_date >= $3)
+            LIMIT 1
           `;
-          if (serviceName) {
-            // Flexible matching: allow singular/plural mismatch
-            sql += ` AND (
-              lesson_service_name IS NULL 
-              OR LOWER(lesson_service_name) = LOWER($4)
-              OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($4, 's'))
-            )`;
-            params.push(serviceName);
-          }
-          sql += ' LIMIT 1';
           packageCheck = await client.query(sql, params);
         } else {
           // Pick earliest active package matching service type/name with enough hours
           const params = [participant.userId, date];
           let sql = `
-            SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
-            FROM customer_packages 
-            WHERE customer_id = $1 
-              AND status = 'active' 
-              AND (expiry_date IS NULL OR expiry_date >= $2)
+            SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+            FROM customer_packages cp
+            LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+            WHERE cp.customer_id = $1 
+              AND cp.status = 'active' 
+              AND (cp.expiry_date IS NULL OR cp.expiry_date >= $2)
           `;
           if (serviceName) {
-            // Flexible matching: allow singular/plural mismatch
+            // Flexible matching: check both customer_packages AND service_packages lesson_service_name
             sql += ` AND (
-              lesson_service_name IS NULL 
-              OR LOWER(lesson_service_name) = LOWER($3)
-              OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
+              cp.lesson_service_name IS NULL 
+              OR LOWER(cp.lesson_service_name) = LOWER($3)
+              OR LOWER(RTRIM(cp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
+              OR LOWER(sp.lesson_service_name) = LOWER($3)
+              OR LOWER(RTRIM(sp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
             )`;
             params.push(serviceName);
           }
-          sql += ' ORDER BY purchase_date ASC LIMIT 1';
+          sql += ' ORDER BY cp.purchase_date ASC LIMIT 1';
           packageCheck = await client.query(sql, params);
         }
         
@@ -1979,7 +2021,7 @@ router.post('/group',
           const newRemainingHours = currentRemaining - consume;
           const newUsedHours = currentUsed + consume;
           
-          // Update the package
+          // Update the package — check all 3 components for all_inclusive packages
           const packageUpdateResult = await client.query(`
             UPDATE customer_packages 
             SET used_hours = $1::numeric, 
@@ -1987,7 +2029,10 @@ router.post('/group',
                 last_used_date = $3,
                 updated_at = CURRENT_TIMESTAMP,
                 status = CASE 
-                  WHEN $2::numeric <= 0 THEN 'used_up'
+                  WHEN $2::numeric <= 0
+                    AND COALESCE(rental_days_remaining, 0) <= 0
+                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                  THEN 'used_up'
                   ELSE 'active'
                 END
             WHERE id = $4 AND status = 'active' 
@@ -2643,24 +2688,17 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
   if (use_package === true) {
         // If a specific package was requested, validate it matches and has some hours remaining
         if (customerPackageId) {
+          // User explicitly selected this package — trust the choice, only verify
+          // ownership, active status, and expiry. Skip lesson_service_name matching.
           const params = [customerPackageId, userId, normalizedDate];
-          let sql = `
+          const sql = `
             SELECT id, package_name, remaining_hours, total_hours, used_hours
             FROM customer_packages
             WHERE id = $1 AND customer_id = $2
               AND status = 'active'
               AND (expiry_date IS NULL OR expiry_date >= $3)
+            LIMIT 1
           `;
-          if (svcName) {
-            // Flexible matching: allow singular/plural mismatch
-            sql += ` AND (
-              lesson_service_name IS NULL 
-              OR LOWER(lesson_service_name) = LOWER($4)
-              OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($4, 's'))
-            )`;
-            params.push(svcName);
-          }
-          sql += ' LIMIT 1';
           const specific = await client.query(sql, params);
           if (specific.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -2686,7 +2724,11 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
                 remaining_hours = $2::numeric,
                 last_used_date = $3,
                 updated_at = CURRENT_TIMESTAMP,
-                status = CASE WHEN $2::numeric <= 0 THEN 'used_up' ELSE 'active' END
+                status = CASE
+                  WHEN $2::numeric <= 0
+                    AND COALESCE(rental_days_remaining, 0) <= 0
+                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                  THEN 'used_up' ELSE 'active' END
             WHERE id = $4 AND status = 'active'
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
@@ -2747,7 +2789,11 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
                 remaining_hours = $2::numeric,
                 last_used_date = $3,
                 updated_at = CURRENT_TIMESTAMP,
-                status = CASE WHEN $2::numeric <= 0 THEN 'used_up' ELSE 'active' END
+                status = CASE
+                  WHEN $2::numeric <= 0
+                    AND COALESCE(rental_days_remaining, 0) <= 0
+                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                  THEN 'used_up' ELSE 'active' END
             WHERE id = $4 AND status = 'active'
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
@@ -2949,7 +2995,8 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     const {
       date, start_hour, duration, student_user_id, instructor_user_id, 
       status, payment_status, amount, notes, location, equipment_ids,
-      instructor_commission, checkout_status, checkout_time, checkout_notes,
+      instructor_commission, instructor_commission_type,
+      checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes
     } = req.body;
       // Update booking
@@ -3002,11 +3049,31 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       if (instructor_commission !== null && instructor_commission !== '' && booking.service_id) {
         const commissionId = uuidv4();
         
+        // Resolve the commission type: use explicitly provided type, or look up from instructor's settings
+        let resolvedCommissionType = instructor_commission_type;
+        if (!resolvedCommissionType) {
+          const typeResult = await client.query(`
+            SELECT COALESCE(
+              isc.commission_type,
+              icr.rate_type,
+              idc.commission_type,
+              'fixed'
+            ) as commission_type
+            FROM users u
+            LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = $2
+            LEFT JOIN instructor_category_rates icr ON icr.instructor_id = u.id 
+              AND icr.lesson_category = (SELECT lesson_category_tag FROM services WHERE id = $2)
+            LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
+            WHERE u.id = $1
+          `, [instructor_user_id, booking.service_id]);
+          resolvedCommissionType = typeResult.rows[0]?.commission_type || 'fixed';
+        }
+        
         await client.query(`
           INSERT INTO booking_custom_commissions 
           (id, booking_id, instructor_id, service_id, commission_type, commission_value, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, 'percentage', $5, NOW(), NOW())
-        `, [commissionId, booking.id, instructor_user_id, booking.service_id, instructor_commission]);
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        `, [commissionId, booking.id, instructor_user_id, booking.service_id, resolvedCommissionType, instructor_commission]);
       }
     }    // Update equipment associations if provided
     if (equipment_ids) {
@@ -3205,6 +3272,22 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     }
     
+    // Send check-in notification to student when checkin_status changes to 'checked-in'
+    const previousCheckinStatus = (currentBooking.checkin_status || '').toLowerCase();
+    const nextCheckinStatus = (updatedBooking.checkin_status || '').toLowerCase();
+    if (nextCheckinStatus === 'checked-in' && previousCheckinStatus !== 'checked-in') {
+      setImmediate(async () => {
+        try {
+          await bookingNotificationService.sendLessonCheckedIn({ bookingId: updatedBooking.id });
+        } catch (notificationError) {
+          logger.warn('Failed to send lesson check-in notification after booking update', {
+            bookingId: updatedBooking.id,
+            error: notificationError?.message || notificationError
+          });
+        }
+      });
+    }
+
     // Emit real-time event for booking update
     if (req.socketService) {
       try {

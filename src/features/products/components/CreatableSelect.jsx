@@ -270,7 +270,7 @@ const CreatableSelect = ({
         const label = getTextContent(option?.children);
         return label.toLowerCase().includes(input.toLowerCase());
       }}
-      dropdownRender={onCreateNew ? dropdownRender : undefined}
+      popupRender={onCreateNew ? dropdownRender : undefined}
       style={style}
       {...rest}
     >

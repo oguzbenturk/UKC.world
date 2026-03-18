@@ -94,7 +94,10 @@ router.get('/track/:token', async (req, res, next) => {
  */
 router.post('/', authenticateJWT, async (req, res, next) => {
   try {
-    const request = await createRepairRequest(req.body, req.user.id);
+    // Admin/manager can create on behalf of another user
+    const isStaff = ['admin', 'manager', 'owner'].includes(req.user.role);
+    const targetUserId = (isStaff && req.body.userId) ? req.body.userId : req.user.id;
+    const request = await createRepairRequest(req.body, targetUserId);
     res.status(201).json({ data: request });
   } catch (error) {
     next(error);

@@ -27,8 +27,9 @@ const roleSpecificFields = {
     'bio',
     'profile_image_url',
     'level',
-    'notes'
-    // Removed 'status' as it doesn't exist in the users table
+    'notes',
+    'status',
+    'is_freelance'
   ],
   manager: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
   sadmin: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
@@ -164,23 +165,39 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (re
 
 // === USER-SPECIFIC ENDPOINTS FOR STUDENT ROLE ===
 
-// GET all users with student or outsider role (customers who can book services)
+// GET users with student or outsider role (customers who can book services)
+// Supports ?q=search&limit=200 for paginated/searchable access
 router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
-    console.log('🔍 STUDENTS ENDPOINT: Fetching users with student and outsider roles...');
-    
-    // Fetch users with either 'student' or 'outsider' role for admin bookings
+    const { q, limit: rawLimit } = req.query;
+    const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 200, 1), 1000);
+
+    const params = [];
+    const whereClauses = ["r.name IN ('student', 'outsider')", "u.deleted_at IS NULL"];
+
+    if (q && q.trim()) {
+      const pattern = `%${q.trim()}%`;
+      params.push(pattern, pattern, pattern);
+      whereClauses.push(`(
+        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
+        OR u.email ILIKE $${params.length - 1}
+        OR u.phone ILIKE $${params.length}
+      )`);
+    }
+
+    params.push(limit);
+
     const query = `
-      SELECT u.*, r.name as role_name
+      SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.phone,
+             r.name as role_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE r.name IN ('student', 'outsider') AND u.deleted_at IS NULL
+      WHERE ${whereClauses.join(' AND ')}
       ORDER BY u.first_name, u.last_name
+      LIMIT $${params.length}
     `;
-    
-    const { rows } = await pool.query(query);
-    console.log(`✅ CUSTOMERS FOUND: ${rows.length} users (students + outsiders)`);
-    
+
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error('❌ Error fetching customer users:', err);
@@ -188,9 +205,28 @@ router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), asyn
   }
 });
 
-// === GET ALL USERS FOR BOOKING PURPOSES (STAFF ONLY) ===
+// === GET USERS FOR BOOKING PURPOSES (STAFF ONLY) ===
+// Supports ?q=search&limit=200 for searchable access
 router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
-  try {    const query = `
+  try {
+    const { q, limit: rawLimit } = req.query;
+    const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 200, 1), 1000);
+    const params = [];
+    const whereClauses = ["u.deleted_at IS NULL"];
+
+    if (q && q.trim()) {
+      const pattern = `%${q.trim()}%`;
+      params.push(pattern, pattern, pattern);
+      whereClauses.push(`(
+        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
+        OR u.email ILIKE $${params.length - 1}
+        OR u.phone ILIKE $${params.length}
+      )`);
+    }
+
+    params.push(limit);
+
+    const query = `
       SELECT u.id, 
              CONCAT(u.first_name, ' ', u.last_name) as name,
              u.first_name, 
@@ -200,11 +236,12 @@ router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), a
              r.name as role_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE u.deleted_at IS NULL
+      WHERE ${whereClauses.join(' AND ')}
       ORDER BY u.first_name, u.last_name
+      LIMIT $${params.length}
     `;
     
-    const { rows } = await pool.query(query);
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error('Error fetching users for booking:', err);
@@ -225,9 +262,9 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     const defaultCurrency = (process.env.DEFAULT_WALLET_CURRENCY || 'EUR').toUpperCase();
     const currentUserId = req.user?.id; // The authenticated user
 
-    // Base filters: students, outsiders, managers, trusted_customers, exclude soft-deleted users
+    // Base filters: students, outsiders, trusted_customers, exclude soft-deleted users
     const balanceColumn = 'COALESCE(wb.available_amount, u.balance, 0)';
-    const whereClauses = ["r.name IN ('student', 'outsider', 'manager', 'trusted_customer')", "u.deleted_at IS NULL"];
+    const whereClauses = ["r.name IN ('student', 'outsider', 'trusted_customer')", "u.deleted_at IS NULL"];
     const params = [];
 
     // Friends-only filter: Only show users who are accepted friends of the current user
@@ -241,12 +278,15 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       )`);
     }
 
-    // Text search: prefix/contains on name/email/phone using lower() to hit indexes
+    // Text search: trigram ILIKE on name/email/phone (uses gin_trgm_ops indexes)
     if (q) {
-      params.push(`%${q.toLowerCase()}%`);
-      params.push(`%${q.toLowerCase()}%`);
-      params.push(`%${q.toLowerCase()}%`);
-      whereClauses.push(`(lower(u.first_name || ' ' || u.last_name) LIKE $${params.length - 2} OR lower(u.email) LIKE $${params.length - 1} OR lower(u.phone) LIKE $${params.length})`);
+      const pattern = `%${q}%`;
+      params.push(pattern, pattern, pattern);
+      whereClauses.push(`(
+        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
+        OR u.email ILIKE $${params.length - 1}
+        OR u.phone ILIKE $${params.length}
+      )`);
     }
 
     // Balance/payment filter
@@ -443,7 +483,7 @@ router.get('/instructors', authenticateJWT, authorizeRoles(['admin', 'manager', 
       SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.phone, r.name as role_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE r.name = 'instructor' AND u.deleted_at IS NULL
+      WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
       ORDER BY u.first_name, u.last_name
     `;
     const { rows } = await pool.query(query);
@@ -574,7 +614,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
         const roleRes = await pool.query('SELECT name FROM roles WHERE id = $1', [updatedUser.role_id]);
         const roleName = roleRes.rows[0]?.name;
         
-        if (roleName === 'instructor') {
+        if (roleName === 'instructor' || roleName === 'manager') {
           req.socketService.emitInstructorUpdated(updatedUser);
         } else {
           req.socketService.emitToChannel('general', 'user:updated', {
@@ -800,21 +840,27 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
       if (deleteAllData) {
         logger.info(`Deleting all related data for user ${userId}...`);
         
+        // ── Pre-batch: tables with ordering constraints ──────────────
+        
         // Delete liability_waivers FIRST (before family_members due to check constraint)
         await client.query('DELETE FROM liability_waivers WHERE user_id = $1', [userId]);
-        // Also delete waivers signed for family members of this user
         await client.query(`
           DELETE FROM liability_waivers 
           WHERE family_member_id IN (SELECT id FROM family_members WHERE parent_user_id = $1)
         `, [userId]);
         
-        // Delete instructor_earnings for bookings that belong to this user (before bookings)
+        // Delete instructor_earnings for bookings that belong to this user AND for the user as instructor
         await client.query(`
           DELETE FROM instructor_earnings 
           WHERE booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1)
+             OR instructor_id = $1
         `, [userId]);
         
-        // Delete all related records in parallel batches for speed
+        // Delete booking_series_customers before booking_series
+        await client.query('DELETE FROM booking_series_customers WHERE customer_user_id = $1', [userId]);
+        await client.query('DELETE FROM booking_series WHERE instructor_user_id = $1 OR created_by = $1', [userId]);
+        
+        // ── Batch 1: independent leaf tables ────────────────────────
         const batch1Results = await Promise.all([
           client.query('DELETE FROM wallet_transactions WHERE user_id = $1', [userId]),
           client.query('DELETE FROM wallet_balances WHERE user_id = $1', [userId]),
@@ -826,17 +872,42 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
           client.query('DELETE FROM student_accounts WHERE user_id = $1', [userId]),
           client.query('DELETE FROM instructor_service_commissions WHERE instructor_id = $1', [userId]),
           client.query('DELETE FROM event_registrations WHERE user_id = $1', [userId]),
-          client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM instructor_payroll WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM student_progress WHERE student_id = $1 OR instructor_id = $1', [userId]),
+          client.query('DELETE FROM accommodation_bookings WHERE guest_id = $1 OR created_by = $1', [userId]),
+          client.query('DELETE FROM security_audit WHERE user_id = $1', [userId]),
+          // user_sessions.user_id is integer (legacy) — skip, no UUID rows to match
+          client.query('DELETE FROM api_keys WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM voucher_redemptions WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM quick_link_registrations WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM form_submissions WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM manager_salary_records WHERE manager_user_id = $1', [userId]),
+          client.query('DELETE FROM service_revenue_ledger WHERE customer_id = $1', [userId]),
         ]);
         
-        // Batch 2: Tables that might have other dependencies
+        // ── Batch 2: tables with possible dependencies on batch 1 ──
         const batch2Results = await Promise.all([
           client.query('DELETE FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1 OR instructor_user_id = $1', [userId]),
           client.query('DELETE FROM customer_packages WHERE customer_id = $1', [userId]),
           client.query('DELETE FROM rentals WHERE user_id = $1', [userId]),
           client.query('DELETE FROM family_members WHERE parent_user_id = $1', [userId]),
           client.query('DELETE FROM member_purchases WHERE user_id = $1', [userId]),
-          client.query('DELETE FROM audit_logs WHERE user_id = $1 OR target_user_id = $1', [userId]),
+          client.query('DELETE FROM audit_logs WHERE user_id = $1 OR target_user_id = $1 OR actor_user_id = $1', [userId]),
+        ]);
+        
+        // ── Batch 3: nullify created_by / updated_by refs in shared tables ──
+        await Promise.all([
+          client.query('UPDATE products SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE products SET updated_by = NULL WHERE updated_by = $1', [userId]),
+          client.query('UPDATE waiver_versions SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE voucher_campaigns SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE voucher_codes SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE quick_links SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE form_templates SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE form_email_notifications SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE form_submissions SET processed_by = NULL WHERE processed_by = $1', [userId]),
+          client.query('UPDATE form_quick_action_tokens SET used_by = NULL WHERE used_by = $1', [userId]),
+          client.query('UPDATE accommodation_bookings SET updated_by = NULL WHERE updated_by = $1', [userId]),
         ]);
         
         const totalDeleted = [...batch1Results, ...batch2Results].reduce((sum, r) => sum + (r?.rowCount || 0), 0);
@@ -1217,8 +1288,8 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
           promotedBy: req.user.id
         });
         
-        // If promoted to instructor, emit instructor-specific event
-        if (newRoleName === 'instructor') {
+        // If promoted to instructor or manager, emit instructor-specific event
+        if (newRoleName === 'instructor' || newRoleName === 'manager') {
           req.socketService.emitInstructorUpdated(updatedUser);
         }
       } catch (socketError) {
@@ -1247,21 +1318,26 @@ router.get('/:id/packages', authenticateJWT, authorizeRoles(['admin', 'manager',
     const { serviceName, serviceType, serviceCategory } = req.query;
     
     // Build query with optional service type and category filtering
+    // JOIN service_packages to use structured tags (lesson_category_tag, discipline_tag)
     let query = `
       SELECT 
-        id,
-        package_name,
-        total_hours,
-        used_hours,
-        remaining_hours,
-        purchase_date,
-        expiry_date,
-        status,
-        purchase_price,
-        lesson_service_name,
-        last_used_date
-      FROM customer_packages
-      WHERE customer_id = $1
+        cp.id,
+        cp.package_name,
+        cp.total_hours,
+        cp.used_hours,
+        cp.remaining_hours,
+        cp.purchase_date,
+        cp.expiry_date,
+        cp.status,
+        cp.purchase_price,
+        cp.lesson_service_name,
+        cp.last_used_date,
+        sp.lesson_category_tag,
+        sp.discipline_tag,
+        sp.lesson_service_id
+      FROM customer_packages cp
+      LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
+      WHERE cp.customer_id = $1
     `;
     
     const queryParams = [userId];
@@ -1271,18 +1347,30 @@ router.get('/:id/packages', authenticateJWT, authorizeRoles(['admin', 'manager',
     if (serviceType) {
       const normalizedType = serviceType.toLowerCase();
       let lessonType = null;
+      let categoryTag = null;
       
       if (normalizedType === 'group' || normalizedType.includes('group')) {
         lessonType = 'group';
+        categoryTag = 'group';
       } else if (normalizedType === 'semi-private' || normalizedType === 'semi_private' || normalizedType.includes('semi')) {
         lessonType = 'semi';
+        categoryTag = 'semi-private';
       } else if (normalizedType === 'private' || normalizedType.includes('private')) {
         lessonType = 'private';
+        categoryTag = 'private';
       }
       
       if (lessonType) {
         queryParams.push(`%${lessonType}%`);
-        conditions.push(`LOWER(lesson_service_name) LIKE LOWER($${queryParams.length})`);
+        const likeIdx = queryParams.length;
+        queryParams.push(categoryTag);
+        const tagIdx = queryParams.length;
+        conditions.push(`(
+          sp.lesson_category_tag IS NULL
+          OR LOWER(cp.lesson_service_name) LIKE LOWER($${likeIdx})
+          OR LOWER(cp.package_name) LIKE LOWER($${likeIdx})
+          OR sp.lesson_category_tag = $${tagIdx}
+        )`);
       }
     }
     
@@ -1304,7 +1392,13 @@ router.get('/:id/packages', authenticateJWT, authorizeRoles(['admin', 'manager',
       
       if (discipline) {
         queryParams.push(`%${discipline}%`);
-        conditions.push(`LOWER(lesson_service_name) LIKE LOWER($${queryParams.length})`);
+        const likeIdx = queryParams.length;
+        conditions.push(`(
+          sp.discipline_tag IS NULL
+          OR LOWER(cp.lesson_service_name) LIKE LOWER($${likeIdx})
+          OR LOWER(cp.package_name) LIKE LOWER($${likeIdx})
+          OR LOWER(sp.discipline_tag) LIKE LOWER($${likeIdx})
+        )`);
       }
     }
     

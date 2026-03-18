@@ -84,7 +84,7 @@ function PayrollSettingsCard({ settings, salaryType }) {
           </Descriptions.Item>
         )}
         {salaryType === 'commission' && (
-          <Descriptions.Item label="Default Rate">{settings?.defaultRate || 10}%</Descriptions.Item>
+          <Descriptions.Item label="Default Rate">{settings?.defaultRate ?? 0}%</Descriptions.Item>
         )}
         {amountEntry && (
           <Descriptions.Item label={amountEntry[0]}>{formatCurrency(amountEntry[1] || 0, 'EUR')}</Descriptions.Item>
@@ -213,15 +213,9 @@ function ManagerPayroll() {
         <div className="flex gap-2 items-center">
           <Button
             icon={<UserOutlined />}
-            onClick={() => navigate(`/admin/manager-profile/${managerId}`, {
-              state: managerInfo ? {
-                managerName: managerInfo.name,
-                managerEmail: managerInfo.email,
-                managerImage: managerInfo.profileImage
-              } : undefined
-            })}
+            onClick={() => navigate('/admin/manager-commissions')}
           >
-            Profile
+            Back to Commissions
           </Button>
           <Select
             value={year}

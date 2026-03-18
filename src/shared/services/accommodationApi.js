@@ -93,6 +93,16 @@ export const getBookings = async (params = {}) => {
 };
 
 /**
+ * Get package-based accommodation stays (admin/manager)
+ * Returns customer_packages entries with accommodation dates that don't
+ * have a corresponding accommodation_bookings record.
+ */
+export const getPackageStays = async () => {
+  const response = await apiClient.get('/accommodation/package-stays');
+  return response.data;
+};
+
+/**
  * Get a single booking by ID
  */
 export const getBooking = async (id) => {
@@ -152,6 +162,7 @@ export const accommodationApi = {
   // Bookings
   getBookings,
   getBooking,
+  getPackageStays,
   createBooking,
   getMyBookings,
   confirmBooking,

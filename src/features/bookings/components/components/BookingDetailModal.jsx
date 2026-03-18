@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Drawer } from 'antd';
 import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -46,6 +46,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     date: '',
     price: 0,
     instructor_commission: 0,
+    instructor_commission_type: 'fixed',
     service_id: null,
     instructor_id: null
   });
@@ -219,7 +220,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         instructor_id: booking.instructor_user_id || booking.instructorId || null,
         // Use booking's individual price, not service price
         price: booking.final_amount || booking.amount || booking.price || 0,
-        instructor_commission: booking.instructor_commission || (selectedInstructor?.commission_rate) || 0
+        instructor_commission: booking.instructor_commission || (selectedInstructor?.commission_rate) || 0,
+        instructor_commission_type: booking.commission_type || selectedInstructor?.commission_type || 'fixed'
       }));
     }
   }, [booking, services, instructors]);
@@ -230,7 +232,11 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
 
     const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
     if (selectedInstructor && editForm.instructor_commission === 0) {
-      setEditForm(prev => ({ ...prev, instructor_commission: selectedInstructor.commission_rate || 0 }));
+      setEditForm(prev => ({
+        ...prev,
+        instructor_commission: selectedInstructor.commission_rate || 0,
+        instructor_commission_type: selectedInstructor.commission_type || 'fixed'
+      }));
     }
   }, [editForm.instructor_id, editForm.instructor_commission, instructors, isEditing]);
 
@@ -594,15 +600,18 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   };
 
   // Helper function to format commission display with correct unit
-  const formatCommissionDisplay = (commissionValue) => {
+  // For fixed commissions the stored value is per-hour, so multiply by duration
+  const formatCommissionDisplay = (commissionValue, { withTotal = true } = {}) => {
     if (!commissionValue) return null;
     
     const instructorId = booking.instructor_user_id || booking.instructorId || booking.instructor_id;
     const instructor = instructors.find(i => i.id === instructorId);
     const commissionType = instructor?.commission_type || 'percent';
+    const duration = Number(booking.actualDuration) || Number(booking.duration) || 1;
     
     if (commissionType === 'fixed' || commissionType === 'fixed_amount') {
-      return `${currencySymbol}${commissionValue}`;
+      const total = Number(commissionValue) * duration;
+      return `${currencySymbol}${total}`;
     }
     
     return `${commissionValue}%`;
@@ -611,46 +620,41 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   if (!booking) return null;
   
   return (
-    <Dialog 
-      open={isOpen} 
-      onClose={!isProcessing ? onClose : () => {}}
-      className="relative z-50"
+    <Drawer
+      open={isOpen}
+      onClose={!isProcessing ? onClose : undefined}
+      width={typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : 560}
+      placement="right"
+      closable={false}
+      destroyOnHidden
+      styles={{ body: { padding: 0 }, header: { display: 'none' } }}
     >
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      
-      {/* Full-screen container to center the panel */}
-      <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-3xl max-h-[90vh] rounded-xl bg-white shadow-2xl border border-gray-200 flex flex-col">
-          {/* Fixed Header */}
-          <div className="relative bg-white border-b border-gray-200 flex-shrink-0">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-gray-100" />
-            <div className="relative flex justify-between items-center px-4 py-3">
-              <DialogTitle as="h3" className="text-lg font-bold leading-6 text-gray-900 flex items-center">
-                <div className="bg-gray-100 p-2 rounded-lg shadow-sm border border-gray-200 mr-3">
-                  <CalendarDaysIcon className="h-5 w-5 text-gray-700" />
-                </div>
-                <div>
-                  <span className="text-gray-900">Booking Details</span>
-                  <p className="text-xs font-normal text-gray-600 mt-0.5">
-                    {booking?.service_name || booking?.serviceName || 'View and manage booking information'}
-                  </p>
-                </div>
-              </DialogTitle>
-              <button
-                type="button"
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-transparent hover:border-gray-200"
-                onClick={onClose}
-                disabled={isProcessing}
-              >
-                <span className="sr-only">Close</span>
-                <XMarkIcon className="h-4 w-4" aria-hidden="true" />
-              </button>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/15 backdrop-blur-sm p-2.5 rounded-xl">
+              <CalendarDaysIcon className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white m-0">Booking Details</h2>
+              <p className="text-slate-300 text-xs mt-0.5 m-0">
+                {booking?.service_name || booking?.serviceName || 'View and manage booking'}
+              </p>
             </div>
           </div>
+          <button
+            onClick={onClose}
+            disabled={isProcessing}
+            className="text-white/70 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
 
-              {/* Scrollable Content Area */}
-              <div className="px-4 py-4 bg-white min-h-[300px] overflow-y-auto flex-1">
+      {/* Content */}
+      <div className="p-5 overflow-y-auto" style={{ height: 'calc(100vh - 82px)' }}>
                 {isDeleting ? (
                   <div className="space-y-3">                    <div className="bg-red-50 border-l-4 border-red-400 rounded-lg p-3">
                       <div className="flex items-center">
@@ -1051,7 +1055,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           className={`px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-bold text-white transition-all duration-200 ${
                             isProcessing || isDataLoading
                               ? 'bg-gray-400 cursor-not-allowed border-gray-400' 
-                              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-lg hover:shadow-xl'
+                              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 '
                           }`}
                           onClick={handleUpdateBooking}
                           disabled={isProcessing || isDataLoading}
@@ -1182,7 +1186,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         className={`px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-bold text-white transition-all duration-200 ${
                           isProcessing
                             ? 'bg-gray-400 cursor-not-allowed border-gray-400' 
-                            : 'bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-lg hover:shadow-xl'
+                            : 'bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-500 '
                         }`}
                         onClick={handleCheckout}
                         disabled={isProcessing}
@@ -1205,29 +1209,22 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     </div>
                   </div>
                 ) : (<div className="space-y-4">
-                    {/* Compact Booking Overview */}
-                    <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-lg relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-20 h-20 bg-gray-100/50 rounded-full -mr-10 -mt-10" />
-                      
-                      <div className="relative flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-gray-100 p-2 rounded-lg shadow-lg border border-gray-200">
-                            <CalendarDaysIcon className="h-6 w-6 text-gray-700" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-1">{booking.service_name || 'Booking Details'}</h3>
-                            <p className="text-sm text-blue-600 font-semibold flex items-center">
-                              <svg className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
+                    {/* Booking Overview */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h3 className="text-base font-bold text-slate-900 mb-1">{booking.service_name || 'Booking Details'}</h3>
+                            <p className="text-sm text-slate-600 font-medium flex items-center">
+                              <CalendarDaysIcon className="h-3.5 w-3.5 mr-1 text-slate-400" />
                               {formatDate(booking.date)}
-                            </p>                            <p className="text-gray-600 font-medium flex items-center text-xs">
+                            </p>
+                            <p className="text-slate-500 font-medium flex items-center text-xs mt-0.5">
                               <ClockIcon className="h-3 w-3 mr-1" />
                               {formatTime(booking.startTime || booking.start_hour || booking.time)} - {calculateEndTime(booking.startTime || booking.start_hour || booking.time, booking.duration)}
                             </p>
-                          </div>
-                        </div>                        <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900 mb-1">
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-slate-900 mb-0.5">
                             {(() => {
                               const packageInfo = getPackageDisplayInfo();
                               if (packageInfo) {
@@ -1236,7 +1233,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               return `${currencySymbol}${getDisplayPrice().toFixed(2)}`;
                             })()}
                           </p>
-                          <p className="text-xs text-gray-500 font-semibold">
+                          <p className="text-xs text-slate-500 font-medium">
                             {(() => {
                               const packageInfo = getPackageDisplayInfo();
                               if (packageInfo) {
@@ -1248,9 +1245,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         </div>
                       </div>
 
-                      {/* Compact Status */}
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
+                      {/* Status Badges */}
+                      <div className="flex items-center gap-2">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold shadow-sm ${
                             booking.status === 'confirmed' ? 'bg-green-100 text-green-800 border border-green-200' :
                             booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
@@ -1275,17 +1271,14 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               {formatCommissionDisplay(booking.instructor_commission)}
                             </span>
                           )}
-                        </div>
                       </div>
-                    </div>                    {/* Compact Details Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    </div>                    {/* Details Grid */}
+                    <div className="grid grid-cols-1 gap-3">
                       {/* People Card */}
-                      <div className="bg-white rounded-md border border-gray-200 shadow-lg overflow-hidden">
-                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-                          <h4 className="text-sm font-bold text-gray-900 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-md shadow-sm border border-gray-200 mr-2">
-                              <UserCircleIcon className="h-3 w-3 text-gray-700" />
-                            </div>
+                      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                          <h4 className="text-sm font-semibold text-slate-700 flex items-center">
+                            <UserCircleIcon className="h-4 w-4 text-slate-400 mr-2" />
                             People
                           </h4>
                         </div>
@@ -1348,12 +1341,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                       </div>
 
                       {/* Details Card */}
-                      <div className="bg-white rounded-md border border-gray-200 shadow-lg overflow-hidden">
-                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-                          <h4 className="text-sm font-bold text-gray-900 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-md shadow-sm border border-gray-200 mr-2">
-                              <InformationCircleIcon className="h-3 w-3 text-gray-700" />
-                            </div>
+                      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                          <h4 className="text-sm font-semibold text-slate-700 flex items-center">
+                            <InformationCircleIcon className="h-4 w-4 text-slate-400 mr-2" />
                             Details
                           </h4>
                         </div>
@@ -1397,62 +1388,60 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           )}
                         </div>
                       </div>
-                    </div>                    {/* Compact Notes */}
+                    </div>                    {/* Notes */}
                     {booking.notes && (
-                      <div className="bg-white rounded-md border border-gray-200 shadow-lg overflow-hidden">
-                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-                          <h4 className="text-sm font-bold text-gray-900 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-md shadow-sm border border-gray-200 mr-2">
-                              <svg className="h-3 w-3 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </div>
+                      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                          <h4 className="text-sm font-semibold text-slate-700 flex items-center">
+                            <svg className="h-4 w-4 text-slate-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                             Notes
                           </h4>
                         </div>
-                        <div className="p-3">
-                          <p className="text-gray-700 whitespace-pre-wrap text-sm">{booking.notes}</p>
+                        <div className="p-4">
+                          <p className="text-slate-600 whitespace-pre-wrap text-sm">{booking.notes}</p>
                         </div>
                       </div>                    )}
 
-                    {/* Compact Action Buttons */}
-                    <div className="flex flex-col lg:flex-row lg:justify-between space-y-2 lg:space-y-0 lg:space-x-2 pt-3 border-t border-gray-200">
-                      {/* Primary Actions */}
-                      <div className="flex space-x-1">                        <button
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-2 pt-4 border-t border-slate-200">
+                      <div className="flex gap-2">
+                        <button
                           type="button"
-                          className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 transition-all duration-200"
+                          className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 disabled:bg-gray-400 transition-colors"
                           onClick={() => setIsEditing(true)}
                           disabled={isProcessing}
                         >
-                          <PencilSquareIcon className="h-3 w-3 mr-0.5" />
+                          <PencilSquareIcon className="h-3.5 w-3.5 mr-1" />
                           Edit
                         </button>
                         
                         {booking.status !== 'cancelled' && (
                           <button
                             type="button"
-                            className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 transition-all duration-200"
+                            className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 transition-colors"
                             onClick={() => setIsCancelling(true)}
                             disabled={isProcessing}
                           >
-                            <XMarkIcon className="h-3 w-3 mr-0.5" />
+                            <XMarkIcon className="h-3.5 w-3.5 mr-1" />
                             Cancel
                           </button>
                         )}
                         
                         <button
                           type="button"
-                          className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-all duration-200"
+                          className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-colors"
                           onClick={() => setIsDeleting(true)}
                           disabled={isProcessing}
                         >
-                          <TrashIcon className="h-3 w-3 mr-0.5" />
+                          <TrashIcon className="h-3.5 w-3.5 mr-1" />
                           Delete
                         </button>
                       </div>
 
                       {/* Status Actions */}
-                      <div className="flex space-x-1">
+                      <div className="flex flex-wrap gap-2">
                         {(() => {
                           // Check if this is a group booking (multiple participants)
                           const isGroupBooking = booking.participants && booking.participants.length > 1;
@@ -1465,7 +1454,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 {checkInStatus !== 'confirmed' && checkInStatus !== 'checked-in' && checkInStatus !== 'completed' && (
                                   <button
                                     type="button"
-                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition-all duration-200"
+                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition-all duration-200"
                                     onClick={() => handleUpdateStatus('confirmed')}
                                     disabled={isProcessing}
                                   >
@@ -1490,7 +1479,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 {checkInStatus !== 'checked-in' && checkInStatus !== 'completed' && (
                                   <button
                                     type="button"
-                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 transition-all duration-200"
+                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 transition-all duration-200"
                                     onClick={() => handleUpdateStatus('checked-in')}
                                     disabled={isProcessing}
                                   >
@@ -1509,7 +1498,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 {checkInStatus !== 'completed' && (
                                   <button
                                     type="button"
-                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
+                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
                                     onClick={() => setIsCheckingOut(true)}
                                     disabled={isProcessing}
                                   >
@@ -1532,7 +1521,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 {checkInStatus === 'pending' && (
                                   <button
                                     type="button"
-                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition-all duration-200"
+                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition-all duration-200"
                                     onClick={() => handleUpdateStatus('confirmed')}
                                     disabled={isProcessing}
                                   >
@@ -1557,7 +1546,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                   <>
                                     <button
                                       type="button"
-                                      className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 transition-all duration-200"
+                                      className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 transition-all duration-200"
                                       onClick={() => handleUpdateStatus('checked-in')}
                                       disabled={isProcessing}
                                     >
@@ -1573,7 +1562,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                     
                                     <button
                                       type="button"
-                                      className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
+                                      className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
                                       onClick={() => setIsCheckingOut(true)}
                                       disabled={isProcessing}
                                     >
@@ -1592,7 +1581,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 {checkInStatus === 'checked-in' && (
                                   <button
                                     type="button"
-                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-md shadow-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
+                                    className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
                                     onClick={() => setIsCheckingOut(true)}
                                     disabled={isProcessing}
                                   >
@@ -1614,10 +1603,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     </div>
                   </div>
                 )}
-              </div>
-        </DialogPanel>
       </div>
-    </Dialog>
+    </Drawer>
   );
 };
 

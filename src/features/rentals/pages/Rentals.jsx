@@ -163,6 +163,14 @@ function Rentals() {
   const [rentalRequests, setRentalRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   
+  // Mobile responsive
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Package-based rental state
   const [usePackage, setUsePackage] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState(null);
@@ -693,12 +701,36 @@ function Rentals() {
   }, [activeTab, apiClient, enrichRentalsWithDetails, messageApi]);
 
   // Load rental booking requests from bookings table (made via StudentBookingWizard)
+  // AND pending rentals from rentals table (made via RentalBookingModal)
   const loadRentalRequests = useCallback(async () => {
     if (!apiClient) return;
     setRequestsLoading(true);
     try {
-      const bookings = await DataService.getBookings({ service_type: 'rental', status: 'pending' });
-      setRentalRequests(Array.isArray(bookings) ? bookings : []);
+      // Fetch both sources in parallel
+      const [bookings, pendingRentalsRes] = await Promise.all([
+        DataService.getBookings({ service_type: 'rental', status: 'pending' }),
+        apiClient.get('/rentals/pending'),
+      ]);
+
+      // Tag booking-based requests
+      const bookingRequests = (Array.isArray(bookings) ? bookings : []).map(b => ({ ...b, _source: 'booking' }));
+
+      // Normalize rental records to match the booking columns shape
+      const pendingRentals = (Array.isArray(pendingRentalsRes?.data) ? pendingRentalsRes.data : []).map(r => {
+        const eqDetails = typeof r.equipment_details === 'string' ? JSON.parse(r.equipment_details) : (r.equipment_details || {});
+        const equipmentNames = Object.values(eqDetails).map(e => e.name).filter(Boolean).join(', ') || 'Rental';
+        return {
+          ...r,
+          _source: 'rental',
+          student_name: r.customer_name,
+          service_name: equipmentNames,
+          date: r.rental_date || r.start_date,
+          amount: r.total_price,
+          status: r.status, // 'pending'
+        };
+      });
+
+      setRentalRequests([...bookingRequests, ...pendingRentals]);
     } catch (error) {
       void error;
       messageApi.error('Failed to load rental requests');
@@ -741,6 +773,22 @@ function Rentals() {
       await loadRentalRequests();
     } catch (error) {
       const msg = error?.response?.data?.error || error?.response?.data?.message || 'Failed to update booking status';
+      messageApi.error(msg);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [apiClient, messageApi, loadRentalRequests]);
+
+  // Handle rental request approve/decline (for rentals created directly via POST /rentals)
+  const handleRentalRequestChange = useCallback(async (rentalId, action) => {
+    try {
+      setRequestsLoading(true);
+      const endpoint = action === 'approve' ? 'activate' : 'cancel';
+      await apiClient.patch(`/rentals/${rentalId}/${endpoint}`);
+      messageApi.success(`Rental ${action === 'approve' ? 'approved' : 'declined'} successfully`);
+      await loadRentalRequests();
+    } catch (error) {
+      const msg = error?.response?.data?.error || error?.response?.data?.message || `Failed to ${action} rental`;
       messageApi.error(msg);
     } finally {
       setRequestsLoading(false);
@@ -870,162 +918,56 @@ function Rentals() {
       title: 'Customer',
       dataIndex: 'customer_name',
       key: 'customer',
+      ellipsis: true,
       render: (text, record) => {
-        const customerName =
-          text ||
-          record.customer_name ||
-          (record.customer_email && record.customer_email !== 'test@example.com'
-            ? record.customer_email
-            : null) ||
-          'Loading...';
-
-        return (
-          <div>
-            <div className="font-medium flex items-center">
-              <UserOutlined className="mr-1" />
-              {customerName}
-            </div>
-            {(() => {
-              if (!record.participant_type) return null;
-              const normalized = String(record.participant_type).toLowerCase();
-              let tagConfig = null;
-
-              if (normalized === 'multiple') {
-                tagConfig = { color: 'geekblue', label: 'Multiple' };
-              } else if (normalized === 'single' || normalized === 'self') {
-                tagConfig = { color: 'blue', label: 'Single' };
-              } else if (normalized === 'family' || normalized === 'family_member') {
-                tagConfig = { color: 'magenta', label: 'Family' };
-              }
-
-              return tagConfig ? (
-                <div className="mt-1">
-                  <Tag color={tagConfig.color}>{tagConfig.label}</Tag>
-                </div>
-              ) : null;
-            })()}
-            {record.customer_email && record.customer_email !== 'test@example.com' && (
-              <div className="text-sm text-gray-500">{record.customer_email}</div>
-            )}
-          </div>
-        );
+        const customerName = text || record.customer_name || record.customer_email || 'N/A';
+        return <Tooltip title={record.customer_email || customerName}><span className="text-xs font-medium">{customerName}</span></Tooltip>;
       },
     },
     {
       title: 'Equipment',
       dataIndex: 'equipment_details',
       key: 'equipment',
-      render: (equipmentDetails, record) => (
-        <div>
-          {equipmentDetails ? (
-            Object.entries(equipmentDetails).map(([id, details]) => (
-              <Tag key={id} icon={<ToolOutlined />}> {details.name || 'Unknown Equipment'} </Tag>
-            ))
-          ) : (
-            <span className="text-gray-500">{record.equipment_ids?.length || 0} item(s)</span>
-          )}
-        </div>
-      ),
+      ellipsis: true,
+      render: (equipmentDetails, record) => {
+        if (!equipmentDetails) return <span className="text-gray-400 text-xs">{record.equipment_ids?.length || 0} item(s)</span>;
+        const items = Object.values(equipmentDetails);
+        const label = items[0]?.name || 'Equipment';
+        return <Tooltip title={items.map(d => d.name).join(', ')}><span className="text-xs">{label}{items.length > 1 ? ` +${items.length - 1}` : ''}</span></Tooltip>;
+      },
     },
     {
-      title: 'Rental Date',
+      title: 'Date',
       key: 'rental_date',
-      render: (_, record) => (
-        <div className="flex items-center">
-          <CalendarOutlined className="mr-1" />
-          <span className="text-sm font-medium">
-            {record.rental_date ? formatDate(record.rental_date) : formatDate(record.start_date)}
-          </span>
-        </div>
-      ),
+      width: 90,
+      render: (_, record) => <span className="text-xs whitespace-nowrap">{record.rental_date ? formatDate(record.rental_date) : formatDate(record.start_date)}</span>,
     },
     {
-      title: 'Price & Status',
+      title: 'Price',
       key: 'price_status',
-      render: (_, record) => (
-        <div>
-          <div className="flex items-center mb-1">
-            <DollarOutlined className="mr-1" />
-            <span className="font-medium">{formatCurrency(record.total_price, record.currency || businessCurrency)}</span>
-          </div>
-          <div>{record.is_paid ? <Tag color="green">Paid</Tag> : <Tag color="orange">Unpaid</Tag>}</div>
-          {record.requires_deposit && (
-            <div className="text-xs text-gray-500 mt-1">
-              Deposit: {formatCurrency(record.deposit_amount, record.currency || businessCurrency)}
-              {record.deposit_returned && <Tag color="green" size="small">Returned</Tag>}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    createCreatedByAuditColumn(),
-    {
-      title: 'Notes',
-      dataIndex: 'notes',
-      key: 'notes',
-      width: 200,
-      render: (notes) => (
-        <div className="flex items-start">
-          <FileTextOutlined className="mr-2 mt-1 text-gray-400 flex-shrink-0" />
-          <div className="text-sm">
-            {notes ? (
-              <span className="text-gray-700" title={notes}>
-                {notes.length > 50 ? `${notes.substring(0, 50)}...` : notes}
-              </span>
-            ) : (
-              <span className="text-gray-400 italic">No notes</span>
-            )}
-          </div>
-        </div>
-      ),
+      width: 70,
+      render: (_, record) => <span className="text-xs font-medium whitespace-nowrap">{formatCurrency(record.total_price, record.currency || businessCurrency)}</span>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 80,
       render: (status) => {
-        const statusConfig = {
-          active: { color: 'green', icon: <CheckOutlined /> },
-          completed: { color: 'gray', icon: <CheckOutlined /> },
-          pending: { color: 'orange', icon: null },
-          cancelled: { color: 'red', icon: null },
-          overdue: { color: 'volcano', icon: null },
-          reserved: { color: 'blue', icon: null },
-          returned: { color: 'cyan', icon: null },
-        };
-        const config = statusConfig[status] || { color: 'default', icon: null };
-
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {status?.charAt(0).toUpperCase() + status?.slice(1)}
-          </Tag>
-        );
+        const colors = { active: 'green', completed: 'gray', pending: 'orange', cancelled: 'red', overdue: 'volcano', reserved: 'blue', returned: 'cyan' };
+        return <Tag color={colors[status] || 'default'} className="!mr-0 !text-xs !leading-tight">{status?.charAt(0).toUpperCase() + status?.slice(1)}</Tag>;
       },
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
+      width: 70,
       render: (_, record) => (
-        <Space>
-          <Tooltip title="Edit">
-            <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          </Tooltip>
-
-          {record.status === 'active' && (
-            <Tooltip title="Mark as Completed">
-              <Button type="text" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')} />
-            </Tooltip>
-          )}
-
-          <Popconfirm
-            title="Are you sure you want to delete this rental?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Tooltip title="Delete">
-              <Button type="text" danger icon={<DeleteOutlined />} />
-            </Tooltip>
+        <Space size={0}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          {record.status === 'active' && <Button type="text" size="small" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')} />}
+          <Popconfirm title="Delete?" onConfirm={() => handleDelete(record.id)} okText="Yes" cancelText="No">
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
@@ -1164,6 +1106,15 @@ function Rentals() {
       render: (_, record) => {
         const isPending = record.status === 'pending';
         const isConfirmed = record.status === 'confirmed';
+        const isRental = record._source === 'rental';
+
+        const onApprove = () => isRental
+          ? handleRentalRequestChange(record.id, 'approve')
+          : handleBookingStatusChange(record.id, 'confirmed');
+        const onDecline = () => isRental
+          ? handleRentalRequestChange(record.id, 'decline')
+          : handleBookingStatusChange(record.id, 'cancelled');
+
         return (
           <Space>
             {isPending && (
@@ -1174,7 +1125,7 @@ function Rentals() {
                     size="small"
                     icon={<CheckOutlined />}
                     className="bg-green-500 border-green-500 hover:bg-green-600"
-                    onClick={() => handleBookingStatusChange(record.id, 'confirmed')}
+                    onClick={onApprove}
                   >
                     Approve
                   </Button>
@@ -1183,7 +1134,7 @@ function Rentals() {
                   <Popconfirm
                     title="Decline this rental request?"
                     description="The student will be notified and any charged amount will be refunded."
-                    onConfirm={() => handleBookingStatusChange(record.id, 'cancelled')}
+                    onConfirm={onDecline}
                     okText="Decline"
                     okButtonProps={{ danger: true }}
                     cancelText="Keep"
@@ -1213,7 +1164,7 @@ function Rentals() {
         );
       },
     },
-  ], [businessCurrency, formatCurrency, handleBookingStatusChange]);
+  ], [businessCurrency, formatCurrency, handleBookingStatusChange, handleRentalRequestChange]);
 
   const rentalStats = useMemo(() => {
     if (!Array.isArray(rentals) || rentals.length === 0) {
@@ -1271,144 +1222,12 @@ function Rentals() {
           calendarPath="/rentals/calendar"
           size="large"
         />
-        <div className="text-sm text-slate-500">
-          Equipment Rentals
-        </div>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+          New Rental
+        </Button>
       </div>
 
-      <Card
-        variant="borderless"
-        className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
-        styles={{ body: { padding: 32 } }}
-      >
-          <div className="pointer-events-none absolute -top-16 right-10 h-40 w-40 rounded-full bg-indigo-100" />
-          <div className="pointer-events-none absolute -bottom-20 left-12 h-44 w-44 rounded-full bg-sky-50" />
-          <div className="relative space-y-6">
-            <div className="space-y-2">
-              <Title level={2} className="!mb-0 text-slate-900">Equipment Rentals</Title>
-              <p className="text-slate-600 text-base">
-                Track today&apos;s activity and keep an eye on open rentals before diving into the details below.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {dashboardStats.map((stat) => (
-                <div
-                  key={stat.key}
-                  className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm backdrop-blur"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {stat.label}
-                      </p>
-                      <p className="mt-2 text-3xl font-semibold text-slate-900">
-                        {formatStatValue(stat.value)}
-                      </p>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                      {stat.icon}
-                    </div>
-                  </div>
-                  {stat.helper ? (
-                    <p className="mt-3 text-xs text-slate-500">{stat.helper}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-      {/* Rental Packages by Category */}
-      {groupedRentalPackages.length > 0 && (
-        <Card
-          variant="borderless"
-          className="rounded-2xl border border-slate-200 bg-white shadow-sm"
-          styles={{ body: { padding: '24px' } }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <Title level={3} className="!mb-0 text-slate-900">Rental Packages</Title>
-              <p className="text-sm text-slate-500 mt-1">Available packages grouped by equipment type</p>
-            </div>
-            <Tag color="blue" className="!text-sm !px-3 !py-0.5 !rounded-full">
-              {rentalPackages.length} package{rentalPackages.length !== 1 ? 's' : ''}
-            </Tag>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {groupedRentalPackages.map((group) => {
-              const palette = [
-                { bg: 'bg-blue-50', accent: 'text-blue-600', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-700' },
-                { bg: 'bg-orange-50', accent: 'text-orange-600', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-700' },
-                { bg: 'bg-emerald-50', accent: 'text-emerald-600', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700' },
-                { bg: 'bg-violet-50', accent: 'text-violet-600', border: 'border-violet-200', badge: 'bg-violet-100 text-violet-700' },
-                { bg: 'bg-cyan-50', accent: 'text-cyan-600', border: 'border-cyan-200', badge: 'bg-cyan-100 text-cyan-700' },
-              ];
-              const theme = palette[groupedRentalPackages.indexOf(group) % palette.length];
-              return (
-                <div
-                  key={group.name}
-                  className={`rounded-xl border ${theme.border} ${theme.bg} p-4 transition-shadow hover:shadow-md`}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <ToolOutlined className={`text-lg ${theme.accent}`} />
-                    <h4 className={`font-semibold text-sm ${theme.accent} truncate`}>{group.name}</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {group.packages.map((pkg) => {
-                      const days = pkg.rentalDays || 0;
-                      const hours = pkg.totalHours || 0;
-                      let durationLabel;
-                      if (days > 0) {
-                        durationLabel = `${days} day${days !== 1 ? 's' : ''}`;
-                      } else if (hours > 0) {
-                        durationLabel = hours >= 24 ? `${Math.round(hours / 24)} day${Math.round(hours / 24) !== 1 ? 's' : ''}` : `${hours}h`;
-                      } else {
-                        durationLabel = pkg.sessionsCount ? `${pkg.sessionsCount} session${pkg.sessionsCount !== 1 ? 's' : ''}` : '—';
-                      }
-                      return (
-                        <div key={pkg.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2 text-sm border border-white">
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-slate-800 truncate" title={pkg.name}>{pkg.name}</span>
-                            <span className="text-xs text-slate-500">{durationLabel}</span>
-                          </div>
-                          <span className={`font-semibold ${theme.accent} whitespace-nowrap ml-2`}>
-                            {formatCurrency(pkg.price, pkg.currency || businessCurrency)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 pt-2 border-t border-white/60 flex items-center justify-between text-xs text-slate-500">
-                    <span>{group.packages.length} option{group.packages.length !== 1 ? 's' : ''}</span>
-                    {group.packages[0]?.disciplineTag && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${theme.badge}`}>
-                        {group.packages[0].disciplineTag.replace(/_/g, ' ')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
       <Card>
-        <div className="mb-6">
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Title level={3} className="!mb-0">Rental Overview</Title>
-              <p className="text-gray-600 mb-4">
-                Manage equipment rentals with automatic time and price calculation based on selected rental services.
-              </p>
-            </Col>
-            <Col>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
-                New Rental
-              </Button>
-            </Col>
-          </Row>
-        </div>
 
         <Tabs
           activeKey={activeTab}
@@ -1449,39 +1268,106 @@ function Rentals() {
           ]}
         />
 
-        {activeTab === 'requests' ? (
-          <UnifiedTable density="comfortable">
-            <Table
-              columns={requestColumns}
-              dataSource={rentalRequests}
-              loading={requestsLoading}
-              rowKey="id"
-              pagination={{
-                pageSize: 25,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
-              }}
-              scroll={{ x: 1400 }}
-              locale={{ emptyText: 'No rental booking requests found' }}
-            />
-          </UnifiedTable>
+        {isMobile ? (
+          /* Mobile card layout */
+          (() => {
+            const data = activeTab === 'requests' ? rentalRequests : rentals;
+            const isLoading = activeTab === 'requests' ? requestsLoading : loading;
+            if (isLoading) return <div className="flex justify-center py-8"><Spin /></div>;
+            if (!data.length) return <div className="text-center text-slate-400 py-8">No rentals found</div>;
+            return (
+              <div className="space-y-3">
+                {data.map(record => {
+                  const customerName = record.customer_name || record.student_name || record.customer_email || 'Unknown';
+                  const statusConfig = {
+                    active: 'green', completed: 'gray', pending: 'orange',
+                    cancelled: 'red', overdue: 'volcano', reserved: 'blue', returned: 'cyan',
+                    confirmed: 'green', upcoming: 'blue',
+                  };
+                  const status = record.status || 'pending';
+                  const equipItems = record.equipment_details
+                    ? Object.values(record.equipment_details).map(d => d.name || 'Equipment').join(', ')
+                    : `${record.equipment_ids?.length || 0} item(s)`;
+                  const date = record.rental_date || record.start_date || record.date;
+
+                  return (
+                    <div key={record.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900 text-sm truncate">{customerName}</p>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">{equipItems}</p>
+                        </div>
+                        <Tag color={statusConfig[status] || 'default'} className="ml-2 flex-shrink-0">
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </Tag>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <CalendarOutlined />
+                          {date ? formatDate(date) : '—'}
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {formatCurrency(record.total_price || record.amount || record.final_amount, record.currency || businessCurrency)}
+                        </span>
+                      </div>
+                      {record.notes && (
+                        <p className="text-xs text-slate-400 mt-2 truncate">{record.notes}</p>
+                      )}
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                        <Button size="small" icon={<EditOutlined />} onClick={() => activeTab === 'requests' ? null : handleEdit(record)}>Edit</Button>
+                        {record.status === 'active' && (
+                          <Button size="small" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')}>Complete</Button>
+                        )}
+                        {activeTab === 'requests' && record.status === 'pending' && (
+                          <>
+                            <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => handleActivateRequest(record.id)}>Approve</Button>
+                            <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleCancelRequest(record.id)}>Reject</Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
         ) : (
-          <UnifiedTable density="comfortable">
-            <Table
-              columns={columns}
-              dataSource={rentals}
-              loading={loading}
-              rowKey="id"
-              pagination={{
-                pageSize: activeTab === 'recent' ? 20 : 25,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} ${activeTab === 'recent' ? 'recent' : 'total'} rentals`,
-              }}
-              scroll={{ x: 1200 }}
-            />
-          </UnifiedTable>
+          /* Desktop table layout */
+          activeTab === 'requests' ? (
+            <UnifiedTable density="comfortable">
+              <Table
+                columns={requestColumns}
+                dataSource={rentalRequests}
+                loading={requestsLoading}
+                rowKey="id"
+                pagination={{
+                  pageSize: 25,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
+                }}
+                scroll={{ x: 1400 }}
+                locale={{ emptyText: 'No rental booking requests found' }}
+              />
+            </UnifiedTable>
+          ) : (
+            <UnifiedTable density="compact">
+              <Table
+                columns={columns}
+                dataSource={rentals}
+                loading={loading}
+                rowKey="id"
+                size="small"
+                pagination={{
+                  pageSize: activeTab === 'recent' ? 20 : 25,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} ${activeTab === 'recent' ? 'recent' : 'total'} rentals`,
+                }}
+                scroll={{ x: 800 }}
+              />
+            </UnifiedTable>
+          )
         )}
       </Card>
 

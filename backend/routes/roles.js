@@ -120,7 +120,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
       return res.status(400).json({ error: `Protected role '${name}' cannot be deleted` });
     }
 
-    const countRes = await pool.query('SELECT COUNT(*)::int AS cnt FROM users WHERE role_id = $1', [req.params.id]);
+    const countRes = await pool.query('SELECT COUNT(*)::int AS cnt FROM users WHERE role_id = $1 AND deleted_at IS NULL', [req.params.id]);
     if ((countRes.rows[0]?.cnt || 0) > 0) {
       return res.status(400).json({ error: 'Cannot delete a role that is assigned to users' });
     }

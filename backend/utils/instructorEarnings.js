@@ -51,12 +51,22 @@ export const deriveLessonAmount = ({
   packageUsedHours,
   packageSessionsCount,
   fallbackSessionDuration,
+  servicePrice,
+  serviceDuration,
 }) => {
   const normalizedBase = safeNumber(baseAmount);
   const lessonDuration = safeNumber(duration);
 
   if (paymentStatus !== 'package') {
-    return lessonDuration > 0 ? normalizedBase : 0;
+    if (lessonDuration > 0 && normalizedBase > 0) return normalizedBase;
+    // Fallback: derive from service price when booking has no amount
+    const svcPrice = safeNumber(servicePrice);
+    const svcDuration = safeNumber(serviceDuration);
+    if (svcPrice > 0 && lessonDuration > 0) {
+      const derived = svcDuration > 0 ? (svcPrice / svcDuration) * lessonDuration : svcPrice;
+      return Number.parseFloat(derived.toFixed(2));
+    }
+    return 0;
   }
 
   const price = safeNumber(packagePrice);
