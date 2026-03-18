@@ -42,9 +42,9 @@ const DisciplineTag = ({ tag }) => {
 
 const BalanceCell = ({ bal, fmt }) => {
   if (!bal) return <span className="text-slate-300 text-xs">—</span>;
-  if (bal.balance > 0)  return <span className="text-xs font-semibold text-red-500">-{fmt(bal.balance)}</span>;
-  if (bal.balance < 0)  return <span className="text-xs font-semibold text-emerald-600">+{fmt(Math.abs(bal.balance))}</span>;
-  return <span className="text-xs font-semibold text-emerald-600">✓ Paid</span>;
+  if (bal.balance > 0)  return <span className="text-xs font-semibold text-red-500 whitespace-nowrap">-{fmt(bal.balance)}</span>;
+  if (bal.balance < 0)  return <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">+{fmt(Math.abs(bal.balance))}</span>;
+  return <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">✓ Paid</span>;
 };
 
 const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) => {
@@ -236,8 +236,7 @@ function Instructors() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setAddModalOpen(true)}
-            size="large"
-            className="w-full sm:w-auto shrink-0 shadow-sm hover:shadow font-medium px-6 bg-blue-600 hover:bg-blue-500 border-0"
+            className="w-full sm:w-auto shrink-0 shadow-sm hover:shadow font-medium bg-blue-600 hover:bg-blue-500 border-0"
           >
             Add New Instructor
           </Button>
@@ -372,7 +371,7 @@ function Instructors() {
               ...(isAdmin ? [{
                 title: 'Balance',
                 key: 'balance',
-                width: 85,
+                width: 110,
                 render: (_, record) => <BalanceCell bal={balances[record.id]} fmt={fmt} />
               }] : []),
               { 

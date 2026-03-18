@@ -350,7 +350,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name="payment_method" label="Method" rules={[{ required: true }]}>
-                <Select>
+                <Select getPopupContainer={trigger => trigger.parentElement}>
                   <Option value="bank_transfer">Bank Transfer</Option>
                   <Option value="cash">Cash</Option>
                   <Option value="paypal">PayPal</Option>

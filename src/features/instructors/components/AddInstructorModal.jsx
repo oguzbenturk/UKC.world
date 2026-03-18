@@ -18,7 +18,7 @@ const { Option } = Select;
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DISCIPLINES = [
   { key: 'kite',      label: 'Kitesurfing', emoji: '🪁', color: '#3B82F6', description: 'Kite lessons & coaching' },
-  { key: 'wing',      label: 'Wingsurfing', emoji: '🦅', color: '#8B5CF6', description: 'Wing foil & wing surf' },
+  { key: 'wing',      label: 'Wing Foil', emoji: '🦅', color: '#8B5CF6', description: 'Wing foil & wing surf' },
   { key: 'kite_foil', label: 'Kite Foil',   emoji: '🏄', color: '#06B6D4', description: 'Kite foil racing & training' },
   { key: 'efoil',     label: 'E-Foil',      emoji: '⚡', color: '#F59E0B', description: 'Electric foil board' },
   { key: 'premium',   label: 'Premium',     emoji: '⭐', color: '#EF4444', description: 'Premium / VIP sessions' },

@@ -18,9 +18,10 @@ export const filterServicesByCapacity = (services, participantCount) => {
     const type = (service.service_type || service.serviceType || '').toLowerCase();
     const tag = (service.lesson_category_tag || service.lessonCategoryTag || '').toLowerCase();
 
-    // Use structured type/tag to determine lesson kind
-    const isGroup = type === 'group' || tag === 'group';
-    const isSemiPrivate = type === 'semi-private' || tag === 'semi-private' || tag === 'semi private';
+    // Use structured type/tag AND name to determine lesson kind
+    const name = (service.name || '').toLowerCase();
+    const isGroup = type === 'group' || tag === 'group' || (name.includes('group') && !name.includes('semi'));
+    const isSemiPrivate = type === 'semi-private' || tag === 'semi-private' || tag === 'semi private' || name.includes('semi');
     const isPrivate = type === 'private' || tag === 'private';
 
     if (participantCount === 1) {

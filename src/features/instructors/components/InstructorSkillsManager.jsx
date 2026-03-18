@@ -9,7 +9,7 @@ const { Text } = Typography;
 
 const DISCIPLINES = [
   { key: 'kite', label: 'Kitesurfing', color: '#3B82F6', description: 'Kite lessons & coaching' },
-  { key: 'wing', label: 'Wingsurfing', color: '#8B5CF6', description: 'Wing foil & wing surf' },
+  { key: 'wing', label: 'Wing Foil', color: '#8B5CF6', description: 'Wing foil & wing surf' },
   { key: 'kite_foil', label: 'Kite Foil', color: '#06B6D4', description: 'Kite foil racing & training' },
   { key: 'efoil', label: 'E-Foil', color: '#F59E0B', description: 'Electric foil board' },
   { key: 'premium', label: 'Premium', color: '#EF4444', description: 'Premium / VIP sessions' },

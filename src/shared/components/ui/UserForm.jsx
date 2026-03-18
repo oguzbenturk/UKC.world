@@ -1,12 +1,13 @@
 // src/components/UserForm.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber } from 'antd';
+import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, DatePicker } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { UserOutlined, UploadOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import ReactCountryFlag from "react-country-flag";
 import DataService from '../../services/dataService';
 import apiClient from '../../services/apiClient';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 
@@ -391,12 +392,12 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
   useEffect(() => {
     if (user) {
-      const normalizedAge = coerceNumber(user.age ?? user.age_years ?? user.ageYears);
       const normalizedWeight = coerceNumber(user.weight ?? user.weight_kg ?? user.weightKg);
+      const dob = user.date_of_birth || user.dateOfBirth;
 
       form.setFieldsValue({
         ...user,
-        age: normalizedAge,
+        date_of_birth: dob ? dayjs(dob) : undefined,
         weight: normalizedWeight,
       });
       setAvatarUrl(user.profile_image_url);
@@ -536,8 +537,16 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       // Remove confirm_password as it's not needed in the API
       delete payload.confirm_password;
 
-      sanitizeNumericField(payload, 'age', 0);
       sanitizeNumericField(payload, 'weight', 2);
+
+      // Convert date_of_birth dayjs to string and compute age
+      if (payload.date_of_birth) {
+        const dob = dayjs(payload.date_of_birth);
+        payload.date_of_birth = dob.format('YYYY-MM-DD');
+        payload.age = dayjs().diff(dob, 'year');
+      } else {
+        delete payload.age;
+      }
 
       if (typeof customSubmit === 'function') {
         await customSubmit(payload);
@@ -728,9 +737,23 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
       <Row gutter={24}>
         <Col xs={24} sm={12}>
-          <Form.Item name="age" label="Age">
-            <InputNumber min={16} max={100} style={{ width: '100%' }} placeholder="Enter age" />
+          <Form.Item name="date_of_birth" label="Date of Birth">
+            <DatePicker
+              style={{ width: '100%' }}
+              placeholder="Select date of birth"
+              format="DD/MM/YYYY"
+              disabledDate={(current) => current && current > dayjs().endOf('day')}
+              onChange={(date) => {
+                if (date) {
+                  const age = dayjs().diff(date, 'year');
+                  form.setFieldsValue({ age });
+                } else {
+                  form.setFieldsValue({ age: undefined });
+                }
+              }}
+            />
           </Form.Item>
+          <Form.Item name="age" hidden><InputNumber /></Form.Item>
         </Col>
         <Col xs={24} sm={12}>
           <Form.Item name="weight" label="Weight (kg)">

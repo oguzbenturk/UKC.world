@@ -28,6 +28,7 @@ import UserConsentModal from './features/compliance/components/UserConsentModal.
 import NetworkStatusBanner from './shared/components/system/NetworkStatusBanner.jsx';
 import WalletModalManager from './shared/components/wallet/WalletModalManager';
 import RescheduleConfirmationModal from './features/notifications/components/RescheduleConfirmationModal';
+import GlobalFAB from './shared/components/ui/GlobalFAB';
 
 // Wrapper component to provide location to PopupManager
 const PopupManagerWrapper = ({ user }) => {
@@ -289,6 +290,7 @@ const AppLayoutWithAuth = () => {
       
       {/* Popup Manager - shows popups based on conditions */}
       <PopupManagerWrapper user={user} />
+      <GlobalFAB />
     </div>
   );
 };

@@ -139,6 +139,19 @@ const EnhancedInstructorDetailModal = ({
 
   const statusColor = instructor.status === 'active' ? 'green' : 'red';
 
+  const renderInfoCell = (icon, label, value) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-start gap-2 min-w-0">
+        <span className="text-gray-400 mt-0.5 text-sm flex-shrink-0">{icon}</span>
+        <div className="min-w-0">
+          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide leading-tight">{label}</div>
+          <div className="text-sm text-gray-800 mt-0.5 truncate">{value}</div>
+        </div>
+      </div>
+    );
+  };
+
   const renderInfoRow = (icon, label, value) => {
     if (!value) return null;
     return (
@@ -174,26 +187,28 @@ const EnhancedInstructorDetailModal = ({
         </div>
       </div>
 
-      {/* Contact info */}
-      <div className="rounded-xl border border-gray-100 bg-white px-5 py-1">
-        {renderInfoRow(<MailOutlined />, 'Email', instructor.email)}
-        {renderInfoRow(<PhoneOutlined />, 'Phone', instructor.phone)}
-        {renderInfoRow(<CalendarOutlined />, 'Date of Birth', instructor.date_of_birth)}
-        {renderInfoRow(<EnvironmentOutlined />, 'Address',
-          [instructor.address, instructor.city, instructor.country].filter(Boolean).join(', ') || null
-        )}
-        {renderInfoRow(<CalendarOutlined />, 'Joined',
-          instructor.created_at ? new Date(instructor.created_at).toLocaleDateString() : null
-        )}
-        {instructor.hourly_rate && renderInfoRow(<DollarOutlined />, 'Hourly Rate',
-          `${formatCurrency(Number(instructor.hourly_rate) || 0, businessCurrency || 'EUR')}/hour`
-        )}
-        {/* Freelance toggle */}
-        <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-          <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-base"><IdcardOutlined /></span>
+      {/* Contact info — 3-column compact grid */}
+      <div className="rounded-xl border border-gray-100 bg-white p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
+          {renderInfoCell(<MailOutlined />, 'Email', instructor.email)}
+          {renderInfoCell(<PhoneOutlined />, 'Phone', instructor.phone)}
+          {renderInfoCell(<CalendarOutlined />, 'Date of Birth', instructor.date_of_birth)}
+          {renderInfoCell(<EnvironmentOutlined />, 'Location',
+            [instructor.city, instructor.country].filter(Boolean).join(', ') || null
+          )}
+          {renderInfoCell(<CalendarOutlined />, 'Joined',
+            instructor.created_at ? new Date(instructor.created_at).toLocaleDateString() : null
+          )}
+          {instructor.hourly_rate && renderInfoCell(<DollarOutlined />, 'Hourly Rate',
+            `${formatCurrency(Number(instructor.hourly_rate) || 0, businessCurrency || 'EUR')}/hour`
+          )}
+        </div>
+        {/* Freelance toggle — full width row */}
+        <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-sm"><IdcardOutlined /></span>
             <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Freelance</div>
+              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Freelance</div>
               <div className="text-xs text-gray-500 mt-0.5">Freelance instructors only appear in the calendar when they have bookings</div>
             </div>
           </div>

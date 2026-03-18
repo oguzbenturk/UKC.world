@@ -105,16 +105,17 @@ const isLessonService = (service) => {
 };
 
 const getServiceCategory = (service) => {
-  // Prioritize structured tag/type over name-based matching
+  const name = (service?.name || '').toLowerCase();
   const src = (service?.lesson_category_tag || service?.lessonCategoryTag || service?.service_type || service?.serviceType || '').toLowerCase();
+  // Name-level override: if name clearly says group/semi, trust that over a mismatched tag
+  if (name.includes('semi')) return 'semi-private';
+  if (name.includes('group') && src !== 'private') return 'group';
   if (src.includes('semi')) return 'semi-private';
   const known = ['private', 'supervision', 'group'];
   const tagMatch = known.find(k => src === k);
   if (tagMatch) return tagMatch;
-  // Fallback to name only if no tag/type available
+  // Fallback to name if no tag/type
   if (!src) {
-    const name = (service?.name || '').toLowerCase();
-    if (name.includes('semi')) return 'semi-private';
     const nameMatch = known.find(k => name.includes(k));
     if (nameMatch) return nameMatch;
   }
@@ -402,7 +403,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           if (participantCount === 1) {
             active = active.filter(pkg => {
               const tag = (pkg.lesson_category_tag || '').toLowerCase();
-              return !tag || tag === 'private' || tag === 'supervision';
+              if (tag === 'group' || tag === 'semi-private' || tag.includes('semi')) return false;
+              if (tag === 'private' || tag === 'supervision') return true;
+              // No tag — check name fields for group/semi keywords
+              const name = `${pkg.lesson_service_name || ''} ${pkg.package_name || ''}`.toLowerCase();
+              if (name.includes('group') || name.includes('semi')) return false;
+              return true;
             });
           }
           setAllUserPackages(prev => ({ ...prev, [p.userId]: active }));

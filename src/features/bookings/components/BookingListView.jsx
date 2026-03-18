@@ -489,78 +489,77 @@ const BookingListView = () => {
   // Columns definition
   const columns = [
     {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date) => formatDate(date),
+      title: 'Date & Time',
+      key: 'datetime',
       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-      width: 120,
+      width: 160,
+      render: (record) => {
+        const start = dayjs().startOf('day').add(record.start_hour, 'hours');
+        const end = start.add(record.duration || 1, 'hours');
+        return (
+          <div>
+            <div className="text-sm font-medium text-slate-800 whitespace-nowrap">{dayjs(record.date).format('ddd, MMM D')}</div>
+            <div className="text-xs text-slate-400 whitespace-nowrap mt-0.5">{start.format('HH:mm')}–{end.format('HH:mm')} · {record.duration || 1}h</div>
+          </div>
+        );
+      },
     },
     {
-      title: 'Time',
-      key: 'time',
-      render: (record) => (
-        <span className="time-display">
-          {formatTime(record.start_hour, record.duration)}
-        </span>
-      ),
-      width: 120,
-    },
-    {
-      title: 'User',
+      title: 'Participant',
       key: 'user',
       render: (record) => {
         const name = getUserName(record);
         const isGroup = isGroupBooking(record);
         const indicator = getGroupIndicator(record);
-        const content = (
-          <div className="user-cell">
-            <Avatar size="small" icon={<UserOutlined />} className="mr-2" />
-            <div>
-              <div className="user-name">{name}</div>
-              {isGroup && indicator ? <Tag color="blue" className="ml-2">{indicator}</Tag> : null}
+        return (
+          <Tooltip title={isGroup ? getGroupBookingTooltip(record) : undefined}>
+            <div className="flex items-center gap-2">
+              <Avatar size={26} icon={<UserOutlined />} className="flex-shrink-0 bg-blue-100 text-blue-600" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-slate-800 truncate max-w-[130px]">{name}</div>
+                {isGroup && indicator && <span className="text-[10px] text-blue-600 font-medium">{indicator}</span>}
+              </div>
             </div>
-          </div>
+          </Tooltip>
         );
-        return isGroup ? (
-          <Tooltip title={getGroupBookingTooltip(record)}>{content}</Tooltip>
-        ) : content;
       },
-  sorter: (a, b) => getUserName(a).localeCompare(getUserName(b)),
+      sorter: (a, b) => getUserName(a).localeCompare(getUserName(b)),
     },
     {
       title: 'Instructor',
       key: 'instructor',
-      render: (record) => getInstructorName(record),
-  sorter: (a, b) => getInstructorName(a).localeCompare(getInstructorName(b)),
+      render: (record) => (
+        <span className="text-sm text-slate-700 whitespace-nowrap">{getInstructorName(record)}</span>
+      ),
+      sorter: (a, b) => getInstructorName(a).localeCompare(getInstructorName(b)),
     },
     {
       title: 'Service',
       dataIndex: 'service_name',
       key: 'service_name',
-      render: (service) => service || 'Lesson',
-    },
-    {
-      title: <div className="text-center font-semibold">Duration</div>,
-      dataIndex: 'duration',
-      key: 'duration',
-      render: (duration) => (
-        <div className="text-center">
-          <span className="font-medium">{duration || 1}h</span>
-        </div>
+      render: (service) => (
+        <span className="text-sm text-slate-700 max-w-[160px] truncate block" title={service || 'Lesson'}>{service || 'Lesson'}</span>
       ),
-      width: 100,
-      align: 'center',
     },
     {
-      title: <div className="text-center font-semibold">Status</div>,
+      title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <div className="flex justify-center">
-          {getStatusBadge(status)}
-        </div>
-      ),
+      render: (status) => {
+        const cfg = {
+          confirmed: { dot: 'bg-blue-500',    text: 'text-blue-700',   bg: 'bg-blue-50',   label: 'Confirmed'  },
+          pending:   { dot: 'bg-amber-500',   text: 'text-amber-700',  bg: 'bg-amber-50',  label: 'Pending'    },
+          completed: { dot: 'bg-emerald-500', text: 'text-emerald-700',bg: 'bg-emerald-50',label: 'Completed'  },
+          cancelled: { dot: 'bg-red-400',     text: 'text-red-700',    bg: 'bg-red-50',    label: 'Cancelled'  },
+          booked:    { dot: 'bg-indigo-500',  text: 'text-indigo-700', bg: 'bg-indigo-50', label: 'Booked'     },
+        }[status?.toLowerCase()] || { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', label: status || 'Unknown' };
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text} whitespace-nowrap`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} flex-shrink-0`} />
+            {cfg.label}
+          </span>
+        );
+      },
       filters: [
         { text: 'Confirmed', value: 'confirmed' },
         { text: 'Pending', value: 'pending' },
@@ -569,62 +568,47 @@ const BookingListView = () => {
         { text: 'Booked', value: 'booked' },
       ],
       onFilter: (value, record) => (record.status || '').toLowerCase() === value,
-      width: 130,
-      align: 'center',
+      width: 120,
     },
     {
       title: 'Created By',
       key: 'createdBy',
-      dataIndex: 'createdByLabel',
       render: (_, record) => {
         const label = record.createdByLabel || 'Unknown';
         const timestamp = record.createdAtFormatted;
-
         return (
-          <Tooltip
-            title={timestamp ? `Created ${timestamp}` : 'Created via automation'}
-            placement="top"
-          >
-            <div className="flex flex-col">
-              <span className="font-medium text-gray-800">{label}</span>
-              {timestamp && (
-                <span className="text-xs text-gray-500">{timestamp}</span>
-              )}
+          <Tooltip title={timestamp ? `Created ${timestamp}` : undefined} placement="top">
+            <div>
+              <div className="text-sm text-slate-700 whitespace-nowrap">{label}</div>
+              {timestamp && <div className="text-[11px] text-slate-400 whitespace-nowrap">{timestamp}</div>}
             </div>
           </Tooltip>
         );
       },
       sorter: (a, b) => (a.createdByLabel || '').localeCompare(b.createdByLabel || ''),
-      width: 160,
+      width: 155,
     },
     {
-      title: <div className="text-center font-semibold">Actions</div>,
+      title: '',
       key: 'actions',
       render: (record) => (
-        <div className="flex justify-center">
-          <Space size="middle" className="action-buttons">
-            <Tooltip title="Edit booking">
-              <Button 
-                type="text" 
-                icon={<EditOutlined />} 
-                size="small"
-                onClick={() => { setSelectedBooking(record); setIsDetailOpen(true); }}
-              />
-            </Tooltip>
-            <Tooltip title="Delete booking">
-              <Button 
-                type="text" 
-                icon={<DeleteOutlined />} 
-                size="small"
-                danger
-                onClick={() => handleDelete(record.id)}
-              />
-            </Tooltip>
-          </Space>
+        <div className="flex items-center justify-end gap-0.5">
+          <Tooltip title="View / Edit">
+            <Button type="text" icon={<EditOutlined />} size="small"
+              className="text-slate-400 hover:text-blue-600"
+              onClick={() => { setSelectedBooking(record); setIsDetailOpen(true); }}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button type="text" icon={<DeleteOutlined />} size="small" danger
+              className="text-slate-300 hover:text-red-500"
+              onClick={() => handleDelete(record.id)}
+            />
+          </Tooltip>
         </div>
       ),
-      width: 120,
-      align: 'center',
+      width: 72,
+      align: 'right',
     },
   ];
 
@@ -644,7 +628,7 @@ const BookingListView = () => {
             currentView="list"
             views={['list', 'day', 'week', 'month']}
             calendarPath="/bookings/calendar"
-            size="large"
+            size="default"
           />
 
           {/* Center: Title */}
@@ -657,7 +641,7 @@ const BookingListView = () => {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => navigate('/bookings/calendar')}
-            className="h-10 rounded-xl shadow-md"
+            className="h-8 rounded-lg text-sm"
           >
             <span className="hidden sm:inline">New Booking</span>
             <span className="sm:hidden">New</span>
@@ -777,7 +761,6 @@ const BookingListView = () => {
                 selectedRowKeys,
                 onChange: setSelectedRowKeys,
                 preserveSelectedRowKeys: true,
-                fixed: true,
                 columnWidth: 40,
               }}
               rowKey={buildRowKey}
@@ -798,10 +781,10 @@ const BookingListView = () => {
                   `${range[0]}-${range[1]} of ${total} bookings`,
                 className: "mt-4 px-4 pb-4"
               }}
-              scroll={{ x: 1000 }}
-              size={tableSize}
+              scroll={{ x: 800 }}
+              size="small"
               sticky={{ offsetHeader: 0 }}
-              rowClassName={(_, index) => index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+              rowClassName="hover:bg-blue-50/30 transition-colors"
               className="rounded-lg"
               locale={{
                 emptyText: (

@@ -679,20 +679,12 @@ const Customers = () => {
           destroyOnHidden
           styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
         >
-          <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4">
+          <div className="flex-shrink-0 border-b border-slate-200 bg-white px-5 py-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg shadow-sm ring-1 ring-white/10">
-                  <UserOutlined className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white leading-tight">New Customer</h2>
-                  <p className="text-blue-200 text-xs mt-0.5">Register a new customer or student</p>
-                </div>
-              </div>
+              <h2 className="text-base font-semibold text-slate-800 m-0">New Customer</h2>
               <button
                 onClick={() => setIsFormDrawerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white border-0 cursor-pointer transition-colors text-base"
+                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 border-0 cursor-pointer transition-colors text-base"
               >
                 &times;
               </button>
