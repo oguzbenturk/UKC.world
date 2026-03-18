@@ -945,8 +945,35 @@ function Rentals() {
     {
       title: 'Price',
       key: 'price_status',
-      width: 70,
-      render: (_, record) => <span className="text-xs font-medium whitespace-nowrap">{formatCurrency(record.total_price, record.currency || businessCurrency)}</span>,
+      width: 90,
+      render: (_, record) => {
+        const total = parseFloat(record.total_price) || 0;
+        if (total > 0) {
+          return <span className="text-xs font-medium whitespace-nowrap">{formatCurrency(total, record.currency || businessCurrency)}</span>;
+        }
+        // Package rental: compute service value from equipment_details dailyRate
+        if (record.customer_package_id) {
+          const eqDetails = typeof record.equipment_details === 'string'
+            ? JSON.parse(record.equipment_details)
+            : (record.equipment_details || {});
+          const items = Object.values(eqDetails);
+          const dailyRateSum = items.reduce((s, eq) => s + (parseFloat(eq.dailyRate ?? eq.price ?? 0)), 0);
+          if (dailyRateSum > 0) {
+            const days = (record.start_date && record.end_date)
+              ? Math.max(1, Math.round((new Date(record.end_date) - new Date(record.start_date)) / 86400000))
+              : 1;
+            const serviceValue = dailyRateSum * days;
+            return (
+              <span className="whitespace-nowrap flex items-center gap-1">
+                <span className="text-xs font-medium">{formatCurrency(serviceValue, record.currency || businessCurrency)}</span>
+                <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1 rounded">pkg</span>
+              </span>
+            );
+          }
+          return <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Package</span>;
+        }
+        return <span className="text-xs text-gray-400">—</span>;
+      },
     },
     {
       title: 'Status',

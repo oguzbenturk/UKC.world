@@ -383,7 +383,7 @@ const MonthView = ({ onBookingClick }) => {
   <div ref={gridRef} className="month-grid grid grid-cols-7 relative">
     {calendarDays.map((day) => {
           const summary = getDaySummary(day.dateStr);
-          const maxVisible = isMobile ? 4 : 6;
+          const maxVisible = 3;
           
           return (
             <div 
@@ -441,49 +441,26 @@ const MonthView = ({ onBookingClick }) => {
                         <>
                           {visible.map((booking) => {
                             const nameOnly = formatParticipantNamesCompact(booking);
-                            const timeText = getFullTimeRange(booking);
-                            const instructorText = booking.instructorName;
+                            const startTime = (booking.startTime || booking.time || '').slice(0, 5);
                             const statusClass = getStatusClass(booking);
-                            const tooltipText = getGroupBookingTooltip(booking);
+                            const tooltipText = `${nameOnly}${startTime ? ' · ' + startTime : ''}${booking.instructorName ? ' · ' + booking.instructorName : ''}`;
                             return (
                               <DraggableBooking booking={booking} key={booking.id} className="w-full">
-                                  <div
-                                  className={`relative block w-full min-w-0 items-center gap-2 p-2 rounded-xl cursor-pointer hover:shadow-sm transition-all duration-200 ${statusClass}`}
-                                  onClick={(e) => {
-                                    if (isMobile) {
-                                      e.stopPropagation();
-                                      openDayExpanded(day.dateStr);
-                                    } else {
-                                      handleBookingClick(booking, e);
-                                    }
-                                  }}
+                                <div
+                                  className={`cal-pill ${statusClass}`}
+                                  onClick={(e) => handleBookingClick(booking, e)}
                                   title={tooltipText}
                                 >
-                                  <div className="relative z-[1] min-w-0">
-                                    {isMobile ? (
-                                      <span className={'text-[10px] md:text-[11px] font-semibold leading-tight tracking-wide truncate min-w-0 max-w-full'}>
-                                        {nameOnly}
-                                      </span>
-                                    ) : (
-                                      <div className="min-w-0">
-                                        <div className="text-[11px] font-semibold leading-tight tracking-wide truncate min-w-0 max-w-full">{nameOnly}</div>
-                                        {timeText && (
-                                          <div className="text-[10px] opacity-80 leading-tight mt-0.5">{timeText}</div>
-                                        )}
-                                        {instructorText && (
-                                          <div className="text-[10px] opacity-70 leading-tight">{instructorText}</div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                                  <span className="cal-pill-name">{nameOnly}</span>
+                                  {startTime && <span className="cal-pill-time">{startTime}</span>}
                                 </div>
                               </DraggableBooking>
                             );
                           })}
-                          {overflow > 0 && isMobile && (
+                          {overflow > 0 && (
                             <button
                               type="button"
-                              className="w-full text-[11px] text-blue-600 hover:text-blue-700 text-left px-1 py-0.5"
+                              className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-slate-50 transition-colors"
                               onClick={(e) => { e.stopPropagation(); openDayExpanded(day.dateStr); }}
                             >
                               +{overflow} more
@@ -505,7 +482,7 @@ const MonthView = ({ onBookingClick }) => {
         })}
   </div>
   {/* Expanded overlay panel */}
-  {isMobile && expandedDay && overlayStyle && (
+  {expandedDay && overlayStyle && (
     <div className="absolute z-50" style={{ left: overlayStyle.left, top: overlayStyle.top, width: overlayStyle.width }}>
       <div ref={overlayRef} className="bg-white border border-blue-200 shadow-xl rounded-md p-2 md:p-3" onClick={(e)=>e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">

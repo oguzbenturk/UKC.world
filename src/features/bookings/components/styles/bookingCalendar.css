@@ -1344,6 +1344,49 @@
   background-color: #94a3b8; /* slate-400 */
 }
 
+/* ── Compact event pills for Month / 9x9 Week grid cells ────────────── */
+.cal-pill {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 3px !important;
+  cursor: pointer;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.cal-pill:hover {
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+.cal-pill:active { transform: translateY(0); }
+
+.cal-pill-name {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cal-pill-time {
+  font-size: 10px;
+  opacity: 0.65;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Status text colours for pills */
+.cal-pill.booking-card-pending  { color: #78350f; }
+.cal-pill.booking-card-checked-in { color: #1e3a8a; }
+.cal-pill.booking-card-completed  { color: #14532d; }
+.cal-pill.booking-card-cancelled  { color: #475569; }
+.cal-pill.booking-card-default    { color: #334155; }
+
 /* Remove old styles to avoid conflicts */
 .simple-daily-booking-card,
 .simple-daily-booking-card.status-pending,

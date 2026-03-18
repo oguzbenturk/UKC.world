@@ -261,8 +261,9 @@ const WeekView = ({ onBookingClick, onTimeSlotClick }) => {
         <div ref={gridRef} className="grid grid-cols-3 relative">
           {weekDays.map((day) => {
             const dayBookings = getBookingsForDay(day.dateStr).sort((a, b) => (a.startTime || a.time || '00:00').localeCompare(b.startTime || b.time || '00:00'));
-            const maxVisible = 6;
+            const maxVisible = 3;
             const visible = dayBookings.slice(0, maxVisible);
+            const overflow = Math.max(0, dayBookings.length - maxVisible);
             return (
               <div
                 key={day.dateStr}
@@ -286,59 +287,41 @@ const WeekView = ({ onBookingClick, onTimeSlotClick }) => {
                     {visible.map((booking) => {
                       const statusClass = getBookingStatusClass(booking.status, booking.checkInStatus);
                       const participantNames = getParticipantFullNames(booking);
-                      const shownNames = participantNames.slice(0, 2);
-                      const extraCount = Math.max(0, participantNames.length - shownNames.length);
-                      const timeText = getFullTimeRange(booking).replace(/\s*-\s*/, '-');
-                      const instructorText = booking.instructorName;
+                      const nameOnly = participantNames[0] || 'Booking';
+                      const extraPax = Math.max(0, participantNames.length - 1);
+                      const startTime = (booking.startTime || booking.time || '').slice(0, 5);
                       const tooltip = getGroupBookingTooltip(booking);
                       const isHeld = heldBooking && heldBooking.id === booking.id;
                       return (
                         <DraggableBooking booking={booking} key={`${day.dateStr}-${booking.id}`} className="w-full">
                           <div
-                            className={`relative block w-full min-w-0 items-center gap-2 px-1.5 md:px-2 py-1 rounded-sm cursor-pointer ${statusClass} ${isHeld ? 'opacity-50 ring-2 ring-orange-400 ring-dashed' : ''}`}
+                            className={`cal-pill relative ${statusClass} ${isHeld ? 'opacity-50 ring-2 ring-orange-400 ring-dashed' : ''}`}
                             onClick={(e) => handleBookingClick(booking, e)}
                             title={isHeld ? 'This booking is being moved...' : tooltip}
                           >
                             {isHeld && (
-                              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-1 py-0.5 rounded-full text-[10px] font-bold">
-                                HELD
-                              </div>
+                              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] px-1 rounded-full font-bold z-10">HELD</span>
                             )}
-                            <div className="relative z-[1] min-w-0">
-                              <div className="min-w-0">
-                                {shownNames.map((n, idx) => (
-                                  <div key={`${booking.id}-name-${idx}`} className="text-[11px] text-gray-900 leading-tight tracking-wide truncate min-w-0 max-w-full">
-                                    {n}
-                                  </div>
-                                ))}
-                                {extraCount > 0 && (
-                                  <div className="text-[11px] text-gray-500 leading-tight">+{extraCount} more</div>
-                                )}
-                                {timeText && (
-                                  <div className="text-[11px] text-gray-700 leading-tight">{timeText}</div>
-                                )}
-                                {instructorText && (
-                                  <div className="text-[11px] text-gray-600 leading-tight truncate min-w-0 max-w-full">{instructorText}</div>
-                                )}
-                              </div>
-                            </div>
+                            <span className="cal-pill-name">{nameOnly}{extraPax > 0 ? ` +${extraPax}` : ''}</span>
+                            {startTime && <span className="cal-pill-time">{startTime}</span>}
                           </div>
                         </DraggableBooking>
                       );
                     })}
-                    
-                    {/* Always add one empty row for new bookings */}
-                    <div 
-                      className="relative block w-full min-w-0 px-1.5 md:px-2 py-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-all duration-200"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDayClick(day, event);
-                      }}
-                      title="Click to add a new booking"
-                    >
-                      {/* Empty slot - invisible but clickable */}
-                      <div className="h-4" />
-                    </div>
+                    {overflow > 0 && (
+                      <button
+                        type="button"
+                        className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-slate-50 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); setTargetDate(day.dateStr); setShowDailyViewOverlay(true); }}
+                      >
+                        +{overflow} more
+                      </button>
+                    )}
+                    {/* Empty area — click day to open daily overlay */}
+                    <div
+                      className="h-3 cursor-pointer"
+                      onClick={(event) => { event.stopPropagation(); handleDayClick(day, event); }}
+                    />
                   </div>
                 </div>
               </div>
