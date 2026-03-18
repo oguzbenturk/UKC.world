@@ -289,50 +289,6 @@ const AdminMembersPage = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <Row gutter={[12, 12]} className="mb-4 md:mb-6">
-        <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
-            <Statistic
-              title={<span className="text-xs md:text-sm">Total Members</span>}
-              value={stats?.total || 0}
-              prefix={<UserOutlined />}
-              valueStyle={{ fontSize: isMobile ? 20 : 24 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
-            <Statistic
-              title={<span className="text-xs md:text-sm">Active</span>}
-              value={stats?.active || 0}
-              valueStyle={{ color: '#52c41a', fontSize: isMobile ? 20 : 24 }}
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
-            <Statistic
-              title={<span className="text-xs md:text-sm">Pending</span>}
-              value={stats?.pending || 0}
-              valueStyle={{ color: '#faad14', fontSize: isMobile ? 20 : 24 }}
-              prefix={<ClockCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: isMobile ? 12 : 20 } }}>
-            <Statistic
-              title={<span className="text-xs md:text-sm">Expired</span>}
-              value={stats?.expired || 0}
-              valueStyle={{ color: '#8c8c8c', fontSize: isMobile ? 20 : 24 }}
-              prefix={<CloseCircleOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* Filters */}
       <Card className="rounded-xl border border-slate-200 shadow-sm mb-4" styles={{ body: { padding: isMobile ? 12 : 16 } }}>
         <div className="flex flex-col sm:flex-row gap-3">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, Typography, Table, Button, Tag, Modal, Form, Input, Select, Upload, Empty, Spin, Drawer, Space, Divider, Timeline, Descriptions, Image, Avatar, Checkbox, Tabs } from 'antd';
+import { Card, Typography, Button, Tag, Form, Input, Select, Upload, Empty, Spin, Drawer, Space, Divider, Descriptions, Image, Avatar, Checkbox, Tabs, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { PlusOutlined, ToolOutlined, CameraOutlined, EditOutlined, EyeOutlined, MessageOutlined, SendOutlined, UserOutlined, LockOutlined } from '@ant-design/icons';
+import { PlusOutlined, ToolOutlined, CameraOutlined, MessageOutlined, SendOutlined, LockOutlined, CheckOutlined, ClockCircleOutlined, CheckCircleOutlined, FireOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useData } from '@/shared/hooks/useData';
 import apiClient from '@/shared/services/apiClient';
@@ -12,52 +12,13 @@ import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-const RepairMobileCard = ({ record, onAction, isAdmin }) => (
-  <Card size="small" className="mb-2">
-    <div className="flex justify-between items-start mb-2">
-      <Space>
-        {record.photos && parsePhotos(record.photos)[0] ? (
-            <Avatar shape="square" src={parsePhotos(record.photos)[0]} />
-        ) : (
-            <Avatar shape="square" icon={<ToolOutlined />} />
-        )}
-        <div>
-          <div className="font-medium">{record.item_name}</div>
-          <div className="text-xs text-gray-500 capitalize">{record.equipment_type} • {record.location}</div>
-        </div>
-      </Space>
-      <Tag color={record.priority === 'urgent' ? 'red' : record.priority === 'high' ? 'orange' : 'blue'}>
-        {record.priority}
-      </Tag>
-    </div>
-    <div className="flex justify-between items-center mt-3">
-        <Tag color={record.status === 'completed' ? 'green' : record.status === 'pending' ? 'orange' : 'blue'}>
-            {record.status?.toUpperCase().replace('_', ' ')}
-        </Tag>
-        <Space>
-            <Button size="small" icon={<MessageOutlined />} onClick={() => onAction('view', record)}>View</Button>
-            {isAdmin && <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)}>Edit</Button>}
-        </Space>
-    </div>
-  </Card>
-);
-
-/**
- * Safely parse photos field which may be JSON string, array, or plain string path
- */
 const parsePhotos = (photos) => {
   if (!photos) return [];
   if (Array.isArray(photos)) return photos;
   if (typeof photos === 'string') {
-    // Check if it looks like JSON (starts with [)
     if (photos.startsWith('[')) {
-      try {
-        return JSON.parse(photos);
-      } catch {
-        return [];
-      }
+      try { return JSON.parse(photos); } catch { return []; }
     }
-    // Plain string path - wrap in array
     return [photos];
   }
   return [];
@@ -239,94 +200,121 @@ const RepairChat = ({ repairId, isAdmin, userId }) => {
   );
 };
 
+// ─── Mobile Card ─────────────────────────────────────────────────────────────
+const RepairMobileCard = ({ record, onAction, isAdmin, staffUsers = [] }) => {
+  const priorityColor = { urgent: 'red', high: 'orange', medium: 'gold', low: 'blue' };
+  const statusColors = { pending: 'orange', in_progress: 'blue', completed: 'green', cancelled: 'default' };
+  const assignee = staffUsers.find(u => u.id === record.assigned_to);
+  return (
+    <Card size="small" className="mb-2">
+      <div className="flex justify-between items-start mb-2">
+        <Space>
+          {record.photos && parsePhotos(record.photos)[0]
+            ? <Avatar shape="square" src={parsePhotos(record.photos)[0]} />
+            : <Avatar shape="square" icon={<ToolOutlined />} />}
+          <div>
+            <div className="font-medium">{record.item_name}</div>
+            <div className="text-xs text-gray-500 capitalize">{record.equipment_type} • {record.location}</div>
+            {assignee && <div className="text-xs text-blue-500 mt-0.5">→ {assignee.first_name} {assignee.last_name}</div>}
+          </div>
+        </Space>
+        <Tag color={priorityColor[record.priority] || 'blue'}>{record.priority}</Tag>
+      </div>
+      <div className="flex justify-between items-center mt-3">
+        <Tag color={statusColors[record.status]}>{record.status?.toUpperCase().replace('_', ' ')}</Tag>
+        <Button size="small" icon={<MessageOutlined />} onClick={() => onAction('view', record)}>View</Button>
+      </div>
+    </Card>
+  );
+};
+
 /**
  * RepairsPage - Submit and track repair requests
- * Visible to all users - students, instructors, managers, admin
+ * Admin/manager: repairman workflow view (no New Request button)
+ * Other roles: customer view with submit and track
  */
 const RepairsPage = () => {
   const { user } = useAuth();
   const { usersWithStudentRole = [] } = useData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('pending');
-  const [form] = Form.useForm();
-  const [editForm] = Form.useForm();
+
   const [repairs, setRepairs] = useState([]);
-  const [fileList, setFileList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fileList, setFileList] = useState([]);
+  const [form] = Form.useForm();
+  const [activeTab, setActiveTab] = useState('pending');
+
+  // Customer create drawer
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Detail drawer
   const [selectedRepair, setSelectedRepair] = useState(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
+
+  // Inline drawer edit
+  const [drawerUpdating, setDrawerUpdating] = useState(false);
+  const [drawerNotes, setDrawerNotes] = useState('');
+  const [notesDirty, setNotesDirty] = useState(false);
+
+  // Staff for assign-to
+  const [staffUsers, setStaffUsers] = useState([]);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
 
-  useEffect(() => {
-    fetchRepairs();
-  }, []);
+  const priorityOptions = [
+    { value: 'low',    label: 'Low',    color: 'blue' },
+    { value: 'medium', label: 'Medium', color: 'gold' },
+    { value: 'high',   label: 'High',   color: 'orange' },
+    { value: 'urgent', label: 'Urgent', color: 'red' },
+  ];
+  const statusOptions = [
+    { value: 'pending',     label: 'Pending',     color: 'orange' },
+    { value: 'in_progress', label: 'In Progress', color: 'blue' },
+    { value: 'completed',   label: 'Completed',   color: 'green' },
+    { value: 'cancelled',   label: 'Cancelled',   color: 'default' },
+  ];
+  const statusColors = {
+    pending: 'orange', in_progress: 'blue', completed: 'green', cancelled: 'default',
+  };
 
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchRepairs = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/repair-requests');
-      setRepairs(response.data.data);
-    } catch (error) {
+      const res = await apiClient.get('/repair-requests');
+      const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+      const sorted = [...res.data.data].sort((a, b) => {
+        const pd = (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+        return pd !== 0 ? pd : new Date(b.created_at) - new Date(a.created_at);
+      });
+      setRepairs(sorted);
+    } catch {
       message.error('Failed to load repair requests');
     } finally {
       setLoading(false);
     }
   };
 
-  const priorityOptions = [
-    { value: 'low', label: 'Low - Not Urgent', color: 'blue' },
-    { value: 'medium', label: 'Medium - Within a Week', color: 'orange' },
-    { value: 'high', label: 'High - Urgent', color: 'red' },
-  ];
-
-  const statusOptions = [
-    { value: 'pending', label: 'Pending', color: 'orange' },
-    { value: 'in_progress', label: 'In Progress', color: 'blue' },
-    { value: 'completed', label: 'Completed', color: 'green' },
-    { value: 'cancelled', label: 'Cancelled', color: 'default' },
-  ];
-
-  const statusColors = {
-    pending: 'orange',
-    in_progress: 'blue',
-    completed: 'green',
-    cancelled: 'default',
+  const fetchStaffUsers = async () => {
+    try {
+      const res = await apiClient.get('/users');
+      const data = res.data?.data || res.data || [];
+      setStaffUsers(data.filter(u => ['admin', 'manager', 'instructor'].includes(u.role)));
+    } catch {
+      // Non-critical
+    }
   };
 
+  useEffect(() => {
+    fetchRepairs();
+    if (isAdmin) fetchStaffUsers();
+  }, []);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleViewDetails = (record) => {
     setSelectedRepair(record);
+    setDrawerNotes(record.notes || '');
+    setNotesDirty(false);
     setDetailDrawerOpen(true);
-  };
-
-  const handleEditStatus = (record) => {
-    setSelectedRepair(record);
-    editForm.setFieldsValue({
-      status: record.status,
-      notes: record.notes || '',
-    });
-    setEditModalOpen(true);
-  };
-
-  const handleUpdateRepair = async (values) => {
-    if (!selectedRepair) return;
-    setUpdating(true);
-    try {
-      await apiClient.patch(`/repair-requests/${selectedRepair.id}`, {
-        status: values.status,
-        notes: values.notes,
-      });
-      message.success('Repair request updated successfully');
-      setEditModalOpen(false);
-      editForm.resetFields();
-      fetchRepairs();
-    } catch (error) {
-      message.error('Failed to update repair request');
-    } finally {
-      setUpdating(false);
-    }
   };
 
   const handleQuickStatusChange = async (repairId, newStatus) => {
@@ -334,107 +322,47 @@ const RepairsPage = () => {
       await apiClient.patch(`/repair-requests/${repairId}`, { status: newStatus });
       message.success('Status updated');
       fetchRepairs();
-    } catch (error) {
+      if (selectedRepair?.id === repairId) {
+        setSelectedRepair(prev => ({ ...prev, status: newStatus }));
+      }
+    } catch {
       message.error('Failed to update status');
     }
   };
 
-  const columns = [
-    {
-      title: 'Equipment',
-      dataIndex: 'equipment_type',
-      key: 'equipment_type',
-      // Equipment type is free text, show as is
-    },
-    {
-      title: 'Item',
-      dataIndex: 'item_name',
-      key: 'item_name',
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: 'Submitted By',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      render: (name, record) => {
-        const isGuest = !record.user_id;
-        return (
-          <Space size={4}>
-            <span>{name || '—'}</span>
-            {isGuest && <Tag color="teal" className="text-xs">Guest</Tag>}
-          </Space>
-        );
-      },
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority) => {
-        const opt = priorityOptions.find(p => p.value === priority);
-        return <Tag color={opt?.color}>{opt?.label || priority}</Tag>;
-      },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status, record) => {
-        if (isAdmin) {
-          return (
-            <Select
-              value={status}
-              size="small"
-              style={{ width: 130 }}
-              onChange={(value) => handleQuickStatusChange(record.id, value)}
-              options={statusOptions}
-            />
-          );
-        }
-        return <Tag color={statusColors[status]}>{status?.replace('_', ' ').toUpperCase()}</Tag>;
-      },
-    },
-    {
-      title: 'Submitted',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<MessageOutlined />}
-            onClick={() => handleViewDetails(record)}
-            title="View Details & Chat"
-          />
-          {isAdmin && (
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => handleEditStatus(record)}
-              title="Edit Status & Notes"
-            />
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const handleQuickFieldChange = async (repairId, field, value) => {
+    try {
+      await apiClient.patch(`/repair-requests/${repairId}`, { [field]: value });
+      message.success('Updated');
+      fetchRepairs();
+      if (selectedRepair?.id === repairId) {
+        const stateKey = field === 'assignedTo' ? 'assigned_to' : field;
+        setSelectedRepair(prev => ({ ...prev, [stateKey]: value }));
+      }
+    } catch {
+      message.error('Failed to update');
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedRepair) return;
+    setDrawerUpdating(true);
+    try {
+      await apiClient.patch(`/repair-requests/${selectedRepair.id}`, { notes: drawerNotes });
+      message.success('Notes saved');
+      setNotesDirty(false);
+      fetchRepairs();
+      setSelectedRepair(prev => ({ ...prev, notes: drawerNotes }));
+    } catch {
+      message.error('Failed to save notes');
+    } finally {
+      setDrawerUpdating(false);
+    }
+  };
 
   const handleSubmitRepair = async (values) => {
     try {
-      const photos = fileList
-        .map(f => f.response?.url || f.url)
-        .filter(Boolean);
-
+      const photos = fileList.map(f => f.response?.url || f.url).filter(Boolean);
       await apiClient.post('/repair-requests', {
         equipmentType: values.equipmentType,
         itemName: values.itemName,
@@ -444,13 +372,12 @@ const RepairsPage = () => {
         photos,
         ...(isAdmin && values.userId ? { userId: values.userId } : {}),
       });
-
       message.success('Repair request submitted successfully');
       setIsModalOpen(false);
       form.resetFields();
       setFileList([]);
       fetchRepairs();
-    } catch (error) {
+    } catch {
       message.error('Failed to submit repair request');
     }
   };
@@ -465,190 +392,322 @@ const RepairsPage = () => {
         const formData = new FormData();
         formData.append('image', file);
         const token = localStorage.getItem('token');
-        
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener('progress', (e) => {
-          if (e.total) {
-            onProgress?.({ percent: Math.round((e.loaded / e.total) * 100) });
-          }
+          if (e.total) onProgress?.({ percent: Math.round((e.loaded / e.total) * 100) });
         });
-        
         xhr.addEventListener('load', () => {
-          if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            onSuccess?.(response);
-          } else {
-            onError?.(new Error('Upload failed'));
-          }
+          if (xhr.status === 200) onSuccess?.(JSON.parse(xhr.responseText));
+          else onError?.(new Error('Upload failed'));
         });
-        
-        xhr.addEventListener('error', () => {
-          onError?.(new Error('Upload failed'));
-        });
-        
+        xhr.addEventListener('error', () => onError?.(new Error('Upload failed')));
         xhr.open('POST', '/api/upload/repair-image');
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
-      } catch (err) {
-        onError?.(err);
-      }
+      } catch (err) { onError?.(err); }
     },
     beforeUpload: (file) => {
-      const isImage = file.type.startsWith('image/');
-      if (!isImage) {
-        message.error('You can only upload image files!');
-      }
-      const isLt5M = file.size / 1024 / 1024 < 5;
-      if (!isLt5M) {
-        message.error('Image must be smaller than 5MB!');
-      }
-      return isImage && isLt5M;
+      const isImg = file.type.startsWith('image/');
+      const isSmall = file.size / 1024 / 1024 < 5;
+      if (!isImg) message.error('Only image files are allowed');
+      if (!isSmall) message.error('Image must be smaller than 5MB');
+      return isImg && isSmall;
     },
   };
 
+  // ── KPI ────────────────────────────────────────────────────────────────────
+  const kpi = {
+    pending:     repairs.filter(r => r.status === 'pending').length,
+    in_progress: repairs.filter(r => r.status === 'in_progress').length,
+    completed:   repairs.filter(r => r.status === 'completed').length,
+    urgent:      repairs.filter(r => r.priority === 'urgent' && r.status !== 'completed' && r.status !== 'cancelled').length,
+  };
+
+  // ── Admin table columns ────────────────────────────────────────────────────
+  const adminColumns = [
+    {
+      title: 'Item',
+      key: 'item',
+      render: (_, record) => (
+        <div>
+          <div className="font-medium text-sm">{record.item_name}</div>
+          <div className="text-xs text-gray-400 capitalize">
+            {record.equipment_type}{record.location ? ` · ${record.location}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Submitted By',
+      key: 'submitted_by',
+      render: (_, record) => (
+        <Space size={4}>
+          <span className="text-sm">{record.user_name || record.guest_name || '—'}</span>
+          {!record.user_id && <Tag color="teal" className="text-xs">Guest</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      render: (priority) => {
+        const opt = priorityOptions.find(p => p.value === priority);
+        return <Tag color={opt?.color}>{opt?.label || priority}</Tag>;
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status, record) => (
+        <Select
+          value={status}
+          size="small"
+          style={{ width: 130 }}
+          onChange={(val) => handleQuickStatusChange(record.id, val)}
+          options={statusOptions}
+        />
+      ),
+    },
+    {
+      title: 'Assigned To',
+      key: 'assigned_to',
+      render: (_, record) => (
+        <Select
+          value={record.assigned_to || null}
+          size="small"
+          allowClear
+          placeholder="Unassigned"
+          style={{ width: 145 }}
+          onChange={(val) => handleQuickFieldChange(record.id, 'assignedTo', val || null)}
+          options={staffUsers.map(u => ({
+            value: u.id,
+            label: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          }))}
+        />
+      ),
+    },
+    {
+      title: 'Date',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date) => <span className="text-xs text-gray-500">{dayjs(date).format('MMM D, YY')}</span>,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size={4}>
+          {record.status === 'pending' && (
+            <Tooltip title="Accept — move to In Progress">
+              <Button
+                size="small"
+                type="primary"
+                icon={<ClockCircleOutlined />}
+                onClick={() => handleQuickStatusChange(record.id, 'in_progress')}
+              >
+                Accept
+              </Button>
+            </Tooltip>
+          )}
+          {record.status === 'in_progress' && (
+            <Tooltip title="Mark as Completed">
+              <Button
+                size="small"
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() => handleQuickStatusChange(record.id, 'completed')}
+                className="bg-green-600 border-green-600"
+              >
+                Done
+              </Button>
+            </Tooltip>
+          )}
+          <Tooltip title="View Details & Chat">
+            <Button size="small" icon={<MessageOutlined />} onClick={() => handleViewDetails(record)} />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
+
+  // ── Customer table columns ─────────────────────────────────────────────────
+  const customerColumns = [
+    { title: 'Equipment', dataIndex: 'equipment_type', key: 'equipment_type' },
+    { title: 'Item', dataIndex: 'item_name', key: 'item_name' },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      render: (priority) => {
+        const opt = priorityOptions.find(p => p.value === priority);
+        return <Tag color={opt?.color}>{opt?.label || priority}</Tag>;
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => (
+        <Tag color={statusColors[status]}>{status?.replace('_', ' ').toUpperCase()}</Tag>
+      ),
+    },
+    {
+      title: 'Submitted',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date) => dayjs(date).format('MMM D, YYYY'),
+    },
+    {
+      title: '',
+      key: 'actions',
+      render: (_, record) => (
+        <Button type="text" size="small" icon={<MessageOutlined />} onClick={() => handleViewDetails(record)} />
+      ),
+    },
+  ];
+
+  // ── Admin tab builder ──────────────────────────────────────────────────────
+  const buildAdminTab = (key, label, data, tagColor) => ({
+    key,
+    label: <span>{label} <Tag color={tagColor} className="ml-1">{data.length}</Tag></span>,
+    children: (
+      <Card className="rounded-2xl shadow-sm">
+        <Spin spinning={loading}>
+          {data.length > 0 ? (
+            <UnifiedResponsiveTable
+              dataSource={data}
+              columns={adminColumns}
+              rowKey="id"
+              pagination={{ pageSize: 15 }}
+              mobileCardRenderer={(props) => (
+                <RepairMobileCard
+                  {...props}
+                  isAdmin
+                  staffUsers={staffUsers}
+                  onAction={(action, record) => { if (action === 'view') handleViewDetails(record); }}
+                />
+              )}
+            />
+          ) : (
+            <Empty
+              image={<ToolOutlined className="text-5xl text-slate-300" />}
+              description={<span className="text-slate-400">No {label.toLowerCase()} requests</span>}
+            />
+          )}
+        </Spin>
+      </Card>
+    ),
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* ── Header ── */}
+
+      {/* ── Admin / Repairman View ────────────────────────────────────────── */}
       {isAdmin ? (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-              <ToolOutlined className="text-orange-500" /> Equipment Care
-            </h2>
-            <p className="text-sm text-slate-500 mt-0.5">Manage repair requests and spare parts</p>
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                <ToolOutlined className="text-orange-500" /> Repair Workshop
+              </h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Review incoming requests, assign technicians, and communicate with customers
+              </p>
+            </div>
+            <Button icon={<ReloadOutlined />} onClick={fetchRepairs} loading={loading}>
+              Refresh
+            </Button>
           </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setIsModalOpen(true)}
-            className="h-10 rounded-xl"
-          >
-            New Request
-          </Button>
-        </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="rounded-2xl shadow-sm border-0 bg-orange-50" size="small">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <ClockCircleOutlined className="text-orange-500 text-lg" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">{kpi.pending}</div>
+                  <div className="text-xs text-slate-500">Pending</div>
+                </div>
+              </div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm border-0 bg-blue-50" size="small">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <ToolOutlined className="text-blue-500 text-lg" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{kpi.in_progress}</div>
+                  <div className="text-xs text-slate-500">In Progress</div>
+                </div>
+              </div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm border-0 bg-green-50" size="small">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                  <CheckCircleOutlined className="text-green-500 text-lg" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{kpi.completed}</div>
+                  <div className="text-xs text-slate-500">Completed</div>
+                </div>
+              </div>
+            </Card>
+            <Card className="rounded-2xl shadow-sm border-0 bg-red-50" size="small">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
+                  <FireOutlined className="text-red-500 text-lg" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-600">{kpi.urgent}</div>
+                  <div className="text-xs text-slate-500">Urgent Active</div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Tabs */}
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              buildAdminTab('pending', 'Pending', repairs.filter(r => r.status === 'pending'), 'orange'),
+              buildAdminTab('in_progress', 'In Progress', repairs.filter(r => r.status === 'in_progress'), 'blue'),
+              buildAdminTab('completed', 'Completed', repairs.filter(r => r.status === 'completed'), 'green'),
+              buildAdminTab('all', 'All', repairs, 'default'),
+              { key: 'spare-parts', label: 'Spare Parts', children: <SparePartsOrders /> },
+            ]}
+          />
+        </>
       ) : (
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 text-white shadow-lg">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        /* ── Customer View ───────────────────────────────────────────────── */
+        <>
+          <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 text-white shadow-lg">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
                 <ToolOutlined /> Care Center
               </div>
               <h1 className="text-3xl font-semibold">Equipment Care</h1>
-              <p className="text-sm text-white/75">
-                Submit and track repair requests for your equipment
-              </p>
+              <p className="text-sm text-white/75">Submit and track repair requests for your equipment</p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ── Admin Tabs: Pending | All | Spare Parts ── */}
-      {isAdmin ? (
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'pending',
-              label: <span>Pending <Tag color="orange" className="ml-1">{repairs.filter(r => r.status === 'pending').length}</Tag></span>,
-              children: (
-                <Card className="rounded-2xl shadow-sm">
-                  <Spin spinning={loading}>
-                    {repairs.filter(r => r.status === 'pending').length > 0 ? (
-                      <UnifiedResponsiveTable
-                        dataSource={repairs.filter(r => r.status === 'pending')}
-                        columns={columns}
-                        rowKey="id"
-                        pagination={{ pageSize: 10 }}
-                        mobileCardRenderer={(props) => (
-                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
-                            if (action === 'view') handleViewDetails(record);
-                            if (action === 'edit') handleEditStatus(record);
-                          }} />
-                        )}
-                      />
-                    ) : (
-                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No pending requests</p>} />
-                    )}
-                  </Spin>
-                </Card>
-              ),
-            },
-            {
-              key: 'in_progress',
-              label: <span>In Progress <Tag color="blue" className="ml-1">{repairs.filter(r => r.status === 'in_progress').length}</Tag></span>,
-              children: (
-                <Card className="rounded-2xl shadow-sm">
-                  <Spin spinning={loading}>
-                    {repairs.filter(r => r.status === 'in_progress').length > 0 ? (
-                      <UnifiedResponsiveTable
-                        dataSource={repairs.filter(r => r.status === 'in_progress')}
-                        columns={columns}
-                        rowKey="id"
-                        pagination={{ pageSize: 10 }}
-                        mobileCardRenderer={(props) => (
-                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
-                            if (action === 'view') handleViewDetails(record);
-                            if (action === 'edit') handleEditStatus(record);
-                          }} />
-                        )}
-                      />
-                    ) : (
-                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No in-progress repairs</p>} />
-                    )}
-                  </Spin>
-                </Card>
-              ),
-            },
-            {
-              key: 'all',
-              label: <span>All <Tag className="ml-1">{repairs.length}</Tag></span>,
-              children: (
-                <Card className="rounded-2xl shadow-sm">
-                  <Spin spinning={loading}>
-                    {repairs.length > 0 ? (
-                      <UnifiedResponsiveTable
-                        dataSource={repairs}
-                        columns={columns}
-                        rowKey="id"
-                        pagination={{ pageSize: 10 }}
-                        mobileCardRenderer={(props) => (
-                          <RepairMobileCard {...props} isAdmin={isAdmin} onAction={(action, record) => {
-                            if (action === 'view') handleViewDetails(record);
-                            if (action === 'edit') handleEditStatus(record);
-                          }} />
-                        )}
-                      />
-                    ) : (
-                      <Empty image={<ToolOutlined className="text-5xl text-slate-300" />} description={<p className="text-slate-400">No repair requests yet</p>}>
-                        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Create Request</Button>
-                      </Empty>
-                    )}
-                  </Spin>
-                </Card>
-              ),
-            },
-            {
-              key: 'spare-parts',
-              label: 'Spare Parts',
-              children: <SparePartsOrders />,
-            },
-          ]}
-        />
-      ) : (
-        /* ── Customer view: single repairs list ── */
-        <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card className="rounded-2xl shadow-sm text-center" size="small">
-              <div className="text-xl font-bold text-orange-500">{repairs.filter(r => r.status === 'pending').length}</div>
+              <div className="text-xl font-bold text-orange-500">{kpi.pending}</div>
               <div className="text-xs text-slate-500">Pending</div>
             </Card>
             <Card className="rounded-2xl shadow-sm text-center" size="small">
-              <div className="text-xl font-bold text-blue-500">{repairs.filter(r => r.status === 'in_progress').length}</div>
+              <div className="text-xl font-bold text-blue-500">{kpi.in_progress}</div>
               <div className="text-xs text-slate-500">In Progress</div>
             </Card>
             <Card className="rounded-2xl shadow-sm text-center" size="small">
-              <div className="text-xl font-bold text-green-500">{repairs.filter(r => r.status === 'completed').length}</div>
+              <div className="text-xl font-bold text-green-500">{kpi.completed}</div>
               <div className="text-xs text-slate-500">Completed</div>
             </Card>
             <Card className="rounded-2xl shadow-sm text-center" size="small">
@@ -656,34 +715,43 @@ const RepairsPage = () => {
               <div className="text-xs text-slate-500">Total</div>
             </Card>
           </div>
+
           <div className="flex justify-end">
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)} className="h-11 rounded-2xl">
               New Repair Request
             </Button>
           </div>
+
           <Card className="rounded-2xl shadow-sm">
             <h4 className="text-base font-semibold text-slate-800 mb-4">My Repair Requests</h4>
             <Spin spinning={loading}>
               {repairs.length > 0 ? (
                 <UnifiedResponsiveTable
                   dataSource={repairs}
-                  columns={columns}
+                  columns={customerColumns}
                   rowKey="id"
                   pagination={{ pageSize: 10 }}
                   mobileCardRenderer={(props) => (
-                    <RepairMobileCard {...props} isAdmin={false} onAction={(action, record) => {
-                      if (action === 'view') handleViewDetails(record);
-                    }} />
+                    <RepairMobileCard
+                      {...props}
+                      isAdmin={false}
+                      onAction={(action, record) => { if (action === 'view') handleViewDetails(record); }}
+                    />
                   )}
                 />
               ) : (
-                <Empty image={<ToolOutlined className="text-6xl text-slate-300" />} description={
-                  <div className="space-y-2">
-                    <p className="text-slate-500">No Repair Requests</p>
-                    <p className="text-xs text-slate-400">Submit a repair request when equipment needs fixing</p>
-                  </div>
-                }>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Submit First Request</Button>
+                <Empty
+                  image={<ToolOutlined className="text-6xl text-slate-300" />}
+                  description={
+                    <div className="space-y-2">
+                      <p className="text-slate-500">No Repair Requests</p>
+                      <p className="text-xs text-slate-400">Submit a repair request when equipment needs fixing</p>
+                    </div>
+                  }
+                >
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
+                    Submit First Request
+                  </Button>
                 </Empty>
               )}
             </Spin>
@@ -691,14 +759,17 @@ const RepairsPage = () => {
         </>
       )}
 
-      {/* Create Repair Request Drawer */}
+      {/* ── Create Repair Request Drawer ───────────────────────────────────── */}
       <Drawer
         open={isModalOpen}
         onClose={() => { setIsModalOpen(false); form.resetFields(); setFileList([]); }}
         width={480}
         closable={false}
         destroyOnHidden
-        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+        styles={{
+          body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+          header: { display: 'none' },
+        }}
       >
         <div className="flex-shrink-0 bg-gradient-to-r from-orange-500 to-red-500 px-5 py-4">
           <div className="flex items-center justify-between">
@@ -720,30 +791,27 @@ const RepairsPage = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmitRepair}
-          >
+          <Form form={form} layout="vertical" onFinish={handleSubmitRepair}>
             {isAdmin && (
               <Form.Item name="userId" label="Submit on behalf of" extra="Leave empty to submit as yourself">
-                <Select showSearch allowClear placeholder="Search customer..." optionFilterProp="label"
-                  options={usersWithStudentRole.map(u => ({ value: u.id, label: `${u.first_name} ${u.last_name}`.trim() || u.email }))} />
+                <Select
+                  showSearch allowClear placeholder="Search customer..." optionFilterProp="label"
+                  options={usersWithStudentRole.map(u => ({
+                    value: u.id,
+                    label: `${u.first_name} ${u.last_name}`.trim() || u.email,
+                  }))}
+                />
               </Form.Item>
             )}
-
-            <Form.Item name="equipmentType" label="Brand and Model" rules={[{ required: true, message: 'Please enter brand and model' }]}>
+            <Form.Item name="equipmentType" label="Brand and Model" rules={[{ required: true, message: 'Required' }]}>
               <Input placeholder="e.g., Surfboard, Diving Gear, Bicycle, Yoga Mat..." />
             </Form.Item>
-
-            <Form.Item name="itemName" label="Item Name / ID" rules={[{ required: true, message: 'Please enter item name or ID' }]}>
+            <Form.Item name="itemName" label="Item Name / ID" rules={[{ required: true, message: 'Required' }]}>
               <Input placeholder="e.g., Surfboard #12, BCD Size L, Yoga Mat Blue" />
             </Form.Item>
-
-            <Form.Item name="description" label="What's Wrong?" rules={[{ required: true, message: 'Please describe the issue' }]}>
+            <Form.Item name="description" label="What's Wrong?" rules={[{ required: true, message: 'Required' }]}>
               <TextArea rows={3} placeholder="Describe the problem in detail..." />
             </Form.Item>
-
             <Form.Item name="photos" label="Photos (optional)">
               <Upload {...uploadProps}>
                 {fileList.length >= 4 ? null : (
@@ -751,21 +819,18 @@ const RepairsPage = () => {
                 )}
               </Upload>
             </Form.Item>
-
-            <Form.Item name="priority" label="Priority" rules={[{ required: true, message: 'Please select priority' }]}>
+            <Form.Item name="priority" label="Priority" rules={[{ required: true, message: 'Required' }]}>
               <Select placeholder="How urgent is this?" options={priorityOptions} />
             </Form.Item>
-
             <Form.Item name="location" label="Current Location">
               <Input placeholder="Where is the item now?" />
             </Form.Item>
-
             <Form.Item className="!mb-0">
               <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <Button onClick={() => { setIsModalOpen(false); form.resetFields(); setFileList([]); }} className="flex-1 rounded-xl !h-10">
                   Cancel
                 </Button>
-                <Button type="primary" htmlType="submit" className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-orange-500 to-red-500 border-0 shadow-md hover:shadow-lg transition-all font-semibold">
+                <Button type="primary" htmlType="submit" className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-orange-500 to-red-500 border-0 shadow-md font-semibold">
                   Submit Request
                 </Button>
               </div>
@@ -774,90 +839,129 @@ const RepairsPage = () => {
         </div>
       </Drawer>
 
-      {/* Repair Detail Drawer */}
+      {/* ── Repair Detail Drawer ───────────────────────────────────────────── */}
       <Drawer
-        title="Repair Request Details"
+        title={
+          <div className="flex items-center gap-2">
+            <ToolOutlined className="text-orange-500" />
+            <span>{selectedRepair?.item_name || 'Repair Details'}</span>
+            {selectedRepair && (
+              <Tag color={priorityOptions.find(p => p.value === selectedRepair.priority)?.color} className="ml-1">
+                {selectedRepair.priority}
+              </Tag>
+            )}
+          </div>
+        }
         placement="right"
-        width={560}
+        width={580}
         onClose={() => setDetailDrawerOpen(false)}
         open={detailDrawerOpen}
-        extra={
-          isAdmin && selectedRepair && (
-            <Button 
-              type="primary" 
-              icon={<EditOutlined />}
-              onClick={() => {
-                setDetailDrawerOpen(false);
-                handleEditStatus(selectedRepair);
-              }}
-            >
-              Edit
-            </Button>
-          )
-        }
+        destroyOnHidden
       >
         {selectedRepair && (
-          <div className="space-y-6">
+          <div className="space-y-5">
+
+            {/* ── Admin inline controls ── */}
+            {isAdmin && (
+              <Card size="small" className="rounded-xl bg-slate-50 border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Status</div>
+                    <Select
+                      value={selectedRepair.status}
+                      style={{ width: '100%' }}
+                      onChange={(val) => handleQuickStatusChange(selectedRepair.id, val)}
+                      options={statusOptions}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Priority</div>
+                    <Select
+                      value={selectedRepair.priority}
+                      style={{ width: '100%' }}
+                      onChange={(val) => handleQuickFieldChange(selectedRepair.id, 'priority', val)}
+                      options={priorityOptions}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Assigned To</div>
+                    <Select
+                      value={selectedRepair.assigned_to || null}
+                      style={{ width: '100%' }}
+                      allowClear
+                      placeholder="Unassigned"
+                      onChange={(val) => handleQuickFieldChange(selectedRepair.id, 'assignedTo', val || null)}
+                      options={staffUsers.map(u => ({
+                        value: u.id,
+                        label: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+                      }))}
+                    />
+                  </div>
+                </div>
+                <Divider className="my-3" />
+                <div>
+                  <div className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+                    <LockOutlined /> Workshop Notes (internal — not visible to customer)
+                  </div>
+                  <TextArea
+                    value={drawerNotes}
+                    onChange={(e) => { setDrawerNotes(e.target.value); setNotesDirty(true); }}
+                    rows={3}
+                    placeholder="Parts ordered, inspection findings, estimated completion, etc."
+                  />
+                  {notesDirty && (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<SaveOutlined />}
+                      loading={drawerUpdating}
+                      onClick={handleSaveNotes}
+                      className="mt-2"
+                    >
+                      Save Notes
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* ── Request info ── */}
             <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Equipment">
-                {selectedRepair.equipment_type}
-              </Descriptions.Item>
-              <Descriptions.Item label="Item">
-                {selectedRepair.item_name}
-              </Descriptions.Item>
+              <Descriptions.Item label="Equipment">{selectedRepair.equipment_type}</Descriptions.Item>
+              <Descriptions.Item label="Item">{selectedRepair.item_name}</Descriptions.Item>
               <Descriptions.Item label="Submitted By">
                 <Space size={4}>
-                  {selectedRepair.user_name || 'Unknown'}
+                  {selectedRepair.user_name || selectedRepair.guest_name || 'Unknown'}
                   {!selectedRepair.user_id && <Tag color="teal">Guest</Tag>}
                 </Space>
               </Descriptions.Item>
-              <Descriptions.Item label="Email">
-                {selectedRepair.user_email || 'N/A'}
-              </Descriptions.Item>
+              <Descriptions.Item label="Email">{selectedRepair.user_email || 'N/A'}</Descriptions.Item>
               {!selectedRepair.user_id && selectedRepair.guest_phone && (
-                <Descriptions.Item label="Phone">
-                  {selectedRepair.guest_phone}
-                </Descriptions.Item>
+                <Descriptions.Item label="Phone">{selectedRepair.guest_phone}</Descriptions.Item>
               )}
               {!selectedRepair.user_id && selectedRepair.tracking_token && (
                 <Descriptions.Item label="Tracking Token">
                   <span className="font-mono text-xs text-teal-600 break-all">{selectedRepair.tracking_token}</span>
                 </Descriptions.Item>
               )}
-              <Descriptions.Item label="Location">
-                {selectedRepair.location || 'Not specified'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Priority">
-                <Tag color={priorityOptions.find(p => p.value === selectedRepair.priority)?.color}>
-                  {priorityOptions.find(p => p.value === selectedRepair.priority)?.label || selectedRepair.priority}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={statusColors[selectedRepair.status]}>
-                  {selectedRepair.status?.replace('_', ' ').toUpperCase()}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Submitted">
-                {dayjs(selectedRepair.created_at).format('MMM DD, YYYY HH:mm')}
-              </Descriptions.Item>
+              <Descriptions.Item label="Location">{selectedRepair.location || 'Not specified'}</Descriptions.Item>
+              <Descriptions.Item label="Submitted">{dayjs(selectedRepair.created_at).format('MMM DD, YYYY HH:mm')}</Descriptions.Item>
               {selectedRepair.updated_at && (
-                <Descriptions.Item label="Last Updated">
-                  {dayjs(selectedRepair.updated_at).format('MMM DD, YYYY HH:mm')}
-                </Descriptions.Item>
+                <Descriptions.Item label="Last Updated">{dayjs(selectedRepair.updated_at).format('MMM DD, YYYY HH:mm')}</Descriptions.Item>
               )}
             </Descriptions>
 
+            {/* ── Description ── */}
             <div>
               <Text strong>Description</Text>
-              <Paragraph className="mt-2 p-3 bg-gray-50 rounded-lg">
-                {selectedRepair.description}
-              </Paragraph>
+              <Paragraph className="mt-2 p-3 bg-gray-50 rounded-lg">{selectedRepair.description}</Paragraph>
             </div>
 
-            {selectedRepair.notes && (
+            {/* ── Workshop notes shown to customer if present ── */}
+            {!isAdmin && selectedRepair.notes && (
               <div>
                 <Text strong className="flex items-center gap-2">
-                  <MessageOutlined /> Admin Notes
+                  <MessageOutlined /> Workshop Update
                 </Text>
                 <Paragraph className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   {selectedRepair.notes}
@@ -865,95 +969,29 @@ const RepairsPage = () => {
               </div>
             )}
 
+            {/* ── Photos ── */}
             {parsePhotos(selectedRepair.photos).length > 0 && (
               <div>
                 <Text strong>Photos</Text>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Image.PreviewGroup>
-                    {parsePhotos(selectedRepair.photos).map((photo, index) => (
-                      <Image
-                        key={index}
-                        width={100}
-                        height={100}
-                        src={photo}
-                        className="object-cover rounded-lg"
-                      />
+                    {parsePhotos(selectedRepair.photos).map((photo, i) => (
+                      <Image key={i} width={100} height={100} src={photo} className="object-cover rounded-lg" />
                     ))}
                   </Image.PreviewGroup>
                 </div>
               </div>
             )}
 
-            {selectedRepair.assigned_to_name && (
-              <div>
-                <Text strong>Assigned To</Text>
-                <Paragraph className="mt-1">
-                  {selectedRepair.assigned_to_name}
-                </Paragraph>
-              </div>
-            )}
-
-            {/* Chat / Conversation Section */}
+            {/* ── Chat ── */}
             <Divider orientation="left">
               <MessageOutlined className="mr-2" />
-              Conversation
+              {isAdmin ? 'Customer Communication' : 'Conversation'}
             </Divider>
-            <RepairChat 
-              repairId={selectedRepair.id} 
-              isAdmin={isAdmin}
-              userId={user?.id}
-            />
+            <RepairChat repairId={selectedRepair.id} isAdmin={isAdmin} userId={user?.id} />
           </div>
         )}
       </Drawer>
-
-      {/* Edit Status Modal - Admin Only */}
-      <Modal
-        title="Update Repair Status"
-        open={editModalOpen}
-        onCancel={() => {
-          setEditModalOpen(false);
-          editForm.resetFields();
-        }}
-        footer={null}
-        width={450}
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleUpdateRepair}
-          className="mt-4"
-        >
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: 'Please select status' }]}
-          >
-            <Select
-              options={statusOptions}
-              placeholder="Select status"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="notes"
-            label="Admin Notes"
-            help="Add notes about the repair progress, parts ordered, etc."
-          >
-            <TextArea
-              rows={4}
-              placeholder="Add internal notes about this repair..."
-            />
-          </Form.Item>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={() => setEditModalOpen(false)}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={updating}>
-              Update Status
-            </Button>
-          </div>
-        </Form>
-      </Modal>
     </div>
   );
 };
