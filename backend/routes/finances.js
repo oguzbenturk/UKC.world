@@ -532,7 +532,43 @@ router.get('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']
     };
 
     const rows = await fetchWalletTransactions(user_id || undefined, options);
-    const mapped = rows.map(mapTransactionRow);
+
+    // Enrich shop order transaction descriptions with actual item names
+    const shopOrderRows = rows.filter(r => r.related_entity_type === 'shop_order');
+    let itemsByOrderId = {};
+    if (shopOrderRows.length > 0) {
+      const orderIds = [...new Set(shopOrderRows.map(r => {
+        const meta = r.metadata && typeof r.metadata === 'object' ? r.metadata : {};
+        return meta.orderId;
+      }).filter(Boolean))];
+      if (orderIds.length > 0) {
+        const itemsResult = await pool.query(
+          'SELECT order_id, product_name, quantity FROM shop_order_items WHERE order_id = ANY($1)',
+          [orderIds]
+        );
+        for (const item of itemsResult.rows) {
+          if (!itemsByOrderId[item.order_id]) itemsByOrderId[item.order_id] = [];
+          itemsByOrderId[item.order_id].push(item);
+        }
+      }
+    }
+
+    const mapped = rows.map(row => {
+      const mappedRow = mapTransactionRow(row);
+      if (row.related_entity_type === 'shop_order') {
+        const meta = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+        const items = meta.orderId ? itemsByOrderId[meta.orderId] : null;
+        if (items && items.length > 0) {
+          const itemSummary = items.length <= 3
+            ? items.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+            : `${items.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${items.length - 2} more`;
+          mappedRow.description = meta.orderNumber
+            ? `${itemSummary} - Order #${meta.orderNumber}`
+            : itemSummary;
+        }
+      }
+      return mappedRow;
+    });
     return res.status(200).json(mapped);
   } catch (error) {
     logger.error('Error fetching transactions:', error);

@@ -11,11 +11,8 @@ import {
   Card,
   Popconfirm,
   Badge,
-  Alert,
   Upload,
-  Switch,
   Checkbox,
-  Slider,
   Grid,
   Drawer,
 } from 'antd';
@@ -44,22 +41,12 @@ import { logger } from '@/shared/utils/logger';
 const { TextArea } = Input;
 const { useBreakpoint } = Grid;
 
-const PERIOD_OPTIONS = [
-  { value: 'month', label: 'Monthly' },
-  { value: 'year', label: 'Yearly' },
-  { value: 'season', label: 'Seasonal' },
-  { value: 'day', label: 'Daily' },
-];
-
-const CARD_STYLE_OPTIONS = [
-  { value: 'simple', label: 'Simple Card', description: 'Clean white card with icon' },
-  { value: 'gradient', label: 'Gradient Header', description: 'Colored gradient header with content' },
-  { value: 'image_background', label: 'Full Image', description: 'Image covers entire card' },
-];
-
-const TEXT_COLOR_OPTIONS = [
-  { value: 'dark', label: 'Dark Text', color: '#1f2937' },
-  { value: 'light', label: 'Light Text', color: '#ffffff' },
+const TIER_PRESETS = [
+  { key: 'daily', label: 'Daily', duration_days: 1 },
+  { key: 'weekly', label: 'Weekly', duration_days: 7 },
+  { key: 'monthly', label: 'Monthly', duration_days: 30 },
+  { key: 'seasonal', label: 'Seasonal', duration_days: 180 },
+  { key: 'yearly', label: 'Yearly', duration_days: 365 },
 ];
 
 const BADGE_COLORS = [
@@ -115,6 +102,8 @@ function MembershipSettings() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [form] = Form.useForm();
   const [previewData, setPreviewData] = useState({});
+  const [tiers, setTiers] = useState({});
+  const [customTier, setCustomTier] = useState({ enabled: false, days: '', price: '' });
 
   // Watch form values for live preview
   const formValues = Form.useWatch([], form);
@@ -150,18 +139,13 @@ function MembershipSettings() {
     setEditingOffering(null);
     form.resetFields();
     setImageUrl(null);
+    setTiers({});
+    setCustomTier({ enabled: false, days: '', price: '' });
     form.setFieldsValue({
       is_active: true,
-      period: 'month',
       badge_color: 'gold',
       icon: 'CrownOutlined',
-      sort_order: 0,
       features: [],
-      use_image_background: true,
-      card_style: 'simple',
-      button_text: 'Choose Plan',
-      text_color: 'dark',
-      gradient_opacity: 70
     });
     setModalVisible(true);
   };
@@ -195,29 +179,47 @@ function MembershipSettings() {
 
   const handleSave = async (values) => {
     try {
-      const payload = {
-        ...values,
-        price: Number(values.price),
-        sort_order: Number(values.sort_order),
-        duration_days: values.duration_days ? Number(values.duration_days) : null,
-        image_url: imageUrl,
-        use_image_background: values.use_image_background !== false,
-        card_style: values.card_style || 'simple',
-        button_text: values.button_text || 'Choose Plan',
-        gradient_color: values.gradient_color || null,
-        text_color: values.text_color || 'dark',
-        gradient_opacity: values.gradient_opacity ?? 70,
-      };
-
       if (editingOffering) {
+        const payload = {
+          ...values,
+          price: Number(values.price),
+          duration_days: values.duration_days ? Number(values.duration_days) : null,
+          image_url: imageUrl,
+        };
         await apiClient.put(`/member-offerings/${editingOffering.id}`, payload);
-        message.success('Membership updated successfully');
+        message.success('Membership updated');
       } else {
-        await apiClient.post('/member-offerings', payload);
-        message.success('Membership created successfully');
+        const tierList = [];
+        TIER_PRESETS.forEach(preset => {
+          const t = tiers[preset.key];
+          if (t?.enabled && t?.price) {
+            tierList.push({ label: preset.label, duration_days: preset.duration_days, price: Number(t.price) });
+          }
+        });
+        if (customTier.enabled && customTier.days && customTier.price) {
+          tierList.push({ label: `${customTier.days} Days`, duration_days: Number(customTier.days), price: Number(customTier.price) });
+        }
+        if (tierList.length === 0) {
+          message.warning('Enable at least one duration tier');
+          return;
+        }
+        await apiClient.post('/member-offerings/batch', {
+          name: values.name,
+          description: values.description,
+          features: values.features || [],
+          icon: values.icon,
+          badge: values.badge,
+          badge_color: values.badge_color,
+          highlighted: values.highlighted || false,
+          image_url: imageUrl,
+          tiers: tierList,
+        });
+        message.success(`${tierList.length} membership(s) created!`);
       }
       setModalVisible(false);
       setImageUrl(null);
+      setTiers({});
+      setCustomTier({ enabled: false, days: '', price: '' });
       fetchOfferings();
     } catch (error) {
       logger.error('Save failed:', error);
@@ -275,43 +277,46 @@ function MembershipSettings() {
       dataIndex: 'name',
       key: 'name',
       render: (text, record) => (
-        <Space>
+        <span className="flex items-center gap-2">
            <Badge color={record.badge_color || 'blue'} />
-           <span className="font-semibold">{text}</span>
-           {record.highlighted && <Tag color="gold">Highlighted</Tag>}
-        </Space>
+           <span className="text-sm font-medium">{text}</span>
+           {record.highlighted && <Tag color="gold" className="text-[10px] m-0">Featured</Tag>}
+        </span>
       )
     },
     {
       title: 'Price',
       dataIndex: 'price',
       key: 'price',
-      render: (price) => formatCurrency(price, businessCurrency)
+      width: 100,
+      render: (price) => <span className="text-sm font-medium">{formatCurrency(price, businessCurrency)}</span>
     },
     {
       title: 'Period',
       dataIndex: 'period',
       key: 'period',
-      render: (text) => <Tag>{text ? text.toUpperCase() : 'N/A'}</Tag>
+      width: 90,
+      render: (text) => <Tag className="m-0">{text ? text.toUpperCase() : 'N/A'}</Tag>
     },
     {
-      title: 'Duration (Days)',
+      title: 'Duration',
       dataIndex: 'duration_days',
       key: 'duration_days',
-      render: (val) => val || 'Unlimited'
+      width: 90,
+      render: (val) => <span className="text-sm text-slate-500">{val ? `${val}d` : '∞'}</span>
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
+      width: 80,
       render: (_, record) => (
-        <Space>
+        <Space size={4}>
           <Button 
+            type="text"
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
             size="small"
-          >
-            Edit
-          </Button>
+          />
           <Popconfirm
             title="Deactivate membership?"
             description="This will hide the membership from users."
@@ -321,6 +326,7 @@ function MembershipSettings() {
             okButtonProps={{ danger: true }}
           >
             <Button 
+              type="text"
               icon={<DeleteOutlined />} 
               danger 
               size="small" 
@@ -414,34 +420,27 @@ function MembershipSettings() {
   };
 
   return (
-    <div className="p-4 md:p-6">
-      <Card className="shadow-sm border-slate-200 rounded-xl md:rounded-2xl">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 md:mb-6">
-          <div>
-            <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-slate-900 !mb-1`}>Membership Settings</h3>
-            <p className="text-sm text-slate-500 hidden sm:block">Configure VIP memberships and subscription packages</p>
-          </div>
+    <div className="p-3 md:p-5">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100">
+          <h3 className="text-base font-semibold text-slate-800 m-0 flex items-center gap-2">
+            <CrownOutlined className="text-amber-500" />
+            Memberships
+          </h3>
           <Button 
             type="primary" 
             icon={<PlusOutlined />} 
             onClick={handleCreate}
-            size={isMobile ? 'middle' : 'large'}
+            size="small"
           >
             {isMobile ? 'Add' : 'Add Membership'}
           </Button>
         </div>
 
-        <Alert 
-          message="About Memberships" 
-          description={isMobile ? "Configure membership duration and pricing." : "Memberships allow students to access special rates or features. Configuring 'Duration Days' sets an automatic expiration."}
-          type="info"
-          showIcon
-          className="mb-4 md:mb-6"
-        />
-
+        <div className="p-0">
         {isMobile ? (
           // Mobile: Card View
-          <div>
+          <div className="p-3">
             <div className="text-xs text-slate-500 mb-2">{offerings.length} membership{offerings.length !== 1 ? 's' : ''}</div>
             {offerings.length === 0 ? (
               <div className="text-center py-8 text-slate-400">No memberships yet</div>
@@ -456,11 +455,13 @@ function MembershipSettings() {
             dataSource={offerings} 
             rowKey="id" 
             loading={loading}
-            pagination={{ pageSize: 10 }}
-            scroll={{ x: 600 }}
+            size="small"
+            pagination={{ pageSize: 15, size: 'small' }}
+            scroll={{ x: 500 }}
           />
         )}
-      </Card>
+        </div>
+      </div>
 
       <Drawer
         open={modalVisible}
@@ -504,78 +505,31 @@ function MembershipSettings() {
           <div className="px-5 pt-5 pb-3">
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Preview</div>
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-              {formValues?.card_style === 'image_background' && imageUrl ? (
-                <div className="relative" style={{ minHeight: 160 }}>
-                  <div style={{ backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', minHeight: 160, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70%', background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%)' }} />
-                    <div style={{ marginTop: 'auto', padding: 16, position: 'relative', zIndex: 1, color: 'white' }}>
-                      <div className="text-lg font-bold">{formValues?.name || 'Membership Name'}</div>
-                      <div className="text-2xl font-extrabold mt-1">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
-                      <div className="text-xs opacity-80 mt-0.5">per {formValues?.period || 'month'}</div>
-                    </div>
-                  </div>
+              <div className="bg-white rounded-2xl p-5 text-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mx-auto mb-2"
+                  style={{
+                    backgroundColor: `${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#f0f0f0'}20`,
+                    color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea'
+                  }}>
+                  {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
                 </div>
-              ) : formValues?.card_style === 'gradient' ? (
-                <div>
-                  <div className="relative text-center py-5 px-4" style={{ color: '#fff', minHeight: 100 }}>
-                    {imageUrl && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0 }} />}
-                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea'} 0%, ${BADGE_COLORS.find(c => c.value === formValues?.gradient_color)?.color || '#764ba2'} 100%)`, opacity: imageUrl ? (formValues?.gradient_opacity ?? 70) / 100 : 1, zIndex: 1 }} />
-                    {formValues?.badge && (
-                      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[2] bg-white/20 px-3 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider">
-                        ⚡ {formValues.badge}
-                      </div>
-                    )}
-                    <div className="relative z-[2]" style={{ marginTop: formValues?.badge ? 20 : 0 }}>
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl mx-auto mb-2">
-                        {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
-                      </div>
-                      <div className="text-base font-bold">{formValues?.name || 'Membership Name'}</div>
-                      <div className="text-xs opacity-90 mt-1">{formValues?.description || 'Add a description...'}</div>
-                    </div>
+                {imageUrl && (
+                  <div className="mb-3 rounded-lg overflow-hidden">
+                    <img src={imageUrl} alt="preview" style={{ width: '100%', height: 'auto', maxHeight: 80, objectFit: 'cover' }} />
                   </div>
-                  <div className="px-5 py-4 text-center">
-                    <div className="text-2xl font-extrabold text-slate-900">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">per {formValues?.period || 'month'}</div>
-                    {formValues?.features?.length > 0 && (
-                      <div className="mt-3 text-left">
-                        {formValues.features.slice(0, 4).map((f, i) => (
-                          <div key={i} className="text-xs text-slate-600 mb-1 flex items-center gap-2">
-                            <span style={{ color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#52c41a' }}>✓</span> {f}
-                          </div>
-                        ))}
+                )}
+                <div className="text-base font-bold text-slate-900">{formValues?.name || 'Membership Name'}</div>
+                <div className="text-xs text-slate-500 mb-3">{formValues?.description || 'Add a description...'}</div>
+                {formValues?.features?.length > 0 && (
+                  <div className="mb-3 text-left">
+                    {formValues.features.slice(0, 4).map((f, i) => (
+                      <div key={i} className="text-xs text-slate-600 mb-1">
+                        <span className="text-green-500">✓</span> {f}
                       </div>
-                    )}
-                    <Button type="primary" block className="mt-3" style={{ borderRadius: 8, height: 36, fontWeight: 600, background: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea', borderColor: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea' }}>
-                      {formValues?.button_text || 'Choose Plan'}
-                    </Button>
+                    ))}
                   </div>
-                </div>
-              ) : (
-                <div style={{ background: formValues?.highlighted ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent', padding: formValues?.highlighted ? 2 : 0, borderRadius: 16 }}>
-                  <div className="bg-white rounded-2xl p-5 text-center">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl mx-auto mb-2" style={{ backgroundColor: `${BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#f0f0f0'}20`, color: BADGE_COLORS.find(c => c.value === formValues?.badge_color)?.color || '#667eea' }}>
-                      {ICON_OPTIONS.find(i => i.value === formValues?.icon)?.icon || <StarOutlined />}
-                    </div>
-                    {imageUrl && formValues?.card_style !== 'image_background' && (
-                      <div className="mb-3 rounded-lg overflow-hidden"><img src={imageUrl} alt="preview" style={{ width: '100%', height: 'auto', maxHeight: 80, objectFit: 'cover' }} /></div>
-                    )}
-                    <div className="text-base font-bold text-slate-900">{formValues?.name || 'Membership Name'}</div>
-                    <div className="text-xs text-slate-500 mb-3">{formValues?.description || 'Add a description...'}</div>
-                    <div className="text-2xl font-extrabold text-slate-900">{formatCurrency(formValues?.price || 0, businessCurrency)}</div>
-                    <div className="text-xs text-slate-500 mb-3">per {formValues?.period || 'month'}</div>
-                    {formValues?.features?.length > 0 && (
-                      <div className="mb-3 text-left">
-                        {formValues.features.slice(0, 4).map((f, i) => (
-                          <div key={i} className="text-xs text-slate-600 mb-1"><span className="text-green-500">✓</span> {f}</div>
-                        ))}
-                      </div>
-                    )}
-                    <Button type={formValues?.highlighted ? 'primary' : 'default'} block style={{ borderRadius: 8, height: 36 }}>
-                      {formValues?.button_text || 'Choose Plan'}
-                    </Button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -589,66 +543,25 @@ function MembershipSettings() {
               requiredMark={false}
               className="package-creator-form"
             >
+              <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Required' }]}>
+                <Input placeholder="e.g. VIP Gold" />
+              </Form.Item>
+              <Form.Item name="description" label="Description">
+                <TextArea rows={2} placeholder="Short description" maxLength={150} showCount />
+              </Form.Item>
+
               <div className="grid grid-cols-2 gap-3">
-                <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Required' }]} tooltip="The title on the card">
-                  <Input placeholder="e.g. VIP Gold" />
-                </Form.Item>
-                <Form.Item name="price" label={`Price (${businessCurrency})`} rules={[{ required: true, message: 'Required' }]}>
-                  <InputNumber className="w-full" min={0} precision={2} prefix={businessCurrency === 'EUR' ? '€' : businessCurrency} />
-                </Form.Item>
-                <Form.Item name="period" label="Billing Period" rules={[{ required: true, message: 'Required' }]}>
-                  <Select options={PERIOD_OPTIONS} />
-                </Form.Item>
-                <Form.Item name="duration_days" label="Duration (Days)">
-                  <InputNumber className="w-full" min={1} placeholder="30" />
-                </Form.Item>
-                <Form.Item name="badge_color" label="Badge Color">
-                  <Select options={BADGE_COLORS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
-                </Form.Item>
-                <Form.Item name="badge" label="Badge Text">
-                  <Input placeholder="e.g. VIP" maxLength={10} />
-                </Form.Item>
                 <Form.Item name="icon" label="Icon">
-                  <Select placeholder="Select icon" options={ICON_OPTIONS} optionRender={(option) => (<Space>{option.data.icon}{option.data.label}</Space>)} />
+                  <Select placeholder="Select icon" options={ICON_OPTIONS}
+                    optionRender={(option) => (<Space>{option.data.icon}{option.data.label}</Space>)} />
                 </Form.Item>
-                <Form.Item name="sort_order" label="Display Order">
-                  <InputNumber className="w-full" min={0} />
-                </Form.Item>
-              </div>
-
-              <Form.Item name="description" label="Description" tooltip="Brief description shown on the card">
-                <TextArea rows={2} placeholder="Short description for the card" maxLength={150} showCount />
-              </Form.Item>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Form.Item name="highlighted" valuePropName="checked" label="Featured">
-                  <Checkbox>Highlight as popular</Checkbox>
-                </Form.Item>
-                <Form.Item name="card_style" label="Card Style">
-                  <Select options={CARD_STYLE_OPTIONS} optionRender={(option) => (<div><div className="font-medium text-xs">{option.data.label}</div><div className="text-[10px] text-gray-400">{option.data.description}</div></div>)} />
+                <Form.Item name="badge_color" label="Color">
+                  <Select options={BADGE_COLORS}
+                    optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
                 </Form.Item>
               </div>
 
-              <Form.Item name="button_text" label="Button Text">
-                <Input placeholder="e.g. Get Started, Choose Plan" maxLength={30} />
-              </Form.Item>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Form.Item name="gradient_color" label="Gradient Color" extra={formValues?.card_style === 'gradient' ? 'Works with badge color' : 'Gradient header only'}>
-                  <Select allowClear placeholder="Select color" options={BADGE_COLORS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
-                </Form.Item>
-                <Form.Item name="text_color" label="Text Color">
-                  <Select options={TEXT_COLOR_OPTIONS} optionRender={(option) => (<Space><div style={{ width: 14, height: 14, borderRadius: 3, backgroundColor: option.data.color, border: '1px solid #d9d9d9' }} />{option.data.label}</Space>)} />
-                </Form.Item>
-              </div>
-
-              {(formValues?.card_style === 'gradient' || formValues?.card_style === 'image_background') && imageUrl && (
-                <Form.Item name="gradient_opacity" label="Overlay Transparency" extra={`${formValues?.gradient_opacity || 70}% overlay`}>
-                  <Slider min={0} max={100} marks={{ 0: 'Clear', 50: 'Medium', 100: 'Solid' }} />
-                </Form.Item>
-              )}
-
-              <Form.Item label="Card Image" extra="Displayed on the membership card">
+              <Form.Item label="Card Image">
                 <div className="flex items-start gap-3">
                   {imageUrl ? (
                     <div className="relative group">
@@ -667,27 +580,88 @@ function MembershipSettings() {
                 </div>
               </Form.Item>
 
-              {imageUrl && (
-                <Form.Item name="use_image_background" label="Display Mode" valuePropName="checked">
-                  <Switch checkedChildren="Background" unCheckedChildren="Inline" />
-                </Form.Item>
-              )}
-
-              <Form.Item name="features" label="Features" tooltip="Benefits included">
+              <Form.Item name="features" label="Features">
                 <Select mode="tags" placeholder="Type a feature and press enter" tokenSeparators={[',']} maxTagCount="responsive" />
               </Form.Item>
 
-              {/* ── Sticky Footer ── */}
+              {/* ── EDIT MODE: single price/duration ── */}
+              {editingOffering && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Form.Item name="price" label="Price" rules={[{ required: true }]}>
+                    <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                  </Form.Item>
+                  <Form.Item name="duration_days" label="Duration (Days)">
+                    <InputNumber className="w-full" min={1} placeholder="30" />
+                  </Form.Item>
+                </div>
+              )}
+
+              {/* ── CREATE MODE: tier pricing table ── */}
+              {!editingOffering && (
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 mt-1">Duration & Pricing</div>
+                  <div className="space-y-2">
+                    {TIER_PRESETS.map(preset => (
+                      <div key={preset.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${tiers[preset.key]?.enabled ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200'}`}>
+                        <Checkbox
+                          checked={tiers[preset.key]?.enabled || false}
+                          onChange={e => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], enabled: e.target.checked } }))}
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-slate-700">{preset.label}</span>
+                          <span className="text-xs text-slate-400 ml-1.5">{preset.duration_days}d</span>
+                        </div>
+                        {tiers[preset.key]?.enabled && (
+                          <InputNumber
+                            size="small" min={0} precision={2} prefix="€"
+                            placeholder="Price"
+                            value={tiers[preset.key]?.price}
+                            onChange={val => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], price: val } }))}
+                            className="w-28"
+                          />
+                        )}
+                      </div>
+                    ))}
+                    {/* Custom tier */}
+                    <div className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${customTier.enabled ? 'border-violet-200 bg-violet-50/50' : 'border-slate-200'}`}>
+                      <Checkbox
+                        checked={customTier.enabled}
+                        onChange={e => setCustomTier(prev => ({ ...prev, enabled: e.target.checked }))}
+                      />
+                      <span className="text-sm font-medium text-slate-700">Custom</span>
+                      {customTier.enabled && (
+                        <>
+                          <InputNumber
+                            size="small" min={1} placeholder="Days"
+                            value={customTier.days}
+                            onChange={val => setCustomTier(prev => ({ ...prev, days: val }))}
+                            className="w-20"
+                          />
+                          <InputNumber
+                            size="small" min={0} precision={2} prefix="€" placeholder="Price"
+                            value={customTier.price}
+                            onChange={val => setCustomTier(prev => ({ ...prev, price: val }))}
+                            className="w-28"
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Footer ── */}
               <Form.Item className="!mb-0">
-                <div className="flex gap-3 pt-4 border-t border-slate-200">
+                <div className="flex gap-3 pt-4 border-t border-slate-200 mt-4">
                   <Button
-                    onClick={() => { setModalVisible(false); setEditingOffering(null); setImageUrl(null); form.resetFields(); }}
+                    onClick={() => { setModalVisible(false); setEditingOffering(null); setImageUrl(null); setTiers({}); setCustomTier({ enabled: false, days: '', price: '' }); form.resetFields(); }}
                     className="flex-1 rounded-xl !h-10"
                   >
                     Cancel
                   </Button>
-                  <Button type="primary" htmlType="submit" className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-violet-600 to-indigo-600 border-0 shadow-md hover:shadow-lg transition-all font-semibold">
-                    {editingOffering ? 'Update' : 'Create Membership'}
+                  <Button type="primary" htmlType="submit"
+                    className="flex-1 rounded-xl !h-10 bg-gradient-to-r from-violet-600 to-indigo-600 border-0 shadow-md hover:shadow-lg transition-all font-semibold">
+                    {editingOffering ? 'Update' : `Create ${(() => { let c = Object.values(tiers).filter(t => t?.enabled && t?.price).length; if (customTier.enabled && customTier.days && customTier.price) c++; return c; })()} Membership${(() => { let c = Object.values(tiers).filter(t => t?.enabled && t?.price).length; if (customTier.enabled && customTier.days && customTier.price) c++; return c !== 1 ? 's' : ''; })()}`}
                   </Button>
                 </div>
               </Form.Item>

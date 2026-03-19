@@ -1,13 +1,45 @@
 #!/usr/bin/env node
 /**
- * Cleanup – Delete all test customers created by the test flow scripts.
+ * Database Reset — Wipe all transactional data while preserving configuration.
  *
- * 1. Hard-deletes each test profile (and all their linked data) via the API.
- * 2. Directly purges any remaining stale / soft-deleted bookings for Elif Sarı
- *    from the database so her lesson history stays clean.
+ * KEEPS:
+ *   - Staff users (Elif, Siyabend, Oguzhan) + admin + non-test/non-deleted users
+ *   - Services, service_packages, service_prices, service_categories, package_prices
+ *   - Roles, skills, skill_levels
+ *   - Equipment, products, product_subcategories
+ *   - Settings, financial_settings, financial_settings_overrides
+ *   - Currency_settings
+ *   - Accommodation_units
+ *   - Member_offerings
+ *   - Legal_documents, waiver_versions
+ *   - Form templates, fields, steps, email notifications, template versions
+ *   - Form submissions, analytics, email logs, quick action tokens (user data!)
+ *   - Quick_links, quick_link_registrations
+ *   - Popup templates, configurations, content blocks, media assets, targeting rules
+ *   - Events
+ *   - Voucher_campaigns (+ voucher_codes if hand-created)
+ *   - Instructor config: default_commissions, category_rates, skills, services, service_commissions
+ *   - Manager_commission_settings
+ *   - Wallet_settings, wallet_bank_accounts
+ *   - Schema_migrations
  *
- * Usage:  node tests/scripts/cleanup.mjs
- * Safe to run multiple times — skips profiles that don't exist.
+ * DELETES (transactional data):
+ *   - All bookings + sub-tables
+ *   - All financial transactions, earnings, commissions, payroll
+ *   - All wallet transactions (balances reset to 0)
+ *   - All rentals, accommodation bookings
+ *   - All shop orders + sub-tables
+ *   - All customer packages, member purchases
+ *   - All messages, conversations, notifications
+ *   - All audit/security logs
+ *   - Test + soft-deleted users
+ *   - etc.
+ *
+ * Usage:
+ *   node tests/scripts/db-reset.mjs              # dry-run (shows what would be deleted)
+ *   node tests/scripts/db-reset.mjs --execute     # actually delete
+ *
+ * Safe to run multiple times.
  */
 
 import pg from 'pg';
@@ -15,482 +47,363 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import {
-  API, PROFILES, TURKISH_PROFILES,
-  ELIF_ID, SIYABEND_ID, OGUZHAN_ID,
-  log, ok, fail, title,
-  api, adminLogin,
-} from './_shared.mjs';
-
-// Load backend .env so DATABASE_URL is available
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../../backend/.env') });
 
+const DRY_RUN = !process.argv.includes('--execute');
+
+// ── Helpers ────────────────────────────────────────────────────────
+const log   = (msg) => console.log(msg);
+const ok    = (msg) => console.log(`  ✅ ${msg}`);
+const warn  = (msg) => console.log(`  ⚠️  ${msg}`);
+const title = (t)   => console.log(`\n${'═'.repeat(60)}\n  ${t}\n${'═'.repeat(60)}`);
+
+// ── Tables to KEEP (never truncate) ───────────────────────────────
+const KEEP_TABLES = new Set([
+  // System
+  'schema_migrations',
+  'roles',
+  'settings',
+
+  // Users (handled specially — test/soft-deleted users removed, rest kept)
+  'users',
+
+  // Skills & services
+  'skills',
+  'skill_levels',
+  'services',
+  'service_categories',
+  'service_packages',
+  'service_prices',
+  'package_prices',
+
+  // Shop / inventory
+  'products',
+  'product_subcategories',
+  'equipment',
+
+  // Accommodation config
+  'accommodation_units',
+
+  // Membership plans
+  'member_offerings',
+
+  // Currency
+  'currency_settings',
+
+  // Financial config
+  'financial_settings',
+  'financial_settings_overrides',
+
+  // Wallet config
+  'wallet_settings',
+  'wallet_bank_accounts',
+
+  // Legal
+  'legal_documents',
+  'waiver_versions',
+
+  // Form structure (templates + submissions — user wants to keep form answers)
+  'form_templates',
+  'form_template_versions',
+  'form_fields',
+  'form_steps',
+  'form_email_notifications',
+  'form_submissions',
+  'form_analytics_events',
+  'form_email_logs',
+  'form_quick_action_tokens',
+
+  // Quick links + registrations
+  'quick_links',
+  'quick_link_registrations',
+
+  // Popup config
+  'popup_templates',
+  'popup_configurations',
+  'popup_content_blocks',
+  'popup_media_assets',
+  'popup_targeting_rules',
+
+  // Events (the events themselves, not registrations)
+  'events',
+
+  // Voucher campaigns
+  'voucher_campaigns',
+  'voucher_codes',
+
+  // Instructor config (NOT transactional earnings/payroll)
+  'instructor_default_commissions',
+  'instructor_category_rates',
+  'instructor_skills',
+  'instructor_services',
+  'instructor_service_commissions',
+
+  // Manager config
+  'manager_commission_settings',
+]);
+
+// Staff user IDs to always keep
+const STAFF_IDS = [
+  'ba39789a-f957-4125-ac2a-f61fad37b5c4', // Elif
+  'b18bdec1-b991-48a9-9dc7-0ff81db6ba2e', // Siyabend
+  '59ab99e9-7165-4bcb-94c3-4bbb1badad11', // Oguzhan
+];
+
+// Known test emails (will be deleted even if not soft-deleted)
+const TEST_EMAILS = [
+  'lukas.hoffmann87@gmail.com', 'sophie.mueller92@gmail.com',
+  'tobias.schneider85@gmail.com', 'laura.fischer95@gmail.com',
+  'max.weber1990@gmail.com', 'emre.yilmaz91@gmail.com',
+  'selin.kaya88@gmail.com', 'burak.demir93@gmail.com',
+  'merve.celik90@gmail.com', 'kaan.ozdemir86@gmail.com',
+];
+
+
 async function main() {
-  title('CLEANUP – DELETE TEST CUSTOMERS');
+  title(DRY_RUN ? 'DATABASE RESET — DRY RUN' : 'DATABASE RESET — EXECUTING');
 
-  // 1. Admin login
-  const token = await adminLogin();
-  ok('Logged in as admin');
-
-  // 2. Fetch all users so we can match by email
-  log('\n  Fetching user list…');
-  const res = await api('GET', '/users', null, token);
-  if (!res.ok) throw new Error(`GET /users → ${res.status}`);
-
-  const users = Array.isArray(res.data) ? res.data : res.data.users || res.data.data || [];
-  const testEmails = new Set([...PROFILES, ...TURKISH_PROFILES].map(p => p.email.toLowerCase()));
-
-  // Find matching users
-  const matches = users.filter(u => testEmails.has((u.email || '').toLowerCase()));
-
-  if (matches.length === 0) {
-    log('\n  No test customers found — skipping user deletion.\n');
+  if (DRY_RUN) {
+    log('\n  This is a DRY RUN. No data will be modified.');
+    log('  Run with --execute to actually reset.\n');
   }
-
-  let deleted = 0;
-  let errors  = 0;
-  const failedUsers = [];
-
-  if (matches.length > 0) {
-    log(`\n  Found ${matches.length} test customer(s) to delete:\n`);
-    for (const u of matches) {
-      log(`    • ${u.first_name} ${u.last_name} (${u.email}) — ${u.id}`);
-    }
-
-    // 3. Hard-delete each one
-    for (const u of matches) {
-      const name = `${u.first_name} ${u.last_name}`;
-      log(`\n  Deleting ${name} (${u.id})…`);
-
-      const del = await api(
-        'DELETE',
-        `/users/${u.id}?hardDelete=true&deleteAllData=true`,
-        null,
-        token,
-      );
-
-      if (del.ok) {
-        deleted++;
-        ok(`${name} deleted (${del.data?.deletionType || 'hard'})`);
-      } else {
-        const msg = del.data?.message || del.data?.error || JSON.stringify(del.data).slice(0, 200);
-        fail(`${name}: ${del.status} — ${msg}`);
-        errors++;
-        failedUsers.push(u);
-      }
-    }
-
-    // 3b. Retry failed users via direct DB cleanup
-    if (failedUsers.length > 0) {
-      title('3b · Retrying failed deletions via DB cleanup');
-      const dbUrlRetry = process.env.DATABASE_URL;
-      if (dbUrlRetry) {
-        const retryPool = new pg.Pool({ connectionString: dbUrlRetry });
-        const retryClient = await retryPool.connect();
-        try {
-          const failedIds = failedUsers.map(u => u.id);
-
-          // Clean blocking FK references for these users
-          const blockingTables = [
-            ['shop_order_status_history', 'changed_by'],
-            ['shop_order_items', 'order_id', 'shop_orders', 'user_id'],
-          ];
-          // Direct column references
-          for (const [table, col] of blockingTables.filter(t => t.length === 2)) {
-            try {
-              const r = await retryClient.query(
-                `DELETE FROM ${table} WHERE ${col} = ANY($1::uuid[])`, [failedIds]
-              );
-              if (r.rowCount > 0) log(`    Cleared ${r.rowCount} row(s) from ${table}.${col}`);
-            } catch { /* ignore */ }
-          }
-
-          // Also clear shop_order_status_history via shop_orders join
-          try {
-            const { rowCount } = await retryClient.query(`
-              DELETE FROM shop_order_status_history
-              WHERE order_id IN (SELECT id FROM shop_orders WHERE user_id = ANY($1::uuid[]))
-            `, [failedIds]);
-            if (rowCount > 0) log(`    Cleared ${rowCount} shop_order_status_history row(s) via shop_orders`);
-          } catch { /* ignore */ }
-
-          // Clear shop_order_items via shop_orders
-          try {
-            const { rowCount } = await retryClient.query(`
-              DELETE FROM shop_order_items
-              WHERE order_id IN (SELECT id FROM shop_orders WHERE user_id = ANY($1::uuid[]))
-            `, [failedIds]);
-            if (rowCount > 0) log(`    Cleared ${rowCount} shop_order_items row(s)`);
-          } catch { /* ignore */ }
-
-          // Clear shop_orders themselves
-          try {
-            const { rowCount } = await retryClient.query(
-              `DELETE FROM shop_orders WHERE user_id = ANY($1::uuid[])`, [failedIds]
-            );
-            if (rowCount > 0) log(`    Cleared ${rowCount} shop_orders row(s)`);
-          } catch { /* ignore */ }
-        } finally {
-          retryClient.release();
-          await retryPool.end();
-        }
-
-        // Retry API deletion
-        for (const u of failedUsers) {
-          const name = `${u.first_name} ${u.last_name}`;
-          log(`\n  Retrying ${name} (${u.id})…`);
-          const del = await api('DELETE', `/users/${u.id}?hardDelete=true&deleteAllData=true`, null, token);
-          if (del.ok) {
-            deleted++;
-            errors--;
-            ok(`${name} deleted on retry (${del.data?.deletionType || 'hard'})`);
-          } else {
-            const msg = del.data?.message || del.data?.error || JSON.stringify(del.data).slice(0, 200);
-            fail(`${name} retry failed: ${del.status} — ${msg}`);
-          }
-        }
-      } else {
-        log('  ⚠️  DATABASE_URL not set — cannot retry via DB cleanup');
-      }
-    }
-
-    // 4. Summary
-    title('CLEANUP RESULTS');
-    log(`\n  Deleted: ${deleted}  |  Errors: ${errors}  |  Total: ${matches.length}\n`);
-
-    if (errors === 0) {
-      log('  🧹 All test customers cleaned up!\n');
-    } else {
-      log(`  ⚠️  ${errors} deletion(s) failed — check output above.\n`);
-    }
-  }
-
-  // 5. DB-level purge: remove all stale bookings across all instructors
-  //    (soft-deleted OR student no longer in users table OR NULL student)
-  title('5 · Purging stale bookings from DB (all instructors)');
 
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
-    log('  ⚠️  DATABASE_URL not set — skipping DB purge step.\n');
-    process.exit(errors > 0 ? 1 : 0);
+    console.error('❌ DATABASE_URL not set in backend/.env');
+    process.exit(1);
   }
 
   const pool = new pg.Pool({ connectionString: dbUrl });
   const client = await pool.connect();
+
   try {
-    // Find all stale bookings across all instructors:
-    //   • soft-deleted (deleted_at IS NOT NULL)
-    //   • no student (student_user_id IS NULL)
-    //   • student was hard/soft-deleted (not found in active users)
-    const { rows: stale } = await client.query(`
-      SELECT b.id
-      FROM   bookings b
-      WHERE  b.deleted_at IS NOT NULL
-         OR  b.student_user_id IS NULL
-         OR  NOT EXISTS (
-               SELECT 1 FROM users u
-               WHERE  u.id = b.student_user_id
-                 AND  u.deleted_at IS NULL
-             )
+    // ── Step 1: Discover all tables ──
+    title('1 · Discovering tables');
+
+    const { rows: allTables } = await client.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      ORDER BY table_name
     `);
 
-    if (stale.length === 0) {
-      ok('No stale bookings found');
-    } else {
-      const ids = stale.map(r => r.id);
-      log(`  Found ${ids.length} stale booking(s) — purging…`);
+    const tablesToTruncate = allTables
+      .map(r => r.table_name)
+      .filter(t => !KEEP_TABLES.has(t));
 
-      // Remove dependent rows first, then the bookings themselves
-      await client.query(
-        'DELETE FROM instructor_earnings WHERE booking_id = ANY($1::uuid[])',
-        [ids]
-      );
-      await client.query(
-        'DELETE FROM manager_commissions WHERE source_id = ANY($1::text[])',
-        [ids]
-      );
-      await client.query(
-        "DELETE FROM financial_events WHERE entity_type = 'booking' AND entity_id = ANY($1::uuid[])",
-        [ids]
-      );
-      await client.query(
-        'DELETE FROM bookings WHERE id = ANY($1::uuid[])',
-        [ids]
-      );
-      ok(`Purged ${ids.length} stale booking(s)`);
+    log(`\n  Total tables: ${allTables.length}`);
+    log(`  Tables to KEEP: ${KEEP_TABLES.size}`);
+    log(`  Tables to TRUNCATE: ${tablesToTruncate.length}\n`);
+
+    // Show what will be kept
+    log('  ── KEEPING ──');
+    for (const t of [...KEEP_TABLES].sort()) {
+      log(`    ✓ ${t}`);
     }
 
-    // ── Step 5b. Purge orphaned manager commissions ──
-    title('5b · Purging orphaned manager commission records');
-
-    // Delete manager_commissions whose source booking/rental no longer exists
-    const { rowCount: orphanedBookingComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'booking'
-        AND NOT EXISTS (SELECT 1 FROM bookings b WHERE b.id::text = mc.source_id)
-    `);
-    const { rowCount: orphanedRentalComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'rental'
-        AND NOT EXISTS (SELECT 1 FROM rentals r WHERE r.id::text = mc.source_id)
-    `);
-    const { rowCount: orphanedShopComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'shop'
-        AND NOT EXISTS (SELECT 1 FROM shop_orders so WHERE so.id::text = mc.source_id)
-    `);
-    const { rowCount: orphanedAccomComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'accommodation'
-        AND NOT EXISTS (SELECT 1 FROM accommodation_bookings ab WHERE ab.id::text = mc.source_id)
-    `);
-    const { rowCount: orphanedMemberComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'membership'
-        AND NOT EXISTS (SELECT 1 FROM member_purchases mp WHERE mp.id::text = mc.source_id)
-    `);
-    const { rowCount: orphanedPkgComm } = await client.query(`
-      DELETE FROM manager_commissions mc
-      WHERE mc.source_type = 'package'
-        AND NOT EXISTS (SELECT 1 FROM customer_packages cp WHERE cp.id::text = mc.source_id)
-    `);
-    const totalOrphaned = (orphanedBookingComm || 0) + (orphanedRentalComm || 0) + (orphanedShopComm || 0) + (orphanedAccomComm || 0) + (orphanedMemberComm || 0) + (orphanedPkgComm || 0);
-    if (totalOrphaned > 0) {
-      ok(`Purged ${totalOrphaned} orphaned manager commission(s)`);
-    } else {
-      ok('No orphaned manager commissions found');
+    log('\n  ── TRUNCATING ──');
+    for (const t of tablesToTruncate) {
+      log(`    ✗ ${t}`);
     }
 
-    // Also clean up orphaned manager_salary_records for months with no remaining commissions
-    const { rowCount: orphanedSalary } = await client.query(`
-      DELETE FROM manager_salary_records msr
-      WHERE msr.salary_type = 'commission'
-        AND NOT EXISTS (
-          SELECT 1 FROM manager_commissions mc
-          WHERE mc.manager_user_id = msr.manager_user_id
-            AND mc.period_month = msr.period_month
-            AND mc.status != 'cancelled'
-        )
-    `);
-    if (orphanedSalary > 0) {
-      ok(`Purged ${orphanedSalary} orphaned manager salary record(s)`);
+    // ── Step 2: Count rows before truncation ──
+    title('2 · Row counts (before reset)');
+
+    let totalRowsToDelete = 0;
+    for (const t of tablesToTruncate) {
+      try {
+        const { rows } = await client.query(`SELECT COUNT(*) as cnt FROM "${t}"`);
+        const cnt = parseInt(rows[0].cnt);
+        if (cnt > 0) {
+          log(`    ${t}: ${cnt} row(s)`);
+          totalRowsToDelete += cnt;
+        }
+      } catch { /* table might not exist */ }
     }
+    log(`\n  Total rows to delete: ${totalRowsToDelete}`);
 
-    // ── Step 5c. Purge orphaned instructor_earnings (booking no longer exists) ──
-    title('5c · Purging orphaned instructor earnings');
-    const { rowCount: orphanedEarnings } = await client.query(`
-      DELETE FROM instructor_earnings ie
-      WHERE NOT EXISTS (SELECT 1 FROM bookings b WHERE b.id = ie.booking_id)
-    `);
-    if (orphanedEarnings > 0) {
-      ok(`Purged ${orphanedEarnings} orphaned instructor earning(s)`);
-    } else {
-      ok('No orphaned instructor earnings found');
-    }
+    // Also count test/soft-deleted users
+    const { rows: testUsers } = await client.query(`
+      SELECT id, first_name, last_name, email, deleted_at
+      FROM users
+      WHERE deleted_at IS NOT NULL
+         OR LOWER(email) = ANY($1::text[])
+    `, [TEST_EMAILS]);
 
-    // ── Step 5d. Purge orphaned instructor_payroll ──
-    title('5d · Purging orphaned instructor payroll records');
-    const { rowCount: orphanedPayroll } = await client.query(`
-      DELETE FROM instructor_payroll ip
-      WHERE NOT EXISTS (
-        SELECT 1 FROM instructor_earnings ie
-        WHERE ie.instructor_id = ip.instructor_id
-      )
-    `);
-    if (orphanedPayroll > 0) {
-      ok(`Purged ${orphanedPayroll} orphaned instructor payroll record(s)`);
-    } else {
-      ok('No orphaned instructor payroll records found');
-    }
-
-    // ── Step 5e. Purge test-generated wallet_transactions for instructors/manager ──
-    title('5e · Purging test-generated wallet transactions');
-    const staffIds = [ELIF_ID, SIYABEND_ID, OGUZHAN_ID];
-
-    // Delete wallet_transactions with test descriptions
-    const { rowCount: testWalletTx } = await client.query(`
-      DELETE FROM wallet_transactions
-      WHERE description LIKE 'Mega test%'
-    `);
-    if (testWalletTx > 0) {
-      ok(`Purged ${testWalletTx} test-generated wallet transaction(s)`);
-    } else {
-      ok('No test-generated wallet transactions found');
-    }
-
-    // Also purge orphaned wallet_transactions for staff that reference deleted entities
-    const { rowCount: orphanedStaffTx } = await client.query(`
-      DELETE FROM wallet_transactions wt
-      WHERE wt.user_id = ANY($1::uuid[])
-        AND wt.entity_type = 'manager_payment'
-        AND NOT EXISTS (
-          SELECT 1 FROM manager_commissions mc
-          WHERE mc.manager_user_id = wt.user_id
-        )
-    `, [staffIds]);
-    if (orphanedStaffTx > 0) {
-      ok(`Purged ${orphanedStaffTx} orphaned staff wallet transaction(s)`);
-    }
-
-    // Recalculate wallet_balances for staff from remaining transactions
-    await client.query(`
-      UPDATE wallet_balances wb
-      SET available_amount = 0, pending_amount = 0, non_withdrawable_amount = 0, updated_at = NOW()
-      WHERE user_id = ANY($1::uuid[])
-    `, [staffIds]);
-    await client.query(`
-      UPDATE wallet_balances wb
-      SET available_amount = COALESCE(sub.sum_avail, 0),
-          pending_amount = COALESCE(sub.sum_pending, 0),
-          non_withdrawable_amount = COALESCE(sub.sum_nw, 0),
-          updated_at = NOW()
-      FROM (
-        SELECT user_id,
-               SUM(available_delta) AS sum_avail,
-               SUM(pending_delta) AS sum_pending,
-               SUM(non_withdrawable_delta) AS sum_nw
-        FROM wallet_transactions
-        WHERE user_id = ANY($1::uuid[])
-        GROUP BY user_id
-      ) sub
-      WHERE wb.user_id = sub.user_id
-    `, [staffIds]);
-    ok('Recalculated wallet balances for staff');
-
-    // ── Step 6. Hard-purge all soft-deleted users + their orphaned records ──
-    title('6 · Purging soft-deleted users and their orphaned records');
-
-    const { rows: deletedUsers } = await client.query(`
-      SELECT id, first_name, last_name, email
-      FROM   users
-      WHERE  deleted_at IS NOT NULL
-    `);
-
-    if (deletedUsers.length === 0) {
-      ok('No soft-deleted users found');
-    } else {
-      const uids = deletedUsers.map(u => u.id);
-      log(`  Found ${uids.length} soft-deleted user(s):`);
-      for (const u of deletedUsers) {
-        log(`    • ${u.id.slice(0,8)}  ${u.first_name ?? '?'} ${u.last_name ?? '?'}  (${u.email})`);
+    if (testUsers.length > 0) {
+      log(`\n  Users to delete (${testUsers.length}):`);
+      for (const u of testUsers) {
+        const status = u.deleted_at ? '(soft-deleted)' : '(test account)';
+        log(`    ✗ ${u.first_name ?? '?'} ${u.last_name ?? '?'} — ${u.email} ${status}`);
       }
+    }
 
-      // Step 1: Discover ALL nullable FK columns referencing users(id) and nullify them
-      const { rows: fkRefs } = await client.query(`
-        SELECT kcu.table_name, kcu.column_name
-        FROM information_schema.referential_constraints rc
-        JOIN information_schema.key_column_usage kcu
-          ON kcu.constraint_name = rc.constraint_name
-          AND kcu.constraint_schema = rc.constraint_schema
-        JOIN information_schema.key_column_usage rcu
-          ON rcu.constraint_name = rc.unique_constraint_name
-          AND rcu.constraint_schema = rc.constraint_schema
-        JOIN information_schema.columns c
-          ON c.table_name = kcu.table_name
-          AND c.column_name = kcu.column_name
-          AND c.table_schema = 'public'
-        WHERE rcu.table_name = 'users'
-          AND rcu.column_name = 'id'
-          AND c.is_nullable = 'YES'
-          AND kcu.table_name <> 'users'
-      `);
-      for (const ref of fkRefs) {
+    // Count kept users
+    const { rows: [{ cnt: keptCount }] } = await client.query(`
+      SELECT COUNT(*) as cnt FROM users
+      WHERE deleted_at IS NULL
+        AND LOWER(email) NOT IN (${TEST_EMAILS.map((_, i) => `$${i + 1}`).join(',')})
+    `, TEST_EMAILS);
+    log(`\n  Users to KEEP: ${keptCount}`);
+
+    if (DRY_RUN) {
+      title('DRY RUN COMPLETE');
+      log('\n  No changes made. Run with --execute to reset.\n');
+      await client.release();
+      await pool.end();
+      process.exit(0);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // EXECUTION MODE — actually delete data
+    // ══════════════════════════════════════════════════════════════
+
+    // ── Step 3: Clean user FK references first ──
+    title('3 · Cleaning FK references for test/soft-deleted users');
+
+    const userIdsToDelete = testUsers.map(u => u.id);
+    if (userIdsToDelete.length > 0) {
+      await purgeUserFKs(client, userIdsToDelete);
+      ok(`Cleaned FK references for ${userIdsToDelete.length} user(s)`);
+    }
+
+    // ── Step 4: Truncate transactional tables ──
+    title('4 · Truncating transactional tables');
+
+    // Use TRUNCATE CASCADE to handle inter-table FKs in one shot
+    // Process in batches to avoid issues
+    let truncated = 0;
+    let truncateErrors = 0;
+
+    for (const t of tablesToTruncate) {
+      try {
+        await client.query(`TRUNCATE TABLE "${t}" CASCADE`);
+        truncated++;
+      } catch (e) {
+        // Some tables might have FK references to kept tables — delete row by row
         try {
-          const r = await client.query(
-            `UPDATE ${ref.table_name} SET ${ref.column_name} = NULL WHERE ${ref.column_name} = ANY($1::uuid[])`,
-            [uids]
-          );
-          if (r.rowCount > 0) log(`    Nullified ${r.rowCount} row(s) in ${ref.table_name}.${ref.column_name}`);
-        } catch { /* ignore if column type mismatch */ }
+          await client.query(`DELETE FROM "${t}"`);
+          truncated++;
+        } catch (e2) {
+          warn(`Could not clean ${t}: ${e2.message.slice(0, 100)}`);
+          truncateErrors++;
+        }
       }
+    }
+    ok(`Truncated ${truncated} table(s)${truncateErrors > 0 ? `, ${truncateErrors} error(s)` : ''}`);
 
-      // Step 2: Delete rows in all tables that reference these users
-      const tableCols = [
-        ['liability_waivers',              'user_id'],
-        ['instructor_earnings',            'instructor_id'],
-        ['booking_series_customers',       'customer_user_id'],
-        ['booking_series',                 'instructor_user_id'],
-        ['wallet_transactions',            'user_id'],
-        ['wallet_balances',                'user_id'],
-        ['transactions',                   'user_id'],
-        ['notifications',                  'user_id'],
-        ['user_consents',                  'user_id'],
-        ['instructor_services',            'instructor_id'],
-        ['financial_events',               'user_id'],
-        ['student_accounts',               'user_id'],
-        ['instructor_service_commissions', 'instructor_id'],
-        ['event_registrations',            'user_id'],
-        ['instructor_payroll',             'instructor_id'],
-        ['student_progress',               'student_id'],
-        ['student_progress',               'instructor_id'],
-        ['accommodation_bookings',         'guest_id'],
-        ['security_audit',                 'user_id'],
-        ['api_keys',                       'user_id'],
-        ['voucher_redemptions',            'user_id'],
-        ['quick_link_registrations',       'user_id'],
-        ['form_submissions',               'user_id'],
-        ['manager_salary_records',         'manager_user_id'],
-        ['service_revenue_ledger',         'customer_id'],
-        ['rentals',                        'user_id'],
-        ['customer_packages',              'customer_id'],
-        ['family_members',                 'parent_user_id'],
-        ['member_purchases',               'user_id'],
-        ['manager_commissions',            'manager_user_id'],
-        ['bookings',                       'student_user_id'],
-        ['bookings',                       'instructor_user_id'],
-        ['bookings',                       'customer_user_id'],
-        ['audit_logs',                     'user_id'],
-        ['audit_logs',                     'target_user_id'],
-        ['audit_logs',                     'actor_user_id'],
-        ['shop_order_status_history',      'changed_by'],
-      ];
-      for (const [table, col] of tableCols) {
-        try {
-          const r = await client.query(
-            `DELETE FROM ${table} WHERE ${col} = ANY($1::uuid[])`,
-            [uids]
-          );
-          if (r.rowCount > 0) log(`    Deleted ${r.rowCount} row(s) from ${table}.${col}`);
-        } catch { /* ignore */ }
-      }
+    // ── Step 5: Delete test/soft-deleted users ──
+    title('5 · Deleting test & soft-deleted users');
 
-      // Step 2b: Clean shop orders (need to delete items first due to FK)
-      try {
-        const { rowCount: soiCount } = await client.query(`
-          DELETE FROM shop_order_items
-          WHERE order_id IN (SELECT id FROM shop_orders WHERE user_id = ANY($1::uuid[]))
-        `, [uids]);
-        if (soiCount > 0) log(`    Deleted ${soiCount} row(s) from shop_order_items (via shop_orders)`);
-      } catch { /* ignore */ }
-      try {
-        const { rowCount: soshCount } = await client.query(`
-          DELETE FROM shop_order_status_history
-          WHERE order_id IN (SELECT id FROM shop_orders WHERE user_id = ANY($1::uuid[]))
-        `, [uids]);
-        if (soshCount > 0) log(`    Deleted ${soshCount} row(s) from shop_order_status_history (via shop_orders)`);
-      } catch { /* ignore */ }
-      try {
-        const { rowCount: soCount } = await client.query(
-          `DELETE FROM shop_orders WHERE user_id = ANY($1::uuid[])`, [uids]
-        );
-        if (soCount > 0) log(`    Deleted ${soCount} row(s) from shop_orders`);
-      } catch { /* ignore */ }
-
-      // Step 3: Hard-delete the users
+    if (userIdsToDelete.length > 0) {
       const { rowCount } = await client.query(
         'DELETE FROM users WHERE id = ANY($1::uuid[])',
-        [uids]
+        [userIdsToDelete]
       );
-      ok(`Hard-deleted ${rowCount} soft-deleted user(s) and their records`);
+      ok(`Deleted ${rowCount} user(s)`);
+    } else {
+      ok('No users to delete');
     }
+
+    // ── Step 6: Reset wallet balances for staff ──
+    title('6 · Resetting staff wallet balances');
+
+    await client.query(`
+      UPDATE wallet_balances
+      SET available_amount = 0, pending_amount = 0, non_withdrawable_amount = 0, updated_at = NOW()
+      WHERE user_id = ANY($1::uuid[])
+    `, [STAFF_IDS]);
+    ok('Staff wallet balances reset to 0');
+
+    // ── Step 7: Reset sequences if needed ──
+    // (UUIDs don't use sequences, but some tables might have serial columns)
+
+    // ── Final summary ──
+    title('RESET COMPLETE');
+
+    const { rows: [{ cnt: remainingUsers }] } = await client.query('SELECT COUNT(*) as cnt FROM users');
+    log(`\n  Remaining users: ${remainingUsers}`);
+    log(`  Tables truncated: ${truncated}`);
+    log(`  Tables kept: ${KEEP_TABLES.size}`);
+    log('  Staff wallet balances: reset to 0');
+    log('\n  ✅ Database reset successfully!\n');
+
   } finally {
     client.release();
     await pool.end();
   }
+}
 
-  process.exit(errors > 0 ? 1 : 0);
+
+/**
+ * Dynamically discover ALL foreign keys referencing users(id) and clean them.
+ * - Nullable FK columns → SET NULL
+ * - NOT NULL FK columns → DELETE the row
+ * Handles dependency ordering by retrying failed deletes in a second pass.
+ */
+async function purgeUserFKs(client, userIds) {
+  const { rows: allFKs } = await client.query(`
+    SELECT kcu.table_name, kcu.column_name, c.is_nullable
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+    LEFT JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema
+    LEFT JOIN information_schema.columns c
+      ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name AND c.table_schema = 'public'
+    WHERE tc.table_schema = 'public'
+      AND tc.constraint_type = 'FOREIGN KEY'
+      AND ccu.table_name = 'users'
+      AND ccu.column_name = 'id'
+      AND kcu.table_name <> 'users'
+    ORDER BY kcu.table_name, kcu.column_name
+  `);
+
+  // Only clean FKs in KEEP tables — transactional tables will be truncated anyway
+  const keepFKs = allFKs.filter(fk => KEEP_TABLES.has(fk.table_name));
+
+  // Pass 1: Nullify nullable FK columns
+  for (const { table_name, column_name } of keepFKs.filter(fk => fk.is_nullable === 'YES')) {
+    try {
+      const r = await client.query(
+        `UPDATE "${table_name}" SET "${column_name}" = NULL WHERE "${column_name}" = ANY($1::uuid[])`,
+        [userIds]
+      );
+      if (r.rowCount > 0) log(`    Nullified ${r.rowCount} row(s) in ${table_name}.${column_name}`);
+    } catch { /* ignore */ }
+  }
+
+  // Pass 2: Delete NOT NULL FK rows in kept tables
+  const notNulls = keepFKs.filter(fk => fk.is_nullable === 'NO');
+  const unique = [...new Map(notNulls.map(fk => [`${fk.table_name}.${fk.column_name}`, fk])).values()];
+
+  const failed = [];
+  for (const { table_name, column_name } of unique) {
+    try {
+      const r = await client.query(
+        `DELETE FROM "${table_name}" WHERE "${column_name}" = ANY($1::uuid[])`,
+        [userIds]
+      );
+      if (r.rowCount > 0) log(`    Deleted ${r.rowCount} row(s) from ${table_name}.${column_name}`);
+    } catch {
+      failed.push({ table_name, column_name });
+    }
+  }
+
+  // Pass 3: Retry failures
+  for (const { table_name, column_name } of failed) {
+    try {
+      const r = await client.query(
+        `DELETE FROM "${table_name}" WHERE "${column_name}" = ANY($1::uuid[])`,
+        [userIds]
+      );
+      if (r.rowCount > 0) log(`    Deleted ${r.rowCount} row(s) from ${table_name}.${column_name} (retry)`);
+    } catch (e) {
+      warn(`Could not clean ${table_name}.${column_name}: ${e.message.slice(0, 120)}`);
+    }
+  }
 }
 
 main().catch(e => {

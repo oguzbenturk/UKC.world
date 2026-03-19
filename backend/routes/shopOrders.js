@@ -92,15 +92,27 @@ router.post('/', authenticateJWT, async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const userId = req.user.id;
+    let userId = req.user.id;
     const { 
       items, 
       payment_method, 
       notes, 
       shipping_address,
       use_wallet = true,
-      voucher_code
+      voucher_code,
+      user_id: overrideUserId,
+      created_at: overrideCreatedAt,
+      allowNegativeBalance
     } = req.body;
+
+    // Allow admin/manager to create orders on behalf of a customer
+    const isAdmin = ['admin', 'manager', 'super_admin', 'owner'].includes(req.user.role);
+    if (overrideUserId && isAdmin) {
+      userId = overrideUserId;
+    }
+
+    // allowNegativeBalance is restricted to admin/manager only
+    const canGoNegative = allowNegativeBalance === true && isAdmin;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Order must contain at least one item' });
@@ -157,6 +169,10 @@ router.post('/', authenticateJWT, async (req, res) => {
         selected_variant: item.selected_variant ? JSON.stringify(item.selected_variant) : null
       });
     }
+
+    const itemSummary = validatedItems.length <= 3
+      ? validatedItems.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+      : `${validatedItems.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${validatedItems.length - 2} more`;
 
     const totalAmount = subtotal; // Can add tax/shipping logic here
 
@@ -257,14 +273,30 @@ router.post('/', authenticateJWT, async (req, res) => {
     if (payment_method === 'wallet' && use_wallet) {
       const { totalDeductedEUR, plan } = await calculateWalletDeduction(finalAmount);
 
-      if (totalDeductedEUR < finalAmount - 0.01) {
+      if (totalDeductedEUR < finalAmount - 0.01 && !canGoNegative) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${totalDeductedEUR.toFixed(2)}`
         });
       }
-      hybridWalletDeducted = totalDeductedEUR;
-      walletDeductionPlan = plan;
+
+      if (canGoNegative && totalDeductedEUR < finalAmount - 0.01) {
+        // Admin override: create deduction plan for full amount from primary currency (EUR)
+        // The wallet will go negative
+        const shortfall = Math.round((finalAmount - totalDeductedEUR) * 100) / 100;
+        // Add remaining as EUR deduction (will create negative balance)
+        const existingEUR = plan.find(p => p.currency === 'EUR');
+        if (existingEUR) {
+          existingEUR.amount = Math.round((existingEUR.amount + shortfall) * 100) / 100;
+        } else {
+          plan.push({ currency: 'EUR', amount: shortfall });
+        }
+        hybridWalletDeducted = finalAmount;
+        walletDeductionPlan = plan;
+      } else {
+        hybridWalletDeducted = totalDeductedEUR;
+        walletDeductionPlan = plan;
+      }
     } else if (payment_method === 'wallet_hybrid' || payment_method === 'credit_card') {
       // Hybrid / credit_card: deduct what we can from wallet, charge the rest via card
       const { totalDeductedEUR, plan } = await calculateWalletDeduction(finalAmount);
@@ -277,17 +309,20 @@ router.post('/', authenticateJWT, async (req, res) => {
       ? { totalDeductedEUR: hybridWalletDeducted, plan: walletDeductionPlan }
       : null;
 
+    // Allow admin/manager to backdate orders
+    const orderCreatedAt = (isAdmin && overrideCreatedAt) ? new Date(overrideCreatedAt) : new Date();
+
     // Create the order
     const orderResult = await client.query(`
       INSERT INTO shop_orders (
         user_id, status, payment_method, payment_status, 
         subtotal, discount_amount, total_amount, notes, shipping_address,
-        voucher_id, voucher_code, wallet_deduction_data
+        voucher_id, voucher_code, wallet_deduction_data, created_at
       )
-      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, 'pending', $2, 'pending', $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [userId, payment_method, subtotal, voucherDiscount, finalAmount, notes || null, shipping_address || null,
-        appliedVoucher?.id || null, appliedVoucher?.code || null, walletDeductionData ? JSON.stringify(walletDeductionData) : null]);
+        appliedVoucher?.id || null, appliedVoucher?.code || null, walletDeductionData ? JSON.stringify(walletDeductionData) : null, orderCreatedAt]);
 
     const order = orderResult.rows[0];
 
@@ -313,12 +348,31 @@ router.post('/', authenticateJWT, async (req, res) => {
         item.selected_variant
       ]);
 
-      // Decrease stock
+      // Decrease top-level stock
       await client.query(`
         UPDATE products 
         SET stock_quantity = stock_quantity - $1, updated_at = NOW()
         WHERE id = $2
       `, [item.quantity, item.product_id]);
+
+      // Decrease variant-level stock when a size was selected
+      if (item.selected_size) {
+        await client.query(`
+          UPDATE products
+          SET variants = (
+            SELECT jsonb_agg(
+              CASE
+                WHEN elem->>'label' = $2
+                THEN jsonb_set(elem, '{quantity}', to_jsonb(GREATEST(0, (elem->>'quantity')::int - $1)))
+                ELSE elem
+              END
+            )
+            FROM jsonb_array_elements(variants) AS elem
+          ),
+          updated_at = NOW()
+          WHERE id = $3 AND variants IS NOT NULL
+        `, [item.quantity, item.selected_size, item.product_id]);
+      }
     }
 
     // Process credit_card payment via Iyzico (wallet deduction deferred to callback)
@@ -412,12 +466,12 @@ router.post('/', authenticateJWT, async (req, res) => {
           await recordTransaction({
             client,
             userId,
-            amount: wd.amount,
+            amount: -wd.amount,
             currency: wd.currency,
             transactionType: 'payment',
             direction: 'debit',
             availableDelta: -wd.amount,
-            description: `Shop Order #${order.order_number} (wallet - ${wd.currency})`,
+            description: `${itemSummary} - Order #${order.order_number}`,
             relatedEntityType: 'shop_order',
             metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
           });
@@ -439,12 +493,13 @@ router.post('/', authenticateJWT, async (req, res) => {
         await recordTransaction({
           client,
           userId,
-          amount: wd.amount,
+          amount: -wd.amount,
           currency: wd.currency,
           transactionType: 'payment',
           direction: 'debit',
           availableDelta: -wd.amount,
-          description: `Shop Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''} (${wd.currency})`,
+          allowNegative: canGoNegative,
+          description: `${itemSummary} - Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''}`,
           relatedEntityType: 'shop_order',
           metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
         });
@@ -453,9 +508,9 @@ router.post('/', authenticateJWT, async (req, res) => {
       // Update order payment status
       await client.query(`
         UPDATE shop_orders 
-        SET payment_status = 'completed', status = 'confirmed', confirmed_at = NOW()
+        SET payment_status = 'completed', status = 'confirmed', confirmed_at = $2
         WHERE id = $1
-      `, [order.id]);
+      `, [order.id, orderCreatedAt]);
 
       // Log status change
       await client.query(`
@@ -468,9 +523,9 @@ router.post('/', authenticateJWT, async (req, res) => {
     if (payment_method === 'cash') {
       await client.query(`
         UPDATE shop_orders 
-        SET status = 'confirmed', payment_status = 'pending', confirmed_at = NOW()
+        SET status = 'confirmed', payment_status = 'pending', confirmed_at = $2
         WHERE id = $1
-      `, [order.id]);
+      `, [order.id, orderCreatedAt]);
 
       await client.query(`
         INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
@@ -548,12 +603,12 @@ router.post('/', authenticateJWT, async (req, res) => {
           await recordTransaction({
             client,
             userId,
-            amount: wd.amount,
+            amount: -wd.amount,
             currency: wd.currency,
             transactionType: 'payment',
             direction: 'debit',
             availableDelta: -wd.amount,
-            description: `Shop Order #${order.order_number} (wallet - ${wd.currency})`,
+            description: `${itemSummary} - Order #${order.order_number}`,
             relatedEntityType: 'shop_order',
             metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
           });
@@ -1021,7 +1076,7 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
     // Handle cancellation - restore stock
     if (status === 'cancelled' && previousStatus !== 'cancelled') {
       const orderItems = await client.query(`
-        SELECT product_id, quantity FROM shop_order_items WHERE order_id = $1
+        SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1
       `, [orderId]);
 
       for (const item of orderItems.rows) {
@@ -1030,6 +1085,25 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
           SET stock_quantity = stock_quantity + $1, updated_at = NOW()
           WHERE id = $2
         `, [item.quantity, item.product_id]);
+
+        // Restore variant-level stock
+        if (item.selected_size) {
+          await client.query(`
+            UPDATE products
+            SET variants = (
+              SELECT jsonb_agg(
+                CASE
+                  WHEN elem->>'label' = $2
+                  THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
+                  ELSE elem
+                END
+              )
+              FROM jsonb_array_elements(variants) AS elem
+            ),
+            updated_at = NOW()
+            WHERE id = $3 AND variants IS NOT NULL
+          `, [item.quantity, item.selected_size, item.product_id]);
+        }
       }
     }
 
@@ -1212,7 +1286,7 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
 
     // Restore stock
     const orderItems = await client.query(`
-      SELECT product_id, quantity FROM shop_order_items WHERE order_id = $1
+      SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1
     `, [orderId]);
 
     for (const item of orderItems.rows) {
@@ -1221,6 +1295,25 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
         SET stock_quantity = stock_quantity + $1, updated_at = NOW()
         WHERE id = $2
       `, [item.quantity, item.product_id]);
+
+      // Restore variant-level stock
+      if (item.selected_size) {
+        await client.query(`
+          UPDATE products
+          SET variants = (
+            SELECT jsonb_agg(
+              CASE
+                WHEN elem->>'label' = $2
+                THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
+                ELSE elem
+              END
+            )
+            FROM jsonb_array_elements(variants) AS elem
+          ),
+          updated_at = NOW()
+          WHERE id = $3 AND variants IS NOT NULL
+        `, [item.quantity, item.selected_size, item.product_id]);
+      }
     }
 
     // Refund if payment was made
@@ -1350,6 +1443,10 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
 
     const totalAmount = subtotal;
 
+    const itemSummary = validatedItems.length <= 3
+      ? validatedItems.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+      : `${validatedItems.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${validatedItems.length - 2} more`;
+
     // For wallet payment, check customer's wallet balance
     if (payment_method === 'wallet' && user_id) {
       const walletBalance = await getBalance(user_id, 'EUR');
@@ -1409,12 +1506,12 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
       await recordTransaction({
         client,
         userId: user_id,
-        amount: totalAmount,
+        amount: -totalAmount,
         currency: 'EUR',
         transactionType: 'payment',
         direction: 'debit',
         availableDelta: -totalAmount,
-        description: `Shop Order #${order.order_number} (Staff Sale)`,
+        description: `${itemSummary} - Order #${order.order_number} (Staff Sale)`,
         relatedEntityType: 'shop_order',
         metadata: { orderId: order.id, orderNumber: order.order_number, staffId: staffUserId }
       });

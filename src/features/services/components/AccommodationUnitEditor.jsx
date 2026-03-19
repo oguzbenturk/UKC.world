@@ -324,6 +324,36 @@ function PropertySection({ formData, onChange, unitTypes }) {
           </Select>
         </div>
 
+        {/* Ownership Category */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Ownership</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onChange('category', 'own')}
+              className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                (formData.category || 'own') === 'own'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'
+              }`}
+            >
+              Our Property
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange('category', 'hotel')}
+              className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                formData.category === 'hotel'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-slate-600 border-slate-300 hover:border-blue-400'
+              }`}
+            >
+              Hotel (External)
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">Hotel bookings appear in the Hotel Requests tab.</p>
+        </div>
+
         {/* Capacity */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Maximum Guests *</label>
@@ -1151,6 +1181,7 @@ function StatusSection({ formData, onChange }) {
 const DEFAULT_FORM_DATA = {
   name: '',
   type: undefined,
+  category: 'own',
   capacity: undefined,
   price_per_night: undefined,
   description: '',
@@ -1215,6 +1246,7 @@ function buildFormDataFromUnit(unit) {
   return {
     name: unit.name || '',
     type: unit.type || undefined,
+    category: unit.category || 'own',
     capacity: unit.capacity || undefined,
     price_per_night: unit.price_per_night ? parseFloat(unit.price_per_night) : undefined,
     description: unit.description || '',
@@ -1249,6 +1281,7 @@ function buildSavePayload(formData) {
   return {
     name: formData.name.trim(),
     type: formData.type,
+    category: formData.category || 'own',
     capacity: formData.capacity,
     price_per_night: formData.price_per_night,
     description: formData.description || '',

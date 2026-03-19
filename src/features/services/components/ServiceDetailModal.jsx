@@ -1,6 +1,6 @@
 // src/components/ServiceDetailModal.jsx
 import React, { useMemo, useState } from 'react';
-import { Modal, Button, Descriptions, Tag, Divider, DatePicker, Select, Typography } from 'antd';
+import { Drawer, Button, Descriptions, Tag, Divider, DatePicker, Select, Typography } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
   ClockCircleOutlined, 
@@ -149,38 +149,36 @@ const ServiceDetailModal = ({ service, open, onClose, onBook }) => {
     return current && current < moment().startOf('day');
   };
   
-  const footer = [
-    <Button key="close" onClick={onClose}>
-      Close
-    </Button>,
-    showBookingOptions ? (
-      <Button 
-        key="book-confirm" 
-        type="primary" 
-        onClick={handleBook}
-        loading={bookingLoading}
-        disabled={!bookingDate || !bookingTime}
-      >
-        Confirm Booking
-      </Button>
-    ) : (
-      <Button 
-        key="book" 
-        type="primary" 
-        icon={<ShoppingCartOutlined />} 
-        onClick={() => setShowBookingOptions(true)}
-      >
-        Book Now
-      </Button>
-    )
-  ];
   return (
-    <Modal
+    <Drawer
       title={name}
       open={open}
-      onCancel={onClose}
-      width={700}
-      footer={footer}
+      onClose={onClose}
+      width={560}
+      placement="right"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>Close</Button>
+          {showBookingOptions ? (
+            <Button
+              type="primary"
+              onClick={handleBook}
+              loading={bookingLoading}
+              disabled={!bookingDate || !bookingTime}
+            >
+              Confirm Booking
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<ShoppingCartOutlined />}
+              onClick={() => setShowBookingOptions(true)}
+            >
+              Book Now
+            </Button>
+          )}
+        </div>
+      }
     >
       <div className="mb-4">
         {service.imageUrl && (
@@ -320,7 +318,7 @@ const ServiceDetailModal = ({ service, open, onClose, onBook }) => {
           )}
         </>
       )}
-    </Modal>
+    </Drawer>
   );
 };
 

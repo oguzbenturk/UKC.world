@@ -3,9 +3,9 @@
 
 import { useState } from 'react';
 import { 
-  Card, Table, Tag, Button, Space, Typography, 
+  Card, Table, Tag, Button, Space, 
   Modal, Input, Select, DatePicker, Spin,
-  Statistic, Row, Col, Avatar, Descriptions,
+  Avatar, Descriptions,
   message, Empty, Grid
 } from 'antd';
 import {
@@ -27,7 +27,6 @@ import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import QuickMembershipModal from '@/features/dashboard/components/QuickMembershipModal';
 
-const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
@@ -119,65 +118,63 @@ const AdminMembersPage = () => {
     {
       title: 'Member',
       key: 'member',
-      width: 250,
       render: (_, record) => (
-        <Space>
-          <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-          <div>
-            <Text strong>{record.user_name || 'Unknown'}</Text>
+        <div className="flex items-center gap-2">
+          <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+          <div className="leading-tight">
+            <span className="text-sm font-medium text-slate-800">{record.user_name || 'Unknown'}</span>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.user_email}</Text>
+            <span className="text-[11px] text-slate-400">{record.user_email}</span>
           </div>
-        </Space>
+        </div>
       )
     },
     {
-      title: 'Membership Type',
+      title: 'Membership',
       key: 'type',
-      width: 200,
       render: (_, record) => (
-        <Space>
+        <span className="flex items-center gap-1.5 text-sm">
           {getMemberIcon(record.offering_name || record.current_offering_name)}
-          <Text>{record.offering_name || record.current_offering_name || 'Unknown'}</Text>
-        </Space>
+          {record.offering_name || record.current_offering_name || 'Unknown'}
+        </span>
       )
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 100,
       render: (status) => {
         const config = statusConfig[status] || statusConfig.pending;
         return (
-          <Tag color={config.color} icon={config.icon}>
+          <Tag color={config.color} icon={config.icon} className="m-0">
             {config.label}
           </Tag>
         );
       }
     },
     {
-      title: 'Purchase Date',
+      title: 'Purchased',
       dataIndex: 'purchased_at',
       key: 'purchased_at',
-      width: 150,
-      render: (date) => date ? dayjs(date).format('MMM D, YYYY') : '-',
+      width: 120,
+      render: (date) => date ? <span className="text-sm text-slate-600">{dayjs(date).format('MMM D, YYYY')}</span> : '-',
       sorter: (a, b) => new Date(a.purchased_at) - new Date(b.purchased_at)
     },
     {
       title: 'Expires',
       dataIndex: 'expires_at',
       key: 'expires_at',
-      width: 150,
-      render: (date, _record) => {
-        if (!date) return <Text type="secondary">Never</Text>;
+      width: 120,
+      render: (date) => {
+        if (!date) return <span className="text-xs text-slate-400">Never</span>;
         const expiry = dayjs(date);
         const isExpired = expiry.isBefore(dayjs());
         const isExpiringSoon = expiry.isBefore(dayjs().add(7, 'days'));
         return (
-          <Text type={isExpired ? 'danger' : isExpiringSoon ? 'warning' : undefined}>
+          <span className={`text-sm ${isExpired ? 'text-red-500' : isExpiringSoon ? 'text-amber-500' : 'text-slate-600'}`}>
             {expiry.format('MMM D, YYYY')}
-          </Text>
+          </span>
         );
       }
     },
@@ -185,22 +182,21 @@ const AdminMembersPage = () => {
       title: 'Amount',
       dataIndex: 'offering_price',
       key: 'offering_price',
-      width: 120,
-      render: (amount) => formatCurrency(amount || 0),
+      width: 90,
+      render: (amount) => <span className="text-sm font-medium">{formatCurrency(amount || 0)}</span>,
       sorter: (a, b) => (a.offering_price || 0) - (b.offering_price || 0)
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
-      width: 100,
+      width: 60,
       render: (_, record) => (
         <Button
           type="text"
+          size="small"
           icon={<EyeOutlined />}
           onClick={() => handleViewDetails(record)}
-        >
-          View
-        </Button>
+        />
       )
     }
   ];
@@ -213,15 +209,15 @@ const AdminMembersPage = () => {
     
     return (
       <Card 
-        className="rounded-2xl border border-slate-200 shadow-sm mb-3"
-        styles={{ body: { padding: 16 } }}
+        className="rounded-xl border border-slate-200 shadow-sm mb-2"
+        styles={{ body: { padding: 12 } }}
       >
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-            <div>
-              <Text strong className="block">{record.user_name || 'Unknown'}</Text>
-              <Text type="secondary" className="text-xs">{record.user_email}</Text>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
+            <div className="leading-tight">
+              <span className="text-sm font-medium block">{record.user_name || 'Unknown'}</span>
+              <span className="text-[11px] text-slate-400">{record.user_email}</span>
             </div>
           </div>
           <Tag color={config.color} icon={config.icon} className="m-0">
@@ -229,20 +225,18 @@ const AdminMembersPage = () => {
           </Tag>
         </div>
         
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1.5 mb-2 text-sm text-slate-700">
           {getMemberIcon(record.offering_name || record.current_offering_name)}
-          <Text className="text-sm">{record.offering_name || record.current_offering_name || 'Unknown'}</Text>
+          {record.offering_name || record.current_offering_name || 'Unknown'}
         </div>
         
-        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
+        <div className="grid grid-cols-2 gap-1 text-xs text-slate-500 mb-2">
           <div>
-            <span className="text-slate-400">Purchased:</span>
-            <br />
+            <span className="text-slate-400">Purchased: </span>
             {record.purchased_at ? dayjs(record.purchased_at).format('MMM D, YYYY') : '-'}
           </div>
           <div>
-            <span className="text-slate-400">Expires:</span>
-            <br />
+            <span className="text-slate-400">Expires: </span>
             <span className={isExpired ? 'text-red-500' : ''}>
               {expiry ? expiry.format('MMM D, YYYY') : 'Never'}
             </span>
@@ -250,37 +244,35 @@ const AdminMembersPage = () => {
         </div>
         
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-          <Text strong className="text-green-600">{formatCurrency(record.offering_price || 0)}</Text>
+          <span className="text-sm font-medium text-green-600">{formatCurrency(record.offering_price || 0)}</span>
           <Button
             type="text"
             size="small"
             icon={<EyeOutlined />}
             onClick={() => handleViewDetails(record)}
-          >
-            View
-          </Button>
+          />
         </div>
       </Card>
     );
   };
 
   return (
-    <div className="p-4 md:p-6 min-h-screen bg-slate-50">
+    <div className="p-3 md:p-5 min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="mb-4 md:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <Title level={isMobile ? 4 : 3} className="m-0 flex items-center gap-2">
+      <div className="mb-3 md:mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h2 className="m-0 text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
             <CrownOutlined className="text-amber-500" />
-            Member Management
-          </Title>
+            Members
+          </h2>
           <Space size="small" wrap>
-            <Button icon={<ReloadOutlined />} size={isMobile ? 'small' : 'middle'} onClick={() => refetch()}>
+            <Button icon={<ReloadOutlined />} size="small" onClick={() => refetch()}>
               {!isMobile && 'Refresh'}
             </Button>
             <Button 
               type="primary" 
               icon={<PlusOutlined />}
-              size={isMobile ? 'small' : 'middle'}
+              size="small"
               onClick={() => setAssignModalVisible(true)}
             >
               {isMobile ? 'Assign' : 'Assign Membership'}
@@ -290,23 +282,23 @@ const AdminMembersPage = () => {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-xl border border-slate-200 shadow-sm mb-4" styles={{ body: { padding: isMobile ? 12 : 16 } }}>
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-white rounded-xl border border-slate-200 p-3 mb-3 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="Search name or email..."
-            prefix={<SearchOutlined />}
+            prefix={<SearchOutlined className="text-slate-400" />}
             value={filters.search}
             onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
             className="flex-1"
-            size={isMobile ? 'middle' : 'large'}
+            size="middle"
             allowClear
           />
           <div className="flex gap-2 flex-wrap">
             <Select
               value={filters.status}
               onChange={(value) => setFilters(f => ({ ...f, status: value }))}
-              style={{ minWidth: 120 }}
-              size={isMobile ? 'middle' : 'large'}
+              style={{ minWidth: 110 }}
+              size="middle"
             >
               <Select.Option value="all">All Status</Select.Option>
               <Select.Option value="active">Active</Select.Option>
@@ -319,20 +311,20 @@ const AdminMembersPage = () => {
                 value={filters.dateRange}
                 onChange={(dates) => setFilters(f => ({ ...f, dateRange: dates }))}
                 placeholder={['From', 'To']}
-                size="large"
+                size="middle"
               />
             )}
             {(filters.search || filters.status !== 'all' || filters.dateRange) && (
               <Button 
                 onClick={() => setFilters({ status: 'all', search: '', dateRange: null })}
-                size={isMobile ? 'middle' : 'large'}
+                size="middle"
               >
                 Clear
               </Button>
             )}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Content - Table on desktop, Cards on mobile */}
       {isMobile ? (
@@ -364,18 +356,20 @@ const AdminMembersPage = () => {
           )}
         </div>
       ) : (
-        <Card className="rounded-xl border border-slate-200 shadow-sm">
+        <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: 0 } }}>
           <Table
             columns={columns}
             dataSource={filteredPurchases}
             rowKey="id"
             loading={isLoading}
+            size="small"
             pagination={{
-              pageSize: 20,
+              pageSize: 25,
               showSizeChanger: true,
-              showTotal: (total) => `Total ${total} members`
+              showTotal: (total) => <span className="text-xs text-slate-500">{total} members</span>,
+              size: 'small'
             }}
-            scroll={{ x: 1000 }}
+            scroll={{ x: 800 }}
             locale={{
               emptyText: (
                 <Empty

@@ -1006,7 +1006,7 @@ function CalendarProvider({ children }) {
         use_package: usePackage,
         customerPackageId: packageId,
         // Additional fields to reduce NULL values
-        amount: bookingData.servicePrice || bookingData.price || 0,
+        amount: bookingData.totalCost || bookingData.servicePrice || bookingData.price || 0,
         finalAmount: bookingData.totalCost || bookingData.servicePrice || bookingData.price || 0,
         paymentStatus: 'paid', // Pay-and-go: default to paid
         checkinStatus: 'pending',

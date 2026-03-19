@@ -49,10 +49,11 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [assignStep, setAssignStep] = useState(1);
   const [pkgSearch, setPkgSearch] = useState('');
+  const [pkgTypeFilter, setPkgTypeFilter] = useState('all');
   const [customerFinancialData, setCustomerFinancialData] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
-  const [viewMode, setViewMode] = useState('table'); // 'grid' | 'table'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [pkgListSearch, setPkgListSearch] = useState('');
   const [manualSelectedPkgId, setManualSelectedPkgId] = useState(null); // Track selected package for Next button
 
@@ -196,6 +197,7 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     form.resetFields();
     setAssignStep(1);
     setPkgSearch('');
+    setPkgTypeFilter('all');
     setManualSelectedPkgId(null); // Reset manual selection
     const defaults = (restrictParticipants && restrictParticipants.length > 0)
       ? restrictParticipants.map(p => ({
@@ -250,9 +252,16 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   };
 
   const renderAssignDrawerContent = () => {
-    const filtered = (availablePackages || []).filter(pkg =>
-      (pkg?.name || '').toLowerCase().includes(pkgSearch.toLowerCase())
-    );
+    const filtered = (availablePackages || []).filter(pkg => {
+      const nameMatch = (pkg?.name || '').toLowerCase().includes(pkgSearch.toLowerCase());
+      if (!nameMatch) return false;
+      if (pkgTypeFilter === 'all') return true;
+      const type = pkg.packageType || 'lesson';
+      if (pkgTypeFilter === 'lesson') return type === 'lesson' || (!pkg.includesRental && !pkg.includesAccommodation);
+      if (pkgTypeFilter === 'rental') return type === 'rental' || (pkg.includesRental && !pkg.includesAccommodation && type !== 'lesson');
+      if (pkgTypeFilter === 'accommodation') return pkg.includesAccommodation === true || type === 'accommodation';
+      return true;
+    });
     const selPkg = availablePackages.find(p => p.id === manualSelectedPkgId) || selectedPkg;
 
     return (
@@ -262,6 +271,25 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         {/* ── Package picker ── */}
         <div className="mb-5">
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Select Package</label>
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+            {[
+              { key: 'all',           label: 'All',           active: 'bg-gray-700 text-white border-gray-700',           inactive: 'bg-white text-gray-500 border-gray-200 hover:border-gray-400' },
+              { key: 'lesson',        label: 'Lesson',        active: 'bg-blue-500 text-white border-blue-500',           inactive: 'bg-blue-50 text-blue-500 border-blue-200 hover:border-blue-400' },
+              { key: 'rental',        label: 'Rental',        active: 'bg-green-500 text-white border-green-500',         inactive: 'bg-green-50 text-green-600 border-green-200 hover:border-green-400' },
+              { key: 'accommodation', label: 'Accommodation', active: 'bg-purple-500 text-white border-purple-500',       inactive: 'bg-purple-50 text-purple-600 border-purple-200 hover:border-purple-400' },
+            ].map(f => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setPkgTypeFilter(f.key)}
+                className={`px-2.5 py-0.5 rounded text-xs font-medium border transition-all ${
+                  pkgTypeFilter === f.key ? f.active : f.inactive
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <Input
             placeholder="Search packages…"
             prefix={<GiftOutlined className="text-gray-300" />}
@@ -618,25 +646,32 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     {
       title: 'Package Type',
       key: 'packageType',
-      render: (_, record) => (
-        <div>
-          <div className="font-medium">
-            {record.packageType === 'combo' ? 'Combo Package' : 
-             record.packageType === 'lesson-only' ? 'Lessons Only' : 
-             'Accommodation Only'}
+      render: (_, record) => {
+        // Derive type from actual data rather than relying on a packageType field that may be absent
+        const hasLessons = (record.totalHours || record.total_hours || 0) > 0;
+        const hasRental = (record.rentalDaysTotal || record.rental_days_total || 0) > 0;
+        const hasAccommodation = (record.accommodationNightsTotal || record.accommodation_nights_total || 0) > 0;
+        const typeParts = [];
+        if (hasLessons) typeParts.push('Lessons');
+        if (hasRental) typeParts.push('Rental');
+        if (hasAccommodation) typeParts.push('Accommodation');
+        const typeLabel = typeParts.length > 0 ? typeParts.join(' + ') : (record.name || record.packageName || 'Lesson Package');
+        return (
+          <div>
+            <div className="font-medium">{typeLabel}</div>
+            {record.lessonType && (
+              <div className="text-xs text-blue-500">
+                <ClockCircleOutlined /> {record.lessonType}
+              </div>
+            )}
+            {record.accommodationType && (
+              <div className="text-xs text-gray-600">
+                <HomeOutlined /> {record.accommodationType}
+              </div>
+            )}
           </div>
-          {record.lessonType && (
-            <div className="text-xs text-gray-600">
-              <ClockCircleOutlined /> {record.lessonType}
-            </div>
-          )}
-          {record.accommodationType && (
-            <div className="text-xs text-gray-600">
-              <HomeOutlined /> {record.accommodationType}
-            </div>
-          )}
-        </div>
-      )
+        );
+      }
     },
     {
       title: 'Progress',
@@ -937,23 +972,29 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
 
         {/* Toolbar: title, search, view toggle, assign */}
         {showToolbar && (
-          <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-            <h3 className="text-lg font-semibold">Customer Packages</h3>
-            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 whitespace-nowrap flex items-center gap-1.5">
+              <GiftOutlined className="text-purple-500" />
+              Customer Packages
+            </h3>
+            <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
               <Input
-                placeholder="Search packages"
+                placeholder="Search packages…"
                 allowClear
+                prefix={<span className="text-gray-400 text-xs">🔍</span>}
                 value={pkgListSearch}
                 onChange={(e) => setPkgListSearch(e.target.value)}
-                style={{ maxWidth: 260 }}
+                style={{ maxWidth: 200 }}
+                size="small"
               />
               <Segmented
                 value={forceViewMode || viewMode}
                 onChange={(v) => setViewMode(v)}
                 options={[{ label: 'Grid', value: 'grid' }, { label: 'Table', value: 'table' }]}
                 disabled={!!forceViewMode}
+                size="small"
               />
-              <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAssign}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAssign} size="small">
                 Assign Package
               </Button>
             </div>

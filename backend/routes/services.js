@@ -3206,9 +3206,18 @@ router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin
     const isFullyUsed = lessonHoursRemaining <= 0 && rentalDaysRemaining <= 0 && newRemainingNights <= 0;
     const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
     
+    const effectiveCheckIn = checkInDate || new Date().toISOString().split('T')[0];
+    const effectiveCheckOut = checkOutDate || (() => {
+      const parts = effectiveCheckIn.split('-');
+      const d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+      d.setUTCDate(d.getUTCDate() + parseInt(nightsToUse));
+      return d.toISOString().split('T')[0];
+    })();
+
     const updateQuery = `
       UPDATE customer_packages 
-      SET accommodation_nights_used = $1, accommodation_nights_remaining = $2, last_used_date = $3, status = $4, updated_at = NOW()
+      SET accommodation_nights_used = $1, accommodation_nights_remaining = $2, last_used_date = $3, status = $4,
+          check_in_date = $6, check_out_date = $7, updated_at = NOW()
       WHERE id = $5
       RETURNING *
     `;
@@ -3216,9 +3225,11 @@ router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin
     const { rows } = await pool.query(updateQuery, [
       newUsedNights,
       newRemainingNights,
-      checkInDate || new Date().toISOString().split('T')[0],
+      effectiveCheckIn,
       newStatus,
-      id
+      id,
+      effectiveCheckIn,
+      effectiveCheckOut,
     ]);
     
     logger.info('Accommodation nights used from package', {
@@ -3267,17 +3278,12 @@ router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin
       }
 
       if (accomAmount > 0) {
-        const checkOut = checkOutDate || (() => {
-          const d = new Date(checkInDate || Date.now());
-          d.setDate(d.getDate() + parseInt(nightsToUse));
-          return d.toISOString().split('T')[0];
-        })();
         await recordAccommodationCommission({
           id: `pkg-accom-${id}`,
           total_price: accomAmount,
           currency: currentPackage.currency || 'EUR',
-          check_in_date: checkInDate,
-          check_out_date: checkOut,
+          check_in_date: effectiveCheckIn,
+          check_out_date: effectiveCheckOut,
           guest_id: currentPackage.customer_id,
           unit_id: unitId,
           guests_count: 1,

@@ -540,15 +540,24 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
         if (order.wallet_deduction_data && order.wallet_deduction_data.plan) {
           try {
             const { recordTransaction: recordWalletTx } = await import('./services/walletService.js');
+            const orderItemsResult = await pool.query(
+              'SELECT product_name, quantity FROM shop_order_items WHERE order_id = $1',
+              [order.id]
+            );
+            const orderItems = orderItemsResult.rows;
+            const itemSummary = orderItems.length <= 3
+              ? orderItems.map(i => `${i.product_name} x${i.quantity}`).join(', ')
+              : `${orderItems.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${orderItems.length - 2} more`;
+            const txDescription = itemSummary ? `${itemSummary} - Order #${order.order_number}` : `Shop Order #${order.order_number}`;
             for (const wd of order.wallet_deduction_data.plan) {
               await recordWalletTx({
                 userId: order.user_id,
-                amount: wd.amount,
+                amount: -wd.amount,
                 currency: wd.currency,
                 transactionType: 'payment',
                 direction: 'debit',
                 availableDelta: -wd.amount,
-                description: `Shop Order #${order.order_number} (wallet portion - ${wd.currency})`,
+                description: txDescription,
                 relatedEntityType: 'shop_order',
                 metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: order.wallet_deduction_data.totalDeductedEUR, deductedCurrency: wd.currency, deductedAmount: wd.amount }
               });

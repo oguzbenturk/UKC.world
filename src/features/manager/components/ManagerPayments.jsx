@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
   Spin, Table, Button, Modal, Form, Input, InputNumber, DatePicker,
-  Select, Segmented, Popconfirm, Empty, Tag
+  Segmented, Popconfirm, Empty, Tag
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -40,7 +40,6 @@ const buildPayload = (values, type, record, managerName) => {
   return {
     amount,
     isDeduction,
-    role: values.role || 'manager',
     description: values.notes || `${isDeduction ? 'Deduction' : 'Payment'} for ${managerName}`,
     payment_date: values.payment_date.format('YYYY-MM-DD'),
     payment_method: values.payment_method || 'cash',
@@ -54,16 +53,15 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
 
   // Manager commission data
   const [mgrCommissionTotal, setMgrCommissionTotal] = useState(0);
-  const [mgrPayments, setMgrPayments] = useState([]);
+  const [payments, setPayments] = useState([]);
 
   // Instructor earnings data
   const [instrEarningsTotal, setInstrEarningsTotal] = useState(0);
-  const [instrPayments, setInstrPayments] = useState([]);
 
   // Modal
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalConfig, setModalConfig] = useState({ type: 'payment', role: 'manager', record: null });
+  const [modalConfig, setModalConfig] = useState({ type: 'payment', record: null });
   const [form] = Form.useForm();
 
   const fetchData = useCallback(async () => {
@@ -76,12 +74,12 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
         apiClient.get(`/finances/instructor-earnings/${manager.id}`),
       ]);
 
-      // Manager commission payments
+      // Payments (single channel — manager payments)
       let mPay = [];
       if (mgrPayRes.status === 'fulfilled' && mgrPayRes.value?.success) {
-        mPay = (mgrPayRes.value.data || []).map(p => ({ ...p, _role: 'manager' }));
+        mPay = mgrPayRes.value.data || [];
       }
-      setMgrPayments(mPay);
+      setPayments(mPay);
 
       let mCommTotal = 0;
       if (mgrSummaryRes.status === 'fulfilled' && mgrSummaryRes.value?.success) {
@@ -89,17 +87,14 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       }
       setMgrCommissionTotal(mCommTotal);
 
-      // Instructor earnings + payments
-      let iPay = [];
+      // Instructor earnings (for display only — no separate payment channel)
       let iTotal = 0;
       if (instrRes.status === 'fulfilled') {
         const d = instrRes.value?.data;
         const earnings = d?.earnings || [];
         iTotal = earnings.reduce((s, e) => s.plus(parseFloat(e.total_earnings || 0)), new Decimal(0)).toNumber();
-        iPay = (d?.payrollHistory || []).map(p => ({ ...p, _role: 'instructor' }));
       }
       setInstrEarningsTotal(iTotal);
-      setInstrPayments(iPay);
     } catch {
       /* best effort */
     } finally {
@@ -110,41 +105,34 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
   useEffect(() => { fetchData(); }, [fetchData]);
   useImperativeHandle(ref, () => ({ refreshData: fetchData }));
 
-  // Combined calculations
-  const mgrTotals = sumPayments(mgrPayments);
-  const instrTotals = sumPayments(instrPayments);
+  // Calculations
+  const payTotals = sumPayments(payments);
   const totalEarned = new Decimal(mgrCommissionTotal).plus(instrEarningsTotal).toNumber();
-  const totalPaid = new Decimal(mgrTotals.net).plus(instrTotals.net).toNumber();
+  const totalPaid = payTotals.net;
   const totalBalance = new Decimal(totalEarned).minus(totalPaid).toNumber();
-
-  // Combined payment history — merge and sort by date descending
-  const allPayments = [...mgrPayments, ...instrPayments]
-    .sort((a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0));
 
   const managerName = manager?.name || `${manager?.first_name || ''} ${manager?.last_name || ''}`.trim() || 'Manager';
 
   // ── Modal handlers ──
-  const showModal = (type, role = 'manager', record = null) => {
-    setModalConfig({ type, role: record?._role || role, record });
+  const showModal = (type, record = null) => {
+    setModalConfig({ type, record });
     setIsModalVisible(true);
   };
 
   const handleModalOpen = (open) => {
     if (!open) return;
     form.resetFields();
-    const { type, role, record } = modalConfig;
+    const { type, record } = modalConfig;
     const isEdit = type === 'edit' && record;
     form.setFieldsValue(isEdit ? {
       amount: Math.abs(parseFloat(record.amount || 0)),
       payment_date: record.payment_date ? dayjs(record.payment_date) : dayjs(),
       payment_method: record.payment_method || 'cash',
-      role: record._role || 'manager',
       notes: record.description || record.notes || '',
     } : {
       amount: type === 'payment' ? Math.max(totalBalance, 0) : undefined,
       payment_date: dayjs(),
       payment_method: 'cash',
-      role,
     });
   };
 
@@ -157,26 +145,11 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       const p = buildPayload(values, type, record, managerName);
 
       if (type === 'edit' && record) {
-        if (record._role === 'instructor') {
-          await apiClient.put(`/finances/instructor-payments/${record.id}`, {
-            amount: p.amount, payment_date: p.payment_date,
-            instructor_id: manager.id, description: p.description,
-            payment_method: p.payment_method,
-          });
-        } else {
-          await updateManagerPayment(manager.id, record.id, {
-            amount: p.amount, description: p.description,
-            payment_date: p.payment_date, payment_method: p.payment_method,
-          });
-        }
-        message.success('Payment updated');
-      } else if (p.role === 'instructor') {
-        await apiClient.post('/finances/instructor-payments', {
-          instructor_id: manager.id, amount: p.amount,
-          payment_date: p.payment_date, description: p.description,
-          payment_method: p.payment_method,
+        await updateManagerPayment(manager.id, record.id, {
+          amount: p.amount, description: p.description,
+          payment_date: p.payment_date, payment_method: p.payment_method,
         });
-        message.success(`${p.isDeduction ? 'Deduction' : 'Payment'} recorded`);
+        message.success('Payment updated');
       } else {
         await createManagerPayment(manager.id, {
           amount: p.amount, description: p.description,
@@ -197,11 +170,7 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
 
   const handleDelete = async (record) => {
     try {
-      if (record._role === 'instructor') {
-        await apiClient.delete(`/finances/instructor-payments/${record.id}`);
-      } else {
-        await deleteManagerPayment(manager.id, record.id);
-      }
+      await deleteManagerPayment(manager.id, record.id);
       message.success('Payment deleted');
       await fetchData();
       onPaymentSuccess?.();
@@ -215,12 +184,6 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
     {
       title: 'Date', dataIndex: 'payment_date', key: 'date', width: 100,
       render: val => val ? dayjs(val).format('DD/MM/YYYY') : '—',
-    },
-    {
-      title: 'Role', key: 'role', width: 90, align: 'center',
-      render: (_, r) => r._role === 'instructor'
-        ? <Tag icon={<UserOutlined />} color="blue" bordered={false} className="rounded-full m-0">Instructor</Tag>
-        : <Tag icon={<CrownOutlined />} color="purple" bordered={false} className="rounded-full m-0">Manager</Tag>,
     },
     {
       title: 'Amount', dataIndex: 'amount', key: 'amount', width: 100, align: 'right',
@@ -251,7 +214,7 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       title: '', key: 'actions', width: 80, align: 'center',
       render: (_, record) => (
         <div className="flex items-center gap-1">
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => showModal('edit', record._role, record)} />
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => showModal('edit', record)} />
           <Popconfirm title="Delete this payment?" onConfirm={() => handleDelete(record)} okText="Delete" cancelText="Cancel">
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -299,13 +262,13 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
         </div>
       </div>
 
-      {/* Combined Payment History */}
+      {/* Payment History */}
       <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DollarOutlined className="text-indigo-500" />
             <h4 className="text-sm font-semibold text-gray-800">Payment History</h4>
-            {allPayments.length > 0 && <Tag bordered={false} className="rounded-full ml-1">{allPayments.length}</Tag>}
+            {payments.length > 0 && <Tag bordered={false} className="rounded-full ml-1">{payments.length}</Tag>}
           </div>
           <div className="flex gap-2">
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => showModal('payment')}>
@@ -317,15 +280,15 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
           </div>
         </div>
 
-        {allPayments.length === 0 ? (
+        {payments.length === 0 ? (
           <div className="px-5 py-6">
             <Empty description="No payments recorded yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         ) : (
           <Table
             columns={paymentColumns}
-            dataSource={allPayments}
-            rowKey={(r) => `${r._role}-${r.id}`}
+            dataSource={payments}
+            rowKey="id"
             size="small"
             pagination={{ pageSize: 10, size: 'small', hideOnSinglePage: true }}
             scroll={{ x: 'max-content' }}
@@ -345,12 +308,6 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
         afterOpenChange={handleModalOpen}
       >
         <Form form={form} layout="vertical" className="mt-4">
-          <Form.Item name="role" label="Payment For" rules={[{ required: true, message: 'Select role' }]}>
-            <Select disabled={modalConfig.type === 'edit'}>
-              <Select.Option value="manager"><CrownOutlined className="mr-1" /> Manager Commission</Select.Option>
-              <Select.Option value="instructor"><UserOutlined className="mr-1" /> Instructor Earnings</Select.Option>
-            </Select>
-          </Form.Item>
           <Form.Item name="amount" label="Amount (€)" rules={[{ required: true, message: 'Enter amount' }, { type: 'number', min: 0.01, message: 'Must be > 0' }]}>
             <InputNumber min={0.01} step={10} style={{ width: '100%' }} placeholder="0.00" addonAfter="€" size="large" />
           </Form.Item>

@@ -858,7 +858,7 @@ router.post('/',
     let walletCurrency = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || null;
     
-    // If currency not provided, get from customer's preferred_currency
+    // If currency not provided, get from customer's preferred_currency (for price lookup)
     if (!walletCurrency && student_user_id) {
       const userCurrencyResult = await client.query(
         'SELECT preferred_currency FROM users WHERE id = $1',
@@ -868,6 +868,9 @@ router.post('/',
     } else if (!walletCurrency) {
       walletCurrency = DEFAULT_CURRENCY;
     }
+    // Wallet transactions MUST use the system's storage currency (EUR).
+    // preferred_currency is for display/price-lookup only, not for wallet storage.
+    const walletTransactionCurrency = DEFAULT_CURRENCY;
     
     // Debug: Log duration received in backend
     console.log('🔍 BACKEND BOOKING CREATE - Received duration:', {
@@ -1191,7 +1194,7 @@ router.post('/',
               type: 'booking_charge',
               description: `Partial wallet payment for lesson: ${date} ${start_hour}:00 (${bookingDuration}h)`,
               status: 'completed',
-              currency: walletCurrency,
+              currency: walletTransactionCurrency,
               metadata: {
                 paymentMethod: 'wallet_hybrid',
                 bookingDate: date,
@@ -1217,7 +1220,7 @@ router.post('/',
           type: 'booking_charge',
           description: `Individual lesson charge: ${date} ${start_hour}:00 (${bookingDuration}h)${voucherDiscount > 0 ? ` (voucher discount: ${voucherDiscount})` : ''}`,
           status: 'completed',
-          currency: walletCurrency,
+          currency: walletTransactionCurrency,
           metadata: {
             paymentMethod: requestedPaymentMethod || 'wallet',
             bookingDate: date,
@@ -2491,6 +2494,9 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         );
         resolvedWalletCurrency = userCurrencyResult.rows[0]?.preferred_currency || DEFAULT_CURRENCY;
       }
+      // Wallet transactions MUST use the system's storage currency (EUR).
+      // preferred_currency is for display/price-lookup only, not for wallet storage.
+      const walletTransactionCurrency = DEFAULT_CURRENCY;
         
       // Normalize date format to YYYY-MM-DD if it's not already
       const normalizedDate = typeof date === 'string' && date.includes('T') 
@@ -2683,6 +2689,26 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
   let finalPaymentStatus = 'paid'; // Pay-and-go: default to paid for individual payments
   let finalFinalAmount = parseFloat(finalAmount || amount || 0);
     let individualChargeEntry = null;
+
+  // Server-side price recalculation: always compute the correct amount from service price × duration
+  // for individual (non-package) payments, overriding whatever the frontend sent.
+  // This prevents stale frontend state from causing incorrect charges.
+  const serviceDurationHours = serviceQuery.rows.length > 0 ? (parseFloat(serviceQuery.rows[0].duration) || 0) : 0;
+  if (use_package !== true && servicePrice > 0) {
+    const dur = bookingDuration || 1;
+    const serverCalculatedAmount = serviceDurationHours > 0
+      ? parseFloat(((servicePrice / serviceDurationHours) * dur).toFixed(2))
+      : servicePrice;
+    console.log('💰 CALENDAR BOOKING PRICE RECALC:', {
+      frontendAmount: parseFloat(finalAmount || amount || 0),
+      serverCalculatedAmount,
+      servicePrice,
+      serviceDurationHours,
+      bookingDuration: dur,
+      walletCurrency: walletTransactionCurrency
+    });
+    finalFinalAmount = serverCalculatedAmount;
+  }
       
   let chosenPackageId = customerPackageId || null;
   if (use_package === true) {
@@ -2814,7 +2840,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
           userId,
           amount: -Math.abs(finalFinalAmount),
           transactionType: 'booking_charge',
-          currency: resolvedWalletCurrency,
+          currency: walletTransactionCurrency,
           status: 'completed',
           description: `Individual lesson charge: ${normalizedDate} ${time} (${serviceDuration}h)`,
           metadata: {

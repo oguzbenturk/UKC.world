@@ -770,13 +770,10 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
 
     const result = await pool.query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-        COUNT(*) FILTER (WHERE status = 'paid') as paid_count,
+        COUNT(*) FILTER (WHERE status != 'cancelled') as active_count,
         COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'pending'), 0) as pending_amount,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'paid'), 0) as paid_amount,
         COALESCE(SUM(commission_amount) FILTER (WHERE status = 'cancelled'), 0) as cancelled_amount,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status IN ('pending', 'paid')), 0) as total_earned,
+        COALESCE(SUM(commission_amount) FILTER (WHERE status != 'cancelled'), 0) as total_earned,
         COUNT(*) FILTER (WHERE source_type = 'booking') as booking_count,
         COUNT(*) FILTER (WHERE source_type = 'rental') as rental_count,
         COUNT(*) FILTER (WHERE source_type = 'accommodation') as accommodation_count,
@@ -794,21 +791,37 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
       params
     );
 
+    // Get actual payments from wallet_transactions
+    const paymentsResult = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid,
+              COUNT(*) as payment_count
+       FROM wallet_transactions
+       WHERE user_id = $1
+         AND entity_type = 'manager_payment'
+         AND transaction_type = 'payment'
+         AND status != 'cancelled'`,
+      [managerUserId]
+    );
+
     const row = result.rows[0];
+    const totalEarned = parseFloat(row.total_earned) || 0;
+    const totalPaid = parseFloat(paymentsResult.rows[0]?.total_paid) || 0;
+    const pendingAmount = Math.max(totalEarned - totalPaid, 0);
+
     return {
       pending: {
-        count: parseInt(row.pending_count) || 0,
-        amount: parseFloat(row.pending_amount) || 0
+        count: parseInt(row.active_count) || 0,
+        amount: pendingAmount
       },
       paid: {
-        count: parseInt(row.paid_count) || 0,
-        amount: parseFloat(row.paid_amount) || 0
+        count: parseInt(paymentsResult.rows[0]?.payment_count) || 0,
+        amount: totalPaid
       },
       cancelled: {
         count: parseInt(row.cancelled_count) || 0,
         amount: parseFloat(row.cancelled_amount) || 0
       },
-      totalEarned: parseFloat(row.total_earned) || 0,
+      totalEarned,
       breakdown: {
         bookings: {
           count: parseInt(row.booking_count) || 0,
@@ -1178,13 +1191,17 @@ export async function getAllManagersWithCommissionSettings() {
         mcs.effective_from,
         mcs.effective_until,
         (
-          SELECT COALESCE(SUM(commission_amount) FILTER (WHERE status = 'pending'), 0)
+          SELECT COALESCE(SUM(commission_amount), 0)
           FROM manager_commissions WHERE manager_user_id = u.id
-        ) as pending_commission,
+        ) as total_commission,
         (
-          SELECT COALESCE(SUM(commission_amount) FILTER (WHERE status = 'paid'), 0)
-          FROM manager_commissions WHERE manager_user_id = u.id
-        ) as paid_commission
+          SELECT COALESCE(SUM(amount), 0)
+          FROM wallet_transactions 
+          WHERE user_id = u.id 
+            AND entity_type = 'manager_payment'
+            AND transaction_type = 'payment'
+            AND status != 'cancelled'
+        ) as total_paid
        FROM users u
        JOIN roles r ON r.id = u.role_id
        LEFT JOIN manager_commission_settings mcs ON mcs.manager_user_id = u.id AND mcs.is_active = true
@@ -1192,31 +1209,37 @@ export async function getAllManagersWithCommissionSettings() {
        ORDER BY u.name ASC`
     );
 
-    return result.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      profileImage: row.profile_image_url,
-      settings: row.settings_id ? {
-        id: row.settings_id,
-        commissionType: row.commission_type || 'flat',
-        defaultRate: parseFloat(row.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE,
-        bookingRate: row.booking_rate ? parseFloat(row.booking_rate) : null,
-        rentalRate: row.rental_rate ? parseFloat(row.rental_rate) : null,
-        accommodationRate: row.accommodation_rate ? parseFloat(row.accommodation_rate) : null,
-        packageRate: row.package_rate ? parseFloat(row.package_rate) : null,
-        shopRate: row.shop_rate ? parseFloat(row.shop_rate) : null,
-        membershipRate: row.membership_rate ? parseFloat(row.membership_rate) : null,
-        salaryType: row.salary_type || 'commission',
-        fixedSalaryAmount: parseFloat(row.fixed_salary_amount) || 0,
-        perLessonAmount: parseFloat(row.per_lesson_amount) || 0,
-        isActive: row.settings_active,
-        effectiveFrom: row.effective_from,
-        effectiveUntil: row.effective_until
-      } : null,
-      pendingCommission: parseFloat(row.pending_commission) || 0,
-      paidCommission: parseFloat(row.paid_commission) || 0
-    }));
+    return result.rows.map(row => {
+      const totalCommission = parseFloat(row.total_commission) || 0;
+      const totalPaid = parseFloat(row.total_paid) || 0;
+      const pending = Math.max(totalCommission - totalPaid, 0);
+
+      return {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        profileImage: row.profile_image_url,
+        settings: row.settings_id ? {
+          id: row.settings_id,
+          commissionType: row.commission_type || 'flat',
+          defaultRate: parseFloat(row.default_rate) || DEFAULT_MANAGER_COMMISSION_RATE,
+          bookingRate: row.booking_rate ? parseFloat(row.booking_rate) : null,
+          rentalRate: row.rental_rate ? parseFloat(row.rental_rate) : null,
+          accommodationRate: row.accommodation_rate ? parseFloat(row.accommodation_rate) : null,
+          packageRate: row.package_rate ? parseFloat(row.package_rate) : null,
+          shopRate: row.shop_rate ? parseFloat(row.shop_rate) : null,
+          membershipRate: row.membership_rate ? parseFloat(row.membership_rate) : null,
+          salaryType: row.salary_type || 'commission',
+          fixedSalaryAmount: parseFloat(row.fixed_salary_amount) || 0,
+          perLessonAmount: parseFloat(row.per_lesson_amount) || 0,
+          isActive: row.settings_active,
+          effectiveFrom: row.effective_from,
+          effectiveUntil: row.effective_until
+        } : null,
+        pendingCommission: pending,
+        paidCommission: totalPaid
+      };
+    });
   } catch (error) {
     logger.error('Error fetching managers with commission settings:', { error: error.message });
     throw error;
@@ -1252,9 +1275,7 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
         COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'package' AND status != 'cancelled'), 0) as package_earnings,
         COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'shop' AND status != 'cancelled'), 0) as shop_earnings,
         COALESCE(SUM(commission_amount) FILTER (WHERE source_type = 'membership' AND status != 'cancelled'), 0) as membership_earnings,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status != 'cancelled'), 0) as total_commission,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'paid'), 0) as paid_amount,
-        COALESCE(SUM(commission_amount) FILTER (WHERE status = 'pending'), 0) as pending_amount
+        COALESCE(SUM(commission_amount) FILTER (WHERE status != 'cancelled'), 0) as total_commission
        FROM manager_commissions
        WHERE manager_user_id = $1
          AND period_month LIKE $2
@@ -1262,6 +1283,19 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
        ORDER BY period_month`,
       [managerUserId, `${year}-%`]
     );
+
+    // Get actual payments from wallet_transactions for this year
+    const paymentsResult = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid
+       FROM wallet_transactions
+       WHERE user_id = $1
+         AND entity_type = 'manager_payment'
+         AND transaction_type = 'payment'
+         AND status != 'cancelled'
+         AND EXTRACT(YEAR FROM created_at) = $2`,
+      [managerUserId, year]
+    );
+    const yearTotalPaid = parseFloat(paymentsResult.rows[0]?.total_paid) || 0;
 
     // Build months array (Jan-Dec)
     const months = [];
@@ -1290,8 +1324,6 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
         shop: { count: parseInt(row?.shop_count) || 0, earnings: parseFloat(row?.shop_earnings) || 0 },
         membership: { count: parseInt(row?.membership_count) || 0, earnings: parseFloat(row?.membership_earnings) || 0 },
         grossAmount,
-        paidAmount: parseFloat(row?.paid_amount) || 0,
-        pendingAmount: parseFloat(row?.pending_amount) || 0,
       });
     }
 
@@ -1306,16 +1338,12 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
       return {
         ...s,
         grossAmount: seasonMonths.reduce((sum, m) => sum + m.grossAmount, 0),
-        paidAmount: seasonMonths.reduce((sum, m) => sum + m.paidAmount, 0),
-        pendingAmount: seasonMonths.reduce((sum, m) => sum + m.pendingAmount, 0),
         bookingCount: seasonMonths.reduce((sum, m) => sum + m.bookings.count, 0),
         rentalCount: seasonMonths.reduce((sum, m) => sum + m.rentals.count, 0),
       };
     });
 
     const yearTotal = months.reduce((sum, m) => sum + m.grossAmount, 0);
-    const yearPaid = months.reduce((sum, m) => sum + m.paidAmount, 0);
-    const yearPending = months.reduce((sum, m) => sum + m.pendingAmount, 0);
 
     return {
       year,
@@ -1330,8 +1358,8 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
       seasons,
       totals: {
         gross: yearTotal,
-        paid: yearPaid,
-        pending: yearPending
+        paid: yearTotalPaid,
+        pending: Math.max(yearTotal - yearTotalPaid, 0)
       },
       currency: 'EUR'
     };

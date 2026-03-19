@@ -5,9 +5,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Card, Table, Tag, Button, Space, Typography, Tabs, 
   Badge, Dropdown, Modal, Input, Select, DatePicker,
-  Statistic, Row, Col, Avatar, Tooltip, Descriptions, Alert,
-  message, Empty
+  Statistic, Row, Col, Avatar, Tooltip, Alert,
+  Empty
 } from 'antd';
+import { message } from '@/shared/utils/antdStatic';
 import {
   ShoppingCartOutlined,
   EyeOutlined,
@@ -183,35 +184,25 @@ const OrderManagement = ({ embedded = false }) => {
       title: 'Order',
       dataIndex: 'order_number',
       key: 'order_number',
+      width: 130,
       render: (text, record) => (
-        <Space>
-          <Avatar 
-            size={40} 
-            style={{ background: '#f0f0f0' }}
-            icon={<ShoppingCartOutlined style={{ color: '#1890ff' }} />}
-          />
-          <div>
-            <Text strong style={{ display: 'block' }}>{text}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {new Date(record.created_at).toLocaleDateString()}
-            </Text>
+        <div>
+          <Text strong style={{ fontSize: 13 }}>{text}</Text>
+          <div style={{ fontSize: 11, color: '#999' }}>
+            {new Date(record.created_at).toLocaleDateString()}
           </div>
-        </Space>
+        </div>
       )
     },
     {
       title: 'Customer',
       key: 'customer',
+      width: 120,
+      ellipsis: true,
       render: (_, record) => (
-        <Space>
-          <Avatar icon={<UserOutlined />} size="small" />
-          <div>
-            <Text style={{ display: 'block' }}>
-              {record.first_name} {record.last_name}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.email}</Text>
-          </div>
-        </Space>
+        <Text style={{ fontSize: 13 }}>
+          {record.first_name} {record.last_name?.[0] ? record.last_name[0] + '.' : ''}
+        </Text>
       )
     },
     {
@@ -219,18 +210,16 @@ const OrderManagement = ({ embedded = false }) => {
       dataIndex: 'item_count',
       key: 'items',
       align: 'center',
-      render: (count, record) => (
-        <Tooltip title={record.items?.map(i => `${i.quantity}x ${i.product_name}`).join(', ')}>
-          <Tag>{count} items</Tag>
-        </Tooltip>
-      )
+      width: 60,
+      render: (count) => <Tag>{count}</Tag>
     },
     {
       title: 'Total',
       dataIndex: 'total_amount',
       key: 'total',
+      width: 90,
       render: (amount, record) => (
-        <Text strong style={{ color: '#1890ff' }}>
+        <Text strong style={{ color: '#1890ff', fontSize: 13 }}>
           {formatCurrency(amount, record.currency || 'EUR')}
         </Text>
       )
@@ -239,35 +228,28 @@ const OrderManagement = ({ embedded = false }) => {
       title: 'Payment',
       dataIndex: 'payment_status',
       key: 'payment_status',
-      render: (status, record) => (
-        <Space direction="vertical" size={2}>
-          <Tag color={status === 'completed' ? 'green' : status === 'pending' ? 'gold' : 'red'}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Tag>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {record.payment_method === 'wallet' ? 'Wallet' : 
-             record.payment_method === 'credit_card' ? 'Card' : 'Cash'}
-          </Text>
-        </Space>
+      width: 90,
+      render: (status) => (
+        <Tag color={status === 'completed' ? 'green' : status === 'pending' ? 'gold' : 'red'} style={{ fontSize: 11 }}>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </Tag>
       )
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status) => {
         const config = statusConfig[status] || { color: 'default', label: status };
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.label}
-          </Tag>
-        );
+        return <Tag color={config.color} style={{ fontSize: 11 }}>{config.label}</Tag>;
       }
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
       align: 'center',
+      width: 40,
       render: (_, record) => (
         <Dropdown
           menu={{
@@ -322,7 +304,7 @@ const OrderManagement = ({ embedded = false }) => {
   return (
     <div style={{ padding: embedded ? 0 : 24 }}>
       {/* Header */}
-      {!embedded && (
+      {!embedded ? (
         <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Title level={3} style={{ margin: 0 }}>
@@ -335,9 +317,18 @@ const OrderManagement = ({ embedded = false }) => {
             Refresh
           </Button>
         </div>
+      ) : (
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={4} style={{ margin: 0 }}>
+            <ShoppingCartOutlined style={{ marginRight: 8 }} />
+            Shop Order Calendar
+          </Title>
+          <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders}>Refresh</Button>
+        </div>
       )}
 
       {/* Stats Row */}
+      {!embedded && (
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
           <Card>
@@ -371,9 +362,10 @@ const OrderManagement = ({ embedded = false }) => {
           </Card>
         </Col>
       </Row>
+      )}
 
       {/* Low Stock Alert */}
-      {lowStockProducts.length > 0 && (
+      {!embedded && lowStockProducts.length > 0 && (
         <div className="mb-4 sm:mb-6">
           <Alert
             message={<span className="text-sm sm:text-base font-medium">Low Stock Warning</span>}
@@ -467,6 +459,11 @@ const OrderManagement = ({ embedded = false }) => {
           dataSource={orders}
           rowKey="id"
           loading={loading}
+          size="small"
+          onRow={(record) => ({
+            onClick: () => handleViewOrder(record),
+            style: { cursor: 'pointer' },
+          })}
           pagination={{
             ...pagination,
             onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize }),
@@ -488,141 +485,127 @@ const OrderManagement = ({ embedded = false }) => {
 
       {/* Order Detail Modal */}
       <Modal
-        title={<span><ShoppingCartOutlined /> Order Details</span>}
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            Close
-          </Button>,
-          <Button 
-            key="status" 
-            type="primary" 
-            onClick={() => {
-              setDetailModalVisible(false);
-              handleOpenStatusModal(selectedOrder);
-            }}
-          >
-            Update Status
-          </Button>
-        ]}
-        width={700}
+        footer={null}
+        width={560}
+        centered
+        styles={{ body: { padding: 0 }, header: { display: 'none' } }}
+        closable={false}
       >
-        {selectedOrder && (
-          <div>
-            <Descriptions bordered column={2} size="small">
-              <Descriptions.Item label="Order Number">{selectedOrder.order_number}</Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={statusConfig[selectedOrder.status]?.color}>
-                  {statusConfig[selectedOrder.status]?.label}
+        {selectedOrder && (() => {
+          const addr = selectedOrder.shipping_address;
+          const parsedAddr = typeof addr === 'string' ? (() => { try { return JSON.parse(addr); } catch { return null; } })() : addr;
+          return (
+          <div className="max-h-[85vh] overflow-y-auto">
+            {/* Top bar — order number + status + close */}
+            <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-base font-bold text-slate-900">{selectedOrder.order_number}</span>
+                <Tag
+                  color={statusConfig[selectedOrder.status]?.color}
+                  className="!text-[11px] !px-2.5 !py-0 !rounded-full !border-0 !font-medium"
+                >
+                  {statusConfig[selectedOrder.status]?.label || selectedOrder.status}
                 </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Customer">
-                {selectedOrder.first_name} {selectedOrder.last_name}
-              </Descriptions.Item>
-              <Descriptions.Item label="Email">{selectedOrder.email}</Descriptions.Item>
-              <Descriptions.Item label="Payment Method">
-                {selectedOrder.payment_method === 'wallet' ? 'Wallet' : 
-                 selectedOrder.payment_method === 'credit_card' ? 'Credit Card' : 'Cash'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Payment Status">
-                <Tag color={selectedOrder.payment_status === 'completed' ? 'green' : 'gold'}>
-                  {selectedOrder.payment_status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Total" span={2}>
-                <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
-                  {formatCurrency(selectedOrder.total_amount, selectedOrder.currency || 'EUR')}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Created">{new Date(selectedOrder.created_at).toLocaleString()}</Descriptions.Item>
-              <Descriptions.Item label="Updated">{new Date(selectedOrder.updated_at).toLocaleString()}</Descriptions.Item>
-            </Descriptions>
+              </div>
+              <button onClick={() => setDetailModalVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                <CloseCircleOutlined className="text-lg" />
+              </button>
+            </div>
 
-            <Title level={5} style={{ marginTop: 24, marginBottom: 12 }}>Order Items</Title>
-            <Table
-              dataSource={selectedOrder.items || []}
-              rowKey="id"
-              pagination={false}
-              size="small"
-              columns={[
-                {
-                  title: 'Product',
-                  dataIndex: 'product_name',
-                  render: (name, item) => (
-                    <Space>
-                      {item.product_image && (
-                        <Avatar src={item.product_image} shape="square" size="small" />
+            <div className="px-5 py-4 space-y-4">
+
+              {/* Customer & order info */}
+              <div className="grid grid-cols-2 gap-x-5 gap-y-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Customer</p>
+                  <p className="text-sm font-medium text-slate-900">{selectedOrder.first_name} {selectedOrder.last_name}</p>
+                  <p className="text-xs text-slate-500 truncate">{selectedOrder.email}</p>
+                  {selectedOrder.phone && (
+                    <p className="text-xs text-slate-500 mt-0.5">{selectedOrder.phone}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Payment</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Tag
+                      color={selectedOrder.payment_status === 'completed' ? 'green' : selectedOrder.payment_status === 'pending' ? 'gold' : 'red'}
+                      className="!text-[11px] !rounded-full !border-0 !m-0"
+                    >
+                      {selectedOrder.payment_status?.charAt(0).toUpperCase() + selectedOrder.payment_status?.slice(1)}
+                    </Tag>
+                    <span className="text-xs text-slate-500">
+                      {selectedOrder.payment_method === 'wallet' ? 'Wallet' :
+                       selectedOrder.payment_method === 'credit_card' ? 'Card' : 'Cash'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{new Date(selectedOrder.created_at).toLocaleDateString()}</p>
+                </div>
+                {parsedAddr && (
+                  <div className="col-span-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Shipping Address</p>
+                    <p className="text-xs text-slate-600">
+                      {[parsedAddr.street || parsedAddr.line1, parsedAddr.city, parsedAddr.state, parsedAddr.zip || parsedAddr.postal_code, parsedAddr.country].filter(Boolean).join(', ') || String(addr)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                    Items ({(selectedOrder.items || []).reduce((s, i) => s + (i.quantity || 1), 0)})
+                  </p>
+                  <p className="text-sm font-bold text-slate-900">
+                    {formatCurrency(selectedOrder.total_amount, selectedOrder.currency || 'EUR')}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {(selectedOrder.items || []).map((item, idx) => (
+                    <div key={item.id || idx} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2">
+                      {item.product_image ? (
+                        <Avatar src={item.product_image} shape="square" size={36} className="!rounded-md shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                          <ShoppingCartOutlined className="text-slate-300 text-sm" />
+                        </div>
                       )}
-                      <div>
-                        <Text>{name}</Text>
-                        {(item.selected_size || item.selected_color) && (
-                          <div>
-                            {item.selected_size && <Tag size="small">Size: {item.selected_size}</Tag>}
-                            {item.selected_color && <Tag size="small">Color: {item.selected_color}</Tag>}
-                          </div>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-slate-900 truncate">{item.product_name}</p>
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          <span className="text-[11px] text-slate-500">{item.quantity} × {formatCurrency(item.unit_price, selectedOrder.currency || 'EUR')}</span>
+                          {item.selected_size && <span className="text-[10px] bg-slate-100 rounded px-1.5 py-px text-slate-600 font-medium">{item.selected_size}</span>}
+                          {item.selected_color && <span className="text-[10px] bg-slate-100 rounded px-1.5 py-px text-slate-600 font-medium">{item.selected_color}</span>}
+                        </div>
                       </div>
-                    </Space>
-                  )
-                },
-                {
-                  title: 'Price',
-                  dataIndex: 'unit_price',
-                  render: (price) => formatCurrency(price, 'EUR')
-                },
-                {
-                  title: 'Qty',
-                  dataIndex: 'quantity',
-                  align: 'center'
-                },
-                {
-                  title: 'Total',
-                  dataIndex: 'total_price',
-                  render: (price) => formatCurrency(price, 'EUR')
-                }
-              ]}
-            />
+                      <p className="text-[13px] font-semibold text-slate-900 shrink-0">
+                        {formatCurrency(item.total_price, selectedOrder.currency || 'EUR')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-            {selectedOrder.status_history?.length > 0 && (
-              <>
-                <Title level={5} style={{ marginTop: 24, marginBottom: 12 }}>Status History</Title>
-                <Table
-                  dataSource={selectedOrder.status_history}
-                  rowKey="id"
-                  pagination={false}
+              {/* Footer actions */}
+              <div className="flex justify-end gap-2 pt-1">
+                <Button size="small" onClick={() => setDetailModalVisible(false)}>Close</Button>
+                <Button
                   size="small"
-                  columns={[
-                    {
-                      title: 'Date',
-                      dataIndex: 'created_at',
-                      render: (date) => new Date(date).toLocaleString()
-                    },
-                    {
-                      title: 'From',
-                      dataIndex: 'previous_status',
-                      render: (status) => status ? <Tag>{status}</Tag> : '-'
-                    },
-                    {
-                      title: 'To',
-                      dataIndex: 'new_status',
-                      render: (status) => <Tag color={statusConfig[status]?.color}>{status}</Tag>
-                    },
-                    {
-                      title: 'By',
-                      render: (_, record) => record.first_name ? `${record.first_name} ${record.last_name}` : 'System'
-                    },
-                    {
-                      title: 'Notes',
-                      dataIndex: 'notes',
-                      ellipsis: true
-                    }
-                  ]}
-                />
-              </>
-            )}
+                  type="primary"
+                  onClick={() => {
+                    setDetailModalVisible(false);
+                    handleOpenStatusModal(selectedOrder);
+                  }}
+                >
+                  Update Status
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* Update Status Modal */}

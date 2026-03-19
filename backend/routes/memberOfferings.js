@@ -377,6 +377,84 @@ router.post(
 );
 
 /**
+ * POST /member-offerings/batch
+ * Create multiple offerings at once with shared visuals but different durations/prices
+ */
+router.post(
+  '/batch',
+  authenticateJWT,
+  authorizeRoles(ADMIN_ROLES),
+  [
+    body('name').notEmpty().withMessage('Name is required'),
+    body('tiers').isArray({ min: 1 }).withMessage('At least one tier is required'),
+    body('tiers.*.price').isNumeric().withMessage('Each tier must have a price'),
+    body('tiers.*.duration_days').isInt({ min: 1 }).withMessage('Each tier must have duration_days'),
+    body('tiers.*.label').notEmpty().withMessage('Each tier must have a label'),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const client = await pool.connect();
+    try {
+      const {
+        name, description, features = [], icon = 'CrownOutlined',
+        badge, badge_color = 'gold', highlighted = false, image_url, tiers
+      } = req.body;
+
+      await client.query('BEGIN');
+      const results = [];
+
+      const tierColorByDays = (d) => {
+        if (d <= 1) return 'sky';
+        if (d <= 7) return 'indigo';
+        if (d <= 31) return 'purple';
+        if (d <= 180) return 'emerald';
+        return 'gold';
+      };
+
+      for (let i = 0; i < tiers.length; i++) {
+        const tier = tiers[i];
+        const tierName = `${name} - ${tier.label}`;
+        const tierColor = tier.color || tierColorByDays(tier.duration_days);
+        const period = tier.duration_days <= 1 ? 'day'
+          : tier.duration_days <= 7 ? 'day'
+          : tier.duration_days <= 31 ? 'month'
+          : tier.duration_days <= 180 ? 'season'
+          : 'year';
+
+        const { rows: [offering] } = await client.query(`
+          INSERT INTO member_offerings (
+            name, description, price, period, features, icon,
+            badge, badge_color, highlighted, is_active, sort_order, duration_days,
+            image_url, card_style, button_text
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, 'simple', 'Choose Plan')
+          RETURNING *
+        `, [
+          tierName, description, tier.price, period,
+          JSON.stringify(features), icon, badge, tierColor,
+          highlighted, i, tier.duration_days, image_url
+        ]);
+        results.push(offering);
+      }
+
+      await client.query('COMMIT');
+      logger.info(`Batch member offerings created: ${name} (${tiers.length} tiers) by user ${req.user.id}`);
+      res.status(201).json(results);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Error creating batch offerings:', error);
+      res.status(500).json({ error: 'Failed to create offerings' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+/**
  * PUT /member-offerings/:id
  * Update an offering (Admin only)
  */

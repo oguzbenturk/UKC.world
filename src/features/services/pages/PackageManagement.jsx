@@ -229,8 +229,8 @@ function PackageManagementInner() {
 
   // Helper to check which features a package type includes
   const getPackageTypeIncludes = (packageType) => ({
-    includesLessons: ['lesson', 'lesson_rental', 'accommodation_lesson', 'all_inclusive'].includes(packageType),
-    includesRental: ['rental', 'lesson_rental', 'accommodation_rental', 'all_inclusive'].includes(packageType),
+    includesLessons: ['lesson', 'lesson_rental', 'accommodation_lesson', 'all_inclusive', 'downwinders', 'camps'].includes(packageType),
+    includesRental: ['rental', 'lesson_rental', 'accommodation_rental', 'all_inclusive', 'downwinders', 'camps'].includes(packageType),
     includesAccommodation: ['accommodation', 'accommodation_lesson', 'accommodation_rental', 'all_inclusive', 'camps'].includes(packageType)
   });
 
@@ -923,6 +923,7 @@ function PackageManagementInner() {
         width={drawerWidth}
         closable={false}
         destroyOnHidden
+        forceRender
         styles={{
           wrapper: { overflow: 'hidden' },
           body: { padding: 0, display: 'flex', overflow: 'hidden' },

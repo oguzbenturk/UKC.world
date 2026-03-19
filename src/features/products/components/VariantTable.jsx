@@ -152,52 +152,33 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       ),
     },
     {
-      title: 'Selling Price',
-      dataIndex: 'price',
-      key: 'price',
-      width: '18%',
-      render: (text, record) => (
-        <InputNumber
-          value={text}
-          onChange={(val) => handleChange(record.key, 'price', val)}
-          min={0}
-          step={0.01}
-          precision={2}
-          prefix={getCurrencySymbol(currency)}
-          style={{ width: '100%' }}
-          placeholder="0.00"
-          size="middle"
-        />
-      ),
-    },
-    {
-      title: 'Final Price',
-      dataIndex: 'price_final',
-      key: 'price_final',
-      width: '18%',
-      render: (text, record) => (
-        <InputNumber
-          value={text}
-          onChange={(val) => handleChange(record.key, 'price_final', val)}
-          min={0}
-          step={0.01}
-          precision={2}
-          prefix={getCurrencySymbol(currency)}
-          style={{ width: '100%' }}
-          placeholder="0.00"
-          size="middle"
-        />
-      ),
-    },
-    {
       title: 'Cost',
       dataIndex: 'cost_price',
       key: 'cost_price',
-      width: '18%',
+      width: '20%',
       render: (text, record) => (
         <InputNumber
           value={text}
           onChange={(val) => handleChange(record.key, 'cost_price', val)}
+          min={0}
+          step={0.01}
+          precision={2}
+          prefix={getCurrencySymbol(currency)}
+          style={{ width: '100%' }}
+          placeholder="0.00"
+          size="middle"
+        />
+      ),
+    },
+    {
+      title: 'Selling Price',
+      dataIndex: 'price',
+      key: 'price',
+      width: '22%',
+      render: (text, record) => (
+        <InputNumber
+          value={text}
+          onChange={(val) => handleChange(record.key, 'price', val)}
           min={0}
           step={0.01}
           precision={2}

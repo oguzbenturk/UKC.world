@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo, Component } from 'react';
 import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -7,7 +7,8 @@ import {
   UserOutlined,
   TagOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  WarningOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -16,10 +17,36 @@ import { useToast } from '@/shared/contexts/ToastContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useBookingForm } from '../../hooks/useBookingForm';
 import { computeBookingPrice } from '@/shared/utils/pricing';
-import { filterServicesByCapacity } from '@/shared/utils/serviceCapacityFilter';
+import { filterServicesByCapacity, isGroupService } from '@/shared/utils/serviceCapacityFilter';
 import apiClient from '@/shared/services/apiClient';
 import UserForm from '@/shared/components/ui/UserForm';
 import CustomerPackageManager from '@/features/customers/components/CustomerPackageManager';
+
+// ── Error Boundary for sections ──────────────────────────────────
+class SectionErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    console.error(`BookingDrawer [${this.props.section}] crashed:`, error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="px-5 py-4 text-center">
+          <WarningOutlined className="text-amber-500 text-lg" />
+          <p className="text-sm text-slate-500 mt-1">Something went wrong in <strong>{this.props.section}</strong>.</p>
+          <button type="button" onClick={() => this.setState({ hasError: false })} className="mt-2 px-3 py-1 text-xs text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const HALF_HOUR_MINUTES = 30;
 
@@ -623,6 +650,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     const cat = getServiceCategory(service);
     const dur = getBookingDuration();
     const price = service.price * dur * (isGroupBooking ? formData.participants.length : 1);
+    // Clear participant-level package state to prevent stale package hours
+    // from affecting price calculation for the new service
+    const clearedParticipants = (formData.participants || []).map(p => ({
+      ...p,
+      usePackage: false,
+      selectedPackageId: null,
+      selectedPackageName: null,
+      customerPackageId: null,
+      paymentStatus: 'paid'
+    }));
     updateFormData({
       serviceId: service.id,
       serviceName: service.name,
@@ -633,7 +670,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       usePackageHours: false,
       paymentMethod: 'cash',
       selectedPackage: null,
-      customerPackageId: null
+      customerPackageId: null,
+      participants: clearedParticipants
     });
     // Clear cached packages so they reload for new service
     setUserPackages({});
@@ -747,9 +785,13 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
       // Compute final price considering per-participant package status
       const primaryPkg = formData.participants?.[0];
-      const pkgHoursAvailable = (primaryPkg?.usePackage && primaryPkg?.selectedPackageId)
-        ? Number((userPackages[primaryPkg.userId] || []).find(p => p.id === primaryPkg.selectedPackageId)?.remaining_hours || 0)
-        : 0;
+      // Only consider package hours if participant explicitly chose package AND the selected
+      // package actually exists in the user's packages for the current service
+      const hasValidPackageSelection = primaryPkg?.usePackage && primaryPkg?.selectedPackageId;
+      const selectedPkgData = hasValidPackageSelection
+        ? (userPackages[primaryPkg.userId] || []).find(p => p.id === primaryPkg.selectedPackageId)
+        : null;
+      const pkgHoursAvailable = selectedPkgData ? Number(selectedPkgData.remaining_hours || 0) : 0;
       const finalPrice = computeBookingPrice({ plannedHours: bookingDuration, hourlyRate, packageHoursAvailable: pkgHoursAvailable, step: 0.25, participants: pCount });
 
       let response;
@@ -833,11 +875,21 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
       if (!response?.id && !response?.bookingId) throw new Error('Booking created but no ID returned.');
 
+      // Contextual success message based on service type
+      const selectedSvc = (services || []).find(s => s.id === formData.serviceId);
+      const isGroupLessonSvc = selectedSvc ? isGroupService(selectedSvc) : false;
       const pLen = formData.participants?.length || 1;
       if (pLen > 1) {
         showSuccess(`Group lesson booked with ${pLen} participants!`);
       } else {
-        showSuccess(`Lesson booked for ${formData.participants?.[0]?.userName || formData.userName}!`);
+        const participant = formData.participants?.[0];
+        const pName = participant?.userName || formData.userName;
+        if (participant?.usePackage && participant?.selectedPackageId) {
+          showSuccess(`Lesson booked for ${pName} using package hours!`);
+        } else {
+          const lessonType = isGroupLessonSvc ? 'Group lesson' : 'Private lesson';
+          showSuccess(`${lessonType} booked for ${pName}!`);
+        }
       }
 
       // Save participants to recent customers in localStorage
@@ -950,6 +1002,24 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const anyPackageSelected = (formData.participants || []).some(p => p.usePackage && p.selectedPackageId);
   const canReview = hasCustomer && hasSchedule && hasService;
 
+  // Step-gate validation message
+  const validationMessage = useMemo(() => {
+    if (!hasCustomer) return 'Select at least one customer';
+    if (!hasInstructor) return 'Select an instructor';
+    if (!formData.date) return 'Pick a date';
+    if (!formData.startTime) return 'Pick a time slot';
+    if (!hasService) return 'Select a service or package';
+    return null;
+  }, [hasCustomer, hasInstructor, hasService, formData.date, formData.startTime]);
+
+  // beforeunload guard
+  useEffect(() => {
+    if (!isOpen || !hasUnsavedChanges) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isOpen, hasUnsavedChanges]);
+
   // Progressive disclosure: determine which section is currently active
   const activeSection = (() => {
     if (!hasCustomer) return 'customer';
@@ -979,6 +1049,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         <div className="divide-y divide-slate-100">
 
           {/* ═══ 1. CUSTOMER ═══ */}
+          <SectionErrorBoundary section="Customer">
           <div className="px-5 py-3">
             {/* Collapsed summary */}
             {hasCustomer && activeSection !== 'customer' ? (
@@ -1045,9 +1116,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
               </>
             )}
           </div>
+          </SectionErrorBoundary>
 
           {/* ═══ 2. INSTRUCTOR ═══ */}
           {hasCustomer && (
+            <SectionErrorBoundary section="Instructor">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
               {hasInstructor && activeSection !== 'instructor' ? (
@@ -1076,10 +1149,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 </>
               )}
             </div>
+            </SectionErrorBoundary>
           )}
 
           {/* ═══ 3. DATE / TIME / DURATION ═══ */}
           {hasInstructor && (
+            <SectionErrorBoundary section="Schedule">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
               {hasSchedule && activeSection !== 'schedule' ? (
@@ -1108,10 +1183,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                       <div>
                         <div className="flex items-center gap-1.5 mb-1">
                           <label className="text-xs font-medium text-slate-500">Date</label>
+                          <button type="button" onClick={() => { updateFormData({ date: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), startTime: '', endTime: '' }); setConflictWarning(null); }} className={`px-1.5 py-0.5 text-[10px] rounded border transition-colors ${formData.date === dayjs().subtract(1, 'day').format('YYYY-MM-DD') ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>Yest</button>
                           <button type="button" onClick={() => { updateFormData({ date: dayjs().format('YYYY-MM-DD'), startTime: '', endTime: '' }); setConflictWarning(null); }} className={`px-1.5 py-0.5 text-[10px] rounded border transition-colors ${formData.date === dayjs().format('YYYY-MM-DD') ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>Today</button>
                           <button type="button" onClick={() => { updateFormData({ date: dayjs().add(1, 'day').format('YYYY-MM-DD'), startTime: '', endTime: '' }); setConflictWarning(null); }} className={`px-1.5 py-0.5 text-[10px] rounded border transition-colors ${formData.date === dayjs().add(1, 'day').format('YYYY-MM-DD') ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>Tmrw</button>
                         </div>
-                        <input type="date" value={formData.date || ''} min={dayjs().format('YYYY-MM-DD')} onChange={e => { updateFormData({ date: e.target.value, startTime: '', endTime: '' }); setConflictWarning(null); }} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400" />
+                        <input type="date" value={formData.date || ''} onChange={e => { updateFormData({ date: e.target.value, startTime: '', endTime: '' }); setConflictWarning(null); }} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-500 mb-1">Time</label>
@@ -1153,10 +1229,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 </>
               )}
             </div>
+            </SectionErrorBoundary>
           )}
 
           {/* ═══ 4. PACKAGE / SERVICE ═══ */}
           {hasSchedule && (
+            <SectionErrorBoundary section="Package & Service">
             <div className="px-5 py-3">
               {/* Package section */}
               {formData.participants?.length > 0 && (() => {
@@ -1326,6 +1404,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 </>
               )}
             </div>
+            </SectionErrorBoundary>
           )}
 
         </div>
@@ -1333,6 +1412,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
       {/* ── Footer ── */}
       <div className="flex-shrink-0 border-t border-slate-200 bg-white px-5 py-3">
+        {validationMessage && (
+          <p className="text-xs text-amber-600 mb-2 flex items-center gap-1"><ExclamationCircleOutlined className="text-[11px]" /> {validationMessage}</p>
+        )}
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => handleClose(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">Cancel</button>
           <button

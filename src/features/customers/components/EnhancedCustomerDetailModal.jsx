@@ -31,7 +31,7 @@ import {
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 
 const CustomerPackageManager = lazy(() => import('./CustomerPackageManager'));
-const StepBookingModal = lazy(() => import('../../bookings/components/components/StepBookingModal'));
+const BookingDrawer = lazy(() => import('../../bookings/components/components/BookingDrawer'));
 const BookingDetailModal = lazy(() => import('./BookingDetailModal'));
 const RentalDetailModal = lazy(() => import('./RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('./TransactionDetailModal'));
@@ -101,9 +101,9 @@ const NAV_ITEMS = [
   { key: 'bookings', icon: <CalendarOutlined />, label: 'Bookings' },
   { key: 'rentals', icon: <ShoppingOutlined />, label: 'Rentals' },
   { key: 'accommodation', icon: <HomeOutlined />, label: 'Accommodation' },
-  { key: 'financial', icon: <DollarOutlined />, label: 'Financial' },
   { key: 'shop', icon: <ShoppingOutlined />, label: 'Shop' },
   { key: 'memberships', icon: <CrownOutlined />, label: 'Memberships' },
+  { key: 'financial', icon: <DollarOutlined />, label: 'Financial' },
 ];
 
 const SECTION_DESCRIPTIONS = {
@@ -680,7 +680,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       return r.equipment_name || 'Unknown Equipment';
     }},
     { title: 'Rental Date', key: 'rental_date', render: (_, r) => formatDate(r.rental_date || r.start_date || r.created_at), sorter: (a, b) => new Date(a.rental_date || a.start_date || 0) - new Date(b.rental_date || b.start_date || 0), defaultSortOrder: 'descend' },
-    { title: 'Price', dataIndex: 'total_price', key: 'price', render: p => { const n = parseFloat(p); return n > 0 ? fmtCurrency(n, storageCurrency) : 'N/A'; } },
+    { title: 'Price', key: 'price', render: (_, r) => {
+      const tp = parseFloat(r.total_price);
+      const isPackage = !!r.customer_package_id || r.payment_status === 'package';
+      if (tp > 0) return <span>{fmtCurrency(tp, storageCurrency)}{isPackage ? ' 📦' : ''}</span>;
+      // Prefer package daily rate, then equipment daily rate
+      const pkgRate = parseFloat(r.package_daily_rate);
+      if (pkgRate > 0) return <span className="text-slate-500">{fmtCurrency(pkgRate, storageCurrency)}/h 📦</span>;
+      const eq = r.equipment;
+      if (eq && Array.isArray(eq) && eq.length > 0) {
+        const rate = parseFloat(eq[0].daily_rate);
+        if (rate > 0) return <span className="text-slate-500">{fmtCurrency(rate, storageCurrency)}/h{isPackage ? ' 📦' : ''}</span>;
+      }
+      return isPackage ? <span className="text-slate-500">📦 Package</span> : 'N/A';
+    }},
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => getStatusTag(s) },
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
@@ -818,16 +831,14 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
 
   const renderPackages = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{activePackagesCount}</div>
-            <div className="text-xs text-gray-500 mt-1">Active Packages</div>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
-            <div className="text-2xl font-bold text-emerald-600">{formatHoursValue(totalRemainingHours)}</div>
-            <div className="text-xs text-gray-500 mt-1">Hours Remaining</div>
-          </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-center">
+          <div className="text-2xl font-bold text-amber-600">{activePackagesCount}</div>
+          <div className="text-xs text-gray-500 mt-1">Active Packages</div>
+        </div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-center">
+          <div className="text-2xl font-bold text-emerald-600">{formatHoursValue(totalRemainingHours)}</div>
+          <div className="text-xs text-gray-500 mt-1">Hours Remaining</div>
         </div>
       </div>
       <Suspense fallback={<div className="p-8 text-center"><Spin /></div>}>
@@ -839,7 +850,6 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             embedded={true}
             showHeader={false}
             showStats={false}
-            forceViewMode="grid"
             disableActions={false}
             onPackageAssigned={async () => { await refreshAllData(); message.success('Package assigned'); }}
           />
@@ -1260,11 +1270,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         )}
       </Suspense>
 
-      {/* Booking Modal */}
+      {/* Booking Drawer */}
       {bookingModalVisible && (
         <CalendarProvider>
           <Suspense fallback={<Spin size="small" />}>
-            <StepBookingModal
+            <BookingDrawer
               isOpen={bookingModalVisible}
               onClose={() => setBookingModalVisible(false)}
               prefilledCustomer={customer}

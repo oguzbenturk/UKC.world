@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Button, Tag, Table, Input, Popconfirm, Tooltip, Drawer, Form, InputNumber, Select } from 'antd';
+import { Button, Tag, Table, Input, Popconfirm, Tooltip, Drawer, Form, InputNumber, Select, DatePicker } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, CalendarOutlined,
   TeamOutlined, SearchOutlined, EnvironmentOutlined,
@@ -130,6 +130,8 @@ export default function CommunitySettings() {
     form.setFieldsValue({
       name: event.name,
       event_type: event.event_type,
+      start_at: event.start_at ? dayjs(event.start_at) : null,
+      end_at: event.end_at ? dayjs(event.end_at) : null,
       capacity: event.capacity,
       price: event.price ? Number(event.price) : null,
       location: event.location,
@@ -148,6 +150,8 @@ export default function CommunitySettings() {
     const payload = {
       name: values.name,
       event_type: values.event_type || 'other',
+      start_at: values.start_at ? values.start_at.toISOString() : null,
+      end_at: values.end_at ? values.end_at.toISOString() : null,
       capacity: values.capacity || null,
       price: values.price || null,
       location: values.location || null,
@@ -420,6 +424,22 @@ export default function CommunitySettings() {
                   )}
                 />
               </Form.Item>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item
+                  name="start_at"
+                  label={<span className="text-xs font-medium text-slate-600">Start Date & Time *</span>}
+                  rules={[{ required: true, message: 'Select start date' }]}
+                >
+                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder="Start" />
+                </Form.Item>
+                <Form.Item
+                  name="end_at"
+                  label={<span className="text-xs font-medium text-slate-600">End Date & Time</span>}
+                >
+                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder="End (optional)" />
+                </Form.Item>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Form.Item

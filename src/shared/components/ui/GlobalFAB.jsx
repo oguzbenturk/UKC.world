@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PlusIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, ShoppingBagIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 import BookingDrawer from '@/features/bookings/components/components/BookingDrawer';
+import NewRentalDrawer from '@/features/rentals/components/NewRentalDrawer';
+import NewSaleDrawer from '@/features/services/components/NewSaleDrawer';
+import NewMemberDrawer from '@/features/members/components/NewMemberDrawer';
 import { useAuth } from '@/shared/hooks/useAuth';
 
 // Paths where the global FAB should not appear
@@ -11,11 +14,15 @@ const HIDDEN_PATH_PREFIXES = ['/f/', '/quick/', '/group-invitation/'];
 
 const NON_STAFF_ROLES = ['outsider', 'student', 'trusted_customer'];
 
+// eslint-disable-next-line complexity
 const GlobalFAB = () => {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [bookingDrawerOpen, setBookingDrawerOpen] = useState(false);
+  const [rentalDrawerOpen, setRentalDrawerOpen] = useState(false);
+  const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
+  const [memberDrawerOpen, setMemberDrawerOpen] = useState(false);
   const menuRef = useRef(null);
 
   const isHidden =
@@ -50,12 +57,42 @@ const GlobalFAB = () => {
             <button
               onClick={() => {
                 setMenuOpen(false);
+                setMemberDrawerOpen(true);
+              }}
+              className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
+            >
+              <UserPlusIcon className="h-4 w-4 text-indigo-500 shrink-0" />
+              New Member
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
                 setBookingDrawerOpen(true);
               }}
               className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
             >
               <CalendarDaysIcon className="h-4 w-4 text-sky-600 shrink-0" />
               Book a Lesson
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setRentalDrawerOpen(true);
+              }}
+              className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
+            >
+              <WrenchScrewdriverIcon className="h-4 w-4 text-orange-500 shrink-0" />
+              New Rental
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setSaleDrawerOpen(true);
+              }}
+              className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
+            >
+              <ShoppingBagIcon className="h-4 w-4 text-emerald-600 shrink-0" />
+              New Sale
             </button>
           </div>
         )}
@@ -83,6 +120,13 @@ const GlobalFAB = () => {
         </button>
       </div>
 
+      {memberDrawerOpen && (
+        <NewMemberDrawer
+          isOpen={memberDrawerOpen}
+          onClose={() => setMemberDrawerOpen(false)}
+        />
+      )}
+
       {/* BookingDrawer with its own CalendarProvider — only mounted when open */}
       {bookingDrawerOpen && (
         <CalendarProvider>
@@ -91,6 +135,22 @@ const GlobalFAB = () => {
             onClose={() => setBookingDrawerOpen(false)}
           />
         </CalendarProvider>
+      )}
+
+      {/* NewRentalDrawer — only mounted when open */}
+      {rentalDrawerOpen && (
+        <NewRentalDrawer
+          isOpen={rentalDrawerOpen}
+          onClose={() => setRentalDrawerOpen(false)}
+        />
+      )}
+
+      {/* NewSaleDrawer — only mounted when open */}
+      {saleDrawerOpen && (
+        <NewSaleDrawer
+          isOpen={saleDrawerOpen}
+          onClose={() => setSaleDrawerOpen(false)}
+        />
       )}
     </>
   );

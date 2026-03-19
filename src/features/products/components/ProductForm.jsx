@@ -70,7 +70,7 @@ const BRANDS = ['Duotone', 'ION', 'North', 'Core', 'Cabrinha', 'Mystic', 'Dakine
 const CATEGORY_FIELD_CONFIG = {
   kitesurf: {
     showGender: false,
-    showColors: false,
+    showColors: true,
     showSizes: true,
     showVariants: true,
     showWeight: true,
@@ -80,7 +80,7 @@ const CATEGORY_FIELD_CONFIG = {
   },
   wingfoil: {
     showGender: false,
-    showColors: false,
+    showColors: true,
     showSizes: true,
     showVariants: true,
     showWeight: true,
@@ -90,7 +90,7 @@ const CATEGORY_FIELD_CONFIG = {
   },
   efoil: {
     showGender: false,
-    showColors: false,
+    showColors: true,
     showSizes: true,
     showVariants: true,
     showWeight: true,
@@ -120,7 +120,7 @@ const CATEGORY_FIELD_CONFIG = {
   },
   secondwind: {
     showGender: false,
-    showColors: false,
+    showColors: true,
     showSizes: true,
     showVariants: false,
     showWeight: true,
@@ -159,6 +159,10 @@ const ProductForm = ({
   const [profitMargin, setProfitMargin] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
   const [extraSubcategories, setExtraSubcategories] = useState([]);
+  const [colorNames, setColorNames] = useState([]);
+  const [colorImagesMap, setColorImagesMap] = useState({});
+  const [colorInputVal, setColorInputVal] = useState('');
+  const [colorUploading, setColorUploading] = useState(null);
   const isEditing = !!product;
 
   // Derived field config based on selected category
@@ -247,10 +251,35 @@ const ProductForm = ({
 
   useEffect(() => {
     if (product) {
-      setImages(product.images || []);
       setSelectedCurrency(product.currency || businessCurrency);
       setSelectedCategory(product.category || null);
-      
+
+      // Distribute colors + images into per-color state
+      const rawColors = product.colors || [];
+      const allImages = Array.isArray(product.images) ? product.images : [];
+      if (rawColors.length > 0 && typeof rawColors[0] === 'object') {
+        // Object format [{name, imageCount}] — slice images per color
+        const names = [];
+        const map = {};
+        let idx = 0;
+        for (const c of rawColors) {
+          const name = c.name || c.code || '';
+          if (!name) continue;
+          names.push(name);
+          map[name] = allImages.slice(idx, idx + (c.imageCount || 0));
+          idx += (c.imageCount || 0);
+        }
+        setColorNames(names);
+        setColorImagesMap(map);
+        setImages(allImages.slice(idx)); // any leftover without a color
+      } else {
+        // Simple strings or empty — no images distributed yet
+        const names = rawColors.map(c => typeof c === 'string' ? c : (c.name || '')).filter(Boolean);
+        setColorNames(names);
+        setColorImagesMap(Object.fromEntries(names.map(n => [n, []])));
+        setImages(allImages);
+      }
+
       const formValues = {
         ...product,
         price: product.price != null ? parseFloat(product.price) : undefined,
@@ -260,10 +289,9 @@ const ProductForm = ({
         weight: product.weight != null ? parseFloat(product.weight) : undefined,
         tags: product.tags || [],
         variants: product.variants || [],
-        colors: product.colors || [],
-        sizes: product.sizes || []
+        sizes: product.sizes || [],
       };
-      
+
       setTimeout(() => {
         form.setFieldsValue(formValues);
         calculateMargin();
@@ -280,29 +308,54 @@ const ProductForm = ({
 
   const handleSubmit = async (values) => {
     try {
+      // Build colors [{name, imageCount}] and flat images array from per-color state
+      const hasColors = colorNames.length > 0;
+      const finalColors = hasColors
+        ? colorNames.map(name => ({ name, imageCount: (colorImagesMap[name] || []).length }))
+        : null;
+      const finalImages = hasColors
+        ? colorNames.flatMap(name => colorImagesMap[name] || [])
+        : images;
+
+      // Derive product-level price/cost from variant entries
+      const variantList = values.variants || [];
+      const variantPrices = variantList.map(v => v.price).filter(p => p != null && p > 0);
+      const derivedPrice = variantPrices.length > 0
+        ? Math.min(...variantPrices)
+        : (product?.price ? parseFloat(product.price) : 0);
+      const variantCosts = variantList.map(v => v.cost_price).filter(p => p != null && p > 0);
+      const derivedCostPrice = variantCosts.length > 0
+        ? Math.min(...variantCosts)
+        : (product?.cost_price ? parseFloat(product.cost_price) : null);
+
       const formattedValues = {
         ...values,
+        price: derivedPrice,
+        cost_price: derivedCostPrice,
         currency: selectedCurrency,
         image_url: imageUrl,
-        images: images,
+        images: finalImages,
         tags: Array.isArray(values.tags) ? values.tags : [],
         dimensions: values.dimensions || null,
         supplier_info: values.supplier_info || null,
         variants: values.variants || null,
-        colors: values.colors || null,
+        colors: finalColors,
         gender: values.gender || null,
         sizes: values.sizes || null,
         source_url: values.source_url || null
       };
 
       await onSubmit(formattedValues);
-      
+
       if (!isEditing) {
         form.resetFields();
         setImageUrl(null);
         setImages([]);
+        setColorNames([]);
+        setColorImagesMap({});
+        setColorInputVal('');
       }
-      
+
       message.success(`Product ${isEditing ? 'updated' : 'created'} successfully!`);
     } catch {
       message.error(`Failed to ${isEditing ? 'update' : 'create'} product`);
@@ -313,11 +366,47 @@ const ProductForm = ({
     setSelectedCategory(value);
     form.setFieldValue('category', value);
     form.setFieldValue('subcategory', undefined);
-    // Clear fields that may not apply to the new category
     const config = getFieldConfig(value);
     if (!config.showGender) form.setFieldValue('gender', undefined);
-    if (!config.showColors) form.setFieldValue('colors', []);
   }, [form]);
+
+  const addColor = useCallback((name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setColorNames(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+    setColorImagesMap(prev => ({ ...prev, [trimmed]: prev[trimmed] || [] }));
+  }, []);
+
+  const removeColor = useCallback((name) => {
+    setColorNames(prev => prev.filter(n => n !== name));
+    setColorImagesMap(prev => { const copy = { ...prev }; delete copy[name]; return copy; });
+  }, []);
+
+  const handleColorImageUpload = useCallback(async (colorName, fileList) => {
+    if (!fileList.length) return;
+    setColorUploading(colorName);
+    try {
+      const formData = new FormData();
+      fileList.forEach(f => formData.append('images', f));
+      const response = await apiClient.post('/upload/images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const urls = response.data.images.map(img => img.url);
+      setColorImagesMap(prev => ({ ...prev, [colorName]: [...(prev[colorName] || []), ...urls] }));
+      message.success(`${urls.length} photo${urls.length > 1 ? 's' : ''} added to ${colorName}`);
+    } catch {
+      message.error('Image upload failed');
+    } finally {
+      setColorUploading(null);
+    }
+  }, []);
+
+  const removeColorImage = useCallback((colorName, index) => {
+    setColorImagesMap(prev => ({
+      ...prev,
+      [colorName]: (prev[colorName] || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   const handleCreateSubcategory = useCallback(async (slug, label, parentValue) => {
     if (!selectedCategory) return;
@@ -524,6 +613,48 @@ const ProductForm = ({
                 <Select mode="tags" placeholder="Add tags" tokenSeparators={[',']} />
               </Form.Item>
             </Col>
+            {fieldConfig.showColors && (
+              <Col xs={24}>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                    <BgColorsOutlined className="mr-1" />Color Options
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <Input
+                      value={colorInputVal}
+                      onChange={e => setColorInputVal(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addColor(colorInputVal);
+                          setColorInputVal('');
+                        }
+                      }}
+                      placeholder="e.g., Black, Ocean Blue…"
+                      size="small"
+                      className="rounded-lg"
+                    />
+                    <Button
+                      size="small"
+                      onClick={() => { addColor(colorInputVal); setColorInputVal(''); }}
+                      disabled={!colorInputVal.trim()}
+                    >Add</Button>
+                  </div>
+                  {colorNames.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {colorNames.map(name => (
+                        <Tag key={name} closable onClose={() => removeColor(name)} color="blue" className="rounded-full">
+                          {name}
+                        </Tag>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">Add colors — you can then upload per-color photos in the Stock tab</p>
+                  )}
+                </div>
+              </Col>
+            )}
             <Col xs={24}>
               <Form.Item name="description" label="Description">
                 <TextArea rows={2} placeholder="Product description..." showCount maxLength={1000} className="resize-none" />
@@ -545,35 +676,6 @@ const ProductForm = ({
       ),
       children: (
         <div className="space-y-3 pt-1">
-          {/* ── Pricing ── */}
-          <div className="flex items-center gap-2">
-            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><DollarOutlined /> Pricing</p>
-            {profitMargin && (
-              <Tag className="ml-1" color={parseFloat(profitMargin) >= 30 ? 'success' : parseFloat(profitMargin) >= 15 ? 'warning' : 'error'}>
-                {profitMargin}% margin
-              </Tag>
-            )}
-          </div>
-          <Row gutter={[8, 0]}>
-            <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
-              <Form.Item name="currency" label="Currency">
-                <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={fieldConfig.showCostPrice ? 8 : 12}>
-              <Form.Item name="price" label="Selling Price" rules={[{ required: true, message: 'Required' }, { type: 'number', min: 0.01 }]}>
-                <InputNumber style={{ width: '100%' }} min={0} step={0.01} precision={2} prefix={getCurrencySymbol(selectedCurrency)} placeholder="0.00" onChange={calculateMargin} />
-              </Form.Item>
-            </Col>
-            {fieldConfig.showCostPrice && (
-              <Col xs={24} md={8}>
-                <Form.Item name="cost_price" label="Cost Price">
-                  <InputNumber style={{ width: '100%' }} min={0} step={0.01} precision={2} prefix={getCurrencySymbol(selectedCurrency)} placeholder="0.00" onChange={calculateMargin} />
-                </Form.Item>
-              </Col>
-            )}
-          </Row>
-
           {fieldConfig.showVariants && <div className="h-px bg-slate-100" />}
 
           {/* ── Variants ── */}
@@ -625,16 +727,7 @@ const ProductForm = ({
             )}
           </Row>
 
-          {/* ── Colors ── */}
-          {fieldConfig.showColors && (
-            <>
-              <div className="h-px bg-slate-100" />
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><BgColorsOutlined /> Colors</p>
-              <Form.Item name="colors" noStyle>
-                <ColorTable />
-              </Form.Item>
-            </>
-          )}
+          {/* ── Colors (now on Product tab) ── */}
 
           <div className="h-px bg-slate-100" />
 
@@ -674,43 +767,92 @@ const ProductForm = ({
             <p className="text-xs text-slate-400">800×800px · max 5 MB</p>
           </div>
 
-          {/* ── Gallery ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            <AppstoreOutlined /> Gallery <span className="ml-1 font-normal normal-case text-slate-300">{images.length}/10</span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Upload
-              multiple
-              listType="picture-card"
-              showUploadList={false}
-              beforeUpload={(file, fileList) => {
-                if (images.length + fileList.length > 10) { message.error('Maximum 10 images'); return false; }
-                handleMultipleImagesUpload(fileList);
-                return false;
-              }}
-              disabled={imageLoading || images.length >= 10}
-            >
-              {images.length < 10 && (
-                <div className="flex flex-col items-center justify-center w-16 h-16">
-                  {imageLoading ? <LoadingOutlined /> : <PlusOutlined />}
-                  <span className="text-xs mt-1">Add</span>
-                </div>
-              )}
-            </Upload>
-            {images.map((imgUrl, index) => (
-              <div key={index} className="relative w-16 h-16 flex-shrink-0">
-                <div className="w-full h-full overflow-hidden rounded-lg border border-slate-100">
-                  <Image src={imgUrl} alt={`${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={{ mask: false }} />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                  style={{ fontSize: 9 }}
-                >✕</button>
+          {/* ── Gallery / Color Images ── */}
+          {colorNames.length > 0 ? (
+            <>
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <BgColorsOutlined /> Photos per Color
+              </p>
+              <div className="space-y-3">
+                {colorNames.map(colorName => {
+                  const colorImgs = colorImagesMap[colorName] || [];
+                  const isUploading = colorUploading === colorName;
+                  return (
+                    <div key={colorName} className="rounded-lg border border-slate-100 bg-slate-50/40 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-semibold text-slate-700">{colorName}</span>
+                        <span className="text-xs text-slate-400">({colorImgs.length} photo{colorImgs.length !== 1 ? 's' : ''})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Upload
+                          multiple
+                          listType="picture-card"
+                          showUploadList={false}
+                          beforeUpload={(file, fileList) => { if (file === fileList[fileList.length - 1]) handleColorImageUpload(colorName, fileList); return false; }}
+                          disabled={isUploading}
+                        >
+                          <div className="flex flex-col items-center justify-center w-14 h-14">
+                            {isUploading ? <LoadingOutlined /> : <PlusOutlined />}
+                            <span className="text-[10px] mt-1">Add</span>
+                          </div>
+                        </Upload>
+                        {colorImgs.map((url, i) => (
+                          <div key={i} className="relative w-14 h-14 flex-shrink-0">
+                            <img src={url} alt={`${colorName}-${i + 1}`} className="w-full h-full object-cover rounded-lg border border-slate-100" />
+                            <button
+                              type="button"
+                              onClick={() => removeColorImage(colorName, i)}
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                              style={{ fontSize: 9 }}
+                            >✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <AppstoreOutlined /> Gallery <span className="ml-1 font-normal normal-case text-slate-300">{images.length}/10</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Upload
+                  multiple
+                  listType="picture-card"
+                  showUploadList={false}
+                  beforeUpload={(file, fileList) => {
+                    if (images.length + fileList.length > 10) { message.error('Maximum 10 images'); return false; }
+                    handleMultipleImagesUpload(fileList);
+                    return false;
+                  }}
+                  disabled={imageLoading || images.length >= 10}
+                >
+                  {images.length < 10 && (
+                    <div className="flex flex-col items-center justify-center w-16 h-16">
+                      {imageLoading ? <LoadingOutlined /> : <PlusOutlined />}
+                      <span className="text-xs mt-1">Add</span>
+                    </div>
+                  )}
+                </Upload>
+                {images.map((imgUrl, index) => (
+                  <div key={index} className="relative w-16 h-16 flex-shrink-0">
+                    <div className="w-full h-full overflow-hidden rounded-lg border border-slate-100">
+                      <Image src={imgUrl} alt={`${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={{ mask: false }} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+                      style={{ fontSize: 9 }}
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       ),
     },

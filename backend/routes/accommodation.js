@@ -210,7 +210,8 @@ router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
 	try {
 		const { 
 			name, 
-			type, 
+			type,
+			category = 'own',
 			capacity, 
 			price_per_night, 
 			description, 
@@ -227,10 +228,10 @@ router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
 		const id = uuidv4();
 		const { rows } = await pool.query(
 			`INSERT INTO accommodation_units 
-			(id, name, type, capacity, price_per_night, description, amenities, status, image_url, images, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+			(id, name, type, category, capacity, price_per_night, description, amenities, status, image_url, images, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 			RETURNING *`,
-			[id, name, type, parseInt(capacity, 10), parseFloat(price_per_night), description || null, 
+			[id, name, type, category || 'own', parseInt(capacity, 10), parseFloat(price_per_night), description || null, 
 			 amenities ? JSON.stringify(amenities) : null, status, image_url || null,
 			 images ? JSON.stringify(images) : '[]']
 		);
@@ -245,7 +246,7 @@ router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
 router.put('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { name, type, capacity, price_per_night, description, amenities, status, image_url, images } = req.body;
+		const { name, type, category, capacity, price_per_night, description, amenities, status, image_url, images } = req.body;
 		
 		const updates = [];
 		const params = [];
@@ -253,6 +254,7 @@ router.put('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), 
 		
 		if (name !== undefined) { updates.push(`name = $${paramIndex++}`); params.push(name); }
 		if (type !== undefined) { updates.push(`type = $${paramIndex++}`); params.push(type); }
+		if (category !== undefined) { updates.push(`category = $${paramIndex++}`); params.push(category); }
 		if (capacity !== undefined) { updates.push(`capacity = $${paramIndex++}`); params.push(parseInt(capacity, 10)); }
 		if (price_per_night !== undefined) { updates.push(`price_per_night = $${paramIndex++}`); params.push(parseFloat(price_per_night)); }
 		if (description !== undefined) { updates.push(`description = $${paramIndex++}`); params.push(description); }
@@ -377,7 +379,8 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 				u.email as guest_email,
 				u.phone as guest_phone,
 				au.name as unit_name,
-				au.type as unit_type
+				au.type as unit_type,
+				au.category as unit_category
 			 FROM accommodation_bookings ab
 			 LEFT JOIN users u ON ab.guest_id = u.id
 			 LEFT JOIN accommodation_units au ON ab.unit_id = au.id
@@ -413,8 +416,9 @@ router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager'
 				u.name                    AS guest_name,
 				u.email                   AS guest_email,
 				u.phone                   AS guest_phone,
-				au.name                   AS unit_name,
+				COALESCE(au.name, cp.accommodation_unit_name) AS unit_name,
 				au.type                   AS unit_type,
+				au.category               AS unit_category,
 				'package'                 AS booking_source
 			 FROM customer_packages cp
 			 LEFT JOIN users u  ON u.id  = cp.customer_id

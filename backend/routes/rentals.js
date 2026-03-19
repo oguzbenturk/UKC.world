@@ -1324,10 +1324,12 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
         r.total_price,
         r.status,
         r.payment_status,
+        r.customer_package_id,
         r.notes,
         r.created_at,
         r.updated_at,
         EXTRACT(EPOCH FROM (r.end_date - r.start_date))/3600 as duration_hours,
+        sp.package_daily_rate,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1346,8 +1348,10 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
   FROM rentals r
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN customer_packages cp ON r.customer_package_id = cp.id
+      LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
   WHERE r.user_id = $1
-      GROUP BY r.id
+      GROUP BY r.id, sp.package_daily_rate
   ORDER BY r.start_date DESC
     `;
     

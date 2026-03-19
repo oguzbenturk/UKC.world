@@ -221,6 +221,7 @@ export async function getInstructorPayrollHistory(instructorId, options = {}) {
       FROM wallet_transactions 
       WHERE user_id = $1 
         AND transaction_type IN ('payment', 'deduction')
+        AND (entity_type IS NULL OR entity_type = 'instructor_payment')
         AND status != 'cancelled'
       ORDER BY created_at DESC${limitClause}`,
     params
@@ -236,6 +237,7 @@ export async function getInstructorPaymentsSummary(instructorId) {
     FROM wallet_transactions
     WHERE user_id = $1
       AND transaction_type IN ('payment', 'deduction')
+      AND (entity_type IS NULL OR entity_type = 'instructor_payment')
       AND status != 'cancelled';
   `;
 
@@ -243,6 +245,7 @@ export async function getInstructorPaymentsSummary(instructorId) {
     SELECT amount, created_at
     FROM wallet_transactions
     WHERE user_id = $1 AND transaction_type = 'payment'
+      AND (entity_type IS NULL OR entity_type = 'instructor_payment')
       AND status != 'cancelled'
     ORDER BY created_at DESC
     LIMIT 1;
@@ -310,6 +313,7 @@ export async function getAllInstructorBalances() {
     JOIN users u ON u.id = wt.user_id
     LEFT JOIN roles r ON r.id = u.role_id
     WHERE wt.transaction_type IN ('payment', 'deduction')
+      AND (wt.entity_type IS NULL OR wt.entity_type = 'instructor_payment')
       AND wt.status != 'cancelled'
       AND u.deleted_at IS NULL
       AND EXISTS (

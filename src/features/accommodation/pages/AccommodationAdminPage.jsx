@@ -1,35 +1,24 @@
 
-/* eslint-disable complexity */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Card,
-  Row,
-  Col,
   Button,
   Table,
   Tag,
-  Space,
-  Statistic,
-  Spin,
   Empty,
   Tooltip,
   Tabs,
   Badge,
   Modal,
+  Input,
+  Skeleton,
   message,
 } from 'antd';
 import {
-  HomeOutlined,
-  CalendarOutlined,
-  UserOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   CloseCircleOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  EnvironmentOutlined,
+  SearchOutlined,
   SyncOutlined,
-  EyeOutlined
+  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -37,84 +26,45 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import accommodationApi from '@/shared/services/accommodationApi';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
 
-// Mobile card renderer
-const AccommodationMobileCard = ({ record, onAction }) => (
-  <Card size="small" className="mb-2">
-    <div className="flex justify-between items-start mb-2">
-       <div>
-          <div className="font-medium">{record.guest_first_name} {record.guest_last_name}</div>
-          <div className="text-xs text-gray-500">
-             <EnvironmentOutlined /> {record.room_name || record.room_type}
-          </div>
-       </div>
-       <Tag color={record.status === 'confirmed' ? 'blue' : record.status === 'completed' ? 'green' : record.status === 'cancelled' ? 'default' : 'orange'}>
-          {record.status}
-       </Tag>
-    </div>
-    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-        <div>
-           <span className="text-gray-400">Check In:</span><br/>
-           {dayjs(record.check_in_date).format('MMM D')}
-        </div>
-        <div className="text-right">
-           <span className="text-gray-400">Total:</span><br/>
-           <span className="font-semibold text-orange-600">€{record.total_price}</span>
-        </div>
-    </div>
-    <div className="flex justify-end gap-2 border-t pt-2">
-       {record.status === 'pending' && <Button size="small" type="primary" onClick={() => onAction('confirm', record)}>Confirm</Button>}
-       {record.status === 'confirmed' && <Button size="small" onClick={() => onAction('complete', record)}>Complete</Button>}
-       <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('details', record)}>Details</Button>
-    </div>
-  </Card>
-);
+const STATUS_CONFIG = {
+  pending:   { color: 'orange', text: 'Pending' },
+  confirmed: { color: 'blue',   text: 'Confirmed' },
+  completed: { color: 'green',  text: 'Completed' },
+  cancelled: { color: 'default', text: 'Cancelled' },
+};
 
 // Helper to compute booking stats
 const computeBookingStats = (bookings) => {
   const today = dayjs();
-  
+
   const activeBookings = bookings.filter((b) => {
     const checkIn = dayjs(b.check_in_date);
     const checkOut = dayjs(b.check_out_date);
-    return (
-      b.status !== 'cancelled' &&
-      checkIn.isSameOrBefore(today, 'day') &&
-      checkOut.isAfter(today, 'day')
-    );
+    return b.status !== 'cancelled' && checkIn.isSameOrBefore(today, 'day') && checkOut.isAfter(today, 'day');
   });
 
   const pendingBookings = bookings.filter((b) => b.status === 'pending');
 
   const hotelRequests = bookings.filter((b) => {
+    const cat = (b.unit_category || '').toLowerCase();
     const uType = (b.unit_type || '').toLowerCase();
-    return uType === 'room' && b.status === 'pending';
-  });
-  
-  const upcomingBookings = bookings.filter((b) => {
-    const checkIn = dayjs(b.check_in_date);
-    return b.status === 'confirmed' && checkIn.isAfter(today, 'day');
+    return (cat === 'hotel' || (cat === '' && uType === 'room')) && b.status === 'pending';
   });
 
-  const monthStart = today.startOf('month');
-  const monthEnd = today.endOf('month');
-  const monthlyRevenue = bookings
-    .filter((b) => {
-      const checkIn = dayjs(b.check_in_date);
-      return b.status !== 'cancelled' && checkIn.isBetween(monthStart, monthEnd, 'day', '[]');
-    })
-    .reduce((sum, b) => sum + parseFloat(b.total_price || 0), 0);
+  const upcomingBookings = bookings.filter((b) => {
+    return b.status === 'confirmed' && dayjs(b.check_in_date).isAfter(today, 'day');
+  });
 
   return {
     activeCount: activeBookings.length,
     pendingCount: pendingBookings.length,
     hotelRequestsCount: hotelRequests.length,
     upcomingCount: upcomingBookings.length,
-    monthlyRevenue,
     activeBookings,
     pendingBookings,
     hotelRequests,
@@ -123,28 +73,29 @@ const computeBookingStats = (bookings) => {
 };
 
 function AccommodationAdminPage() {
-  usePageSEO({
-    title: 'Stay Bookings | Calendar',
-    description: 'View accommodation bookings and room status',
-  });
+  usePageSEO({ title: 'Stay Bookings | Calendar', description: 'View accommodation bookings and room status' });
 
   const { formatCurrency } = useCurrency();
-
   const [bookings, setBookings] = useState([]);
+  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [searchText, setSearchText] = useState('');
 
-  // Load bookings
   const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const [standaloneData, packageData] = await Promise.allSettled([
+      const [standaloneData, packageData, unitsData] = await Promise.allSettled([
         accommodationApi.getBookings({ limit: 500 }),
         accommodationApi.getPackageStays(),
+        accommodationApi.getUnits({ limit: 500 }),
       ]);
       const standalone = standaloneData.status === 'fulfilled' ? standaloneData.value : [];
       const packageStays = packageData.status === 'fulfilled' ? packageData.value : [];
-      // Merge: deduplicate by id (package stays have different UUIDs so no collision)
+      const unitsList = unitsData.status === 'fulfilled'
+        ? (Array.isArray(unitsData.value) ? unitsData.value : unitsData.value?.data || [])
+        : [];
+      setUnits(unitsList);
       setBookings([...standalone, ...packageStays]);
     } catch {
       message.error('Failed to load bookings');
@@ -153,53 +104,46 @@ function AccommodationAdminPage() {
     }
   }, []);
 
-  useEffect(() => {
-    loadBookings();
-  }, [loadBookings]);
+  useEffect(() => { loadBookings(); }, [loadBookings]);
 
-  // Stats
   const stats = useMemo(() => computeBookingStats(bookings), [bookings]);
 
-  // Handle booking actions
+  // Build a unit ID → name lookup from fetched units
+  const unitMap = useMemo(() => {
+    const map = {};
+    units.forEach(u => { map[u.id] = u.name || u.type || 'Unit'; });
+    return map;
+  }, [units]);
+
+  // Resolve unit display name: prefer record.unit_name, then lookup, then fallback
+  const getUnitName = (record) => {
+    if (record.unit_name) return record.unit_name;
+    if (record.accommodation_unit_name) return record.accommodation_unit_name;
+    if (record.unit_id && unitMap[record.unit_id]) return unitMap[record.unit_id];
+    return 'Unassigned';
+  };
+
+  // Booking actions
   const handleConfirmBooking = async (bookingId) => {
-    try {
-      await accommodationApi.confirmBooking(bookingId);
-      message.success('Booking confirmed');
-      loadBookings();
-    } catch {
-      message.error('Failed to confirm booking');
-    }
+    try { await accommodationApi.confirmBooking(bookingId); message.success('Booking confirmed'); loadBookings(); }
+    catch { message.error('Failed to confirm booking'); }
   };
-
   const handleCompleteBooking = async (bookingId) => {
-    try {
-      await accommodationApi.completeBooking(bookingId);
-      message.success('Booking completed');
-      loadBookings();
-    } catch {
-      message.error('Failed to complete booking');
-    }
+    try { await accommodationApi.completeBooking(bookingId); message.success('Booking completed'); loadBookings(); }
+    catch { message.error('Failed to complete booking'); }
   };
-
   const handleCancelBooking = async (bookingId) => {
-    try {
-      await accommodationApi.cancelBooking(bookingId);
-      message.success('Booking cancelled');
-      loadBookings();
-    } catch {
-      message.error('Failed to cancel booking');
-    }
+    try { await accommodationApi.cancelBooking(bookingId); message.success('Booking cancelled'); loadBookings(); }
+    catch { message.error('Failed to cancel booking'); }
   };
-  // Delete booking with confirmation and better error handling
-  const [deletingIds, setDeletingIds] = useState(new Set());
 
+  const [deletingIds, setDeletingIds] = useState(new Set());
   const handleDeleteBooking = (bookingId) => {
     Modal.confirm({
       title: 'Delete booking',
       content: 'Are you sure you want to permanently delete this booking?',
       okText: 'Delete',
       okType: 'danger',
-      cancelText: 'Cancel',
       onOk: async () => {
         if (deletingIds.has(bookingId)) return;
         setDeletingIds(prev => new Set(prev).add(bookingId));
@@ -209,363 +153,183 @@ function AccommodationAdminPage() {
           await loadBookings();
         } catch (err) {
           const status = err?.response?.status;
-          if (status === 404) {
-            message.warning('Booking not found or already deleted');
-          } else if (status === 403) {
-            message.error('Not authorized to delete this booking');
-          } else {
-            message.error('Failed to delete booking');
-            console.error('Delete booking error', err);
-          }
+          if (status === 404) message.warning('Booking not found or already deleted');
+          else if (status === 403) message.error('Not authorized to delete this booking');
+          else message.error('Failed to delete booking');
         } finally {
-          setDeletingIds(prev => {
-            const next = new Set(prev);
-            next.delete(bookingId);
-            return next;
-          });
+          setDeletingIds(prev => { const next = new Set(prev); next.delete(bookingId); return next; });
         }
       }
     });
   };
-  // Table columns
+
+  // Filter bookings by tab + search
+  const getFilteredBookings = () => {
+    let result;
+    switch (activeTab) {
+      case 'active': result = stats.activeBookings; break;
+      case 'pending': result = stats.pendingBookings; break;
+      case 'hotel_requests': result = stats.hotelRequests; break;
+      case 'upcoming': result = stats.upcomingBookings; break;
+      case 'completed': result = bookings.filter((b) => b.status === 'completed'); break;
+      default: result = bookings;
+    }
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      result = result.filter(b =>
+        b.guest_name?.toLowerCase().includes(q) ||
+        b.guest_email?.toLowerCase().includes(q) ||
+        getUnitName(b).toLowerCase().includes(q)
+      );
+    }
+    return result;
+  };
+  const filteredBookings = getFilteredBookings();
+
   const columns = [
     {
       title: 'Guest',
       key: 'guest',
-      width: 200,
+      width: 180,
+      sorter: (a, b) => (a.guest_name || '').localeCompare(b.guest_name || ''),
       render: (_, record) => (
         <div>
-          <div className="font-medium flex items-center gap-2">
-            <UserOutlined className="text-gray-400" />
+          <div className="font-medium text-sm flex items-center gap-1.5">
             {record.guest_name || 'Unknown'}
             {record.booking_source === 'package' && (
               <Tag color="purple" bordered={false} className="rounded-full text-[10px] px-1.5 py-0 leading-4">PKG</Tag>
             )}
           </div>
-          <div className="text-xs text-gray-500">{record.guest_email}</div>
+          <div className="text-xs text-gray-400 truncate max-w-[160px]">{record.guest_email}</div>
           {record.package_name && (
-            <div className="text-[11px] text-purple-500">{record.package_name}</div>
+            <div className="text-[11px] text-purple-500 truncate max-w-[160px]">{record.package_name}</div>
           )}
         </div>
       ),
     },
     {
-      title: 'Room',
-      key: 'room',
-      width: 180,
+      title: 'Unit',
+      key: 'unit',
+      width: 160,
+      sorter: (a, b) => getUnitName(a).localeCompare(getUnitName(b)),
       render: (_, record) => (
         <div>
-          <div className="font-medium flex items-center gap-2">
-            <HomeOutlined className="text-orange-500" />
-            {record.unit_name || `Unit #${record.unit_id}`}
-          </div>
-          <div className="text-xs text-gray-500">{record.unit_type}</div>
+          <div className="text-sm font-medium">{getUnitName(record)}</div>
+          {record.unit_type && <div className="text-xs text-gray-400 capitalize">{record.unit_type}</div>}
         </div>
       ),
     },
     {
       title: 'Check-in',
       dataIndex: 'check_in_date',
-      width: 130,
-      render: (date) => dayjs(date).format('MMM D, YYYY'),
+      width: 100,
       sorter: (a, b) => dayjs(a.check_in_date).diff(dayjs(b.check_in_date)),
+      render: (date) => <span className="text-sm">{dayjs(date).format('D MMM YY')}</span>,
     },
     {
       title: 'Check-out',
       dataIndex: 'check_out_date',
-      width: 130,
-      render: (date) => dayjs(date).format('MMM D, YYYY'),
+      width: 100,
+      render: (date) => <span className="text-sm">{dayjs(date).format('D MMM YY')}</span>,
     },
     {
       title: 'Nights',
       key: 'nights',
-      width: 80,
-      render: (_, record) => {
-        const nights = dayjs(record.check_out_date).diff(dayjs(record.check_in_date), 'day');
-        return <span className="text-gray-600">{nights}</span>;
-      },
-    },
-    {
-      title: 'Guests',
-      dataIndex: 'guests_count',
-      width: 80,
-      render: (count) => (
-        <span className="flex items-center gap-1">
-          <TeamOutlined className="text-gray-400" />
-          {count}
-        </span>
-      ),
+      width: 70,
+      align: 'center',
+      sorter: (a, b) => dayjs(a.check_out_date).diff(dayjs(a.check_in_date), 'day') - dayjs(b.check_out_date).diff(dayjs(b.check_in_date), 'day'),
+      render: (_, record) => dayjs(record.check_out_date).diff(dayjs(record.check_in_date), 'day'),
     },
     {
       title: 'Total',
       dataIndex: 'total_price',
-      width: 120,
-      render: (price) => (
-        <span className="font-semibold text-orange-600">{formatCurrency(price, 'EUR')}</span>
-      ),
+      width: 100,
+      sorter: (a, b) => (parseFloat(a.total_price) || 0) - (parseFloat(b.total_price) || 0),
+      render: (price) => <span className="font-semibold text-orange-600">{formatCurrency(price, 'EUR')}</span>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
-      width: 120,
+      width: 110,
       render: (status) => {
-        const config = {
-          pending: { color: 'orange', icon: <ClockCircleOutlined />, text: 'Pending' },
-          confirmed: { color: 'blue', icon: <CheckCircleOutlined />, text: 'Confirmed' },
-          completed: { color: 'green', icon: <CheckCircleOutlined />, text: 'Completed' },
-          cancelled: { color: 'default', icon: <CloseCircleOutlined />, text: 'Cancelled' },
-        };
-        const c = config[status] || config.pending;
-        return (
-          <Tag color={c.color} className="rounded-full">
-            {c.icon} {c.text}
-          </Tag>
-        );
+        const c = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+        return <Tag color={c.color}>{c.text}</Tag>;
       },
-      filters: [
-        { text: 'Pending', value: 'pending' },
-        { text: 'Confirmed', value: 'confirmed' },
-        { text: 'Completed', value: 'completed' },
-        { text: 'Cancelled', value: 'cancelled' },
-      ],
-      onFilter: (value, record) => record.status === value,
     },
     {
-      title: 'Actions',
+      title: '',
       key: 'actions',
-      width: 180,
-      fixed: 'right',
+      width: 130,
       render: (_, record) => (
-        <Space size="small">
+        <div className="flex gap-1">
           {record.status === 'pending' && (
-            <Tooltip title="Confirm booking">
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleConfirmBooking(record.id)}
-              >
-                Confirm
-              </Button>
-            </Tooltip>
+            <Tooltip title="Confirm"><Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(record.id)} /></Tooltip>
           )}
           {record.status === 'confirmed' && (
-            <Tooltip title="Mark as completed">
-              <Button
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleCompleteBooking(record.id)}
-              >
-                Complete
-              </Button>
-            </Tooltip>
+            <Tooltip title="Complete"><Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleCompleteBooking(record.id)} /></Tooltip>
           )}
           {(record.status === 'pending' || record.status === 'confirmed') && (
-            <Tooltip title="Cancel booking">
-              <Button
-                size="small"
-                danger
-                icon={<CloseCircleOutlined />}
-                onClick={() => handleCancelBooking(record.id)}
-              >
-                Cancel
-              </Button>
-            </Tooltip>
+            <Tooltip title="Cancel"><Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleCancelBooking(record.id)} /></Tooltip>
           )}
-          <Tooltip title="Delete booking">
-            <Button
-              size="small"
-              danger
-              loading={deletingIds.has(record.id)}
-              disabled={deletingIds.has(record.id)}
-              icon={<CloseCircleOutlined />}
-              onClick={() => handleDeleteBooking(record.id)}
-            >
-              Delete
-            </Button>
+          <Tooltip title="Delete">
+            <Button size="small" danger loading={deletingIds.has(record.id)} disabled={deletingIds.has(record.id)} icon={<DeleteOutlined />} onClick={() => handleDeleteBooking(record.id)} />
           </Tooltip>
-        </Space>
+        </div>
       ),
     },
   ];
 
-  // Filter bookings by tab
-  const getFilteredBookings = () => {
-    switch (activeTab) {
-      case 'active':
-        return stats.activeBookings;
-      case 'pending':
-        return stats.pendingBookings;
-      case 'hotel_requests':
-        return stats.hotelRequests;
-      case 'upcoming':
-        return stats.upcomingBookings;
-      case 'completed':
-        return bookings.filter((b) => b.status === 'completed');
-      default:
-        return bookings;
-    }
-  };
-
-  const filteredBookings = getFilteredBookings();
+  if (loading) {
+    return <div className="p-6"><Skeleton active /></div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                <HomeOutlined className="text-white text-xl" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-0">Stay Bookings</h1>
-                <p className="text-sm text-gray-500">Accommodation reservations calendar</p>
-              </div>
-            </div>
-            <Button icon={<SyncOutlined />} onClick={loadBookings} loading={loading}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <Row gutter={[16, 16]} className="mb-6">
-          <Col xs={12} sm={6}>
-            <Card className="rounded-xl border-0 shadow-sm">
-              <Statistic
-                title={<span className="text-gray-600 text-sm">Active Stays</span>}
-                value={stats.activeCount}
-                prefix={<EnvironmentOutlined className="text-green-500" />}
-                valueStyle={{ fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="rounded-xl border-0 shadow-sm">
-              <Statistic
-                title={<span className="text-gray-600 text-sm">Pending</span>}
-                value={stats.pendingCount}
-                prefix={<ClockCircleOutlined className="text-orange-500" />}
-                valueStyle={{ fontSize: '24px', color: stats.pendingCount > 0 ? '#faad14' : undefined }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="rounded-xl border-0 shadow-sm">
-              <Statistic
-                title={<span className="text-gray-600 text-sm">Upcoming</span>}
-                value={stats.upcomingCount}
-                prefix={<CalendarOutlined className="text-blue-500" />}
-                valueStyle={{ fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="rounded-xl border-0 shadow-sm">
-              <Statistic
-                title={<span className="text-gray-600 text-sm">Monthly Revenue</span>}
-                value={stats.monthlyRevenue}
-                prefix={<DollarOutlined className="text-orange-500" />}
-                formatter={(val) => formatCurrency(val, 'EUR')}
-                valueStyle={{ fontSize: '20px', color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Bookings Table */}
-        <Card className="rounded-xl shadow-sm">
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={[
-              {
-                key: 'all',
-                label: 'All Bookings',
-                children: null,
-              },
-              {
-                key: 'active',
-                label: (
-                  <span>
-                    Active Stays
-                    {stats.activeCount > 0 && (
-                      <Badge count={stats.activeCount} className="ml-2" />
-                    )}
-                  </span>
-                ),
-                children: null,
-              },
-              {
-                key: 'pending',
-                label: (
-                  <span>
-                    Pending
-                    {stats.pendingCount > 0 && (
-                      <Badge count={stats.pendingCount} className="ml-2" />
-                    )}
-                  </span>
-                ),
-                children: null,
-              },
-              {
-                key: 'hotel_requests',
-                label: (
-                  <span>
-                    🏨 Hotel Requests
-                    {stats.hotelRequestsCount > 0 && (
-                      <Badge count={stats.hotelRequestsCount} className="ml-2" style={{ backgroundColor: '#fa8c16' }} />
-                    )}
-                  </span>
-                ),
-                children: null,
-              },
-              {
-                key: 'upcoming',
-                label: 'Upcoming',
-                children: null,
-              },
-              {
-                key: 'completed',
-                label: 'Completed',
-                children: null,
-              },
-            ]}
-          />
-
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Spin size="large" />
-            </div>
-          ) : filteredBookings.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No bookings found"
-              className="py-12"
-            />
-          ) : (
-            <UnifiedResponsiveTable
-              dataSource={filteredBookings}
-              columns={columns}
-              rowKey="id"
-              pagination={{ pageSize: 20, showSizeChanger: true }}
-              className="mt-4"
-              mobileCardRenderer={(props) => (
-                 <AccommodationMobileCard 
-                    {...props} 
-                    onAction={(action, record) => {
-                       if (action === 'confirm') handleConfirmBooking(record.id);
-                       if (action === 'complete') handleCompleteBooking(record.id);
-                       if (action === 'details') handleViewDetails(record);
-                    }} 
-                 />
-              )}
-            />
-          )}
-        </Card>
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-5">
+        <Input
+          placeholder="Search guests, units..."
+          prefix={<SearchOutlined className="text-gray-400" />}
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          allowClear
+          className="sm:max-w-xs"
+          size="large"
+        />
+        <Button icon={<SyncOutlined />} onClick={loadBookings} loading={loading}>
+          Refresh
+        </Button>
       </div>
+
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        className="mb-4"
+        items={[
+          { key: 'all', label: `All (${bookings.length})` },
+          { key: 'active', label: <span>Active {stats.activeCount > 0 && <Badge count={stats.activeCount} className="ml-1" />}</span> },
+          { key: 'pending', label: <span>Pending {stats.pendingCount > 0 && <Badge count={stats.pendingCount} className="ml-1" />}</span> },
+          { key: 'hotel_requests', label: <span>Hotel {stats.hotelRequestsCount > 0 && <Badge count={stats.hotelRequestsCount} className="ml-1" style={{ backgroundColor: '#fa8c16' }} />}</span> },
+          { key: 'upcoming', label: 'Upcoming' },
+          { key: 'completed', label: 'Completed' },
+        ]}
+      />
+
+      {/* Table */}
+      <UnifiedTable density="comfortable">
+        <Table
+          rowKey="id"
+          dataSource={filteredBookings}
+          columns={columns}
+          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `${total} bookings` }}
+          scroll={{ x: 900 }}
+          size="middle"
+          locale={{
+            emptyText: <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          }}
+        />
+      </UnifiedTable>
     </div>
   );
 }
