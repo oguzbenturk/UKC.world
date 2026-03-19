@@ -1,0 +1,82 @@
+# ===========================================
+# Root .dockerignore — Frontend build context
+# Build context: . (used by infrastructure/Dockerfile)
+# ===========================================
+
+# Dependencies (rebuilt inside container)
+node_modules
+backend/node_modules
+
+# Git history
+.git
+.gitignore
+.gitattributes
+.github
+
+# Previous build output (rebuilt in container)
+dist
+
+# Backend data directories
+backend/uploads
+backend/logs
+backend/backups
+backend/.env*
+backend/_*.js
+backend/_*.cjs
+backend/docs
+
+# Test files and reports
+tests
+playwright-report
+test-results
+full-test-run*.log
+test-output.txt
+build_output.txt
+
+# Documentation
+docs
+
+# Debug and utility scripts at root
+_*.cjs
+_*.js
+
+# Database dumps
+*.sql
+
+# SSL certificates
+SSL
+.ssl-temp
+
+# Upload and media directories
+uploads
+pictures
+logs
+
+# IDE / Editor
+.vscode
+.idea
+
+# Environment and secrets
+.env
+.env.*
+.env.production.template
+.env.test
+.deploy.secrets*
+
+# ACME / Let's Encrypt webroot
+acme-webroot
+
+# Stale production config
+productionvars
+
+# Docker compose files (not needed inside build)
+docker-compose*.yml
+
+# Misc non-build files
+LICENSE
+README.md
+tools
+scripts
+vitest.config.js
+playwright.config.mjs
+eslint.config.js
