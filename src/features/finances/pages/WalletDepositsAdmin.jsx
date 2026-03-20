@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Table, Tag, Button, Space, message, Modal, Typography,
-  Image, Segmented, Select, Card, Row, Col, Avatar, Input, Tooltip, Badge, Grid, Spin,
+  Image, Segmented, Select, Card, Row, Col, Avatar, Input, Tooltip, Badge, Grid, Spin, DatePicker,
 } from 'antd';
 import {
   CheckCircleOutlined, CloseCircleOutlined, EyeOutlined,
@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 
 const { useBreakpoint } = Grid;
+const { RangePicker } = DatePicker;
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import apiClient from '@/shared/services/apiClient';
@@ -132,6 +133,8 @@ export default function WalletDepositsAdmin() {
   const [loading, setLoading]       = useState(false);
   const [view, setView]             = useState(VIEWS.PENDING);
   const [methodFilter, setMethodFilter] = useState(null);
+  const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
+  const [activeQuickRange, setActiveQuickRange] = useState(null);
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, reason: '', saving: false });
   const { formatCurrency } = useCurrency();
   const screens = useBreakpoint();
@@ -148,6 +151,8 @@ export default function WalletDepositsAdmin() {
       } else if (methodFilter) {
         params.method = methodFilter;
       }
+      if (dateRange.startDate) params.startDate = dateRange.startDate;
+      if (dateRange.endDate) params.endDate = dateRange.endDate;
       const res = await apiClient.get('/wallet/admin/deposits', { params });
       setDeposits(res.data.results || []);
     } catch (err) {
@@ -156,7 +161,7 @@ export default function WalletDepositsAdmin() {
     } finally {
       setLoading(false);
     }
-  }, [view, methodFilter]);
+  }, [view, methodFilter, dateRange]);
 
   useEffect(() => { fetchDeposits(); }, [fetchDeposits]);
 
@@ -189,6 +194,29 @@ export default function WalletDepositsAdmin() {
 
   const openReject  = (id) => setRejectModal({ open: true, id, reason: '', saving: false });
   const closeReject = ()   => setRejectModal({ open: false, id: null, reason: '', saving: false });
+
+  const quickRanges = {
+    thisWeek:  { label: 'This Week',  startDate: dayjs().startOf('week').format('YYYY-MM-DD'),  endDate: dayjs().format('YYYY-MM-DD') },
+    thisMonth: { label: 'This Month', startDate: dayjs().startOf('month').format('YYYY-MM-DD'), endDate: dayjs().format('YYYY-MM-DD') },
+    thisYear:  { label: 'This Year',  startDate: dayjs().startOf('year').format('YYYY-MM-DD'),  endDate: dayjs().format('YYYY-MM-DD') },
+    all:       { label: 'All Time',   startDate: null, endDate: null },
+  };
+
+  const handleQuickRange = (key) => {
+    const range = quickRanges[key];
+    setDateRange({ startDate: range.startDate, endDate: range.endDate });
+    setActiveQuickRange(key);
+  };
+
+  const handleDateRangeChange = (dates) => {
+    if (dates && dates[0] && dates[1]) {
+      setDateRange({ startDate: dates[0].format('YYYY-MM-DD'), endDate: dates[1].format('YYYY-MM-DD') });
+      setActiveQuickRange(null);
+    } else {
+      setDateRange({ startDate: null, endDate: null });
+      setActiveQuickRange('all');
+    }
+  };
 
   const handleReject = async () => {
     setRejectModal((p) => ({ ...p, saving: true }));
@@ -409,6 +437,47 @@ export default function WalletDepositsAdmin() {
               { label: 'Credit Card',   value: 'credit_card'   },
               { label: 'Iyzico',        value: 'iyzico'        },
             ]}
+          />
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(quickRanges).map(([key, range]) => (
+            <Button
+              key={key}
+              size="small"
+              type={activeQuickRange === key ? 'primary' : 'default'}
+              onClick={() => handleQuickRange(key)}
+              className={`rounded-lg ${activeQuickRange === key ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
+            >
+              {range.label}
+            </Button>
+          ))}
+        </div>
+        {isMobile ? (
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 shadow-sm">
+            <input
+              type="date"
+              value={dateRange.startDate || ''}
+              onChange={(e) => { setDateRange(prev => ({ ...prev, startDate: e.target.value || null })); setActiveQuickRange(null); }}
+              className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-blue-500 focus:outline-none"
+              max={dateRange.endDate || undefined}
+            />
+            <span className="text-xs text-slate-500">to</span>
+            <input
+              type="date"
+              value={dateRange.endDate || ''}
+              onChange={(e) => { setDateRange(prev => ({ ...prev, endDate: e.target.value || null })); setActiveQuickRange(null); }}
+              className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-blue-500 focus:outline-none"
+              min={dateRange.startDate || undefined}
+            />
+          </div>
+        ) : (
+          <RangePicker
+            size="small"
+            value={dateRange.startDate && dateRange.endDate ? [dayjs(dateRange.startDate), dayjs(dateRange.endDate)] : null}
+            onChange={handleDateRangeChange}
+            allowClear
+            className="rounded-xl border border-slate-200 shadow-sm"
+            placeholder={['Start date', 'End date']}
           />
         )}
       </div>

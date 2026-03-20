@@ -11,6 +11,7 @@ import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import moment from 'moment';
 import EnhancedInstructorDetailModal from '../components/EnhancedInstructorDetailModal';
+import EnhancedManagerDetailPanel from '@/features/manager/components/EnhancedManagerDetailPanel';
 import AddInstructorModal from '../components/AddInstructorModal';
 
 /** Extract discipline tags from the skills array returned by the API */
@@ -394,12 +395,21 @@ function Instructors() {
       )}
 
       {/* ── Detail Modal ───────────────────────────────────── */}
-      <EnhancedInstructorDetailModal
-        instructor={selectedInstructor}
-        isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        onUpdate={() => { fetchBalances(); }}
-      />
+      {selectedInstructor?.role_name === 'manager' ? (
+        <EnhancedManagerDetailPanel
+          manager={selectedInstructor}
+          isOpen={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+          onUpdate={() => { fetchBalances(); }}
+        />
+      ) : (
+        <EnhancedInstructorDetailModal
+          instructor={selectedInstructor}
+          isOpen={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+          onUpdate={() => { fetchBalances(); }}
+        />
+      )}
 
       {/* ── Quick Pay Modal ────────────────────────────────── */}
       <Modal

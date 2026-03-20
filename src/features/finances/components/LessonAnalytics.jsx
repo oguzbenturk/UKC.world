@@ -15,7 +15,7 @@ const LessonAnalytics = ({ summaryData, chartData = [] }) => {
     const netRevenueData = summaryData.netRevenue || {};
     const bookingsData = summaryData.bookings || {};
 
-    const totalBookings = Number(bookingsData.completed_bookings || bookingsData.total_bookings || 0);
+    const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
     const instructorCommission = Number(netRevenueData.commission_total || 0);
     const avgBookingValue = totalBookings > 0 ? lessonRevenue / totalBookings : 0;

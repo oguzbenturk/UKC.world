@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
-import { ReloadOutlined } from '@ant-design/icons';
 import MembershipAnalytics from '../components/MembershipAnalytics';
-import TransactionHistory from '../components/TransactionHistory';
+import MembershipBreakdownCharts from '../components/MembershipBreakdownCharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -12,8 +11,8 @@ const { useBreakpoint } = Grid;
 
 const accentStyles = {
   purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
-  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -27,46 +26,45 @@ const getQuickRanges = () => ({
   thisWeek: {
     label: 'This Week',
     startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
   },
   thisMonth: {
     label: 'This Month',
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   },
   thisYear: {
     label: 'This Year',
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   },
   allHistory: {
     label: 'All History',
     startDate: '2020-01-01',
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   }
 });
 
 /**
- * FinanceMembership - Finance view for membership/package revenue
+ * FinanceMembership - Finance view for membership revenue
  */
 const FinanceMembership = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [summaryData, setSummaryData] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [customerDirectory, setCustomerDirectory] = useState({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadFinancialData();
-    loadPaymentsData();
   }, [dateRange]);
 
   const loadFinancialData = async () => {
+    setLoading(true);
     try {
       const response = await apiClient.get('/finances/summary', {
         params: {
@@ -79,21 +77,8 @@ const FinanceMembership = () => {
       setSummaryData(response.data);
     } catch (error) {
       console.error('Error loading financial data:', error);
-    }
-  };
-
-  const loadPaymentsData = async () => {
-    try {
-      const response = await apiClient.get('/finances/transactions/payments', {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        }
-      });
-      setPayments(response.data.payments || []);
-      setCustomerDirectory(response.data.customerDirectory || {});
-    } catch (error) {
-      console.error('Error loading payments:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,34 +118,27 @@ const FinanceMembership = () => {
   const headlineStats = useMemo(() => {
     if (!summaryData) {
       return [
-        { key: 'total', label: 'Total Membership Revenue', value: '--', accent: 'purple' },
-        { key: 'vip', label: 'VIP Memberships', value: '--', accent: 'indigo' },
-        { key: 'packages', label: 'Package Sales', value: '--', accent: 'emerald' },
-        { key: 'net', label: 'Net Revenue', value: '--', accent: 'slate' }
+        { key: 'revenue', label: 'Membership Revenue', value: '--', accent: 'purple' },
+        { key: 'count', label: 'Total Purchases', value: '--', accent: 'emerald' },
+        { key: 'avg', label: 'Avg Membership Value', value: '--', accent: 'slate' },
+        { key: 'debt', label: 'Outstanding', value: '--', accent: 'amber' },
       ];
     }
 
-    // API returns nested structure: { revenue: {...}, netRevenue: {...} }
     const revenue = summaryData.revenue || {};
-    
-    const totalMembership = Number(revenue.membership_revenue || 0);
-    const vipRevenue = Number(revenue.vip_membership_revenue || 0);
-    const packageRevenue = Number(revenue.package_revenue || 0);
+    const balances = summaryData.balances || {};
+    const membershipRevenue = Number(revenue.membership_revenue || 0);
+    const membershipCount = Number(revenue.membership_count || 0);
+    const debt = Number(balances.total_customer_debt || 0);
+    const avgValue = membershipCount > 0 ? membershipRevenue / membershipCount : 0;
 
     return [
-      { key: 'total', label: 'Total Membership Revenue', value: formatCurrency(totalMembership), accent: 'purple' },
-      { key: 'vip', label: 'VIP Memberships', value: formatCurrency(vipRevenue), accent: 'indigo' },
-      { key: 'packages', label: 'Package Sales', value: formatCurrency(packageRevenue), accent: 'emerald' },
-      { key: 'net', label: 'Net Revenue', value: formatCurrency(totalMembership), accent: 'slate' }
+      { key: 'revenue', label: 'Membership Revenue', value: formatCurrency(membershipRevenue), accent: 'purple' },
+      { key: 'count', label: 'Total Purchases', value: membershipCount.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: 'Avg Membership Value', value: formatCurrency(avgValue), accent: 'slate' },
+      { key: 'debt', label: 'Outstanding', value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
     ];
   }, [summaryData]);
-
-  const membershipTransactions = useMemo(() => {
-    return Array.isArray(payments) ? payments.filter(p => 
-      p.transaction_type === 'package_purchase' || 
-      (p.description && (p.description.toLowerCase().includes('membership') || p.description.toLowerCase().includes('package')))
-    ) : [];
-  }, [payments]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -171,10 +149,9 @@ const FinanceMembership = () => {
               <h1 className="text-2xl font-semibold text-slate-900">Membership Finance</h1>
               <Tag color="purple" className="text-xs font-medium">Membership</Tag>
             </div>
-            <p className="text-sm text-slate-500">VIP Memberships & Package Sales · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">Membership Sales & Revenue · {rangeLabel}</p>
           </div>
           <div className="flex flex-col gap-3">
-            {/* Quick Range Buttons */}
             <div className="flex flex-wrap gap-2">
               {Object.entries(getQuickRanges()).map(([key, range]) => (
                 <Button
@@ -188,7 +165,6 @@ const FinanceMembership = () => {
                 </Button>
               ))}
             </div>
-            {/* Date Range Picker */}
             <Space wrap size="small" className="justify-start lg:justify-end">
               {isMobile ? (
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 shadow-sm">
@@ -204,22 +180,22 @@ const FinanceMembership = () => {
                     type="date"
                     value={dateRange.endDate}
                     onChange={(e) => handleMobileDateChange('endDate', e.target.value)}
-                  className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-purple-500 focus:outline-none"
-                  min={dateRange.startDate}
+                    className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-purple-500 focus:outline-none"
+                    min={dateRange.startDate}
+                  />
+                </div>
+              ) : (
+                <RangePicker
+                  size="middle"
+                  value={[dayjs(dateRange.startDate), dayjs(dateRange.endDate)]}
+                  onChange={handleDateRangeChange}
+                  allowClear={false}
+                  className="rounded-xl border border-slate-200 shadow-sm"
                 />
-              </div>
-            ) : (
-              <RangePicker
-                size="middle"
-                value={[dayjs(dateRange.startDate), dayjs(dateRange.endDate)]}
-                onChange={handleDateRangeChange}
-                allowClear={false}
-                className="rounded-xl border border-slate-200 shadow-sm"
-              />
-            )}
-          </Space>
+              )}
+            </Space>
+          </div>
         </div>
-      </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
@@ -248,22 +224,7 @@ const FinanceMembership = () => {
         />
       </Card>
 
-      <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Membership Transactions</h3>
-          <Button
-            size={isMobile ? 'small' : 'middle'}
-            icon={<ReloadOutlined />}
-            onClick={loadPaymentsData}
-          >
-            Refresh
-          </Button>
-        </div>
-        <TransactionHistory
-          transactions={membershipTransactions}
-          customerDirectory={customerDirectory}
-        />
-      </Card>
+      <MembershipBreakdownCharts dateRange={dateRange} />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Tag, Tooltip } from 'antd';
 import { useLocation } from 'react-router-dom';
 import {
@@ -124,6 +124,58 @@ const RentalsCalendarView = () => {
   const location = useLocation();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState('week');
+  const [expandedDay, setExpandedDay] = useState(null);
+  const gridRef = useRef(null);
+  const dayRefs = useRef({});
+  const overlayRef = useRef(null);
+  const overlayStyleRef = useRef(null);
+  const [overlayStyle, setOverlayStyle] = useState(null);
+
+  const calcOverlay = useCallback((dateStr) => {
+    const gridEl = gridRef.current;
+    const cellEl = dayRefs.current[dateStr];
+    if (!gridEl || !cellEl) return null;
+    const gridRect = gridEl.getBoundingClientRect();
+    const cellRect = cellEl.getBoundingClientRect();
+    const colWidth = cellRect.width;
+    const desiredCols = 4;
+    const gridWidth = gridRect.width;
+    const width = Math.min(gridWidth, colWidth * desiredCols);
+    let left = cellRect.left - gridRect.left;
+    if (left + width > gridWidth) left = Math.max(0, gridWidth - width);
+    const top = cellRect.top - gridRect.top;
+    return { left, top, width };
+  }, []);
+
+  const toggleDayExpanded = useCallback((dateStr) => {
+    setExpandedDay((prev) => {
+      const next = prev === dateStr ? null : dateStr;
+      setTimeout(() => {
+        if (next) setOverlayStyle(calcOverlay(next)); else setOverlayStyle(null);
+      }, 0);
+      return next;
+    });
+  }, [calcOverlay]);
+
+  // Close overlay on outside click or Escape
+  useEffect(() => {
+    if (!expandedDay) return;
+    const onDocClick = (e) => {
+      if (overlayRef.current && !overlayRef.current.contains(e.target)) {
+        setExpandedDay(null);
+        setOverlayStyle(null);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setExpandedDay(null); setOverlayStyle(null); }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [expandedDay]);
 
   // Fetch rentals data
   const { data: rentals = [] } = useQuery({
@@ -272,19 +324,51 @@ const RentalsCalendarView = () => {
           </div>
         )}
 
-        <div className={`grid ${gridCols} gap-2 min-h-[400px]`}>
+        <div ref={view === 'month' ? gridRef : undefined} className={`grid ${gridCols} gap-2 min-h-[400px] ${view === 'month' ? 'relative' : ''}`}>
           {calendarDays.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayRentals = rentalsByDate[dateKey] || [];
             const isToday = isSameDay(day, new Date());
             const isInMonth = view === 'month' ? isSameMonth(day, selectedDate) : true;
+            const maxVisible = view === 'month' ? 4 : Infinity;
+            const visibleRentals = dayRentals.slice(0, maxVisible);
+            const overflow = Math.max(0, dayRentals.length - visibleRentals.length);
+
+            const rentalCard = (rental) => {
+              const customerName = getCustomerName(rental);
+              const serviceName = getServiceName(rental);
+              const durationLabel = getDurationLabel(rental);
+              const serviceLabel = durationLabel ? `${serviceName} • ${durationLabel}` : serviceName;
+              return (
+                <Tooltip
+                  key={rental.id}
+                  title={
+                    <div>
+                      <div className="font-semibold">{customerName}</div>
+                      <div className="text-xs">{serviceLabel}</div>
+                    </div>
+                  }
+                >
+                  <div className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs cursor-pointer hover:bg-orange-100 hover:border-orange-300 hover:shadow-sm transition-all duration-200">
+                    <div className="text-orange-700 font-semibold truncate">
+                      {customerName}
+                    </div>
+                    <div className="text-orange-600/80 mt-1 truncate text-[11px]">
+                      {serviceLabel}
+                    </div>
+                  </div>
+                </Tooltip>
+              );
+            };
             
             return (
               <div
                 key={day.toISOString()}
+                ref={view === 'month' ? (el) => { dayRefs.current[dateKey] = el; } : undefined}
                 className={`border rounded-xl p-2 min-h-[220px] ${
                   isToday ? 'border-sky-300 bg-sky-50/30' : 'border-slate-200 bg-white'
-                } ${!isInMonth ? 'opacity-50' : ''}`}
+                } ${!isInMonth ? 'opacity-50' : ''} ${view === 'month' ? 'cursor-pointer' : ''}`}
+                onClick={view === 'month' ? () => toggleDayExpanded(dateKey) : undefined}
               >
                 {view === 'month' && (
                   <div className="text-xs font-semibold text-slate-500 mb-2">
@@ -296,34 +380,18 @@ const RentalsCalendarView = () => {
                     {format(day, 'EEEE, MMM d')}
                   </div>
                 )}
-                {dayRentals.length > 0 ? (
+                {visibleRentals.length > 0 ? (
                   <div className="space-y-2">
-                    {dayRentals.map((rental) => {
-                      const customerName = getCustomerName(rental);
-                      const serviceName = getServiceName(rental);
-                      const durationLabel = getDurationLabel(rental);
-                      const serviceLabel = durationLabel ? `${serviceName} • ${durationLabel}` : serviceName;
-                      return (
-                        <Tooltip
-                          key={rental.id}
-                          title={
-                            <div>
-                              <div className="font-semibold">{customerName}</div>
-                              <div className="text-xs">{serviceLabel}</div>
-                            </div>
-                          }
-                        >
-                          <div className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs cursor-pointer hover:bg-orange-100 hover:border-orange-300 hover:shadow-sm transition-all duration-200">
-                            <div className="text-orange-700 font-semibold truncate">
-                              {customerName}
-                            </div>
-                            <div className="text-orange-600/80 mt-1 truncate text-[11px]">
-                              {serviceLabel}
-                            </div>
-                          </div>
-                        </Tooltip>
-                      );
-                    })}
+                    {visibleRentals.map((rental) => rentalCard(rental))}
+                    {overflow > 0 && (
+                      <button
+                        type="button"
+                        className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-slate-50 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); toggleDayExpanded(dateKey); }}
+                      >
+                        +{overflow} more
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center text-slate-300 text-xs">
@@ -333,6 +401,37 @@ const RentalsCalendarView = () => {
               </div>
             );
           })}
+
+          {/* Expanded overlay for month view */}
+          {view === 'month' && expandedDay && overlayStyle && (() => {
+            const dayRentals = rentalsByDate[expandedDay] || [];
+            return (
+              <div className="absolute z-50" style={{ left: overlayStyle.left, top: overlayStyle.top, width: overlayStyle.width }}>
+                <div ref={overlayRef} className="bg-white border border-orange-200 shadow-xl rounded-xl p-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-semibold text-gray-700">{format(new Date(expandedDay), 'EEEE, MMM d')}</div>
+                    <button className="text-xs text-blue-600 hover:text-blue-700" onClick={() => { setExpandedDay(null); setOverlayStyle(null); }}>Close</button>
+                  </div>
+                  <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+                    {dayRentals.length > 0 ? dayRentals.map((rental) => {
+                      const customerName = getCustomerName(rental);
+                      const serviceName = getServiceName(rental);
+                      const durationLabel = getDurationLabel(rental);
+                      const serviceLabel = durationLabel ? `${serviceName} • ${durationLabel}` : serviceName;
+                      return (
+                        <div key={rental.id} className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs">
+                          <div className="text-orange-700 font-semibold">{customerName}</div>
+                          <div className="text-orange-600/80 mt-1 text-[11px]">{serviceLabel}</div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="text-slate-400 text-xs text-center py-4">No rentals</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

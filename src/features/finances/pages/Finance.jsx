@@ -295,7 +295,7 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
       all: 'Finance Management - Overall',
       lessons: 'Finance Management - Lessons',
       rentals: 'Finance Management - Rentals',
-      membership: 'Finance Management - Membership & Packages',
+      membership: 'Finance Management - Memberships',
       shop: 'Finance Management - Shop Sales'
     };
     return titles[serviceType] || titles.all;
@@ -306,7 +306,7 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
       all: 'All Revenue Sources',
       lessons: 'Lesson & Booking Revenue',
       rentals: 'Equipment Rental Revenue',
-      membership: 'VIP Memberships & Package Sales',
+      membership: 'Membership Sales',
       shop: 'Product & Merchandise Sales'
     };
     return descriptions[serviceType] || descriptions.all;

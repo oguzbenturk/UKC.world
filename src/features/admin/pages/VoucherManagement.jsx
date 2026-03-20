@@ -23,7 +23,6 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Steps,
   Switch,
   Table,
@@ -495,7 +494,6 @@ const VoucherManagement = () => {
       title: 'Actions',
       key: 'actions',
       width: 120,
-      fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="View Details">
@@ -621,94 +619,79 @@ const VoucherManagement = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <Col>
-          <Title level={2} style={{ margin: 0 }}>
-            <GiftOutlined style={{ marginRight: 12 }} />
-            Voucher Management
-          </Title>
-          <Text type="secondary">Create and manage discount codes, gift vouchers, and promotional offers</Text>
-        </Col>
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchVouchers}>Refresh</Button>
-            <Button onClick={() => setIsBulkModalOpen(true)}>Bulk Generate</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-              setIsEditing(false);
-              setSelectedVoucher(null);
-              setWizardStep(0);
-              form.resetFields();
-              setIsCreateModalOpen(true);
-            }}>
-              Create Voucher
-            </Button>
-          </Space>
-        </Col>
-      </Row>
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 space-y-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-slate-200/60">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-1 flex items-center gap-2">
+            <GiftOutlined className="text-purple-500" /> Voucher Management
+          </h1>
+          <p className="text-sm text-slate-500">Create and manage discount codes, gift vouchers, and promotional offers</p>
+        </div>
+        <Space wrap>
+          <Button icon={<ReloadOutlined />} onClick={fetchVouchers}>Refresh</Button>
+          <Button onClick={() => setIsBulkModalOpen(true)}>Bulk Generate</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+            setIsEditing(false);
+            setSelectedVoucher(null);
+            setWizardStep(0);
+            form.resetFields();
+            setIsCreateModalOpen(true);
+          }}>
+            Create Voucher
+          </Button>
+        </Space>
+      </div>
 
       {/* Statistics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Total Vouchers" value={stats.totalVouchers} prefix={<TagOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Active Vouchers" value={stats.activeVouchers} valueStyle={{ color: '#3f8600' }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Total Redemptions" value={stats.totalRedemptions} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="Total Discount Given" value={stats.totalDiscountGiven} prefix="€" precision={2} />
-          </Card>
-        </Col>
-      </Row>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Vouchers', value: stats.totalVouchers, icon: <TagOutlined />, accent: 'text-slate-700' },
+          { label: 'Active Vouchers', value: stats.activeVouchers, accent: 'text-emerald-600' },
+          { label: 'Total Redemptions', value: stats.totalRedemptions, accent: 'text-blue-600' },
+          { label: 'Total Discount Given', value: `€${(stats.totalDiscountGiven || 0).toFixed(2)}`, accent: 'text-purple-600' },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
+            <p className={`mt-2 text-2xl font-semibold ${s.accent}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={8}>
-            <Input
-              placeholder="Search by code or name..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              allowClear
-            />
-          </Col>
-          <Col span={6}>
-            <Select
-              placeholder="Filter by type"
-              value={filters.voucher_type}
-              onChange={(value) => setFilters(prev => ({ ...prev, voucher_type: value }))}
-              allowClear
-              style={{ width: '100%' }}
-            >
-              {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
-                <Select.Option key={key} value={key}>{config.label}</Select.Option>
-              ))}
-            </Select>
-          </Col>
-          <Col span={6}>
-            <Select
-              placeholder="Status"
-              value={filters.is_active}
-              onChange={(value) => setFilters(prev => ({ ...prev, is_active: value }))}
-              style={{ width: '100%' }}
-            >
-              <Select.Option value="active">Active Only</Select.Option>
-              <Select.Option value="inactive">Inactive Only</Select.Option>
-              <Select.Option value="all">All</Select.Option>
-            </Select>
-          </Col>
-        </Row>
-      </Card>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input
+          placeholder="Search by code or name..."
+          value={filters.search}
+          onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+          allowClear
+          className="sm:max-w-xs"
+          size="large"
+        />
+        <Select
+          placeholder="Filter by type"
+          value={filters.voucher_type}
+          onChange={(value) => setFilters(prev => ({ ...prev, voucher_type: value }))}
+          allowClear
+          className="sm:w-48"
+          size="large"
+        >
+          {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
+            <Select.Option key={key} value={key}>{config.label}</Select.Option>
+          ))}
+        </Select>
+        <Select
+          placeholder="Status"
+          value={filters.is_active}
+          onChange={(value) => setFilters(prev => ({ ...prev, is_active: value }))}
+          className="sm:w-40"
+          size="large"
+        >
+          <Select.Option value="active">Active Only</Select.Option>
+          <Select.Option value="inactive">Inactive Only</Select.Option>
+          <Select.Option value="all">All</Select.Option>
+        </Select>
+      </div>
 
       {/* Vouchers Table */}
       <UnifiedResponsiveTable

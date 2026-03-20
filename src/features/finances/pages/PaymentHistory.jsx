@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
-import RentalAnalytics from '../components/RentalAnalytics';
-import RentalBreakdownCharts from '../components/RentalBreakdownCharts';
+import { ReloadOutlined } from '@ant-design/icons';
+import TransactionHistory from '../components/TransactionHistory';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -10,13 +10,13 @@ const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
 const accentStyles = {
-  orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
+  cyan: { bg: 'bg-cyan-50', text: 'text-cyan-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
 const getQuickRanges = () => ({
   today: {
     label: 'Today',
@@ -45,7 +45,7 @@ const getQuickRanges = () => ({
   }
 });
 
-const FinanceRentals = () => {
+const PaymentHistory = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -53,30 +53,37 @@ const FinanceRentals = () => {
     endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
-  const [summaryData, setSummaryData] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [dateRange]);
-
-  const loadData = async () => {
+  const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/finances/summary', {
-        params: { startDate: dateRange.startDate, endDate: dateRange.endDate, serviceType: 'rentals', mode: 'accrual' }
+      const response = await apiClient.get('/finances/transactions', {
+        params: {
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+          limit: 1000
+        }
       });
-      setSummaryData(response.data);
-    } catch (error) {
-      console.error('Error loading rental finance data:', error);
+      setTransactions(response.data || []);
+    } catch {
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   const handleDateRangeChange = (dates) => {
-    if (dates?.[0] && dates?.[1]) {
-      setDateRange({ startDate: dates[0].format('YYYY-MM-DD'), endDate: dates[1].format('YYYY-MM-DD') });
+    if (dates && dates[0] && dates[1]) {
+      setDateRange({
+        startDate: dates[0].format('YYYY-MM-DD'),
+        endDate: dates[1].format('YYYY-MM-DD')
+      });
       setActiveQuickRange(null);
     }
   };
@@ -101,39 +108,33 @@ const FinanceRentals = () => {
     return `${start.format('MMM D, YYYY')} – ${end.format('MMM D, YYYY')}`;
   }, [dateRange]);
 
-  const headlineStats = useMemo(() => {
-    if (!summaryData) {
-      return [
-        { key: 'revenue', label: 'Rental Revenue', value: '--', accent: 'orange' },
-        { key: 'count', label: 'Total Rentals', value: '--', accent: 'emerald' },
-        { key: 'avg', label: 'Avg Rental Value', value: '--', accent: 'slate' },
-        { key: 'debt', label: 'Outstanding', value: '--', accent: 'amber' },
-      ];
-    }
-    const revenue = summaryData.revenue || {};
-    const balances = summaryData.balances || {};
-    const rentalRevenue = Number(revenue.rental_revenue || 0);
-    const rentalCount = Number(revenue.rental_count || 0);
-    const debt = Number(balances.total_customer_debt || 0);
-    const avgValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
-    return [
-      { key: 'revenue', label: 'Rental Revenue', value: formatCurrency(rentalRevenue), accent: 'orange' },
-      { key: 'count', label: 'Total Rentals', value: rentalCount.toLocaleString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg Rental Value', value: formatCurrency(avgValue), accent: 'slate' },
-      { key: 'debt', label: 'Outstanding', value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
-    ];
-  }, [summaryData]);
+  const stats = useMemo(() => {
+    const total = transactions.length;
+    const income = transactions.filter(t => (t.amount || 0) > 0);
+    const expenses = transactions.filter(t => (t.amount || 0) < 0);
+    const totalIncome = income.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
+    const net = totalIncome - totalExpenses;
+    return { total, totalIncome, totalExpenses, net };
+  }, [transactions]);
+
+  const headlineStats = useMemo(() => [
+    { key: 'income', label: 'Total Income', value: formatCurrency(stats.totalIncome), accent: 'emerald' },
+    { key: 'expenses', label: 'Total Charges', value: formatCurrency(stats.totalExpenses), accent: 'rose' },
+    { key: 'net', label: 'Net Amount', value: formatCurrency(stats.net), accent: stats.net >= 0 ? 'cyan' : 'rose' },
+    { key: 'count', label: 'Transactions', value: stats.total.toLocaleString(), accent: 'slate' },
+  ], [stats]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
-      <Card className="rounded-3xl border border-slate-200/70 bg-gradient-to-br from-orange-50 via-white to-white shadow-sm">
+      <Card className="rounded-3xl border border-slate-200/70 bg-gradient-to-br from-cyan-50 via-white to-white shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">Rental Finance</h1>
-              <Tag color="orange" className="text-xs font-medium">Rental</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">Payment History</h1>
+              <Tag color="cyan" className="text-xs font-medium">All Payments</Tag>
             </div>
-            <p className="text-sm text-slate-500">Equipment Rental Revenue · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">All Wallet Transactions · {rangeLabel}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
@@ -156,7 +157,7 @@ const FinanceRentals = () => {
                     type="date"
                     value={dateRange.startDate}
                     onChange={(e) => handleMobileDateChange('startDate', e.target.value)}
-                    className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-orange-500 focus:outline-none"
+                    className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-cyan-500 focus:outline-none"
                     max={dateRange.endDate}
                   />
                   <span className="text-xs text-slate-500">to</span>
@@ -164,7 +165,7 @@ const FinanceRentals = () => {
                     type="date"
                     value={dateRange.endDate}
                     onChange={(e) => handleMobileDateChange('endDate', e.target.value)}
-                    className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-orange-500 focus:outline-none"
+                    className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-cyan-500 focus:outline-none"
                     min={dateRange.startDate}
                   />
                 </div>
@@ -201,16 +202,24 @@ const FinanceRentals = () => {
       </Card>
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Rental Revenue Analytics</h3>
-        <RentalAnalytics
-          summaryData={summaryData}
-          chartData={[]}
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">All Transactions</h3>
+          <Button
+            size={isMobile ? 'small' : 'middle'}
+            icon={<ReloadOutlined />}
+            onClick={loadTransactions}
+            loading={loading}
+          >
+            Refresh
+          </Button>
+        </div>
+        <TransactionHistory
+          transactions={transactions}
+          customerDirectory={{}}
         />
       </Card>
-
-      <RentalBreakdownCharts dateRange={dateRange} />
     </div>
   );
 };
 
-export default FinanceRentals;
+export default PaymentHistory;

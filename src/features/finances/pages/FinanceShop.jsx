@@ -27,22 +27,22 @@ const getQuickRanges = () => ({
   thisWeek: {
     label: 'This Week',
     startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
   },
   thisMonth: {
     label: 'This Month',
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   },
   thisYear: {
     label: 'This Year',
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   },
   allHistory: {
     label: 'All History',
     startDate: '2020-01-01',
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   }
 });
 
@@ -54,7 +54,7 @@ const FinanceShop = () => {
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [summaryData, setSummaryData] = useState(null);
@@ -232,7 +232,8 @@ const FinanceShop = () => {
       currency: order.currency || 'EUR',
       status: order.payment_status || order.status,
       description: `Order #${order.order_number} - ${order.items?.length || 0} items`,
-      created_at: order.created_at,
+      date: order.created_at,
+      createdAt: order.created_at,
       user_id: order.user_id,
       user_name: order.first_name && order.last_name 
         ? `${order.first_name} ${order.last_name}` 

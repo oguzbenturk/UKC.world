@@ -33,7 +33,7 @@ const safeFormatDate = (value, pattern) => {
 };
 
 const deriveTransactionDate = (transaction) =>
-  transaction?.date || transaction?.transactionDate || transaction?.createdAt || null;
+  transaction?.date || transaction?.transactionDate || transaction?.transaction_date || transaction?.createdAt || transaction?.created_at || null;
 
 const getTransactionCategory = (transaction) =>
   (transaction?.category || transaction?.type || 'other').toLowerCase();

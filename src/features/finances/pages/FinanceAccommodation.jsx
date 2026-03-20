@@ -25,22 +25,22 @@ const getQuickRanges = () => ({
   thisWeek: {
     label: 'This Week',
     startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
   },
   thisMonth: {
     label: 'This Month',
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   },
   thisYear: {
     label: 'This Year',
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   },
   allHistory: {
     label: 'All History',
     startDate: '2020-01-01',
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   }
 });
 
@@ -52,7 +52,7 @@ const FinanceAccommodation = () => {
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [_summaryData, setSummaryData] = useState(null);

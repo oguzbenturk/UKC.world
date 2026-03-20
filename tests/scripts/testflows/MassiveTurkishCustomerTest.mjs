@@ -446,10 +446,9 @@ async function bookPrivateLesson(userId, token, date) {
     const booking = await apiOk('POST', '/bookings?force=true', {
       date: dateStr, start_hour: startHour, duration,
       student_user_id: userId, instructor_user_id: inst.id,
-      service_id: service.id, status: 'confirmed',
+      service_id: service.id, status: 'completed',
     }, token);
     const bId = booking.id || booking.booking?.id;
-    if (bId && isPast(date)) await completeBooking(bId, token);
     return bId;
   } catch {
     try {
@@ -457,10 +456,9 @@ async function bookPrivateLesson(userId, token, date) {
       const booking = await apiOk('POST', '/bookings?force=true', {
         date: dateToStr(altDate), start_hour: pickTimeSlot(), duration,
         student_user_id: userId, instructor_user_id: inst.id,
-        service_id: service.id, status: 'confirmed',
+        service_id: service.id, status: 'completed',
       }, token);
       const bId = booking.id || booking.booking?.id;
-      if (bId && isPast(altDate)) await completeBooking(bId, token);
       return bId;
     } catch { return null; }
   }
@@ -482,7 +480,7 @@ async function bookGroupLesson(student1Id, student2Id, token, date) {
       ],
     }, token);
     const bId = booking.id || booking.booking?.id;
-    if (bId && isPast(date)) await completeBooking(bId, token);
+    if (bId) await completeBooking(bId, token);
     return bId;
   } catch {
     try {
@@ -496,7 +494,7 @@ async function bookGroupLesson(student1Id, student2Id, token, date) {
         ],
       }, token);
       const bId = booking.id || booking.booking?.id;
-      if (bId && isPast(altDate)) await completeBooking(bId, token);
+      if (bId) await completeBooking(bId, token);
       return bId;
     } catch { return null; }
   }
@@ -513,11 +511,10 @@ async function bookPackageLessons(userId, cpId, sessionsCount, token, baseDateIn
       const b = await apiOk('POST', '/bookings?force=true', {
         date: dateToStr(date), start_hour: pickTimeSlot(), duration,
         student_user_id: userId, instructor_user_id: inst.id,
-        service_id: service.id, status: 'confirmed',
+        service_id: service.id, status: 'completed',
         use_package: true, customer_package_id: cpId,
       }, token);
       const bId = b.id || b.booking?.id;
-      if (bId && isPast(date)) await completeBooking(bId, token);
       booked++;
     } catch { /* skip conflicts */ }
   }
@@ -541,7 +538,7 @@ async function bookGroupPackageLessons(s1Id, s2Id, cpId1, cpId2, sessionsCount, 
         ],
       }, token);
       const bId = b.id || b.booking?.id;
-      if (bId && isPast(date)) await completeBooking(bId, token);
+      if (bId) await completeBooking(bId, token);
       booked++;
     } catch { /* skip conflicts */ }
   }

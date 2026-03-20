@@ -1,30 +1,28 @@
 import { useMemo } from 'react';
 import { Card, Row, Col, Statistic, Tag, Progress } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, CrownOutlined, GiftOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, CrownOutlined } from '@ant-design/icons';
 import { formatCurrency } from '@/shared/utils/formatters';
 
 /**
- * MembershipAnalytics - Specialized analytics for membership/package revenue
+ * MembershipAnalytics - Specialized analytics for membership revenue
  */
 const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
   const membershipMetrics = useMemo(() => {
     if (!summaryData) return null;
 
-    // API returns nested structure: { revenue: {...}, netRevenue: {...} }
     const revenue = summaryData.revenue || {};
+    const balances = summaryData.balances || {};
 
-    const totalMembership = Number(revenue.membership_revenue || 0);
-    const vipRevenue = Number(revenue.vip_membership_revenue || 0);
-    const packageRevenue = Number(revenue.package_revenue || 0);
-    const vipShare = totalMembership > 0 ? (vipRevenue / totalMembership) * 100 : 0;
-    const packageShare = totalMembership > 0 ? (packageRevenue / totalMembership) * 100 : 0;
+    const membershipRevenue = Number(revenue.membership_revenue || revenue.vip_membership_revenue || 0);
+    const membershipCount = Number(revenue.membership_count || 0);
+    const outstandingBalance = Number(balances.total_customer_debt || 0);
+    const avgValue = membershipCount > 0 ? membershipRevenue / membershipCount : 0;
 
     return {
-      totalMembership,
-      vipRevenue,
-      packageRevenue,
-      vipShare,
-      packageShare
+      membershipRevenue,
+      membershipCount,
+      avgValue,
+      outstandingBalance
     };
   }, [summaryData]);
 
@@ -56,7 +54,7 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
           <Card className="h-full">
             <Statistic
               title="Total Membership Revenue"
-              value={membershipMetrics.totalMembership}
+              value={membershipMetrics.membershipRevenue}
               formatter={(value) => formatCurrency(value)}
               prefix={<CrownOutlined />}
               valueStyle={{ color: '#722ed1' }}
@@ -72,13 +70,13 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={8}>
           <Card className="h-full">
             <Statistic
-              title="VIP Memberships"
-              value={membershipMetrics.vipRevenue}
+              title="Avg Membership Value"
+              value={membershipMetrics.avgValue}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: '#1890ff' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {membershipMetrics.vipShare.toFixed(1)}% of total
+              Per membership purchase
             </div>
           </Card>
         </Col>
@@ -86,84 +84,28 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={8}>
           <Card className="h-full">
             <Statistic
-              title="Package Sales"
-              value={membershipMetrics.packageRevenue}
+              title="Outstanding"
+              value={membershipMetrics.outstandingBalance}
               formatter={(value) => formatCurrency(value)}
-              prefix={<GiftOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: membershipMetrics.outstandingBalance > 0 ? '#cf1322' : '#52c41a' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {membershipMetrics.packageShare.toFixed(1)}% of total
+              {membershipMetrics.outstandingBalance > 0 ? 'Needs follow-up' : 'All settled'}
             </div>
           </Card>
         </Col>
       </Row>
 
-      <Card title="Membership Breakdown" className="rounded-lg">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CrownOutlined className="text-indigo-600" />
-                  <span className="text-sm text-slate-600">VIP Memberships</span>
-                </div>
-                <span className="text-sm font-semibold text-indigo-600">
-                  {formatCurrency(membershipMetrics.vipRevenue)}
-                </span>
-              </div>
-              <Progress 
-                percent={membershipMetrics.vipShare} 
-                strokeColor="#5b21b6"
-                showInfo={true}
-                format={(percent) => `${percent?.toFixed(1)}%`}
-              />
-            </div>
-          </Col>
-
-          <Col xs={24} md={12}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GiftOutlined className="text-emerald-600" />
-                  <span className="text-sm text-slate-600">Package Sales</span>
-                </div>
-                <span className="text-sm font-semibold text-emerald-600">
-                  {formatCurrency(membershipMetrics.packageRevenue)}
-                </span>
-              </div>
-              <Progress 
-                percent={membershipMetrics.packageShare} 
-                strokeColor="#10b981"
-                showInfo={true}
-                format={(percent) => `${percent?.toFixed(1)}%`}
-              />
-            </div>
-          </Col>
-        </Row>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="rounded-lg bg-indigo-50 p-4">
-            <div className="flex items-start gap-3">
-              <CrownOutlined className="text-lg text-indigo-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-semibold text-indigo-900">VIP Performance</h4>
-                <p className="mt-1 text-xs text-indigo-700">
-                  VIP memberships contribute <strong>{membershipMetrics.vipShare.toFixed(1)}%</strong> of total membership revenue with <strong>{formatCurrency(membershipMetrics.vipRevenue)}</strong> generated.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-emerald-50 p-4">
-            <div className="flex items-start gap-3">
-              <GiftOutlined className="text-lg text-emerald-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-semibold text-emerald-900">Package Performance</h4>
-                <p className="mt-1 text-xs text-emerald-700">
-                  Package sales represent <strong>{membershipMetrics.packageShare.toFixed(1)}%</strong> of membership revenue with <strong>{formatCurrency(membershipMetrics.packageRevenue)}</strong> in sales.
-                </p>
-              </div>
+      <Card title="Membership Performance" className="rounded-lg">
+        <div className="rounded-lg bg-purple-50 p-4">
+          <div className="flex items-start gap-3">
+            <CrownOutlined className="text-lg text-purple-600 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-semibold text-purple-900">Membership Sales</h4>
+              <p className="mt-1 text-xs text-purple-700">
+                Total membership revenue of <strong>{formatCurrency(membershipMetrics.membershipRevenue)}</strong> with 
+                an average value of <strong>{formatCurrency(membershipMetrics.avgValue)}</strong> per purchase.
+              </p>
             </div>
           </div>
         </div>

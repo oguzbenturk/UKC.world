@@ -63,7 +63,7 @@ const EnhancedInstructorDetailModal = ({
     try {
       const [servicesRes, lessonsRes, earningsRes] = await Promise.allSettled([
         apiClient.get(`/instructors/${instructor.id}/services`),
-        apiClient.get(`/instructors/${instructor.id}/lessons?limit=5`),
+        apiClient.get(`/instructors/${instructor.id}/lessons?limit=10000`),
         apiClient.get(`/finances/instructor-earnings/${instructor.id}`),
       ]);
       if (servicesRes.status === 'fulfilled') setInstructorServices(servicesRes.value.data || []);
@@ -271,9 +271,21 @@ const EnhancedInstructorDetailModal = ({
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600">{recentLessons.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Recent Lessons</div>
+          <div className="text-xs text-gray-500 mt-1">Total Lessons</div>
         </div>
       </div>
+
+      {/* Assigned services list */}
+      {instructorServices.length > 0 && (
+        <div className="rounded-xl border border-gray-100 bg-white p-4">
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Assigned Services</div>
+          <div className="flex flex-wrap gap-1.5">
+            {instructorServices.map((svc) => (
+              <Tag key={svc.id} color="blue" bordered={false} className="rounded-full">{svc.name}</Tag>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Balance card */}
       {earningsBalance !== null && (

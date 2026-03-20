@@ -176,6 +176,7 @@ const FinanceShop = lazyWithRetry(() => import('../features/finances/pages/Finan
 const FinanceAccommodation = lazyWithRetry(() => import('../features/finances/pages/FinanceAccommodation'));
 const FinanceEvents = lazyWithRetry(() => import('../features/finances/pages/FinanceEvents'));
 const FinanceDailyOperations = lazyWithRetry(() => import('../features/finances/pages/FinanceDailyOperations'));
+const PaymentHistory = lazyWithRetry(() => import('../features/finances/pages/PaymentHistory'));
 const ExpensesPage = lazyWithRetry(() => import('../features/finances/pages/ExpensesPage'));
 const PaymentCallback = lazyWithRetry(() => import('../features/finances/pages/PaymentCallback'));
 const PaymentRefunds = lazyWithRetry(() => import('../features/finances/pages/PaymentRefunds'));
@@ -542,7 +543,7 @@ const AppRoutes = () => {
         <Route path="/finance/accommodation" element={<FinanceAccommodation />} />
         <Route path="/finance/events" element={<FinanceEvents />} />
         <Route path="/finance/daily-operations" element={<FinanceDailyOperations />} />
-        <Route path="/finance/payment-history" element={<FinanceDailyOperations />} />
+        <Route path="/finance/payment-history" element={<PaymentHistory />} />
         <Route path="/finance/expenses" element={<ExpensesPage />} />
       </Route>
       {/* Admin-only finance routes (refunds) */}

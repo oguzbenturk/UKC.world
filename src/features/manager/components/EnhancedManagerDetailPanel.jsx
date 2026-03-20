@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Drawer, Tag, Spin, Avatar, Typography, Tooltip, Form, Switch,
   InputNumber, Select, Input, Divider, Row, Col, Table, Button,
-  Empty, Progress, Statistic, Card, Segmented
+  Empty, Progress, Statistic, Card, Segmented, DatePicker
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -24,6 +24,7 @@ import InstructorSkillsManager from '@/features/instructors/components/Instructo
 import InstructorServiceCommission from '@/features/instructors/components/InstructorServiceCommission';
 import PayrollDashboard from '@/features/instructors/components/PayrollDashboard';
 import ManagerPayments from './ManagerPayments';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -91,6 +92,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   const [historySearch, setHistorySearch] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
 
+  // Earnings date range
+  const [earningsDateRange, setEarningsDateRange] = useState({ startDate: null, endDate: null });
+  const [earningsQuickRange, setEarningsQuickRange] = useState(null);
+
   // Instructor/Manager sub-tab toggles
   const [commissionTab, setCommissionTab] = useState('manager');
   const [earningsTab, setEarningsTab] = useState('manager');
@@ -108,10 +113,20 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     if (!manager?.id) return;
     setLoading(true);
     try {
+      const commOpts = { limit: 500 };
+      const summaryOpts = {};
+      if (earningsDateRange.startDate) {
+        commOpts.startDate = earningsDateRange.startDate;
+        summaryOpts.startDate = earningsDateRange.startDate;
+      }
+      if (earningsDateRange.endDate) {
+        commOpts.endDate = earningsDateRange.endDate;
+        summaryOpts.endDate = earningsDateRange.endDate;
+      }
       const [settingsRes, commissionsRes, summaryRes, instrCommRes, instrEarnRes] = await Promise.allSettled([
         getManagerSettings(manager.id),
-        getManagerCommissionsAdmin(manager.id, { limit: 100 }),
-        getManagerSummaryAdmin(manager.id),
+        getManagerCommissionsAdmin(manager.id, commOpts),
+        getManagerSummaryAdmin(manager.id, summaryOpts),
         apiClient.get(`/instructor-commissions/instructors/${manager.id}/commissions`),
         apiClient.get(`/finances/instructor-earnings/${manager.id}`),
       ]);
@@ -128,7 +143,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     } catch { /* best effort */ } finally {
       setLoading(false);
     }
-  }, [manager?.id]);
+  }, [manager?.id, earningsDateRange]);
 
   // Responsive
   useEffect(() => {
@@ -147,8 +162,17 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       hasFetchedRef.current = false;
       setActiveSection('info');
       setSidebarExpanded(false);
+      setEarningsDateRange({ startDate: null, endDate: null });
+      setEarningsQuickRange(null);
     }
   }, [isOpen, manager?.id, fetchData]);
+
+  // Re-fetch when date range changes (skip initial)
+  const dateRangeInitRef = useRef(true);
+  useEffect(() => {
+    if (dateRangeInitRef.current) { dateRangeInitRef.current = false; return; }
+    if (isOpen && manager?.id) fetchData();
+  }, [earningsDateRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Populate form when settings change or section switches to commissions
   useEffect(() => {
@@ -717,9 +741,59 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
           block
         />
 
+        {/* Date range filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="small"
+            type={earningsQuickRange === 'thisYear' ? 'primary' : 'default'}
+            onClick={() => {
+              setEarningsQuickRange('thisYear');
+              setEarningsDateRange({
+                startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+                endDate: dayjs().format('YYYY-MM-DD'),
+              });
+            }}
+            className={`rounded-lg ${earningsQuickRange === 'thisYear' ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
+          >
+            This Year
+          </Button>
+          <Button
+            size="small"
+            type={earningsQuickRange === 'all' ? 'primary' : 'default'}
+            onClick={() => {
+              setEarningsQuickRange('all');
+              setEarningsDateRange({ startDate: null, endDate: null });
+            }}
+            className={`rounded-lg ${earningsQuickRange === 'all' ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
+          >
+            All Time
+          </Button>
+          <DatePicker.RangePicker
+            size="small"
+            value={earningsDateRange.startDate && earningsDateRange.endDate
+              ? [dayjs(earningsDateRange.startDate), dayjs(earningsDateRange.endDate)]
+              : null}
+            onChange={(dates) => {
+              if (dates && dates[0] && dates[1]) {
+                setEarningsQuickRange(null);
+                setEarningsDateRange({
+                  startDate: dates[0].format('YYYY-MM-DD'),
+                  endDate: dates[1].format('YYYY-MM-DD'),
+                });
+              } else {
+                setEarningsQuickRange('all');
+                setEarningsDateRange({ startDate: null, endDate: null });
+              }
+            }}
+            allowClear
+            className="rounded-lg"
+            placeholder={['Start', 'End']}
+          />
+        </div>
+
         {/* ── Total + Paid / Pending ── */}
         <div className="rounded-xl border border-gray-100 bg-gradient-to-br from-slate-50 to-indigo-50/30 p-3 sm:p-5">
-          <div className="text-xs text-gray-400 mb-1">Total Earned (All Time)</div>
+          <div className="text-xs text-gray-400 mb-1">Total Earned{earningsQuickRange === 'thisYear' ? ' (This Year)' : earningsDateRange.startDate ? ` (${earningsDateRange.startDate} – ${earningsDateRange.endDate})` : ' (All Time)'}</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{formatCurrency(totalEarned, 'EUR')}</div>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
             <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${paidPercent}%` }} />

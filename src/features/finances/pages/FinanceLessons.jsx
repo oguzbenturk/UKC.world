@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
-import { ReloadOutlined, CalendarOutlined } from '@ant-design/icons';
 import LessonAnalytics from '../components/LessonAnalytics';
-import TransactionHistory from '../components/TransactionHistory';
+import LessonBreakdownCharts from '../components/LessonBreakdownCharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -27,22 +26,22 @@ const getQuickRanges = () => ({
   thisWeek: {
     label: 'This Week',
     startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
   },
   thisMonth: {
     label: 'This Month',
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   },
   thisYear: {
     label: 'This Year',
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   },
   allHistory: {
     label: 'All History',
     startDate: '2020-01-01',
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   }
 });
 
@@ -54,16 +53,13 @@ const FinanceLessons = () => {
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [summaryData, setSummaryData] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [customerDirectory, setCustomerDirectory] = useState({});
 
   useEffect(() => {
     loadFinancialData();
-    loadPaymentsData();
   }, [dateRange]);
 
   const loadFinancialData = async () => {
@@ -79,30 +75,6 @@ const FinanceLessons = () => {
       setSummaryData(response.data);
     } catch (error) {
       console.error('Error loading financial data:', error);
-    }
-  };
-
-  const loadPaymentsData = async () => {
-    try {
-      const response = await apiClient.get('/finances/transactions', {
-        params: {
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate,
-          limit: 1000
-        }
-      });
-      // The finances endpoint returns an array of transactions directly
-      setPayments(response.data || []);
-      // Build customer directory from transactions
-      const directory = {};
-      (response.data || []).forEach(txn => {
-        if (txn.user_id && txn.user_name) {
-          directory[txn.user_id] = txn.user_name;
-        }
-      });
-      setCustomerDirectory(directory);
-    } catch (error) {
-      console.error('Error loading payments:', error);
     }
   };
 
@@ -155,7 +127,7 @@ const FinanceLessons = () => {
     const bookingsData = summaryData.bookings || {};
     
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
-    const totalBookings = Number(bookingsData.completed_bookings || bookingsData.total_bookings || 0);
+    const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
     const instructorCommission = Number(netRevenueData.commission_total || 0);
     const netRevenue = lessonRevenue - instructorCommission;
 
@@ -166,13 +138,6 @@ const FinanceLessons = () => {
       { key: 'net', label: 'Net Lesson Revenue', value: formatCurrency(netRevenue), accent: 'slate' }
     ];
   }, [summaryData]);
-
-  // Filter lesson transactions only
-  const lessonTransactions = useMemo(() => {
-    return Array.isArray(payments) ? payments.filter(p => 
-      p.booking_id || p.transaction_type === 'booking_charge'
-    ) : [];
-  }, [payments]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -260,22 +225,7 @@ const FinanceLessons = () => {
         />
       </Card>
 
-      <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Lesson Transactions</h3>
-          <Button
-            size={isMobile ? 'small' : 'middle'}
-            icon={<ReloadOutlined />}
-            onClick={loadPaymentsData}
-          >
-            Refresh
-          </Button>
-        </div>
-        <TransactionHistory
-          transactions={lessonTransactions}
-          customerDirectory={customerDirectory}
-        />
-      </Card>
+      <LessonBreakdownCharts dateRange={dateRange} />
     </div>
   );
 };

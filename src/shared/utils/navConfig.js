@@ -390,7 +390,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
             { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
             { to: '/finance/wallet-deposits', label: 'Wallet Deposits', icon: 'WalletIcon' },
-            { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' },
             { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
         ]
@@ -555,7 +554,8 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
-          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' }
+          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' },
+          { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' }
         ]
       })
     ];
@@ -572,7 +572,8 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
           { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
           { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
           { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
-          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' }
+          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' },
+          { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' }
         ]
       })
     ];

@@ -2200,8 +2200,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
           ) AS revenue_amount
         FROM bookings b
         LEFT JOIN users inst ON inst.id = b.instructor_user_id
-        WHERE b.date >= $1::date
-          AND b.date <= $2::date
+        WHERE b.created_at >= $1::date
+          AND b.created_at < ($2::date + interval '1 day')
           AND b.deleted_at IS NULL
       )
       SELECT 
@@ -2265,7 +2265,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-      WHERE b.date >= $1::date AND b.date <= $2::date
+      WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
         AND b.deleted_at IS NULL
         AND regexp_replace(lower(trim(b.status)), '[^a-z0-9]+', '_', 'g') = ANY($3::text[])
     `;
@@ -2288,15 +2288,17 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
     const walletRentalCharges = parseFloat(walletChargesResult.rows[0]?.rental_charges) || 0;
     const walletAccommodationCharges = parseFloat(walletChargesResult.rows[0]?.accommodation_charges) || 0;
 
-    // Membership revenue: VIP memberships from member_purchases
+    // Membership revenue: memberships from member_purchases
     const membershipRevenueQuery = `
-      SELECT COALESCE(SUM(offering_price), 0) AS membership_revenue
+      SELECT COALESCE(SUM(offering_price), 0) AS membership_revenue,
+        COUNT(*) AS membership_count
       FROM member_purchases
       WHERE purchased_at >= $1::date AND purchased_at <= $2::date
         AND payment_status = 'completed'
     `;
     const membershipResult = await pool.query(membershipRevenueQuery, [dateStart, dateEnd]);
     const membershipRevenue = parseFloat(membershipResult.rows[0]?.membership_revenue) || 0;
+    const membershipCount = parseInt(membershipResult.rows[0]?.membership_count) || 0;
 
     // Package revenue: Lesson packages from customer_packages
     const packageRevenueQuery = `
@@ -2364,7 +2366,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
         total_refunds: walletResult.rows[0].total_refunds,
         total_transactions: walletResult.rows[0].total_transactions,
         rental_count: rentalCount,
-        shop_order_count: shopOrderCount
+        shop_order_count: shopOrderCount,
+        membership_count: membershipCount
       }]
     };
 
@@ -2405,8 +2408,10 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
           finalRevenue.other_revenue = 0;
           break;
         case 'membership':
-          // Show membership + packages
-          finalRevenue.total_revenue = finalRevenue.membership_revenue;
+          // Show only membership revenue (not lesson packages)
+          finalRevenue.total_revenue = finalRevenue.vip_membership_revenue;
+          finalRevenue.membership_revenue = finalRevenue.vip_membership_revenue;
+          finalRevenue.package_revenue = 0;
           finalRevenue.lesson_revenue = 0;
           finalRevenue.rental_revenue = 0;
           finalRevenue.shop_revenue = 0;
@@ -2448,6 +2453,340 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
   } catch (error) {
   logger.error('Error fetching financial summary:', error);
     res.status(500).json({ error: 'Failed to fetch financial summary' });
+  }
+});
+
+/**
+ * GET /api/finances/lesson-breakdown
+ * Get lesson service popularity and instructor performance data for charts
+ */
+router.get('/lesson-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateStart = startDate || '1900-01-01';
+    const dateEnd = endDate || '2100-01-01';
+
+    // Service popularity: group bookings by service
+    // For package bookings (amount=0), attribute proportional revenue from the package purchase price
+    const serviceQuery = `
+      SELECT 
+        s.id AS service_id,
+        s.name AS service_name,
+        COUNT(b.id) AS booking_count,
+        COALESCE(SUM(
+          CASE 
+            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
+              THEN (cp.purchase_price / cp.total_hours) * b.duration
+            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
+              THEN cp.purchase_price / sp.sessions_count
+            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
+          END
+        ), 0) AS total_revenue,
+        COALESCE(AVG(
+          CASE 
+            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
+              THEN (cp.purchase_price / cp.total_hours) * b.duration
+            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
+              THEN cp.purchase_price / sp.sessions_count
+            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
+          END
+        ), 0) AS avg_price
+      FROM bookings b
+      JOIN services s ON s.id = b.service_id
+      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+      WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
+        AND b.deleted_at IS NULL
+      GROUP BY s.id, s.name
+      ORDER BY booking_count DESC
+      LIMIT 20
+    `;
+    const serviceResult = await pool.query(serviceQuery, [dateStart, dateEnd]);
+
+    // Instructor performance: group bookings by instructor
+    // Commission logic matches /finances/summary for consistency
+    const instructorQuery = `
+      SELECT 
+        u.id AS instructor_id,
+        COALESCE(u.first_name || ' ' || u.last_name, u.email) AS instructor_name,
+        COUNT(b.id) AS booking_count,
+        COALESCE(SUM(b.duration), 0) AS total_hours,
+        COALESCE(SUM(
+          CASE 
+            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
+              THEN (cp.purchase_price / cp.total_hours) * b.duration
+            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
+              THEN cp.purchase_price / sp.sessions_count
+            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
+          END
+        ), 0) AS total_revenue,
+        COALESCE(SUM(
+          CASE 
+            -- Package bookings with fixed hourly rate commission
+            WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
+              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+            -- Package bookings with percentage commission (total_hours based)
+            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
+              ((cp.purchase_price / cp.total_hours) * b.duration) * 
+              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+            -- Package bookings with percentage commission (sessions_count based)
+            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
+              (cp.purchase_price / sp.sessions_count) * 
+              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+            -- Standalone bookings with fixed hourly rate
+            WHEN bcc.commission_type = 'fixed' THEN 
+              COALESCE(bcc.commission_value, 0) * b.duration
+            WHEN isc.commission_type = 'fixed' THEN 
+              COALESCE(isc.commission_value, 0) * b.duration
+            WHEN idc.commission_type = 'fixed' THEN 
+              COALESCE(idc.commission_value, 0) * b.duration
+            -- Standalone bookings with percentage commission
+            WHEN bcc.commission_type = 'percentage' THEN 
+              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
+            WHEN isc.commission_type = 'percentage' THEN 
+              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
+            WHEN idc.commission_type = 'percentage' THEN 
+              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
+            -- Fallback: 50% of lesson amount
+            ELSE 
+              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+          END
+        ), 0) AS total_commission
+      FROM bookings b
+      JOIN users u ON u.id = b.instructor_user_id
+      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
+      LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
+      WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
+        AND b.deleted_at IS NULL
+      GROUP BY u.id, u.first_name, u.last_name, u.email
+      ORDER BY total_revenue DESC
+      LIMIT 20
+    `;
+    const instructorResult = await pool.query(instructorQuery, [dateStart, dateEnd]);
+
+    res.json({
+      success: true,
+      services: serviceResult.rows.map(r => ({
+        serviceId: r.service_id,
+        name: r.service_name,
+        bookings: parseInt(r.booking_count),
+        revenue: parseFloat(r.total_revenue),
+        avgPrice: parseFloat(r.avg_price)
+      })),
+      instructors: instructorResult.rows.map(r => ({
+        instructorId: r.instructor_id,
+        name: r.instructor_name,
+        bookings: parseInt(r.booking_count),
+        hours: parseFloat(r.total_hours),
+        revenue: parseFloat(r.total_revenue),
+        commission: parseFloat(r.total_commission)
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching lesson breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch lesson breakdown' });
+  }
+});
+
+/**
+ * GET /api/finances/rental-breakdown
+ * Get equipment popularity and rental analytics data for charts
+ */
+router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateStart = startDate || '1900-01-01';
+    const dateEnd = endDate || '2100-01-01';
+
+    // Date filter for rentals (same logic as /finances/summary)
+    const rentalDateFilter = `
+      (
+        (r.rental_date IS NOT NULL AND r.rental_date >= $1::date AND r.rental_date <= $2::date)
+        OR (
+          r.rental_date IS NULL AND (
+            (r.start_date >= $1::date AND r.start_date <= $2::date) OR
+            (r.end_date   >= $1::date AND r.end_date   <= $2::date) OR
+            (r.start_date <  $1::date AND r.end_date   >  $2::date)
+          )
+        )
+      )
+      AND r.status IN ('completed','returned','closed','active')
+    `;
+
+    // Equipment popularity: expand equipment_ids JSONB array and join to services
+    const equipmentQuery = `
+      SELECT 
+        s.id AS service_id,
+        s.name AS service_name,
+        COUNT(r.id) AS rental_count,
+        COALESCE(SUM(r.total_price), 0) AS total_revenue,
+        COALESCE(AVG(r.total_price), 0) AS avg_price
+      FROM rentals r
+      CROSS JOIN LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid
+      JOIN services s ON s.id = eid::uuid
+      WHERE ${rentalDateFilter}
+        AND r.equipment_ids IS NOT NULL
+        AND jsonb_array_length(r.equipment_ids) > 0
+      GROUP BY s.id, s.name
+      ORDER BY rental_count DESC
+      LIMIT 20
+    `;
+    const equipmentResult = await pool.query(equipmentQuery, [dateStart, dateEnd]);
+
+    // Monthly trend for rental revenue
+    const trendQuery = `
+      SELECT 
+        TO_CHAR(COALESCE(r.rental_date, r.start_date), 'YYYY-MM') AS month,
+        COUNT(r.id) AS rental_count,
+        COALESCE(SUM(r.total_price), 0) AS revenue
+      FROM rentals r
+      WHERE ${rentalDateFilter}
+      GROUP BY month
+      ORDER BY month
+    `;
+    const trendResult = await pool.query(trendQuery, [dateStart, dateEnd]);
+
+    // Payment status breakdown
+    const statusQuery = `
+      SELECT 
+        r.payment_status,
+        COUNT(r.id) AS count,
+        COALESCE(SUM(r.total_price), 0) AS revenue
+      FROM rentals r
+      WHERE ${rentalDateFilter}
+      GROUP BY r.payment_status
+      ORDER BY count DESC
+    `;
+    const statusResult = await pool.query(statusQuery, [dateStart, dateEnd]);
+
+    res.json({
+      success: true,
+      equipment: equipmentResult.rows.map(r => ({
+        serviceId: r.service_id,
+        name: r.service_name,
+        rentals: parseInt(r.rental_count),
+        revenue: parseFloat(r.total_revenue),
+        avgPrice: parseFloat(r.avg_price)
+      })),
+      trends: trendResult.rows.map(r => ({
+        month: r.month,
+        rentals: parseInt(r.rental_count),
+        revenue: parseFloat(r.revenue)
+      })),
+      paymentStatus: statusResult.rows.map(r => ({
+        status: r.payment_status,
+        count: parseInt(r.count),
+        revenue: parseFloat(r.revenue)
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching rental breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch rental breakdown' });
+  }
+});
+
+/**
+ * GET /api/finances/membership-breakdown
+ * Get membership offering popularity and purchase analytics
+ */
+router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateStart = startDate || '1900-01-01';
+    const dateEnd = endDate || '2100-01-01';
+
+    // Offering popularity: group purchases by offering
+    const offeringQuery = `
+      SELECT 
+        mp.offering_id,
+        mp.offering_name AS name,
+        COUNT(mp.id) AS purchase_count,
+        COALESCE(SUM(mp.offering_price), 0) AS total_revenue,
+        COALESCE(AVG(mp.offering_price), 0) AS avg_price
+      FROM member_purchases mp
+      WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
+        AND mp.payment_status = 'completed'
+      GROUP BY mp.offering_id, mp.offering_name
+      ORDER BY purchase_count DESC
+      LIMIT 20
+    `;
+    const offeringResult = await pool.query(offeringQuery, [dateStart, dateEnd]);
+
+    // Monthly trend
+    const trendQuery = `
+      SELECT 
+        TO_CHAR(mp.purchased_at, 'YYYY-MM') AS month,
+        COUNT(mp.id) AS purchase_count,
+        COALESCE(SUM(mp.offering_price), 0) AS revenue
+      FROM member_purchases mp
+      WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
+        AND mp.payment_status = 'completed'
+      GROUP BY month
+      ORDER BY month
+    `;
+    const trendResult = await pool.query(trendQuery, [dateStart, dateEnd]);
+
+    // Payment method breakdown
+    const methodQuery = `
+      SELECT 
+        mp.payment_method,
+        COUNT(mp.id) AS count,
+        COALESCE(SUM(mp.offering_price), 0) AS revenue
+      FROM member_purchases mp
+      WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
+        AND mp.payment_status = 'completed'
+      GROUP BY mp.payment_method
+      ORDER BY count DESC
+    `;
+    const methodResult = await pool.query(methodQuery, [dateStart, dateEnd]);
+
+    // Active vs expired breakdown
+    const statusQuery = `
+      SELECT 
+        CASE 
+          WHEN mp.status = 'cancelled' THEN 'cancelled'
+          WHEN mp.expires_at IS NOT NULL AND mp.expires_at < NOW() THEN 'expired'
+          ELSE mp.status
+        END AS computed_status,
+        COUNT(mp.id) AS count
+      FROM member_purchases mp
+      WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
+        AND mp.payment_status = 'completed'
+      GROUP BY computed_status
+      ORDER BY count DESC
+    `;
+    const statusResult = await pool.query(statusQuery, [dateStart, dateEnd]);
+
+    res.json({
+      success: true,
+      offerings: offeringResult.rows.map(r => ({
+        offeringId: r.offering_id,
+        name: r.name,
+        purchases: parseInt(r.purchase_count),
+        revenue: parseFloat(r.total_revenue),
+        avgPrice: parseFloat(r.avg_price)
+      })),
+      trends: trendResult.rows.map(r => ({
+        month: r.month,
+        purchases: parseInt(r.purchase_count),
+        revenue: parseFloat(r.revenue)
+      })),
+      paymentMethods: methodResult.rows.map(r => ({
+        method: r.payment_method,
+        count: parseInt(r.count),
+        revenue: parseFloat(r.revenue)
+      })),
+      membershipStatus: statusResult.rows.map(r => ({
+        status: r.computed_status,
+        count: parseInt(r.count)
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching membership breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch membership breakdown' });
   }
 });
 

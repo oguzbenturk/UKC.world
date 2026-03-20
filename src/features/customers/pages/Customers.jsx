@@ -47,7 +47,7 @@ const Customers = () => {
   const [searchText, setSearchText] = useState('');
   const [q, setQ] = useState(''); // debounced query sent to server
   // Top-level quick filters and load-time display removed per request
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(200);
   const [nextCursor, setNextCursor] = useState(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   // Always use compact density
@@ -642,6 +642,29 @@ const Customers = () => {
                 type="default"
               >
                 {nextCursor ? 'Load more' : 'All loaded'}
+              </Button>
+              <Button
+                onClick={async () => {
+                  setIsLoadingMore(true);
+                  let cursor = nextCursor;
+                  while (cursor) {
+                    const params = { q: q || undefined, limit, cursor };
+                    const res = await DataService.getCustomersList(params);
+                    setCustomers(prev => {
+                      const nextList = [...prev, ...(res.items || [])];
+                      setStats({ total: nextList.length, shopCustomers: 0, schoolCustomers: nextList.length });
+                      return nextList;
+                    });
+                    cursor = res.nextCursor || null;
+                    setNextCursor(cursor);
+                  }
+                  setIsLoadingMore(false);
+                }}
+                disabled={!nextCursor}
+                loading={isLoadingMore}
+                type="primary"
+              >
+                All Customers
               </Button>
             </Space>
           </div>

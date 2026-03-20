@@ -190,11 +190,6 @@ const MonthView = ({ onBookingClick }) => {
 
   // Handle day click
   const handleDayClick = (day) => {
-    // Desktop/tablet: no overlay; simply select the day
-    if (!isMobile) {
-      setSelectedDate(day.date);
-      return;
-    }
     if (justClosedRef.current) {
       justClosedRef.current = false;
       return;
@@ -383,7 +378,7 @@ const MonthView = ({ onBookingClick }) => {
   <div ref={gridRef} className="month-grid grid grid-cols-7 relative">
     {calendarDays.map((day) => {
           const summary = getDaySummary(day.dateStr);
-          const maxVisible = 3;
+          const maxVisible = 4;
           
           return (
             <div 
