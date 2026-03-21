@@ -247,6 +247,7 @@ const AcademyServicePackagesPage = ({
     const packageType = normalize(pkg.packageType || pkg.package_type);
     const includesAccommodation = pkg.includesAccommodation === true || pkg.includes_accommodation === true;
     const accommodationUnitType = normalize(pkg.accommodationUnitType || pkg.accommodation_unit_type);
+    const accommodationUnitCategory = normalize(pkg.accommodationUnitCategory || pkg.accommodation_unit_category || '');
     const accommodationText = [
       pkg.name,
       pkg.description,
@@ -268,17 +269,23 @@ const AcademyServicePackagesPage = ({
     }
 
     if (normKey === 'stay_hotel') {
-      const hasTypedRule = accommodationUnitType.length > 0;
+      const hasCategoryRule = accommodationUnitCategory.length > 0;
+      const isHotelByCategory = accommodationUnitCategory === 'hotel';
+      const hasTypedRule = !hasCategoryRule && accommodationUnitType.length > 0;
       const isHotelByType = accommodationUnitType === 'room';
       const isHotelLike = ['hotel', 'otel', 'burlahan'].some((token) => accommodationText.includes(token));
+      if (hasCategoryRule) return isAccommodationPackage && isHotelByCategory;
       if (hasTypedRule) return isAccommodationPackage && isHotelByType;
       return isAccommodationPackage && isHotelLike;
     }
 
     if (normKey === 'stay_home') {
-      const hasTypedRule = accommodationUnitType.length > 0;
+      const hasCategoryRule = accommodationUnitCategory.length > 0;
+      const isHomeByCategory = accommodationUnitCategory === 'own';
+      const hasTypedRule = !hasCategoryRule && accommodationUnitType.length > 0;
       const isHomeByType = accommodationUnitType !== 'room';
       const isHomeLike = ['home', 'house', 'farm', 'studio', 'staff', 'villa', 'pool'].some((token) => accommodationText.includes(token));
+      if (hasCategoryRule) return isAccommodationPackage && isHomeByCategory;
       if (hasTypedRule) return isAccommodationPackage && isHomeByType;
       return isAccommodationPackage && isHomeLike;
     }
@@ -737,30 +744,26 @@ const AcademyServicePackagesPage = ({
         durations: sortedDurations,
         badges: isStayMode
           ? [toTitle(first.packageType || first.package_type || 'Stay'), first.accommodationUnitType || 'Unit']
-          : [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')]
+          : [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')],
+        lessonCategoryTag: normalize(first.lessonCategoryTag || '')
       };
     }).filter(Boolean);
 
     // Apply custom display order for lesson cards
     if (!isStayMode) {
-      const LESSON_CARD_ORDER = [
-        'private lesson',
-        'premium private lesson',
-        'supervision',
-        'semi private supervision',
-        'semi private lesson',
-        'group lesson',
-        'advanced coaching'
-      ];
+      // Sort by name using specific-first pattern matching to avoid substring collisions
+      const getLessonPriority = (name) => {
+        if (name.includes('semi private supervision')) return 5;
+        if (name.includes('semi private')) return 2;
+        if (name.includes('supervision')) return 4;
+        if (name.includes('group')) return 3;
+        if (name.includes('private')) return 1;
+        if (name.includes('premium')) return 6;
+        if (name.includes('advanced')) return 7;
+        return 999;
+      };
       cards.sort((a, b) => {
-        const aName = normalize(a.name);
-        const bName = normalize(b.name);
-        const aIdx = LESSON_CARD_ORDER.findIndex(k => aName.includes(k));
-        const bIdx = LESSON_CARD_ORDER.findIndex(k => bName.includes(k));
-        // Known cards first (by priority), unknown cards go to the end
-        const aPriority = aIdx >= 0 ? aIdx : 999;
-        const bPriority = bIdx >= 0 ? bIdx : 999;
-        return aPriority - bPriority;
+        return getLessonPriority(normalize(a.name)) - getLessonPriority(normalize(b.name));
       });
       // Re-assign colors and featured flag based on new order
       cards.forEach((card, idx) => {
@@ -856,14 +859,14 @@ const AcademyServicePackagesPage = ({
           const units = Array.isArray(unitsRes.data) ? unitsRes.data : [];
           const allPackages = []; // Only show 1-night + custom durations
           
-          // Filter units by type (hotel vs home)
+          // Filter units by category (hotel = external/third-party, own = our property)
           const filteredUnits = units.filter((unit) => {
-            const unitType = normalize(unit.type);
+            const unitCat = normalize(unit.category || '');
             if (normalize(dynamicServiceKey) === 'stay_hotel') {
-              return unitType === 'room';
+              return unitCat === 'hotel';
             }
             if (normalize(dynamicServiceKey) === 'stay_home') {
-              return unitType !== 'room' && unitType.length > 0;
+              return unitCat === 'own';
             }
             return true; // 'stay' shows all
           });

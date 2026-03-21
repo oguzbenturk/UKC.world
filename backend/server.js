@@ -1190,7 +1190,7 @@ app.get('/api/accommodation/units/public', async (req, res) => {
     
     const query = `
       SELECT 
-        id, name, type, capacity, price_per_night, description, 
+        id, name, type, category, capacity, price_per_night, description, 
         amenities, image_url, images
       FROM accommodation_units
       ${where}
