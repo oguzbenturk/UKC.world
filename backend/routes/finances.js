@@ -26,8 +26,8 @@ import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzi
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
 
-const CREDIT_TRANSACTION_TYPES = new Set(['payment', 'credit', 'refund', 'booking_deleted_refund', 'package_refund']);
-const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'service_payment', 'rental_payment', 'package_purchase']);
+const CREDIT_TRANSACTION_TYPES = new Set(['credit', 'manual_credit', 'wallet_deposit', 'refund', 'booking_deleted_refund', 'package_refund']);
+const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'payment', 'service_payment', 'rental_payment', 'rental_charge', 'booking_charge', 'package_purchase']);
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
 
@@ -553,6 +553,61 @@ router.get('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']
       }
     }
 
+    // Calculate stats from ALL matching transactions (no limit) for accurate totals
+    const statsFilters = [];
+    const statsParams = [];
+    let sIdx = 0;
+    statsFilters.push(`status != 'cancelled'`);
+    statsFilters.push(`NOT (status = 'pending' AND available_delta = 0 AND payment_method = 'credit_card')`);
+    if (options.startDate) { statsParams.push(new Date(options.startDate)); statsFilters.push(`transaction_date >= $${++sIdx}`); }
+    if (options.endDate) { statsParams.push(new Date(options.endDate)); statsFilters.push(`transaction_date <= $${++sIdx}`); }
+    if (options.transactionType) { statsParams.push(options.transactionType); statsFilters.push(`transaction_type = $${++sIdx}`); }
+    if (user_id) { statsParams.push(user_id); statsFilters.push(`user_id = $${++sIdx}`); }
+    const statsWhere = statsFilters.length > 0 ? `WHERE ${statsFilters.join(' AND ')}` : '';
+    const [statsResult, breakdownResult, trendResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          count(*) as total_count,
+          COALESCE(sum(CASE WHEN direction = 'credit' THEN abs(amount) ELSE 0 END), 0) as total_income,
+          COALESCE(sum(CASE WHEN direction = 'debit' THEN abs(amount) ELSE 0 END), 0) as total_charges
+        FROM wallet_transactions
+        ${statsWhere}
+      `, statsParams),
+      pool.query(`
+        SELECT transaction_type, direction, count(*)::int as count, COALESCE(sum(abs(amount)), 0) as total
+        FROM wallet_transactions
+        ${statsWhere}
+        GROUP BY transaction_type, direction
+        ORDER BY total DESC
+      `, statsParams),
+      pool.query(`
+        SELECT
+          to_char(transaction_date, 'YYYY-MM') as month,
+          COALESCE(sum(CASE WHEN direction = 'credit' THEN abs(amount) ELSE 0 END), 0) as income,
+          COALESCE(sum(CASE WHEN direction = 'debit' THEN abs(amount) ELSE 0 END), 0) as charges
+        FROM wallet_transactions
+        ${statsWhere}
+        GROUP BY to_char(transaction_date, 'YYYY-MM')
+        ORDER BY month
+      `, statsParams)
+    ]);
+    const statsRow = statsResult.rows[0];
+    const totalIncome = parseFloat(statsRow.total_income) || 0;
+    const totalCharges = parseFloat(statsRow.total_charges) || 0;
+
+    // Enrich transactions with user names
+    const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+    let userMap = {};
+    if (userIds.length > 0) {
+      const usersResult = await pool.query(
+        'SELECT id, first_name, last_name, email FROM users WHERE id = ANY($1)',
+        [userIds]
+      );
+      for (const u of usersResult.rows) {
+        userMap[u.id] = { name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email, email: u.email };
+      }
+    }
+
     const mapped = rows.map(row => {
       const mappedRow = mapTransactionRow(row);
       if (row.related_entity_type === 'shop_order') {
@@ -567,9 +622,29 @@ router.get('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']
             : itemSummary;
         }
       }
+      mappedRow.user = userMap[row.user_id] || null;
       return mappedRow;
     });
-    return res.status(200).json(mapped);
+    return res.status(200).json({
+      transactions: mapped,
+      stats: {
+        totalIncome,
+        totalCharges,
+        net: totalIncome - totalCharges,
+        total: parseInt(statsRow.total_count) || 0
+      },
+      breakdown: breakdownResult.rows.map(r => ({
+        type: r.transaction_type,
+        direction: r.direction,
+        count: r.count,
+        total: parseFloat(r.total) || 0
+      })),
+      trend: trendResult.rows.map(r => ({
+        month: r.month,
+        income: parseFloat(r.income) || 0,
+        charges: parseFloat(r.charges) || 0
+      }))
+    });
   } catch (error) {
     logger.error('Error fetching transactions:', error);
     return res.status(500).json({ message: 'Internal server error' });
@@ -2427,6 +2502,27 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
           finalRevenue.package_revenue = 0;
           finalRevenue.other_revenue = 0;
           break;
+        case 'accommodation':
+          // Only show accommodation revenue (stored in other_revenue from wallet accommodation_charges)
+          finalRevenue.total_revenue = finalRevenue.other_revenue;
+          finalRevenue.lesson_revenue = 0;
+          finalRevenue.rental_revenue = 0;
+          finalRevenue.membership_revenue = 0;
+          finalRevenue.vip_membership_revenue = 0;
+          finalRevenue.package_revenue = 0;
+          finalRevenue.shop_revenue = 0;
+          break;
+        case 'events':
+          // Events revenue is tracked separately via events table, zero out wallet-based revenue
+          finalRevenue.total_revenue = 0;
+          finalRevenue.lesson_revenue = 0;
+          finalRevenue.rental_revenue = 0;
+          finalRevenue.membership_revenue = 0;
+          finalRevenue.vip_membership_revenue = 0;
+          finalRevenue.package_revenue = 0;
+          finalRevenue.shop_revenue = 0;
+          finalRevenue.other_revenue = 0;
+          break;
       }
     }
 
@@ -2787,6 +2883,470 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
   } catch (error) {
     logger.error('Error fetching membership breakdown:', error);
     res.status(500).json({ error: 'Failed to fetch membership breakdown' });
+  }
+});
+
+/**
+ * GET /api/finances/accommodation-breakdown
+ * Get accommodation unit popularity, booking trends, and status breakdown
+ */
+router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateStart = startDate || '1900-01-01';
+    const dateEnd = endDate || '2100-01-01';
+
+    // Unit popularity: bookings per unit, revenue per unit
+    const unitQuery = `
+      SELECT
+        au.id AS unit_id,
+        au.name AS unit_name,
+        au.type AS unit_type,
+        COUNT(ab.id)::int AS bookings,
+        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue,
+        COALESCE(SUM(
+          CASE WHEN ab.check_out_date IS NOT NULL AND ab.check_in_date IS NOT NULL
+               THEN (ab.check_out_date::date - ab.check_in_date::date)
+               ELSE 0 END
+        ), 0)::int AS total_nights
+      FROM accommodation_bookings ab
+      JOIN accommodation_units au ON au.id = ab.unit_id
+      WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
+      GROUP BY au.id, au.name, au.type
+      ORDER BY revenue DESC
+    `;
+    const unitResult = await pool.query(unitQuery, [dateStart, dateEnd]);
+
+    // Monthly trends
+    const trendQuery = `
+      SELECT
+        TO_CHAR(ab.check_in_date, 'YYYY-MM') AS month,
+        COUNT(ab.id)::int AS bookings,
+        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue,
+        COALESCE(SUM(
+          CASE WHEN ab.check_out_date IS NOT NULL AND ab.check_in_date IS NOT NULL
+               THEN (ab.check_out_date::date - ab.check_in_date::date)
+               ELSE 0 END
+        ), 0)::int AS total_nights
+      FROM accommodation_bookings ab
+      WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
+      GROUP BY TO_CHAR(ab.check_in_date, 'YYYY-MM')
+      ORDER BY month ASC
+    `;
+    const trendResult = await pool.query(trendQuery, [dateStart, dateEnd]);
+
+    // Booking status breakdown
+    const statusQuery = `
+      SELECT
+        COALESCE(ab.status, 'unknown') AS status,
+        COUNT(ab.id)::int AS count,
+        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue
+      FROM accommodation_bookings ab
+      WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
+      GROUP BY ab.status
+      ORDER BY revenue DESC
+    `;
+    const statusResult = await pool.query(statusQuery, [dateStart, dateEnd]);
+
+    res.json({
+      units: unitResult.rows.map(r => ({
+        unitId: r.unit_id,
+        name: r.unit_name || 'Unknown Unit',
+        type: r.unit_type || 'unknown',
+        bookings: r.bookings,
+        revenue: parseFloat(r.revenue) || 0,
+        totalNights: r.total_nights
+      })),
+      trends: trendResult.rows.map(r => ({
+        month: r.month,
+        bookings: r.bookings,
+        revenue: parseFloat(r.revenue) || 0,
+        totalNights: r.total_nights
+      })),
+      bookingStatus: statusResult.rows.map(r => ({
+        status: r.status,
+        count: r.count,
+        revenue: parseFloat(r.revenue) || 0
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching accommodation breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch accommodation breakdown' });
+  }
+});
+
+/**
+ * GET /api/finances/events-breakdown
+ * Get event type breakdown, registration trends, and revenue analysis
+ */
+router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const dateStart = startDate || '1900-01-01';
+    const dateEnd = endDate || '2100-01-01';
+
+    // Event popularity: registrations and revenue per event
+    const eventQuery = `
+      SELECT
+        e.id AS event_id,
+        e.name,
+        e.event_type,
+        e.status,
+        COALESCE(e.price, 0)::numeric AS ticket_price,
+        COALESCE(
+          (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered'),
+          0
+        )::int AS registrations,
+        COALESCE(e.capacity, 0)::int AS capacity,
+        (COALESCE(e.price, 0) * COALESCE(
+          (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered'),
+          0
+        ))::numeric AS revenue
+      FROM events e
+      WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
+        AND e.deleted_at IS NULL
+      ORDER BY revenue DESC
+    `;
+    const eventResult = await pool.query(eventQuery, [dateStart, dateEnd]);
+
+    // Monthly trends
+    const trendQuery = `
+      SELECT
+        TO_CHAR(e.start_at, 'YYYY-MM') AS month,
+        COUNT(e.id)::int AS events,
+        COALESCE(SUM(
+          (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered')
+        ), 0)::int AS registrations,
+        COALESCE(SUM(
+          e.price * (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered')
+        ), 0)::numeric AS revenue
+      FROM events e
+      WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
+        AND e.deleted_at IS NULL
+      GROUP BY TO_CHAR(e.start_at, 'YYYY-MM')
+      ORDER BY month ASC
+    `;
+    const trendResult = await pool.query(trendQuery, [dateStart, dateEnd]);
+
+    // Event status breakdown
+    const statusQuery = `
+      SELECT
+        COALESCE(e.status, 'unknown') AS status,
+        COUNT(e.id)::int AS count,
+        COALESCE(SUM(
+          e.price * (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered')
+        ), 0)::numeric AS revenue
+      FROM events e
+      WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
+        AND e.deleted_at IS NULL
+      GROUP BY e.status
+      ORDER BY count DESC
+    `;
+    const statusResult = await pool.query(statusQuery, [dateStart, dateEnd]);
+
+    res.json({
+      events: eventResult.rows.map(r => ({
+        eventId: r.event_id,
+        name: r.name || 'Unknown Event',
+        eventType: r.event_type || 'general',
+        status: r.status,
+        ticketPrice: parseFloat(r.ticket_price) || 0,
+        registrations: r.registrations,
+        capacity: r.capacity,
+        revenue: parseFloat(r.revenue) || 0
+      })),
+      trends: trendResult.rows.map(r => ({
+        month: r.month,
+        events: r.events,
+        registrations: r.registrations,
+        revenue: parseFloat(r.revenue) || 0
+      })),
+      eventStatus: statusResult.rows.map(r => ({
+        status: r.status,
+        count: r.count,
+        revenue: parseFloat(r.revenue) || 0
+      }))
+    });
+  } catch (error) {
+    logger.error('Error fetching events breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch events breakdown' });
+  }
+});
+
+/**
+ * GET /api/finances/overview
+ * Comprehensive financial overview using wallet_transactions as the source of truth.
+ * Returns: headline stats, service breakdown, monthly trend, expense breakdown.
+ */
+router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+
+    const startDate = start_date || '2020-01-01';
+    const endDate = end_date || new Date().toISOString().slice(0, 10);
+
+    // ── Headline stats: credits vs debits from wallet_transactions ──────────
+    const headlineResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END), 0)   AS total_income,
+        COALESCE(SUM(CASE WHEN direction = 'debit'  THEN amount ELSE 0 END), 0)   AS total_charges,
+        COUNT(*)::int                                                               AS total_transactions,
+        -- money deposited by customers (wallet top-ups)
+        COALESCE(SUM(CASE WHEN transaction_type IN ('wallet_deposit','manual_credit','credit') THEN amount ELSE 0 END), 0) AS total_deposits,
+        -- actual service charges collected
+        COALESCE(SUM(CASE WHEN transaction_type IN ('booking_charge','rental_charge','rental_payment','service_payment') THEN amount ELSE 0 END), 0) AS service_revenue,
+        -- shop sales
+        COALESCE(SUM(CASE WHEN transaction_type IN ('payment','charge') AND direction='debit' THEN amount ELSE 0 END), 0) AS shop_revenue,
+        -- refunds issued
+        COALESCE(SUM(CASE WHEN transaction_type IN ('refund','booking_deleted_refund','package_refund') THEN amount ELSE 0 END), 0) AS total_refunds,
+        -- package purchases
+        COALESCE(SUM(CASE WHEN transaction_type = 'package_purchase' THEN amount ELSE 0 END), 0) AS package_revenue
+      FROM wallet_transactions
+      WHERE status = 'completed'
+        AND created_at::date BETWEEN $1 AND $2
+    `, [startDate, endDate]);
+
+    const h = headlineResult.rows[0];
+    const totalIncome  = parseFloat(h.total_income)   || 0;
+    const totalCharges = parseFloat(h.total_charges)  || 0;
+    const net = totalIncome - totalCharges;
+
+    // ── Service revenue breakdown ─────────────────────────────────────────
+    const serviceBreakdownResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN transaction_type = 'booking_charge' THEN amount ELSE 0 END), 0)                               AS lesson_revenue,
+        COALESCE(SUM(CASE WHEN transaction_type IN ('rental_charge','rental_payment') THEN amount ELSE 0 END), 0)            AS rental_revenue,
+        COALESCE(SUM(CASE WHEN transaction_type = 'package_purchase' THEN amount ELSE 0 END), 0)                             AS membership_revenue,
+        COALESCE(SUM(CASE WHEN transaction_type IN ('payment','charge') AND direction='debit' THEN amount ELSE 0 END), 0)    AS shop_revenue,
+        COALESCE(SUM(CASE WHEN transaction_type IN ('wallet_deposit','manual_credit','credit') THEN amount ELSE 0 END), 0)   AS deposits
+      FROM wallet_transactions
+      WHERE status = 'completed'
+        AND created_at::date BETWEEN $1 AND $2
+    `, [startDate, endDate]);
+
+    const sb = serviceBreakdownResult.rows[0];
+
+    // ── Monthly trend ──────────────────────────────────────────────────────
+    const trendResult = await pool.query(`
+      SELECT
+        TO_CHAR(created_at, 'YYYY-MM') AS month,
+        COALESCE(SUM(CASE WHEN direction='credit' THEN amount ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN direction='debit'  THEN amount ELSE 0 END), 0) AS charges
+      FROM wallet_transactions
+      WHERE status = 'completed'
+        AND created_at::date BETWEEN $1 AND $2
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+      ORDER BY month
+    `, [startDate, endDate]);
+
+    // ── Instructor commissions paid ────────────────────────────────────────
+    const commissionResult = await pool.query(`
+      SELECT COALESCE(SUM(ie.total_earnings), 0) AS instructor_commission
+      FROM instructor_earnings ie
+      WHERE ie.lesson_date BETWEEN $1 AND $2
+    `, [startDate, endDate]);
+
+    const commission = parseFloat(commissionResult.rows[0]?.instructor_commission) || 0;
+
+    // ── Expense breakdown by transaction type ──────────────────────────────
+    const expenseResult = await pool.query(`
+      SELECT
+        transaction_type,
+        COALESCE(SUM(amount), 0) AS total,
+        COUNT(*)::int            AS count
+      FROM wallet_transactions
+      WHERE status = 'completed'
+        AND direction = 'debit'
+        AND created_at::date BETWEEN $1 AND $2
+      GROUP BY transaction_type
+      ORDER BY total DESC
+    `, [startDate, endDate]);
+
+    res.json({
+      headline: {
+        totalIncome,
+        totalCharges,
+        net,
+        totalRefunds:     parseFloat(h.total_refunds)    || 0,
+        totalDeposits:    parseFloat(h.total_deposits)   || 0,
+        serviceRevenue:   parseFloat(h.service_revenue)  || 0,
+        instructorCommission: commission,
+        totalTransactions: h.total_transactions
+      },
+      serviceBreakdown: {
+        lessons:    parseFloat(sb.lesson_revenue)      || 0,
+        rentals:    parseFloat(sb.rental_revenue)      || 0,
+        memberships: parseFloat(sb.membership_revenue) || 0,
+        shop:       parseFloat(sb.shop_revenue)        || 0,
+        deposits:   parseFloat(sb.deposits)            || 0
+      },
+      monthlyTrend: trendResult.rows.map(r => ({
+        month:   r.month,
+        income:  parseFloat(r.income)  || 0,
+        charges: parseFloat(r.charges) || 0,
+        net:     (parseFloat(r.income) || 0) - (parseFloat(r.charges) || 0)
+      })),
+      expenseBreakdown: expenseResult.rows.map(r => ({
+        type:  r.transaction_type,
+        total: parseFloat(r.total) || 0,
+        count: r.count
+      }))
+    });
+  } catch (err) {
+    console.error('GET /finances/overview error:', err);
+    res.status(500).json({ error: 'Failed to fetch financial overview' });
+  }
+});
+
+/**
+ * GET /api/finances/wallet-deposits
+ * Wallet deposit / manual credit transactions with user info
+ * All amounts normalised to base currency (EUR) using currency_settings rates
+ */
+router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const limit = Math.min(Number.parseInt(req.query.limit, 10) || 200, 500);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+
+    const dateConditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    dateConditions.push(`wt.transaction_type IN ('manual_credit', 'wallet_deposit')`);
+
+    if (startDate) {
+      dateConditions.push(`wt.created_at >= $${paramIdx}::date`);
+      params.push(startDate);
+      paramIdx++;
+    }
+    if (endDate) {
+      dateConditions.push(`wt.created_at < ($${paramIdx}::date + interval '1 day')`);
+      params.push(endDate);
+      paramIdx++;
+    }
+
+    const whereClause = dateConditions.length > 0 ? `WHERE ${dateConditions.join(' AND ')}` : '';
+
+    // amount_eur converts every row to EUR using the live exchange rate
+    const amountEur = `(wt.amount / COALESCE(cs.exchange_rate, 1))`;
+    const joinRates = `LEFT JOIN currency_settings cs ON cs.currency_code = wt.currency AND cs.is_active = true`;
+
+    // Summary stats (in EUR)
+    const statsQuery = `
+      SELECT
+        COUNT(*)::int AS total_count,
+        COALESCE(SUM(${amountEur}), 0) AS total_amount,
+        COUNT(DISTINCT wt.user_id)::int AS unique_users,
+        CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(${amountEur}), 0) / COUNT(*) ELSE 0 END AS avg_amount
+      FROM wallet_transactions wt
+      ${joinRates}
+      ${whereClause}
+    `;
+
+    // Deposit list with user info (keep original + EUR equivalent)
+    const listQuery = `
+      SELECT
+        wt.id,
+        wt.user_id,
+        wt.amount,
+        wt.currency,
+        ${amountEur} AS amount_eur,
+        wt.transaction_type,
+        wt.status,
+        wt.description,
+        wt.payment_method,
+        wt.reference_number,
+        wt.created_at,
+        wt.created_by,
+        u.name AS user_name,
+        u.email AS user_email,
+        cb.name AS created_by_name
+      FROM wallet_transactions wt
+      ${joinRates}
+      LEFT JOIN users u ON u.id = wt.user_id
+      LEFT JOIN users cb ON cb.id = wt.created_by
+      ${whereClause}
+      ORDER BY wt.created_at DESC
+      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
+    `;
+
+    // Monthly trends (in EUR)
+    const trendsQuery = `
+      SELECT
+        TO_CHAR(wt.created_at, 'YYYY-MM') AS month,
+        COUNT(*)::int AS count,
+        COALESCE(SUM(${amountEur}), 0) AS total
+      FROM wallet_transactions wt
+      ${joinRates}
+      ${whereClause}
+      GROUP BY month
+      ORDER BY month
+    `;
+
+    // Top depositors (in EUR)
+    const topQuery = `
+      SELECT
+        wt.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        COUNT(*)::int AS deposit_count,
+        COALESCE(SUM(${amountEur}), 0) AS total_deposited
+      FROM wallet_transactions wt
+      ${joinRates}
+      LEFT JOIN users u ON u.id = wt.user_id
+      ${whereClause}
+      GROUP BY wt.user_id, u.name, u.email
+      ORDER BY total_deposited DESC
+      LIMIT 10
+    `;
+
+    const listParams = [...params, limit, offset];
+
+    const [statsResult, listResult, trendsResult, topResult] = await Promise.all([
+      pool.query(statsQuery, params),
+      pool.query(listQuery, listParams),
+      pool.query(trendsQuery, params),
+      pool.query(topQuery, params),
+    ]);
+
+    const stats = statsResult.rows[0];
+
+    res.json({
+      stats: {
+        totalCount: stats.total_count,
+        totalAmount: parseFloat(stats.total_amount) || 0,
+        uniqueUsers: stats.unique_users,
+        avgAmount: parseFloat(stats.avg_amount) || 0,
+      },
+      deposits: listResult.rows.map(r => ({
+        id: r.id,
+        userId: r.user_id,
+        amount: parseFloat(r.amount_eur) || 0,
+        type: r.transaction_type,
+        status: r.status,
+        description: r.description,
+        createdAt: r.created_at,
+        user: { name: r.user_name, email: r.user_email },
+        createdBy: r.created_by_name,
+      })),
+      trends: trendsResult.rows.map(r => ({
+        month: r.month,
+        count: r.count,
+        total: parseFloat(r.total) || 0,
+      })),
+      topDepositors: topResult.rows.map(r => ({
+        userId: r.user_id,
+        name: r.user_name,
+        email: r.user_email,
+        depositCount: r.deposit_count,
+        totalDeposited: parseFloat(r.total_deposited) || 0,
+      })),
+      pagination: { limit, offset },
+    });
+  } catch (error) {
+    logger.error('Error fetching wallet deposits:', error);
+    res.status(500).json({ error: 'Failed to fetch wallet deposits' });
   }
 });
 

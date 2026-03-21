@@ -1,12 +1,13 @@
 /**
  * UserSettings Page
  * 
- * Settings page for all users. Admin/Manager users see additional
- * configuration options like Calendar, Forecast, Finance, Pop-ups, etc.
+ * Unified settings hub with left sidebar navigation.
+ * Personal preferences for all users; admin/business tabs for managers/admins.
  */
 
-import { useState, useEffect, useCallback, memo, useMemo } from 'react';
-import { Card, Switch, Select, Button, Typography, Divider, Alert, Spin, App, Collapse } from 'antd';
+import { useState, useEffect, useCallback, memo, useMemo, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Card, Switch, Select, Button, Typography, Divider, Alert, Spin, App } from 'antd';
 import { 
   BellOutlined, 
   GlobalOutlined, 
@@ -19,7 +20,13 @@ import {
   NotificationOutlined,
   ToolOutlined,
   UserOutlined,
-  DownOutlined
+  AppstoreOutlined,
+  TeamOutlined,
+  SafetyOutlined,
+  FileTextOutlined,
+  DeleteOutlined,
+  RollbackOutlined,
+  BankOutlined
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -30,11 +37,20 @@ import { usePageSEO } from '@/shared/utils/seo';
 import DataService from '@/shared/services/dataService';
 import { loadInstructorColors, setInstructorColor } from '@/shared/utils/instructorColors';
 
-// Lazy load admin-only components
+// Inline admin components
 import FinanceSettingsView from '@/features/finances/components/FinanceSettingsView';
 import PopupSettings from '@/features/popups/components/PopupSettings';
 import ForecastSettings from '@/features/forecast/components/ForecastSettings';
 import CurrencyManagementSection from '@/features/dashboard/components/CurrencyManagementSection';
+
+// Lazy-loaded admin page components
+const Categories = lazy(() => import('@/features/services/pages/Categories'));
+const RolesAdmin = lazy(() => import('@/features/admin/pages/RolesAdmin'));
+const WaiverManagement = lazy(() => import('@/features/admin/pages/WaiverManagement'));
+const LegalDocumentsPage = lazy(() => import('./LegalDocumentsPage'));
+const DeletedBookingsPage = lazy(() => import('@/components/admin/DeletedBookingsPage'));
+const PaymentRefunds = lazy(() => import('@/features/finances/pages/PaymentRefunds'));
+const BankAccountsAdmin = lazy(() => import('@/features/finances/pages/BankAccountsAdmin'));
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -377,6 +393,8 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
 });
 
 const UserSettings = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'general';
   const { user, refreshUser } = useAuth();
   const { message } = App.useApp();
   const { userCurrency, getSupportedCurrencies } = useCurrency();
@@ -523,6 +541,49 @@ const UserSettings = () => {
     }
   };
 
+  // Tab configuration for sidebar navigation — must be before early returns
+  const tabConfig = useMemo(() => {
+    const tabs = [
+      { key: 'general', label: 'General', icon: <UserOutlined />, group: 'Personal' },
+    ];
+    if (isAdmin) {
+      tabs.push(
+        { key: 'calendar', label: 'Calendar', icon: <CalendarOutlined />, group: 'Business' },
+        { key: 'forecast', label: 'Forecast', icon: <CloudOutlined />, group: 'Business' },
+        { key: 'popups', label: 'Pop-ups', icon: <NotificationOutlined />, group: 'Business' },
+        { key: 'finance', label: 'Finance', icon: <DollarOutlined />, group: 'Business' },
+        { key: 'currency', label: 'Currency', icon: <DollarOutlined />, group: 'Business' },
+        { key: 'booking-defaults', label: 'Booking Defaults', icon: <ToolOutlined />, group: 'Business' },
+        { key: 'services', label: 'Service Creation', icon: <AppstoreOutlined />, group: 'Services' },
+        { key: 'roles', label: 'Roles & Permissions', icon: <TeamOutlined />, group: 'Access' },
+        { key: 'waivers', label: 'Waivers', icon: <SafetyOutlined />, group: 'Legal' },
+        { key: 'legal', label: 'Legal Documents', icon: <FileTextOutlined />, group: 'Legal' },
+        { key: 'deleted-bookings', label: 'Deleted Bookings', icon: <DeleteOutlined />, group: 'Operations' },
+        { key: 'refunds', label: 'Payment Refunds', icon: <RollbackOutlined />, group: 'Payments' },
+        { key: 'bank-accounts', label: 'Bank Accounts', icon: <BankOutlined />, group: 'Payments' },
+      );
+    }
+    return tabs;
+  }, [isAdmin]);
+
+  const groupedTabs = useMemo(() => {
+    const groups = [];
+    const seen = new Set();
+    for (const tab of tabConfig) {
+      if (!seen.has(tab.group)) {
+        seen.add(tab.group);
+        groups.push({ label: tab.group, items: tabConfig.filter(t => t.group === tab.group) });
+      }
+    }
+    return groups;
+  }, [tabConfig]);
+
+  const setActiveTab = useCallback((tab) => {
+    setSearchParams({ tab }, { replace: true });
+  }, [setSearchParams]);
+
+  const activeTabLabel = tabConfig.find(t => t.key === activeTab)?.label || 'General';
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -532,230 +593,63 @@ const UserSettings = () => {
     );
   }
 
-  // Collapse items for admin sections
-  const adminCollapseItems = isAdmin ? [
-    {
-      key: 'forecast',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <CloudOutlined className="text-sky-500" />
-          Forecast Settings
-        </span>
-      ),
-      children: (
-        <div className="pt-2">
-          <Paragraph className="text-slate-600 mb-4">
-            Configure wind forecast settings including units, data sources, and display options.
-          </Paragraph>
-          <ForecastSettings onSave={() => message.success('Forecast settings saved!')} />
-        </div>
-      ),
-    },
-    {
-      key: 'calendar',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <CalendarOutlined className="text-sky-500" />
-          Calendar Settings
-        </span>
-      ),
-      children: <CalendarSettingsSection />,
-    },
-    {
-      key: 'popups',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <NotificationOutlined className="text-sky-500" />
-          Pop-up Options
-        </span>
-      ),
-      children: (
-        <div className="pt-2">
-          <Paragraph className="text-slate-600 mb-4">
-            Configure first-login popups and user onboarding experiences.
-          </Paragraph>
-          <PopupSettings />
-        </div>
-      ),
-    },
-    {
-      key: 'finance',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <DollarOutlined className="text-sky-500" />
-          Finance Settings
-        </span>
-      ),
-      children: (
-        <div className="pt-2">
-          <Paragraph className="text-slate-600 mb-4">
-            Configure calculation rates and payment fees for cash and accrual accounting modes.
-          </Paragraph>
-          <FinanceSettingsView />
-        </div>
-      ),
-    },
-    {
-      key: 'currency',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <DollarOutlined className="text-sky-500" />
-          Currency Settings
-        </span>
-      ),
-      children: <BusinessCurrencySection onSave={handlePreferredCurrencySave} />,
-    },
-    {
-      key: 'exchangeRates',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <DollarOutlined className="text-sky-500" />
-          Exchange Rates
-        </span>
-      ),
-      children: (
-        <div className="pt-2">
-          <Paragraph className="text-slate-600 mb-4">
-            Manage exchange rates relative to EUR (base currency). Enable auto-update to fetch rates automatically.
-          </Paragraph>
-          <CurrencyManagementSection />
-        </div>
-      ),
-    },
-    {
-      key: 'booking',
-      label: (
-        <span className="flex items-center gap-2 font-medium">
-          <ToolOutlined className="text-sky-500" />
-          Booking Defaults
-        </span>
-      ),
-      children: <BookingDefaultsSection businessSettings={businessSettings} />,
-    },
-  ] : [];
-
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Title level={2} className="!mb-2 flex items-center gap-3">
-            <SettingOutlined className="text-sky-500" />
-            Settings
-          </Title>
-          <Paragraph className="text-slate-600 dark:text-slate-400">
-            {isAdmin 
-              ? 'Manage your preferences and business configuration' 
-              : 'Manage your account preferences and notification settings'}
-          </Paragraph>
-        </div>
-
-        {/* User Settings Section */}
-        <div className="mb-8">
-          <Title level={4} className="!mb-4 flex items-center gap-2">
-            <UserOutlined className="text-slate-400" />
-            Personal Preferences
-          </Title>
-
-          {/* Notification Settings */}
-          <Card 
-            title={
-              <span className="flex items-center gap-2">
-                <BellOutlined className="text-sky-500" />
-                Notification Preferences
-              </span>
-            }
-            className="mb-6 rounded-xl shadow-sm"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <Text strong>Email Notifications</Text>
-                  <Paragraph className="!mb-0 text-sm text-slate-500">
-                    Receive booking confirmations and updates via email
-                  </Paragraph>
-                </div>
-                <Switch
-                  checked={settings.emailNotifications}
-                  onChange={(checked) => updateSetting('emailNotifications', checked)}
-                />
-              </div>
-              
-              <Divider className="!my-3" />
-              
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <Text strong>SMS Notifications</Text>
-                  <Paragraph className="!mb-0 text-sm text-slate-500">
-                    Get text messages for important updates
-                  </Paragraph>
-                </div>
-                <Switch
-                  checked={settings.smsNotifications}
-                  onChange={(checked) => updateSetting('smsNotifications', checked)}
-                />
-              </div>
-              
-              <Divider className="!my-3" />
-              
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <Text strong>Push Notifications</Text>
-                  <Paragraph className="!mb-0 text-sm text-slate-500">
-                    Receive real-time notifications in your browser
-                  </Paragraph>
-                </div>
-                <Switch
-                  checked={settings.pushNotifications}
-                  onChange={(checked) => updateSetting('pushNotifications', checked)}
-                />
-              </div>
-
-              {/* New Booking Alerts - Only for staff */}
-              {isStaff && (
-                <>
-                  <Divider className="!my-3" />
-                  
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <Text strong>New Booking Alerts</Text>
-                      <Paragraph className="!mb-0 text-sm text-slate-500">
-                        Get notified when students request new bookings
-                      </Paragraph>
-                    </div>
-                    <Switch
-                      checked={notificationSettings.new_booking_alerts}
-                      onChange={(checked) => updateNotificationSetting('new_booking_alerts', checked)}
-                    />
+  // Render tab content based on active tab
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'general':
+        return (
+          <div className="space-y-6">
+            <Card
+              title={<span className="flex items-center gap-2"><BellOutlined className="text-sky-500" />Notification Preferences</span>}
+              className="rounded-xl shadow-sm"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Text strong>Email Notifications</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">Receive booking confirmations and updates via email</Paragraph>
                   </div>
-                </>
-              )}
-            </div>
-          </Card>
+                  <Switch checked={settings.emailNotifications} onChange={(checked) => updateSetting('emailNotifications', checked)} />
+                </div>
+                <Divider className="!my-3" />
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Text strong>SMS Notifications</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">Get text messages for important updates</Paragraph>
+                  </div>
+                  <Switch checked={settings.smsNotifications} onChange={(checked) => updateSetting('smsNotifications', checked)} />
+                </div>
+                <Divider className="!my-3" />
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Text strong>Push Notifications</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">Receive real-time notifications in your browser</Paragraph>
+                  </div>
+                  <Switch checked={settings.pushNotifications} onChange={(checked) => updateSetting('pushNotifications', checked)} />
+                </div>
+                {isStaff && (
+                  <>
+                    <Divider className="!my-3" />
+                    <div className="flex items-center justify-between py-2">
+                      <div>
+                        <Text strong>New Booking Alerts</Text>
+                        <Paragraph className="!mb-0 text-sm text-slate-500">Get notified when students request new bookings</Paragraph>
+                      </div>
+                      <Switch checked={notificationSettings.new_booking_alerts} onChange={(checked) => updateNotificationSetting('new_booking_alerts', checked)} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
 
-          {/* Display Settings */}
-          <Card 
-            title={
-              <span className="flex items-center gap-2">
-                <EyeOutlined className="text-sky-500" />
-                Display Settings
-              </span>
-            }
-            className="mb-6 rounded-xl shadow-sm"
-          >
-            <div className="space-y-6">
+            <Card
+              title={<span className="flex items-center gap-2"><EyeOutlined className="text-sky-500" />Display Settings</span>}
+              className="rounded-xl shadow-sm"
+            >
               <div>
                 <Text strong className="block mb-2">Timezone</Text>
-                <Paragraph className="!mb-3 text-sm text-slate-500">
-                  Your timezone for scheduling and notifications
-                </Paragraph>
-                <Select
-                  value={settings.timezone}
-                  onChange={(value) => updateSetting('timezone', value)}
-                  style={{ width: '100%' }}
-                  showSearch
-                  placeholder="Select timezone"
-                >
+                <Paragraph className="!mb-3 text-sm text-slate-500">Your timezone for scheduling and notifications</Paragraph>
+                <Select value={settings.timezone} onChange={(value) => updateSetting('timezone', value)} style={{ width: '100%' }} showSearch placeholder="Select timezone">
                   <Option value="Europe/Istanbul">Europe/Istanbul (GMT+3)</Option>
                   <Option value="Europe/London">Europe/London (GMT)</Option>
                   <Option value="Europe/Paris">Europe/Paris (GMT+1)</Option>
@@ -766,131 +660,196 @@ const UserSettings = () => {
                   <Option value="UTC">UTC</Option>
                 </Select>
               </div>
-            </div>
-          </Card>
+            </Card>
 
-          {/* Currency Preference - For non-staff users */}
-          {!isStaff && (
-            <Card 
-              title={
-                <span className="flex items-center gap-2">
-                  <DollarOutlined className="text-sky-500" />
-                  Currency Preference
-                </span>
-              }
-              className="mb-6 rounded-xl shadow-sm"
+            {!isStaff && (
+              <Card
+                title={<span className="flex items-center gap-2"><DollarOutlined className="text-sky-500" />Currency Preference</span>}
+                className="rounded-xl shadow-sm"
+              >
+                <div className="space-y-4">
+                  <div>
+                    <Text strong className="block mb-2">Display Currency</Text>
+                    <Paragraph className="!mb-3 text-sm text-slate-500">Choose your preferred currency for viewing prices and balances</Paragraph>
+                    <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} placeholder="Select your preferred currency" style={{ width: '100%' }} />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="primary" icon={<SaveOutlined />} onClick={handleCurrencySave} loading={savingCurrency} disabled={selectedCurrency === (user?.preferred_currency || user?.preferredCurrency || userCurrency)} className="rounded-lg">
+                      Save Currency
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <Card
+              title={<span className="flex items-center gap-2"><GlobalOutlined className="text-sky-500" />Language & Region</span>}
+              className="rounded-xl shadow-sm"
             >
-              <div className="space-y-4">
-                <div>
-                  <Text strong className="block mb-2">Display Currency</Text>
-                  <Paragraph className="!mb-3 text-sm text-slate-500">
-                    Choose your preferred currency for viewing prices and balances
-                  </Paragraph>
-                  <CurrencySelector
-                    value={selectedCurrency}
-                    onChange={setSelectedCurrency}
-                    placeholder="Select your preferred currency"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleCurrencySave}
-                    loading={savingCurrency}
-                    disabled={selectedCurrency === (user?.preferred_currency || user?.preferredCurrency || userCurrency)}
-                    className="rounded-lg"
-                  >
-                    Save Currency
-                  </Button>
-                </div>
+              <div>
+                <Text strong className="block mb-2">Language</Text>
+                <Paragraph className="!mb-3 text-sm text-slate-500">Choose your preferred language for the interface</Paragraph>
+                <Select value={settings.language} onChange={(value) => updateSetting('language', value)} style={{ width: '100%' }}>
+                  <Option value="en">English</Option>
+                  <Option value="tr">Türkçe</Option>
+                  <Option value="de">Deutsch</Option>
+                  <Option value="fr">Français</Option>
+                  <Option value="es">Español</Option>
+                </Select>
               </div>
             </Card>
-          )}
 
-          {/* Language Settings */}
-          <Card 
-            title={
-              <span className="flex items-center gap-2">
-                <GlobalOutlined className="text-sky-500" />
-                Language & Region
-              </span>
-            }
-            className="mb-6 rounded-xl shadow-sm"
-          >
-            <div>
-              <Text strong className="block mb-2">Language</Text>
-              <Paragraph className="!mb-3 text-sm text-slate-500">
-                Choose your preferred language for the interface
-              </Paragraph>
-              <Select
-                value={settings.language}
-                onChange={(value) => updateSetting('language', value)}
-                style={{ width: '100%' }}
-              >
-                <Option value="en">English</Option>
-                <Option value="tr">Türkçe</Option>
-                <Option value="de">Deutsch</Option>
-                <Option value="fr">Français</Option>
-                <Option value="es">Español</Option>
-              </Select>
+            <div className="flex justify-end">
+              <Button type="primary" size="large" icon={<SaveOutlined />} onClick={handleSave} loading={saving} className="rounded-lg">
+                Save Personal Settings
+              </Button>
             </div>
-          </Card>
-
-          {/* Save Button for User Settings */}
-          <div className="flex justify-end mb-8">
-            <Button
-              type="primary"
-              size="large"
-              icon={<SaveOutlined />}
-              onClick={handleSave}
-              loading={saving}
-              className="rounded-lg"
-            >
-              Save Personal Settings
-            </Button>
           </div>
+        );
+
+      case 'calendar':
+        return isAdmin ? <CalendarSettingsSection /> : null;
+
+      case 'forecast':
+        return isAdmin ? <ForecastSettings onSave={() => message.success('Forecast settings saved!')} /> : null;
+
+      case 'popups':
+        return isAdmin ? <PopupSettings /> : null;
+
+      case 'finance':
+        return isAdmin ? <FinanceSettingsView /> : null;
+
+      case 'currency':
+        return isAdmin ? (
+          <div className="space-y-8">
+            <BusinessCurrencySection onSave={handlePreferredCurrencySave} />
+            <Divider />
+            <div>
+              <Title level={5} className="!mb-2">Exchange Rates</Title>
+              <Paragraph className="text-slate-600 mb-4">
+                Manage exchange rates relative to EUR (base currency). Enable auto-update to fetch rates automatically.
+              </Paragraph>
+              <CurrencyManagementSection />
+            </div>
+          </div>
+        ) : null;
+
+      case 'booking-defaults':
+        return isAdmin ? <BookingDefaultsSection businessSettings={businessSettings} /> : null;
+
+      case 'services':
+        return isAdmin ? <Categories /> : null;
+
+      case 'roles':
+        return isAdmin ? <RolesAdmin /> : null;
+
+      case 'waivers':
+        return isAdmin ? <WaiverManagement /> : null;
+
+      case 'legal':
+        return isAdmin ? <LegalDocumentsPage /> : null;
+
+      case 'deleted-bookings':
+        return isAdmin ? <DeletedBookingsPage /> : null;
+
+      case 'refunds':
+        return isAdmin ? <PaymentRefunds /> : null;
+
+      case 'bank-accounts':
+        return isAdmin ? <BankAccountsAdmin /> : null;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Mobile tab selector */}
+      <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center gap-2 mb-3">
+          <SettingOutlined className="text-sky-500 text-lg" />
+          <Title level={4} className="!mb-0">Settings</Title>
         </div>
-
-        {/* Admin Configuration Section */}
-        {isAdmin && (
-          <div className="mb-8">
-            <Title level={4} className="!mb-4 flex items-center gap-2">
-              <ToolOutlined className="text-slate-400" />
-              Business Configuration
-            </Title>
-            <Paragraph className="text-slate-600 mb-6">
-              Configure system-wide settings for your business.
-            </Paragraph>
-            
-            <Collapse
-              items={adminCollapseItems}
-              bordered={false}
-              expandIcon={({ isActive }) => (
-                <DownOutlined rotate={isActive ? 180 : 0} className="text-slate-400" />
-              )}
-              className="bg-white rounded-xl shadow-sm"
-              expandIconPosition="end"
-            />
-          </div>
-        )}
-
-        {/* Account Info */}
-        <Alert
-          type="info"
-          showIcon
-          message="Account Information"
-          description={
-            <span>
-              Logged in as <strong>{user?.email}</strong>
-              {isAdmin && <span className="ml-2 text-sky-600">(Administrator)</span>}. 
-              To update your profile information, visit the{' '}
-              <a href="/profile" className="text-sky-600 hover:text-sky-700">My Profile</a> page.
-            </span>
-          }
-          className="rounded-xl"
+        <Select
+          value={activeTab}
+          onChange={setActiveTab}
+          style={{ width: '100%' }}
+          options={tabConfig.map(t => ({ value: t.key, label: t.label }))}
         />
+      </div>
+
+      <div className="flex min-h-screen">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:flex flex-col w-60 border-r border-gray-200 bg-white flex-shrink-0 sticky top-0 h-screen">
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <SettingOutlined className="text-sky-500 text-xl" />
+              <Title level={4} className="!mb-0">Settings</Title>
+            </div>
+          </div>
+          <nav className="flex-1 overflow-y-auto py-2">
+            {groupedTabs.map(group => (
+              <div key={group.label} className="mb-1">
+                <div className="px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  {group.label}
+                </div>
+                {group.items.map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                      activeTab === tab.key
+                        ? 'bg-sky-50 text-sky-700 border-r-2 border-sky-500 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span className={activeTab === tab.key ? 'text-sky-500' : 'text-gray-400'}>
+                      {tab.icon}
+                    </span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>
+          <div className="p-4 border-t border-gray-100 text-xs text-gray-500">
+            Logged in as <strong className="text-gray-700">{user?.email}</strong>
+            {isAdmin && <span className="ml-1 text-sky-600">(Admin)</span>}
+          </div>
+        </aside>
+
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8">
+            {/* Content header */}
+            <div className="mb-6">
+              <Title level={3} className="!mb-1">{activeTabLabel}</Title>
+              <Paragraph className="text-slate-500 !mb-0">
+                {activeTab === 'general' && (isAdmin
+                  ? 'Manage your personal preferences and notification settings'
+                  : 'Manage your account preferences and notification settings')}
+                {activeTab === 'calendar' && 'Configure instructor colors for calendar views'}
+                {activeTab === 'forecast' && 'Configure wind forecast settings including units, data sources, and display options'}
+                {activeTab === 'popups' && 'Configure first-login popups and user onboarding experiences'}
+                {activeTab === 'finance' && 'Configure calculation rates and payment fees'}
+                {activeTab === 'currency' && 'Manage business currency, registration currencies, and exchange rates'}
+                {activeTab === 'booking-defaults' && 'Configure default booking duration and available options'}
+                {activeTab === 'services' && 'Manage service categories and types'}
+                {activeTab === 'roles' && 'Manage user roles and permissions'}
+                {activeTab === 'waivers' && 'Manage waiver templates and submissions'}
+                {activeTab === 'legal' && 'Manage terms of service, privacy policy, and legal documents'}
+                {activeTab === 'deleted-bookings' && 'View and manage deleted bookings'}
+                {activeTab === 'refunds' && 'Process and track payment refunds'}
+                {activeTab === 'bank-accounts' && 'Manage bank accounts for payments'}
+              </Paragraph>
+            </div>
+
+            <Suspense fallback={<div className="flex justify-center py-12"><Spin size="large" /></div>}>
+              {renderTabContent()}
+            </Suspense>
+          </div>
+        </main>
       </div>
     </div>
   );

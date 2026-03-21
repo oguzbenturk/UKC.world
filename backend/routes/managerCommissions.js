@@ -118,6 +118,7 @@ router.get('/history', authenticateJWT, authorizeRoles(['manager']), async (req,
       limit = 20 
     } = req.query;
 
+    const parsedLimit = parseInt(limit);
     const result = await getManagerCommissions(managerId, {
       sourceType,
       status,
@@ -125,7 +126,7 @@ router.get('/history', authenticateJWT, authorizeRoles(['manager']), async (req,
       endDate,
       periodMonth: period,
       page: parseInt(page) || 1,
-      limit: Math.min(parseInt(limit) || 20, 100)
+      limit: isNaN(parsedLimit) ? 20 : parsedLimit
     });
 
     res.json({
@@ -360,6 +361,7 @@ router.get('/admin/managers/:managerId/commissions', authenticateJWT, authorizeR
       limit = 20 
     } = req.query;
 
+    const parsedLimit = parseInt(limit);
     const result = await getManagerCommissions(managerId, {
       sourceType,
       status,
@@ -367,7 +369,7 @@ router.get('/admin/managers/:managerId/commissions', authenticateJWT, authorizeR
       endDate,
       periodMonth: period,
       page: parseInt(page) || 1,
-      limit: Math.min(parseInt(limit) || 20, 100)
+      limit: isNaN(parsedLimit) ? 20 : parsedLimit
     });
 
     res.json({

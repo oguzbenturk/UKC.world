@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
+import { Card, DatePicker, Space, Button, Tag, Grid, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { ReloadOutlined } from '@ant-design/icons';
 import TransactionHistory from '../components/TransactionHistory';
+import PaymentHistoryCharts from '../components/PaymentHistoryCharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -14,46 +15,30 @@ const accentStyles = {
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
   rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
-  slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
+  slate: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' }
 };
 
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
+const QUICK_RANGES = [
+  { key: 'today', label: 'Today', start: () => dayjs(), end: () => dayjs() },
+  { key: 'thisWeek', label: 'This Week', start: () => dayjs().startOf('week'), end: () => dayjs().endOf('week') },
+  { key: 'thisMonth', label: 'This Month', start: () => dayjs().startOf('month'), end: () => dayjs().endOf('month') },
+  { key: 'thisYear', label: 'This Year', start: () => dayjs().startOf('year'), end: () => dayjs().endOf('year') },
+  { key: 'allHistory', label: 'All History', start: () => dayjs('2020-01-01'), end: () => dayjs().endOf('year') }
+];
 
 const PaymentHistory = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   });
-  const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
+  const [activeQuickRange, setActiveQuickRange] = useState('thisYear');
   const [transactions, setTransactions] = useState([]);
+  const [serverStats, setServerStats] = useState(null);
+  const [breakdown, setBreakdown] = useState([]);
+  const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const loadTransactions = useCallback(async () => {
@@ -66,9 +51,16 @@ const PaymentHistory = () => {
           limit: 1000
         }
       });
-      setTransactions(response.data || []);
+      const data = response.data || {};
+      setTransactions(data.transactions || []);
+      setServerStats(data.stats || null);
+      setBreakdown(data.breakdown || []);
+      setTrend(data.trend || []);
     } catch {
       setTransactions([]);
+      setServerStats(null);
+      setBreakdown([]);
+      setTrend([]);
     } finally {
       setLoading(false);
     }
@@ -94,10 +86,12 @@ const PaymentHistory = () => {
   };
 
   const handleQuickRange = (rangeKey) => {
-    const ranges = getQuickRanges();
-    const range = ranges[rangeKey];
+    const range = QUICK_RANGES.find(r => r.key === rangeKey);
     if (range) {
-      setDateRange({ startDate: range.startDate, endDate: range.endDate });
+      setDateRange({
+        startDate: range.start().format('YYYY-MM-DD'),
+        endDate: range.end().format('YYYY-MM-DD')
+      });
       setActiveQuickRange(rangeKey);
     }
   };
@@ -109,14 +103,16 @@ const PaymentHistory = () => {
   }, [dateRange]);
 
   const stats = useMemo(() => {
-    const total = transactions.length;
-    const income = transactions.filter(t => (t.amount || 0) > 0);
-    const expenses = transactions.filter(t => (t.amount || 0) < 0);
-    const totalIncome = income.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    const totalExpenses = expenses.reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
-    const net = totalIncome - totalExpenses;
-    return { total, totalIncome, totalExpenses, net };
-  }, [transactions]);
+    if (serverStats) {
+      return {
+        total: serverStats.total,
+        totalIncome: serverStats.totalIncome,
+        totalExpenses: serverStats.totalCharges,
+        net: serverStats.net
+      };
+    }
+    return { total: 0, totalIncome: 0, totalExpenses: 0, net: 0 };
+  }, [serverStats]);
 
   const headlineStats = useMemo(() => [
     { key: 'income', label: 'Total Income', value: formatCurrency(stats.totalIncome), accent: 'emerald' },
@@ -127,6 +123,7 @@ const PaymentHistory = () => {
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
+      {/* Header & Stats */}
       <Card className="rounded-3xl border border-slate-200/70 bg-gradient-to-br from-cyan-50 via-white to-white shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
@@ -138,7 +135,7 @@ const PaymentHistory = () => {
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
-              {Object.entries(getQuickRanges()).map(([key, range]) => (
+              {QUICK_RANGES.map(({ key, label }) => (
                 <Button
                   key={key}
                   size="small"
@@ -146,7 +143,7 @@ const PaymentHistory = () => {
                   onClick={() => handleQuickRange(key)}
                   className={`rounded-lg ${activeQuickRange === key ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
                 >
-                  {range.label}
+                  {label}
                 </Button>
               ))}
             </div>
@@ -160,7 +157,7 @@ const PaymentHistory = () => {
                     className="rounded border border-slate-200 px-2 py-1 text-xs shadow-sm focus:border-cyan-500 focus:outline-none"
                     max={dateRange.endDate}
                   />
-                  <span className="text-xs text-slate-500">to</span>
+                  <span className="text-xs text-slate-500">→</span>
                   <input
                     type="date"
                     value={dateRange.endDate}
@@ -181,26 +178,37 @@ const PaymentHistory = () => {
             </Space>
           </div>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {headlineStats.map((stat) => {
-            const accent = accentStyles[stat.accent] || accentStyles.slate;
-            return (
-              <div
-                key={stat.key}
-                className="rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm backdrop-blur"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {stat.label}
-                </p>
-                <p className={`mt-2 text-2xl font-semibold ${accent.text}`}>
-                  {stat.value}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+
+        <Spin spinning={loading}>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {headlineStats.map((stat) => {
+              const accent = accentStyles[stat.accent] || accentStyles.slate;
+              return (
+                <div
+                  key={stat.key}
+                  className="rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm backdrop-blur"
+                >
+                  <p className="m-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {stat.label}
+                  </p>
+                  <p className={`m-0 mt-2 text-2xl font-semibold ${accent.text}`}>
+                    {stat.value}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Spin>
       </Card>
 
+      {/* Charts */}
+      <PaymentHistoryCharts
+        breakdown={breakdown}
+        trend={trend}
+        transactions={transactions}
+      />
+
+      {/* Transactions Table */}
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">All Transactions</h3>

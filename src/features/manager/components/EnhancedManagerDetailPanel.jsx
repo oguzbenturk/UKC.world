@@ -42,8 +42,8 @@ const SECTION_DESCRIPTIONS = {
   info: 'Manager profile and quick stats',
   skills: 'Teaching skills and qualifications',
   commissions: 'Configure salary type and commission rates',
-  earnings: 'Earnings overview by category and season',
-  history: 'Commission transaction history',
+  earnings: 'Manager & instructor earnings overview',
+  history: 'Bookings, rentals & commission details',
   payroll: 'Payments and transaction history',
 };
 
@@ -84,7 +84,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   const [commissions, setCommissions] = useState([]);
   const [saving, setSaving] = useState(false);
   const [instructorCommission, setInstructorCommission] = useState(null);
-  const [instructorEarnings, setInstructorEarnings] = useState({ total: 0, paid: 0 });
+  const [instructorEarnings, setInstructorEarnings] = useState({ total: 0, paid: 0, lessons: [] });
 
   // History filters
   const [historySourceType, setHistorySourceType] = useState(null);
@@ -98,7 +98,6 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
   // Instructor/Manager sub-tab toggles
   const [commissionTab, setCommissionTab] = useState('manager');
-  const [earningsTab, setEarningsTab] = useState('manager');
   const [earningsOpen, setEarningsOpen] = useState({});
   const [categoryToggles, setCategoryToggles] = useState({
     bookingRate: false, rentalRate: false, accommodationRate: false,
@@ -113,7 +112,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     if (!manager?.id) return;
     setLoading(true);
     try {
-      const commOpts = { limit: 500 };
+      const commOpts = { limit: 0 };
       const summaryOpts = {};
       if (earningsDateRange.startDate) {
         commOpts.startDate = earningsDateRange.startDate;
@@ -136,9 +135,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       if (instrCommRes.status === 'fulfilled' && instrCommRes.value?.data) setInstructorCommission(instrCommRes.value.data);
       if (instrEarnRes.status === 'fulfilled' && instrEarnRes.value?.data) {
         const ed = instrEarnRes.value.data;
-        const total = (ed.earnings || []).reduce((s, e) => s + parseFloat(e.total_earnings || 0), 0);
+        const lessons = ed.earnings || [];
+        const total = lessons.reduce((s, e) => s + parseFloat(e.total_earnings || 0), 0);
         const paid = (ed.payrollHistory || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-        setInstructorEarnings({ total, paid });
+        setInstructorEarnings({ total, paid, lessons });
       }
     } catch { /* best effort */ } finally {
       setLoading(false);
@@ -152,7 +152,9 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Fetch once on open
+  // Fetch once on open — fetchData intentionally excluded from deps to prevent
+  // infinite re-render loop (setEarningsDateRange creates new object → fetchData
+  // recreated → effect re-runs → loop). The hasFetchedRef guards against stale calls.
   useEffect(() => {
     if (isOpen && manager?.id && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
@@ -165,7 +167,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       setEarningsDateRange({ startDate: null, endDate: null });
       setEarningsQuickRange(null);
     }
-  }, [isOpen, manager?.id, fetchData]);
+  }, [isOpen, manager?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch when date range changes (skip initial)
   const dateRangeInitRef = useRef(true);
@@ -639,8 +641,9 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   ];
 
   // Category table renderer
-  const renderCategoryTable = (title, icon, color, borderColor, records, columns, { collapsible = false, isOpen = true, onToggle } = {}) => {
-    const totalAmt = records.reduce((s, c) => s + parseFloat(c.commission_amount || c.commissionAmount || 0), 0);
+  const renderCategoryTable = (title, icon, color, borderColor, records, columns, { collapsible = false, isOpen = true, onToggle, rowKeyField = 'id', durationFn } = {}) => {
+    const totalAmt = records.reduce((s, c) => s + parseFloat(c.commission_amount || c.commissionAmount || c.total_earnings || 0), 0);
+    const totalHours = durationFn ? records.reduce((s, c) => s + (parseFloat(durationFn(c)) || 0), 0) : null;
     return (
       <div className={`rounded-xl border ${borderColor} bg-white overflow-hidden`}>
         <div
@@ -654,6 +657,9 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <span className={`${color} flex-shrink-0`}>{icon}</span>
             <h4 className="text-xs sm:text-sm font-semibold text-gray-800 truncate">{title}</h4>
             <Tag bordered={false} className="rounded-full ml-0.5 text-[11px]">{records.length}</Tag>
+            {totalHours > 0 && (
+              <Tag bordered={false} color="default" className="rounded-full ml-0 text-[11px] text-gray-500">{totalHours}h</Tag>
+            )}
           </div>
           <span className={`text-xs sm:text-sm font-bold ${color} flex-shrink-0`}>{formatCurrency(totalAmt, 'EUR')}</span>
         </div>
@@ -664,7 +670,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             </div>
           ) : (
             <div className="border-t border-gray-100">
-              <Table columns={columns} dataSource={records} rowKey="id" size="small"
+              <Table columns={columns} dataSource={records} rowKey={rowKeyField} size="small"
                 scroll={{ x: 'max-content' }} pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }} />
             </div>
           )
@@ -674,53 +680,13 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   };
 
   const renderEarnings = () => {
-    if (earningsTab === 'instructor') {
-      return (
-        <div className="space-y-4">
-          <Segmented
-            value={earningsTab}
-            onChange={setEarningsTab}
-            options={[
-              { label: 'Manager Earnings', value: 'manager' },
-              { label: 'Instructor Earnings', value: 'instructor' },
-            ]}
-            block
-          />
-          <PayrollDashboard instructor={{ id: manager.id }} defaultPeriod="all_time" />
-        </div>
-      );
-    }
-
-    const activeCommissions = commissions.filter(c => c.status !== 'cancelled');
-    const bookingRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'booking');
-    const rentalRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'rental');
-    const accomRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'accommodation');
-    const shopRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'shop');
-    const membershipRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'membership');
-    const packageRecords = activeCommissions.filter(c => (c.source_type || c.sourceType) === 'package');
-
-    // All 6 categories with their settings key, records, and columns
-    const allCategories = [
-      { key: 'booking', settingsKey: 'bookingRate', title: 'Bookings', icon: <CalendarOutlined />, color: 'text-blue-600', borderColor: 'border-blue-100', records: bookingRecords, columns: bookingColumns },
-      { key: 'rental', settingsKey: 'rentalRate', title: 'Rentals', icon: <ClockCircleOutlined />, color: 'text-amber-600', borderColor: 'border-amber-100', records: rentalRecords, columns: rentalColumns },
-      { key: 'accommodation', settingsKey: 'accommodationRate', title: 'Accommodation', icon: <DollarOutlined />, color: 'text-purple-600', borderColor: 'border-purple-100', records: accomRecords, columns: accomColumns },
-      { key: 'shop', settingsKey: 'shopRate', title: 'Shop / Sales', icon: <DollarOutlined />, color: 'text-orange-600', borderColor: 'border-orange-100', records: shopRecords, columns: shopColumns },
-      { key: 'membership', settingsKey: 'membershipRate', title: 'Membership', icon: <DollarOutlined />, color: 'text-cyan-600', borderColor: 'border-cyan-100', records: membershipRecords, columns: membershipColumns },
-      { key: 'package', settingsKey: 'packageRate', title: 'Packages', icon: <DollarOutlined />, color: 'text-pink-600', borderColor: 'border-pink-100', records: packageRecords, columns: packageColumns },
-    ];
-
-    // Only show categories with rate > 0 in settings OR that have actual records
-    const visibleCategories = allCategories.filter(cat =>
-      parseFloat(settings?.[cat.settingsKey] || 0) > 0 || cat.records.length > 0
-    );
-
-    // Use summary endpoint (aggregates ALL records from DB, no year filter)
+    // Use summary endpoint (aggregates ALL records from DB)
     const totalEarned = parseFloat(summary?.totalEarned ?? summary?.total_earned ?? 0);
     const paidAmt = parseFloat(summary?.paid?.amount ?? 0);
     const pendingAmt = parseFloat(summary?.pending?.amount ?? 0);
     const paidPercent = totalEarned > 0 ? Math.round((paidAmt / totalEarned) * 100) : 0;
 
-    // Build category breakdown from summary (DB aggregated, not client-limited)
+    // Build category breakdown from summary
     const bd = summary?.breakdown || {};
     const categoryData = CATEGORY_DEFS
       .map(d => {
@@ -731,15 +697,8 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
     return (
       <div className="space-y-5">
-        <Segmented
-          value={earningsTab}
-          onChange={setEarningsTab}
-          options={[
-            { label: 'Manager Earnings', value: 'manager' },
-            { label: 'Instructor Earnings', value: 'instructor' },
-          ]}
-          block
-        />
+        {/* ── Manager Earnings ── */}
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Manager Earnings</div>
 
         {/* Date range filter */}
         <div className="flex flex-wrap items-center gap-2">
@@ -791,7 +750,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
           />
         </div>
 
-        {/* ── Total + Paid / Pending ── */}
+        {/* Total + Paid / Pending */}
         <div className="rounded-xl border border-gray-100 bg-gradient-to-br from-slate-50 to-indigo-50/30 p-3 sm:p-5">
           <div className="text-xs text-gray-400 mb-1">Total Earned{earningsQuickRange === 'thisYear' ? ' (This Year)' : earningsDateRange.startDate ? ` (${earningsDateRange.startDate} – ${earningsDateRange.endDate})` : ' (All Time)'}</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{formatCurrency(totalEarned, 'EUR')}</div>
@@ -810,7 +769,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
           </div>
         </div>
 
-        {/* ── Category Breakdown ── */}
+        {/* Category Breakdown */}
         {categoryData.length > 0 && (
           <div className="rounded-xl border border-gray-100 bg-white p-3 sm:p-5 space-y-2">
             <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 sm:mb-2">By Category</div>
@@ -824,20 +783,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
           </div>
         )}
 
-        {/* ── Category Tables (collapsible, only visible if manager earns from them) ── */}
-        {visibleCategories.length === 0 ? (
-          <Empty description="No commission categories configured" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : (
-          visibleCategories.map(cat => (
-            <div key={cat.key}>
-              {renderCategoryTable(cat.title, cat.icon, cat.color, cat.borderColor, cat.records, cat.columns, {
-                collapsible: true,
-                isOpen: earningsOpen[cat.key] ?? false,
-                onToggle: () => setEarningsOpen(prev => ({ ...prev, [cat.key]: !prev[cat.key] })),
-              })}
-            </div>
-          ))
-        )}
+        {/* ── Instructor Earnings ── */}
+        <Divider className="!my-4" />
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Instructor Earnings</div>
+        <PayrollDashboard instructor={{ id: manager.id }} defaultPeriod="all_time" />
       </div>
     );
   };
@@ -857,24 +806,67 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     return true;
   });
 
+  // Instructor lesson columns for History
+  const instructorLessonColumns = [
+    { title: 'Date', key: 'date', width: 90, render: (_, r) => r.lesson_date ? new Date(r.lesson_date).toLocaleDateString() : '—' },
+    { title: 'Student', key: 'student', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.student_name || '—'}</Text> },
+    { title: 'Service', key: 'service', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.service_name || '—'}</Text> },
+    { title: 'Dur.', key: 'duration', width: 55, align: 'center', render: (_, r) => r.lesson_duration ? `${r.lesson_duration}h` : '—' },
+    { title: 'Amount', key: 'amount', width: 85, align: 'right', render: (_, r) => formatCurrency(parseFloat(r.lesson_amount || 0), 'EUR') },
+    { title: 'Earning', key: 'earning', width: 90, align: 'right', render: (_, r) => <span className="font-medium text-indigo-700">{formatCurrency(parseFloat(r.total_earnings || 0), 'EUR')}</span> },
+    { title: 'Status', key: 'status', width: 80, render: (_, r) => {
+      const s = r.payment_status || 'completed';
+      return <Tag color={s === 'paid' ? 'green' : s === 'completed' ? 'blue' : 'gold'} bordered={false} className="capitalize rounded-full m-0 text-[11px]">{s}</Tag>;
+    }},
+  ];
+
   const renderHistory = () => {
-    const bookingRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'booking');
-    const rentalRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'rental');
-    const accomRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'accommodation');
-    const shopRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'shop');
-    const membershipRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'membership');
-    const packageRecords = filteredCommissions.filter(c => (c.source_type || c.sourceType) === 'package');
+    const activeFiltered = filteredCommissions.filter(c => c.status !== 'cancelled');
+    const bookingRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'booking');
+    const rentalRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'rental');
+    const accomRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'accommodation');
+    const shopRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'shop');
+    const membershipRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'membership');
+    const packageRecords = activeFiltered.filter(c => (c.source_type || c.sourceType) === 'package');
+
+    // Filter instructor lessons by search
+    let instrLessons = instructorEarnings.lessons || [];
+    if (historySearch) {
+      const q = historySearch.toLowerCase();
+      instrLessons = instrLessons.filter(l =>
+        [l.student_name, l.service_name, l.booking_id].filter(Boolean).join(' ').toLowerCase().includes(q)
+      );
+    }
+
+    // When source filter is set, only show matching sections
+    const showInstructorLessons = !historySourceType || historySourceType === 'instructor_lesson';
+    const showCommissions = !historySourceType || (historySourceType !== 'instructor_lesson');
+
+    const commGetDuration = (r) => { const d = getDetails(r); return d.duration || d.hours || 0; };
+
+    const commissionCategories = showCommissions ? [
+      { key: 'booking', title: 'Manager Comm. — Lessons', icon: <CalendarOutlined />, color: 'text-blue-600', borderColor: 'border-blue-100', records: bookingRecords, columns: bookingColumns, durationFn: commGetDuration },
+      { key: 'rental', title: 'Manager Comm. — Rentals', icon: <ClockCircleOutlined />, color: 'text-amber-600', borderColor: 'border-amber-100', records: rentalRecords, columns: rentalColumns },
+      { key: 'accommodation', title: 'Manager Comm. — Accommodation', icon: <DollarOutlined />, color: 'text-purple-600', borderColor: 'border-purple-100', records: accomRecords, columns: accomColumns },
+      { key: 'shop', title: 'Manager Comm. — Shop / Sales', icon: <DollarOutlined />, color: 'text-orange-600', borderColor: 'border-orange-100', records: shopRecords, columns: shopColumns },
+      { key: 'membership', title: 'Manager Comm. — Membership', icon: <DollarOutlined />, color: 'text-cyan-600', borderColor: 'border-cyan-100', records: membershipRecords, columns: membershipColumns },
+      { key: 'package', title: 'Manager Comm. — Packages', icon: <DollarOutlined />, color: 'text-pink-600', borderColor: 'border-pink-100', records: packageRecords, columns: packageColumns },
+    ].filter(cat => cat.records.length > 0) : [];
+
+    const hasAny = commissionCategories.length > 0 || (showInstructorLessons && instrLessons.length > 0);
 
     return (
       <div className="space-y-4">
+        {/* Filters */}
         <div className="flex gap-3 flex-wrap">
-          <Select allowClear placeholder="Source type" value={historySourceType} onChange={v => { setHistorySourceType(v); setHistoryPage(1); }} style={{ width: 160 }}>
-            <Option value="booking">Booking</Option>
-            <Option value="rental">Rental</Option>
-            <Option value="accommodation">Accommodation</Option>
-            <Option value="package">Package</Option>
-            <Option value="shop">Shop</Option>
-            <Option value="membership">Membership</Option>
+          <Select allowClear placeholder="Source type" value={historySourceType} onChange={v => { setHistorySourceType(v); setHistoryPage(1); }} style={{ width: 180 }}>
+            <Option value="instructor_lesson">Instructor Lessons</Option>
+            <Option value="booking">Mgr Comm. — Booking</Option>
+            <Option value="rental">Mgr Comm. — Rental</Option>
+            <Option value="accommodation">Mgr Comm. — Accommodation</Option>
+            <Option value="package">Mgr Comm. — Package</Option>
+            <Option value="shop">Mgr Comm. — Shop</Option>
+            <Option value="membership">Mgr Comm. — Membership</Option>
           </Select>
           <Input.Search
             placeholder="Search..."
@@ -883,23 +875,41 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             onChange={e => { setHistorySearch(e.target.value); setHistoryPage(1); }}
             style={{ width: 180 }}
           />
-          <Select allowClear placeholder="Status" value={historyStatus} onChange={v => { setHistoryStatus(v); setHistoryPage(1); }} style={{ width: 130 }}>
-            <Option value="pending">Pending</Option>
-            <Option value="paid">Paid</Option>
-            <Option value="cancelled">Cancelled</Option>
-          </Select>
+          {historySourceType !== 'instructor_lesson' && (
+            <Select allowClear placeholder="Status" value={historyStatus} onChange={v => { setHistoryStatus(v); setHistoryPage(1); }} style={{ width: 130 }}>
+              <Option value="pending">Pending</Option>
+              <Option value="paid">Paid</Option>
+              <Option value="cancelled">Cancelled</Option>
+            </Select>
+          )}
         </div>
 
-        {filteredCommissions.length === 0 ? (
-          <Empty description="No commission records" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        {!hasAny ? (
+          <Empty description="No records found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <div className="space-y-4">
-            {bookingRecords.length > 0 && renderCategoryTable('Lessons', <CalendarOutlined />, 'text-blue-600', 'border-blue-100', bookingRecords, bookingColumns)}
-            {rentalRecords.length > 0 && renderCategoryTable('Rentals', <ClockCircleOutlined />, 'text-amber-600', 'border-amber-100', rentalRecords, rentalColumns)}
-            {accomRecords.length > 0 && renderCategoryTable('Accommodation', <DollarOutlined />, 'text-purple-600', 'border-purple-100', accomRecords, accomColumns)}
-            {shopRecords.length > 0 && renderCategoryTable('Shop / Sales', <DollarOutlined />, 'text-orange-600', 'border-orange-100', shopRecords, shopColumns)}
-            {membershipRecords.length > 0 && renderCategoryTable('Membership', <DollarOutlined />, 'text-cyan-600', 'border-cyan-100', membershipRecords, membershipColumns)}
-            {packageRecords.length > 0 && renderCategoryTable('Packages', <DollarOutlined />, 'text-pink-600', 'border-pink-100', packageRecords, packageColumns)}
+            {/* Instructor Lessons (taught by this manager) */}
+            {showInstructorLessons && instrLessons.length > 0 && (
+              renderCategoryTable('Instructor Lessons', <ThunderboltOutlined />, 'text-indigo-600', 'border-indigo-100', instrLessons, instructorLessonColumns, {
+                collapsible: true,
+                isOpen: earningsOpen.instructor_lesson ?? true,
+                onToggle: () => setEarningsOpen(prev => ({ ...prev, instructor_lesson: !(prev.instructor_lesson ?? true) })),
+                rowKeyField: 'booking_id',
+                durationFn: r => r.lesson_duration || 0,
+              })
+            )}
+
+            {/* Manager commission categories */}
+            {commissionCategories.map(cat => (
+              <div key={cat.key}>
+                {renderCategoryTable(cat.title, cat.icon, cat.color, cat.borderColor, cat.records, cat.columns, {
+                  collapsible: true,
+                  isOpen: earningsOpen[cat.key] ?? true,
+                  onToggle: () => setEarningsOpen(prev => ({ ...prev, [cat.key]: !(prev[cat.key] ?? true) })),
+                  durationFn: cat.durationFn,
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>

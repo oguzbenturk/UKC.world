@@ -881,6 +881,7 @@ const MarketingPage = () => {
         onCancel={() => setIsModalOpen(false)}
         footer={null}
         width={modalType === 'popup' ? '98vw' : '95vw'}
+        forceRender
         style={{ 
           maxWidth: modalType === 'popup' ? '1800px' : '1600px', 
           top: 20,
@@ -947,7 +948,7 @@ const MarketingPage = () => {
               <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <Text strong className="text-base">Live Preview</Text>
                 <Space wrap>
-                  <Button.Group size="small">
+                  <Space.Compact size="small">
                     <Button 
                       type={previewSize === 'desktop' ? 'primary' : 'default'}
                       onClick={() => setPreviewSize('desktop')}
@@ -966,7 +967,7 @@ const MarketingPage = () => {
                     >
                       📱 Mobile
                     </Button>
-                  </Button.Group>
+                  </Space.Compact>
                   <Tag color="blue" icon={<EyeOutlined />}>Real-time</Tag>
                 </Space>
               </div>

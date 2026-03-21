@@ -907,7 +907,7 @@ export async function getManagerCommissions(managerUserId, options = {}) {
       }
     }
 
-    const offset = (page - 1) * limit;
+    const offset = limit ? (page - 1) * limit : 0;
 
     // Get total count
     const countResult = await pool.query(
@@ -916,7 +916,7 @@ export async function getManagerCommissions(managerUserId, options = {}) {
     );
     const total = parseInt(countResult.rows[0].total) || 0;
 
-    // Get paginated results
+    // Get results (limit=0 means fetch all)
     const result = await pool.query(
       `SELECT 
         mc.*,
@@ -1005,8 +1005,8 @@ export async function getManagerCommissions(managerUserId, options = {}) {
        FROM manager_commissions mc
        ${whereClause}
        ORDER BY mc.source_date DESC, mc.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
+       ${limit ? `LIMIT $${paramIndex} OFFSET $${paramIndex + 1}` : ''}`,
+      limit ? [...params, limit, offset] : params
     );
 
     return {
@@ -1015,7 +1015,7 @@ export async function getManagerCommissions(managerUserId, options = {}) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: limit ? Math.ceil(total / limit) : 1
       }
     };
   } catch (error) {

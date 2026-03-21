@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, DatePicker, Space, Button, Tag, Grid, Table, Empty } from 'antd';
+import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
-import { ReloadOutlined, HomeOutlined, CalendarOutlined } from '@ant-design/icons';
+import { HomeOutlined } from '@ant-design/icons';
+import AccommodationBreakdownCharts from '../components/AccommodationBreakdownCharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -44,68 +45,46 @@ const getQuickRanges = () => ({
   }
 });
 
-/**
- * FinanceAccommodation - Finance view for accommodation/stay revenue
- */
 const FinanceAccommodation = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   });
-  const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
-  const [_summaryData, setSummaryData] = useState(null);
+  const [activeQuickRange, setActiveQuickRange] = useState('thisYear');
+  const [summaryData, setSummaryData] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const loadFinancialData = async () => {
-    try {
-      const response = await apiClient.get('/finances/summary', {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-          serviceType: 'accommodation',
-          mode: 'accrual'
-        }
-      });
-      setSummaryData(response.data);
-    } catch {
-      // Silently handle error
-    }
-  };
+  useEffect(() => {
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
-  const loadBookingsData = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/accommodation/bookings', {
-        params: {
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate
-        }
-      });
-      setBookings(response.data || []);
+      const [summaryRes, bookingsRes] = await Promise.all([
+        apiClient.get('/finances/summary', {
+          params: { startDate: dateRange.startDate, endDate: dateRange.endDate, serviceType: 'accommodation', mode: 'accrual' }
+        }),
+        apiClient.get('/accommodation/bookings', {
+          params: { startDate: dateRange.startDate, endDate: dateRange.endDate }
+        })
+      ]);
+      setSummaryData(summaryRes.data);
+      setBookings(bookingsRes.data || []);
     } catch {
-      // Silently handle error
-      setBookings([]);
+      // silently handle
     } finally {
       setLoading(false);
     }
   };
 
-  // Load data when dateRange changes
-  useEffect(() => {
-    loadFinancialData();
-    loadBookingsData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
-
   const handleDateRangeChange = (dates) => {
-    if (dates && dates[0] && dates[1]) {
-      setDateRange({
-        startDate: dates[0].format('YYYY-MM-DD'),
-        endDate: dates[1].format('YYYY-MM-DD')
-      });
+    if (dates?.[0] && dates?.[1]) {
+      setDateRange({ startDate: dates[0].format('YYYY-MM-DD'), endDate: dates[1].format('YYYY-MM-DD') });
       setActiveQuickRange(null);
     }
   };
@@ -119,10 +98,7 @@ const FinanceAccommodation = () => {
     const ranges = getQuickRanges();
     const range = ranges[rangeKey];
     if (range) {
-      setDateRange({
-        startDate: range.startDate,
-        endDate: range.endDate
-      });
+      setDateRange({ startDate: range.startDate, endDate: range.endDate });
       setActiveQuickRange(rangeKey);
     }
   };
@@ -133,89 +109,32 @@ const FinanceAccommodation = () => {
     return `${start.format('MMM D, YYYY')} – ${end.format('MMM D, YYYY')}`;
   }, [dateRange]);
 
-  // Calculate stats from bookings
-  const stats = useMemo(() => {
+  const headlineStats = useMemo(() => {
+    if (!summaryData && bookings.length === 0) {
+      return [
+        { key: 'revenue', label: 'Accommodation Revenue', value: '--', accent: 'blue' },
+        { key: 'bookings', label: 'Total Bookings', value: '--', accent: 'indigo' },
+        { key: 'nights', label: 'Total Nights', value: '--', accent: 'emerald' },
+        { key: 'avg', label: 'Avg. Rate/Night', value: '--', accent: 'slate' }
+      ];
+    }
+
     const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_price || 0), 0);
     const totalBookings = bookings.length;
-    const confirmedBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length;
     const totalNights = bookings.reduce((sum, b) => {
-      const checkIn = dayjs(b.check_in_date);
-      const checkOut = dayjs(b.check_out_date);
-      return sum + checkOut.diff(checkIn, 'day');
+      if (!b.check_in_date || !b.check_out_date) return sum;
+      const nights = dayjs(b.check_out_date).diff(dayjs(b.check_in_date), 'day');
+      return sum + Math.max(0, nights);
     }, 0);
+    const avgNightRate = totalNights > 0 ? totalRevenue / totalNights : 0;
 
-    return {
-      totalRevenue,
-      totalBookings,
-      confirmedBookings,
-      totalNights,
-      avgNightRate: totalNights > 0 ? totalRevenue / totalNights : 0
-    };
-  }, [bookings]);
-
-  const headlineStats = useMemo(() => {
     return [
-      { key: 'total', label: 'Total Accommodation Revenue', value: formatCurrency(stats.totalRevenue), accent: 'blue' },
-      { key: 'bookings', label: 'Total Bookings', value: stats.totalBookings.toString(), accent: 'indigo' },
-      { key: 'nights', label: 'Total Nights', value: stats.totalNights.toString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg. Rate/Night', value: formatCurrency(stats.avgNightRate), accent: 'slate' }
+      { key: 'revenue', label: 'Accommodation Revenue', value: formatCurrency(totalRevenue), accent: 'blue' },
+      { key: 'bookings', label: 'Total Bookings', value: totalBookings.toLocaleString(), accent: 'indigo' },
+      { key: 'nights', label: 'Total Nights', value: totalNights.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: 'Avg. Rate/Night', value: formatCurrency(avgNightRate), accent: 'slate' }
     ];
-  }, [stats]);
-
-  const columns = [
-    {
-      title: 'Guest',
-      key: 'guest',
-      render: (_, record) => record.guest_name || record.user_name || 'Unknown'
-    },
-    {
-      title: 'Unit',
-      dataIndex: 'unit_name',
-      key: 'unit_name'
-    },
-    {
-      title: 'Check-in',
-      dataIndex: 'check_in_date',
-      key: 'check_in',
-      render: (date) => date ? dayjs(date).format('MMM D, YYYY') : '-'
-    },
-    {
-      title: 'Check-out',
-      dataIndex: 'check_out_date',
-      key: 'check_out',
-      render: (date) => date ? dayjs(date).format('MMM D, YYYY') : '-'
-    },
-    {
-      title: 'Nights',
-      key: 'nights',
-      render: (_, record) => {
-        const checkIn = dayjs(record.check_in_date);
-        const checkOut = dayjs(record.check_out_date);
-        return checkOut.diff(checkIn, 'day');
-      }
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const colors = {
-          confirmed: 'green',
-          pending: 'gold',
-          cancelled: 'red',
-          completed: 'blue'
-        };
-        return <Tag color={colors[status] || 'default'}>{status || 'Unknown'}</Tag>;
-      }
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'total_price',
-      key: 'total_price',
-      render: (amount) => formatCurrency(amount || 0),
-      align: 'right'
-    }
-  ];
+  }, [summaryData, bookings]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -230,7 +149,6 @@ const FinanceAccommodation = () => {
             <p className="text-sm text-slate-500">Accommodation & Stay Revenue · {rangeLabel}</p>
           </div>
           <div className="flex flex-col gap-3">
-            {/* Quick Range Buttons */}
             <div className="flex flex-wrap gap-2">
               {Object.entries(getQuickRanges()).map(([key, range]) => (
                 <Button
@@ -244,7 +162,6 @@ const FinanceAccommodation = () => {
                 </Button>
               ))}
             </div>
-            {/* Date Range Picker */}
             <Space wrap size="small" className="justify-start lg:justify-end">
               {isMobile ? (
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 shadow-sm">
@@ -296,37 +213,7 @@ const FinanceAccommodation = () => {
         </div>
       </Card>
 
-      <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">
-            <CalendarOutlined style={{ marginRight: 8 }} />
-            Accommodation Bookings
-          </h3>
-          <Button
-            size={isMobile ? 'small' : 'middle'}
-            icon={<ReloadOutlined />}
-            onClick={loadBookingsData}
-          >
-            Refresh
-          </Button>
-        </div>
-        <Table
-          columns={columns}
-          dataSource={bookings}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          scroll={{ x: 800 }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No accommodation bookings found for this period"
-              />
-            )
-          }}
-        />
-      </Card>
+      <AccommodationBreakdownCharts dateRange={dateRange} />
     </div>
   );
 };

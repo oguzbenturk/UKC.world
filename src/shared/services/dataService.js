@@ -628,11 +628,10 @@ class DataService {
   static async getTransactions(params = {}) {
     try {
       const response = await apiClient.get('/finances/transactions', { params });
-      if (!Array.isArray(response.data)) {
-        return [];
-      }
+      const data = response.data;
+      const rows = Array.isArray(data) ? data : (data?.transactions || []);
 
-      return response.data
+      return rows
         .map((row) => normalizeTransactionRecord(row))
         .filter((record) => record !== null)
         .map((record) => ({

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Tag, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import { useLocation } from 'react-router-dom';
 import {
   format,
@@ -19,7 +19,6 @@ import {
   parseISO,
 } from 'date-fns';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { ToolOutlined } from '@ant-design/icons';
 import CalendarViewSwitcher from '@/shared/components/CalendarViewSwitcher';
 import { useData } from '@/shared/hooks/useData';
 import { useQuery } from '@tanstack/react-query';
@@ -234,205 +233,234 @@ const RentalsCalendarView = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'blue';
-      case 'completed': return 'green';
-      case 'overdue': return 'red';
-      default: return 'default';
+      case 'active': return { dot: 'bg-blue-500', bg: 'bg-blue-50', border: 'border-blue-200/60', text: 'text-blue-700', hover: 'hover:bg-blue-100' };
+      case 'completed': return { dot: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-200/60', text: 'text-emerald-700', hover: 'hover:bg-emerald-100' };
+      case 'overdue': return { dot: 'bg-red-500', bg: 'bg-red-50', border: 'border-red-200/60', text: 'text-red-700', hover: 'hover:bg-red-100' };
+      default: return { dot: 'bg-orange-500', bg: 'bg-orange-50', border: 'border-orange-200/60', text: 'text-orange-700', hover: 'hover:bg-orange-100' };
     }
   };
 
   const dayHeaderLabel = useMemo(() => {
-    if (view === 'day') return format(selectedDate, 'MMM d, yyyy');
+    if (view === 'day') return format(selectedDate, 'EEEE, MMMM d, yyyy');
     if (view === 'month') return format(selectedDate, 'MMMM yyyy');
-    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+    return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
   }, [selectedDate, view, weekStart, weekEnd]);
 
-  const calendarDays = view === 'day' ? [selectedDate] : view === 'month' ? monthDays : weekDays;
-  const gridCols = view === 'day' ? 'grid-cols-1' : 'grid-cols-7';
+  const rentalCard = (rental, compact = false) => {
+    const customerName = getCustomerName(rental);
+    const serviceName = getServiceName(rental);
+    const durationLabel = getDurationLabel(rental);
+    const colors = getStatusColor(rental.status);
+    return (
+      <Tooltip
+        key={rental.id}
+        title={<div><div className="font-semibold">{customerName}</div><div className="text-xs opacity-80">{serviceName}{durationLabel ? ` · ${durationLabel}` : ''}</div></div>}
+      >
+        <div className={`px-2 py-1.5 ${colors.bg} border ${colors.border} rounded-lg text-xs cursor-pointer ${colors.hover} transition-all duration-150`}>
+          <div className={`${colors.text} font-semibold truncate leading-tight`}>{customerName}</div>
+          {!compact && <div className={`${colors.text} opacity-70 mt-0.5 truncate text-[11px] leading-tight`}>{durationLabel ? `${serviceName} · ${durationLabel}` : serviceName}</div>}
+        </div>
+      </Tooltip>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with View Switcher */}
-      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          {/* Left: View Switcher */}
-          <div className="flex-1 flex justify-start">
-            <CalendarViewSwitcher
-              currentView={view}
-              onViewChange={setView}
-              views={['list', 'day', 'week', 'month']}
-              listPath="/calendars/rentals"
-              calendarPath="/rentals/calendar"
-              size="large"
-            />
-          </div>
+    <div className="flex flex-col h-full bg-slate-50/40">
+      {/* ── Header ─────────────────────────────────────── */}
+      <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <CalendarViewSwitcher
+            currentView={view}
+            onViewChange={setView}
+            views={['list', 'day', 'week', 'month']}
+            listPath="/calendars/rentals"
+            calendarPath="/rentals/calendar"
+            size="large"
+          />
 
-          {/* Center: Date Navigation */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="h-9 w-9 grid place-items-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
-              onClick={handlePrevious}
-            >
-              <ChevronLeftIcon className="h-4 w-4 text-gray-600" />
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={handlePrevious} className="h-8 w-8 grid place-items-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+              <ChevronLeftIcon className="h-4 w-4 text-slate-600" />
             </button>
-            <div className="px-4 h-9 flex items-center border border-gray-300 rounded-lg text-sm font-medium text-gray-900 bg-white min-w-[200px] justify-center">
+            <button type="button" onClick={() => setSelectedDate(new Date())} className="px-3 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-600 transition-colors">
+              Today
+            </button>
+            <div className="px-4 h-8 flex items-center rounded-lg text-sm font-semibold text-slate-800 min-w-[180px] justify-center select-none">
               {dayHeaderLabel}
             </div>
-            <button
-              type="button"
-              className="h-9 w-9 grid place-items-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"
-              onClick={handleNext}
-            >
-              <ChevronRightIcon className="h-4 w-4 text-gray-600" />
+            <button type="button" onClick={handleNext} className="h-8 w-8 grid place-items-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+              <ChevronRightIcon className="h-4 w-4 text-slate-600" />
             </button>
           </div>
 
-          {/* Right: Empty for balance */}
           <div className="hidden sm:block flex-1" />
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="flex-1 overflow-auto p-4">
-        {view !== 'day' && (
-          <div className={`grid ${gridCols} gap-2 mb-2`}>
-            {(view === 'month'
-              ? [
-                  { key: 'mon', label: 'Mon' },
-                  { key: 'tue', label: 'Tue' },
-                  { key: 'wed', label: 'Wed' },
-                  { key: 'thu', label: 'Thu' },
-                  { key: 'fri', label: 'Fri' },
-                  { key: 'sat', label: 'Sat' },
-                  { key: 'sun', label: 'Sun' },
-                ]
-              : calendarDays.map((day) => ({ key: day.toISOString(), label: format(day, 'EEE'), day }))
-            ).map((item) => (
-              <div
-                key={item.key}
-                className="text-center p-2 rounded-lg text-slate-600"
-              >
-                <div className="text-xs font-medium uppercase">{item.label}</div>
-                {view === 'week' && item.day && (
-                  <div className="text-lg font-semibold">
-                    {format(item.day, 'd')}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ── Calendar Body ──────────────────────────────── */}
+      <div className="flex-1 overflow-auto p-3 sm:p-4">
 
-        <div ref={view === 'month' ? gridRef : undefined} className={`grid ${gridCols} gap-2 min-h-[400px] ${view === 'month' ? 'relative' : ''}`}>
-          {calendarDays.map((day) => {
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const dayRentals = rentalsByDate[dateKey] || [];
-            const isToday = isSameDay(day, new Date());
-            const isInMonth = view === 'month' ? isSameMonth(day, selectedDate) : true;
-            const maxVisible = view === 'month' ? 4 : Infinity;
-            const visibleRentals = dayRentals.slice(0, maxVisible);
-            const overflow = Math.max(0, dayRentals.length - visibleRentals.length);
-
-            const rentalCard = (rental) => {
-              const customerName = getCustomerName(rental);
-              const serviceName = getServiceName(rental);
-              const durationLabel = getDurationLabel(rental);
-              const serviceLabel = durationLabel ? `${serviceName} • ${durationLabel}` : serviceName;
-              return (
-                <Tooltip
-                  key={rental.id}
-                  title={
-                    <div>
-                      <div className="font-semibold">{customerName}</div>
-                      <div className="text-xs">{serviceLabel}</div>
-                    </div>
-                  }
-                >
-                  <div className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs cursor-pointer hover:bg-orange-100 hover:border-orange-300 hover:shadow-sm transition-all duration-200">
-                    <div className="text-orange-700 font-semibold truncate">
-                      {customerName}
-                    </div>
-                    <div className="text-orange-600/80 mt-1 truncate text-[11px]">
-                      {serviceLabel}
-                    </div>
-                  </div>
-                </Tooltip>
-              );
-            };
-            
-            return (
-              <div
-                key={day.toISOString()}
-                ref={view === 'month' ? (el) => { dayRefs.current[dateKey] = el; } : undefined}
-                className={`border rounded-xl p-2 min-h-[220px] ${
-                  isToday ? 'border-sky-300 bg-sky-50/30' : 'border-slate-200 bg-white'
-                } ${!isInMonth ? 'opacity-50' : ''} ${view === 'month' ? 'cursor-pointer' : ''}`}
-                onClick={view === 'month' ? () => toggleDayExpanded(dateKey) : undefined}
-              >
-                {view === 'month' && (
-                  <div className="text-xs font-semibold text-slate-500 mb-2">
-                    {format(day, 'd')}
-                  </div>
-                )}
-                {view === 'day' && (
-                  <div className="text-xs font-semibold text-slate-500 mb-2">
-                    {format(day, 'EEEE, MMM d')}
-                  </div>
-                )}
-                {visibleRentals.length > 0 ? (
-                  <div className="space-y-2">
-                    {visibleRentals.map((rental) => rentalCard(rental))}
-                    {overflow > 0 && (
-                      <button
-                        type="button"
-                        className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-slate-50 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); toggleDayExpanded(dateKey); }}
-                      >
-                        +{overflow} more
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-slate-300 text-xs">
-                    No rentals
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Expanded overlay for month view */}
-          {view === 'month' && expandedDay && overlayStyle && (() => {
-            const dayRentals = rentalsByDate[expandedDay] || [];
-            return (
-              <div className="absolute z-50" style={{ left: overlayStyle.left, top: overlayStyle.top, width: overlayStyle.width }}>
-                <div ref={overlayRef} className="bg-white border border-orange-200 shadow-xl rounded-xl p-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold text-gray-700">{format(new Date(expandedDay), 'EEEE, MMM d')}</div>
-                    <button className="text-xs text-blue-600 hover:text-blue-700" onClick={() => { setExpandedDay(null); setOverlayStyle(null); }}>Close</button>
-                  </div>
-                  <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
-                    {dayRentals.length > 0 ? dayRentals.map((rental) => {
-                      const customerName = getCustomerName(rental);
-                      const serviceName = getServiceName(rental);
-                      const durationLabel = getDurationLabel(rental);
-                      const serviceLabel = durationLabel ? `${serviceName} • ${durationLabel}` : serviceName;
-                      return (
-                        <div key={rental.id} className="p-2.5 bg-orange-50 border border-orange-200/60 rounded-xl text-xs">
-                          <div className="text-orange-700 font-semibold">{customerName}</div>
-                          <div className="text-orange-600/80 mt-1 text-[11px]">{serviceLabel}</div>
-                        </div>
-                      );
-                    }) : (
-                      <div className="text-slate-400 text-xs text-center py-4">No rentals</div>
-                    )}
-                  </div>
+        {/* ─── Day View ──────────────────────────────── */}
+        {view === 'day' && (() => {
+          const dateKey = format(selectedDate, 'yyyy-MM-dd');
+          const dayRentals = rentalsByDate[dateKey] || [];
+          return (
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-slate-700">{format(selectedDate, 'EEEE, MMMM d')}</h3>
+                  <span className="text-xs text-slate-400">{dayRentals.length} rental{dayRentals.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="p-3 space-y-2">
+                  {dayRentals.length > 0 ? dayRentals.map((rental) => rentalCard(rental)) : (
+                    <div className="py-12 text-center text-sm text-slate-400">No rentals for this day</div>
+                  )}
                 </div>
               </div>
-            );
-          })()}
-        </div>
+            </div>
+          );
+        })()}
+
+        {/* ─── Week View ─────────────────────────────── */}
+        {view === 'week' && (
+          <>
+            <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+              {weekDays.map((day) => {
+                const isToday = isSameDay(day, new Date());
+                return (
+                  <div key={day.toISOString()} className="text-center py-1.5">
+                    <div className="text-[10px] font-medium uppercase text-slate-400 tracking-wider">{format(day, 'EEE')}</div>
+                    <div className={`text-lg font-semibold mt-0.5 ${isToday ? 'text-blue-600' : 'text-slate-800'}`}>{format(day, 'd')}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {weekDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const dayRentals = rentalsByDate[dateKey] || [];
+                const isToday = isSameDay(day, new Date());
+                const maxVisible = 3;
+                const visibleRentals = dayRentals.slice(0, maxVisible);
+                const overflow = Math.max(0, dayRentals.length - maxVisible);
+                return (
+                  <div key={day.toISOString()} className={`bg-white border rounded-xl p-2 min-h-[180px] transition-colors ${isToday ? 'border-blue-300 bg-blue-50/20' : 'border-slate-200/80'}`}>
+                    {visibleRentals.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {visibleRentals.map((rental) => rentalCard(rental))}
+                        {overflow > 0 && (
+                          <button type="button" className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-orange-600 px-1.5 py-0.5 rounded hover:bg-orange-50 transition-colors" onClick={() => { setView('day'); setSelectedDate(day); }}>
+                            +{overflow} more
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-xs text-slate-300">—</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ─── Month View ────────────────────────────── */}
+        {view === 'month' && (
+          <>
+            {/* Day-of-week header */}
+            <div className="grid grid-cols-7 mb-px">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                <div key={d} className="text-center py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 bg-white border-b border-slate-100">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Month grid */}
+            <div ref={gridRef} className="grid grid-cols-7 relative bg-white border-x border-b border-slate-100 rounded-b-xl overflow-hidden">
+              {monthDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const dayRentals = rentalsByDate[dateKey] || [];
+                const isToday = isSameDay(day, new Date());
+                const isInMonth = isSameMonth(day, selectedDate);
+                const maxVisible = 3;
+                const visibleRentals = dayRentals.slice(0, maxVisible);
+                const overflow = Math.max(0, dayRentals.length - visibleRentals.length);
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    ref={(el) => { dayRefs.current[dateKey] = el; }}
+                    className={`relative border-r border-b border-slate-100 min-h-[110px] p-1.5 transition-colors cursor-pointer hover:bg-orange-50/30 ${
+                      isToday ? 'bg-blue-50/40' : ''
+                    } ${!isInMonth ? 'bg-slate-50/60' : ''}`}
+                    onClick={() => toggleDayExpanded(dateKey)}
+                  >
+                    {/* Day number */}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-medium leading-none ${
+                        isToday
+                          ? 'bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center'
+                          : isInMonth ? 'text-slate-700' : 'text-slate-400'
+                      }`}>
+                        {format(day, 'd')}
+                      </span>
+                      {dayRentals.length > 0 && (
+                        <span className="text-[10px] font-medium text-orange-500">{dayRentals.length}</span>
+                      )}
+                    </div>
+
+                    {/* Rental pills */}
+                    {isInMonth && visibleRentals.length > 0 && (
+                      <div className="space-y-0.5">
+                        {visibleRentals.map((rental) => {
+                          const colors = getStatusColor(rental.status);
+                          const customerName = getCustomerName(rental);
+                          return (
+                            <Tooltip key={rental.id} title={`${customerName} · ${getServiceName(rental)}`}>
+                              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${colors.bg} ${colors.hover} transition-colors`} onClick={(e) => e.stopPropagation()}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${colors.dot} shrink-0`} />
+                                <span className={`text-[11px] font-medium ${colors.text} truncate leading-tight`}>{customerName}</span>
+                              </div>
+                            </Tooltip>
+                          );
+                        })}
+                        {overflow > 0 && (
+                          <button type="button" className="w-full text-left text-[10px] font-medium text-slate-500 hover:text-orange-600 px-1.5 py-0.5 rounded hover:bg-orange-50 transition-colors" onClick={(e) => { e.stopPropagation(); toggleDayExpanded(dateKey); }}>
+                            +{overflow} more
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Expanded overlay */}
+              {expandedDay && overlayStyle && (() => {
+                const dayRentalsExp = rentalsByDate[expandedDay] || [];
+                return (
+                  <div className="absolute z-50" style={{ left: overlayStyle.left, top: overlayStyle.top, width: overlayStyle.width }}>
+                    <div ref={overlayRef} className="bg-white border border-orange-200/80 shadow-2xl rounded-xl p-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">{format(new Date(expandedDay), 'EEEE, MMM d')}</div>
+                          <div className="text-[11px] text-slate-400">{dayRentalsExp.length} rental{dayRentalsExp.length !== 1 ? 's' : ''}</div>
+                        </div>
+                        <button className="text-xs text-orange-600 hover:text-orange-700 font-medium" onClick={() => { setExpandedDay(null); setOverlayStyle(null); }}>Close</button>
+                      </div>
+                      <div className="space-y-1.5 max-h-[50vh] overflow-auto pr-1">
+                        {dayRentalsExp.length > 0 ? dayRentalsExp.map((rental) => rentalCard(rental)) : (
+                          <div className="text-slate-400 text-xs text-center py-6">No rentals</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

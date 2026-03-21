@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import './booking-list.css';
 import { 
-  Button, Table, Space, Input, Card, 
-  Avatar, Tag, Segmented, Tooltip, Empty, DatePicker, App
+  Button, Table, Input, Pagination,
+  Avatar, Tooltip, Empty, DatePicker, App, Segmented
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import DataService from '@/shared/services/dataService';
 import { 
   SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
   UserOutlined, CalendarOutlined, AppstoreOutlined, BarsOutlined,
-  ThunderboltOutlined, CheckSquareOutlined
+  CheckSquareOutlined
 } from '@ant-design/icons';
 import { logger } from '@/shared/utils/logger';
 import dayjs from 'dayjs';
@@ -51,20 +51,10 @@ const BookingListView = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [lastUndo, setLastUndo] = useState(null); // { token, expiresAt }
-  const [tableSize] = useState('middle'); // small | middle | large
-  const [showViewDropdown, setShowViewDropdown] = useState(false);
-  const [visibleCols] = useState({
-    date: true,
-    time: true,
-    user: true,
-    instructor: true,
-    service_name: true,
-    duration: true,
-    status: true,
-    createdBy: true,
-    actions: true,
-  });
   const [selectedStatuses] = useState([]); // quick status chips
+  const [datePreset, setDatePreset] = useState('custom');
+  const [cardPage, setCardPage] = useState(1);
+  const cardPageSize = 24;
   
   // Debounce search input to reduce re-renders during typing
   useEffect(() => {
@@ -159,42 +149,46 @@ const BookingListView = () => {
   ), []);
 
   const handleDateRangeChange = useCallback((dates) => {
+    setDatePreset('custom');
+    setCardPage(1);
     if (!dates || !dates[0] || !dates[1]) {
-      // Reset to default if cleared
       const today = dayjs();
-      setDateRange([
-        today.subtract(7, 'days'),
-        today.add(30, 'days')
-      ]);
+      setDateRange([today.subtract(7, 'days'), today.add(30, 'days')]);
       return;
     }
-    
-    // Ensure dates are valid dayjs objects
     const start = dayjs(dates[0]);
     const end = dayjs(dates[1]);
-    
-    // Validate year is reasonable (not in far future)
     if (start.year() > 2100 || end.year() > 2100) {
       message.warning('Invalid date range detected. Resetting to defaults.');
       const today = dayjs();
-      setDateRange([
-        today.subtract(7, 'days'),
-        today.add(30, 'days')
-      ]);
+      setDateRange([today.subtract(7, 'days'), today.add(30, 'days')]);
       return;
     }
-    
     if (start.isValid() && end.isValid()) {
       setDateRange([start, end]);
     }
   }, [message]);
 
-  const handleTodayClick = useCallback(() => {
+  const handlePresetChange = useCallback((preset) => {
+    setDatePreset(preset);
+    setCardPage(1);
     const today = dayjs();
-    setDateRange([
-      today.startOf('day'),
-      today.endOf('day')
-    ]);
+    switch (preset) {
+      case 'today':
+        setDateRange([today.startOf('day'), today.endOf('day')]);
+        break;
+      case 'week':
+        setDateRange([today.startOf('week'), today.endOf('week')]);
+        break;
+      case 'month':
+        setDateRange([today.startOf('month'), today.endOf('month')]);
+        break;
+      case 'all':
+        setDateRange(null);
+        break;
+      default:
+        break;
+    }
   }, []);
 
   const decorateBookingWithAudit = useCallback((booking) => {
@@ -269,37 +263,6 @@ const BookingListView = () => {
     fetchData();
   }, [fetchData]);
 
-  // Debug date range
-  useEffect(() => {
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      // eslint-disable-next-line no-console
-      console.log('📅 Date Range:', {
-        start: dateRange[0].format('YYYY-MM-DD'),
-        end: dateRange[1].format('YYYY-MM-DD'),
-        startYear: dateRange[0].year(),
-        endYear: dateRange[1].year()
-      });
-    }
-  }, [dateRange]);
-
-  // close view dropdown on outside click / escape
-  useEffect(() => {
-    const onDown = (e) => {
-      if (showViewDropdown && !e.target.closest('.list-view-dropdown')) setShowViewDropdown(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape' && showViewDropdown) setShowViewDropdown(false);
-    };
-    if (showViewDropdown) {
-      document.addEventListener('mousedown', onDown);
-      document.addEventListener('keydown', onKey);
-      return () => {
-        document.removeEventListener('mousedown', onDown);
-        document.removeEventListener('keydown', onKey);
-      };
-    }
-  }, [showViewDropdown]);
-
   // Refresh list when a booking is updated from modal (calendar emits an event)
   useEffect(() => {
     const onUpdated = () => fetchData();
@@ -371,6 +334,14 @@ const BookingListView = () => {
   }, [filteredBookings, buildRowKey]);
 
   const allIds = useMemo(() => stableBookings.map((b) => b.id), [stableBookings]);
+
+  // Reset card page when filter results change
+  useEffect(() => { setCardPage(1); }, [stableBookings.length]);
+
+  const paginatedCards = useMemo(() => {
+    const start = (cardPage - 1) * cardPageSize;
+    return stableBookings.slice(start, start + cardPageSize);
+  }, [stableBookings, cardPage, cardPageSize]);
   
   const handleDelete = (bookingId) => {
     // If multiple rows are selected, prefer bulk delete flow
@@ -462,30 +433,6 @@ const BookingListView = () => {
     }
   };
   
-  const formatDate = (dateString) => {
-    if (!dateString) return 'No date';
-    return dayjs(dateString).format('MMM DD, YYYY');
-  };
-
-  const formatTime = (startHour, duration) => {
-    const start = dayjs().startOf('day').add(startHour, 'hours');
-    const end = start.add(duration || 1, 'hours');
-    return `${start.format('HH:mm')} - ${end.format('HH:mm')}`;
-  };
-  
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      confirmed: { label: 'Confirmed', className: 'status-confirmed' },
-      pending: { label: 'Pending', className: 'status-pending' },
-      completed: { label: 'Completed', className: 'status-completed' },
-      cancelled: { label: 'Cancelled', className: 'status-cancelled' },
-      booked: { label: 'Booked', className: 'status-booked' }
-    };
-    
-    const { label, className } = statusMap[status] || { label: status || 'Unknown', className: 'status-badge' };
-    return <Tag className={`status-badge ${className}`}>{label}</Tag>;
-  };
-
   // Columns definition
   const columns = [
     {
@@ -612,36 +559,23 @@ const BookingListView = () => {
     },
   ];
 
-  // Column visibility controls and utilities
-  const visibleColumns = (columns || []).filter(col => {
-    const key = col.key || col.dataIndex;
-    return key ? visibleCols[key] !== false : true;
-  });
-
   return (
-    <div className="bookings-page bg-gray-50 min-h-screen">
-      {/* Top bar with view switcher */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Left: View Switcher */}
+    <div className="min-h-screen bg-slate-50/60">
+      {/* ── Header Bar ──────────────────────────────────────── */}
+      <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3">
           <CalendarViewSwitcher
             currentView="list"
             views={['list', 'day', 'week', 'month']}
             calendarPath="/bookings/calendar"
             size="default"
           />
-
-          {/* Center: Title */}
-          <div className="text-lg font-semibold text-slate-800">
-            Lessons Calendar
-          </div>
-
-          {/* Right: New Booking button */}
+          <h1 className="text-lg font-bold text-slate-800 tracking-tight hidden sm:block">Academy — List View</h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => navigate('/bookings/calendar')}
-            className="h-8 rounded-lg text-sm"
+            className="h-8 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 border-0 shadow-sm"
           >
             <span className="hidden sm:inline">New Booking</span>
             <span className="sm:hidden">New</span>
@@ -649,112 +583,91 @@ const BookingListView = () => {
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+      {/* ── Content ─────────────────────────────────────────── */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5 space-y-4">
 
-        {/* Search and Filters */}
-        <Card className="filters-card mb-6">
-          <div className="space-y-6">
-            {/* Main filters row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">Date Range</label>
-                <div className="flex gap-2">
-                  <RangePicker
-                    value={dateRange}
-                    onChange={handleDateRangeChange}
-                    format="MMM DD, YYYY"
-                    allowClear={false}
-                    size="middle"
-                    className="flex-1 min-w-0"
-                    picker="date"
-                    showTime={false}
-                    inputReadOnly
-                    classNames={{ popup: { root: "booking-date-picker-dropdown" } }}
-                    disabledDate={(current) => {
-                      // Prevent selecting dates too far in the future
-                      const maxDate = dayjs().add(2, 'years');
-                      return current && current > maxDate;
-                    }}
-                    placeholder={['Start', 'End']}
-                  />
-                  <Button 
-                    onClick={handleTodayClick}
-                    size="middle"
-                    type="primary"
-                    icon={<CalendarOutlined />}
-                    title="Show today's bookings only"
-                  >
-                    Today
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">View Mode</label>
-                <div className="flex items-center gap-3 text-[13px]">
-                  <Segmented
-                    value={viewMode}
-                    onChange={setViewMode}
-                    options={[
-                      { label: 'Table', value: 'table', icon: <BarsOutlined /> },
-                      { label: 'Cards', value: 'cards', icon: <AppstoreOutlined /> }
-                    ]}
-                    size="middle"
-                  />
-                </div>
-              </div>
+        {/* ── Toolbar: Search + Filters ──────────────────────── */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <Input
+            placeholder="Search learner, instructor, service…"
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            size="middle"
+            className="sm:max-w-xs flex-1"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <RangePicker
+              value={dateRange}
+              onChange={handleDateRangeChange}
+              format="MMM DD"
+              allowClear
+              size="middle"
+              className="min-w-0"
+              picker="date"
+              showTime={false}
+              inputReadOnly
+              classNames={{ popup: { root: "booking-date-picker-dropdown" } }}
+              disabledDate={(current) => current && current > dayjs().add(2, 'years')}
+              placeholder={datePreset === 'all' ? ['All dates', ''] : ['Start', 'End']}
+            />
+            <div className="flex items-center rounded-lg bg-slate-100/80 p-0.5 gap-0.5">
+              {[
+                { key: 'today', label: 'Today' },
+                { key: 'week', label: 'Week' },
+                { key: 'month', label: 'Month' },
+                { key: 'all', label: 'All' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handlePresetChange(key)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    datePreset === key
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            <Segmented
+              value={viewMode}
+              onChange={setViewMode}
+              size="middle"
+              options={[
+                { label: <BarsOutlined />, value: 'table' },
+                { label: <AppstoreOutlined />, value: 'cards' }
+              ]}
+            />
           </div>
-        </Card>
+          {stableBookings.length > 0 && (
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-auto hidden sm:block">
+              {stableBookings.length} booking{stableBookings.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
 
-        {/* Content */}
-        {viewMode === 'table' ? (
-          <Card className="table-card shadow-sm border-0 rounded-xl">
-            {/* Search bar at top */}
-            <div className="search-top p-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="max-w-md mx-auto">
-                <Input
-                  placeholder="Search by learner, instructor, service, or creator..."
-                  prefix={<SearchOutlined className="text-slate-400" />}
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  allowClear
-                  size="large"
-                  className="rounded-lg"
-                />
-                {searchText && (
-                  <div className="flex justify-center mt-2">
-                    <Tag closable onClose={() => setSearchText('')} className="bg-blue-50 border-blue-200">
-                      Search: {searchText}
-                    </Tag>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {selectedRowKeys.length > 1 && (
-              <div className="bulkbar flex items-center justify-start px-2 pt-3 pb-2 gap-3">
-                <div className="flex items-center gap-2">
-                  <Button onClick={() => setSelectedRowKeys([])} className="h-8">
-                    Clear Selection
-                  </Button>
-                  <Button danger onClick={handleBulkDelete} className="h-8">
-                    Delete Selected ({selectedRowKeys.length})
-                  </Button>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {selectedRowKeys.length} selected
-                </div>
-                {selectedRowKeys.length < allIds.length && selectedRowKeys.length > 0 && (
-                  <Button type="link" size="small" onClick={() => setSelectedRowKeys(allIds)} icon={<CheckSquareOutlined />}>
-                    Select all {allIds.length} results
-                  </Button>
-                )}
-              </div>
+        {/* ── Bulk Action Bar ──────────────────────────────── */}
+        {selectedRowKeys.length > 1 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200/60">
+            <span className="text-sm font-medium text-blue-700">{selectedRowKeys.length} selected</span>
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>Clear</Button>
+            <Button size="small" danger onClick={handleBulkDelete}>Delete Selected</Button>
+            {selectedRowKeys.length < allIds.length && (
+              <Button type="link" size="small" onClick={() => setSelectedRowKeys(allIds)} icon={<CheckSquareOutlined />}>
+                Select all {allIds.length}
+              </Button>
             )}
+          </div>
+        )}
+
+        {/* ── Table View ───────────────────────────────────── */}
+        {viewMode === 'table' ? (
+          <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
             <Table
-              columns={visibleColumns}
+              columns={columns}
               dataSource={stableBookings}
               rowSelection={{
                 type: 'checkbox',
@@ -767,129 +680,130 @@ const BookingListView = () => {
               loading={{
                 spinning: loading,
                 indicator: (
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-                    <span className="text-sm text-gray-500">Loading bookings...</span>
+                  <div className="flex flex-col items-center gap-3 py-8">
+                    <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-blue-500" />
+                    <span className="text-xs text-slate-400">Loading bookings…</span>
                   </div>
                 )
               }}
               pagination={{
-                total: stableBookings.length,
                 showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} bookings`,
-                className: "mt-4 px-4 pb-4"
+                pageSizeOptions: ['20', '50', '100', '500'],
+                defaultPageSize: 20,
+                showTotal: (total, range) => <span className="text-xs text-slate-400">{range[0]}–{range[1]} of {total}</span>,
+                className: "px-4 pb-3 pt-2"
               }}
               scroll={{ x: 800 }}
               size="small"
               sticky={{ offsetHeader: 0 }}
-              rowClassName="hover:bg-blue-50/30 transition-colors"
-              className="rounded-lg"
-              locale={{
-                emptyText: (
-                  <Empty
-                    description="No bookings found"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
-                )
-              }}
+              rowClassName="hover:bg-blue-50/30 transition-colors cursor-pointer"
+              locale={{ emptyText: <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              onRow={(record) => ({
+                onClick: (e) => {
+                  // Don't open detail when clicking action buttons or checkboxes
+                  if (e.target.closest('button') || e.target.closest('.ant-checkbox-wrapper')) return;
+                  setSelectedBooking(record);
+                  setIsDetailOpen(true);
+                }
+              })}
             />
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {stableBookings.map((booking) => (
-              <Card
-                key={buildRowKey(booking)}
-                className="shadow-sm hover:shadow-md transition-shadow duration-200 border-0 rounded-xl"
-                styles={{ body: { padding: '20px' } }}
-              >
-                {/* Status and Actions */}
-                <div className="flex justify-between items-start mb-4">
-                  {getStatusBadge(booking.status)}
-                  <Space size="small">
-                    <Button
-                      type="text"
-                      icon={<EditOutlined />}
-                      onClick={() => { setSelectedBooking(booking); setIsDetailOpen(true); }}
-                      className="text-gray-500 hover:text-blue-600"
-                    />
-                    <Button
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDelete(booking.id)}
-                      className="text-gray-500 hover:text-red-500"
-                    />
-                  </Space>
-                </div>
-
-                {/* User Info */}
-                <div className="flex items-center space-x-3 mb-4">
-                  <Avatar 
-                    icon={<UserOutlined />} 
-                    className="bg-blue-500"
-                    size={40}
-                  />
-                  <div>
-                    <h3 className="font-semibold text-gray-800 text-sm">{getUserName(booking)}</h3>
-                    <p className="text-gray-500 text-xs">{getInstructorName(booking)}</p>
-                  </div>
-                </div>
-
-                {/* Date and Time */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <CalendarOutlined className="text-blue-500" />
-                    <span className="text-sm">{formatDate(booking.date)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-gray-600">
-                    <ThunderboltOutlined className="text-green-500" />
-                    <span className="text-sm">{formatTime(booking.start_hour, booking.duration)}</span>
-                  </div>
-                  <div className="text-gray-600 text-sm">
-                    <span className="font-medium">Service:</span> {booking.service_name || 'Lesson'}
-                  </div>
-                </div>
-
-                {/* Duration */}
-                <div className="pt-3 border-t border-gray-100">
-                  <div className="text-xs text-gray-500 text-center">
-                    Duration: {booking.duration || 1} hour{(booking.duration || 1) > 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                <div className="mt-3 text-xs text-gray-500 text-center">
-                  <div className="font-semibold text-gray-700">Created by</div>
-                  <div>{booking.createdByLabel || 'Unknown'}</div>
-                  {booking.createdAtFormatted && (
-                    <div className="text-[11px] text-gray-400">{booking.createdAtFormatted}</div>
-                  )}
-                </div>
-              </Card>
-            ))}
-            {filteredBookings.length === 0 && !loading && (
-              <div className="col-span-full">
-                <Card className="text-center py-12 shadow-sm border-0 rounded-xl">
-                  <Empty
-                    description="No bookings found"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddClick}
-                    className="mt-4"
-                  >
-                    Create First Booking
-                  </Button>
-                </Card>
-              </div>
-            )}
           </div>
+        ) : (
+          /* ── Card View ──────────────────────────────────── */
+          <>
+            {loading ? (
+              <div className="flex flex-col items-center gap-3 py-16">
+                <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-blue-500" />
+                <span className="text-xs text-slate-400">Loading bookings…</span>
+              </div>
+            ) : stableBookings.length === 0 ? (
+              <div className="bg-white rounded-xl border border-dashed border-slate-200 py-16 text-center">
+                <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick} className="mt-4">Create First Booking</Button>
+              </div>
+            ) : (
+              <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {paginatedCards.map((booking) => {
+                  const start = dayjs().startOf('day').add(booking.start_hour, 'hours');
+                  const end = start.add(booking.duration || 1, 'hours');
+                  const statusCfg = {
+                    confirmed: { dot: 'bg-blue-500',    text: 'text-blue-700',    bg: 'bg-blue-50'    },
+                    pending:   { dot: 'bg-amber-500',   text: 'text-amber-700',   bg: 'bg-amber-50'   },
+                    completed: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+                    cancelled: { dot: 'bg-red-400',     text: 'text-red-600',     bg: 'bg-red-50'     },
+                    booked:    { dot: 'bg-indigo-500',  text: 'text-indigo-700',  bg: 'bg-indigo-50'  },
+                  }[booking.status?.toLowerCase()] || { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50' };
+
+                  return (
+                    <div
+                      key={buildRowKey(booking)}
+                      className="bg-white rounded-xl border border-slate-200/80 p-4 hover:shadow-md hover:border-slate-300/80 transition-all cursor-pointer group"
+                      onClick={() => { setSelectedBooking(booking); setIsDetailOpen(true); }}
+                    >
+                      {/* Top: Date + Status */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold text-slate-800">{dayjs(booking.date).format('ddd, MMM D')}</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusCfg.bg} ${statusCfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                          {booking.status || 'Unknown'}
+                        </span>
+                      </div>
+
+                      {/* Participant + Instructor */}
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <Avatar size={30} icon={<UserOutlined />} className="bg-blue-100 text-blue-600 shrink-0" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-slate-800 truncate">{getUserName(booking)}</div>
+                          <div className="text-xs text-slate-400 truncate">{getInstructorName(booking)}</div>
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex items-center gap-4 text-xs text-slate-500 mb-3">
+                        <span className="flex items-center gap-1"><CalendarOutlined className="text-blue-400" />{start.format('HH:mm')}–{end.format('HH:mm')}</span>
+                        <span>{booking.duration || 1}h</span>
+                      </div>
+
+                      {/* Service */}
+                      <div className="text-xs text-slate-500 truncate mb-2">
+                        {booking.service_name || 'Lesson'}
+                      </div>
+
+                      {/* Actions (show on hover) */}
+                      <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity pt-2 border-t border-slate-100">
+                        <Tooltip title="Edit">
+                          <Button type="text" size="small" icon={<EditOutlined />} className="text-slate-400 hover:text-blue-600"
+                            onClick={(e) => { e.stopPropagation(); setSelectedBooking(booking); setIsDetailOpen(true); }} />
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <Button type="text" size="small" danger icon={<DeleteOutlined />} className="text-slate-300 hover:text-red-500"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(booking.id); }} />
+                        </Tooltip>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {stableBookings.length > cardPageSize && (
+                <div className="flex justify-center pt-4">
+                  <Pagination
+                    current={cardPage}
+                    pageSize={cardPageSize}
+                    total={stableBookings.length}
+                    onChange={setCardPage}
+                    showSizeChanger={false}
+                    size="small"
+                  />
+                </div>
+              )}
+              </>
+            )}
+          </>
         )}
-        </div>
       </div>
-      {/* Calendar booking detail modal for editing, wrapped with provider for context */}
+
+      {/* ── Booking Detail Modal ─────────────────────────── */}
       <CalendarProvider>
         <BookingDetailModal
           isOpen={isDetailOpen}
@@ -899,19 +813,15 @@ const BookingListView = () => {
         />
       </CalendarProvider>
 
+      {/* ── Undo Toast ───────────────────────────────────── */}
       {lastUndo?.token && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="bg-white shadow-xl rounded-2xl px-6 py-4 border-2 border-blue-200 flex items-center space-x-4 backdrop-blur-sm bg-white/95">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-              <span className="font-medium text-gray-800">Bookings deleted successfully</span>
+          <div className="bg-white shadow-xl rounded-2xl px-5 py-3 border border-blue-200 flex items-center gap-4 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-slate-700">Bookings deleted</span>
             </div>
-            <Button 
-              type="primary" 
-              size="small" 
-              onClick={handleUndo}
-              className="bg-blue-500 hover:bg-blue-600 border-0 rounded-lg font-medium"
-            >
+            <Button type="primary" size="small" onClick={handleUndo} className="bg-blue-500 hover:bg-blue-600 border-0 rounded-lg font-medium">
               Undo
             </Button>
           </div>

@@ -54,9 +54,7 @@ const InventoryPage = lazyWithRetry(() => import('../features/inventory/pages/In
 const BookingsPage = lazyWithRetry(() => import('../features/bookings/pages/BookingsPage'));
 const BookingEditPage = lazyWithRetry(() => import('../features/bookings/pages/BookingEditPage'));
 const BookingCalendarPage = lazyWithRetry(() => import('../features/bookings/pages/BookingCalendarPage'));
-const Settings = lazyWithRetry(() => import('../features/dashboard/pages/Settings'));
 const Finance = lazyWithRetry(() => import('../features/finances/pages/Finance'));
-const FinanceSettingsPage = lazyWithRetry(() => import('../features/finances/pages/FinanceSettingsPage'));
 const Rentals = lazyWithRetry(() => import('../features/rentals/pages/Rentals'));
 const AccommodationUnitsManager = lazyWithRetry(() => import('../features/services/pages/AccommodationUnitsManager'));
 const AccommodationBookingPage = lazyWithRetry(() => import('../features/accommodation/pages/AccommodationBookingPage'));
@@ -71,18 +69,14 @@ const ShopCategoryPage = lazyWithRetry(() => import('../features/outsider/pages/
 const UserProfilePage = lazyWithRetry(() => import('../features/authentication/pages/UserProfilePage'));
 const CustomerProfilePage = lazyWithRetry(() => import('../features/customers/pages/CustomerProfilePage'));
 const InstructorFormPage = lazyWithRetry(() => import('../features/instructors/pages/InstructorFormPage'));
-const Categories = lazyWithRetry(() => import('../features/services/pages/Categories'));
 const MembershipSettings = lazyWithRetry(() => import('../features/services/pages/MembershipSettings'));
-const RolesAdmin = lazyWithRetry(() => import('../features/admin/pages/RolesAdmin'));
 const SparePartsOrders = lazyWithRetry(() => import('../features/admin/pages/SparePartsOrders'));
 const InstructorRatingsAnalytics = lazyWithRetry(() => import('../features/admin/pages/InstructorRatingsAnalytics'));
 const MemberOfferings = lazyWithRetry(() => import('../features/members/pages/MemberOfferings'));
-const WaiverManagement = lazyWithRetry(() => import('../features/admin/pages/WaiverManagement'));
 const VoucherManagement = lazyWithRetry(() => import('../features/admin/pages/VoucherManagement'));
 const SupportTicketsPage = lazyWithRetry(() => import('../features/admin/pages/SupportTicketsPage'));
-const LegalDocumentsPage = lazyWithRetry(() => import('../features/settings/pages/LegalDocumentsPage'));
 const HelpSupport = lazyWithRetry(() => import('../features/help/pages/HelpSupport'));
-const DeletedBookingsPage = lazyWithRetry(() => import('../components/admin/DeletedBookingsPage'));
+
 const StudentLayout = lazyWithRetry(() => import('../features/students/components/StudentLayout'));
 const StudentDashboard = lazyWithRetry(() => import('../features/students/pages/StudentDashboard'));
 const StudentSchedule = lazyWithRetry(() => import('../features/students/pages/StudentSchedule'));
@@ -179,9 +173,7 @@ const FinanceDailyOperations = lazyWithRetry(() => import('../features/finances/
 const PaymentHistory = lazyWithRetry(() => import('../features/finances/pages/PaymentHistory'));
 const ExpensesPage = lazyWithRetry(() => import('../features/finances/pages/ExpensesPage'));
 const PaymentCallback = lazyWithRetry(() => import('../features/finances/pages/PaymentCallback'));
-const PaymentRefunds = lazyWithRetry(() => import('../features/finances/pages/PaymentRefunds'));
 const WalletDepositsAdmin = lazyWithRetry(() => import('../features/finances/pages/WalletDepositsAdmin'));
-const BankAccountsAdmin = lazyWithRetry(() => import('../features/finances/pages/BankAccountsAdmin'));
 
 // Shop Order Management
 const ShopOrdersPage = lazyWithRetry(() => import('../features/services/pages/ShopOrdersPage'));
@@ -475,15 +467,16 @@ const AppRoutes = () => {
     <Route path="/instructors" element={<Instructors />} />
     <Route path="/instructors/new" element={<InstructorFormPage />} /> {/* Unified user form for new instructor */}
     <Route path="/instructors/edit/:id" element={<InstructorFormPage />} /> {/* Unified user form for editing instructor */}
-  <Route path="/finance/settings" element={<FinanceSettingsPage />} />
-        <Route path="/admin/settings" element={<Settings />} />
+  <Route path="/finance/settings" element={<Navigate to="/settings?tab=finance" replace />} />
+        <Route path="/admin/settings" element={<Navigate to="/settings?tab=calendar" replace />} />
         <Route path="/admin/ratings-analytics" element={<InstructorRatingsAnalytics />} />
-  <Route path="/admin/roles" element={<RolesAdmin />} />
-  <Route path="/admin/waivers" element={<WaiverManagement />} />
-  <Route path="/admin/legal-documents" element={<LegalDocumentsPage />} />
+  <Route path="/admin/roles" element={<Navigate to="/settings?tab=roles" replace />} />
+  <Route path="/admin/waivers" element={<Navigate to="/settings?tab=waivers" replace />} />
+  <Route path="/admin/legal-documents" element={<Navigate to="/settings?tab=legal" replace />} />
   <Route path="/admin/vouchers" element={<VoucherManagement />} />
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
-        <Route path="/admin/manager-commissions" element={<ManagerCommissionSettings />} />
+        <Route path="/instructors/managers" element={<ManagerCommissionSettings />} />
+        <Route path="/admin/manager-commissions" element={<Navigate to="/instructors/managers" replace />} />
         <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />
         <Route path="/manager/commissions" element={<ManagerDashboard />} />
         {/* Services - Package Management (managers and above only) */}
@@ -500,7 +493,7 @@ const AppRoutes = () => {
       </Route>
       {/* Admin-only routes */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
-        <Route path="/admin/deleted-bookings" element={<DeletedBookingsPage />} />
+        <Route path="/admin/deleted-bookings" element={<Navigate to="/settings?tab=deleted-bookings" replace />} />
   <Route path="/admin/spare-parts" element={<SparePartsOrders />} />
       </Route>
         {/* Routes for operations staff (instructors and above) */}
@@ -531,7 +524,7 @@ const AppRoutes = () => {
         <Route path="/services/orders" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/memberships" element={<MembershipSettings />} />
         <Route path="/services/community" element={<CommunitySettings />} />
-        <Route path="/services/categories" element={<Categories />} />
+        <Route path="/services/categories" element={<Navigate to="/settings?tab=services" replace />} />
       </Route>
       {/* Finance routes - require finances:read permission for custom roles */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['finances:read', 'finances:write']} />}>
@@ -548,9 +541,9 @@ const AppRoutes = () => {
       </Route>
       {/* Admin-only finance routes (refunds) */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MANAGER]} />}>
-        <Route path="/finance/refunds" element={<PaymentRefunds />} />
+        <Route path="/finance/refunds" element={<Navigate to="/settings?tab=refunds" replace />} />
         <Route path="/finance/wallet-deposits" element={<WalletDepositsAdmin />} />
-        <Route path="/finance/bank-accounts" element={<BankAccountsAdmin />} />
+        <Route path="/finance/bank-accounts" element={<Navigate to="/settings?tab=bank-accounts" replace />} />
       </Route>
         {/* User profile and settings routes - all authenticated users can access */}
       <Route element={<ProtectedRoute allowedRoles={[]} />}>

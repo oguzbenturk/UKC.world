@@ -13,8 +13,7 @@ import {
   Space, 
   Tag, 
   Dropdown, 
-  Modal, 
-  message, 
+  Modal,
   Typography,
   Row,
   Col,
@@ -23,6 +22,7 @@ import {
   Tooltip,
   Form
 } from 'antd';
+import { message, modal } from '@/shared/utils/antdStatic';
 import { 
   PlusOutlined, 
   SearchOutlined, 
@@ -163,7 +163,7 @@ const FormsListPage = () => {
 
   // Delete template
   const handleDelete = (template) => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete Form Template',
       content: `Are you sure you want to delete "${template.name}"? This action cannot be undone.`,
       okText: 'Delete',
@@ -197,7 +197,7 @@ const FormsListPage = () => {
   const handleBulkActivate = async () => {
     if (selectedRowKeys.length === 0) return;
     
-    Modal.confirm({
+    modal.confirm({
       title: 'Activate Forms',
       content: `Are you sure you want to activate ${selectedRowKeys.length} form(s)?`,
       onOk: async () => {
@@ -224,7 +224,7 @@ const FormsListPage = () => {
   const handleBulkDeactivate = async () => {
     if (selectedRowKeys.length === 0) return;
     
-    Modal.confirm({
+    modal.confirm({
       title: 'Deactivate Forms',
       content: `Are you sure you want to deactivate ${selectedRowKeys.length} form(s)?`,
       onOk: async () => {
@@ -251,7 +251,7 @@ const FormsListPage = () => {
   const handleBulkDelete = async () => {
     if (selectedRowKeys.length === 0) return;
     
-    Modal.confirm({
+    modal.confirm({
       title: 'Delete Forms',
       content: `Are you sure you want to delete ${selectedRowKeys.length} form(s)? This action cannot be undone.`,
       okText: 'Delete',

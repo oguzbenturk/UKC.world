@@ -349,7 +349,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       // Instructors - Yellow
       item('/instructors', 'Instructors', 'AcademicCapIcon', {
-        customStyle: { textColor: '#eab308' }
+        customStyle: { textColor: '#eab308' },
+        subItems: [
+          { to: '/instructors/managers', label: 'Managers', dotColor: '#8b5cf6' }
+        ]
       }),
       // Calendars - Teal (for calendar views)
       item('/calendars', 'Calendars', 'CalendarDaysIcon', {
@@ -481,7 +484,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     // --- Staff/Admin Tools ---
     // Instructors - Yellow (requires instructors permissions)
     item('/instructors', 'Instructors', 'AcademicCapIcon', {
-      customStyle: { textColor: '#eab308' }
+      customStyle: { textColor: '#eab308' },
+      subItems: [
+        { to: '/instructors/managers', label: 'Managers', dotColor: '#8b5cf6' }
+      ]
     }),
     // Services Settings - Orange (requires services:write or admin)
     item('/services', 'Services Settings', 'CogIcon', {
@@ -543,40 +549,14 @@ export const getSystemItemsForRole = (role, userPermissions = null) => {
     return [];
   }
   
-  // For admin, manager, developer - show full Settings
+  // For admin, manager, developer - settings moved to /settings page
   if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
-    return [
-      item('/admin', 'Settings', 'CogIcon', {
-        subItems: [
-          { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
-          { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
-          { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
-          { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
-          { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
-          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' },
-          { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' }
-        ]
-      })
-    ];
+    return [];
   }
   
-  // For custom roles, check if they have admin:settings permission
+  // For custom roles - settings moved to /settings page
   if (userPermissions && (userPermissions['admin:settings'] === true || userPermissions['admin:roles'] === true)) {
-    return [
-      item('/admin', 'Settings', 'CogIcon', {
-        subItems: [
-          { to: '/services/categories', label: 'Service Creation', icon: 'CubeIcon' },
-          { to: '/admin/roles', label: 'Roles', icon: 'UsersIcon' },
-          { to: '/admin/waivers', label: 'Waivers', icon: 'AcademicCapIcon' },
-          { to: '/admin/legal-documents', label: 'Legal Documents', icon: 'DocumentTextIcon' },
-          { to: '/admin/deleted-bookings', label: 'Deleted Bookings', icon: 'TrashIcon' },
-          { to: '/admin/manager-commissions', label: 'Manager Commissions', icon: 'CurrencyDollarIcon' },
-          { to: '/finance/refunds', label: 'Payment Refunds', icon: 'ArrowUturnLeftIcon' },
-          { to: '/finance/bank-accounts', label: 'Bank Accounts', icon: 'CurrencyDollarIcon' }
-        ]
-      })
-    ];
+    return [];
   }
   
   // Custom roles without admin permissions - no settings menu

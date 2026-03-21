@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, DatePicker, Space, Button, Tag, Grid, Table, Empty } from 'antd';
+import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
-import { ReloadOutlined, CalendarOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons';
+import { CalendarOutlined } from '@ant-design/icons';
+import EventsBreakdownCharts from '../components/EventsBreakdownCharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 
@@ -9,10 +10,9 @@ const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
 const accentStyles = {
-  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
-  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
-  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   violet: { bg: 'bg-violet-50', text: 'text-violet-600' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -45,50 +45,39 @@ const getQuickRanges = () => ({
   }
 });
 
-/**
- * FinanceEvents - Finance view for events revenue
- */
 const FinanceEvents = () => {
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
   });
-  const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
+  const [activeQuickRange, setActiveQuickRange] = useState('thisYear');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const loadEventsData = async () => {
+  useEffect(() => {
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
+
+  const loadData = async () => {
     setLoading(true);
     try {
       const response = await apiClient.get('/events', {
-        params: {
-          from: dateRange.startDate,
-          to: dateRange.endDate
-        }
+        params: { from: dateRange.startDate, to: dateRange.endDate }
       });
       setEvents(response.data || []);
     } catch {
-      // Silently handle error
       setEvents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load data when dateRange changes
-  useEffect(() => {
-    loadEventsData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
-
   const handleDateRangeChange = (dates) => {
-    if (dates && dates[0] && dates[1]) {
-      setDateRange({
-        startDate: dates[0].format('YYYY-MM-DD'),
-        endDate: dates[1].format('YYYY-MM-DD')
-      });
+    if (dates?.[0] && dates?.[1]) {
+      setDateRange({ startDate: dates[0].format('YYYY-MM-DD'), endDate: dates[1].format('YYYY-MM-DD') });
       setActiveQuickRange(null);
     }
   };
@@ -102,10 +91,7 @@ const FinanceEvents = () => {
     const ranges = getQuickRanges();
     const range = ranges[rangeKey];
     if (range) {
-      setDateRange({
-        startDate: range.startDate,
-        endDate: range.endDate
-      });
+      setDateRange({ startDate: range.startDate, endDate: range.endDate });
       setActiveQuickRange(rangeKey);
     }
   };
@@ -116,111 +102,33 @@ const FinanceEvents = () => {
     return `${start.format('MMM D, YYYY')} – ${end.format('MMM D, YYYY')}`;
   }, [dateRange]);
 
-  // Calculate stats from events
-  const stats = useMemo(() => {
-    // Filter only paid events (those with price > 0)
-    const paidEvents = events.filter(e => Number(e.price || 0) > 0);
-    const freeEvents = events.filter(e => !e.price || Number(e.price) === 0);
-    
-    // Calculate potential revenue (price * registrations for each event)
-    const totalRevenue = paidEvents.reduce((sum, e) => {
-      const price = Number(e.price || 0);
-      const registrations = Number(e.registration_count || 0);
-      return sum + (price * registrations);
-    }, 0);
+  const headlineStats = useMemo(() => {
+    if (events.length === 0 && loading) {
+      return [
+        { key: 'revenue', label: 'Event Revenue', value: '--', accent: 'violet' },
+        { key: 'events', label: 'Total Events', value: '--', accent: 'blue' },
+        { key: 'registrations', label: 'Total Registrations', value: '--', accent: 'emerald' },
+        { key: 'avg', label: 'Avg. Ticket Price', value: '--', accent: 'slate' }
+      ];
+    }
 
+    const paidEvents = events.filter(e => Number(e.price || 0) > 0);
+    const totalRevenue = paidEvents.reduce((sum, e) => {
+      return sum + (Number(e.price || 0) * Number(e.registration_count || 0));
+    }, 0);
     const totalEvents = events.length;
     const totalRegistrations = events.reduce((sum, e) => sum + Number(e.registration_count || 0), 0);
-    const completedEvents = events.filter(e => e.status === 'completed').length;
+    const avgTicketPrice = paidEvents.length > 0
+      ? paidEvents.reduce((sum, e) => sum + Number(e.price || 0), 0) / paidEvents.length
+      : 0;
 
-    return {
-      totalRevenue,
-      totalEvents,
-      paidEvents: paidEvents.length,
-      freeEvents: freeEvents.length,
-      totalRegistrations,
-      completedEvents,
-      avgTicketPrice: paidEvents.length > 0 
-        ? paidEvents.reduce((sum, e) => sum + Number(e.price || 0), 0) / paidEvents.length 
-        : 0
-    };
-  }, [events]);
-
-  const headlineStats = useMemo(() => {
     return [
-      { key: 'total', label: 'Total Event Revenue', value: formatCurrency(stats.totalRevenue), accent: 'blue' },
-      { key: 'events', label: 'Total Events', value: stats.totalEvents.toString(), accent: 'violet' },
-      { key: 'registrations', label: 'Total Registrations', value: stats.totalRegistrations.toString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg. Ticket Price', value: formatCurrency(stats.avgTicketPrice), accent: 'slate' }
+      { key: 'revenue', label: 'Event Revenue', value: formatCurrency(totalRevenue), accent: 'violet' },
+      { key: 'events', label: 'Total Events', value: totalEvents.toLocaleString(), accent: 'blue' },
+      { key: 'registrations', label: 'Total Registrations', value: totalRegistrations.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: 'Avg. Ticket Price', value: formatCurrency(avgTicketPrice), accent: 'slate' }
     ];
-  }, [stats]);
-
-  const columns = [
-    {
-      title: 'Event Name',
-      dataIndex: 'name',
-      key: 'name',
-      render: (name, record) => (
-        <div>
-          <div className="font-medium">{name}</div>
-          {record.event_type && <div className="text-xs text-slate-500">{record.event_type}</div>}
-        </div>
-      )
-    },
-    {
-      title: 'Date',
-      dataIndex: 'start_at',
-      key: 'start_at',
-      render: (date) => date ? dayjs(date).format('MMM D, YYYY HH:mm') : '-'
-    },
-    {
-      title: 'Location',
-      dataIndex: 'location',
-      key: 'location',
-      render: (location) => location || '-'
-    },
-    {
-      title: 'Capacity',
-      key: 'capacity',
-      render: (_, record) => {
-        const capacity = record.capacity || '∞';
-        const registrations = record.registration_count || 0;
-        return `${registrations} / ${capacity}`;
-      }
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const colors = {
-          draft: 'default',
-          published: 'blue',
-          cancelled: 'red',
-          completed: 'green'
-        };
-        return <Tag color={colors[status] || 'default'}>{status || 'Unknown'}</Tag>;
-      }
-    },
-    {
-      title: 'Ticket Price',
-      dataIndex: 'price',
-      key: 'price',
-      render: (price) => price ? formatCurrency(price) : <Tag color="green">Free</Tag>,
-      align: 'right'
-    },
-    {
-      title: 'Revenue',
-      key: 'revenue',
-      render: (_, record) => {
-        const price = Number(record.price || 0);
-        const registrations = Number(record.registration_count || 0);
-        const revenue = price * registrations;
-        return revenue > 0 ? formatCurrency(revenue) : '-';
-      },
-      align: 'right'
-    }
-  ];
+  }, [events, loading]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -230,12 +138,11 @@ const FinanceEvents = () => {
             <div className="flex items-center gap-2">
               <CalendarOutlined style={{ fontSize: 24, color: '#8b5cf6' }} />
               <h1 className="text-2xl font-semibold text-slate-900">Events Finance</h1>
-              <Tag color="purple" className="text-xs font-medium">Events</Tag>
+              <Tag color="purple" className="text-xs font-medium">Community</Tag>
             </div>
             <p className="text-sm text-slate-500">Event Tickets & Registration Revenue · {rangeLabel}</p>
           </div>
           <div className="flex flex-col gap-3">
-            {/* Quick Range Buttons */}
             <div className="flex flex-wrap gap-2">
               {Object.entries(getQuickRanges()).map(([key, range]) => (
                 <Button
@@ -249,7 +156,6 @@ const FinanceEvents = () => {
                 </Button>
               ))}
             </div>
-            {/* Date Range Picker */}
             <Space wrap size="small" className="justify-start lg:justify-end">
               {isMobile ? (
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 shadow-sm">
@@ -301,74 +207,7 @@ const FinanceEvents = () => {
         </div>
       </Card>
 
-      {/* Secondary Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="rounded-2xl border border-slate-200/70 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100">
-              <TeamOutlined className="text-lg text-violet-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Paid Events</p>
-              <p className="text-xl font-semibold text-violet-600">{stats.paidEvents}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/70 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100">
-              <CalendarOutlined className="text-lg text-green-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Free Events</p>
-              <p className="text-xl font-semibold text-green-600">{stats.freeEvents}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="rounded-2xl border border-slate-200/70 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-              <DollarOutlined className="text-lg text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Completed Events</p>
-              <p className="text-xl font-semibold text-blue-600">{stats.completedEvents}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">
-            <CalendarOutlined style={{ marginRight: 8 }} />
-            Events List
-          </h3>
-          <Button
-            size={isMobile ? 'small' : 'middle'}
-            icon={<ReloadOutlined />}
-            onClick={loadEventsData}
-          >
-            Refresh
-          </Button>
-        </div>
-        <Table
-          columns={columns}
-          dataSource={events}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          scroll={{ x: 900 }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No events found for this period"
-              />
-            )
-          }}
-        />
-      </Card>
+      <EventsBreakdownCharts dateRange={dateRange} />
     </div>
   );
 };

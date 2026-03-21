@@ -14,7 +14,6 @@ import {
 	Space,
 	Spin,
 	Statistic,
-	Table,
 	Tag,
 	Switch,
 	Tooltip,
@@ -60,6 +59,20 @@ const SORT_OPTIONS = [
 	{ value: 'average', label: 'Highest average rating', title: 'Highest average rating' },
 	{ value: 'count', label: 'Most ratings submitted', title: 'Most ratings submitted' },
 	{ value: 'recent', label: 'Most recent feedback', title: 'Most recent feedback' }
+];
+
+const SERVICE_TYPE_OPTIONS = [
+	{ value: 'all', label: 'All services' },
+	{ value: 'lesson', label: 'Lessons' },
+	{ value: 'rental', label: 'Rentals' },
+	{ value: 'accommodation', label: 'Accommodation' }
+];
+
+const TIME_RANGE_OPTIONS = [
+	{ value: 'all', label: 'All time' },
+	{ value: '7d', label: 'Last 7 days' },
+	{ value: '30d', label: 'Last 30 days' },
+	{ value: '90d', label: 'Last 90 days' }
 ];
 
 const formatPercent = (value) => `${(value ?? 0).toFixed(1)}%`;
@@ -211,6 +224,14 @@ const InstructorRatingsAnalytics = () => {
 
 	const handleSortChange = useCallback((value) => {
 		setFilters((prev) => ({ ...prev, sortBy: value }));
+	}, []);
+
+	const handleServiceTypeChange = useCallback((value) => {
+		setFilters((prev) => ({ ...prev, serviceType: value }));
+	}, []);
+
+	const handleTimeRangeChange = useCallback((value) => {
+		setFilters((prev) => ({ ...prev, timeRange: value }));
 	}, []);
 
 	const handleBenchmarkToggle = useCallback((checked) => {
@@ -416,7 +437,18 @@ const InstructorRatingsAnalytics = () => {
 			title: 'Instructor',
 			dataIndex: 'instructorName',
 			key: 'instructorName',
-			render: (name) => <Text strong>{name}</Text>,
+			render: (name, record) => (
+				<Space size={8} align="center">
+					<Avatar
+						src={record.instructorAvatar}
+						size="small"
+						style={{ backgroundColor: '#2563eb' }}
+					>
+						{name?.[0] ?? '?'}
+					</Avatar>
+					<Text strong>{name}</Text>
+				</Space>
+			),
 			sorter: (a, b) => a.instructorName.localeCompare(b.instructorName)
 		},
 		{
@@ -607,6 +639,49 @@ const InstructorRatingsAnalytics = () => {
 			<Card
 				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 			>
+				<Space direction="vertical" size={16} className="w-full">
+					<Space size={10} align="center">
+						<CrownFilled style={{ color: '#f59e0b' }} />
+						<Text strong>Top performers</Text>
+					</Space>
+					{!topPerformers.length ? (
+						<Empty description="No instructors ranked yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+					) : (
+						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{topPerformers.map((item, index) => (
+								<div
+									key={item.key}
+									className={`flex items-center gap-3 p-3 rounded-xl border ${
+										index === 0
+											? 'bg-amber-50 border-amber-200'
+											: 'bg-slate-50 border-slate-200'
+									}`}
+								>
+									<Avatar
+										src={item.instructorAvatar}
+										style={{ backgroundColor: index === 0 ? '#f59e0b' : '#2563eb' }}
+									>
+										{item.instructorName?.[0] ?? '?'}
+									</Avatar>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2">
+											<Text strong className="truncate">#{item.rank} {item.instructorName}</Text>
+											{index === 0 && <Tag color="gold" className="m-0 flex-shrink-0">Champion</Tag>}
+										</div>
+										<Text type="secondary" className="text-xs">
+											Avg {item.averageRating} · {item.totalRatings} ratings · {formatPercent(item.fiveStarShare)} 5★
+										</Text>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</Space>
+			</Card>
+
+			<Card
+				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
+			>
 				<Space direction="vertical" size={12} className="w-full">
 					<Title level={4} style={{ margin: 0 }}>Instructor leaderboard</Title>
 						<Text type="secondary">
@@ -701,6 +776,7 @@ const InstructorRatingsAnalytics = () => {
 							<UnifiedResponsiveTable
 								columns={sanitizedColumns}
 								dataSource={tableData}
+								rowKey="key"
 								size="middle"
 								pagination={{
 									pageSize: 10,
@@ -722,46 +798,6 @@ const InstructorRatingsAnalytics = () => {
 							/>
 						</>
 					)}
-			</Card>
-
-			<Card
-				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
-			>
-				<Space direction="vertical" size={16} className="w-full">
-					<Space size={10} align="center">
-						<CrownFilled style={{ color: '#f59e0b' }} />
-						<Text strong>Top performers</Text>
-					</Space>
-					{!topPerformers.length ? (
-						<Empty description="No instructors ranked yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-					) : (
-						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{topPerformers.map((item, index) => (
-								<div
-									key={item.key}
-									className={`flex items-center gap-3 p-3 rounded-xl border ${
-										index === 0
-											? 'bg-amber-50 border-amber-200'
-											: 'bg-slate-50 border-slate-200'
-									}`}
-								>
-									<Avatar style={{ backgroundColor: index === 0 ? '#f59e0b' : '#2563eb' }}>
-										{item.instructorName?.[0] ?? '?'}
-									</Avatar>
-									<div className="flex-1 min-w-0">
-										<div className="flex items-center gap-2">
-											<Text strong className="truncate">#{item.rank} {item.instructorName}</Text>
-											{index === 0 && <Tag color="gold" className="m-0 flex-shrink-0">Champion</Tag>}
-										</div>
-										<Text type="secondary" className="text-xs">
-											Avg {item.averageRating} · {item.totalRatings} ratings · {formatPercent(item.fiveStarShare)} 5★
-										</Text>
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</Space>
 			</Card>
 		</div>
 	);

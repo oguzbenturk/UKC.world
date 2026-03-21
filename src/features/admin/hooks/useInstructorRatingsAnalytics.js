@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import { ratingsAdminApi } from '../api/ratingsAdminApi';
-import FinancialAnalyticsService from '@/features/finances/services/financialAnalytics';
 
 const accumulateServiceBreakdown = (target, breakdown) => {
   if (!breakdown) return;
@@ -81,11 +80,6 @@ const applyFilters = (items, filters) => {
   return sorted.slice(0, Number(limit) || sorted.length);
 };
 
-const toNumber = (value) => {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-};
-
 const defaultAggregated = {
   instructors: [],
   totals: {
@@ -101,62 +95,7 @@ const defaultAggregated = {
   }
 };
 
-const defaultCrossMetrics = {
-  totalRevenue: 0,
-  avgBookingValue: 0,
-  instructorUtilization: 0,
-  equipmentUtilization: 0,
-  conversionRate: 0
-};
 
-const resolveDateRange = (timeRange) => {
-  const now = dayjs().endOf('day');
-  let days;
-
-  switch (timeRange) {
-    case '7d':
-      days = 7;
-      break;
-    case '30d':
-      days = 30;
-      break;
-    case '90d':
-      days = 90;
-      break;
-    case 'all':
-    default:
-      days = 180;
-      break;
-  }
-
-  const start = now.clone().subtract(days, 'day').startOf('day');
-  return {
-    startDate: start.format('YYYY-MM-DD'),
-    endDate: now.format('YYYY-MM-DD')
-  };
-};
-
-const buildCrossMetrics = (summary, operational) => {
-  const revenue = summary?.revenue || {};
-  const bookings = summary?.bookings || {};
-  const utilization = operational?.utilization || {};
-  const efficiency = operational?.efficiency || {};
-
-  const bookingRevenue = toNumber(bookings.booking_revenue);
-  const completedBookings = toNumber(bookings.completed_bookings);
-  const totalRevenue = toNumber(revenue.total_revenue);
-  const instructorUtilization = toNumber(utilization.instructor_utilization);
-  const equipmentUtilization = toNumber(utilization.equipment_utilization);
-  const conversionRate = toNumber(efficiency.conversion_rate);
-
-  return {
-    totalRevenue,
-    avgBookingValue: completedBookings ? bookingRevenue / completedBookings : 0,
-    instructorUtilization,
-    equipmentUtilization,
-    conversionRate
-  };
-};
 
 const queryKey = (filters) => ['admin', 'ratings', 'overview', filters];
 
@@ -174,26 +113,6 @@ export const useInstructorRatingsAnalytics = (filters, { autoRefresh = false, re
     queryKey: queryKey(requestFilters),
     queryFn: () => ratingsAdminApi.fetchOverview(requestFilters),
     keepPreviousData: true,
-    staleTime: 2 * 60_000,
-    refetchInterval: autoRefresh ? refetchIntervalMs : false,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: false
-  });
-
-  const {
-    data: metricsRaw,
-    isLoading: isCrossMetricsLoading,
-    error: crossMetricsError
-  } = useQuery({
-    queryKey: ['admin', 'ratings', 'cross-metrics', filters.timeRange],
-    queryFn: async () => {
-      const { startDate, endDate } = resolveDateRange(filters.timeRange);
-      const [summary, operational] = await Promise.all([
-        FinancialAnalyticsService.getFinancialSummary(startDate, endDate, 'all'),
-        FinancialAnalyticsService.getOperationalMetrics(startDate, endDate)
-      ]);
-      return buildCrossMetrics(summary, operational);
-    },
     staleTime: 2 * 60_000,
     refetchInterval: autoRefresh ? refetchIntervalMs : false,
     refetchIntervalInBackground: true,
@@ -267,9 +186,6 @@ export const useInstructorRatingsAnalytics = (filters, { autoRefresh = false, re
 
   return {
     data: aggregated,
-    crossMetrics: metricsRaw ?? defaultCrossMetrics,
-    isCrossMetricsLoading,
-    crossMetricsError,
     isLoading,
     isFetching,
     error,
