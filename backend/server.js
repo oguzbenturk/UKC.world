@@ -1213,11 +1213,11 @@ app.use('/api/wallet', authenticateJWT, walletRouter);
 app.use('/api/shop-orders', authenticateJWT, shopOrdersRouter);
 app.use('/api/shop/orders', authenticateJWT, shopOrdersRouter); // Alias for QuickShopSaleModal
 app.use('/api/business-expenses', authenticateJWT, businessExpensesRouter);
-app.use('/api/group-bookings', authenticateJWT, groupBookingsRouter);
+app.use('/api/group-bookings', groupBookingsRouter);
 app.use('/api/group-lesson-requests', groupLessonRequestsRouter);
 app.use('/api/reschedule-notifications', rescheduleNotificationsRouter);
 app.use('/api/system', authenticateJWT, systemRouter);
-app.use('/api/settings', authenticateJWT, settingsRouter);
+app.use('/api/settings', settingsRouter);
 app.use('/api/finance-settings', authenticateJWT, financeSettingsRouter);
 app.use('/api/roles', authenticateJWT, rolesRouter);
 

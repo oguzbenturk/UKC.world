@@ -1093,8 +1093,13 @@ function resolveDirection(amount, explicit) {
   return 'adjustment';
 }
 
-async function mirrorLegacyBalance({ client, userId, availableBalance, totalSpentDelta, shouldUpdateLastPayment }) {
+async function mirrorLegacyBalance({ client, userId, availableBalance, totalSpentDelta, shouldUpdateLastPayment, currency }) {
   if (!LEGACY_MIRROR_ENABLED) {
+    return;
+  }
+
+  // Only mirror EUR wallets — non-EUR amounts must not overwrite the EUR-denominated users.balance field
+  if (currency && currency.toUpperCase() !== 'EUR') {
     return;
   }
 
@@ -1316,7 +1321,8 @@ export async function recordTransaction({
       userId,
       availableBalance: nextAvailable,
       totalSpentDelta,
-      shouldUpdateLastPayment
+      shouldUpdateLastPayment,
+      currency: normalizedCurrency
     });
 
     if (shouldCommit) {

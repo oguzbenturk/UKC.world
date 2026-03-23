@@ -32,7 +32,7 @@ function getQuickAmounts(currency) {
   }
 }
 
-export function WalletDepositModal({ visible, onClose, onSuccess }) {
+export function WalletDepositModal({ visible, onClose, onSuccess, initialAmount, initialCurrency }) {
   const [form] = Form.useForm();
   const { message } = App.useApp();
   const { formatCurrency, businessCurrency, userCurrency } = useCurrency();
@@ -52,10 +52,16 @@ export function WalletDepositModal({ visible, onClose, onSuccess }) {
   
   useEffect(() => {
     if (visible && displayCurrency) {
-      setSelectedDisplayCurrency(displayCurrency);
-      setDepositAmount(null);
+      const currency = initialCurrency || displayCurrency;
+      setSelectedDisplayCurrency(currency);
+      if (initialAmount > 0) {
+        setDepositAmount(initialAmount);
+        form.setFieldsValue({ amount: initialAmount });
+      } else {
+        setDepositAmount(null);
+      }
     }
-  }, [visible, displayCurrency]);
+  }, [visible, displayCurrency, initialAmount, initialCurrency]);
 
   const handleClose = useCallback(() => {
     const wasPaymentSuccess = currentStep === 2;

@@ -5,7 +5,7 @@
  * Managers select 2+ compatible requests and create a group booking (match).
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -29,15 +29,23 @@ import {
 import {
   SparklesIcon,
   CheckCircleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
 import { matchGroupLessonRequests } from '@/features/bookings/services/groupLessonRequestService';
 import { usePageSEO } from '@/shared/utils/seo';
+import { useSearchParams } from 'react-router-dom';
+import GroupBookingDetailDrawer from '@/features/bookings/components/GroupBookingDetailDrawer';
 
 const { Title, Text } = Typography;
+
+const paymentDot = (status) => {
+  const colors = { paid: 'bg-emerald-500', pending: 'bg-amber-400', not_applicable: 'bg-slate-300' };
+  return <span className={`inline-block w-1.5 h-1.5 rounded-full ${colors[status] || 'bg-slate-300'} mr-1`} />;
+};
 
 const GroupLessonMatchingPage = () => {
   usePageSEO({
@@ -50,7 +58,17 @@ const GroupLessonMatchingPage = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [matchForm] = Form.useForm();
-  const [filters, setFilters] = useState({ status: 'pending', serviceId: null, skillLevel: null });
+  const [filters, setFilters] = useState({ status: '', serviceId: null, skillLevel: null });
+  const [searchParams] = useSearchParams();
+  const groupBookingIdFromUrl = searchParams.get('groupBookingId');
+  const [drawerBookingId, setDrawerBookingId] = useState(null);
+
+  // Auto-open detail drawer when navigated from notification
+  useEffect(() => {
+    if (groupBookingIdFromUrl && !drawerBookingId) {
+      setDrawerBookingId(groupBookingIdFromUrl);
+    }
+  }, [groupBookingIdFromUrl]);
 
   // -- Queries ---------------------------------------------------------
 
@@ -132,19 +150,30 @@ const GroupLessonMatchingPage = () => {
 
   const canMatch = selectedIds.length >= 2 && allSameService;
 
+  // Stats
+  const stats = useMemo(() => {
+    const soloRequests = requests.filter(r => r.source === 'request');
+    const groupBookings = requests.filter(r => r.source === 'group_booking');
+    const lessonBookings = requests.filter(r => r.source === 'lesson_booking');
+    const pendingGroups = groupBookings.filter(r => r.status === 'pending');
+    const waitingPartner = lessonBookings.filter(r => r.status === 'pending_partner');
+    const totalParticipants = groupBookings.reduce((sum, r) => sum + (parseInt(r.participant_count, 10) || 0), 0);
+    return { soloRequests: soloRequests.length, groupBookings: groupBookings.length, lessonBookings: lessonBookings.length, pendingGroups: pendingGroups.length, waitingPartner: waitingPartner.length, totalParticipants };
+  }, [requests]);
+
   const statusColor = (s) => ({
     pending: 'orange',
+    pending_partner: 'volcano',
     matched: 'green',
+    confirmed: 'blue',
+    full: 'cyan',
     cancelled: 'default',
     expired: 'red',
   }[s] || 'default');
 
-  const skillIcon = (lvl) => ({
-    beginner: '🌱',
-    intermediate: '🏄',
-    advanced: '🏆',
-    any: '🎯',
-  }[lvl] || '');
+  const statusLabel = (s) => ({
+    pending_partner: 'Waiting Partner',
+  }[s] || s);
 
   // -- Table columns ---------------------------------------------------
 
@@ -152,8 +181,8 @@ const GroupLessonMatchingPage = () => {
     {
       title: '',
       dataIndex: 'id',
-      width: 48,
-      render: (id, record) => record.status === 'pending' ? (
+      width: 36,
+      render: (id, record) => record.source !== 'group_booking' && record.status === 'pending' ? (
         <Checkbox
           checked={selectedIds.includes(id)}
           onChange={(e) => {
@@ -165,69 +194,112 @@ const GroupLessonMatchingPage = () => {
       ) : null,
     },
     {
-      title: 'Student',
+      title: 'Type',
+      dataIndex: 'source',
+      width: 120,
+      render: (source, r) => source === 'group_booking' ? (
+        <Tag color="blue" className="!rounded-full !text-[11px] !m-0">
+          <UserGroupIcon className="w-3 h-3 inline mr-0.5" />
+          Group ({r.participant_count || 0})
+        </Tag>
+      ) : source === 'lesson_booking' ? (
+        <Tag color={r.status === 'pending_partner' ? 'volcano' : 'green'} className="!rounded-full !text-[11px] !m-0">
+          Lesson{r.status === 'pending_partner' ? ' ⏳' : ''}
+        </Tag>
+      ) : (
+        <Tag color="purple" className="!rounded-full !text-[11px] !m-0">Solo</Tag>
+      ),
+      filters: [
+        { text: 'Solo Requests', value: 'request' },
+        { text: 'Group Bookings', value: 'group_booking' },
+        { text: 'Lesson Bookings', value: 'lesson_booking' },
+      ],
+      onFilter: (value, record) => record.source === value,
+    },
+    {
+      title: 'Student / Lesson',
       dataIndex: 'user_name',
+      width: 200,
+      ellipsis: true,
       render: (name, r) => (
-        <div>
-          <Text strong>{name || r.userName || 'Unknown'}</Text>
-          {(r.user_email || r.userEmail) && (
-            <Text type="secondary" className="block text-xs">{r.user_email || r.userEmail}</Text>
+        <div className="leading-tight">
+          <span className="text-xs font-medium text-slate-800 block truncate">{name || r.userName || 'Unknown'}</span>
+          <span className="text-[11px] text-slate-400 block truncate">{r.service_name || r.serviceName || '—'}</span>
+          {r.source === 'group_booking' && r.title && (
+            <span className="text-[11px] text-blue-400 block truncate">{r.title}</span>
           )}
         </div>
       ),
     },
     {
-      title: 'Lesson',
-      dataIndex: 'service_name',
-      render: (name, r) => name || r.serviceName || '—',
-    },
-    {
-      title: 'Dates',
-      dataIndex: 'preferred_date_start',
-      render: (start, r) => {
-        const s = start || r.preferredDateStart;
-        const e = r.preferred_date_end || r.preferredDateEnd;
+      title: 'Participants',
+      dataIndex: 'participants',
+      width: 180,
+      render: (raw) => {
+        const participants = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : raw;
+        if (!Array.isArray(participants) || participants.length === 0) return <span className="text-[11px] text-slate-400">—</span>;
         return (
-          <span>
-            {dayjs(s).format('MMM D')}
-            {e ? ` – ${dayjs(e).format('MMM D')}` : ''}
-          </span>
+          <div className="leading-tight space-y-0.5">
+            {participants.map((p, i) => (
+              <div key={i} className="flex items-center gap-0.5 truncate">
+                {paymentDot(p.payment_status)}
+                <span className={`text-[11px] truncate ${p.is_organizer ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                  {p.name || 'Unknown'}{p.is_organizer ? ' ★' : ''}
+                </span>
+              </div>
+            ))}
+          </div>
         );
       },
     },
     {
-      title: 'Time',
-      dataIndex: 'preferred_time_of_day',
-      render: (t, r) => <Tag>{t || r.preferredTimeOfDay || 'any'}</Tag>,
+      title: 'Schedule',
+      dataIndex: 'preferred_date_start',
+      width: 140,
+      render: (start, r) => {
+        const s = start || r.preferredDateStart;
+        const time = r.preferred_time_of_day || r.preferredTimeOfDay;
+        const dur = r.preferred_duration_hours || r.preferredDurationHours || r.duration_hours;
+        return (
+          <div className="leading-tight">
+            <span className="text-xs text-slate-700 block">{s ? dayjs(s).format('MMM D, YYYY') : '—'}</span>
+            <span className="text-[11px] text-slate-400 block">
+              {time || 'any'}{dur ? ` · ${dur}h` : ''}
+            </span>
+          </div>
+        );
+      },
+      sorter: (a, b) => dayjs(a.preferred_date_start || a.created_at).unix() - dayjs(b.preferred_date_start || b.created_at).unix(),
     },
     {
-      title: 'Duration',
-      dataIndex: 'preferred_duration_hours',
-      render: (d, r) => `${d || r.preferredDurationHours || 1}h`,
-    },
-    {
-      title: 'Skill',
-      dataIndex: 'skill_level',
-      render: (lvl, r) => {
-        const l = lvl || r.skillLevel || 'any';
-        return <span>{skillIcon(l)} {l}</span>;
+      title: 'Instructor / Price',
+      dataIndex: 'instructor_name',
+      width: 130,
+      ellipsis: true,
+      render: (name, r) => {
+        const n = name || r.instructorName;
+        const p = r.price_per_person || r.pricePerPerson;
+        const c = r.currency || 'EUR';
+        const sym = { EUR: '€', USD: '$', TRY: '₺', GBP: '£' }[c] || c;
+        return (
+          <div className="leading-tight">
+            <span className={`text-xs block truncate ${n ? 'text-slate-700' : 'text-slate-400'}`}>{n || 'Unassigned'}</span>
+            {(p || p === 0) && <span className="text-[11px] font-medium text-emerald-600 block">{sym}{Number(p).toFixed(0)}/pp</span>}
+          </div>
+        );
       },
     },
     {
       title: 'Status',
       dataIndex: 'status',
-      render: (s) => <Tag color={statusColor(s)}>{s}</Tag>,
-    },
-    {
-      title: 'Notes',
-      dataIndex: 'notes',
-      ellipsis: true,
-      render: (n) => n || '—',
+      width: 110,
+      render: (s) => <Tag color={statusColor(s)} className="!text-[11px] !m-0">{statusLabel(s)}</Tag>,
     },
     {
       title: 'Submitted',
       dataIndex: 'created_at',
-      render: (d, r) => dayjs(d || r.createdAt).format('MMM D, HH:mm'),
+      width: 90,
+      render: (d, r) => <span className="text-xs text-slate-500">{dayjs(d || r.createdAt).format('MMM D')}</span>,
       sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
     },
   ];
@@ -260,7 +332,7 @@ const GroupLessonMatchingPage = () => {
           />
           <div>
             <Title level={3} className="!mb-0">Group Lesson Requests</Title>
-            <Text type="secondary">Match students who want a group lesson partner</Text>
+            <Text type="secondary">View group bookings and match solo students</Text>
           </div>
         </div>
 
@@ -272,6 +344,9 @@ const GroupLessonMatchingPage = () => {
             options={[
               { value: '', label: 'All statuses' },
               { value: 'pending', label: 'Pending' },
+              { value: 'pending_partner', label: 'Waiting Partner' },
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'full', label: 'Full' },
               { value: 'matched', label: 'Matched' },
               { value: 'cancelled', label: 'Cancelled' },
               { value: 'expired', label: 'Expired' },
@@ -302,6 +377,36 @@ const GroupLessonMatchingPage = () => {
           </Button>
         </Space>
       </div>
+
+      {/* Stats Bar */}
+      {!isLoading && requests.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-sm">
+            <SparklesIcon className="w-4 h-4 text-purple-500" />
+            <span className="font-medium text-purple-700">{stats.soloRequests}</span>
+            <span className="text-purple-500">Solo Requests</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-sm">
+            <UserGroupIcon className="w-4 h-4 text-blue-500" />
+            <span className="font-medium text-blue-700">{stats.groupBookings}</span>
+            <span className="text-blue-500">Group Bookings</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-sm">
+            <span className="font-medium text-green-700">{stats.lessonBookings}</span>
+            <span className="text-green-500">Lesson Bookings</span>
+          </div>
+          {stats.waitingPartner > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-sm">
+              <span className="font-medium text-orange-700">{stats.waitingPartner}</span>
+              <span className="text-orange-500">Waiting Partner</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm">
+            <span className="font-medium text-slate-700">{stats.totalParticipants}</span>
+            <span className="text-slate-500">Total Participants</span>
+          </div>
+        </div>
+      )}
 
       {/* Selection bar */}
       {selectedIds.length > 0 && (
@@ -344,10 +449,14 @@ const GroupLessonMatchingPage = () => {
             dataSource={requests}
             columns={columns}
             rowKey="id"
-            pagination={{ pageSize: 20 }}
-            size="middle"
-            scroll={{ x: 1000 }}
-            rowClassName={(r) => selectedIds.includes(r.id) ? 'bg-blue-50' : ''}
+            pagination={{ pageSize: 20, showSizeChanger: true, size: 'small' }}
+            size="small"
+            rowClassName={(r) => `${selectedIds.includes(r.id) ? 'bg-blue-50' : ''} ${r.source === 'group_booking' ? 'cursor-pointer' : ''}`}
+            onRow={(record) => ({
+              onClick: () => {
+                if (record.source === 'group_booking') setDrawerBookingId(record.id);
+              },
+            })}
           />
         )}
       </Card>
@@ -416,6 +525,14 @@ const GroupLessonMatchingPage = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Group Booking Detail Drawer */}
+      <GroupBookingDetailDrawer
+        isOpen={!!drawerBookingId}
+        onClose={() => setDrawerBookingId(null)}
+        groupBookingId={drawerBookingId}
+        onUpdate={() => queryClient.invalidateQueries({ queryKey: ['admin', 'group-lesson-requests'] })}
+      />
     </div>
   );
 };

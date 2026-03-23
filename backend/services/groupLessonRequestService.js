@@ -64,42 +64,164 @@ export const getUserRequests = async (userId) => {
 
 /**
  * Get all pending requests (for admin/manager matching view)
+ * Also includes student-organized group bookings so admins can see them
  */
 export const getAllRequests = async ({ status = 'pending', serviceId, skillLevel } = {}) => {
-  let query = `
+  // 1) Fetch group lesson requests (solo students seeking partners)
+  let reqQuery = `
     SELECT glr.*,
       s.name AS service_name,
       s.category AS service_category,
       u.name AS user_name,
       u.first_name, u.last_name, u.email AS user_email, u.phone,
-      u.profile_image_url
+      u.profile_image_url,
+      'request' AS source
     FROM group_lesson_requests glr
     LEFT JOIN services s ON s.id = glr.service_id
     LEFT JOIN users u ON u.id = glr.user_id
     WHERE glr.deleted_at IS NULL
   `;
-  const params = [];
-  let paramIndex = 1;
+  const reqParams = [];
+  let reqParamIndex = 1;
 
   if (status) {
-    query += ` AND glr.status = $${paramIndex++}`;
-    params.push(status);
+    reqQuery += ` AND glr.status = $${reqParamIndex++}`;
+    reqParams.push(status);
   }
 
   if (serviceId) {
-    query += ` AND glr.service_id = $${paramIndex++}`;
-    params.push(serviceId);
+    reqQuery += ` AND glr.service_id = $${reqParamIndex++}`;
+    reqParams.push(serviceId);
   }
 
   if (skillLevel && skillLevel !== 'any') {
-    query += ` AND (glr.skill_level = $${paramIndex++} OR glr.skill_level = 'any')`;
-    params.push(skillLevel);
+    reqQuery += ` AND (glr.skill_level = $${reqParamIndex++} OR glr.skill_level = 'any')`;
+    reqParams.push(skillLevel);
   }
 
-  query += ' ORDER BY glr.preferred_date_start ASC, glr.created_at ASC';
+  reqQuery += ' ORDER BY glr.preferred_date_start ASC, glr.created_at ASC';
 
-  const result = await pool.query(query, params);
-  return result.rows;
+  // 2) Fetch student-organized group bookings
+  const statusMap = { pending: 'pending', matched: 'confirmed', cancelled: 'cancelled', expired: 'cancelled' };
+  const gbStatus = statusMap[status] || status || null;
+
+  let gbQuery = `
+    SELECT
+      gb.id, gb.organizer_id AS user_id, gb.service_id,
+      gb.scheduled_date AS preferred_date_start,
+      NULL AS preferred_date_end,
+      gb.start_time AS preferred_time_of_day,
+      gb.duration_hours AS preferred_duration_hours,
+      NULL AS skill_level,
+      gb.notes, gb.status, gb.created_at, gb.updated_at,
+      gb.title, gb.price_per_person, gb.max_participants, gb.currency,
+      s.name AS service_name,
+      s.category AS service_category,
+      u.name AS user_name,
+      u.first_name, u.last_name, u.email AS user_email, u.phone,
+      u.profile_image_url,
+      COALESCE(inst.name, CONCAT(inst.first_name, ' ', inst.last_name)) AS instructor_name,
+      'group_booking' AS source,
+      (SELECT COUNT(*) FROM group_booking_participants p WHERE p.group_booking_id = gb.id) AS participant_count,
+      (SELECT COALESCE(json_agg(json_build_object(
+        'name', COALESCE(NULLIF(TRIM(pu.name), ''), NULLIF(TRIM(CONCAT(pu.first_name, ' ', pu.last_name)), ''), NULLIF(TRIM(p2.full_name), ''), p2.email),
+        'payment_status', p2.payment_status,
+        'status', p2.status,
+        'is_organizer', p2.is_organizer
+      ) ORDER BY p2.is_organizer DESC, p2.created_at ASC), '[]'::json)
+      FROM group_booking_participants p2
+      LEFT JOIN users pu ON pu.id = p2.user_id
+      WHERE p2.group_booking_id = gb.id) AS participants
+    FROM group_bookings gb
+    LEFT JOIN services s ON s.id = gb.service_id
+    LEFT JOIN users u ON u.id = gb.organizer_id
+    LEFT JOIN users inst ON inst.id = gb.instructor_id
+    WHERE 1=1
+  `;
+  const gbParams = [];
+  let gbParamIndex = 1;
+
+  if (gbStatus) {
+    gbQuery += ` AND gb.status = $${gbParamIndex++}`;
+    gbParams.push(gbStatus);
+  }
+
+  if (serviceId) {
+    gbQuery += ` AND gb.service_id = $${gbParamIndex++}`;
+    gbParams.push(serviceId);
+  }
+
+  gbQuery += ' ORDER BY gb.scheduled_date ASC, gb.created_at ASC';
+
+  // 3) Fetch pending lesson bookings from the bookings table
+  // Map request statuses to booking statuses
+  let bookingStatuses;
+  if (!status || status === '') {
+    // "All statuses" — show all non-deleted bookings
+    bookingStatuses = ['pending', 'pending_partner', 'confirmed', 'cancelled', 'completed', 'no_show'];
+  } else if (status === 'pending') {
+    bookingStatuses = ['pending', 'pending_partner'];
+  } else if (status === 'pending_partner') {
+    bookingStatuses = ['pending_partner'];
+  } else if (status === 'confirmed' || status === 'matched') {
+    bookingStatuses = ['confirmed'];
+  } else if (status === 'cancelled') {
+    bookingStatuses = ['cancelled'];
+  } else {
+    bookingStatuses = [status];
+  }
+
+  let bkQuery = `
+    SELECT
+      b.id, b.customer_user_id AS user_id, b.service_id,
+      b.date AS preferred_date_start,
+      NULL AS preferred_date_end,
+      CASE WHEN b.start_hour IS NOT NULL
+        THEN LPAD(FLOOR(b.start_hour)::text, 2, '0') || ':' || LPAD((((b.start_hour - FLOOR(b.start_hour)) * 60)::int)::text, 2, '0')
+        ELSE NULL END AS preferred_time_of_day,
+      b.duration AS preferred_duration_hours,
+      NULL AS skill_level,
+      b.notes, b.status, b.created_at, b.updated_at,
+      NULL AS title,
+      b.final_amount AS price_per_person,
+      b.group_size AS max_participants,
+      b.currency,
+      s.name AS service_name,
+      s.category AS service_category,
+      COALESCE(NULLIF(TRIM(cu.name), ''), TRIM(CONCAT(cu.first_name, ' ', cu.last_name))) AS user_name,
+      cu.first_name, cu.last_name, cu.email AS user_email, cu.phone,
+      cu.profile_image_url,
+      COALESCE(NULLIF(TRIM(inst.name), ''), TRIM(CONCAT(inst.first_name, ' ', inst.last_name))) AS instructor_name,
+      b.payment_status,
+      b.payment_method,
+      'lesson_booking' AS source
+    FROM bookings b
+    LEFT JOIN services s ON s.id = b.service_id
+    LEFT JOIN users cu ON cu.id = b.customer_user_id
+    LEFT JOIN users inst ON inst.id = b.instructor_user_id
+    WHERE b.deleted_at IS NULL
+      AND b.status = ANY($1::text[])
+  `;
+  const bkParams = [bookingStatuses];
+  let bkParamIndex = 2;
+
+  if (serviceId) {
+    bkQuery += ` AND b.service_id = $${bkParamIndex++}`;
+    bkParams.push(serviceId);
+  }
+
+  bkQuery += ' ORDER BY b.date ASC, b.created_at ASC';
+
+  const [reqResult, gbResult, bkResult] = await Promise.all([
+    pool.query(reqQuery, reqParams),
+    pool.query(gbQuery, gbParams),
+    pool.query(bkQuery, bkParams)
+  ]);
+
+  // Merge and sort by created_at descending (newest first)
+  const combined = [...reqResult.rows, ...gbResult.rows, ...bkResult.rows];
+  combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return combined;
 };
 
 /**

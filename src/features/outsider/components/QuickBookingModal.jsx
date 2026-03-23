@@ -46,6 +46,7 @@ import { getAvailableSlots } from '@/features/bookings/components/api/calendarAp
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import calendarConfig from '@/config/calendarConfig';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import PartnerStep from './PartnerStep';
 
 const HALF_HOUR_MINUTES = 30;
 const MIN_DURATION_MINUTES = 90;
@@ -160,7 +161,8 @@ const resolvePkgPrice = (pkg, userCurrency, convertCurrency) => {
 
 // eslint-disable-next-line complexity
 const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater, onCreateGroupLesson, onCreateGroupWithFriend }) => {
-  const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group';
+  const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
+    || (packageData?.name || '').toLowerCase().includes('group');
   // Dual-price: show EUR first, then user's local currency equivalent
   const dualPrice = (() => {
     const eurPrice = packageData?.price || 0;
@@ -458,7 +460,7 @@ const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, o
   );
 };
 
-const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions }) => (
+const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions, partnerInfo, includePartner, onTogglePartner }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Status banner */}
     <div className={`rounded-2xl border p-3 sm:p-4 flex items-start sm:items-center gap-2.5 sm:gap-3 ${
@@ -494,6 +496,40 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
         </p>
       </div>
     </div>
+
+    {/* Group partner section */}
+    {partnerInfo && (
+      <div
+        className={`rounded-2xl border p-3 sm:p-4 flex items-center gap-3 cursor-pointer transition-all ${
+          includePartner
+            ? 'bg-purple-50 border-purple-200'
+            : 'bg-slate-50 border-slate-200'
+        }`}
+        onClick={() => onTogglePartner?.(!includePartner)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && onTogglePartner?.(!includePartner)}
+      >
+        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+          includePartner
+            ? 'bg-purple-500 border-purple-500'
+            : 'border-slate-300 bg-white'
+        }`}>
+          {includePartner && <CheckOutlined className="text-white text-[10px]" />}
+        </div>
+        <TeamOutlined className={`text-lg shrink-0 ${includePartner ? 'text-purple-500' : 'text-slate-400'}`} />
+        <div className="min-w-0 flex-1">
+          <p className={`font-semibold text-xs sm:text-sm ${includePartner ? 'text-purple-800' : 'text-slate-600'}`}>
+            {partnerInfo.partnerName}
+          </p>
+          <p className={`text-[11px] sm:text-xs mt-0.5 ${includePartner ? 'text-purple-600' : 'text-slate-400'}`}>
+            {includePartner
+              ? `Group partner • ${partnerInfo.partnerRemainingHours}h remaining in their package`
+              : 'Tap to include your group partner'}
+          </p>
+        </div>
+      </div>
+    )}
 
     {/* Duration selector */}
     <div>
@@ -747,6 +783,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [sessions, setSessions] = useState([{ id: 1, date: null, time: null }]);
   const sessionIdRef = useRef(1);
   const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [groupPartnerMode, setGroupPartnerMode] = useState(false);
+  const [includePartner, setIncludePartner] = useState(true);
 
   const studentId = user?.userId || user?.id;
 
@@ -804,6 +842,11 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setSessions([{ id: 1, date: null, time: null }]);
       sessionIdRef.current = 1;
       setBookingInProgress(false);
+      setIncludePartner(true);
+      // Auto-enter partner mode for group packages
+      const isGroup = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
+        || (packageData?.name || '').toLowerCase().includes('group');
+      setGroupPartnerMode(isGroup);
       // Initial step detection happens in the effect below once ownedPackages load
       setStep(0);
       setPurchasedPackage(null);
@@ -829,11 +872,29 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     // Wait for ownedPackages to be fetched (non-empty or query settled)
     if (matchingOwnedPackage) {
       hasDetectedRef.current = true;
-      setStep(1);
       setPurchasedPackage(matchingOwnedPackage);
       setIsExistingPackage(true);
+      // For group packages, stay at step 0 to show partner overview
+      // For non-group packages, skip to schedule
+      const isGroup = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
+        || (packageData?.name || '').toLowerCase().includes('group');
+      if (!isGroup) {
+        setStep(1);
+      }
     }
   }, [open, matchingOwnedPackage, isStandalone]);
+
+  // ── Fetch group partner info for existing group packages ──────────────
+  const { data: partnerData } = useQuery({
+    queryKey: ['group-booking-partner', matchingOwnedPackage?.id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/group-bookings/partner-for-package/${matchingOwnedPackage.id}`);
+      return res.data?.partner || null;
+    },
+    enabled: !!matchingOwnedPackage?.id && groupPartnerMode,
+    staleTime: 60_000,
+    retry: false,
+  });
 
   // ── Booking defaults (for allowed durations) ─────────────────────────────
   const { data: bookingDefaults } = useQuery({
@@ -1017,7 +1078,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
               student_user_id: studentId, instructor_user_id: selectedInstructorId,
               service_id: serviceId || null, date: dateStr,
               start_hour: startHour, duration: activeDurationHours,
-              status: 'pending', notes: `Booked via package: ${packageData?.name || 'Quick Booking'}`,
+              status: includePartner && partnerData ? 'pending_partner' : 'pending',
+              notes: `Booked via package: ${packageData?.name || 'Quick Booking'}`,
               use_package: true,
               customer_package_id: purchasedPackage?.id || null,
               selected_package_id: purchasedPackage?.id || null,
@@ -1025,6 +1087,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
               package_hours_applied: activeDurationHours,
               package_chargeable_hours: activeDurationHours,
               discount_percent: 0, discount_amount: 0, payment_method: 'wallet',
+              ...(includePartner && partnerData ? {
+                partner_user_id: partnerData.partnerId,
+                partner_customer_package_id: partnerData.partnerCustomerPackageId,
+              } : {}),
             };
 
         await apiClient.post('/bookings', payload);
@@ -1041,6 +1107,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
       queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
       queryClient.invalidateQueries({ queryKey: ['quick-booking', 'slots'] });
+      queryClient.invalidateQueries({ queryKey: ['group-booking-partner'] });
 
       if (!isStandalone) {
         const totalHoursUsed = activeDurationHours * successCount;
@@ -1056,7 +1123,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     }
 
     setBookingInProgress(false);
-  }, [sessions, studentId, selectedInstructorId, serviceId, activeDurationHours, packageData, purchasedPackage, isStandalone, servicePrice, serviceName, paymentMethod, queryClient, message]);
+  }, [sessions, studentId, selectedInstructorId, serviceId, activeDurationHours, packageData, purchasedPackage, isStandalone, servicePrice, serviceName, paymentMethod, queryClient, message, includePartner, partnerData]);
 
   const handleBookSessions = useCallback(() => {
     const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
@@ -1071,6 +1138,12 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           <p><strong>{serviceName || packageData?.name || 'Lesson'}</strong></p>
           <p style={{ color: '#555' }}>Instructor: {instructorName}</p>
           <p style={{ color: '#555' }}>Duration: {formatDurationLabel(activeDurationMinutes)} per session</p>
+          {includePartner && partnerData && (
+            <p style={{ color: '#7c3aed', fontWeight: 600 }}>
+              <TeamOutlined style={{ marginRight: 4 }} />
+              With: {partnerData.partnerName}
+            </p>
+          )}
           <div style={{ margin: '8px 0' }}>
             {validSessions.map((s, i) => (
               <p key={i} style={{ color: '#555', margin: '2px 0' }}>
@@ -1086,7 +1159,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       centered: true,
       onOk: executeBookSessions,
     });
-  }, [sessions, studentId, selectedInstructorId, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSessions, modal]);
+  }, [sessions, studentId, selectedInstructorId, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSessions, modal, includePartner, partnerData]);
 
   const handleSkipSchedule = useCallback(() => {
     setSkipSchedule(true);
@@ -1094,18 +1167,20 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   }, []);
 
   const handleCreateGroupLesson = useCallback(() => {
-    onClose();
-    navigate('/student/group-bookings/request', {
-      state: { serviceId, packageData, durationHours }
-    });
-  }, [onClose, navigate, serviceId, packageData, durationHours]);
+    setGroupPartnerMode(true);
+  }, []);
+
+  const handleProceedToSchedule = useCallback(() => {
+    setStep(1);
+  }, []);
 
   const handleCreateGroupWithFriend = useCallback(() => {
+    setGroupPartnerMode(true);
+  }, []);
+
+  const handlePartnerDone = useCallback(() => {
     onClose();
-    navigate('/student/group-bookings/create', {
-      state: { serviceId, packageData, durationHours }
-    });
-  }, [onClose, navigate, serviceId, packageData, durationHours]);
+  }, [onClose]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
   const handleSessionChange = useCallback((id, changes) => {
@@ -1135,6 +1210,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const stepTitles = (isExistingPackage || isStandalone)
     ? ['—', 'Schedule Session', 'Complete']
     : ['Review & Pay', 'Schedule Session', 'Complete'];
+  const activeTitle = groupPartnerMode
+    ? (isExistingPackage && matchingOwnedPackage ? 'Your Group Package' : 'Find a Partner')
+    : (stepTitles[step] || 'Quick Booking');
 
   // Number of visible steps for the progress indicator
   const visibleSteps = (isExistingPackage || isStandalone)
@@ -1164,10 +1242,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
-              {stepTitles[step] || 'Quick Booking'}
+              {activeTitle}
             </h3>
             <p className="text-[10px] sm:text-xs text-slate-400 leading-tight mt-0.5">
-              Step {visibleSteps.findIndex(s => s.idx === step) + 1} of {visibleSteps.length}
+              {groupPartnerMode ? 'Group lesson setup' : `Step ${visibleSteps.findIndex(s => s.idx === step) + 1} of ${visibleSteps.length}`}
             </p>
           </div>
           {/* Progress bar */}
@@ -1189,7 +1267,19 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         </div>
       }
     >
-      {step === 0 && (
+      {step === 0 && groupPartnerMode && (
+        <PartnerStep
+          serviceId={serviceId}
+          packageData={packageData}
+          durationHours={durationHours}
+          onDone={handlePartnerDone}
+          onBack={() => setGroupPartnerMode(false)}
+          ownedPackage={isExistingPackage ? matchingOwnedPackage : null}
+          partnerInfo={partnerData}
+          onProceedToSchedule={handleProceedToSchedule}
+        />
+      )}
+      {step === 0 && !groupPartnerMode && (
         <PayStep
           packageData={packageData}
           packageName={packageName}
@@ -1232,6 +1322,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           onBookSession={handleBookSessions}
           onSkip={handleSkipSchedule}
           onResetSessions={handleResetSessions}
+          partnerInfo={partnerData}
+          includePartner={includePartner}
+          onTogglePartner={setIncludePartner}
         />
       )}
       {step === 2 && (

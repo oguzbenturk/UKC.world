@@ -28,6 +28,7 @@ import UserConsentModal from './features/compliance/components/UserConsentModal.
 import NetworkStatusBanner from './shared/components/system/NetworkStatusBanner.jsx';
 import WalletModalManager from './shared/components/wallet/WalletModalManager';
 import RescheduleConfirmationModal from './features/notifications/components/RescheduleConfirmationModal';
+import PartnerInviteModal from './features/notifications/components/PartnerInviteModal';
 import GlobalFAB from './shared/components/ui/GlobalFAB';
 
 // Wrapper component to provide location to PopupManager
@@ -275,6 +276,7 @@ const AppLayoutWithAuth = () => {
   <NotificationRealtimeBridge />
   <WalletModalManager />
   <RescheduleConfirmationModal />
+  <PartnerInviteModal />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar 
           isOpen={isSidebarOpen} 

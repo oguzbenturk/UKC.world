@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs } from 'antd';
 import { CalendarDaysIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { useSearchParams } from 'react-router-dom';
 import BookingCalendarPage from '@/features/bookings/pages/BookingCalendarPage';
 import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchingPage';
 
@@ -8,7 +9,27 @@ import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchi
  * LessonsCalendar - Shows lesson bookings in calendar view and group requests
  */
 const LessonsCalendar = () => {
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabFromUrl === 'group-requests' ? 'group-requests' : 'calendar');
+
+  // Sync tab state with URL changes (e.g. notification click navigating here)
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t === 'group-requests' && activeTab !== 'group-requests') {
+      setActiveTab('group-requests');
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    if (key === 'group-requests') {
+      setSearchParams({ tab: 'group-requests' });
+    } else {
+      searchParams.delete('tab');
+      setSearchParams(searchParams);
+    }
+  };
 
   const tabItems = [
     {
@@ -57,7 +78,7 @@ const LessonsCalendar = () => {
       `}</style>
       <Tabs 
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={handleTabChange}
         items={tabItems}
         className="flex-1 h-full flex flex-col lessons-calendar-tabs"
       />

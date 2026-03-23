@@ -74,6 +74,7 @@ export async function forceDeleteCustomerPackage({
   packageId,
   actorId = null,
   issueRefund = true,
+  forceFullRefund = false,
   expectedCustomerId = null,
   includeWalletSummary = true,
   usageSettlement = null
@@ -167,7 +168,10 @@ export async function forceDeleteCustomerPackage({
   const purchasePrice = Number.parseFloat(deletedPackage.purchase_price) || 0;
   const pricePerHour = totalHours > 0 ? purchasePrice / totalHours : 0;
   const usedAmount = usedHours * pricePerHour;
-  const partialRefundAmount = remainingHours * pricePerHour;
+  // forceFullRefund: admin explicitly refunds full purchase price regardless of remaining hours
+  const partialRefundAmount = forceFullRefund && issueRefund
+    ? purchasePrice
+    : remainingHours * pricePerHour;
 
   // Resolve refund currency: use the package's stored currency, or fall back to user's preferred currency
   let refundCurrency = deletedPackage.currency;

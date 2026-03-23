@@ -8,26 +8,21 @@
  * - Invite participants (if organizer)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Card,
   Typography,
   Button,
   Space,
   Spin,
   Result,
-  Descriptions,
   Modal,
   Input,
   Alert,
   Tag,
-  Divider,
   Avatar,
-  Table,
-  message,
+  App,
   Form,
-  Select,
   Tooltip,
   Popconfirm
 } from 'antd';
@@ -37,14 +32,11 @@ import {
   ClockIcon,
   CurrencyEuroIcon,
   PlusIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   UserIcon,
   EnvelopeIcon,
   TrashIcon,
   ArrowLeftIcon,
   CreditCardIcon,
-  WalletIcon,
   ClipboardDocumentIcon,
   ShareIcon,
   LinkIcon
@@ -59,6 +51,10 @@ import {
   removeParticipant
 } from '../services/groupBookingService';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
+import { useRealTimeEvents } from '@/shared/hooks/useRealTime';
+import { WalletDepositModal } from '@/features/finances/components/WalletDepositModal';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -67,7 +63,27 @@ const GroupBookingDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, refreshToken } = useAuth();
+  const { message } = App.useApp();
+  const { userCurrency, convertCurrency } = useCurrency();
+  
+  const { data: walletSummary, refetch: refetchWallet } = useWalletSummary({
+    currency: userCurrency,
+    enabled: !!user?.id,
+  });
+  
+  const walletBalance = useMemo(() => {
+    const allBalances = walletSummary?.balances;
+    if (Array.isArray(allBalances) && allBalances.length > 0) {
+      return allBalances.reduce((sum, row) => {
+        const amt = Number(row.available) || 0;
+        if (amt === 0) return sum;
+        if (row.currency === userCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, userCurrency);
+      }, 0);
+    }
+    return Number(walletSummary?.available) || 0;
+  }, [walletSummary, convertCurrency, userCurrency]);
   
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(null);
@@ -78,16 +94,27 @@ const GroupBookingDetailPage = () => {
   const [inviteForm] = Form.useForm();
   const [inviting, setInviting] = useState(false);
   
-  // Payment modal
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  // Payment (WalletDeposit) modal
+  const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('wallet');
   
   // Cancel modal
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+
+  // Listen for real-time participant payment events
+  const PAYMENT_EVENTS = useMemo(() => ['group_booking:participant_paid'], []);
+  const realTimeData = useRealTimeEvents(PAYMENT_EVENTS);
+  const lastPaymentEvent = realTimeData['group_booking:participant_paid'];
   
+  useEffect(() => {
+    if (lastPaymentEvent?.data?.groupBookingId === id) {
+      message.success(`${lastPaymentEvent.data.participantName} has paid!`);
+      fetchBooking();
+    }
+  }, [lastPaymentEvent]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchBooking = useCallback(async () => {
     try {
       setLoading(true);
@@ -97,7 +124,7 @@ const GroupBookingDetailPage = () => {
       
       // Auto-open payment modal if ?pay=true
       if (searchParams.get('pay') === 'true') {
-        setPaymentModalVisible(true);
+        setDepositModalVisible(true);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load group booking');
@@ -138,52 +165,64 @@ const GroupBookingDetailPage = () => {
     }
   };
   
-  const handlePayment = async () => {
-    const amount = organizerNeedsToPay ? totalForOrganizer : booking?.pricePerPerson;
-    Modal.confirm({
-      title: 'Confirm Payment',
-      content: (
-        <div style={{ marginTop: 8 }}>
-          <p><strong>{booking?.title || 'Group Booking'}</strong></p>
-          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>€{amount?.toFixed(2)}</p>
-          {organizerNeedsToPay && <p style={{ color: '#888' }}>Paying for {acceptedCount} participant(s)</p>}
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Card' : paymentMethod}</p>
-        </div>
-      ),
-      okText: 'Confirm & Pay',
-      cancelText: 'Go Back',
-      centered: true,
-      onOk: executePayment,
-    });
-  };
-
-  const executePayment = async () => {
+  const handleDepositSuccess = async () => {
     try {
-      setPaying(true);
-      
-      // Check if organizer paying for all
       if (booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer) {
-        const result = await payForAllParticipants(id, paymentMethod);
-        if (result.paymentPageUrl) {
-          window.location.href = result.paymentPageUrl;
-          return;
-        }
+        const result = await payForAllParticipants(id, 'wallet');
         message.success(`Payment successful! Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
+        if (result?.roleUpgrade?.upgraded) await refreshToken();
       } else {
-        const result = await payForGroupBooking(id, paymentMethod);
-        if (result.paymentPageUrl) {
-          window.location.href = result.paymentPageUrl;
-          return;
-        }
+        const payResult = await payForGroupBooking(id, 'wallet');
         message.success('Payment successful!');
+        if (payResult?.roleUpgrade?.upgraded) {
+          message.success(payResult.roleUpgrade.message);
+          await refreshToken();
+        }
       }
-      
-      setPaymentModalVisible(false);
+      refetchWallet();
       fetchBooking();
     } catch (err) {
-      message.error(err.response?.data?.error || 'Payment failed');
-    } finally {
-      setPaying(false);
+      const errMsg = err.response?.data?.error;
+      message.error(typeof errMsg === 'string' ? errMsg : 'Deposit succeeded but wallet payment failed. Please try paying from your wallet.');
+    }
+  };
+
+  const handlePay = async () => {
+    const isOrgPays = booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer && !booking?.organizerPaid;
+    const accepted = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
+    const amountEur = isOrgPays ? (accepted * (booking?.pricePerPerson || 0)) : (booking?.pricePerPerson || 0);
+    const amountInUserCurrency = convertCurrency ? convertCurrency(amountEur, 'EUR', userCurrency) : amountEur;
+
+    if (walletBalance >= amountInUserCurrency) {
+      // Sufficient balance — pay directly from wallet
+      try {
+        setPaying(true);
+        if (isOrgPays) {
+          const result = await payForAllParticipants(id, 'wallet');
+          message.success(`Payment successful! Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
+          if (result?.roleUpgrade?.upgraded) {
+            message.success(result.roleUpgrade.message);
+            await refreshToken();
+          }
+        } else {
+          const payResult = await payForGroupBooking(id, 'wallet');
+          message.success('Payment successful!');
+          if (payResult?.roleUpgrade?.upgraded) {
+            message.success(payResult.roleUpgrade.message);
+            await refreshToken();
+          }
+        }
+        refetchWallet();
+        fetchBooking();
+      } catch (err) {
+        const errMsg = err.response?.data?.error;
+        message.error(typeof errMsg === 'string' ? errMsg : 'Payment failed');
+      } finally {
+        setPaying(false);
+      }
+    } else {
+      // Insufficient balance — open deposit modal to top up first
+      setDepositModalVisible(true);
     }
   };
   
@@ -243,79 +282,10 @@ const GroupBookingDetailPage = () => {
   const acceptedCount = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
   const totalForOrganizer = acceptedCount * (booking?.pricePerPerson || 0);
   
-  const participantColumns = [
-    {
-      title: 'Participant',
-      dataIndex: 'fullName',
-      key: 'fullName',
-      render: (name, record) => (
-        <Space>
-          <Avatar size="small" icon={<UserIcon className="w-4 h-4" />} />
-          <div>
-            <Text strong>{name || 'Pending'}</Text>
-            {record.isOrganizer && (
-              <Tag color="gold" className="ml-2">Organizer</Tag>
-            )}
-            <br />
-            <Text type="secondary" className="text-xs">{record.email}</Text>
-          </div>
-        </Space>
-      )
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {status}
-        </Tag>
-      )
-    },
-    {
-      title: 'Payment',
-      dataIndex: 'paymentStatus',
-      key: 'paymentStatus',
-      render: (status, record) => (
-        <Space direction="vertical" size={0}>
-          <Tag color={getPaymentStatusColor(status)}>
-            {status}
-          </Tag>
-          {status === 'paid' && record.amountPaid > 0 && (
-            <Text type="secondary" className="text-xs">
-              €{record.amountPaid?.toFixed(2)}
-            </Text>
-          )}
-        </Space>
-      )
-    },
-    ...(booking?.isOrganizer ? [{
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        !record.isOrganizer && (
-          <Popconfirm
-            title="Remove this participant?"
-            description="If they've paid, they will be refunded."
-            onConfirm={() => handleRemoveParticipant(record.id)}
-            okText="Remove"
-            cancelText="Cancel"
-          >
-            <Button 
-              type="text" 
-              danger 
-              icon={<TrashIcon className="w-4 h-4" />}
-            />
-          </Popconfirm>
-        )
-      )
-    }] : [])
-  ];
-  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Spin size="large" tip="Loading group booking..." />
+        <Spin size="large" />
       </div>
     );
   }
@@ -338,355 +308,404 @@ const GroupBookingDetailPage = () => {
   }
   
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      {/* Back Button */}
-      <Button
-        type="text"
-        icon={<ArrowLeftIcon className="w-4 h-4" />}
-        onClick={() => navigate('/student/group-bookings')}
-        className="mb-4"
-      >
-        Back to Group Lessons
-      </Button>
-      
-      {/* Header Card */}
-      <Card className="mb-4">
-        <div className="flex flex-col md:flex-row justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <Avatar 
-              size={64} 
-              className="bg-blue-100 text-blue-600"
-              icon={<UserGroupIcon className="w-8 h-8" />}
-            />
-            <div>
-              <Title level={3} className="mb-1">{booking.title}</Title>
-              <Tag color="blue">{booking.serviceName}</Tag>
-              <Tag color={getStatusColor(booking.status)}>
-                {booking.status.replace('_', ' ')}
-              </Tag>
-              {booking.isOrganizer && (
-                <Tag color="gold">You're Organizing</Tag>
-              )}
-              <Tag color={isOrganizerPaysModel ? 'purple' : 'cyan'}>
-                {isOrganizerPaysModel ? 'Organizer Pays All' : 'Individual Payment'}
-              </Tag>
-            </div>
-          </div>
-          
-          <div className="text-right">
-            <Text className="text-2xl font-bold text-green-600 block">
-              €{booking.pricePerPerson?.toFixed(2)}
-            </Text>
-            <Text type="secondary">per person</Text>
-          </div>
-        </div>
-        
-        {booking.description && (
-          <Paragraph className="mt-4 text-gray-600">
-            {booking.description}
-          </Paragraph>
-        )}
-      </Card>
-      
-      {/* Payment Alert */}
-      {needsPayment && (
-        <Alert
-          type="warning"
-          showIcon
-          message={organizerNeedsToPay ? "Pay for Your Group" : "Payment Required"}
-          description={
-            organizerNeedsToPay 
-              ? `As the organizer, you'll pay for all ${acceptedCount} participant(s). Total: €${totalForOrganizer.toFixed(2)}`
-              : "Please complete your payment to confirm your participation."
-          }
-          action={
-            <Button 
-              type="primary" 
-              icon={<CreditCardIcon className="w-4 h-4" />}
-              onClick={() => setPaymentModalVisible(true)}
-            >
-              {organizerNeedsToPay 
-                ? `Pay All (€${totalForOrganizer.toFixed(2)})`
-                : `Pay Now (€${booking.pricePerPerson?.toFixed(2)})`
-              }
-            </Button>
-          }
-          className="mb-4"
-        />
-      )}
-      
-      {/* Status Alert for Organizer */}
-      {booking?.isOrganizer && booking.status === 'pending' && (
-        <Alert
-          type="info"
-          showIcon
-          message="Group Booking Status: Pending"
-          description={
-            <div className="space-y-2">
-              <Text>Waiting for participants to accept invitations.</Text>
-              <div className="mt-2">
-                <Text strong>Accepted: </Text>
-                <Text>{acceptedCount} of {booking.minParticipants} minimum required</Text>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/40 py-6 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Back Button */}
+        <Button
+          type="text"
+          icon={<ArrowLeftIcon className="w-4 h-4" />}
+          onClick={() => navigate('/student/group-bookings')}
+          className="mb-4 !text-slate-500 hover:!text-slate-800"
+        >
+          Back to Group Lessons
+        </Button>
+
+        {/* ── Hero Header ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-4">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <UserGroupIcon className="w-7 h-7 text-blue-600" />
               </div>
-              {acceptedCount >= booking.minParticipants && (
-                <div className="mt-2">
-                  <Text type="success">✓ Minimum participants reached! You can submit for admin approval.</Text>
+              <div>
+                <Title level={3} className="!mb-1.5 !text-slate-900">{booking.title}</Title>
+                <div className="flex flex-wrap gap-1.5">
+                  <Tag color="blue" className="!rounded-full !text-xs !px-3">{booking.serviceName}</Tag>
+                  <Tag color={getStatusColor(booking.status)} className="!rounded-full !text-xs !px-3">
+                    {booking.status.replace('_', ' ')}
+                  </Tag>
+                  {booking.isOrganizer && (
+                    <Tag color="gold" className="!rounded-full !text-xs !px-3">Organizer</Tag>
+                  )}
+                  <Tag color={isOrganizerPaysModel ? 'purple' : 'cyan'} className="!rounded-full !text-xs !px-3">
+                    {isOrganizerPaysModel ? 'Organizer Pays' : 'Individual Payment'}
+                  </Tag>
                 </div>
-              )}
-              {acceptedCount < booking.minParticipants && (
-                <div className="mt-2">
-                  <Text type="warning">Need {booking.minParticipants - acceptedCount} more participant(s) to submit for approval.</Text>
-                </div>
-              )}
+              </div>
             </div>
-          }
-          action={
-            acceptedCount >= booking.minParticipants && (
-              <Button 
-                type="primary"
-                onClick={() => message.info('Submit for approval feature coming soon!')}
-              >
-                Submit for Approval
-              </Button>
-            )
-          }
-          className="mb-4"
-        />
-      )}
-      
-      {/* Status Alert for Non-Organizer */}
-      {!booking?.isOrganizer && booking.status === 'pending' && (
-        <Alert
-          type="info"
-          showIcon
-          message="Group Booking Status: Pending"
-          description="The organizer is collecting participants. Once everyone accepts and the booking is approved by admin, it will be confirmed."
-          className="mb-4"
-        />
-      )}
-      
-      {/* Payment Model Info */}
-      {isOrganizerPaysModel && !booking?.isOrganizer && (
-        <Alert
-          type="info"
-          showIcon
-          message="Organizer Pays"
-          description="The organizer will pay for all participants. You don't need to pay individually."
-          className="mb-4"
-        />
-      )}
-      
-      {/* Details */}
-      <Card title="Event Details" className="mb-4">
-        <Descriptions column={{ xs: 1, sm: 2 }}>
-          <Descriptions.Item 
-            label={<Space><CalendarIcon className="w-4 h-4" /> Date</Space>}
-          >
-            <Text strong>
-              {dayjs(booking.scheduledDate).format('dddd, MMMM D, YYYY')}
-            </Text>
-          </Descriptions.Item>
-          
-          <Descriptions.Item 
-            label={<Space><ClockIcon className="w-4 h-4" /> Time</Space>}
-          >
-            <Text strong>
-              {booking.startTime}
-              {booking.endTime && ` - ${booking.endTime}`}
-            </Text>
-          </Descriptions.Item>
-          
-          <Descriptions.Item label="Instructor">
-            {booking.instructorName || 'To be assigned'}
-          </Descriptions.Item>
-          
-          <Descriptions.Item label="Duration">
-            {booking.durationHours > 0 ? `${booking.durationHours} hour(s)` : '-'}
-          </Descriptions.Item>
-          
-          <Descriptions.Item label="Organizer">
-            {booking.organizerName}
-            <br />
-            <Text type="secondary" className="text-xs">{booking.organizerEmail}</Text>
-          </Descriptions.Item>
-          
-          <Descriptions.Item label="Participants">
-            {booking.participantCount} / {booking.maxParticipants} (min: {booking.minParticipants})
-          </Descriptions.Item>
-          
-          {booking.registrationDeadline && (
-            <Descriptions.Item label="Registration Deadline">
-              {dayjs(booking.registrationDeadline).format('MMM D, YYYY HH:mm')}
-            </Descriptions.Item>
-          )}
-          
-          {booking.paymentDeadline && (
-            <Descriptions.Item label="Payment Deadline">
-              {dayjs(booking.paymentDeadline).format('MMM D, YYYY HH:mm')}
-            </Descriptions.Item>
-          )}
-        </Descriptions>
-        
-        {booking.notes && (
-          <>
-            <Divider />
-            <Text strong>Notes:</Text>
-            <Paragraph className="mt-2 text-gray-600">
-              {booking.notes}
+            <div className="text-right shrink-0">
+              <span className="text-3xl font-extrabold text-emerald-600">€{booking.pricePerPerson?.toFixed(2)}</span>
+              <Text type="secondary" className="block text-xs mt-0.5">per person</Text>
+            </div>
+          </div>
+          {booking.description && (
+            <Paragraph className="mt-4 !mb-0 text-slate-500 text-sm">
+              {booking.description}
             </Paragraph>
-          </>
-        )}
-      </Card>
-      
-      {/* Participants */}
-      <Card 
-        title={`Participants (${booking.participantCount}/${booking.maxParticipants})`}
-        extra={
-          booking.isOrganizer && booking.status !== 'cancelled' && (
+          )}
+        </div>
+
+        {/* ── Payment Alert ── */}
+        {needsPayment && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                <CreditCardIcon className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <Text strong className="text-amber-900 block">
+                  {organizerNeedsToPay ? 'Pay for Your Group' : 'Payment Required'}
+                </Text>
+                <Text className="text-amber-700 text-sm">
+                  {organizerNeedsToPay
+                    ? `As the organizer, you'll pay for all ${acceptedCount} participant(s). Total: €${totalForOrganizer.toFixed(2)}`
+                    : 'Complete your payment to confirm your spot.'}
+                </Text>
+              </div>
+            </div>
             <Button
               type="primary"
-              icon={<PlusIcon className="w-4 h-4" />}
-              onClick={() => setInviteModalVisible(true)}
-              disabled={booking.participantCount >= booking.maxParticipants}
+              size="large"
+              loading={paying}
+              icon={<CreditCardIcon className="w-4 h-4" />}
+              onClick={handlePay}
+              className="!rounded-xl !font-bold !h-11 shrink-0"
             >
-              Invite Friends
+              {organizerNeedsToPay
+                ? `Pay €${totalForOrganizer.toFixed(2)}`
+                : `Pay €${booking.pricePerPerson?.toFixed(2)}`}
             </Button>
-          )
-        }
-        className="mb-4"
-      >
-        <Table
-          dataSource={booking.participants}
-          columns={participantColumns}
-          rowKey="id"
-          pagination={false}
-          size="small"
-        />
-        
-        {/* Stats */}
-        <div className="mt-4 flex gap-4 flex-wrap">
-          <Tag color="blue">
-            {booking.participants?.filter(p => p.status === 'accepted').length || 0} Accepted
-          </Tag>
-          <Tag color="orange">
-            {booking.participants?.filter(p => p.status === 'invited').length || 0} Pending
-          </Tag>
-          <Tag color="green">
-            {booking.paidCount} Paid
-          </Tag>
+          </div>
+        )}
+
+        {/* ── Status Alerts ── */}
+        {booking?.isOrganizer && booking.status === 'pending' && (
+          <Alert
+            type="info"
+            showIcon
+            className="!rounded-2xl mb-4"
+            message="Waiting for participants"
+            description={
+              <span>
+                {acceptedCount} of {booking.minParticipants} minimum accepted.
+                {acceptedCount >= booking.minParticipants
+                  ? ' Minimum participants reached!'
+                  : ` Need ${booking.minParticipants - acceptedCount} more.`}
+              </span>
+            }
+          />
+        )}
+
+        {!booking?.isOrganizer && booking.status === 'pending' && (
+          <Alert
+            type="info"
+            showIcon
+            className="!rounded-2xl mb-4"
+            message="Booking pending"
+            description="The organizer is collecting participants. You'll be notified when the booking is confirmed."
+          />
+        )}
+
+        {isOrganizerPaysModel && !booking?.isOrganizer && (
+          <Alert
+            type="info"
+            showIcon
+            className="!rounded-2xl mb-4"
+            message="Organizer Pays"
+            description="The organizer will cover payment for all participants."
+          />
+        )}
+
+        {/* ── Lesson Details ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-4">
+          <Title level={5} className="!mb-4 !text-slate-700">Lesson Details</Title>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Date */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                <CalendarIcon className="w-4.5 h-4.5 text-blue-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Date</Text>
+                <Text strong className="text-sm">{dayjs(booking.scheduledDate).format('ddd, MMM D, YYYY')}</Text>
+              </div>
+            </div>
+            {/* Time */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                <ClockIcon className="w-4.5 h-4.5 text-violet-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Time</Text>
+                <Text strong className="text-sm">
+                  {booking.startTime}{booking.endTime ? ` – ${booking.endTime}` : ''}
+                  {booking.durationHours > 0 && <Text type="secondary" className="text-xs"> ({booking.durationHours}h)</Text>}
+                </Text>
+              </div>
+            </div>
+            {/* Instructor */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                <UserIcon className="w-4.5 h-4.5 text-emerald-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Instructor</Text>
+                <Text strong className="text-sm">{booking.instructorName || 'To be assigned'}</Text>
+              </div>
+            </div>
+          </div>
+
+          {/* Second row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
+            {/* Organizer */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                <EnvelopeIcon className="w-4.5 h-4.5 text-amber-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Organizer</Text>
+                <Text strong className="text-sm">{booking.organizerName}</Text>
+                <Text type="secondary" className="text-xs block">{booking.organizerEmail}</Text>
+              </div>
+            </div>
+            {/* Participants */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-cyan-50 flex items-center justify-center shrink-0">
+                <UserGroupIcon className="w-4.5 h-4.5 text-cyan-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Participants</Text>
+                <Text strong className="text-sm">{booking.participantCount} / {booking.maxParticipants}</Text>
+                <Text type="secondary" className="text-xs block">min: {booking.minParticipants}</Text>
+              </div>
+            </div>
+            {/* Price */}
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                <CurrencyEuroIcon className="w-4.5 h-4.5 text-green-500" />
+              </div>
+              <div>
+                <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Price</Text>
+                <Text strong className="text-sm text-emerald-600">€{booking.pricePerPerson?.toFixed(2)}</Text>
+                <Text type="secondary" className="text-xs block">per person</Text>
+              </div>
+            </div>
+          </div>
+
+          {/* Deadlines */}
+          {(booking.registrationDeadline || booking.paymentDeadline) && (
+            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-6">
+              {booking.registrationDeadline && (
+                <div>
+                  <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Registration Deadline</Text>
+                  <Text className="text-sm">{dayjs(booking.registrationDeadline).format('MMM D, YYYY HH:mm')}</Text>
+                </div>
+              )}
+              {booking.paymentDeadline && (
+                <div>
+                  <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Payment Deadline</Text>
+                  <Text className="text-sm">{dayjs(booking.paymentDeadline).format('MMM D, YYYY HH:mm')}</Text>
+                </div>
+              )}
+            </div>
+          )}
+
+          {booking.notes && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block mb-1">Notes</Text>
+              <Paragraph className="!mb-0 text-sm text-slate-600">{booking.notes}</Paragraph>
+            </div>
+          )}
         </div>
-      </Card>
-      
-      {/* Share Invite Link */}
-      {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (
-        <Card title={
-          <Space>
-            <ShareIcon className="w-4 h-4" />
-            <span>Share Invite Link</span>
-          </Space>
-        } className="mb-4">
+
+        {/* ── Participants ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <Title level={5} className="!mb-0 !text-slate-700">
+              Participants ({booking.participantCount}/{booking.maxParticipants})
+            </Title>
+            {booking.isOrganizer && booking.status !== 'cancelled' && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlusIcon className="w-3.5 h-3.5" />}
+                onClick={() => setInviteModalVisible(true)}
+                disabled={booking.participantCount >= booking.maxParticipants}
+                className="!rounded-lg"
+              >
+                Invite
+              </Button>
+            )}
+          </div>
+
           <div className="space-y-3">
-            <Text type="secondary" className="text-sm block">
-              Share this link with friends to invite them to your group lesson. They can accept by clicking the link — even if they don't have an account yet.
+            {booking.participants?.map((p) => (
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <Avatar size={36} className="bg-blue-100 text-blue-600 shrink-0" icon={<UserIcon className="w-4 h-4" />} />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Text strong className="text-sm">{p.fullName || 'Pending'}</Text>
+                      {p.isOrganizer && <Tag color="gold" className="!rounded-full !text-[10px] !px-2 !py-0 !leading-4">Organizer</Tag>}
+                    </div>
+                    <Text type="secondary" className="text-xs block">{p.email}</Text>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Tag color={getStatusColor(p.status)} className="!rounded-full !text-xs !m-0">{p.status}</Tag>
+                  <Tag color={getPaymentStatusColor(p.paymentStatus)} className="!rounded-full !text-xs !m-0">
+                    {p.paymentStatus}
+                    {p.paymentStatus === 'paid' && p.amountPaid > 0 && ` €${p.amountPaid?.toFixed(2)}`}
+                  </Tag>
+                  {booking.isOrganizer && !p.isOrganizer && (
+                    <Popconfirm
+                      title="Remove participant?"
+                      description="If they've paid, they will be refunded."
+                      onConfirm={() => handleRemoveParticipant(p.id)}
+                      okText="Remove"
+                      cancelText="Cancel"
+                    >
+                      <Button type="text" danger size="small" icon={<TrashIcon className="w-3.5 h-3.5" />} className="!rounded-lg" />
+                    </Popconfirm>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Stats row */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex gap-3 flex-wrap">
+            <Tag color="blue" className="!rounded-full !text-xs">
+              {booking.participants?.filter(p => p.status === 'accepted').length || 0} Accepted
+            </Tag>
+            <Tag color="orange" className="!rounded-full !text-xs">
+              {booking.participants?.filter(p => p.status === 'invited').length || 0} Pending
+            </Tag>
+            <Tag color="green" className="!rounded-full !text-xs">
+              {booking.paidCount} Paid
+            </Tag>
+          </div>
+        </div>
+
+        {/* ── Share Invite Link ── */}
+        {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ShareIcon className="w-4.5 h-4.5 text-slate-500" />
+              <Title level={5} className="!mb-0 !text-slate-700">Share Invite Link</Title>
+            </div>
+            <Text type="secondary" className="text-sm block mb-3">
+              Share this link with friends so they can join — even without an account.
             </Text>
             {(() => {
-              // Find a participant with pending invitation token for the invite link
               const invitedParticipant = booking.participants?.find(p => p.invitationToken && p.status === 'invited');
               const baseUrl = window.location.origin;
-              
+
               if (invitedParticipant) {
                 const inviteLink = `${baseUrl}/group-invitation/${invitedParticipant.invitationToken}`;
                 return (
                   <div className="flex gap-2">
-                    <Input 
+                    <Input
                       value={inviteLink}
                       readOnly
-                      className="flex-1"
+                      className="flex-1 !rounded-xl"
                       addonBefore={<LinkIcon className="w-4 h-4" />}
                     />
                     <Tooltip title="Copy to clipboard">
                       <Button
                         type="primary"
                         icon={<ClipboardDocumentIcon className="w-4 h-4" />}
+                        className="!rounded-xl"
                         onClick={() => {
                           navigator.clipboard.writeText(inviteLink).then(() => {
-                            message.success('Invite link copied to clipboard!');
+                            message.success('Invite link copied!');
                           }).catch(() => {
-                            // Fallback for older browsers
                             const textArea = document.createElement('textarea');
                             textArea.value = inviteLink;
                             document.body.appendChild(textArea);
                             textArea.select();
                             document.execCommand('copy');
                             document.body.removeChild(textArea);
-                            message.success('Invite link copied!');
+                            message.success('Link copied!');
                           });
                         }}
                       >
-                        Copy Link
+                        Copy
                       </Button>
                     </Tooltip>
                   </div>
                 );
               }
-              
+
               return (
                 <Alert
                   type="info"
                   showIcon
+                  className="!rounded-xl"
                   message="No pending invite links"
-                  description="Use 'Invite Friends' above to create invite links. Each invited person gets a unique link you can share."
+                  description="Use 'Invite' above to create invite links."
                 />
               );
             })()}
 
-            {/* Show all invite links for all pending invitations */}
             {booking.participants?.filter(p => p.invitationToken && p.status === 'invited').length > 1 && (
-              <div className="mt-2">
-                <Text strong className="text-xs block mb-2">All pending invitation links:</Text>
-                {booking.participants
-                  .filter(p => p.invitationToken && p.status === 'invited')
-                  .map(p => {
-                    const link = `${window.location.origin}/group-invitation/${p.invitationToken}`;
-                    return (
-                      <div key={p.id} className="flex items-center gap-2 mb-1">
-                        <Text type="secondary" className="text-xs truncate max-w-[150px]">
-                          {p.email || p.fullName || 'Invited'}
-                        </Text>
-                        <Button
-                          size="small"
-                          type="link"
-                          icon={<ClipboardDocumentIcon className="w-3 h-3" />}
-                          onClick={() => {
-                            navigator.clipboard.writeText(link);
-                            message.success(`Link for ${p.email || 'participant'} copied!`);
-                          }}
-                        >
-                          Copy
-                        </Button>
-                      </div>
-                    );
-                  })}
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <Text strong className="text-xs block mb-2 text-slate-500">All pending invitations:</Text>
+                <div className="space-y-1">
+                  {booking.participants
+                    .filter(p => p.invitationToken && p.status === 'invited')
+                    .map(p => {
+                      const link = `${window.location.origin}/group-invitation/${p.invitationToken}`;
+                      return (
+                        <div key={p.id} className="flex items-center gap-2">
+                          <Text type="secondary" className="text-xs truncate max-w-[150px]">
+                            {p.email || p.fullName || 'Invited'}
+                          </Text>
+                          <Button
+                            size="small"
+                            type="link"
+                            icon={<ClipboardDocumentIcon className="w-3 h-3" />}
+                            onClick={() => {
+                              navigator.clipboard.writeText(link);
+                              message.success(`Link for ${p.email || 'participant'} copied!`);
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
           </div>
-        </Card>
-      )}
-      
-      {/* Actions */}
-      {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (
-        <Card className="bg-gray-50">
-          <div className="flex justify-between items-center">
-            <Text type="secondary">Organizer Actions</Text>
-            <Button
-              danger
-              onClick={() => setCancelModalVisible(true)}
-            >
-              Cancel Group Booking
-            </Button>
+        )}
+
+        {/* ── Organizer Actions ── */}
+        {booking.isOrganizer && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 mb-4">
+            <div className="flex justify-between items-center">
+              <Text type="secondary" className="text-sm">Organizer Actions</Text>
+              <Button
+                danger
+                className="!rounded-xl"
+                onClick={() => setCancelModalVisible(true)}
+              >
+                Cancel Group Booking
+              </Button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
       
       {/* Invite Modal */}
       <Modal
@@ -730,76 +749,18 @@ const GroupBookingDetailPage = () => {
         </Form>
       </Modal>
       
-      {/* Payment Modal */}
-      <Modal
-        title={organizerNeedsToPay ? "Pay for All Participants" : "Complete Payment"}
-        open={paymentModalVisible}
-        onCancel={() => setPaymentModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setPaymentModalVisible(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="pay"
-            type="primary"
-            loading={paying}
-            onClick={handlePayment}
-            icon={<CreditCardIcon className="w-4 h-4" />}
-          >
-            Pay €{organizerNeedsToPay ? totalForOrganizer.toFixed(2) : booking?.pricePerPerson?.toFixed(2)}
-          </Button>
-        ]}
-      >
-        <div className="py-4">
-          {organizerNeedsToPay && (
-            <Alert
-              type="info"
-              showIcon
-              message="Organizer Payment"
-              description={
-                <div>
-                  <p>You are paying for all {acceptedCount} participant(s):</p>
-                  <p className="mt-2">
-                    <strong>{acceptedCount} × €{booking?.pricePerPerson?.toFixed(2)} = €{totalForOrganizer.toFixed(2)}</strong>
-                  </p>
-                </div>
-              }
-              className="mb-4"
-            />
-          )}
-          
-          <Text className="block mb-4">
-            Select your payment method:
-          </Text>
-          
-          <Select
-            value={paymentMethod}
-            onChange={setPaymentMethod}
-            className="w-full"
-            size="large"
-          >
-            <Select.Option value="wallet">
-              <Space>
-                <WalletIcon className="w-4 h-4" />
-                Pay from Wallet
-              </Space>
-            </Select.Option>
-            <Select.Option value="credit_card">
-              <Space>
-                <CreditCardIcon className="w-4 h-4" />
-                Card
-              </Space>
-            </Select.Option>
-          </Select>
-          
-          <Alert
-            type="info"
-            message="Wallet Payment"
-            description="The amount will be deducted from your wallet balance."
-            className="mt-4"
-          />
-        </div>
-      </Modal>
+      {/* Payment / Wallet Deposit Modal */}
+      <WalletDepositModal
+        visible={depositModalVisible}
+        onClose={() => setDepositModalVisible(false)}
+        onSuccess={handleDepositSuccess}
+        initialAmount={
+          organizerNeedsToPay
+            ? (convertCurrency ? convertCurrency(totalForOrganizer, 'EUR', userCurrency) : totalForOrganizer)
+            : (convertCurrency ? convertCurrency(booking?.pricePerPerson || 0, 'EUR', userCurrency) : (booking?.pricePerPerson || 0))
+        }
+        initialCurrency={userCurrency}
+      />
       
       {/* Cancel Modal */}
       <Modal
@@ -833,6 +794,7 @@ const GroupBookingDetailPage = () => {
           rows={3}
         />
       </Modal>
+      </div>
     </div>
   );
 };

@@ -3328,12 +3328,14 @@ router.delete('/customer-packages/:id', authorize(['admin', 'manager']), async (
 
     const { id } = req.params;
     const actorId = resolveActorId(req);
+    const forceFullRefund = req.query.forceFullRefund === 'true';
 
     const deleteResult = await forceDeleteCustomerPackage({
       client,
       packageId: id,
       actorId,
-      issueRefund: true
+      issueRefund: true,
+      forceFullRefund
     });
 
     await client.query('COMMIT');

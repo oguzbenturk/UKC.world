@@ -473,7 +473,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               name="preferred_currency"
               label={lbl('Preferred Currency')}
               rules={[{ required: true, message: 'Required' }]}
-              extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>Prices will be shown in this currency</span>}
+              extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>All prices and payments will be processed in this currency</span>}
             >
               <Select
                 placeholder="Select currency"

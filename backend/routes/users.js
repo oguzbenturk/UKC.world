@@ -306,24 +306,35 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
 
     const currencyParamIndex = params.length + 1;
 
-    // Compose SQL - join wallet_balances using EUR (storage currency)
-    // NOTE: All financial data is stored in EUR. The preferred_currency is only for display purposes.
-  const sql = `
+    // Compose SQL - join wallet_balances on user's preferred_currency, then convert to EUR
+    // for consistent display. Falls back to u.balance (legacy mirror, should be EUR).
+    const sql = `
       SELECT 
         u.id,
         COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) AS name,
         u.email,
         u.phone,
         r.name AS role,
-        ${balanceColumn} AS balance,
+        CASE
+          WHEN wb_pref.available_amount IS NOT NULL AND cs.exchange_rate IS NOT NULL AND cs.exchange_rate > 0
+            THEN ROUND((wb_pref.available_amount / cs.exchange_rate)::numeric, 2)
+          WHEN wb_eur.available_amount IS NOT NULL
+            THEN wb_eur.available_amount
+          ELSE COALESCE(u.balance, 0)
+        END AS balance,
         COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,
         u.created_at,
         COALESCE(pb.pending_count, 0) AS pending_count
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      LEFT JOIN wallet_balances wb
-        ON wb.user_id = u.id
-       AND wb.currency = 'EUR'
+      LEFT JOIN wallet_balances wb_eur
+        ON wb_eur.user_id = u.id AND wb_eur.currency = 'EUR'
+      LEFT JOIN wallet_balances wb_pref
+        ON wb_pref.user_id = u.id
+       AND wb_pref.currency = COALESCE(u.preferred_currency, 'EUR')
+       AND COALESCE(u.preferred_currency, 'EUR') != 'EUR'
+      LEFT JOIN currency_settings cs
+        ON cs.currency_code = wb_pref.currency
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS pending_count
         FROM bookings b

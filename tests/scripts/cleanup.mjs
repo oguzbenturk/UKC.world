@@ -25,6 +25,7 @@
  *
  * DELETES (transactional data):
  *   - All bookings + sub-tables
+ *   - All group bookings, group booking participants, group lesson requests
  *   - All financial transactions, earnings, commissions, payroll
  *   - All wallet transactions (balances reset to 0)
  *   - All rentals, accommodation bookings
@@ -223,6 +224,22 @@ async function main() {
       } catch { /* table might not exist */ }
     }
     log(`\n  Total rows to delete: ${totalRowsToDelete}`);
+
+    // ── Group booking summary ──
+    try {
+      const gbCount = await client.query(`SELECT COUNT(*) as cnt FROM group_bookings`);
+      const gbpCount = await client.query(`SELECT COUNT(*) as cnt FROM group_booking_participants`);
+      const glrCount = await client.query(`SELECT COUNT(*) as cnt FROM group_lesson_requests`);
+      const gb  = parseInt(gbCount.rows[0].cnt);
+      const gbp = parseInt(gbpCount.rows[0].cnt);
+      const glr = parseInt(glrCount.rows[0].cnt);
+      if (gb + gbp + glr > 0) {
+        log(`\n  ── Group Bookings ──`);
+        log(`    group_bookings:              ${gb}`);
+        log(`    group_booking_participants:   ${gbp}`);
+        log(`    group_lesson_requests:        ${glr}`);
+      }
+    } catch { /* tables might not exist */ }
 
     // Also count test/soft-deleted users
     const { rows: testUsers } = await client.query(`

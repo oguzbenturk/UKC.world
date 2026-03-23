@@ -124,6 +124,14 @@ export const removeParticipant = async (groupBookingId, participantId) => {
   return response.data;
 };
 
+/**
+ * Generate a shareable invite link for a group booking
+ */
+export const generateInviteLink = async (groupBookingId) => {
+  const response = await apiClient.post(`/group-bookings/${groupBookingId}/generate-link`);
+  return response.data;
+};
+
 export default {
   createGroupBooking,
   getGroupBookings,
@@ -137,5 +145,6 @@ export default {
   payForGroupBooking,
   payForAllParticipants,
   cancelGroupBooking,
-  removeParticipant
+  removeParticipant,
+  generateInviteLink
 };

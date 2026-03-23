@@ -231,7 +231,7 @@ const NotificationBell = () => {
         persistRatingContext(notification.data.ratingContext);
       }
 
-      const href = notification.data?.cta?.href;
+      const href = notification.data?.cta?.href || notification.data?.link;
       if (href) {
         setOpen(false);
         // Redirect rental booking notifications to the Rental Requests tab

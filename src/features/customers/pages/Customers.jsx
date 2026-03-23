@@ -324,24 +324,13 @@ const Customers = () => {
           const value = Number(getValue() || 0);
           const color = value < 0 ? 'text-red-600' : 'text-green-600';
           
-          // IMPORTANT: All balances in DB are stored in EUR (base currency)
-          const storageCurrency = businessCurrency || 'EUR';
-          const customerPreferredCurrency = row.original?.preferred_currency || storageCurrency;
-          
-          // Staff sees EUR (no conversion needed), customers see their preferred currency
-          let displayAmount = value;
-          let displayCurrencyCode = storageCurrency;
-          
-          if (!isStaff && customerPreferredCurrency !== storageCurrency && convertCurrency) {
-            // Convert FROM EUR TO customer's preferred currency
-            displayAmount = convertCurrency(value, storageCurrency, customerPreferredCurrency);
-            displayCurrencyCode = customerPreferredCurrency;
-          }
+          // balance is always returned in EUR by the backend (converted from wallet currency)
+          const displayCurrencyCode = businessCurrency || 'EUR';
           
           return (
             <div className="text-right w-full">
               <span className={`font-medium ${color}`}>
-                {formatCurrency(Number(displayAmount) || 0, displayCurrencyCode)}
+                {formatCurrency(value, displayCurrencyCode)}
               </span>
             </div>
           );

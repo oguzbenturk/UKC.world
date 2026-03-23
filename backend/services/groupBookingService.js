@@ -7,6 +7,8 @@ import { pool } from '../db.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { logger } from '../middlewares/errorHandler.js';
+import { recordTransaction } from './walletService.js';
+import CurrencyService from './currencyService.js';
 
 /**
  * Generate a secure invitation token
@@ -36,7 +38,8 @@ export const createGroupBooking = async ({
   paymentDeadline,
   notes,
   createdBy,
-  paymentModel = 'individual' // 'individual' or 'organizer_pays'
+  paymentModel = 'individual',
+  packageId = null
 }) => {
   const client = await pool.connect();
   try {
@@ -52,15 +55,15 @@ export const createGroupBooking = async ({
         title, description, max_participants, min_participants,
         price_per_person, currency, scheduled_date, start_time, end_time,
         duration_hours, registration_deadline, payment_deadline,
-        notes, status, payment_model, created_at, updated_at, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20, $21)
+        notes, status, payment_model, package_id, created_at, updated_at, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $21, $22)
       RETURNING *
     `, [
       groupId, organizerId, serviceId, instructorId,
       title, description, maxParticipants, minParticipants,
       pricePerPerson, currency, scheduledDate, startTime, endTime,
       durationHours, registrationDeadline, paymentDeadline,
-      notes, 'pending', paymentModel, now, createdBy || organizerId
+      notes, 'pending', paymentModel, packageId, now, createdBy || organizerId
     ]);
 
     const groupBooking = result.rows[0];
@@ -137,7 +140,7 @@ export const inviteParticipants = async (groupBookingId, invitedBy, participants
 
     const invitations = [];
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day
 
     for (const participant of participants) {
       const { email, fullName, phone } = participant;
@@ -524,6 +527,8 @@ export const getInvitationByToken = async (token) => {
       gb.currency,
       gb.max_participants,
       gb.status as group_status,
+      gb.service_id,
+      gb.package_id,
       s.name as service_name,
       COALESCE(i.name, CONCAT(i.first_name, ' ', i.last_name)) as instructor_name,
       COALESCE(org.name, CONCAT(org.first_name, ' ', org.last_name)) as organizer_name,
@@ -597,6 +602,12 @@ export const acceptInvitation = async (token, userId) => {
     );
 
     const group = groupResult.rows[0];
+
+    // Prevent organizer from accepting their own invitation
+    if (group.organizer_id === userId) {
+      throw new Error('You cannot accept your own group invitation');
+    }
+
     if (group.status === 'cancelled') {
       throw new Error('This group booking has been cancelled');
     }
@@ -604,12 +615,26 @@ export const acceptInvitation = async (token, userId) => {
       throw new Error('This group is already full');
     }
 
-    // Update participant
+    // For generic invite links, resolve the email and populate amount_due from the group
+    const updateFields = invitation.is_generic_link
+      ? `SET user_id = $1, status = 'accepted', accepted_at = NOW(), updated_at = NOW(),
+             email = (SELECT email FROM users WHERE id = $1),
+             full_name = (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE id = $1),
+             is_generic_link = FALSE,
+             amount_due = COALESCE(amount_due, $3),
+             currency = COALESCE(currency, $4),
+             payment_status = COALESCE(payment_status, 'pending')`
+      : `SET user_id = $1, status = 'accepted', accepted_at = NOW(), updated_at = NOW()`;
+
+    const updateParams = invitation.is_generic_link
+      ? [userId, invitation.id, group.price_per_person, group.currency || 'EUR']
+      : [userId, invitation.id];
+
     await client.query(`
       UPDATE group_booking_participants
-      SET user_id = $1, status = 'accepted', accepted_at = NOW(), updated_at = NOW()
+      ${updateFields}
       WHERE id = $2
-    `, [userId, invitation.id]);
+    `, updateParams);
 
     // Check if group is now full
     const countResult = await client.query(
@@ -636,6 +661,66 @@ export const acceptInvitation = async (token, userId) => {
   } finally {
     client.release();
   }
+};
+
+/**
+ * Generate a generic (shareable) invite link for a group booking.
+ * Creates a participant placeholder with is_generic_link = true.
+ */
+export const generateGenericInviteLink = async (groupBookingId, invitedBy) => {
+  // Verify group exists and has open spots
+  const groupResult = await pool.query(
+    'SELECT * FROM group_bookings WHERE id = $1',
+    [groupBookingId]
+  );
+
+  if (groupResult.rows.length === 0) {
+    throw new Error('Group booking not found');
+  }
+
+  const group = groupResult.rows[0];
+  if (group.status === 'cancelled') {
+    throw new Error('This group booking has been cancelled');
+  }
+
+  // Check available spots
+  const countResult = await pool.query(
+    `SELECT COUNT(*) as count FROM group_booking_participants 
+     WHERE group_booking_id = $1 AND status IN ('invited', 'accepted', 'paid')`,
+    [groupBookingId]
+  );
+  const currentCount = parseInt(countResult.rows[0].count, 10);
+  if (currentCount >= group.max_participants) {
+    throw new Error('No available spots in this group');
+  }
+
+  const token = generateInvitationToken();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry
+
+  await pool.query(`
+    INSERT INTO group_booking_participants (
+      id, group_booking_id, email, invitation_token, invitation_expires_at,
+      invited_by, status, payment_status, is_generic_link, amount_due, currency, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, 'invited', 'pending', TRUE, $7, $8, NOW(), NOW())
+  `, [
+    uuidv4(),
+    groupBookingId,
+    'pending@invite.link',
+    token,
+    expiresAt,
+    invitedBy,
+    group.price_per_person,
+    group.currency || 'EUR'
+  ]);
+
+  logger.info('Generic invite link generated', { groupBookingId, invitedBy });
+
+  return {
+    token,
+    inviteUrl: `/group-invitation/${token}`,
+    expiresAt
+  };
 };
 
 /**
@@ -688,40 +773,76 @@ export const processParticipantPayment = async ({
       throw new Error('Already paid');
     }
 
-    const amountDue = parseFloat(participant.amount_due);
+    let amountDue = parseFloat(participant.amount_due);
+
+    // If amount_due was not set (legacy generic-link participants), resolve from group
+    if (isNaN(amountDue) || amountDue === null) {
+      const groupForPrice = await client.query(
+        'SELECT price_per_person, currency FROM group_bookings WHERE id = $1',
+        [participant.group_booking_id]
+      );
+      if (groupForPrice.rows.length > 0) {
+        amountDue = parseFloat(groupForPrice.rows[0].price_per_person) || 0;
+        // Backfill the participant record
+        await client.query(
+          'UPDATE group_booking_participants SET amount_due = $1, currency = COALESCE(currency, $2) WHERE id = $3',
+          [amountDue, groupForPrice.rows[0].currency || 'EUR', participantId]
+        );
+      } else {
+        amountDue = 0;
+      }
+    }
 
     // Process based on payment method
     if (paymentMethod === 'wallet') {
-      // Check wallet balance
-      const walletResult = await client.query(
-        'SELECT available_balance FROM customer_wallets WHERE user_id = $1',
+      const paymentCurrency = participant.currency || 'EUR';
+
+      // Determine the user's wallet currency
+      const userRow = await client.query(
+        'SELECT preferred_currency FROM users WHERE id = $1',
         [userId]
       );
+      const userWalletCurrency = userRow.rows[0]?.preferred_currency || 'EUR';
 
-      if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].available_balance) < amountDue) {
-        throw new Error('Insufficient wallet balance');
+      // Check if user has sufficient balance in the payment currency
+      const balanceCheck = await client.query(
+        'SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = $2',
+        [userId, paymentCurrency]
+      );
+      const availableInPaymentCurrency = parseFloat(balanceCheck.rows[0]?.available_amount || 0);
+
+      let debitCurrency = paymentCurrency;
+      let debitAmount = amountDue;
+      let originalAmount = null;
+      let originalCurrency = null;
+      let transactionExchangeRate = null;
+
+      if (availableInPaymentCurrency < amountDue && userWalletCurrency !== paymentCurrency) {
+        // Insufficient balance in payment currency — convert to user's wallet currency
+        const converted = await CurrencyService.convertCurrency(amountDue, paymentCurrency, userWalletCurrency);
+        debitAmount = converted;
+        debitCurrency = userWalletCurrency;
+        originalAmount = amountDue;
+        originalCurrency = paymentCurrency;
+        transactionExchangeRate = amountDue > 0 ? Math.round((converted / amountDue) * 1e6) / 1e6 : null;
       }
 
-      // Deduct from wallet
-      await client.query(`
-        UPDATE customer_wallets
-        SET available_balance = available_balance - $1, updated_at = NOW()
-        WHERE user_id = $2
-      `, [amountDue, userId]);
-
-      // Create wallet transaction
-      await client.query(`
-        INSERT INTO wallet_transactions (
-          id, wallet_id, type, amount, currency, description,
-          reference_type, reference_id, created_at
-        )
-        SELECT $1, cw.id, 'debit', $2, $3, $4, 'group_booking', $5, NOW()
-        FROM customer_wallets cw WHERE cw.user_id = $6
-      `, [
-        uuidv4(), amountDue, participant.currency,
-        `Group lesson payment - ${participant.group_booking_id}`,
-        participant.group_booking_id, userId
-      ]);
+      // Deduct from wallet via walletService (handles balance check, ledger, etc.)
+      await recordTransaction({
+        userId,
+        amount: -debitAmount,
+        transactionType: 'payment',
+        currency: debitCurrency,
+        direction: 'debit',
+        availableDelta: -debitAmount,
+        description: `Group lesson payment - ${participant.group_booking_id}`,
+        relatedEntityType: 'group_booking',
+        relatedEntityId: participant.group_booking_id,
+        originalAmount,
+        originalCurrency,
+        transactionExchangeRate,
+        client
+      });
     } else if (paymentMethod === 'package') {
       // Use package hours
       if (!customerPackageId || !packageHoursUsed) {
@@ -757,6 +878,72 @@ export const processParticipantPayment = async ({
       paymentMethod, amountDue, externalReference,
       customerPackageId, packageHoursUsed, participantId
     ]);
+
+    // === ASSIGN PACKAGE TO PARTICIPANT ===
+    // When paying with wallet or external, create a customer_packages record
+    // (package method means they already have a package and are using its hours)
+    if (paymentMethod !== 'package') {
+      const groupId = participant.group_booking_id;
+      const gbRow = await client.query(
+        'SELECT package_id, service_id, currency FROM group_bookings WHERE id = $1',
+        [groupId]
+      );
+      const gb = gbRow.rows[0];
+
+      if (gb && gb.package_id) {
+        const spRow = await client.query(
+          `SELECT name, lesson_service_name, total_hours, package_type,
+                  includes_lessons, includes_rental, includes_accommodation,
+                  rental_days, accommodation_nights,
+                  rental_service_id, rental_service_name,
+                  accommodation_unit_id, accommodation_unit_name
+           FROM service_packages WHERE id = $1`,
+          [gb.package_id]
+        );
+        const sp = spRow.rows[0];
+
+        if (sp) {
+          const cpId = uuidv4();
+          const expiryDate = new Date();
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+          await client.query(`
+            INSERT INTO customer_packages (
+              id, customer_id, service_package_id, package_name, lesson_service_name,
+              total_hours, remaining_hours, purchase_price, currency, expiry_date, status,
+              purchase_date, notes,
+              rental_days_total, rental_days_remaining, rental_days_used,
+              accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
+              package_type, includes_lessons, includes_rental, includes_accommodation,
+              rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
+            ) VALUES (
+              $1, $2, $3, $4, $5,
+              $6, $6, $7, $8, $9, 'active',
+              NOW(), $10,
+              $11, $11, 0,
+              $12, $12, 0,
+              $13, $14, $15, $16,
+              $17, $18, $19, $20
+            )
+          `, [
+            cpId, userId, gb.package_id, sp.name, sp.lesson_service_name || sp.name,
+            parseFloat(sp.total_hours) || 0,
+            amountDue, gb.currency || 'EUR', expiryDate,
+            `Group booking payment - ${groupId}`,
+            parseInt(sp.rental_days) || 0,
+            parseInt(sp.accommodation_nights) || 0,
+            sp.package_type || 'lesson',
+            sp.includes_lessons !== false,
+            sp.includes_rental === true,
+            sp.includes_accommodation === true,
+            sp.rental_service_id || null, sp.rental_service_name || null,
+            sp.accommodation_unit_id || null, sp.accommodation_unit_name || null
+          ]);
+
+          logger.info('Customer package created for group participant', { cpId, userId, packageId: gb.package_id });
+        }
+      }
+    }
 
     // Check if all participants have paid
     const groupResult = await client.query(
@@ -849,36 +1036,19 @@ export const processOrganizerPayment = async ({
 
     // Process based on payment method
     if (paymentMethod === 'wallet') {
-      // Check wallet balance
-      const walletResult = await client.query(
-        'SELECT available_balance FROM customer_wallets WHERE user_id = $1',
-        [organizerId]
-      );
-
-      if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].available_balance) < totalAmount) {
-        throw new Error(`Insufficient wallet balance. Need €${totalAmount.toFixed(2)} for ${participantCount} participants.`);
-      }
-
-      // Deduct from wallet
-      await client.query(`
-        UPDATE customer_wallets
-        SET available_balance = available_balance - $1, updated_at = NOW()
-        WHERE user_id = $2
-      `, [totalAmount, organizerId]);
-
-      // Create wallet transaction
-      await client.query(`
-        INSERT INTO wallet_transactions (
-          id, wallet_id, type, amount, currency, description,
-          reference_type, reference_id, created_at
-        )
-        SELECT $1, cw.id, 'debit', $2, $3, $4, 'group_booking', $5, NOW()
-        FROM customer_wallets cw WHERE cw.user_id = $6
-      `, [
-        uuidv4(), totalAmount, group.currency,
-        `Group lesson payment for ${participantCount} participants`,
-        groupBookingId, organizerId
-      ]);
+      // Deduct from wallet via walletService (handles balance check, ledger, etc.)
+      await recordTransaction({
+        userId: organizerId,
+        amount: -totalAmount,
+        transactionType: 'payment',
+        currency: group.currency || 'EUR',
+        direction: 'debit',
+        availableDelta: -totalAmount,
+        description: `Group lesson payment for ${participantCount} participants`,
+        relatedEntityType: 'group_booking',
+        relatedEntityId: groupBookingId,
+        client
+      });
     }
 
     // Update group booking as paid
@@ -1041,26 +1211,19 @@ export const cancelGroupBooking = async (groupBookingId, userId, reason) => {
 
     for (const participant of paidParticipants.rows) {
       if (participant.payment_method === 'wallet' && participant.user_id) {
-        // Refund to wallet
-        await client.query(`
-          UPDATE customer_wallets
-          SET available_balance = available_balance + $1, updated_at = NOW()
-          WHERE user_id = $2
-        `, [participant.amount_paid, participant.user_id]);
-
-        // Create refund transaction
-        await client.query(`
-          INSERT INTO wallet_transactions (
-            id, wallet_id, type, amount, currency, description,
-            reference_type, reference_id, created_at
-          )
-          SELECT $1, cw.id, 'credit', $2, $3, $4, 'group_booking_refund', $5, NOW()
-          FROM customer_wallets cw WHERE cw.user_id = $6
-        `, [
-          uuidv4(), participant.amount_paid, participant.currency,
-          `Refund - Group lesson cancelled`,
-          groupBookingId, participant.user_id
-        ]);
+        // Refund to wallet via walletService
+        await recordTransaction({
+          userId: participant.user_id,
+          amount: parseFloat(participant.amount_paid),
+          transactionType: 'refund',
+          currency: participant.currency || 'EUR',
+          direction: 'credit',
+          availableDelta: parseFloat(participant.amount_paid),
+          description: `Refund - Group lesson cancelled`,
+          relatedEntityType: 'group_booking',
+          relatedEntityId: groupBookingId,
+          client
+        });
       }
 
       // Update participant status

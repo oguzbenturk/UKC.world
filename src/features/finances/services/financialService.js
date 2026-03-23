@@ -102,8 +102,13 @@ class FinancialService {
       
       const response = await apiClient.get('/finances/transactions', { params });
       
+      // Backend returns { transactions: [...], stats, breakdown, trend }
+      const txnArray = Array.isArray(response.data)
+        ? response.data
+        : (response.data.transactions || []);
+
       // Convert to Transaction objects
-      return response.data.map(txnData => new Transaction({
+      return txnArray.map(txnData => new Transaction({
         id: txnData.id,
         userId: txnData.user_id,
         amount: parseFloat(txnData.amount || 0),

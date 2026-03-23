@@ -853,7 +853,9 @@ router.post('/',
     const { 
       date, start_hour, duration, student_user_id, instructor_user_id, 
       status, amount, notes, location, equipment_ids, use_package, service_id,
-      voucherId  // Voucher/promo code to apply
+      voucherId,  // Voucher/promo code to apply
+      partner_user_id,  // Optional: group partner's user ID
+      partner_customer_package_id  // Optional: group partner's customer_package ID
     } = req.body;
     let walletCurrency = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || null;
@@ -1106,6 +1108,65 @@ router.post('/',
         });
       }
     }
+
+    // ── Partner package deduction (group bookings with partner) ─────────
+    let partnerPackageUsed = null;
+    if (partner_user_id && partner_customer_package_id && use_package === true && usedPackageId) {
+      const partnerPkgCheck = await client.query(
+        `SELECT id, package_name, remaining_hours, total_hours, used_hours
+         FROM customer_packages
+         WHERE id = $1 AND customer_id = $2 AND status = 'active'
+           AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $3)
+           AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)`,
+        [partner_customer_package_id, partner_user_id, parseFloat(bookingDuration)]
+      );
+
+      if (partnerPkgCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({
+          error: 'Partner package insufficient',
+          message: 'Your partner does not have enough remaining hours in their package for this session.'
+        });
+      }
+
+      const pPkg = partnerPkgCheck.rows[0];
+      const pCurrentUsed = parseFloat(pPkg.used_hours) || 0;
+      const pTotalHours = parseFloat(pPkg.total_hours) || 0;
+      const pCurrentRemaining = pPkg.remaining_hours != null
+        ? parseFloat(pPkg.remaining_hours) || 0
+        : Math.max(0, pTotalHours - pCurrentUsed);
+      const pNewRemaining = pCurrentRemaining - parseFloat(bookingDuration);
+      const pNewUsed = pCurrentUsed + parseFloat(bookingDuration);
+
+      const partnerUpdateResult = await client.query(`
+        UPDATE customer_packages
+        SET used_hours = $1::numeric,
+            remaining_hours = $2::numeric,
+            last_used_date = $5,
+            updated_at = CURRENT_TIMESTAMP,
+            status = CASE
+              WHEN $2::numeric <= 0
+                AND COALESCE(rental_days_remaining, 0) <= 0
+                AND COALESCE(accommodation_nights_remaining, 0) <= 0
+              THEN 'used_up'
+              ELSE 'active'
+            END
+        WHERE id = $3 AND status = 'active'
+          AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $4::numeric)
+        RETURNING id, package_name, used_hours, remaining_hours, status
+      `, [parseFloat(pNewUsed), parseFloat(pNewRemaining), partner_customer_package_id, parseFloat(bookingDuration), date]);
+
+      if (partnerUpdateResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({
+          error: 'Partner package update failed',
+          message: 'Could not deduct hours from partner\'s package. It may have been modified concurrently.'
+        });
+      }
+      partnerPackageUsed = partnerUpdateResult.rows[0];
+    }
     
     // Voucher/promo code handling for individual bookings (not package-based)
     let voucherDiscount = 0;
@@ -1263,7 +1324,8 @@ router.post('/',
       'service_id',
       'checkin_notes',
       'checkout_notes',
-      'customer_package_id'
+      'customer_package_id',
+      'group_size'
     ];
 
     // Calculate final amount
@@ -1289,7 +1351,8 @@ router.post('/',
       req.body.service_id,
       req.body.checkin_notes || '',
       req.body.checkout_notes || '',
-      usedPackageId // Include the package ID that was used
+      usedPackageId, // Include the package ID that was used
+      (partner_user_id && partnerPackageUsed) ? 2 : 1 // group_size: 2 if partner included
     ];
 
     const { columns: bookingInsertColumns, values: bookingInsertValues } = appendCreatedBy(bookingColumns, bookingValues, actorId);
@@ -1378,6 +1441,22 @@ router.post('/',
           message: 'Package could not be verified after booking creation. Please try again.'
         });
       }
+    }
+
+    // ── Create booking_participants for group partner booking ──────────────
+    if (partner_user_id && partnerPackageUsed && usedPackageId) {
+      // Primary participant
+      await client.query(
+        `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, customer_package_id, package_hours_used, notes)
+         VALUES ($1, $2, true, 'package', 0, $3, $4, '')`,
+        [booking.id, student_user_id, usedPackageId, parseFloat(bookingDuration)]
+      );
+      // Partner participant
+      await client.query(
+        `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, customer_package_id, package_hours_used, notes)
+         VALUES ($1, $2, false, 'package', 0, $3, $4, '')`,
+        [booking.id, partner_user_id, partner_customer_package_id, parseFloat(bookingDuration)]
+      );
     }
     
     // Add equipment associations if any
@@ -1502,6 +1581,55 @@ router.post('/',
         createdBy: actorId,
         role: createdByRole
       });
+    }
+
+    // Notify partner about the group session booking
+    if (partner_user_id && partnerPackageUsed) {
+      try {
+        const bookerName = req.user?.name || req.user?.first_name || 'Your partner';
+        const sessionDate = date;
+        const sessionTime = `${Math.floor(parseFloat(start_hour))}:${String(Math.round((parseFloat(start_hour) % 1) * 60)).padStart(2, '0')}`;
+        await insertNotification({
+          userId: partner_user_id,
+          title: 'Group Session Invite',
+          message: `${bookerName} wants to book a ${bookingDuration}h ${bookingServiceName || 'group'} lesson with you on ${sessionDate} at ${sessionTime}. Do you accept?`,
+          type: 'booking',
+          data: {
+            bookingId: booking.id,
+            bookerUserId: student_user_id,
+            bookerName,
+            date: sessionDate,
+            startHour: parseFloat(start_hour),
+            duration: bookingDuration,
+            serviceName: bookingServiceName,
+            packageRemainingHours: parseFloat(partnerPackageUsed.remaining_hours),
+            action: 'partner_invite'
+          }
+        });
+        // Real-time push — partner invite popup
+        if (req.socketService) {
+          req.socketService.emitToChannel(`user:${partner_user_id}`, 'booking:partner_invite', {
+            bookingId: booking.id,
+            bookerName,
+            serviceName: bookingServiceName || 'Group Lesson',
+            date: sessionDate,
+            startTime: sessionTime,
+            duration: bookingDuration,
+            packageRemainingHours: parseFloat(partnerPackageUsed.remaining_hours),
+          });
+          req.socketService.emitToChannel(`user:${partner_user_id}`, 'notification:new', {
+            title: 'Group Session Invite',
+            message: `${bookerName} wants to book a ${bookingServiceName || 'group'} lesson with you.`,
+            type: 'booking'
+          });
+        }
+      } catch (notifErr) {
+        logger.warn('Failed to notify partner about group session', {
+          partnerId: partner_user_id,
+          bookingId: booking.id,
+          error: notifErr?.message
+        });
+      }
     }
     
     // Emit real-time event for booking creation
@@ -5271,7 +5399,7 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     }
     
     // Validate status
-    const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed', 'no_show'];
+    const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed', 'no_show', 'pending_partner'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -5534,6 +5662,213 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     res.status(500).json({ error: 'Failed to update booking status', bookingId: id });
   } finally {
     client.release();
+  }
+});
+
+/**
+ * GET /bookings/pending-partner-invites
+ * Returns pending_partner bookings where the current user is a non-primary participant.
+ * Used to show the partner invite popup on page load.
+ */
+router.get('/pending-partner-invites', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT b.id AS "bookingId",
+              b.date, b.start_hour, b.duration,
+              s.name AS "serviceName",
+              COALESCE(NULLIF(TRIM(u.name), ''), TRIM(CONCAT(u.first_name, ' ', u.last_name))) AS "bookerName",
+              cp.remaining_hours AS "packageRemainingHours"
+       FROM bookings b
+       JOIN booking_participants bp ON bp.booking_id = b.id
+       LEFT JOIN services s ON s.id = b.service_id
+       LEFT JOIN users u ON u.id = b.student_user_id
+       LEFT JOIN booking_participants bp2 ON bp2.booking_id = b.id AND bp2.user_id = $1
+       LEFT JOIN customer_packages cp ON cp.id = bp2.customer_package_id
+       WHERE b.status = 'pending_partner'
+         AND bp.user_id = $1
+         AND bp.is_primary = false
+         AND b.deleted_at IS NULL
+       ORDER BY b.created_at DESC`,
+      [userId]
+    );
+
+    const invites = result.rows.map(row => ({
+      bookingId: row.bookingId,
+      bookerName: row.bookerName || 'Your friend',
+      serviceName: row.serviceName || 'Group Lesson',
+      date: row.date,
+      startTime: row.start_hour != null
+        ? `${Math.floor(Number(row.start_hour))}:${String(Math.round((Number(row.start_hour) % 1) * 60)).padStart(2, '0')}`
+        : null,
+      duration: parseFloat(row.duration) || 1,
+      packageRemainingHours: row.packageRemainingHours != null ? parseFloat(row.packageRemainingHours) : null,
+    }));
+
+    res.json({ invites });
+  } catch (error) {
+    logger.error('Error fetching pending partner invites', { error: error?.message });
+    res.status(500).json({ error: 'Failed to fetch invites' });
+  }
+});
+
+/**
+ * POST /bookings/:id/confirm-partner
+ * Partner confirms a pending_partner booking → status becomes 'pending'
+ * The booking then appears on the calendar for admin approval.
+ */
+router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Verify this booking is pending_partner and the caller is a participant
+    const result = await pool.query(
+      `SELECT b.id, b.status, b.student_user_id, b.date, b.start_hour, b.duration,
+              s.name AS service_name,
+              bp.user_id
+       FROM bookings b
+       JOIN booking_participants bp ON bp.booking_id = b.id
+       LEFT JOIN services s ON s.id = b.service_id
+       WHERE b.id = $1 AND bp.user_id = $2 AND bp.is_primary = false`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found or you are not a participant' });
+    }
+
+    if (result.rows[0].status !== 'pending_partner') {
+      return res.status(400).json({ error: 'Booking is not awaiting partner confirmation' });
+    }
+
+    await pool.query(
+      `UPDATE bookings SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    // Notify the organizer that the partner accepted
+    const booking = result.rows[0];
+    const partnerName = req.user?.name || req.user?.first_name || 'Your partner';
+    try {
+      await insertNotification({
+        userId: booking.student_user_id,
+        title: 'Partner Accepted!',
+        message: `${partnerName} accepted your ${booking.service_name || 'group'} lesson invite on ${booking.date}.`,
+        type: 'booking',
+        data: { bookingId: id, action: 'partner_accepted' }
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to notify organizer about partner acceptance', { error: notifErr?.message });
+    }
+
+    // Emit real-time events
+    if (req.socketService) {
+      try {
+        req.socketService.emitToChannel('general', 'booking:updated', { id, status: 'pending' });
+        req.socketService.emitToChannel(`user:${booking.student_user_id}`, 'notification:new', {
+          title: 'Partner Accepted!',
+          message: `${partnerName} accepted your lesson invite.`,
+          type: 'booking'
+        });
+        req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'partner_confirmed' });
+      } catch (emitErr) {
+        logger.warn('Failed to emit partner confirmation event', { error: emitErr?.message });
+      }
+    }
+
+    res.json({ success: true, message: 'Booking confirmed by partner', status: 'pending' });
+  } catch (error) {
+    logger.error('Error confirming partner booking', { bookingId: req.params.id, error: error?.message });
+    res.status(500).json({ error: 'Failed to confirm booking' });
+  }
+});
+
+/**
+ * POST /bookings/:id/decline-partner
+ * Partner declines a pending_partner booking → status becomes 'cancelled'
+ * Package hours are refunded to both participants.
+ */
+router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT b.id, b.status, b.student_user_id, b.duration, b.date,
+              s.name AS service_name,
+              bp.user_id, bp.customer_package_id
+       FROM bookings b
+       JOIN booking_participants bp ON bp.booking_id = b.id
+       LEFT JOIN services s ON s.id = b.service_id
+       WHERE b.id = $1 AND bp.user_id = $2 AND bp.is_primary = false`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found or you are not a participant' });
+    }
+
+    if (result.rows[0].status !== 'pending_partner') {
+      return res.status(400).json({ error: 'Booking is not awaiting partner confirmation' });
+    }
+
+    const booking = result.rows[0];
+    const duration = parseFloat(booking.duration) || 0;
+
+    // Refund package hours to ALL participants
+    const allParticipants = await pool.query(
+      `SELECT user_id, customer_package_id, hours_used FROM booking_participants WHERE booking_id = $1`,
+      [id]
+    );
+
+    for (const p of allParticipants.rows) {
+      if (p.customer_package_id && duration > 0) {
+        await pool.query(
+          `UPDATE customer_packages SET remaining_hours = remaining_hours + $1, updated_at = NOW() WHERE id = $2`,
+          [parseFloat(p.hours_used) || duration, p.customer_package_id]
+        );
+      }
+    }
+
+    // Cancel the booking
+    await pool.query(
+      `UPDATE bookings SET status = 'cancelled', canceled_at = NOW(), cancellation_reason = 'Partner declined', updated_at = NOW() WHERE id = $1`,
+      [id]
+    );
+
+    // Notify the organizer
+    const partnerName = req.user?.name || req.user?.first_name || 'Your partner';
+    try {
+      await insertNotification({
+        userId: booking.student_user_id,
+        title: 'Partner Declined',
+        message: `${partnerName} declined your ${booking.service_name || 'group'} lesson invite on ${booking.date}. Package hours have been refunded.`,
+        type: 'booking',
+        data: { bookingId: id, action: 'partner_declined' }
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to notify organizer about partner decline', { error: notifErr?.message });
+    }
+
+    if (req.socketService) {
+      try {
+        req.socketService.emitToChannel('general', 'booking:updated', { id, status: 'cancelled' });
+        req.socketService.emitToChannel(`user:${booking.student_user_id}`, 'notification:new', {
+          title: 'Partner Declined',
+          message: `${partnerName} declined your lesson invite. Hours refunded.`,
+          type: 'booking'
+        });
+        req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'partner_declined' });
+      } catch (emitErr) {
+        logger.warn('Failed to emit partner decline event', { error: emitErr?.message });
+      }
+    }
+
+    res.json({ success: true, message: 'Booking declined, hours refunded', status: 'cancelled' });
+  } catch (error) {
+    logger.error('Error declining partner booking', { bookingId: req.params.id, error: error?.message });
+    res.status(500).json({ error: 'Failed to decline booking' });
   }
 });
 
