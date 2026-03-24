@@ -694,18 +694,9 @@ function CalendarProvider({ children }) {
     
     logger.debug('Current bookings after adding', { count: bookings.length });
 
-    // Trigger a background refresh to sync with server data
-    setTimeout(() => {
-      updateCalendarData({ reason: 'silent', forceFullSync: true });
-    }, 2000); // Delay to ensure server has processed and our instant update is visible
-
-    // Dispatch a custom event to notify other components
-    window.dispatchEvent(new CustomEvent('booking-created', {
-      detail: { booking: newBooking }
-    }));
-
-  // Also notify via internal event bus for components not listening to DOM events
-  eventBus.emit('bookings:changed', { reason: 'create', booking: newBooking });
+    // Backend emits socket booking:created which triggers handleRtCreated
+    // (optimistic add + 1.5s delayed reconciliation sync).
+    // Do NOT emit eventBus/window/setTimeout here — they cause race conditions.
 
     return newBooking;
   }, [instructors, services, updateCalendarData, bookings.length]);
@@ -1118,16 +1109,11 @@ function CalendarProvider({ children }) {
         newBooking: newBooking
       });
       
-      // Trigger a background refresh to sync with server data
-      setTimeout(() => {
-        updateCalendarData({ reason: 'silent', forceFullSync: true });
-      }, 2000); // Delay to ensure server has processed and our instant update is visible
-
-      // Dispatch a custom event to notify other components
-      window.dispatchEvent(new CustomEvent('booking-created', {
-        detail: { booking: newBooking }
-      }));
-  eventBus.emit('bookings:changed', { reason: 'create', booking: newBooking });
+      // Backend emits socket booking:created which triggers handleRtCreated
+      // (optimistic add + 1.5s delayed reconciliation sync).
+      // Do NOT emit eventBus/window/setTimeout here — they trigger immediate
+      // forceFullSync that races with the DB commit and overwrites the
+      // optimistic addition before the server has indexed the new booking.
       
       return newBooking;
     } catch (error) {
