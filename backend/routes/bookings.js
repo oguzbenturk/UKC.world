@@ -482,8 +482,8 @@ router.get('/',
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     
-    // Safety cap: prevent unbounded result sets (default 2000, max 5000)
-    const limit = Math.min(parseInt(req.query.limit) || 2000, 5000);
+    // Safety cap: prevent unbounded result sets (default 5000, max 10000)
+    const limit = Math.min(parseInt(req.query.limit) || 5000, 10000);
     params.push(limit);
     
     if (DEBUG) {

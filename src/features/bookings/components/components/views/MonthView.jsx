@@ -132,7 +132,9 @@ const MonthView = ({ onBookingClick }) => {
     }
     
     return filtered;
-  }, [bookings, selectedInstructors, selectedServices]);  // Get bookings for a specific day (optimized without excessive logging)
+  }, [bookings, selectedInstructors, selectedServices]);
+
+  // Get bookings for a specific day (optimized without excessive logging)
   const getBookingsForDay = useCallback((dayStr) => {
     // Normalize date format: convert both to YYYY-MM-DD format
     const normalizedDayStr = dayStr.includes('T') ? dayStr.split('T')[0] : dayStr;
