@@ -276,6 +276,7 @@ function CalendarProvider({ children }) {
   const _fetchingRef = useRef(false);
   const [refreshCounter, setRefreshCounter] = useState(0); // Force refresh trigger
   const deletedBookingsRef = useRef(new Set()); // Track deleted booking IDs
+  const recentlyAddedRef = useRef(new Map()); // Track recently-added bookings to preserve during full sync
   const bookingsRef = useRef([]); // Keep latest bookings for event handlers
   // const _lastDateRangeRef = useRef(null); // previously used to track last fetched date range
   
@@ -347,6 +348,12 @@ function CalendarProvider({ children }) {
   try {
       // Handle new booking addition - INSTANT
       if (newBooking) {
+        // Track this booking so it survives full-sync race conditions
+        if (newBooking.id) {
+          recentlyAddedRef.current.set(newBooking.id, { booking: newBooking, addedAt: Date.now() });
+          // Auto-expire after 10 seconds (server should have it by then)
+          setTimeout(() => { recentlyAddedRef.current.delete(newBooking.id); }, 10000);
+        }
         setBookings(currentBookings => {
           // Check if booking already exists to prevent duplicates
           const existingBooking = currentBookings.find(b => b.id === newBooking.id);
@@ -398,10 +405,21 @@ function CalendarProvider({ children }) {
             })
             .filter(Boolean);
           
+          // Merge recently-added bookings that the server hasn't returned yet
+          // This prevents race conditions where a full sync overwrites optimistic additions
+          let mergedBookings = filterActiveBookings(standardizedBookings);
+          if (recentlyAddedRef.current.size > 0) {
+            const freshIds = new Set(mergedBookings.map(b => b.id));
+            for (const [id, { booking }] of recentlyAddedRef.current) {
+              if (!freshIds.has(id) && !deletedBookingsRef.current.has(id)) {
+                mergedBookings.push(booking);
+              }
+            }
+          }
+          
           // Update state silently
-          const filteredBookings = filterActiveBookings(standardizedBookings);
-          setBookings(filteredBookings);
-          setCachedData('bookings', filteredBookings);
+          setBookings(mergedBookings);
+          setCachedData('bookings', mergedBookings);
           localStorage.setItem('bookings_cache_timestamp', Date.now().toString());
         } catch {
           // Silent failure
