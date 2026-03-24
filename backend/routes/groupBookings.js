@@ -140,6 +140,63 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       generatedLink = await generateGenericInviteLink(groupBooking.id, userId);
     }
 
+    // Auto-create a calendar booking so it appears on the calendar in "pending" state
+    // (just like private lessons do). Admin can later confirm it.
+    let calendarBookingId = null;
+    if (scheduledDate && startTime) {
+      try {
+        const timeParts = String(startTime).split(':');
+        const startHourDecimal = parseInt(timeParts[0], 10) + (parseInt(timeParts[1] || 0, 10) / 60);
+        const dur = parseFloat(durationHours) || 2;
+        const amt = parseFloat(pricePerPerson || 0);
+
+        const bkResult = await pool.query(`
+          INSERT INTO bookings (
+            date, start_hour, duration,
+            student_user_id, instructor_user_id, customer_user_id,
+            status, payment_status, amount, final_amount,
+            notes, service_id, group_size, max_participants,
+            created_by
+          ) VALUES ($1, $2, $3, $4, $5, $4, 'pending', 'unpaid', $6, $6, $7, $8, $9, $10, $11)
+          RETURNING id
+        `, [
+          scheduledDate,
+          startHourDecimal,
+          dur,
+          userId,
+          instructorId || null,
+          amt,
+          notes || '',
+          serviceId,
+          1, // starts with organizer only
+          maxParticipants || 6,
+          userId
+        ]);
+        calendarBookingId = bkResult.rows[0].id;
+
+        // Add organizer as participant in the bookings table
+        await pool.query(`
+          INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes)
+          VALUES ($1, $2, true, 'unpaid', 0, '')
+        `, [calendarBookingId, userId]);
+
+        // Link the calendar booking to the group booking
+        await pool.query(
+          'UPDATE group_bookings SET booking_id = $1, updated_at = NOW() WHERE id = $2',
+          [calendarBookingId, groupBooking.id]
+        );
+
+        // Emit socket event so calendar updates in real-time
+        if (req.socketService) {
+          req.socketService.emitToChannel('general', 'booking:updated', {
+            id: calendarBookingId, status: 'pending'
+          });
+        }
+      } catch (bkErr) {
+        logger.warn('Failed to auto-create calendar booking for group', { error: bkErr.message, groupBookingId: groupBooking.id });
+      }
+    }
+
     res.status(201).json({
       success: true,
       groupBooking: {
@@ -298,6 +355,7 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
         paymentDeadline: details.payment_deadline,
         notes: details.notes,
         bookingId: details.booking_id,
+        bookingStatus: details.booking_status || null,
         serviceId: details.service_id,
         createdAt: details.created_at
       }
@@ -635,6 +693,92 @@ router.post('/:id/decline', authenticateJWT, async (req, res, next) => {
     if (error.message.includes('not invited') || error.message.includes('already')) {
       return res.status(400).json({ error: error.message });
     }
+    next(error);
+  }
+});
+
+/**
+ * Suggest an alternative time for a group booking
+ * POST /api/group-bookings/:id/suggest-time
+ */
+router.post('/:id/suggest-time', authenticateJWT, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { suggestedDate, suggestedTime, message: suggestionMessage } = req.body;
+
+    if (!suggestedDate) {
+      return res.status(400).json({ error: 'Suggested date is required' });
+    }
+
+    // Check participant exists and is in a pending state
+    const partResult = await pool.query(
+      'SELECT * FROM group_booking_participants WHERE group_booking_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    if (partResult.rows.length === 0) {
+      return res.status(404).json({ error: 'You are not a participant in this group booking' });
+    }
+    const participant = partResult.rows[0];
+    if (['declined', 'cancelled'].includes(participant.status)) {
+      return res.status(400).json({ error: 'Cannot suggest a time after declining' });
+    }
+
+    // Save suggestion on participant record
+    await pool.query(`
+      UPDATE group_booking_participants
+      SET suggested_date = $1, suggested_time = $2, suggestion_message = $3, updated_at = NOW()
+      WHERE id = $4
+    `, [suggestedDate, suggestedTime || null, suggestionMessage || null, participant.id]);
+
+    // Notify organizer
+    try {
+      const gbResult = await pool.query(
+        `SELECT gb.organizer_id, gb.title, u.first_name, u.last_name, u.email
+         FROM group_bookings gb JOIN users u ON u.id = $2
+         WHERE gb.id = $1`,
+        [id, userId]
+      );
+      const gb = gbResult.rows[0];
+      if (gb && gb.organizer_id && gb.organizer_id !== userId) {
+        const participantName = [gb.first_name, gb.last_name].filter(Boolean).join(' ') || gb.email;
+        const notifMsg = `${participantName} suggested a different time for "${gb.title || 'Group Lesson'}": ${suggestedDate}${suggestedTime ? ' at ' + suggestedTime : ''}.`;
+
+        await insertNotification({
+          userId: gb.organizer_id,
+          title: 'Time Suggestion',
+          message: notifMsg,
+          type: 'group_booking_time_suggestion',
+          data: {
+            groupBookingId: id,
+            participantUserId: userId,
+            suggestedDate,
+            suggestedTime,
+            suggestionMessage,
+            link: `/student/group-bookings/${id}`,
+          },
+        });
+
+        if (req.socketService) {
+          req.socketService.emitToChannel(`user:${gb.organizer_id}`, 'notification:new', {
+            notification: {
+              user_id: gb.organizer_id,
+              title: 'Time Suggestion',
+              message: notifMsg,
+              type: 'group_booking_time_suggestion',
+              data: { groupBookingId: id, suggestedDate, suggestedTime },
+              created_at: new Date().toISOString(),
+            },
+          });
+        }
+      }
+    } catch (notifErr) {
+      logger.warn('Failed to send time suggestion notification', { error: notifErr.message });
+    }
+
+    res.json({ success: true, message: 'Time suggestion sent to organizer' });
+  } catch (error) {
+    logger.error('Error suggesting time for group booking', { error: error.message });
     next(error);
   }
 });
@@ -1062,9 +1206,18 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
 
     const gb = gbResult.rows[0];
 
-    if (gb.status === 'confirmed' || gb.status === 'completed') {
+    if (gb.status === 'completed' || gb.status === 'cancelled') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: `Group booking is already ${gb.status}` });
+    }
+
+    // Check if the linked booking is already confirmed
+    if (gb.booking_id) {
+      const existingBk = await client.query('SELECT status FROM bookings WHERE id = $1 AND deleted_at IS NULL', [gb.booking_id]);
+      if (existingBk.rows.length > 0 && existingBk.rows[0].status === 'confirmed') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Group booking already has a confirmed calendar event' });
+      }
     }
 
     // Allow setting instructor at confirm time
@@ -1108,31 +1261,53 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
     const duration = parseFloat(gb.duration_hours) || 2;
     const amount = parseFloat(gb.price_per_person) * participants.length;
 
-    // Create main booking record
-    const bookingResult = await client.query(`
-      INSERT INTO bookings (
-        date, start_hour, duration,
-        student_user_id, instructor_user_id, customer_user_id,
-        status, payment_status, amount, final_amount,
-        notes, service_id, group_size, max_participants,
-        created_by
-      ) VALUES ($1, $2, $3, $4, $5, $4, 'confirmed', 'paid', $6, $6, $7, $8, $9, $10, $11)
-      RETURNING *
-    `, [
-      gb.scheduled_date,
-      startHour,
-      duration,
-      primaryParticipant.user_id,
-      finalInstructorId,
-      amount,
-      gb.notes || '',
-      gb.service_id,
-      participants.length,
-      gb.max_participants,
-      req.user.id
-    ]);
+    let booking;
 
-    const booking = bookingResult.rows[0];
+    // If a pending booking already exists (auto-created), update it to confirmed
+    if (gb.booking_id) {
+      const updResult = await client.query(`
+        UPDATE bookings SET
+          status = 'confirmed', payment_status = 'paid',
+          instructor_user_id = $1,
+          student_user_id = $2, customer_user_id = $2,
+          amount = $3, final_amount = $3,
+          group_size = $4,
+          date = $5, start_hour = $6, duration = $7,
+          updated_at = NOW()
+        WHERE id = $8
+        RETURNING *
+      `, [finalInstructorId, primaryParticipant.user_id, amount, participants.length,
+          gb.scheduled_date, startHour, duration, gb.booking_id]);
+      booking = updResult.rows[0];
+
+      // Sync booking_participants: remove old, add current
+      await client.query('DELETE FROM booking_participants WHERE booking_id = $1', [booking.id]);
+    } else {
+      // No auto-created booking exists — create one
+      const bookingResult = await client.query(`
+        INSERT INTO bookings (
+          date, start_hour, duration,
+          student_user_id, instructor_user_id, customer_user_id,
+          status, payment_status, amount, final_amount,
+          notes, service_id, group_size, max_participants,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5, $4, 'confirmed', 'paid', $6, $6, $7, $8, $9, $10, $11)
+        RETURNING *
+      `, [
+        gb.scheduled_date,
+        startHour,
+        duration,
+        primaryParticipant.user_id,
+        finalInstructorId,
+        amount,
+        gb.notes || '',
+        gb.service_id,
+        participants.length,
+        gb.max_participants,
+        req.user.id
+      ]);
+      booking = bookingResult.rows[0];
+    }
 
     // Create booking_participants
     for (const p of participants) {

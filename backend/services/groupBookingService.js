@@ -1096,11 +1096,13 @@ export const getGroupBookingDetails = async (groupBookingId, userId = null) => {
       s.category as service_category,
       COALESCE(i.name, CONCAT(i.first_name, ' ', i.last_name)) as instructor_name,
       COALESCE(org.name, CONCAT(org.first_name, ' ', org.last_name)) as organizer_name,
-      org.email as organizer_email
+      org.email as organizer_email,
+      bk.status as booking_status
     FROM group_bookings gb
     LEFT JOIN services s ON gb.service_id = s.id
     LEFT JOIN users i ON gb.instructor_id = i.id
     LEFT JOIN users org ON gb.organizer_id = org.id
+    LEFT JOIN bookings bk ON bk.id = gb.booking_id AND bk.deleted_at IS NULL
     WHERE gb.id = $1
   `, [groupBookingId]);
 

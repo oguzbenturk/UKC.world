@@ -296,7 +296,7 @@ const ActionsSection = ({ booking, hasInstructor, isConfirmable, confirming, can
   <div>
     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Actions</h4>
     <div className="space-y-2">
-      {booking.status === 'pending' && (
+      {(!booking.bookingId || booking.bookingStatus === 'pending') && !['cancelled', 'completed'].includes(booking.status) && (
         <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50">
           {!hasInstructor && (
             <div className="flex items-center gap-2 mb-2 text-amber-600 text-xs">
@@ -313,7 +313,7 @@ const ActionsSection = ({ booking, hasInstructor, isConfirmable, confirming, can
           </p>
         </div>
       )}
-      {booking.status === 'confirmed' && booking.bookingId && (
+      {booking.bookingStatus === 'confirmed' && booking.bookingId && (
         <div className="p-3 rounded-lg border border-green-200 bg-green-50/50 text-center">
           <CheckCircleIcon className="w-5 h-5 text-green-600 mx-auto mb-1" />
           <p className="text-sm font-medium text-green-800 mb-1">Confirmed & Scheduled</p>
@@ -514,7 +514,7 @@ const GroupBookingDetailDrawer = ({ isOpen, onClose, groupBookingId, onUpdate })
   const hasInstructor = Boolean(editForm.instructorId || booking?.instructorId);
   const hasParticipants = booking?.participantCount > 0 ||
     booking?.participants?.some(p => p.status === 'accepted' || p.status === 'paid');
-  const isConfirmable = booking?.status === 'pending' && hasParticipants;
+  const isConfirmable = (!booking?.bookingId || booking?.bookingStatus === 'pending') && !['cancelled', 'completed'].includes(booking?.status) && hasParticipants;
 
   const actions = useGroupBookingActions(groupBookingId, { booking, editForm, message, refetch, onUpdate, onClose, setIsEditing, setAddEmail, setAddParticipantOpen });
 
