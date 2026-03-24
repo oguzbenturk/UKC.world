@@ -558,6 +558,24 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
       logger.warn('Failed to send acceptance notification to organizer', { error: notifErr.message });
     }
 
+    // Sync to booking_participants so the user appears on the calendar
+    try {
+      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [result.groupBookingId]);
+      const bookingId = gbLink.rows[0]?.booking_id;
+      if (bookingId) {
+        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, userId]);
+        if (exists.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
+            [bookingId, userId]
+          );
+          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+        }
+      }
+    } catch (syncErr) {
+      logger.warn('Failed to sync booking_participants on token accept', { error: syncErr.message });
+    }
+
     res.json({
       success: true,
       message: 'Invitation accepted',
@@ -656,6 +674,24 @@ router.post('/:id/accept', authenticateJWT, async (req, res, next) => {
       }
     } catch (notifErr) {
       logger.warn('Failed to send acceptance notification to organizer', { error: notifErr.message });
+    }
+
+    // Sync to booking_participants so the user appears on the calendar
+    try {
+      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
+      const bookingId = gbLink.rows[0]?.booking_id;
+      if (bookingId) {
+        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, userId]);
+        if (exists.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
+            [bookingId, userId]
+          );
+          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+        }
+      }
+    } catch (syncErr) {
+      logger.warn('Failed to sync booking_participants on accept', { error: syncErr.message });
     }
 
     res.json({
@@ -1078,11 +1114,25 @@ router.delete('/:id/participants/:participantId', authenticateJWT, async (req, r
       `, [participant.amount_paid, participant.user_id]);
     }
 
-    // Remove participant
+    // Remove participant from group_booking_participants
     await pool.query(
       'UPDATE group_booking_participants SET status = $1, payment_status = CASE WHEN payment_status = $2 THEN $3 ELSE payment_status END, updated_at = NOW() WHERE id = $4',
       ['cancelled', 'paid', 'refunded', participantId]
     );
+
+    // Also remove from booking_participants (calendar sync)
+    if (participant.user_id) {
+      try {
+        const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
+        const bookingId = gbLink.rows[0]?.booking_id;
+        if (bookingId) {
+          await pool.query('DELETE FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, participant.user_id]);
+          await pool.query('UPDATE bookings SET group_size = GREATEST(1, (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1)) WHERE id = $1', [bookingId]);
+        }
+      } catch (syncErr) {
+        logger.warn('Failed to sync booking_participants on remove', { error: syncErr.message });
+      }
+    }
 
     res.json({
       success: true,
@@ -1480,7 +1530,7 @@ router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'm
       return res.status(400).json({ error: 'User is already a participant' });
     }
 
-    // Add participant
+    // Add participant to group_booking_participants
     const partResult = await pool.query(`
       INSERT INTO group_booking_participants (
         group_booking_id, user_id, email, full_name, phone,
@@ -1488,6 +1538,24 @@ router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'm
       ) VALUES ($1, $2, $3, $4, $5, 'accepted', 'pending', $6, $7, NOW(), NOW())
       RETURNING *
     `, [id, targetUser.id, targetUser.email, targetUser.full_name, targetUser.phone, gb.price_per_person, gb.currency]);
+
+    // Also add to booking_participants (calendar sync) since admin-added are auto-accepted
+    try {
+      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
+      const bookingId = gbLink.rows[0]?.booking_id;
+      if (bookingId) {
+        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, targetUser.id]);
+        if (exists.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
+            [bookingId, targetUser.id]
+          );
+          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+        }
+      }
+    } catch (syncErr) {
+      logger.warn('Failed to sync booking_participants on add-participant', { error: syncErr.message });
+    }
 
     res.status(201).json({
       success: true,
