@@ -80,7 +80,9 @@ const GroupLessonMatchingPage = () => {
       if (filters.serviceId) params.serviceId = filters.serviceId;
       if (filters.skillLevel) params.skillLevel = filters.skillLevel;
       const res = await apiClient.get('/group-lesson-requests', { params });
-      return res.data?.requests || res.data || [];
+      const all = res.data?.requests || res.data || [];
+      // Filter out lesson_booking source — those are shown in Lesson Match Ups tab
+      return all.filter(r => r.source !== 'lesson_booking');
     },
     staleTime: 30_000,
   });
@@ -154,11 +156,8 @@ const GroupLessonMatchingPage = () => {
   const stats = useMemo(() => {
     const soloRequests = requests.filter(r => r.source === 'request');
     const groupBookings = requests.filter(r => r.source === 'group_booking');
-    const lessonBookings = requests.filter(r => r.source === 'lesson_booking');
-    const pendingGroups = groupBookings.filter(r => r.status === 'pending');
-    const waitingPartner = lessonBookings.filter(r => r.status === 'pending_partner');
     const totalParticipants = groupBookings.reduce((sum, r) => sum + (parseInt(r.participant_count, 10) || 0), 0);
-    return { soloRequests: soloRequests.length, groupBookings: groupBookings.length, lessonBookings: lessonBookings.length, pendingGroups: pendingGroups.length, waitingPartner: waitingPartner.length, totalParticipants };
+    return { soloRequests: soloRequests.length, groupBookings: groupBookings.length, totalParticipants };
   }, [requests]);
 
   const statusColor = (s) => ({
@@ -344,7 +343,6 @@ const GroupLessonMatchingPage = () => {
             options={[
               { value: '', label: 'All statuses' },
               { value: 'pending', label: 'Pending' },
-              { value: 'pending_partner', label: 'Waiting Partner' },
               { value: 'confirmed', label: 'Confirmed' },
               { value: 'full', label: 'Full' },
               { value: 'matched', label: 'Matched' },
@@ -391,16 +389,6 @@ const GroupLessonMatchingPage = () => {
             <span className="font-medium text-blue-700">{stats.groupBookings}</span>
             <span className="text-blue-500">Group Bookings</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-sm">
-            <span className="font-medium text-green-700">{stats.lessonBookings}</span>
-            <span className="text-green-500">Lesson Bookings</span>
-          </div>
-          {stats.waitingPartner > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-sm">
-              <span className="font-medium text-orange-700">{stats.waitingPartner}</span>
-              <span className="text-orange-500">Waiting Partner</span>
-            </div>
-          )}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm">
             <span className="font-medium text-slate-700">{stats.totalParticipants}</span>
             <span className="text-slate-500">Total Participants</span>

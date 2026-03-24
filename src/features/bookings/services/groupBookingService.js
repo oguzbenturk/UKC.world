@@ -132,6 +132,18 @@ export const generateInviteLink = async (groupBookingId) => {
   return response.data;
 };
 
+/**
+ * Suggest an alternative time for a group booking
+ */
+export const suggestTime = async (groupBookingId, { suggestedDate, suggestedTime, message }) => {
+  const response = await apiClient.post(`/group-bookings/${groupBookingId}/suggest-time`, {
+    suggestedDate,
+    suggestedTime,
+    message,
+  });
+  return response.data;
+};
+
 export default {
   createGroupBooking,
   getGroupBookings,
@@ -146,5 +158,6 @@ export default {
   payForAllParticipants,
   cancelGroupBooking,
   removeParticipant,
-  generateInviteLink
+  generateInviteLink,
+  suggestTime,
 };

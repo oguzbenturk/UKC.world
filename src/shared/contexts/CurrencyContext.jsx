@@ -77,6 +77,17 @@ export const CurrencyProvider = ({ children }) => {
   }, [hasAuthToken]);
 
   const loadCurrencies = useCallback(async () => {
+    if (!hasAuthToken()) {
+      // Not authenticated — use EUR fallback silently, no network call
+      const fallback = [{ currency_code: 'EUR', symbol: '\u20ac', decimal_places: 2, exchange_rate: 1, base_currency: true }];
+      setCurrencies(fallback);
+      setBaseCurrency(fallback[0]);
+      setExchangeRates({ EUR: 1 });
+      setUserCurrency('EUR');
+      setBusinessCurrency('EUR');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiClient.get('/currencies/active');

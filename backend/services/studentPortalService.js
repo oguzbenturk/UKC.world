@@ -571,9 +571,10 @@ export async function getStudentOverview(studentId, options = {}) {
     LEFT JOIN users i ON i.id = b.instructor_user_id
     LEFT JOIN services s ON s.id = b.service_id
     ${ratingJoinClause}
-        WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
+        WHERE (b.student_user_id = $1 OR b.customer_user_id = $1
+               OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
           AND b.deleted_at IS NULL
-          AND (b.status IS NULL OR b.status NOT IN ('cancelled','archived'))
+          AND (b.status IS NULL OR b.status NOT IN ('cancelled','archived','pending_partner'))
           AND (b.date + (b.start_hour * INTERVAL '1 hour')) < LOCALTIMESTAMP
      ORDER BY start_ts DESC
         LIMIT 10`,
@@ -628,9 +629,10 @@ export async function getStudentOverview(studentId, options = {}) {
            FROM bookings b
            LEFT JOIN users i ON i.id = b.instructor_user_id
            LEFT JOIN services s ON s.id = b.service_id
-          WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
+          WHERE (b.student_user_id = $1 OR b.customer_user_id = $1
+                 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
             AND b.deleted_at IS NULL
-            AND (b.status IS NULL OR b.status NOT IN ('cancelled','archived'))
+            AND b.status NOT IN ('cancelled','archived','pending_partner')
             AND (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP
        ORDER BY start_ts ASC
           LIMIT 5`,
@@ -638,12 +640,13 @@ export async function getStudentOverview(studentId, options = {}) {
       ),
       client.query(
         `SELECT COUNT(*) FILTER (WHERE (b.status IS NULL OR b.status <> 'cancelled') AND (b.date + (b.start_hour * INTERVAL '1 hour')) < LOCALTIMESTAMP) AS completed_count,
-                COUNT(*) FILTER (WHERE (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP) AS upcoming_count,
+                COUNT(*) FILTER (WHERE (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP AND b.status NOT IN ('cancelled','archived','pending_partner')) AS upcoming_count,
                 COALESCE(SUM(b.duration) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled'),0) AS total_hours,
-                (SELECT b2.date FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1) AND b2.deleted_at IS NULL AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_date,
-                (SELECT b2.start_hour FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1) AND b2.deleted_at IS NULL AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_hour
+                (SELECT b2.date FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b2.id AND bp.user_id = $1)) AND b2.deleted_at IS NULL AND b2.status NOT IN ('cancelled','archived','pending_partner') AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_date,
+                (SELECT b2.start_hour FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b2.id AND bp.user_id = $1)) AND b2.deleted_at IS NULL AND b2.status NOT IN ('cancelled','archived','pending_partner') AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_hour
            FROM bookings b
-          WHERE (b.student_user_id = $1 OR b.customer_user_id = $1)
+          WHERE (b.student_user_id = $1 OR b.customer_user_id = $1
+                 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
             AND b.deleted_at IS NULL`,
         [normalizedStudentId]
       ),
@@ -1303,7 +1306,10 @@ export async function getStudentSchedule(studentId, { startDate, endDate, limit 
     const hasParticipantTable = Boolean(tableRows[0]?.booking_participants);
 
     const params = [normalizedStudentId];
-    const conditions = [`(b.student_user_id = $1 OR b.customer_user_id = $1)`];
+    const participantCondition = hasParticipantTable
+      ? `OR (EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.booking_id = b.id AND bp2.user_id = $1) AND b.status != 'pending_partner')`
+      : '';
+    const conditions = [`(b.student_user_id = $1 OR b.customer_user_id = $1 ${participantCondition})`];
 
     if (startDate) {
       params.push(startDate);

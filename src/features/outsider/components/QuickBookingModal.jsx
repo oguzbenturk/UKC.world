@@ -656,36 +656,71 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
 );
 
 // eslint-disable-next-line complexity
-const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose, sessions = [] }) => {
+const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose, sessions = [], groupPartnerMode = false, includePartner = false, partnerData = null }) => {
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
   const bookedCount = sessions.filter(s => s.date?.isValid() && s.time).length;
+  const isPartnerInvite = groupPartnerMode && includePartner && partnerData;
+  const partnerName = partnerData?.partnerName || 'your partner';
 
   return (
     <div className="text-center space-y-4 sm:space-y-5 py-2 sm:py-4">
       {/* Success icon with pulse ring */}
       <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 relative">
-        <div className="absolute inset-0 rounded-full bg-green-200/50 animate-pulse" />
-        <div className="relative w-full h-full rounded-full bg-gradient-to-br from-green-100 to-emerald-50 flex items-center justify-center border-2 border-green-200 shadow-sm shadow-green-500/10">
-          <CheckCircleFilled className="text-green-500 text-2xl sm:text-4xl" />
+        <div className={`absolute inset-0 rounded-full ${isPartnerInvite ? 'bg-blue-200/50' : 'bg-green-200/50'} animate-pulse`} />
+        <div className={`relative w-full h-full rounded-full bg-gradient-to-br ${isPartnerInvite ? 'from-blue-100 to-indigo-50 border-blue-200 shadow-blue-500/10' : 'from-green-100 to-emerald-50 border-green-200 shadow-green-500/10'} flex items-center justify-center border-2 shadow-sm`}>
+          <CheckCircleFilled className={`${isPartnerInvite ? 'text-blue-500' : 'text-green-500'} text-2xl sm:text-4xl`} />
         </div>
       </div>
 
       <div className="px-2">
-        <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">All Done!</h3>
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">
+          {isPartnerInvite ? 'Invite Sent!' : 'All Done!'}
+        </h3>
         <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-          {isStandalone
-            ? (bookedCount > 1 ? `${bookedCount} lesson sessions booked! Check your dashboard for details.` : 'Your lesson session has been booked! Check your dashboard for details.')
-            : usedBooking
-              ? (isExistingPackage
-                ? (bookedCount > 1 ? `${bookedCount} sessions booked from your existing package.` : 'Your session is booked from your existing package.')
-                : (bookedCount > 1 ? `Package purchased & ${bookedCount} sessions booked.` : 'Package purchased & your first session is booked.'))
-              : (isExistingPackage
-                ? 'No session booked — schedule anytime from your dashboard.'
-                : 'Package purchased — book sessions anytime from your dashboard.')}
+          {isPartnerInvite
+            ? `A confirmation request has been sent to ${partnerName}. The lesson will be confirmed once they accept.`
+            : isStandalone
+              ? (bookedCount > 1 ? `${bookedCount} lesson sessions booked! Check your dashboard for details.` : 'Your lesson session has been booked! Check your dashboard for details.')
+              : usedBooking
+                ? (isExistingPackage
+                  ? (bookedCount > 1 ? `${bookedCount} sessions booked from your existing package.` : 'Your session is booked from your existing package.')
+                  : (bookedCount > 1 ? `Package purchased & ${bookedCount} sessions booked.` : 'Package purchased & your first session is booked.'))
+                : (isExistingPackage
+                  ? 'No session booked — schedule anytime from your dashboard.'
+                  : 'Package purchased — book sessions anytime from your dashboard.')}
         </p>
       </div>
 
+      {isPartnerInvite && (
+        <div className="bg-blue-50 rounded-2xl border border-blue-200/80 p-3 sm:p-4 text-left space-y-2">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <span className="text-slate-500">Partner</span>
+            <span className="font-semibold text-slate-800">{partnerName}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <span className="text-slate-500">Status</span>
+            <Tag color="orange" className="!m-0 !text-[10px] sm:!text-xs">Awaiting acceptance</Tag>
+          </div>
+          {bookedCount > 0 && (
+            <div className="text-xs sm:text-sm">
+              <span className="text-slate-500">Session{bookedCount > 1 ? 's' : ''} ({bookedCount})</span>
+              <div className="mt-1.5 space-y-1">
+                {sessions.filter(s => s.date?.isValid() && s.time).map((session, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="text-slate-400">#{idx + 1}</span>
+                    <span className="font-semibold text-slate-800">
+                      {session.date.format('ddd, MMM D')} at {session.time}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isPartnerInvite && (
       <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 text-left space-y-2.5">
         <div className="flex justify-between items-center text-xs sm:text-sm">
           <span className="text-slate-500">{isStandalone ? 'Lesson' : 'Package'}</span>
@@ -741,6 +776,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
           </div>
         )}
       </div>
+      )}
 
       <Button
         type="primary"
@@ -1118,7 +1154,11 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         });
       }
 
-      message.success(`${successCount} session${successCount > 1 ? 's' : ''} booked!`);
+      message.success(
+        includePartner && partnerData
+          ? `Invite sent! ${partnerData.partnerName || 'Your partner'} will be notified to accept.`
+          : `${successCount} session${successCount > 1 ? 's' : ''} booked!`
+      );
       setStep(2);
     }
 
@@ -1345,6 +1385,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           instructorName={selectedInstructorId ? (instructorsData.find((i) => i.id === selectedInstructorId)?.name || `${instructorsData.find((i) => i.id === selectedInstructorId)?.first_name || ''} ${instructorsData.find((i) => i.id === selectedInstructorId)?.last_name || ''}`.trim() || null) : null}
           onClose={handleClose}
           sessions={sessions}
+          groupPartnerMode={groupPartnerMode}
+          includePartner={includePartner}
+          partnerData={partnerData}
         />
       )}
     </Modal>

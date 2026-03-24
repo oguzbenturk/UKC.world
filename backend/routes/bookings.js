@@ -744,6 +744,53 @@ router.get('/preferred-instructor', authenticateJWT, async (req, res) => {
   }
 });
 
+/**
+ * GET /bookings/pending-partner-invites
+ * Returns pending_partner bookings where the current user is a non-primary participant.
+ * Must be defined BEFORE /:id to avoid Express matching "pending-partner-invites" as an ID.
+ */
+router.get('/pending-partner-invites', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await pool.query(
+      `SELECT b.id AS "bookingId",
+              b.date, b.start_hour, b.duration,
+              s.name AS "serviceName",
+              COALESCE(NULLIF(TRIM(u.name), ''), TRIM(CONCAT(u.first_name, ' ', u.last_name))) AS "bookerName",
+              cp.remaining_hours AS "packageRemainingHours"
+       FROM bookings b
+       JOIN booking_participants bp ON bp.booking_id = b.id
+       LEFT JOIN services s ON s.id = b.service_id
+       LEFT JOIN users u ON u.id = b.student_user_id
+       LEFT JOIN booking_participants bp2 ON bp2.booking_id = b.id AND bp2.user_id = $1
+       LEFT JOIN customer_packages cp ON cp.id = bp2.customer_package_id
+       WHERE b.status = 'pending_partner'
+         AND bp.user_id = $1
+         AND bp.is_primary = false
+         AND b.deleted_at IS NULL
+       ORDER BY b.created_at DESC`,
+      [userId]
+    );
+
+    const invites = result.rows.map(row => ({
+      bookingId: row.bookingId,
+      bookerName: row.bookerName || 'Your friend',
+      serviceName: row.serviceName || 'Group Lesson',
+      date: row.date,
+      startTime: row.start_hour != null
+        ? `${Math.floor(Number(row.start_hour))}:${String(Math.round((Number(row.start_hour) % 1) * 60)).padStart(2, '0')}`
+        : null,
+      duration: parseFloat(row.duration) || 1,
+      packageRemainingHours: row.packageRemainingHours != null ? parseFloat(row.packageRemainingHours) : null,
+    }));
+
+    res.json({ invites });
+  } catch (error) {
+    logger.error('Error fetching pending partner invites', { error: error?.message });
+    res.status(500).json({ error: 'Failed to fetch invites' });
+  }
+});
+
 // GET a single booking by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -1603,7 +1650,11 @@ router.post('/',
             duration: bookingDuration,
             serviceName: bookingServiceName,
             packageRemainingHours: parseFloat(partnerPackageUsed.remaining_hours),
-            action: 'partner_invite'
+            action: 'partner_invite',
+            cta: {
+              label: 'View Invite',
+              href: '/student/schedule?tab=group'
+            }
           }
         });
         // Real-time push — partner invite popup
@@ -1616,11 +1667,6 @@ router.post('/',
             startTime: sessionTime,
             duration: bookingDuration,
             packageRemainingHours: parseFloat(partnerPackageUsed.remaining_hours),
-          });
-          req.socketService.emitToChannel(`user:${partner_user_id}`, 'notification:new', {
-            title: 'Group Session Invite',
-            message: `${bookerName} wants to book a ${bookingServiceName || 'group'} lesson with you.`,
-            type: 'booking'
           });
         }
       } catch (notifErr) {
@@ -5666,56 +5712,9 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
 });
 
 /**
- * GET /bookings/pending-partner-invites
- * Returns pending_partner bookings where the current user is a non-primary participant.
- * Used to show the partner invite popup on page load.
- */
-router.get('/pending-partner-invites', authenticateJWT, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const result = await pool.query(
-      `SELECT b.id AS "bookingId",
-              b.date, b.start_hour, b.duration,
-              s.name AS "serviceName",
-              COALESCE(NULLIF(TRIM(u.name), ''), TRIM(CONCAT(u.first_name, ' ', u.last_name))) AS "bookerName",
-              cp.remaining_hours AS "packageRemainingHours"
-       FROM bookings b
-       JOIN booking_participants bp ON bp.booking_id = b.id
-       LEFT JOIN services s ON s.id = b.service_id
-       LEFT JOIN users u ON u.id = b.student_user_id
-       LEFT JOIN booking_participants bp2 ON bp2.booking_id = b.id AND bp2.user_id = $1
-       LEFT JOIN customer_packages cp ON cp.id = bp2.customer_package_id
-       WHERE b.status = 'pending_partner'
-         AND bp.user_id = $1
-         AND bp.is_primary = false
-         AND b.deleted_at IS NULL
-       ORDER BY b.created_at DESC`,
-      [userId]
-    );
-
-    const invites = result.rows.map(row => ({
-      bookingId: row.bookingId,
-      bookerName: row.bookerName || 'Your friend',
-      serviceName: row.serviceName || 'Group Lesson',
-      date: row.date,
-      startTime: row.start_hour != null
-        ? `${Math.floor(Number(row.start_hour))}:${String(Math.round((Number(row.start_hour) % 1) * 60)).padStart(2, '0')}`
-        : null,
-      duration: parseFloat(row.duration) || 1,
-      packageRemainingHours: row.packageRemainingHours != null ? parseFloat(row.packageRemainingHours) : null,
-    }));
-
-    res.json({ invites });
-  } catch (error) {
-    logger.error('Error fetching pending partner invites', { error: error?.message });
-    res.status(500).json({ error: 'Failed to fetch invites' });
-  }
-});
-
-/**
  * POST /bookings/:id/confirm-partner
- * Partner confirms a pending_partner booking → status becomes 'pending'
- * The booking then appears on the calendar for admin approval.
+ * Partner confirms a pending_partner booking → status becomes 'confirmed'
+ * The booking immediately appears on the calendar as confirmed.
  */
 router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
   try {
@@ -5743,7 +5742,7 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
     }
 
     await pool.query(
-      `UPDATE bookings SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      `UPDATE bookings SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [id]
     );
 
@@ -5765,7 +5764,7 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
     // Emit real-time events
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'booking:updated', { id, status: 'pending' });
+        req.socketService.emitToChannel('general', 'booking:updated', { id, status: 'confirmed' });
         req.socketService.emitToChannel(`user:${booking.student_user_id}`, 'notification:new', {
           title: 'Partner Accepted!',
           message: `${partnerName} accepted your lesson invite.`,
@@ -5777,7 +5776,7 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: 'Booking confirmed by partner', status: 'pending' });
+    res.json({ success: true, message: 'Booking confirmed by partner', status: 'confirmed' });
   } catch (error) {
     logger.error('Error confirming partner booking', { bookingId: req.params.id, error: error?.message });
     res.status(500).json({ error: 'Failed to confirm booking' });
@@ -5869,6 +5868,89 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('Error declining partner booking', { bookingId: req.params.id, error: error?.message });
     res.status(500).json({ error: 'Failed to decline booking' });
+  }
+});
+
+/**
+ * POST /bookings/:id/suggest-time
+ * Partner suggests an alternative time for a pending_partner booking.
+ * Sends a notification to the organizer with the suggested date/time.
+ */
+router.post('/:id/suggest-time', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { suggestedDate, suggestedTime, message: suggestionMessage } = req.body;
+
+    if (!suggestedDate) {
+      return res.status(400).json({ error: 'Suggested date is required' });
+    }
+
+    // Verify this booking is pending_partner and the caller is a non-primary participant
+    const result = await pool.query(
+      `SELECT b.id, b.status, b.student_user_id, b.date,
+              s.name AS service_name,
+              bp.user_id
+       FROM bookings b
+       JOIN booking_participants bp ON bp.booking_id = b.id
+       LEFT JOIN services s ON s.id = b.service_id
+       WHERE b.id = $1 AND bp.user_id = $2 AND bp.is_primary = false`,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found or you are not a participant' });
+    }
+
+    if (result.rows[0].status !== 'pending_partner') {
+      return res.status(400).json({ error: 'Booking is not awaiting partner confirmation' });
+    }
+
+    const booking = result.rows[0];
+    const partnerName = req.user?.name || [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || 'Your partner';
+    const timeStr = suggestedTime ? ` at ${suggestedTime}` : '';
+    const msgSuffix = suggestionMessage ? ` — "${suggestionMessage}"` : '';
+    const notifMsg = `${partnerName} suggested a different time for your ${booking.service_name || 'group'} lesson: ${suggestedDate}${timeStr}.${msgSuffix}`;
+
+    try {
+      await insertNotification({
+        userId: booking.student_user_id,
+        title: 'Time Suggestion',
+        message: notifMsg,
+        type: 'booking',
+        data: {
+          bookingId: id,
+          action: 'partner_suggest_time',
+          suggestedDate,
+          suggestedTime,
+          suggestionMessage,
+        },
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to send time suggestion notification', { error: notifErr?.message });
+    }
+
+    if (req.socketService) {
+      try {
+        req.socketService.emitToChannel(`user:${booking.student_user_id}`, 'notification:new', {
+          notification: {
+            user_id: booking.student_user_id,
+            title: 'Time Suggestion',
+            message: notifMsg,
+            type: 'booking',
+            data: { bookingId: id, suggestedDate, suggestedTime },
+            created_at: new Date().toISOString(),
+          },
+        });
+      } catch (emitErr) {
+        logger.warn('Failed to emit suggest-time event', { error: emitErr?.message });
+      }
+    }
+
+    res.json({ success: true, message: 'Time suggestion sent to the organizer' });
+  } catch (error) {
+    logger.error('Error suggesting time for partner booking', { bookingId: req.params.id, error: error?.message });
+    res.status(500).json({ error: 'Failed to suggest time' });
   }
 });
 

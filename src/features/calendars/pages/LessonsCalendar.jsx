@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs } from 'antd';
-import { CalendarDaysIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'react-router-dom';
 import BookingCalendarPage from '@/features/bookings/pages/BookingCalendarPage';
 import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchingPage';
+import LessonMatchUpsTab from '@/features/bookings/pages/LessonMatchUpsTab';
 
 /**
  * LessonsCalendar - Shows lesson bookings in calendar view and group requests
@@ -11,23 +12,24 @@ import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchi
 const LessonsCalendar = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabFromUrl === 'group-requests' ? 'group-requests' : 'calendar');
+  const validTabs = ['calendar', 'group-requests', 'lesson-matchups'];
+  const [activeTab, setActiveTab] = useState(validTabs.includes(tabFromUrl) ? tabFromUrl : 'calendar');
 
   // Sync tab state with URL changes (e.g. notification click navigating here)
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t === 'group-requests' && activeTab !== 'group-requests') {
-      setActiveTab('group-requests');
+    if (t && validTabs.includes(t) && activeTab !== t) {
+      setActiveTab(t);
     }
   }, [searchParams]);
 
   const handleTabChange = (key) => {
     setActiveTab(key);
-    if (key === 'group-requests') {
-      setSearchParams({ tab: 'group-requests' });
-    } else {
+    if (key === 'calendar') {
       searchParams.delete('tab');
       setSearchParams(searchParams);
+    } else {
+      setSearchParams({ tab: key });
     }
   };
 
@@ -57,6 +59,20 @@ const LessonsCalendar = () => {
       children: (
         <div className="h-full overflow-y-auto">
           <GroupLessonMatchingPage />
+        </div>
+      )
+    },
+    {
+      key: 'lesson-matchups',
+      label: (
+        <span className="flex items-center gap-2">
+          <ClockIcon className="w-4 h-4" />
+          Lesson Match Ups
+        </span>
+      ),
+      children: (
+        <div className="h-full overflow-y-auto">
+          <LessonMatchUpsTab />
         </div>
       )
     }

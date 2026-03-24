@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useMemo, Component } from 'react';
-import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete } from 'antd';
+import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete, App } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
   CheckCircleFilled,
@@ -294,6 +294,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const { selectedSlot, services, users, instructors, refreshData, createBooking } = useCalendar();
   const { showSuccess, showError } = useToast();
   const { formatCurrency, businessCurrency } = useCurrency();
+  const { modal } = App.useApp();
 
   // ── Form state ──────────────────────────────────────────────────
   // eslint-disable-next-line complexity
@@ -921,7 +922,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // ── Close handler ───────────────────────────────────────────────
   const handleClose = useCallback((force = false) => {
     if (hasUnsavedChanges && !force) {
-      Modal.confirm({
+      modal.confirm({
         title: 'Unsaved changes',
         content: 'You have unsaved changes. Close anyway?',
         okText: 'Close',
