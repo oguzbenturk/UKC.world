@@ -186,11 +186,32 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
           [calendarBookingId, groupBooking.id]
         );
 
-        // Emit socket event so calendar updates in real-time
+        // Emit booking:created with full data (same as POST /api/bookings/calendar)
+        // so the CalendarContext can instantly add it to state
         if (req.socketService) {
-          req.socketService.emitToChannel('general', 'booking:updated', {
-            id: calendarBookingId, status: 'pending'
+          const startHours = Math.floor(startHourDecimal);
+          const startMins = Math.round((startHourDecimal - startHours) * 60);
+          const fmtStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
+          const endDecimal = startHourDecimal + dur;
+          const endHours = Math.floor(endDecimal);
+          const endMins = Math.round((endDecimal - endHours) * 60);
+          const fmtEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+
+          req.socketService.emitToChannel('general', 'booking:created', {
+            id: calendarBookingId,
+            date: scheduledDate,
+            startTime: fmtStart,
+            endTime: fmtEnd,
+            time: fmtStart,
+            duration: dur,
+            instructor_user_id: instructorId || null,
+            service_id: serviceId,
+            student_user_id: userId,
+            status: 'pending',
+            group_size: 1,
+            max_participants: maxParticipants || 6
           });
+          req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         }
       } catch (bkErr) {
         logger.warn('Failed to auto-create calendar booking for group', { error: bkErr.message, groupBookingId: groupBooking.id });
@@ -1437,7 +1458,30 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
     // Emit socket events for real-time calendar refresh
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'booking:created', { id: booking.id, date: gb.scheduled_date });
+        // Emit full booking data so CalendarContext can instantly add/update it
+        const startHours = Math.floor(startHour);
+        const startMins = Math.round((startHour - startHours) * 60);
+        const fmtStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
+        const endDecimal = startHour + duration;
+        const endHrs = Math.floor(endDecimal);
+        const endMns = Math.round((endDecimal - endHrs) * 60);
+        const fmtEnd = `${String(endHrs).padStart(2, '0')}:${String(endMns).padStart(2, '0')}`;
+
+        req.socketService.emitToChannel('general', 'booking:created', {
+          id: booking.id,
+          date: isoDate,
+          startTime: fmtStart,
+          endTime: fmtEnd,
+          time: fmtStart,
+          duration,
+          instructor_user_id: finalInstructorId,
+          service_id: gb.service_id,
+          student_user_id: primaryParticipant.user_id,
+          status: 'confirmed',
+          group_size: participants.length,
+          max_participants: gb.max_participants,
+          service_name: gb.service_name
+        });
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         // Notify participants
         for (const p of participants) {
