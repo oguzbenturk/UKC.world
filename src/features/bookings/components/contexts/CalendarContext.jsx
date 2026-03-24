@@ -1334,6 +1334,18 @@ function CalendarProvider({ children }) {
           .filter(Boolean);
         
         const filteredBookings = filterActiveBookings(standardizedBookings);
+
+        // Merge back recently-added bookings that the server LIMIT may have excluded
+        const now = Date.now();
+        const serverIds = new Set(filteredBookings.map(b => b.id));
+        for (const [id, entry] of recentBookingsRef.current) {
+          if (now - entry.addedAt > 30000) {
+            recentBookingsRef.current.delete(id);
+          } else if (!serverIds.has(id) && !deletedBookingsRef.current.has(id)) {
+            filteredBookings.push(entry.booking);
+          }
+        }
+
         setBookings(filteredBookings);
         setCachedData('bookings', filteredBookings);
       }
@@ -1395,7 +1407,20 @@ function CalendarProvider({ children }) {
         payment_status: b.payment_status || b.paymentStatus,
         customer_package_id: b.customer_package_id || b.customerPackageId || null,
       }));
-      setBookings(filterActiveBookings(enriched));
+      const filtered = filterActiveBookings(enriched);
+
+      // Merge back recently-added bookings missing from cache
+      const now = Date.now();
+      const cacheIds = new Set(filtered.map(b => b.id));
+      for (const [id, entry] of recentBookingsRef.current) {
+        if (now - entry.addedAt > 30000) {
+          recentBookingsRef.current.delete(id);
+        } else if (!cacheIds.has(id) && !deletedBookingsRef.current.has(id)) {
+          filtered.push(entry.booking);
+        }
+      }
+
+      setBookings(filtered);
     }
     if (cachedUsers && cachedUsers.length > 0) {
       setUsers(cachedUsers);
