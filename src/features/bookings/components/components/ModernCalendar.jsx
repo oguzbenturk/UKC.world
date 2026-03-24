@@ -283,8 +283,14 @@ const ModernCalendar = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isBulkBookingModalOpen, setIsBulkBookingModalOpen] = useState(false);
   const [isBookingDetailModalOpen, setIsBookingDetailModalOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [_showQuickSearch, _setShowQuickSearch] = useState(false);
+
+  // Derive selected booking from live bookings array so it stays current after sync
+  const selectedBooking = useMemo(
+    () => (selectedBookingId ? _bookings.find(b => b.id === selectedBookingId) || null : null),
+    [_bookings, selectedBookingId]
+  );
   const navigate = useNavigate();
   // Time navigation using extracted helpers
   const handlePrevious = () => setSelectedDate(getPrevDate(view, selectedDate));
@@ -308,7 +314,7 @@ const ModernCalendar = () => {
     toggleFilters: () => setShowFilters(!showFilters),
     clearSelection: () => {
       setSelectedSlot(null);
-      setSelectedBooking(null);
+      setSelectedBookingId(null);
       setIsBookingModalOpen(false);
       setIsBookingDetailModalOpen(false);
     },
@@ -333,7 +339,7 @@ const ModernCalendar = () => {
 
   // Handle booking click to open booking detail modal
   const handleBookingClick = (booking) => {
-    setSelectedBooking(booking);
+    setSelectedBookingId(booking.id);
     setIsBookingDetailModalOpen(true);
   };
 

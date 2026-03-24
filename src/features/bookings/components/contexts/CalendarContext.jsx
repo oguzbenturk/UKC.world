@@ -357,8 +357,13 @@ function CalendarProvider({ children }) {
           // Check if booking already exists to prevent duplicates
           const existingBooking = currentBookings.find(b => b.id === newBooking.id);
           if (existingBooking) {
+            // Filter out undefined/null values so socket's incomplete data
+            // doesn't overwrite existing fields (e.g. student_name, instructor_name)
+            const definedFields = Object.fromEntries(
+              Object.entries(newBooking).filter(([, v]) => v !== undefined && v !== null)
+            );
             const updatedBookings = currentBookings.map(b => 
-              b.id === newBooking.id ? { ...b, ...newBooking } : b
+              b.id === newBooking.id ? { ...b, ...definedFields } : b
             );
             setCachedData('bookings', filterActiveBookings(updatedBookings));
             localStorage.setItem('bookings_cache_timestamp', Date.now().toString());
