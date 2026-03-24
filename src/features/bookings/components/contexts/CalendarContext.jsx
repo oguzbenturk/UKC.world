@@ -276,8 +276,9 @@ function CalendarProvider({ children }) {
   const _fetchingRef = useRef(false);
   const [refreshCounter, setRefreshCounter] = useState(0); // Force refresh trigger
   const deletedBookingsRef = useRef(new Set()); // Track deleted booking IDs
-  const recentlyAddedRef = useRef(new Map()); // Track recently-added bookings to preserve during full sync
   const bookingsRef = useRef([]); // Keep latest bookings for event handlers
+  // Track recently added bookings so full-sync doesn't drop them (backend LIMIT can exclude new rows)
+  const recentBookingsRef = useRef(new Map()); // id → { booking, addedAt }
   // const _lastDateRangeRef = useRef(null); // previously used to track last fetched date range
   
   // ==========================================
@@ -348,12 +349,10 @@ function CalendarProvider({ children }) {
   try {
       // Handle new booking addition - INSTANT
       if (newBooking) {
-        // Track this booking so it survives full-sync race conditions
-        if (newBooking.id) {
-          recentlyAddedRef.current.set(newBooking.id, { booking: newBooking, addedAt: Date.now() });
-          // Auto-expire after 10 seconds (server should have it by then)
-          setTimeout(() => { recentlyAddedRef.current.delete(newBooking.id); }, 10000);
-        }
+        // Track this booking so full-sync won't drop it (server LIMIT may exclude it)
+        recentBookingsRef.current.set(newBooking.id, { booking: newBooking, addedAt: Date.now() });
+        // Auto-expire after 30s
+        setTimeout(() => recentBookingsRef.current.delete(newBooking.id), 30000);
         setBookings(currentBookings => {
           // Check if booking already exists to prevent duplicates
           const existingBooking = currentBookings.find(b => b.id === newBooking.id);
@@ -381,6 +380,7 @@ function CalendarProvider({ children }) {
       
       // Handle booking deletion - INSTANT
       if (deletedBookingId) {
+        recentBookingsRef.current.delete(deletedBookingId);
         setBookings(currentBookings => {
           const updatedBookings = currentBookings.filter(booking => booking.id !== deletedBookingId);
           setCachedData('bookings', filterActiveBookings(updatedBookings));
@@ -405,21 +405,21 @@ function CalendarProvider({ children }) {
             })
             .filter(Boolean);
           
-          // Merge recently-added bookings that the server hasn't returned yet
-          // This prevents race conditions where a full sync overwrites optimistic additions
-          let mergedBookings = filterActiveBookings(standardizedBookings);
-          if (recentlyAddedRef.current.size > 0) {
-            const freshIds = new Set(mergedBookings.map(b => b.id));
-            for (const [id, { booking }] of recentlyAddedRef.current) {
-              if (!freshIds.has(id) && !deletedBookingsRef.current.has(id)) {
-                mergedBookings.push(booking);
-              }
+          const filteredBookings = filterActiveBookings(standardizedBookings);
+
+          // Merge back recently-added bookings that the server LIMIT may have excluded
+          const now = Date.now();
+          const serverIds = new Set(filteredBookings.map(b => b.id));
+          for (const [id, entry] of recentBookingsRef.current) {
+            if (now - entry.addedAt > 30000) {
+              recentBookingsRef.current.delete(id);
+            } else if (!serverIds.has(id) && !deletedBookingsRef.current.has(id)) {
+              filteredBookings.push(entry.booking);
             }
           }
-          
-          // Update state silently
-          setBookings(mergedBookings);
-          setCachedData('bookings', mergedBookings);
+
+          setBookings(filteredBookings);
+          setCachedData('bookings', filteredBookings);
           localStorage.setItem('bookings_cache_timestamp', Date.now().toString());
         } catch {
           // Silent failure
@@ -1404,7 +1404,6 @@ function CalendarProvider({ children }) {
     
     // Always refresh data to ensure we have the latest information
     // Use a small delay to avoid overriding instant updates
-    logger.debug('Loading fresh calendar data...');
     setTimeout(() => {
       debouncedRefreshData();
     }, 100);
