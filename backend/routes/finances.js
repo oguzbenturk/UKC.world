@@ -1228,31 +1228,38 @@ router.post('/accounts/:id/reset-balance', authenticateJWT, authorizeRoles(['adm
 
     await client.query('BEGIN');
 
-    // Get current balance info before reset
+    // Get current balance info before reset (across all currencies)
     const beforeBalance = await getWalletAccountSummary(id, currency);
+    const allBalances = await client.query(
+      'SELECT currency, available_amount FROM wallet_balances WHERE user_id = $1',
+      [id]
+    );
 
-    // Count transactions being deleted
+    // Count transactions being deleted (ALL currencies)
     const txCountResult = await client.query(
-      'SELECT COUNT(*) as count FROM wallet_transactions WHERE user_id = $1 AND currency = $2',
-      [id, currency]
+      'SELECT COUNT(*) as count FROM wallet_transactions WHERE user_id = $1',
+      [id]
     );
     const deletedTransactionCount = parseInt(txCountResult.rows[0].count, 10);
 
-    // Delete ALL wallet transactions for this user
+    // Delete ALL wallet transactions for this user (all currencies)
     await client.query(
-      'DELETE FROM wallet_transactions WHERE user_id = $1 AND currency = $2',
-      [id, currency]
+      'DELETE FROM wallet_transactions WHERE user_id = $1',
+      [id]
     );
 
-    // Reset wallet balance to 0
+    // Reset ALL wallet balances to 0
+    await client.query(
+      `UPDATE wallet_balances
+       SET available_amount = 0, pending_amount = 0, non_withdrawable_amount = 0, updated_at = NOW()
+       WHERE user_id = $1`,
+      [id]
+    );
+    // Ensure the target currency balance row exists
     await client.query(
       `INSERT INTO wallet_balances (user_id, currency, available_amount, pending_amount, non_withdrawable_amount, updated_at)
        VALUES ($1, $2, 0, 0, 0, NOW())
-       ON CONFLICT (user_id, currency) DO UPDATE SET
-         available_amount = 0,
-         pending_amount = 0,
-         non_withdrawable_amount = 0,
-         updated_at = NOW()`,
+       ON CONFLICT (user_id, currency) DO NOTHING`,
       [id, currency]
     );
 
@@ -1285,6 +1292,7 @@ router.post('/accounts/:id/reset-balance', authenticateJWT, authorizeRoles(['adm
       userName: user.name,
       userEmail: user.email,
       previousBalance: beforeBalance?.available || 0,
+      previousBalances: allBalances.rows.map(r => ({ currency: r.currency, amount: parseFloat(r.available_amount) })),
       newBalance: numericTarget,
       deletedTransactions: deletedTransactionCount,
       reason,

@@ -879,9 +879,11 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       sessionIdRef.current = 1;
       setBookingInProgress(false);
       setIncludePartner(true);
-      // Auto-enter partner mode for group packages
-      const isGroup = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
-        || (packageData?.name || '').toLowerCase().includes('group');
+      // Auto-enter partner mode for group and semi-private packages
+      const tag = packageData?.lessonCategoryTag?.toLowerCase() || '';
+      const name = (packageData?.name || '').toLowerCase();
+      const isGroup = tag === 'group' || tag === 'semi-private'
+        || name.includes('group') || name.includes('semi-private') || name.includes('semi private');
       setGroupPartnerMode(isGroup);
       // Initial step detection happens in the effect below once ownedPackages load
       setStep(0);

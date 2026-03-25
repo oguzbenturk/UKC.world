@@ -43,6 +43,8 @@ import { acceptGroupBookingById, declineGroupBookingById, suggestTime } from '..
 import { getGroupLessonRequests, cancelGroupLessonRequest } from '../services/groupLessonRequestService';
 import { usePageSEO } from '@/shared/utils/seo';
 import StudentGroupBookingDetailDrawer from '../components/StudentGroupBookingDetailDrawer';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 const { Title, Text } = Typography;
 
@@ -62,6 +64,8 @@ const StudentGroupBookingsPage = () => {
   usePageSEO({ title: 'My Group Lessons', description: 'Manage group lessons and invites' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { userCurrency, convertCurrency, formatCurrency } = useCurrency();
+  const { refreshToken } = useAuth();
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [suggestModal, setSuggestModal] = useState({ open: false, bookingId: null, title: '', isPartnerInvite: false });
   const [suggestDate, setSuggestDate] = useState(null);
@@ -120,8 +124,11 @@ const StudentGroupBookingsPage = () => {
 
   const acceptGroupMutation = useMutation({
     mutationFn: (id) => acceptGroupBookingById(id),
-    onSuccess: () => {
+    onSuccess: async (data) => {
       message.success('Group lesson accepted!');
+      if (data?.roleUpgrade?.upgraded && refreshToken) {
+        await refreshToken();
+      }
       queryClient.invalidateQueries({ queryKey: ['my-group-bookings'] });
     },
     onError: (err) => message.error(err.response?.data?.error || 'Failed to accept'),
@@ -393,7 +400,9 @@ const StudentGroupBookingsPage = () => {
                     <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2 flex-shrink-0">
                       <div className="text-right">
                         <p className="text-lg font-bold text-slate-800 mb-0">
-                          € {b.pricePerPerson?.toFixed(2)}
+                          {formatCurrency && convertCurrency 
+                            ? formatCurrency(convertCurrency(b.pricePerPerson || 0, 'EUR', userCurrency), userCurrency) 
+                            : `€ ${b.pricePerPerson?.toFixed(2)}`}
                         </p>
                         <span
                           className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${

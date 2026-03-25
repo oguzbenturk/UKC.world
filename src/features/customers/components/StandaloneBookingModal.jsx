@@ -42,7 +42,7 @@ class ModalErrorBoundary extends React.Component {
  * Standalone booking modal that includes the CalendarProvider
  * This allows using StepBookingModal outside of calendar pages
  */
-const StandaloneBookingModal = ({ isOpen, onClose, onBookingCreated }) => {
+const StandaloneBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId }) => {
   // Only render if the modal should be open
   if (!isOpen) {
     return null;
@@ -56,6 +56,9 @@ const StandaloneBookingModal = ({ isOpen, onClose, onBookingCreated }) => {
             isOpen={isOpen} 
             onClose={onClose}
             onBookingCreated={onBookingCreated}
+            prefilledCustomer={prefilledCustomer}
+            prefilledParticipants={prefilledParticipants}
+            prefilledServiceId={prefilledServiceId}
           />
         </Suspense>
       </CalendarProvider>

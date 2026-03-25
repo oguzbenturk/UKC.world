@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Drawer } from 'antd';
 import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
@@ -8,6 +8,9 @@ import globalRequestThrottle from '@/shared/utils/requestThrottle';
 import { useToast } from '@/shared/contexts/ToastContext';
 import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+
+const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
+const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
 
 /**
  * Modal for viewing and editing booking details
@@ -27,6 +30,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedInstructor, setSelectedInstructor] = useState(null);
   const [checkInStatus, setCheckInStatus] = useState('pending');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutAction, setCheckoutAction] = useState('completed');
@@ -559,13 +564,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     return hasPackageId && hasPackageStatus;
   };
 
-  // Calculate display price (for non-package bookings)
+  // Calculate display price — always return the real amount, even for package bookings
   const getDisplayPrice = () => {
-    if (isPackageBooking(booking)) {
-      return 0;
-    }
-
-    // Use backend calculated final_amount as the definitive source for non-package bookings
+    // Use backend calculated final_amount as the definitive source
     if (booking.final_amount && parseFloat(booking.final_amount) > 0) {
       return parseFloat(booking.final_amount);
     }
@@ -589,10 +590,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   // Get package display info
   const getPackageDisplayInfo = () => {
     if (isPackageBooking(booking)) {
-      const packageName = booking.package_name || 'Package Hours';
+      const packageName = booking.package_name || null;
       return {
-        display: 'Package Hours',
-        subtitle: packageName === 'Package Hours' ? 'Paid with Package Hours' : `Paid with ${packageName}`,
+        subtitle: packageName && packageName !== 'Package Hours' ? `Package: ${packageName}` : 'Paid with Package',
       };
     }
 
@@ -620,6 +620,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   if (!booking) return null;
   
   return (
+  <>
     <Drawer
       open={isOpen}
       onClose={!isProcessing ? onClose : undefined}
@@ -1226,11 +1227,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         <div className="text-right">
                           <p className="text-xl font-bold text-slate-900 mb-0.5">
                             {(() => {
+                              const price = getDisplayPrice();
                               const packageInfo = getPackageDisplayInfo();
-                              if (packageInfo) {
-                                return <span className="text-green-600">{packageInfo.display}</span>;
-                              }
-                              return `${currencySymbol}${getDisplayPrice().toFixed(2)}`;
+                              return (
+                                <span className={packageInfo ? 'text-green-600' : ''}>
+                                  {`${currencySymbol}${price.toFixed(2)}`}
+                                </span>
+                              );
                             })()}
                           </p>
                           <p className="text-xs text-slate-500 font-medium">
@@ -1298,7 +1301,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                   </div>
                                   <div className="flex-1">
                                     <p className="text-xs font-bold text-gray-900">
-                                      {participant.userName}
+                                      <button
+                                        type="button"
+                                        className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                                        onClick={() => setSelectedCustomer({ id: participant.userId, name: participant.userName, email: participant.userEmail })}
+                                      >
+                                        {participant.userName}
+                                      </button>
                                       {participant.isPrimary && (
                                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                           Primary
@@ -1322,7 +1331,15 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Student</p>
-                                <p className="text-xs font-bold text-gray-900">{booking.student_name || 'N/A'}</p>
+                                <p className="text-xs font-bold text-gray-900">
+                                  <button
+                                    type="button"
+                                    className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                                    onClick={() => setSelectedCustomer({ id: booking.student_user_id || booking.studentId, name: booking.student_name })}
+                                  >
+                                    {booking.student_name || 'N/A'}
+                                  </button>
+                                </p>
                               </div>
                             </div>
                           )}
@@ -1334,7 +1351,15 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             </div>
                             <div>
                               <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Instructor</p>
-                              <p className="text-xs font-bold text-gray-900">{booking.instructor_name || 'N/A'}</p>
+                              <p className="text-xs font-bold text-gray-900">
+                                <button
+                                  type="button"
+                                  className="hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                                  onClick={() => setSelectedInstructor({ id: booking.instructor_user_id || booking.instructorId, name: booking.instructor_name })}
+                                >
+                                  {booking.instructor_name || 'N/A'}
+                                </button>
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1605,6 +1630,29 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                 )}
       </div>
     </Drawer>
+
+    {selectedCustomer && (
+      <Suspense fallback={null}>
+        <EnhancedCustomerDetailModal
+          customer={selectedCustomer}
+          isOpen={!!selectedCustomer}
+          onClose={() => setSelectedCustomer(null)}
+          onUpdate={() => {}}
+        />
+      </Suspense>
+    )}
+
+    {selectedInstructor && (
+      <Suspense fallback={null}>
+        <EnhancedInstructorDetailModal
+          instructor={selectedInstructor}
+          isOpen={!!selectedInstructor}
+          onClose={() => setSelectedInstructor(null)}
+          onUpdate={() => {}}
+        />
+      </Suspense>
+    )}
+  </>
   );
 };
 

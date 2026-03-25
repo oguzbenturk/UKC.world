@@ -135,6 +135,36 @@ export async function forceDeleteCustomerPackage({
     bookingReferencesCleared: 0
   };
 
+  // Look up the service hourly rate BEFORE clearing references (needed for refund calculation)
+  let serviceHourlyRate = null;
+  const completedUsedHours = Number.parseFloat(customerPackage.used_hours) || 0;
+  if (completedUsedHours > 0) {
+    try {
+      const svcRateResult = await client.query(`
+        SELECT DISTINCT s.price AS service_price, s.duration AS service_duration
+        FROM booking_participants bp
+        JOIN bookings b ON b.id = bp.booking_id
+        JOIN services s ON s.id = b.service_id
+        WHERE bp.customer_package_id = $1
+          AND b.status = 'completed'
+          AND b.deleted_at IS NULL
+        LIMIT 1
+      `, [packageId]);
+
+      if (svcRateResult.rows.length > 0) {
+        const svcPrice = Number.parseFloat(svcRateResult.rows[0].service_price) || 0;
+        const svcDuration = Number.parseFloat(svcRateResult.rows[0].service_duration) || 1;
+        if (svcPrice > 0 && svcDuration > 0) {
+          serviceHourlyRate = svcPrice / svcDuration;
+        }
+      }
+    } catch (rateErr) {
+      logger.warn('Failed to look up service hourly rate for package deletion', {
+        packageId, error: rateErr.message
+      });
+    }
+  }
+
   const { rows: participantUpdates } = await client.query(
     `UPDATE booking_participants
         SET customer_package_id = NULL
@@ -167,11 +197,17 @@ export async function forceDeleteCustomerPackage({
   const remainingHours = Number.parseFloat(deletedPackage.remaining_hours) || 0;
   const purchasePrice = Number.parseFloat(deletedPackage.purchase_price) || 0;
   const pricePerHour = totalHours > 0 ? purchasePrice / totalHours : 0;
-  const usedAmount = usedHours * pricePerHour;
+
+  // When there are completed bookings, use the service's hourly rate to calculate
+  // the cost of consumed lessons. This ensures fair billing at the per-lesson rate
+  // rather than the discounted package rate.
+  const effectiveRate = (usedHours > 0 && serviceHourlyRate) ? serviceHourlyRate : pricePerHour;
+  const usedAmount = usedHours * effectiveRate;
+
   // forceFullRefund: admin explicitly refunds full purchase price regardless of remaining hours
   const partialRefundAmount = forceFullRefund && issueRefund
     ? purchasePrice
-    : remainingHours * pricePerHour;
+    : Math.max(0, purchasePrice - usedAmount);
 
   // Resolve refund currency: use the package's stored currency, or fall back to user's preferred currency
   let refundCurrency = deletedPackage.currency;

@@ -8,6 +8,7 @@
  */
 
 import express from 'express';
+import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
@@ -162,6 +163,45 @@ router.post('/match', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
       return res.status(400).json({ error: error.message });
     }
     logger.error('Error matching group lesson requests', { error: error.message });
+    next(error);
+  }
+});
+
+/**
+ * POST /mark-matched — Mark requests as matched and link to an existing booking
+ * Used when admin creates a booking via the main booking drawer and wants to
+ * link the matched group_lesson_requests to that booking.
+ * Admin/Manager only.
+ */
+router.post('/mark-matched', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+  try {
+    const { requestIds, bookingId } = req.body;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+      return res.status(400).json({ error: 'requestIds array is required' });
+    }
+
+    const matchedAt = new Date().toISOString();
+    const matchedBy = req.user.id;
+
+    const result = await pool.query(
+      `UPDATE group_lesson_requests
+       SET status = 'matched',
+           matched_at = $1,
+           matched_by = $2,
+           matched_booking_id = $3,
+           updated_at = NOW()
+       WHERE id = ANY($4::uuid[])
+         AND deleted_at IS NULL
+       RETURNING id, status, matched_at`,
+      [matchedAt, matchedBy, bookingId || null, requestIds]
+    );
+
+    res.json({
+      message: `${result.rowCount} request(s) marked as matched`,
+      updated: result.rows,
+    });
+  } catch (error) {
+    logger.error('Error marking requests as matched', { error: error.message });
     next(error);
   }
 });

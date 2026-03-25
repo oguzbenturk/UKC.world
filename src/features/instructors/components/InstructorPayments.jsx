@@ -228,6 +228,15 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
           <Table
             columns={[
               { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
+              { title: 'Duration', dataIndex: 'duration', key: 'duration', width: 80,
+                render: v => {
+                  const h = parseFloat(v) || 0;
+                  if (!h) return '—';
+                  const hrs = Math.floor(h);
+                  const mins = Math.round((h - hrs) * 60);
+                  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+                }
+              },
               { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true,
                 render: (t, r) => {
                   const name = r.participant_names || t;

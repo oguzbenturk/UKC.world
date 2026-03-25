@@ -290,7 +290,7 @@ const AssignPackageDropdown = ({ participants, onSelect, allPkgs }) => {
 // ═════════════════════════════════════════════════════════════════════
 
 // eslint-disable-next-line complexity
-const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledInstructor, prefilledDate }) => {
+const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate }) => {
   const { selectedSlot, services, users, instructors, refreshData, createBooking } = useCalendar();
   const { showSuccess, showError } = useToast();
   const { formatCurrency, businessCurrency } = useCurrency();
@@ -299,29 +299,57 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // ── Form state ──────────────────────────────────────────────────
   // eslint-disable-next-line complexity
   const initialFormData = useMemo(() => {
-    const base = {
-      userId: prefilledCustomer?.id || '',
-      userName: prefilledCustomer?.name || (prefilledCustomer?.first_name ? `${prefilledCustomer.first_name} ${prefilledCustomer.last_name || ''}`.trim() : ''),
-      userEmail: prefilledCustomer?.email || '',
-      userPhone: prefilledCustomer?.phone || '',
-      instructorId: prefilledInstructor?.id || '',
-      instructorName: prefilledInstructor?.name || '',
-      participants: prefilledCustomer ? [{
+    // Build participants list — prefer prefilledParticipants (array) over prefilledCustomer (single)
+    let participants = [];
+    let primaryUser = { userId: '', userName: '', userEmail: '', userPhone: '' };
+
+    if (prefilledParticipants?.length > 0) {
+      participants = prefilledParticipants.map((p, idx) => ({
+        userId: p.user_id || p.id || p.userId || '',
+        userName: p.user_name || p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+        userEmail: p.user_email || p.email || '',
+        userPhone: p.phone || p.userPhone || '',
+        isPrimary: idx === 0,
+        paymentStatus: 'paid',
+        notes: '',
+      }));
+      primaryUser = {
+        userId: participants[0].userId,
+        userName: participants[0].userName,
+        userEmail: participants[0].userEmail,
+        userPhone: participants[0].userPhone,
+      };
+    } else if (prefilledCustomer) {
+      participants = [{
         userId: prefilledCustomer.id,
         userName: prefilledCustomer.name || `${prefilledCustomer.first_name || ''} ${prefilledCustomer.last_name || ''}`.trim(),
         userEmail: prefilledCustomer.email || '',
         userPhone: prefilledCustomer.phone || '',
         isPrimary: true,
         paymentStatus: 'paid',
-        notes: ''
-      }] : []
+        notes: '',
+      }];
+      primaryUser = {
+        userId: prefilledCustomer.id || '',
+        userName: prefilledCustomer.name || (prefilledCustomer.first_name ? `${prefilledCustomer.first_name} ${prefilledCustomer.last_name || ''}`.trim() : ''),
+        userEmail: prefilledCustomer.email || '',
+        userPhone: prefilledCustomer.phone || '',
+      };
+    }
+
+    const base = {
+      ...primaryUser,
+      instructorId: prefilledInstructor?.id || '',
+      instructorName: prefilledInstructor?.name || '',
+      serviceId: prefilledServiceId || '',
+      participants,
     };
     if (selectedSlot) {
       return { ...base, date: selectedSlot.date || '', startTime: selectedSlot.startTime || '', endTime: selectedSlot.endTime || '', instructorId: selectedSlot.instructorId || base.instructorId, instructorName: selectedSlot.instructorName || base.instructorName };
     }
     if (prefilledDate) return { ...base, date: prefilledDate };
     return base;
-  }, [prefilledCustomer, prefilledInstructor, prefilledDate, selectedSlot]);
+  }, [prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, selectedSlot]);
 
   const { formData, updateFormData, resetFormData, validateStep, hasUnsavedChanges } = useBookingForm(initialFormData);
 
@@ -901,7 +929,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         localStorage.setItem('plannivo_recent_customers', JSON.stringify(merged));
       } catch { /* ignore */ }
 
-      onBookingCreated?.();
+      onBookingCreated?.(response);
       handleClose(true);
     } catch (error) {
       if (error.status === 400 || error.message?.includes('conflict')) {

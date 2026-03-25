@@ -350,8 +350,9 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       // Instructors - Yellow
       item('/instructors', 'Instructors', 'AcademicCapIcon', {
         customStyle: { textColor: '#eab308' },
+        isDirectLink: true,
         subItems: [
-          { to: '/instructors/managers', label: 'Managers', dotColor: '#8b5cf6' }
+          { to: '/instructors/managers', label: 'Managers', noDot: true }
         ]
       }),
       // Calendars - Teal (for calendar views)

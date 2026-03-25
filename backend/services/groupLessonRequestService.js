@@ -75,6 +75,7 @@ export const getAllRequests = async ({ status = 'pending', serviceId, skillLevel
       u.name AS user_name,
       u.first_name, u.last_name, u.email AS user_email, u.phone,
       u.profile_image_url,
+      u.weight, u.date_of_birth,
       'request' AS source
     FROM group_lesson_requests glr
     LEFT JOIN services s ON s.id = glr.service_id
@@ -102,18 +103,34 @@ export const getAllRequests = async ({ status = 'pending', serviceId, skillLevel
   reqQuery += ' ORDER BY glr.preferred_date_start ASC, glr.created_at ASC';
 
   // 2) Fetch student-organized group bookings
-  const statusMap = { pending: 'pending', matched: 'confirmed', cancelled: 'cancelled', expired: 'cancelled' };
-  const gbStatus = statusMap[status] || status || null;
+  // Only include group bookings that have an actual calendar booking (booking_id IS NOT NULL).
+  // Filter by the LINKED BOOKING status (b.status) so the result exactly matches what is
+  // visible in the calendar, regardless of what gb.status says.
+  let bookingStatusesForGb;
+  if (!status || status === '') {
+    bookingStatusesForGb = ['pending', 'pending_partner', 'confirmed', 'cancelled', 'completed', 'no_show'];
+  } else if (status === 'pending') {
+    bookingStatusesForGb = ['pending', 'pending_partner'];
+  } else if (status === 'pending_partner') {
+    bookingStatusesForGb = ['pending_partner'];
+  } else if (status === 'confirmed' || status === 'matched') {
+    bookingStatusesForGb = ['confirmed'];
+  } else if (status === 'cancelled' || status === 'expired') {
+    bookingStatusesForGb = ['cancelled'];
+  } else {
+    bookingStatusesForGb = [status];
+  }
 
   let gbQuery = `
     SELECT
       gb.id, gb.organizer_id AS user_id, gb.service_id,
+      gb.booking_id AS calendar_booking_id,
       gb.scheduled_date AS preferred_date_start,
       NULL AS preferred_date_end,
       gb.start_time AS preferred_time_of_day,
       gb.duration_hours AS preferred_duration_hours,
       NULL AS skill_level,
-      gb.notes, gb.status, gb.created_at, gb.updated_at,
+      gb.notes, b.status, gb.created_at, gb.updated_at,
       gb.title, gb.price_per_person, gb.max_participants, gb.currency,
       s.name AS service_name,
       s.category AS service_category,
@@ -136,15 +153,11 @@ export const getAllRequests = async ({ status = 'pending', serviceId, skillLevel
     LEFT JOIN services s ON s.id = gb.service_id
     LEFT JOIN users u ON u.id = gb.organizer_id
     LEFT JOIN users inst ON inst.id = gb.instructor_id
-    WHERE 1=1
+    INNER JOIN bookings b ON b.id = gb.booking_id AND b.deleted_at IS NULL
+    WHERE b.status = ANY($1::text[])
   `;
-  const gbParams = [];
-  let gbParamIndex = 1;
-
-  if (gbStatus) {
-    gbQuery += ` AND gb.status = $${gbParamIndex++}`;
-    gbParams.push(gbStatus);
-  }
+  const gbParams = [bookingStatusesForGb];
+  let gbParamIndex = 2;
 
   if (serviceId) {
     gbQuery += ` AND gb.service_id = $${gbParamIndex++}`;

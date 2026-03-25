@@ -41,7 +41,8 @@
     "services:upsert:lessons": "npm run services:upsert:lessons --prefix backend",
     "services:upsert:lessons:dry": "npm run services:upsert:lessons:dry --prefix backend",
     "packages:upsert:lessons": "npm run packages:upsert:lessons --prefix backend",
-    "packages:upsert:lessons:dry": "npm run packages:upsert:lessons:dry --prefix backend"
+    "packages:upsert:lessons:dry": "npm run packages:upsert:lessons:dry --prefix backend",
+    "killports": "node scripts/kill-ports.js"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

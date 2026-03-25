@@ -57,7 +57,7 @@ const GroupBookingCreatePage = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const _user = useAuth();
+  const { refreshToken, user } = useAuth();
   const { formatCurrency, userCurrency } = useCurrency();
   const [form] = Form.useForm();
 
@@ -147,7 +147,10 @@ const GroupBookingCreatePage = () => {
           : undefined,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      if (data?.roleUpgrade?.upgraded && refreshToken) {
+          await refreshToken();
+      }
       message.success('Group lesson created! Now invite your friends.');
       navigate(`/student/group-bookings/${data.groupBooking.id}`);
     },

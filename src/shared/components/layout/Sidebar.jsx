@@ -701,6 +701,10 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                                         <span style={{ color: subItemDotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
                                         <span style={{ color: subItemDotColor, opacity: 0.85 }}>{subItem.label}</span>
                                       </span>
+                                    ) : subItem.noDot ? (
+                                      <span className="flex items-center">
+                                        <span style={{ color: parentColor, opacity: 0.75, paddingLeft: '0.45rem' }}>{subItem.label}</span>
+                                      </span>
                                     ) : (
                                       <span className="flex items-center">
                                         <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>

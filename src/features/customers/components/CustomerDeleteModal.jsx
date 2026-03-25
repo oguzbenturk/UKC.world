@@ -8,7 +8,8 @@ import {
   CalendarOutlined,
   ShoppingOutlined,
   CreditCardOutlined,
-  WarningOutlined
+  WarningOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import DataService from '@/shared/services/dataService';
 import { formatCurrency } from '@/shared/utils/formatters';
@@ -259,7 +260,7 @@ const CustomerDeleteModal = ({
     }
 
     const { counts, samples, hasAnyData } = relatedData;
-    const totalRecords = counts.transactions + counts.walletTransactions + counts.bookings + counts.packages + counts.rentals;
+    const totalRecords = counts.transactions + counts.walletTransactions + counts.bookings + counts.packages + counts.rentals + (counts.groupBookings || 0) + (counts.groupParticipations || 0);
 
     return (
       <div className="space-y-4">
@@ -297,6 +298,12 @@ const CustomerDeleteModal = ({
                     )}
                     {counts.rentals > 0 && (
                       <li>{counts.rentals} rental(s)</li>
+                    )}
+                    {counts.groupBookings > 0 && (
+                      <li><TeamOutlined className="mr-2" />{counts.groupBookings} group booking(s)</li>
+                    )}
+                    {counts.groupParticipations > 0 && (
+                      <li><TeamOutlined className="mr-2" />{counts.groupParticipations} group participation(s)</li>
                     )}
                   </ul>
                 </div>

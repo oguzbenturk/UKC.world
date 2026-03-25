@@ -34,7 +34,7 @@ const roleSpecificFields = {
   manager: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
   sadmin: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
   freelancer: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'level', 'notes'],
-  outsider: ['first_name', 'last_name', 'date_of_birth', 'age', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'profile_image_url'] // Self-registered users with limited fields
+  outsider: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'profile_image_url'] // Self-registered users with limited fields
 };
 
 function getAllowedFieldsByRole(roleName) {
@@ -666,7 +666,9 @@ router.get('/:id/related-data', authenticateJWT, authorizeRoles(['admin', 'manag
       bookingsResult,
       packagesResult,
       rentalsResult,
-      walletBalanceResult
+      walletBalanceResult,
+      groupBookingsResult,
+      groupParticipationsResult
     ] = await Promise.all([
       // Legacy transactions
       pool.query(
@@ -712,6 +714,23 @@ router.get('/:id/related-data', authenticateJWT, authorizeRoles(['admin', 'manag
         `SELECT currency, available_amount, pending_amount, non_withdrawable_amount
          FROM wallet_balances WHERE user_id = $1`,
         [userId]
+      ),
+      // Group bookings (as organizer)
+      pool.query(
+        `SELECT gb.id, gb.title, gb.scheduled_date, gb.status, gb.price_per_person
+         FROM group_bookings gb
+         WHERE gb.organizer_id = $1
+         ORDER BY gb.created_at DESC LIMIT 10`,
+        [userId]
+      ),
+      // Group booking participations
+      pool.query(
+        `SELECT gbp.id, gb.title, gb.scheduled_date, gbp.status
+         FROM group_booking_participants gbp
+         JOIN group_bookings gb ON gb.id = gbp.group_booking_id
+         WHERE gbp.user_id = $1
+         ORDER BY gbp.created_at DESC LIMIT 10`,
+        [userId]
       )
     ]);
     
@@ -721,13 +740,17 @@ router.get('/:id/related-data', authenticateJWT, authorizeRoles(['admin', 'manag
       walletTransactionsCount,
       bookingsCount,
       packagesCount,
-      rentalsCount
+      rentalsCount,
+      groupBookingsCount,
+      groupParticipationsCount
     ] = await Promise.all([
       pool.query('SELECT COUNT(*) as count FROM transactions WHERE user_id = $1', [userId]),
       pool.query('SELECT COUNT(*) as count FROM wallet_transactions WHERE user_id = $1', [userId]),
       pool.query('SELECT COUNT(*) as count FROM bookings WHERE (customer_user_id = $1 OR student_user_id = $1) AND deleted_at IS NULL', [userId]),
       pool.query('SELECT COUNT(*) as count FROM customer_packages WHERE customer_id = $1', [userId]),
-      pool.query('SELECT COUNT(*) as count FROM rentals WHERE user_id = $1', [userId])
+      pool.query('SELECT COUNT(*) as count FROM rentals WHERE user_id = $1', [userId]),
+      pool.query('SELECT COUNT(*) as count FROM group_bookings WHERE organizer_id = $1', [userId]),
+      pool.query('SELECT COUNT(*) as count FROM group_booking_participants WHERE user_id = $1', [userId])
     ]);
     
     const summary = {
@@ -741,14 +764,18 @@ router.get('/:id/related-data', authenticateJWT, authorizeRoles(['admin', 'manag
         walletTransactions: parseInt(walletTransactionsCount.rows[0].count) || 0,
         bookings: parseInt(bookingsCount.rows[0].count) || 0,
         packages: parseInt(packagesCount.rows[0].count) || 0,
-        rentals: parseInt(rentalsCount.rows[0].count) || 0
+        rentals: parseInt(rentalsCount.rows[0].count) || 0,
+        groupBookings: parseInt(groupBookingsCount.rows[0].count) || 0,
+        groupParticipations: parseInt(groupParticipationsCount.rows[0].count) || 0
       },
       samples: {
         transactions: transactionsResult.rows,
         walletTransactions: walletTransactionsResult.rows,
         bookings: bookingsResult.rows,
         packages: packagesResult.rows,
-        rentals: rentalsResult.rows
+        rentals: rentalsResult.rows,
+        groupBookings: groupBookingsResult.rows,
+        groupParticipations: groupParticipationsResult.rows
       },
       walletBalance: walletBalanceResult.rows[0] || null,
       hasAnyData: (
@@ -756,7 +783,9 @@ router.get('/:id/related-data', authenticateJWT, authorizeRoles(['admin', 'manag
         parseInt(walletTransactionsCount.rows[0].count) > 0 ||
         parseInt(bookingsCount.rows[0].count) > 0 ||
         parseInt(packagesCount.rows[0].count) > 0 ||
-        parseInt(rentalsCount.rows[0].count) > 0
+        parseInt(rentalsCount.rows[0].count) > 0 ||
+        parseInt(groupBookingsCount.rows[0].count) > 0 ||
+        parseInt(groupParticipationsCount.rows[0].count) > 0
       )
     };
     
@@ -815,14 +844,18 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
         bookingsCheck,
         packagesCheck,
         rentalsCheck,
-        servicesCheck
+        servicesCheck,
+        groupBookingsCheck,
+        groupParticipationsCheck
       ] = await Promise.all([
         client.query('SELECT COUNT(*) as count FROM transactions WHERE user_id = $1', [userId]),
         client.query('SELECT COUNT(*) as count FROM wallet_transactions WHERE user_id = $1', [userId]),
         client.query('SELECT COUNT(*) as count FROM bookings WHERE (customer_user_id = $1 OR instructor_user_id = $1 OR student_user_id = $1) AND deleted_at IS NULL', [userId]),
         client.query('SELECT COUNT(*) as count FROM customer_packages WHERE customer_id = $1', [userId]),
         client.query('SELECT COUNT(*) as count FROM rentals WHERE user_id = $1', [userId]),
-        client.query('SELECT COUNT(*) as count FROM instructor_services WHERE instructor_id = $1', [userId])
+        client.query('SELECT COUNT(*) as count FROM instructor_services WHERE instructor_id = $1', [userId]),
+        client.query('SELECT COUNT(*) as count FROM group_bookings WHERE organizer_id = $1', [userId]),
+        client.query('SELECT COUNT(*) as count FROM group_booking_participants WHERE user_id = $1', [userId])
       ]);
       
       const relatedData = {
@@ -831,7 +864,9 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
         bookings: parseInt(bookingsCheck.rows[0].count) || 0,
         packages: parseInt(packagesCheck.rows[0].count) || 0,
         rentals: parseInt(rentalsCheck.rows[0].count) || 0,
-        services: parseInt(servicesCheck.rows[0].count) || 0
+        services: parseInt(servicesCheck.rows[0].count) || 0,
+        groupBookings: parseInt(groupBookingsCheck.rows[0].count) || 0,
+        groupParticipations: parseInt(groupParticipationsCheck.rows[0].count) || 0
       };
       
       const hasRelatedData = Object.values(relatedData).some(count => count > 0);
@@ -867,6 +902,29 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
              OR instructor_id = $1
         `, [userId]);
         
+        // Delete booking_participants before bookings
+        await client.query(`
+          DELETE FROM booking_participants 
+          WHERE user_id = $1 
+             OR booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1)
+        `, [userId]);
+        
+        // Delete booking_custom_commissions before bookings
+        await client.query(`
+          DELETE FROM booking_custom_commissions 
+          WHERE booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1)
+             OR instructor_id = $1
+        `, [userId]);
+        
+        // Delete group booking data
+        await client.query('DELETE FROM group_booking_participants WHERE user_id = $1 OR invited_by = $1', [userId]);
+        await client.query(`
+          DELETE FROM group_booking_participants 
+          WHERE group_booking_id IN (SELECT id FROM group_bookings WHERE organizer_id = $1)
+        `, [userId]);
+        await client.query('DELETE FROM group_bookings WHERE organizer_id = $1 OR created_by = $1', [userId]);
+        await client.query('DELETE FROM group_lesson_requests WHERE user_id = $1', [userId]);
+        
         // Delete booking_series_customers before booking_series
         await client.query('DELETE FROM booking_series_customers WHERE customer_user_id = $1', [userId]);
         await client.query('DELETE FROM booking_series WHERE instructor_user_id = $1 OR created_by = $1', [userId]);
@@ -875,25 +933,43 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
         const batch1Results = await Promise.all([
           client.query('DELETE FROM wallet_transactions WHERE user_id = $1', [userId]),
           client.query('DELETE FROM wallet_balances WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM wallet_audit_logs WHERE wallet_user_id = $1', [userId]),
           client.query('DELETE FROM transactions WHERE user_id = $1', [userId]),
           client.query('DELETE FROM notifications WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM notification_settings WHERE user_id = $1', [userId]),
           client.query('DELETE FROM user_consents WHERE user_id = $1', [userId]),
           client.query('DELETE FROM instructor_services WHERE instructor_id = $1', [userId]),
-          client.query('DELETE FROM financial_events WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM financial_events WHERE user_id = $1 OR created_by = $1', [userId]),
           client.query('DELETE FROM student_accounts WHERE user_id = $1', [userId]),
           client.query('DELETE FROM instructor_service_commissions WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_default_commissions WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_category_rates WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_commission_history WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_rate_history WHERE instructor_id = $1', [userId]),
+          client.query('DELETE FROM earnings_audit_log WHERE instructor_id = $1', [userId]),
           client.query('DELETE FROM event_registrations WHERE user_id = $1', [userId]),
           client.query('DELETE FROM instructor_payroll WHERE instructor_id = $1', [userId]),
           client.query('DELETE FROM student_progress WHERE student_id = $1 OR instructor_id = $1', [userId]),
           client.query('DELETE FROM accommodation_bookings WHERE guest_id = $1 OR created_by = $1', [userId]),
           client.query('DELETE FROM security_audit WHERE user_id = $1', [userId]),
-          // user_sessions.user_id is integer (legacy) — skip, no UUID rows to match
           client.query('DELETE FROM api_keys WHERE user_id = $1', [userId]),
           client.query('DELETE FROM voucher_redemptions WHERE user_id = $1', [userId]),
           client.query('DELETE FROM quick_link_registrations WHERE user_id = $1', [userId]),
           client.query('DELETE FROM form_submissions WHERE user_id = $1', [userId]),
           client.query('DELETE FROM manager_salary_records WHERE manager_user_id = $1', [userId]),
+          client.query('DELETE FROM manager_commissions WHERE manager_user_id = $1', [userId]),
+          client.query('DELETE FROM manager_payouts WHERE manager_user_id = $1', [userId]),
           client.query('DELETE FROM service_revenue_ledger WHERE customer_id = $1', [userId]),
+          client.query('DELETE FROM feedback WHERE student_id = $1 OR instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_ratings WHERE student_id = $1 OR instructor_id = $1', [userId]),
+          client.query('DELETE FROM instructor_student_notes WHERE student_id = $1 OR instructor_id = $1', [userId]),
+          client.query('DELETE FROM payment_intents WHERE user_id = $1 OR created_by = $1', [userId]),
+          client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM booking_reschedule_notifications WHERE student_user_id = $1 OR changed_by = $1', [userId]),
+          // Chat/messaging
+          client.query('DELETE FROM message_reactions WHERE user_id = $1', [userId]),
+          client.query('DELETE FROM messages WHERE sender_id = $1', [userId]),
+          client.query('DELETE FROM conversation_participants WHERE user_id = $1', [userId]),
         ]);
         
         // ── Batch 2: tables with possible dependencies on batch 1 ──
@@ -919,6 +995,14 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
           client.query('UPDATE form_submissions SET processed_by = NULL WHERE processed_by = $1', [userId]),
           client.query('UPDATE form_quick_action_tokens SET used_by = NULL WHERE used_by = $1', [userId]),
           client.query('UPDATE accommodation_bookings SET updated_by = NULL WHERE updated_by = $1', [userId]),
+          client.query('UPDATE events SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE business_expenses SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE business_expenses SET approved_by = NULL WHERE approved_by = $1', [userId]),
+          client.query('UPDATE bookings SET created_by = NULL WHERE created_by = $1', [userId]),
+          client.query('UPDATE bookings SET updated_by = NULL WHERE updated_by = $1', [userId]),
+          client.query('UPDATE bookings SET deleted_by = NULL WHERE deleted_by = $1', [userId]),
+          client.query('UPDATE currency_update_logs SET triggered_by_user_id = NULL WHERE triggered_by_user_id = $1', [userId]),
+          client.query('UPDATE conversations SET created_by = NULL WHERE created_by = $1', [userId]),
         ]);
         
         const totalDeleted = [...batch1Results, ...batch2Results].reduce((sum, r) => sum + (r?.rowCount || 0), 0);

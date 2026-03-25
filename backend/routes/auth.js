@@ -277,7 +277,7 @@ router.get('/me', authenticateJWT, async (req, res) => {
           r.permissions as role_permissions
         FROM users u
         LEFT JOIN roles r ON r.id = u.role_id
-        WHERE u.id = $1
+        WHERE u.id = $1 AND u.deleted_at IS NULL
       `;
       
       console.log('Executing query with user ID:', req.user.id);
@@ -359,7 +359,7 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
       SELECT u.id, u.email, r.name as role_name, u.two_factor_enabled
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE u.id = $1
+      WHERE u.id = $1 AND u.deleted_at IS NULL
     `, [userId]);
     
     if (result.rows.length === 0) {
@@ -396,7 +396,7 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
         r.name as role
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
-      WHERE u.id = $1
+      WHERE u.id = $1 AND u.deleted_at IS NULL
     `, [userId]);
     
     const userData = fullUserResult.rows[0];

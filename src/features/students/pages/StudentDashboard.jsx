@@ -666,8 +666,6 @@ const DashboardHero = ({ overview }) => {
 };
 
 const DashboardView = ({ overview }) => {
-  const performanceTrend = useMemo(() => derivePerformanceTrend(overview), [overview]);
-  const averageRating = Number(overview.stats?.averageRating ?? overview.stats?.averageLessonRating) || null;
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
 
   return (
@@ -686,18 +684,13 @@ const DashboardView = ({ overview }) => {
       <PackagesSection packages={overview.packages} />
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={8}>
-          <ProgressSection progress={overview.progress} />
-        </Col>
-        <Col xs={24} lg={8}>
+        <Col xs={24} md={12}>
           <RecommendationsSection recommendations={overview.recommendations} />
         </Col>
-        <Col xs={24} lg={8}>
+        <Col xs={24} md={12}>
           <InstructorNotesPanel notes={overview.instructorNotes} />
         </Col>
       </Row>
-
-      <PerformanceTrendSection data={performanceTrend} averageRating={averageRating} />
     </div>
   );
 };

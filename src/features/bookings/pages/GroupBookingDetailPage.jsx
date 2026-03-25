@@ -65,7 +65,7 @@ const GroupBookingDetailPage = () => {
   const [searchParams] = useSearchParams();
   const { user, refreshToken } = useAuth();
   const { message } = App.useApp();
-  const { userCurrency, convertCurrency } = useCurrency();
+  const { userCurrency, convertCurrency, formatCurrency } = useCurrency();
   
   const { data: walletSummary, refetch: refetchWallet } = useWalletSummary({
     currency: userCurrency,
@@ -169,7 +169,8 @@ const GroupBookingDetailPage = () => {
     try {
       if (booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer) {
         const result = await payForAllParticipants(id, 'wallet');
-        message.success(`Payment successful! Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
+        const paidAmount = convertCurrency && formatCurrency ? formatCurrency(convertCurrency(result.totalAmount || 0, 'EUR', userCurrency), userCurrency) : `€${result.totalAmount?.toFixed(2)}`;
+        message.success(`Payment successful! Paid ${paidAmount} for ${result.participantCount} participants.`);
         if (result?.roleUpgrade?.upgraded) await refreshToken();
       } else {
         const payResult = await payForGroupBooking(id, 'wallet');
@@ -190,7 +191,8 @@ const GroupBookingDetailPage = () => {
   const handlePay = async () => {
     const isOrgPays = booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer && !booking?.organizerPaid;
     const accepted = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
-    const amountEur = isOrgPays ? (accepted * (booking?.pricePerPerson || 0)) : (booking?.pricePerPerson || 0);
+    const unitPrice = booking?.packageId ? (booking.packagePrice || 0) : (booking?.pricePerPerson || 0);
+    const amountEur = isOrgPays ? (accepted * unitPrice) : unitPrice;
     const amountInUserCurrency = convertCurrency ? convertCurrency(amountEur, 'EUR', userCurrency) : amountEur;
 
     if (walletBalance >= amountInUserCurrency) {
@@ -199,7 +201,8 @@ const GroupBookingDetailPage = () => {
         setPaying(true);
         if (isOrgPays) {
           const result = await payForAllParticipants(id, 'wallet');
-          message.success(`Payment successful! Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
+          const paidAmount = convertCurrency && formatCurrency ? formatCurrency(convertCurrency(result.totalAmount || 0, 'EUR', userCurrency), userCurrency) : `€${result.totalAmount?.toFixed(2)}`;
+          message.success(`Payment successful! Paid ${paidAmount} for ${result.participantCount} participants.`);
           if (result?.roleUpgrade?.upgraded) {
             message.success(result.roleUpgrade.message);
             await refreshToken();
@@ -280,7 +283,17 @@ const GroupBookingDetailPage = () => {
   
   // Calculate total for organizer_pays model
   const acceptedCount = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
-  const totalForOrganizer = acceptedCount * (booking?.pricePerPerson || 0);
+  const isPackageBooking = !!booking?.packageId;
+  
+  const displayPriceBase = isPackageBooking ? (booking.packagePrice || 0) : (booking?.pricePerPerson || 0);
+  const totalForOrganizerBase = acceptedCount * displayPriceBase;
+  const displayLabel = isPackageBooking ? 'package price' : 'per person';
+  
+  const displayPrice = convertCurrency ? convertCurrency(displayPriceBase, 'EUR', userCurrency) : displayPriceBase;
+  const formattedDisplayPrice = formatCurrency ? formatCurrency(displayPrice, userCurrency) : `€${displayPrice.toFixed(2)}`;
+  
+  const totalForOrganizer = convertCurrency ? convertCurrency(totalForOrganizerBase, 'EUR', userCurrency) : totalForOrganizerBase;
+  const formattedTotalForOrganizer = formatCurrency ? formatCurrency(totalForOrganizer, userCurrency) : `€${totalForOrganizer.toFixed(2)}`;
   
   if (loading) {
     return (
@@ -344,8 +357,8 @@ const GroupBookingDetailPage = () => {
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-3xl font-extrabold text-emerald-600">€{booking.pricePerPerson?.toFixed(2)}</span>
-              <Text type="secondary" className="block text-xs mt-0.5">per person</Text>
+              <span className="text-3xl font-extrabold text-emerald-600">{formattedDisplayPrice}</span>
+              <Text type="secondary" className="block text-xs mt-0.5">{displayLabel}</Text>
             </div>
           </div>
           {booking.description && (
@@ -368,7 +381,7 @@ const GroupBookingDetailPage = () => {
                 </Text>
                 <Text className="text-amber-700 text-sm">
                   {organizerNeedsToPay
-                    ? `As the organizer, you'll pay for all ${acceptedCount} participant(s). Total: €${totalForOrganizer.toFixed(2)}`
+                    ? `As the organizer, you'll pay for all ${acceptedCount} participant(s). Total: ${formattedTotalForOrganizer}`
                     : 'Complete your payment to confirm your spot.'}
                 </Text>
               </div>
@@ -382,8 +395,8 @@ const GroupBookingDetailPage = () => {
               className="!rounded-xl !font-bold !h-11 shrink-0"
             >
               {organizerNeedsToPay
-                ? `Pay €${totalForOrganizer.toFixed(2)}`
-                : `Pay €${booking.pricePerPerson?.toFixed(2)}`}
+                ? `Pay ${formattedTotalForOrganizer}`
+                : `Pay ${formattedDisplayPrice}`}
             </Button>
           </div>
         )}
@@ -496,8 +509,8 @@ const GroupBookingDetailPage = () => {
               </div>
               <div>
                 <Text type="secondary" className="text-[11px] uppercase tracking-wider font-semibold block">Price</Text>
-                <Text strong className="text-sm text-emerald-600">€{booking.pricePerPerson?.toFixed(2)}</Text>
-                <Text type="secondary" className="text-xs block">per person</Text>
+                <Text strong className="text-sm text-emerald-600">{formattedDisplayPrice}</Text>
+                <Text type="secondary" className="text-xs block">{displayLabel}</Text>
               </div>
             </div>
           </div>
@@ -565,7 +578,9 @@ const GroupBookingDetailPage = () => {
                   <Tag color={getStatusColor(p.status)} className="!rounded-full !text-xs !m-0">{p.status}</Tag>
                   <Tag color={getPaymentStatusColor(p.paymentStatus)} className="!rounded-full !text-xs !m-0">
                     {p.paymentStatus}
-                    {p.paymentStatus === 'paid' && p.amountPaid > 0 && ` €${p.amountPaid?.toFixed(2)}`}
+                    {p.paymentStatus === 'paid' && p.amountPaid > 0 && (
+                      ` ${formatCurrency ? formatCurrency(convertCurrency ? convertCurrency(p.amountPaid, 'EUR', userCurrency) : p.amountPaid, userCurrency) : '€' + p.amountPaid.toFixed(2)}`
+                    )}
                   </Tag>
                   {booking.isOrganizer && !p.isOrganizer && (
                     <Popconfirm
@@ -755,9 +770,7 @@ const GroupBookingDetailPage = () => {
         onClose={() => setDepositModalVisible(false)}
         onSuccess={handleDepositSuccess}
         initialAmount={
-          organizerNeedsToPay
-            ? (convertCurrency ? convertCurrency(totalForOrganizer, 'EUR', userCurrency) : totalForOrganizer)
-            : (convertCurrency ? convertCurrency(booking?.pricePerPerson || 0, 'EUR', userCurrency) : (booking?.pricePerPerson || 0))
+          organizerNeedsToPay ? totalForOrganizer : displayPrice
         }
         initialCurrency={userCurrency}
       />

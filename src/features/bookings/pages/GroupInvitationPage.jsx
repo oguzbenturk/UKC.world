@@ -50,13 +50,17 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { getInvitationDetails, declineInvitation, acceptInvitation } from '../services/groupBookingService';
 import apiClient from '@/shared/services/apiClient';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
+
+dayjs.extend(relativeTime);
 
 const fallbackCurrencies = [
   { label: 'Euro (€)', value: 'EUR', symbol: '€', name: 'Euro' },
@@ -66,10 +70,13 @@ const fallbackCurrencies = [
   { label: 'Swiss Franc (CHF)', value: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
 ];
 
+const currencySymbols = { EUR: '€', USD: '$', TRY: '₺', GBP: '£', CHF: 'CHF' };
+
 const GroupInvitationPage = () => {
   const { token } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, login } = useAuth();
+  const { user, isAuthenticated, login, refreshToken } = useAuth();
+  const { userCurrency, convertCurrency, formatCurrency } = useCurrency();
   
   const [loading, setLoading] = useState(true);
   const [invitation, setInvitation] = useState(null);
@@ -135,6 +142,11 @@ const GroupInvitationPage = () => {
     try {
       setAccepting(true);
       const response = await acceptInvitation(token);
+      
+      if (response.roleUpgrade?.upgraded && refreshToken) {
+        await refreshToken();
+      }
+      
       message.success('Invitation accepted! You are now part of this group lesson.');
       navigate(`/student/group-bookings/${response.groupBookingId}`);
     } catch (err) {
@@ -243,6 +255,47 @@ const GroupInvitationPage = () => {
     return { pct: 100, label: 'Strong', color: '#52c41a' };
   };
   const pwStrength = getPasswordStrength(passwordValue);
+
+  const lessonDate = invitation?.scheduledDate ? dayjs(invitation.scheduledDate) : null;
+  const now = dayjs();
+  const diffDays = lessonDate ? lessonDate.startOf('day').diff(now.startOf('day'), 'day') : null;
+  const dateChip = diffDays === null
+    ? null
+    : diffDays === 0
+      ? { color: 'red', label: 'Today' }
+      : diffDays === 1
+        ? { color: 'orange', label: 'Tomorrow' }
+        : diffDays > 1
+          ? { color: 'blue', label: `In ${diffDays} days` }
+          : { color: 'default', label: `${Math.abs(diffDays)} days ago` };
+
+  const priceMeta = (() => {
+    if (!invitation) {
+      return { amount: 0, currency: 'EUR', label: 'per person', formatted: '€0.00' };
+    }
+
+    if (isAuthenticated && convertCurrency) {
+      const isPackage = !!invitation.packageId;
+      const basePrice = isPackage ? (invitation.packagePrice || 0) : (invitation.pricePerPerson || 0);
+      const converted = convertCurrency(basePrice, invitation.currency, userCurrency);
+      return {
+        amount: converted,
+        currency: userCurrency,
+        label: isPackage ? 'package price' : 'per person',
+        formatted: formatCurrency ? formatCurrency(converted, userCurrency) : `${userCurrency} ${converted.toFixed(2)}`,
+      };
+    }
+
+    const amount = invitation.displayPrice || invitation.pricePerPerson || 0;
+    const currency = invitation.displayCurrency || invitation.currency || 'EUR';
+    const symbol = currencySymbols[currency] || currency;
+    return {
+      amount,
+      currency,
+      label: invitation.isPackageBooking ? 'package price' : 'per person',
+      formatted: `${symbol}${amount.toFixed(2)}`,
+    };
+  })();
   
   if (loading) {
     return (
@@ -270,12 +323,12 @@ const GroupInvitationPage = () => {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Logo / Header */}
+        {/* Header */}
         <div className="text-center mb-8">
-          <Avatar 
-            size={64} 
+          <Avatar
+            size={64}
             className="bg-blue-600"
             icon={<UserGroupIcon className="w-8 h-8" />}
           />
@@ -283,10 +336,10 @@ const GroupInvitationPage = () => {
             Group Lesson Invitation
           </Title>
           <Text type="secondary">
-            You've been invited to join a group lesson
+            {invitation.organizerName} has invited you to join a group lesson
           </Text>
         </div>
-        
+
         <Card className="shadow-lg rounded-xl">
           {/* Invitation Header */}
           <div className="text-center border-b pb-6 mb-6">
@@ -300,15 +353,17 @@ const GroupInvitationPage = () => {
               </Paragraph>
             )}
           </div>
-          
+
           {/* Greeting */}
           {invitation.isGenericLink ? (
             <Alert
               type="info"
               showIcon
               icon={<UserGroupIcon className="w-5 h-5" />}
-              message="You've been invited to join a group lesson!"
-              description={`${invitation.organizerName} shared this invitation link. Sign in or create an account to accept.`}
+              message={<span><strong>{invitation.organizerName}</strong> invited you to join a group lesson!</span>}
+              description={invitation.invitationExpiresAt && (
+                <span className="text-xs text-slate-500">This invitation expires {dayjs(invitation.invitationExpiresAt).fromNow()}</span>
+              )}
               className="mb-6"
             />
           ) : (
@@ -316,109 +371,116 @@ const GroupInvitationPage = () => {
               type="info"
               showIcon
               icon={<UserIcon className="w-5 h-5" />}
-              message={
+              message={<span>Hello <strong>{invitation.fullName || invitation.email}</strong>!</span>}
+              description={
                 <span>
-                  Hello <strong>{invitation.fullName || invitation.email}</strong>!
+                  <strong>{invitation.organizerName}</strong> has invited you to join this group lesson.
+                  {invitation.invitationExpiresAt && (
+                    <span className="block mt-1 text-xs text-slate-500">This invitation expires {dayjs(invitation.invitationExpiresAt).fromNow()}</span>
+                  )}
                 </span>
               }
-              description={`${invitation.organizerName} has invited you to join this group lesson.`}
               className="mb-6"
             />
           )}
-          
+
           {/* Event Details */}
-          <Descriptions column={1} bordered className="mb-6">
-            {invitation.scheduledDate && (
-            <Descriptions.Item 
-              label={
-                <Space>
-                  <CalendarIcon className="w-4 h-4" />
-                  <span>Date</span>
-                </Space>
-              }
-            >
-              <Text strong>
-                {dayjs(invitation.scheduledDate).format('dddd, MMMM D, YYYY')}
-              </Text>
-            </Descriptions.Item>
-            )}
-            
-            {invitation.startTime && (
-            <Descriptions.Item 
-              label={
-                <Space>
-                  <ClockIcon className="w-4 h-4" />
-                  <span>Time</span>
-                </Space>
-              }
-            >
-              <Text strong>
-                {invitation.startTime}
-                {invitation.endTime && ` - ${invitation.endTime}`}
-                {invitation.durationHours > 0 && (
-                  <Text type="secondary"> ({invitation.durationHours}h)</Text>
-                )}
-              </Text>
-            </Descriptions.Item>
-            )}
-            
-            <Descriptions.Item 
-              label={
-                <Space>
-                  <AcademicCapIcon className="w-4 h-4" />
-                  <span>Instructor</span>
-                </Space>
-              }
-            >
-              <Text strong>{invitation.instructorName || 'To be assigned'}</Text>
-            </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={
-                <Space>
-                  <CurrencyEuroIcon className="w-4 h-4" />
-                  <span>Price</span>
-                </Space>
-              }
-            >
-              <Text strong className="text-lg text-green-600">
-                {invitation.currency} {invitation.pricePerPerson?.toFixed(2)}
-              </Text>
-              <Text type="secondary"> per person</Text>
-            </Descriptions.Item>
-            
-            <Descriptions.Item 
-              label={
-                <Space>
-                  <UserGroupIcon className="w-4 h-4" />
-                  <span>Participants</span>
-                </Space>
-              }
-            >
-              <Space>
-                <Text strong>
-                  {invitation.currentParticipants} / {invitation.maxParticipants}
-                </Text>
-                {invitation.spotsRemaining > 0 ? (
-                  <Tag color="green">{invitation.spotsRemaining} spots remaining</Tag>
-                ) : (
-                  <Tag color="red">Full</Tag>
-                )}
-              </Space>
-            </Descriptions.Item>
-          </Descriptions>
-          
+          <div className="bg-slate-50/80 rounded-2xl p-5 mb-8 border border-slate-100 flex flex-col gap-4">
+            {/* Row 1: Date & Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {invitation.scheduledDate && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg shrink-0">
+                    <CalendarIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Date</Text>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Text strong className="text-sm text-slate-800">{dayjs(invitation.scheduledDate).format('dddd, MMMM D, YYYY')}</Text>
+                      {dateChip && <Tag color={dateChip.color} bordered={false} className="m-0 font-medium text-xs">{dateChip.label}</Tag>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {invitation.startTime && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-amber-100 text-amber-600 rounded-lg shrink-0">
+                    <ClockIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Time</Text>
+                    <Text strong className="text-sm text-slate-800">
+                      {invitation.startTime}
+                      {invitation.endTime && ` - ${invitation.endTime}`}
+                      {invitation.durationHours > 0 && (
+                        <Text type="secondary" className="font-normal ml-1 text-xs">({invitation.durationHours}h)</Text>
+                      )}
+                    </Text>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="h-px bg-slate-200/60 w-full" />
+
+            {/* Row 2: Availability, Investment, Instructor */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg shrink-0">
+                  <UserGroupIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Availability</Text>
+                  <div className="flex flex-col gap-1 mt-0.5">
+                    <Text strong className="text-sm text-slate-700 leading-none">{invitation.currentParticipants} / {invitation.maxParticipants} Joined</Text>
+                    {invitation.spotsRemaining > 0 ? (
+                      <Tag color="success" bordered={false} className="m-0 text-[10px] w-fit leading-tight py-0.5 px-1.5">
+                        {invitation.spotsRemaining} spot{invitation.spotsRemaining !== 1 && 's'} left
+                      </Tag>
+                    ) : (
+                      <Tag color="error" bordered={false} className="m-0 text-[10px] w-fit leading-tight py-0.5 px-1.5">Full</Tag>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg shrink-0">
+                  <CurrencyEuroIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Investment</Text>
+                  <div className="flex flex-col">
+                    <Text strong className="text-base text-emerald-600 leading-tight">{priceMeta.formatted}</Text>
+                    <Text type="secondary" className="text-[11px] mt-0.5">{priceMeta.label}</Text>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
+                  <AcademicCapIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Instructor</Text>
+                  <Text strong className="text-sm text-slate-800 leading-tight block mt-0.5">{invitation.instructorName || 'To be assigned'}</Text>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Registration Notice — for unauthenticated users */}
           {!isAuthenticated && !showRegisterForm && !showLoginForm && (
             <Alert
               type="info"
               showIcon
               message="Join this group lesson"
-              description="Review the lesson details below, then click Accept to create your account and join."
+              description="Click Accept to create your account and join. Your chosen currency will be used for all payments."
               className="mb-6"
             />
           )}
-          
+
           {/* Already logged in notice */}
           {isAuthenticated && (
             <Alert
@@ -430,9 +492,9 @@ const GroupInvitationPage = () => {
               className="mb-6"
             />
           )}
-          
+
           <Divider />
-          
+
           {/* ── Inline Registration Form ── */}
           {!isAuthenticated && showRegisterForm && (
             <div className="mb-6">
@@ -605,7 +667,7 @@ const GroupInvitationPage = () => {
               >
                 {isAuthenticated ? 'Accept Invitation' : 'Accept & Join'}
               </Button>
-              
+
               {!isAuthenticated && (
                 <Button
                   size="large"
@@ -617,7 +679,7 @@ const GroupInvitationPage = () => {
                   I have an account
                 </Button>
               )}
-              
+
               <Button
                 size="large"
                 danger

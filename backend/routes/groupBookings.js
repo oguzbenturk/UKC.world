@@ -27,6 +27,7 @@ import { pool } from '../db.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { insertNotification } from '../services/notificationWriter.js';
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
+import CurrencyService from '../services/currencyService.js';
 
 const router = express.Router();
 
@@ -56,7 +57,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       paymentModel, // 'individual' or 'organizer_pays'
       invitees, // Legacy: array of { email, fullName, phone }
       participantIds, // New: array of user IDs (registered users)
-      packageId // Optional: organizer's package to use
+      packageId, // Optional: organizer's package to use
+      ownedPackageId // Optional: organizer's customer_packages instance id
     } = req.body;
 
     // Log incoming request for debugging
@@ -102,6 +104,41 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       });
     }
 
+    // Resolve price per person: full package price when a package is selected,
+    // otherwise fall back to service price × duration
+    let resolvedPricePerPerson = parseFloat(pricePerPerson) || 0;
+    const bookingPackageId = req.body.packageId || packageId || null;
+    if (bookingPackageId) {
+      // Use the full package price — participants buy the entire package
+      const pkgResult = await pool.query(
+        'SELECT price FROM service_packages WHERE id = $1',
+        [bookingPackageId]
+      );
+      if (pkgResult.rows.length > 0) {
+        const pkgPrice = parseFloat(pkgResult.rows[0].price);
+        if (pkgPrice > 0) {
+          resolvedPricePerPerson = pkgPrice;
+        }
+      }
+    }
+    // Fallback to service price if no package or package lookup failed
+    if (resolvedPricePerPerson === 0 && serviceId) {
+      const svcResult = await pool.query(
+        'SELECT price, duration FROM services WHERE id = $1',
+        [serviceId]
+      );
+      if (svcResult.rows.length > 0) {
+        const svcPrice = parseFloat(svcResult.rows[0].price) || 0;
+        const svcDuration = parseFloat(svcResult.rows[0].duration) || 0;
+        const dur = parseFloat(durationHours) || svcDuration || 1;
+        if (svcPrice > 0) {
+          resolvedPricePerPerson = svcDuration > 0
+            ? parseFloat(((svcPrice / svcDuration) * dur).toFixed(2))
+            : svcPrice;
+        }
+      }
+    }
+
     // Create the group booking
     const groupBooking = await createGroupBooking({
       organizerId: userId,
@@ -111,7 +148,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       description,
       maxParticipants: Math.max(maxParticipants || 6, (participantIds?.length || 0) + 1),
       minParticipants: minParticipants || 2,
-      pricePerPerson: pricePerPerson ?? 0,
+      pricePerPerson: resolvedPricePerPerson,
       currency: currency || 'EUR',
       scheduledDate: scheduledDate || null,
       startTime: startTime || null,
@@ -148,7 +185,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
         const timeParts = String(startTime).split(':');
         const startHourDecimal = parseInt(timeParts[0], 10) + (parseInt(timeParts[1] || 0, 10) / 60);
         const dur = parseFloat(durationHours) || 2;
-        const amt = parseFloat(pricePerPerson || 0);
+        const amt = resolvedPricePerPerson;
 
         const bkResult = await pool.query(`
           INSERT INTO bookings (
@@ -156,8 +193,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
             student_user_id, instructor_user_id, customer_user_id,
             status, payment_status, amount, final_amount,
             notes, service_id, group_size, max_participants,
-            created_by
-          ) VALUES ($1, $2, $3, $4, $5, $4, 'pending', 'unpaid', $6, $6, $7, $8, $9, $10, $11)
+            created_by, customer_package_id
+          ) VALUES ($1, $2, $3, $4, $5, $4, 'pending', 'unpaid', $6, $6, $7, $8, $9, $10, $11, $12)
           RETURNING id
         `, [
           scheduledDate,
@@ -170,7 +207,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
           serviceId,
           1, // starts with organizer only
           maxParticipants || 6,
-          userId
+          userId,
+          ownedPackageId || null
         ]);
         calendarBookingId = bkResult.rows[0].id;
 
@@ -362,6 +400,11 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
         organizerName: details.organizer_name,
         organizerEmail: details.organizer_email,
         pricePerPerson: parseFloat(details.price_per_person),
+        packageId: details.package_id || null,
+        packageName: details.package_name || null,
+        packagePrice: details.package_price ? parseFloat(details.package_price) : null,
+        packageTotalHours: details.package_total_hours ? parseFloat(details.package_total_hours) : null,
+        servicePrice: details.service_price ? parseFloat(details.service_price) : null,
         currency: details.currency,
         maxParticipants: details.max_participants,
         minParticipants: details.min_participants,
@@ -485,6 +528,28 @@ router.get('/invitation/:token', async (req, res, next) => {
       return res.status(400).json({ error: `Invitation already ${invitation.status}` });
     }
 
+    // Determine the display price: package price when package exists, else per-person
+    const baseCurrency = invitation.currency || 'EUR';
+    const isPackage = !!invitation.package_id;
+    const basePrice = isPackage
+      ? parseFloat(invitation.package_price || invitation.price_per_person)
+      : parseFloat(invitation.price_per_person);
+    const organizerCurrency = invitation.organizer_currency || baseCurrency;
+
+    // Pre-convert price to organizer's currency for unauthenticated viewers
+    let displayPrice = basePrice;
+    let displayCurrency = baseCurrency;
+    if (organizerCurrency !== baseCurrency) {
+      try {
+        displayPrice = await CurrencyService.convertCurrency(basePrice, baseCurrency, organizerCurrency);
+        displayCurrency = organizerCurrency;
+      } catch (e) {
+        logger.warn('Currency conversion failed for invitation, using base', { error: e.message });
+        displayPrice = basePrice;
+        displayCurrency = baseCurrency;
+      }
+    }
+
     res.json({
       success: true,
       invitation: {
@@ -500,11 +565,20 @@ router.get('/invitation/:token', async (req, res, next) => {
         durationHours: parseFloat(invitation.duration_hours || 0),
         serviceName: invitation.service_name,
         serviceId: invitation.service_id,
-        packageId: invitation.package_id,
+        packageId: invitation.package_id || null,
         instructorName: invitation.instructor_name,
         organizerName: invitation.organizer_name,
         pricePerPerson: parseFloat(invitation.price_per_person),
-        currency: invitation.currency,
+        packageName: invitation.package_name || null,
+        packagePrice: invitation.package_price ? parseFloat(invitation.package_price) : null,
+        packageTotalHours: invitation.package_total_hours ? parseFloat(invitation.package_total_hours) : null,
+        servicePrice: invitation.service_price ? parseFloat(invitation.service_price) : null,
+        currency: baseCurrency,
+        organizerCurrency,
+        displayPrice,
+        displayCurrency,
+        isPackageBooking: isPackage,
+        invitationExpiresAt: invitation.invitation_expires_at || null,
         maxParticipants: invitation.max_participants,
         currentParticipants: invitation.currentParticipants,
         spotsRemaining: invitation.max_participants - invitation.currentParticipants,
@@ -600,7 +674,8 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
     res.json({
       success: true,
       message: 'Invitation accepted',
-      groupBookingId: result.groupBookingId
+      groupBookingId: result.groupBookingId,
+      roleUpgrade: result.roleUpgrade
     });
   } catch (error) {
     logger.error('Error accepting invitation', { error: error.message });
@@ -718,7 +793,8 @@ router.post('/:id/accept', authenticateJWT, async (req, res, next) => {
     res.json({
       success: true,
       message: result.allAccepted ? 'Invitation accepted - all participants confirmed!' : 'Invitation accepted',
-      allAccepted: result.allAccepted
+      allAccepted: result.allAccepted,
+      roleUpgrade: result.roleUpgrade
     });
   } catch (error) {
     logger.error('Error accepting group booking invitation', { error: error.message });

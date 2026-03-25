@@ -8,11 +8,13 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Button,
   DatePicker,
   Input,
+  InputNumber,
   Radio,
   Select,
   Spin,
@@ -38,13 +40,16 @@ import apiClient from '@/shared/services/apiClient';
 import { getAvailableSlots } from '@/features/bookings/components/api/calendarApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import calendarConfig from '@/config/calendarConfig';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ownedPackage, partnerInfo, onProceedToSchedule }) => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState(null); // null | 'friend' | 'find'
   const { formatCurrency, userCurrency, convertCurrency } = useCurrency();
+  const [createdGroupId, setCreatedGroupId] = useState(null);
 
   // ── "I have a friend" state ──
   const [inviteLink, setInviteLink] = useState(null);
@@ -57,11 +62,13 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
   const [submitted, setSubmitted] = useState(false);
 
   // ── Shared data ──
-  const pricePerPerson = packageData?.price ? parseFloat(packageData.price) : 0;
+  // Price per person = 0 so backend calculates from service (same as private bookings)
+  const pricePerPerson = 0;
+  const displayPrice = packageData?.price ? parseFloat(packageData.price) : 0;
   const dualPrice = (() => {
-    const eurFormatted = formatCurrency(pricePerPerson, 'EUR');
+    const eurFormatted = formatCurrency(displayPrice, 'EUR');
     if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency ? convertCurrency(pricePerPerson, 'EUR', userCurrency) : pricePerPerson;
+    const converted = convertCurrency ? convertCurrency(displayPrice, 'EUR', userCurrency) : displayPrice;
     return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   })();
 
@@ -121,6 +128,7 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
       const result = await createGroupBooking({
         serviceId,
         packageId: packageData?.id || null,
+        ownedPackageId: ownedPackage?.id || null,
         title: `${packageData?.name || 'Group Lesson'}`,
         maxParticipants: 2,
         pricePerPerson,
@@ -139,6 +147,9 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
         const fullUrl = `${window.location.origin}${link.startsWith('/') ? link : `/${link}`}`;
         setInviteLink(fullUrl);
       }
+      if (data.groupBooking?.id) {
+        setCreatedGroupId(data.groupBooking.id);
+      }
     },
     onError: (err) => {
       message.error(err.response?.data?.error || err.message || 'Failed to create group');
@@ -153,6 +164,7 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
       preferredDateEnd: values.dateEnd || null,
       skillLevel: values.skillLevel || 'beginner',
       notes: values.notes || null,
+      preferredDurationHours: values.durationHours || undefined,
     }),
     onSuccess: () => {
       setSubmitted(true);
@@ -252,7 +264,7 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
               showIcon
               className="!rounded-xl"
               message="No partner yet"
-              description="You need a partner to book a group lesson. Invite a friend or let us find you one."
+              description="You need a partner to book this lesson. Invite a friend or let us find you one."
             />
 
             <div className="space-y-3">
@@ -309,8 +321,8 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
           type="info"
           showIcon
           className="!rounded-xl"
-          message="Group Lesson"
-          description="This is a group lesson package. You need at least 2 people to proceed."
+          message="Shared Lesson"
+          description="This package requires at least 2 people. Invite a friend or let us find you a partner."
         />
 
         <div className="space-y-3">
@@ -400,6 +412,12 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
               <Text type="secondary">Price per person</Text>
               <Text strong className="text-green-600">{dualPrice}</Text>
             </div>
+            {packageDurationHours && (
+              <div className="flex justify-between text-sm">
+                <Text type="secondary">Package hours</Text>
+                <Text strong className="text-blue-600">{packageDurationHours}h total</Text>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
@@ -433,6 +451,18 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
             block
             size="large"
             className="!h-12 !rounded-xl !font-bold"
+            onClick={() => {
+              onDone?.();
+              navigate('/student/group-bookings');
+            }}
+          >
+            My Group Bookings
+          </Button>
+
+          <Button
+            block
+            size="large"
+            className="!h-12 !rounded-xl !font-bold"
             onClick={() => onDone?.()}
           >
             Done
@@ -463,6 +493,12 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
             <Text type="secondary">Group size</Text>
             <Text strong>2 people</Text>
           </div>
+          {packageDurationHours && (
+            <div className="flex justify-between text-sm">
+              <Text type="secondary">Package hours</Text>
+              <Text strong className="text-blue-600">{packageDurationHours}h total</Text>
+            </div>
+          )}
         </div>
 
         {/* Instructor */}
@@ -602,21 +638,58 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
 
 /** Simplified "Find me a partner" form — inline within modal */
 const FindPartnerForm = ({ serviceId, packageData, onSubmit, submitting, onBack }) => {
+  const { user } = useAuth();
   const [dateStart, setDateStart] = useState(null);
   const [dateEnd, setDateEnd] = useState(null);
   const [skillLevel, setSkillLevel] = useState('beginner');
   const [notes, setNotes] = useState('');
 
-  const handleSubmit = () => {
+  // Pre-fill from auth user profile; editable if missing
+  const [weight, setWeight] = useState(user?.weight ?? null);
+  const [dateOfBirth, setDateOfBirth] = useState(
+    user?.date_of_birth ? dayjs(user.date_of_birth) : null
+  );
+  const [phone, setPhone] = useState(user?.phone || '');
+
+  // Duration in hours driven by selected package (e.g. 6h or 8h group package)
+  const packageDurationHours = packageData?.totalHours || packageData?.duration_hours ||
+    packageData?.durationHours || packageData?.hours || null;
+
+  const handleSubmit = async () => {
     if (!dateStart) {
       message.warning('Please select at least a start date');
       return;
+    }
+    if (!weight) {
+      message.warning('Please enter your weight so we can find the best match');
+      return;
+    }
+    if (!dateOfBirth) {
+      message.warning('Please enter your date of birth so we can find the best match');
+      return;
+    }
+    // If profile fields changed, update them silently
+    const profileChanged =
+      weight !== user?.weight ||
+      (dateOfBirth && dateOfBirth.format('YYYY-MM-DD') !== user?.date_of_birth) ||
+      (phone && phone !== user?.phone);
+    if (profileChanged) {
+      try {
+        await apiClient.put(`/users/${user.id}`, {
+          weight,
+          date_of_birth: dateOfBirth.format('YYYY-MM-DD'),
+          ...(phone ? { phone } : {}),
+        });
+      } catch {
+        // Non-fatal
+      }
     }
     onSubmit({
       dateStart: dateStart.format('YYYY-MM-DD'),
       dateEnd: dateEnd ? dateEnd.format('YYYY-MM-DD') : null,
       skillLevel,
       notes,
+      durationHours: packageDurationHours,
     });
   };
 
@@ -625,6 +698,62 @@ const FindPartnerForm = ({ serviceId, packageData, onSubmit, submitting, onBack 
       <div className="text-center py-1">
         <h3 className="text-base font-bold text-slate-900">Find a Partner</h3>
         <p className="text-xs text-slate-500 mt-0.5">Tell us your preferences and we'll match you</p>
+      </div>
+
+      {/* Package info — read-only, shown if available */}
+      {packageData?.name && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200">
+          <span className="text-xs font-semibold text-blue-700 flex-1 truncate">
+            {packageData.name}
+          </span>
+          {packageDurationHours && (
+            <span className="text-xs text-blue-500 font-medium whitespace-nowrap">
+              {packageDurationHours}h lesson
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+            Your weight (kg) *
+          </label>
+          <InputNumber
+            className="w-full !rounded-xl"
+            min={20}
+            max={300}
+            step={0.5}
+            value={weight}
+            onChange={setWeight}
+            placeholder="e.g. 70"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+            Date of birth *
+          </label>
+          <DatePicker
+            className="w-full !rounded-xl"
+            value={dateOfBirth}
+            onChange={setDateOfBirth}
+            format="YYYY-MM-DD"
+            placeholder="YYYY-MM-DD"
+            disabledDate={(d) => d && d.isAfter(dayjs().subtract(5, 'year'))}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
+          Phone number
+        </label>
+        <Input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+1 234 567 8900"
+          className="!rounded-xl"
+        />
       </div>
 
       <div>

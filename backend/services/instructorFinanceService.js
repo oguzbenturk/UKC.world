@@ -126,12 +126,12 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
         CASE
           WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
           THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
-          ELSE cp.purchase_price
+          ELSE COALESCE(cp.purchase_price, gb_sp.price)
         END as package_price,
-        cp.total_hours as package_total_hours,
+        COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
         cp.remaining_hours as package_remaining_hours,
         cp.used_hours as package_used_hours,
-        sp.sessions_count as package_sessions_count,
+        COALESCE(sp.sessions_count, gb_sp.sessions_count) as package_sessions_count,
         COALESCE(sp.rental_days, 0) as pkg_rental_days,
         COALESCE(sp.accommodation_nights, 0) as pkg_accom_nights,
         COALESCE(rental_srv.price, 0) as pkg_rental_daily_rate,
@@ -147,6 +147,8 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
       LEFT JOIN services rental_srv ON rental_srv.id = sp.rental_service_id
       LEFT JOIN accommodation_units accom_unit ON accom_unit.id = sp.accommodation_unit_id
       LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
+      LEFT JOIN group_bookings gb ON gb.booking_id = b.id
+      LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
       LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
@@ -281,12 +283,12 @@ export async function getAllInstructorBalances() {
       CASE
         WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
         THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
-        ELSE cp.purchase_price
+        ELSE COALESCE(cp.purchase_price, gb_sp.price)
       END as package_price,
-      cp.total_hours as package_total_hours,
+      COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
       cp.remaining_hours as package_remaining_hours,
       cp.used_hours as package_used_hours,
-      sp.sessions_count as package_sessions_count,
+      COALESCE(sp.sessions_count, gb_sp.sessions_count) as package_sessions_count,
       srv.duration as fallback_session_duration,
       COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as commission_rate,
       COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
@@ -297,6 +299,8 @@ export async function getAllInstructorBalances() {
     LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
     LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
     LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
+    LEFT JOIN group_bookings gb ON gb.booking_id = b.id
+    LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
     LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
     LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
     LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag

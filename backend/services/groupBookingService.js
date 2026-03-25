@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { logger } from '../middlewares/errorHandler.js';
 import { recordTransaction } from './walletService.js';
 import CurrencyService from './currencyService.js';
+import { checkAndUpgradeAfterBooking } from './roleUpgradeService.js';
 
 /**
  * Generate a secure invitation token
@@ -97,6 +98,14 @@ export const createGroupBooking = async ({
     await client.query('COMMIT');
 
     logger.info('Group booking created', { groupId, organizerId });
+    
+    // Automatically upgrade to student if the organizer is an outsider
+    try {
+      await checkAndUpgradeAfterBooking(organizerId); // no client needed if we do it after COMMIT
+    } catch (upgradeErr) {
+      logger.error('Failed to upgrade organizer role after creating group booking', { error: upgradeErr.message });
+    }
+
     return groupBooking;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -412,7 +421,16 @@ export const acceptGroupBookingInvitation = async (userId, groupBookingId) => {
     await client.query('COMMIT');
 
     logger.info('Group booking invitation accepted', { userId, groupBookingId });
-    return { success: true, allAccepted: pendingCount === 0 };
+
+    // Automatically upgrade to student if the user is an outsider
+    let roleUpgrade = null;
+    try {
+      roleUpgrade = await checkAndUpgradeAfterBooking(userId);
+    } catch (upgradeErr) {
+      logger.error('Failed to upgrade user role after accepting group booking invitation', { error: upgradeErr.message });
+    }
+
+    return { success: true, allAccepted: pendingCount === 0, roleUpgrade };
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error('Error accepting group booking invitation', { error: error.message });
@@ -530,12 +548,18 @@ export const getInvitationByToken = async (token) => {
       gb.service_id,
       gb.package_id,
       s.name as service_name,
+      s.price as service_price,
+      sp.name as package_name,
+      sp.price as package_price,
+      sp.total_hours as package_total_hours,
       COALESCE(i.name, CONCAT(i.first_name, ' ', i.last_name)) as instructor_name,
       COALESCE(org.name, CONCAT(org.first_name, ' ', org.last_name)) as organizer_name,
-      org.email as organizer_email
+      org.email as organizer_email,
+      org.preferred_currency as organizer_currency
     FROM group_booking_participants p
     JOIN group_bookings gb ON p.group_booking_id = gb.id
     LEFT JOIN services s ON gb.service_id = s.id
+    LEFT JOIN service_packages sp ON gb.package_id = sp.id
     LEFT JOIN users i ON gb.instructor_id = i.id
     LEFT JOIN users org ON gb.organizer_id = org.id
     WHERE p.invitation_token = $1
@@ -653,7 +677,16 @@ export const acceptInvitation = async (token, userId) => {
     await client.query('COMMIT');
 
     logger.info('Invitation accepted', { participantId: invitation.id, userId });
-    return { success: true, groupBookingId: invitation.group_booking_id };
+
+    // Automatically upgrade to student if the user is an outsider
+    let roleUpgrade = null;
+    try {
+      roleUpgrade = await checkAndUpgradeAfterBooking(userId);
+    } catch (upgradeErr) {
+      logger.error('Failed to upgrade user role after accepting invitation', { error: upgradeErr.message });
+    }
+
+    return { success: true, groupBookingId: invitation.group_booking_id, roleUpgrade };
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error('Error accepting invitation', { error: error.message });
@@ -862,7 +895,9 @@ export const processParticipantPayment = async ({
       // Deduct hours
       await client.query(`
         UPDATE customer_packages
-        SET remaining_hours = remaining_hours - $1, updated_at = NOW()
+        SET remaining_hours = remaining_hours - $1,
+            used_hours = COALESCE(used_hours, 0) + $1,
+            updated_at = NOW()
         WHERE id = $2
       `, [packageHoursUsed, customerPackageId]);
     }
@@ -882,10 +917,13 @@ export const processParticipantPayment = async ({
     // === ASSIGN PACKAGE TO PARTICIPANT ===
     // When paying with wallet or external, create a customer_packages record
     // (package method means they already have a package and are using its hours)
+    // Track the customer_package_id that should be linked to the booking_participant
+    let resolvedCustomerPackageId = customerPackageId || null;
+    const groupId = participant.group_booking_id;
+
     if (paymentMethod !== 'package') {
-      const groupId = participant.group_booking_id;
       const gbRow = await client.query(
-        'SELECT package_id, service_id, currency FROM group_bookings WHERE id = $1',
+        'SELECT package_id, service_id, currency, booking_id FROM group_bookings WHERE id = $1',
         [groupId]
       );
       const gb = gbRow.rows[0];
@@ -906,30 +944,48 @@ export const processParticipantPayment = async ({
           const cpId = uuidv4();
           const expiryDate = new Date();
           expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          const totalHours = parseFloat(sp.total_hours) || 0;
+
+          // Get the booking duration so we can deduct the lesson hours immediately
+          let bookingDuration = 0;
+          if (gb.booking_id) {
+            const bkRow = await client.query(
+              'SELECT duration FROM bookings WHERE id = $1 AND deleted_at IS NULL',
+              [gb.booking_id]
+            );
+            if (bkRow.rows.length > 0) {
+              bookingDuration = parseFloat(bkRow.rows[0].duration) || 0;
+            }
+          }
+
+          // Create the package with lesson hours already deducted
+          const initialRemaining = Math.max(0, totalHours - bookingDuration);
+          const initialUsed = Math.min(totalHours, bookingDuration);
 
           await client.query(`
             INSERT INTO customer_packages (
               id, customer_id, service_package_id, package_name, lesson_service_name,
-              total_hours, remaining_hours, purchase_price, currency, expiry_date, status,
-              purchase_date, notes,
+              total_hours, remaining_hours, used_hours, purchase_price, currency, expiry_date, status,
+              purchase_date, notes, last_used_date,
               rental_days_total, rental_days_remaining, rental_days_used,
               accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
               package_type, includes_lessons, includes_rental, includes_accommodation,
               rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
             ) VALUES (
               $1, $2, $3, $4, $5,
-              $6, $6, $7, $8, $9, 'active',
-              NOW(), $10,
-              $11, $11, 0,
-              $12, $12, 0,
-              $13, $14, $15, $16,
-              $17, $18, $19, $20
+              $6, $7, $8, $9, $10, $11, 'active',
+              NOW(), $12, $13,
+              $14, $14, 0,
+              $15, $15, 0,
+              $16, $17, $18, $19,
+              $20, $21, $22, $23
             )
           `, [
             cpId, userId, gb.package_id, sp.name, sp.lesson_service_name || sp.name,
-            parseFloat(sp.total_hours) || 0,
+            totalHours, initialRemaining, initialUsed,
             amountDue, gb.currency || 'EUR', expiryDate,
             `Group booking payment - ${groupId}`,
+            bookingDuration > 0 ? new Date() : null,
             parseInt(sp.rental_days) || 0,
             parseInt(sp.accommodation_nights) || 0,
             sp.package_type || 'lesson',
@@ -940,8 +996,48 @@ export const processParticipantPayment = async ({
             sp.accommodation_unit_id || null, sp.accommodation_unit_name || null
           ]);
 
-          logger.info('Customer package created for group participant', { cpId, userId, packageId: gb.package_id });
+          resolvedCustomerPackageId = cpId;
+
+          logger.info('Customer package created for group participant (hours pre-deducted)', {
+            cpId, userId, packageId: gb.package_id,
+            totalHours, bookingDuration, initialRemaining
+          });
         }
+      }
+    }
+
+    // === SYNC BOOKING_PARTICIPANTS ===
+    // Link the customer_package to the booking_participants record so that
+    // booking deletion can correctly restore hours to the package
+    if (resolvedCustomerPackageId) {
+      const gbBookingRow = await client.query(
+        'SELECT booking_id FROM group_bookings WHERE id = $1',
+        [groupId]
+      );
+      const bookingId = gbBookingRow.rows[0]?.booking_id;
+
+      if (bookingId) {
+        // Get the booking duration for the package_hours_used
+        const bkDurRow = await client.query(
+          'SELECT duration FROM bookings WHERE id = $1 AND deleted_at IS NULL',
+          [bookingId]
+        );
+        const lessonDuration = parseFloat(bkDurRow.rows[0]?.duration) || 0;
+
+        await client.query(`
+          UPDATE booking_participants
+          SET customer_package_id = $1,
+              package_hours_used = $2,
+              payment_status = 'package',
+              updated_at = NOW()
+          WHERE booking_id = $3 AND user_id = $4
+        `, [resolvedCustomerPackageId, lessonDuration, bookingId, userId]);
+
+        logger.info('Synced booking_participants with package info', {
+          bookingId, userId,
+          customerPackageId: resolvedCustomerPackageId,
+          packageHoursUsed: lessonDuration
+        });
       }
     }
 
@@ -950,7 +1046,6 @@ export const processParticipantPayment = async ({
       'SELECT group_booking_id FROM group_booking_participants WHERE id = $1',
       [participantId]
     );
-    const groupId = groupResult.rows[0].group_booking_id;
 
     const unpaidResult = await client.query(`
       SELECT COUNT(*) as count FROM group_booking_participants
@@ -1094,15 +1189,20 @@ export const getGroupBookingDetails = async (groupBookingId, userId = null) => {
       gb.*,
       s.name as service_name,
       s.category as service_category,
+      s.price as service_price,
       COALESCE(i.name, CONCAT(i.first_name, ' ', i.last_name)) as instructor_name,
       COALESCE(org.name, CONCAT(org.first_name, ' ', org.last_name)) as organizer_name,
       org.email as organizer_email,
-      bk.status as booking_status
+      bk.status as booking_status,
+      sp.name as package_name,
+      sp.price as package_price,
+      sp.total_hours as package_total_hours
     FROM group_bookings gb
     LEFT JOIN services s ON gb.service_id = s.id
     LEFT JOIN users i ON gb.instructor_id = i.id
     LEFT JOIN users org ON gb.organizer_id = org.id
     LEFT JOIN bookings bk ON bk.id = gb.booking_id AND bk.deleted_at IS NULL
+    LEFT JOIN service_packages sp ON gb.package_id = sp.id
     WHERE gb.id = $1
   `, [groupBookingId]);
 

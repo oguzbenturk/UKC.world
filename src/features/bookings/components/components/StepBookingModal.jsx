@@ -152,36 +152,55 @@ const preflightCheckGroupSlot = async ({ date, instructorId, startTime, duration
  * @returns {JSX.Element} StepBookingModal component
  */
 // eslint-disable-next-line complexity
-const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledInstructor, prefilledDate, onSwitchToBulk }) => {
+const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, onSwitchToBulk }) => {
   const { selectedSlot, services, users, instructors, refreshData, createBooking } = useCalendar();
   const { showSuccess, showError } = useToast();
   
   // Initialize booking form with pre-filled data
   // eslint-disable-next-line complexity
   const initialFormData = useMemo(() => {
-    const baseData = {
-      // Pre-fill customer data if provided
-      userId: prefilledCustomer?.id || '',
-      userName: prefilledCustomer?.name || prefilledCustomer?.first_name && prefilledCustomer?.last_name 
-        ? `${prefilledCustomer.first_name} ${prefilledCustomer.last_name}`.trim() 
-        : '',
-      userEmail: prefilledCustomer?.email || '',
-      userPhone: prefilledCustomer?.phone || '',
-      
-      // Pre-fill instructor data if provided
-      instructorId: prefilledInstructor?.id || '',
-      instructorName: prefilledInstructor?.name || '',
-      
-      // Pre-fill participants array
-      participants: prefilledCustomer ? [{
+    // Build participants list: prefer prefilledParticipants (array) over single prefilledCustomer
+    let participants = [];
+    if (prefilledParticipants && prefilledParticipants.length > 0) {
+      participants = prefilledParticipants.map((p, idx) => ({
+        userId: p.id || p.userId || p.user_id || '',
+        userName: p.name || p.user_name || `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+        userEmail: p.email || p.user_email || '',
+        userPhone: p.phone || '',
+        isPrimary: idx === 0,
+        paymentStatus: 'paid',
+        notes: '',
+      }));
+    } else if (prefilledCustomer) {
+      participants = [{
         userId: prefilledCustomer.id,
         userName: prefilledCustomer.name || `${prefilledCustomer.first_name || ''} ${prefilledCustomer.last_name || ''}`.trim(),
         userEmail: prefilledCustomer.email || '',
         userPhone: prefilledCustomer.phone || '',
         isPrimary: true,
-        paymentStatus: 'paid', // Pay-and-go: default to paid
+        paymentStatus: 'paid',
         notes: ''
-      }] : []
+      }];
+    }
+
+    // First participant drives the primary user fields
+    const primary = participants[0];
+    const baseData = {
+      userId: primary?.userId || prefilledCustomer?.id || '',
+      userName: primary?.userName || '',
+      userEmail: primary?.userEmail || '',
+      userPhone: primary?.userPhone || '',
+      
+      // Pre-fill instructor data if provided
+      instructorId: prefilledInstructor?.id || '',
+      instructorName: prefilledInstructor?.name || '',
+
+      // Pre-fill service if provided
+      serviceId: prefilledServiceId || '',
+      serviceName: '',
+      
+      // Participants
+      participants,
     };
 
     // Add selected slot data if available
@@ -205,7 +224,7 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
     }
 
     return baseData;
-  }, [prefilledCustomer, prefilledInstructor, prefilledDate, selectedSlot]);
+  }, [prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, selectedSlot]);
 
   // Use the optimized booking form hook
   const { 
@@ -265,16 +284,17 @@ const StepBookingModal = ({ isOpen, onClose, onBookingCreated, prefilledCustomer
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showPackageDropdown]);
   
-  // Auto-advance to step 2 if customer is pre-filled
+  // Auto-advance to step 2 if customers are pre-filled (single or multiple)
   useEffect(() => {
-    if (isOpen && prefilledCustomer && currentStep === 1 && formData.participants?.length > 0) {
+    const hasPrefilledUsers = (prefilledParticipants?.length > 0) || !!prefilledCustomer;
+    if (isOpen && hasPrefilledUsers && currentStep === 1 && formData.participants?.length > 0) {
       const timer = setTimeout(() => {
         setCurrentStep(2);
       }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [isOpen, prefilledCustomer, currentStep, formData.participants]);
+  }, [isOpen, prefilledCustomer, prefilledParticipants, currentStep, formData.participants]);
 
   // Prevent page refresh during booking process with proper cleanup
   useEffect(() => {
