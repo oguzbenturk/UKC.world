@@ -4,6 +4,20 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        'duotone-bold-extended': ['Duotone Bold Extended', 'sans-serif'],
+        'duotone-bold':          ['Duotone Bold', 'sans-serif'],
+        'duotone-regular':       ['Duotone Regular', 'sans-serif'],
+        'duotone-light-condensed': ['Duotone Light Condensed', 'sans-serif'],
+        'duotone-medium-condensed': ['Duotone Medium Condensed', 'sans-serif'],
+        'gotham':                ['Gotham', 'sans-serif'],
+        'gotham-medium':         ['Gotham Medium', 'sans-serif'],
+        'gotham-light':          ['Gotham Light', 'sans-serif'],
+      },
+      colors: {
+        'antrasit':    '#4b4f54',
+        'duotone-blue': '#00a8c4',
+      },
       animation: {
         blob: "blob 7s infinite",
       },

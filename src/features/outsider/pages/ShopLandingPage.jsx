@@ -126,6 +126,7 @@ const ShopLandingPage = () => {
           const { offsetTop, offsetHeight } = el;
           if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
             setActiveSection(section.id);
+            window.dispatchEvent(new CustomEvent('shopLanding:sectionChange', { detail: section.id }));
             break;
           }
         }
@@ -137,9 +138,17 @@ const ShopLandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Listen for navbar pill clicks
+  useEffect(() => {
+    const handler = (e) => scrollToSection(e.detail);
+    window.addEventListener('shopLanding:scrollTo', handler);
+    return () => window.removeEventListener('shopLanding:scrollTo', handler);
+  });
+
   const scrollToSection = (sectionId) => {
     document.getElementById(`shop-${sectionId}`)?.scrollIntoView({ behavior: 'smooth' });
     setActiveSection(sectionId);
+    window.dispatchEvent(new CustomEvent('shopLanding:sectionChange', { detail: sectionId }));
   };
 
   return (

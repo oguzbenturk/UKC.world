@@ -72,6 +72,10 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
     return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   })();
 
+  // Total hours for the selected package (used in both 'friend' and 'find' flows)
+  const packageDurationHours = packageData?.totalHours || packageData?.duration_hours ||
+    packageData?.durationHours || packageData?.hours || null;;
+
   // ── Instructors ──
   const { data: instructorsData = [], isLoading: instructorsLoading } = useQuery({
     queryKey: ['partner-step', 'instructors'],
@@ -650,10 +654,6 @@ const FindPartnerForm = ({ serviceId, packageData, onSubmit, submitting, onBack 
     user?.date_of_birth ? dayjs(user.date_of_birth) : null
   );
   const [phone, setPhone] = useState(user?.phone || '');
-
-  // Duration in hours driven by selected package (e.g. 6h or 8h group package)
-  const packageDurationHours = packageData?.totalHours || packageData?.duration_hours ||
-    packageData?.durationHours || packageData?.hours || null;
 
   const handleSubmit = async () => {
     if (!dateStart) {

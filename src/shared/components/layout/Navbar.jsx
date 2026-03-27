@@ -14,6 +14,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { getNavItemsForRole } from '@/shared/utils/navConfig';
 import { APP_VERSION } from '@/shared/constants/version';
+import dpcLogo from '../../../../DuotoneFonts/DPC-URLAtransparentonwhite.png';
 
 const profileImageCandidateKeys = [
   'profile_image_url',
@@ -218,20 +219,28 @@ export const Navbar = ({ toggleSidebar }) => {
   return (
     <div className="dark safe-pt">
       <nav
-        className={`sticky top-0 z-[70] border-b border-slate-200/80 dark:border-slate-700/40 shadow-xl transition-colors duration-200 ${
+        className={`sticky top-0 z-[70] transition-all duration-300 ${
           isScrolled
-            ? 'bg-white/85 backdrop-blur-md supports-[backdrop-filter]:bg-white/70 dark:bg-gradient-to-r dark:from-slate-900/90 dark:to-slate-800/85'
-            : 'bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-800'
+            ? 'border-b border-white/10'
+            : 'border-b border-white/5'
         }`}
+        style={{
+          background: isScrolled
+            ? 'linear-gradient(180deg, #3a4a4f 0%, #2e3f44 60%, #263840 100%)'
+            : 'linear-gradient(180deg, #46575c 0%, #3a4d53 60%, #324750 100%)',
+          boxShadow: isScrolled
+            ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,168,196,0.15)'
+            : '0 4px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,168,196,0.08)'
+        }}
       >
-          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8"> {/* Changed to max-w-full for wider layout */}
+          <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center h-16">
-              {/* Left Section */}
+              {/* Left Section - fixed width */}
               <div className="flex items-center flex-shrink-0">
                 {/* Mobile/Tablet Menu Toggle - visible only on screens smaller than 1200px */}
                   <button 
                   onClick={toggleSidebar}
-                  className="mr-2 p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500 xl:hidden transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/50"
+                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#00a8c4] xl:hidden transition-colors duration-150 ease-in-out"
                   aria-expanded={false}
                   aria-label="Open sidebar"
                   data-sidebar-toggle="true"
@@ -242,11 +251,20 @@ export const Navbar = ({ toggleSidebar }) => {
 
                 {/* Back/Forward icons moved to Sidebar header per request */}
               
-                {/* Logo - now always on the left */}
+                {/* UKC. on left — guest page xl+ only (no hamburger, sidebar visible) */}
+                {location.pathname === '/guest' && (
+                  <NavLink to="/guest" className="hidden xl:flex items-baseline px-3 py-1 rounded-md hover:bg-white/10 transition-colors duration-150">
+                    <span className="font-gotham-medium antialiased text-white" style={{ fontWeight: 500, letterSpacing: '0.1em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>UKC</span>
+                    <span className="font-gotham-medium antialiased text-[#00a8c4]" style={{ fontWeight: 500, letterSpacing: 0, marginLeft: '-0.06em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>.</span>
+                  </NavLink>
+                )}
+
+                {/* Logo - hidden on guest and shop pages (shown centered instead) */}
                 <div>
+                  {!location.pathname.startsWith('/shop') && location.pathname !== '/guest' && (
                   <NavLink 
                     to="/guest" 
-                    className="flex items-center px-3 py-1 rounded-md text-slate-800 hover:text-slate-900 hover:bg-slate-100/80 transition-colors duration-150 ease-in-out dark:text-slate-100 dark:hover:text-white dark:hover:bg-slate-800/60"
+                    className="flex items-center px-3 py-1 rounded-md hover:bg-white/10 transition-colors duration-150 ease-in-out"
                     onClick={(e) => {
                       // For UKC roles on shop page, navigate to guest landing (same as back button)
                       if ((user?.role?.toLowerCase() === 'outsider' || user?.role?.toLowerCase() === 'student') && location.pathname.startsWith('/shop')) {
@@ -272,19 +290,21 @@ export const Navbar = ({ toggleSidebar }) => {
                         console.error('Failed to load logo:', e);
                       }
                       return (
-                        <span className="flex items-baseline tracking-wide">
-                          <span className="font-bold text-slate-800 dark:text-white text-xl">UKC</span>
-                          <span className="font-bold text-base" style={{ color: '#2d6a3e' }}>.</span>
-                          <span className="font-medium text-slate-500 dark:text-slate-300 text-sm">World</span>
+                        <span className="flex items-center gap-3" style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}>
+                          <span className="flex items-baseline">
+                            <span className="font-gotham-medium antialiased text-white" style={{ fontWeight: 500, letterSpacing: '0.1em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>UKC</span>
+                            <span className="font-gotham-medium antialiased text-[#00a8c4]" style={{ fontWeight: 500, letterSpacing: 0, marginLeft: '-0.06em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>.</span>
+                          </span>
                         </span>
                       );
                     })()}
                   </NavLink>
+                  )}
                 </div>
               </div>
 
-              {/* Center - Active Page Indicator (All Roles) */}
-              <div className="flex-grow flex items-center justify-center">
+              {/* Center Section - takes remaining space, centers content */}
+              <div className="flex-1 flex items-center justify-center min-w-0">
                 {(() => {
                   try {
                     const navItems = getNavItemsForRole(user?.role, user?.permissions);
@@ -294,23 +314,38 @@ export const Navbar = ({ toggleSidebar }) => {
                     if (currentPath === '/' || currentPath === '/login') {
                       return null;
                     }
+
+                    // Show UKC. branding centered on guest page (small screens only — xl+ shows it on the left)
+                    if (currentPath === '/guest') {
+                      return (
+                        <NavLink to="/guest" className="flex xl:hidden items-baseline hover:opacity-80 transition-opacity">
+                          <span className="font-gotham-medium antialiased text-white" style={{ fontWeight: 500, letterSpacing: '0.1em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>UKC</span>
+                          <span className="font-gotham-medium antialiased text-[#00a8c4]" style={{ fontWeight: 500, letterSpacing: 0, marginLeft: '-0.06em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>.</span>
+                        </NavLink>
+                      );
+                    }
+
+                    // Show UKC.Shop branding centered on shop pages
+                    if (currentPath === '/shop' || currentPath.startsWith('/shop/')) {
+                      return (
+                        <div className="flex items-baseline">
+                          <span className="font-gotham-medium antialiased text-white" style={{ fontWeight: 500, letterSpacing: '0.1em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>UKC</span>
+                          <span className="font-gotham-medium antialiased text-[#00a8c4]" style={{ fontWeight: 500, letterSpacing: 0, marginLeft: '-0.06em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>.</span>
+                          <span className="font-gotham-medium antialiased" style={{ fontWeight: 500, letterSpacing: '0.02em', fontSize: '1.25rem', color: '#ec4899', textRendering: 'geometricPrecision' }}>Shop</span>
+                        </div>
+                      );
+                    }
                     
                     // Map special paths to their parent sections
                     const pathToSectionMap = {
-                      '/guest': '/academy',
                       '/members/offerings': '/members/offerings',
                     };
-                    
-                    // Use mapped path if available for matching
                     const matchPath = pathToSectionMap[currentPath] || currentPath;
                     
-                    // Find the matching nav item and sub-item
                     let activeItem = null;
                     let activeSubItem = null;
                     
                     for (const item of navItems) {
-                      // Check subitems first (more specific match)
-                      // Sort by path length descending to match most specific first
                       if (item.subItems) {
                         const sortedSubItems = [...item.subItems].sort((a, b) => 
                           (b.to?.length || 0) - (a.to?.length || 0)
@@ -324,18 +359,14 @@ export const Navbar = ({ toggleSidebar }) => {
                           break;
                         }
                       }
-                      // Check main item path
                       if (item.to && (matchPath === item.to || matchPath.startsWith(item.to + '/'))) {
                         activeItem = item;
                         break;
                       }
                     }
 
-                    // No match found - don't show anything
                     if (!activeItem) return null;
 
-                    // Determine what to display
-                    // Always show the main item label (Parent Category) per user request
                     const displayLabel = activeItem.label;
                     const dotColor = activeItem.customStyle?.dotColor || '#2d6a3e';
                     const textColor = activeItem.customStyle?.textColor || '#64748b';
@@ -381,20 +412,22 @@ export const Navbar = ({ toggleSidebar }) => {
               </div>
 
               {/* Right-side icons */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-end flex-shrink-0">
-                {/* Subtle Plannivo link with version */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                {/* Subtle Plannivo link with version - managers/developers only */}
+                {['admin', 'manager', 'super_admin', 'developer'].includes(user?.role?.toLowerCase()) && (
                 <a 
                   href="http://plannivo.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors duration-150 dark:text-slate-400 dark:hover:text-slate-300"
+                  className="hidden lg:flex items-center gap-1.5 text-xs text-white/60 hover:text-white/90 transition-colors duration-150"
                   title="Visit Plannivo.com"
                 >
                   <span>Plannivo</span>
-                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium dark:bg-blue-900/50 dark:text-blue-300">
+                  <span className="px-1.5 py-0.5 bg-white/10 text-white/80 rounded text-[10px] font-medium">
                     v{APP_VERSION}
                   </span>
                 </a>
+                )}
               
                 {/* Real-time Status Indicator - Only for authenticated users */}
                 {isAuthenticated && <NotificationBell />}
@@ -564,7 +597,8 @@ export const Navbar = ({ toggleSidebar }) => {
                         returnUrl: location.pathname
                       });
                     }}
-                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    className="px-4 py-2 rounded-md font-duotone-bold text-sm transition-all duration-150 focus:outline-none"
+                    style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
                     aria-label="Sign In"
                   >
                     Sign In

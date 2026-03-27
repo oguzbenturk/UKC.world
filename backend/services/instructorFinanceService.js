@@ -97,7 +97,6 @@ const mapEarningRow = (row) => {
 };
 
 export async function getInstructorEarningsData(instructorId, { startDate, endDate } = {}) {
-  const client = await pool.connect();
   try {
     let query = `
       SELECT 
@@ -175,7 +174,7 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
 
     query += ' ORDER BY b.date DESC, b.start_hour DESC';
 
-    const { rows } = await client.query(query, params);
+    const { rows } = await pool.query(query, params);
     const earnings = rows.map(mapEarningRow);
 
     const totals = earnings.reduce(
@@ -196,8 +195,8 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
         totalHours: Number(totals.totalHours.toFixed(2)),
       },
     };
-  } finally {
-    client.release();
+  } catch (err) {
+    throw err;
   }
 }
 

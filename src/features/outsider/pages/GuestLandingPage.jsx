@@ -1,9 +1,8 @@
 /**
- * GuestLandingPage - Modern 2026 Welcome page for Duotone Pro Center Urla
+ * GuestLandingPage - Duotone Pro Center Urla branded welcome page
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Button } from 'antd';
 import {
   ShoppingBagIcon,
   AcademicCapIcon,
@@ -15,126 +14,141 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
+import dpcLogo from '../../../../DuotoneFonts/DPC-URLAtransparentonwhite.png';
 
 const GuestLandingPage = () => {
   const navigate = useNavigate();
 
+  // Add alpha transparency to a hex color
+  const withAlpha = (hex, alpha) => {
+    const a = Math.round(alpha * 255).toString(16).padStart(2, '0');
+    return hex + a;
+  };
+
   const services = [
     {
-      title: '.Shop',
+      title: 'Shop',
       icon: ShoppingBagIcon,
-      color: '#ec4899',
+      accent: '#ec4899',
       path: '/shop',
       tagline: 'Official Duotone Dealer',
-      subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS', 'SecondWind (2nd hand)'],
-      size: 'large'
+      subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS', 'SecondWind'],
     },
     {
-      title: '.Academy',
+      title: 'Academy',
       icon: AcademicCapIcon,
-      color: '#4ade80',
+      accent: '#4ade80',
       path: '/academy',
       tagline: 'IKO Certified Instructors',
-      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'E-Foil Lessons', 'Premium Lessons'],
-      size: 'large'
+      subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'E-Foil', 'Premium'],
     },
     {
-      title: '.Rental',
+      title: 'Rentals',
       icon: CubeIcon,
-      color: '#fb923c',
+      accent: '#fb923c',
       path: '/rental',
       tagline: 'Premium Equipment',
-      subItems: ['Full Set', 'Kiteboard Only', 'Wetsuit Only', 'Harness & Bar', 'SLS Equipment', 'D/LAB Equipment', 'E-Foil Equipment'],
-      size: 'small'
+      subItems: ['Full Set', 'Kiteboard Only', 'Wetsuit', 'Harness & Bar', 'E-Foil'],
     },
     {
-      title: '.Member',
+      title: 'Membership',
       icon: UsersIcon,
-      color: '#93c47d',
+      accent: '#93c47d',
       path: '/members/offerings',
       tagline: 'Exclusive Benefits',
-      subItems: ['Membership Packages', 'Lesson Discounts', 'Rental Priority', 'Early Access'],
-      size: 'small'
+      subItems: ['Beach Facilities', 'WIFI', 'Beach Toilets', 'Showers', 'Compressors', 'Launch & Land Assist', 'And Many More...'],
     },
     {
-      title: '.Care',
+      title: 'Care',
       icon: WrenchScrewdriverIcon,
-      color: '#14b8a6',
+      accent: '#14b8a6',
       path: '/care',
       tagline: 'All Brands Welcome',
-      subItems: ['Kite Repair', 'Board Repair', 'Bar & Lines', 'Bladder Replacement', 'Full Service'],
-      size: 'small'
+      subItems: ['Kite Repair', 'Board Repair', 'Bar & Lines', 'Full Service'],
     },
     {
-      title: '.Stay',
+      title: 'Stay',
       icon: HomeIcon,
-      color: '#3b82f6',
+      accent: '#3b82f6',
       path: '/stay',
       tagline: 'Beach-side Living',
-      subItems: ['Beach House', 'Hotel Rooms', 'Long-term Stay'],
-      size: 'medium'
+      subItems: ['Farm House with Pool', 'Studio Apartments in Olive Oil'],
     },
     {
-      title: '.Experience',
+      title: 'Experience',
       icon: CalendarDaysIcon,
-      color: '#eab308',
+      accent: '#eab308',
       path: '/experience',
       tagline: 'Adventure Awaits',
       subItems: ['Kite Packages', 'Wing Packages', 'DownWinders', 'Camps'],
-      size: 'small'
     },
     {
-      title: '.Community',
+      title: 'Community',
       icon: ChatBubbleLeftRightIcon,
-      color: '#0ea5e9',
+      accent: '#0ea5e9',
       path: '/services/events',
       tagline: 'Join the Tribe',
       subItems: ['Live Chat', 'Events & Meetups', 'Rider Community'],
-      size: 'small'
     }
   ];
 
-  const BentoCard = ({ service }) => {
+  const ServiceCard = ({ service }) => {
     const Icon = service.icon;
     return (
       <div
         onClick={() => navigate(service.path)}
-        style={{ backgroundColor: service.color }}
-        className="group relative isolate overflow-hidden rounded-3xl cursor-pointer flex flex-col transition-[transform,box-shadow] duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
+        className="group relative cursor-pointer flex flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-2"
+        style={{
+          background: withAlpha(service.accent, 1),
+          border: '1.5px solid rgba(75,79,84,0.3)',
+          boxShadow: '0 4px 20px rgba(75,79,84,0.12)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        }}
       >
-        {/* Subtle dark vignette overlay so text pops */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black/0 via-black/5 to-black/20 pointer-events-none" />
-        {/* Hover shimmer */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/10 pointer-events-none" />
+        {/* Subtle dark overlay at bottom for depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30 pointer-events-none rounded-2xl z-0" />
 
-        <div className="relative z-10 p-5 flex flex-col h-full min-h-[210px]">
+        <div className="relative z-10 p-5 flex flex-col flex-1">
           {/* Icon */}
-          <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 shadow-lg">
-            <Icon className="w-6 h-6 text-white" />
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 mb-4 shadow-md"
+            style={{ background: 'rgba(255,255,255,0.22)', border: '1.5px solid rgba(255,255,255,0.35)' }}
+          >
+            <Icon className="w-5 h-5 text-white" style={{ filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.3))' }} />
           </div>
 
-          {/* Title */}
-          <h3 className="text-2xl font-black text-white tracking-tight leading-none mb-1">
-            {service.title}
+          {/* Title — Gotham font, .Prefix style */}
+          <h3
+            className="leading-none mb-1 drop-shadow-md"
+            style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.25rem', color: 'white', letterSpacing: '0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}
+          >
+            <span style={{ opacity: 0.8 }}>.</span>{service.title}
           </h3>
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mb-4">
+          <p
+            className="tracking-widest uppercase mb-4 drop-shadow-sm"
+            style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '10px', color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
+          >
             {service.tagline}
           </p>
 
           {/* Sub-items */}
-          <ul className="space-y-1.5 flex-1">
+          <ul className="space-y-1.5 flex-1 mb-4">
             {service.subItems.map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-sm text-white/80">
-                <span className="w-1 h-1 rounded-full bg-white/60 flex-shrink-0" />
+              <li key={i} className="flex items-center gap-2 text-sm drop-shadow-sm font-gotham-light" style={{ fontFamily: '"Gotham Light", sans-serif', color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 2px rgba(0,0,0,0.25)', fontWeight: 300, letterSpacing: '0.02em' }}>
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.8)' }} />
                 {item}
               </li>
             ))}
           </ul>
 
-          {/* Explore */}
-          <div className="flex items-center gap-1.5 text-sm font-bold text-white mt-4 pt-3 border-t border-white/20">
+          {/* Explore row */}
+          <div
+            className="flex items-center gap-1.5 text-xs tracking-[0.15em] uppercase border-t pt-3 drop-shadow-sm"
+            style={{ fontFamily: '"Gotham Medium", sans-serif', borderColor: 'rgba(255,255,255,0.3)', color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+          >
             <span className="group-hover:underline">Explore</span>
-            <ArrowRightIcon className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRightIcon className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </div>
       </div>
@@ -142,52 +156,80 @@ const GuestLandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 font-sans">
-      {/* Welcome Header */}
-      <div className="max-w-6xl mx-auto px-4 pt-12 pb-8 text-center">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
-          Welcome to Duotone Pro Center Urla
-        </h1>
-        <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
-          Your complete kitesurfing destination in the Aegean. Explore our services below.
-        </p>
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(160deg, #f4f6f8 0%, #eaecef 50%, #e4e7eb 100%)',
+      backgroundImage: 'linear-gradient(160deg, #f4f6f8 0%, #eaecef 50%, #e4e7eb 100%), radial-gradient(circle, rgba(75,79,84,0.06) 1px, transparent 1px)',
+      backgroundSize: 'auto, 28px 28px',
+    }}>
+
+      {/* Header */}
+      <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
+        <div className="flex justify-center mb-8">
+          <img src={dpcLogo} alt="Duotone Pro Center Logo" className="mx-auto w-full sm:w-[85%] md:w-[500px]" style={{ filter: 'drop-shadow(0 2px 8px rgba(75,79,84,0.18))', display: 'block', height: 'auto' }} />
+        </div>
+        {/* Divider */}
+        <div className="flex items-center gap-5 mb-4">
+          <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(75,79,84,0.2))' }} />
+          <span
+            style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '0.7rem', letterSpacing: '0.22em', color: '#9ca3af', textTransform: 'uppercase' }}
+          >
+            Our Services
+          </span>
+          <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(75,79,84,0.2))' }} />
+        </div>
       </div>
 
       {/* Card Grid */}
-      <div className="max-w-6xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="max-w-6xl mx-auto px-6 pb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {services.map((service, idx) => (
-            <BentoCard key={idx} service={service} />
+            <ServiceCard key={idx} service={service} />
           ))}
         </div>
       </div>
 
       {/* Bottom CTA */}
-      <div className="max-w-6xl mx-auto px-4 pb-12">
-        <div className="text-center py-10 px-6 rounded-3xl border border-gray-100 bg-white shadow-sm">
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">Ready to Ride the Wind?</h3>
-          <p className="text-gray-400 mb-6 max-w-md mx-auto">
-            Start your kitesurfing journey today with our expert instructors
-          </p>
-          <div className="flex justify-center gap-4 flex-wrap">
-            <Button
-              type="primary"
-              size="large"
-              className="!bg-green-500 hover:!bg-green-600 !border-0 !rounded-2xl !px-8 !h-14 !font-semibold !text-base"
+      <div className="max-w-6xl mx-auto px-6 pb-14">
+        <div className="flex items-center gap-5 mb-6 mt-2">
+          <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(75,79,84,0.2))' }} />
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontSize: '0.65rem', letterSpacing: '0.22em', color: '#b0b8be', textTransform: 'uppercase' }}>Est. 2016 · Urla · Aegean</span>
+          <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(75,79,84,0.2))' }} />
+        </div>
+        <div
+          className="flex flex-col sm:flex-row items-center justify-between gap-6 py-5 px-8"
+          style={{ background: 'transparent' }}
+        >
+          <div>
+            <h3
+              style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.15rem', letterSpacing: '0.03em', color: '#4b4f54' }}
+            >
+              Enjoy your ride with UKC.
+            </h3>
+            <p
+              style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 400, fontSize: '0.82rem', letterSpacing: '0.04em', color: '#9ca3af', marginTop: '4px' }}
+            >
+              Ready to ride?
+            </p>
+          </div>
+          <div className="flex gap-3 flex-shrink-0">
+            <button
               onClick={() => navigate('/academy')}
+              className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
+              style={{ fontFamily: '"Gotham Medium", sans-serif', background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.45)', boxShadow: '0 0 14px rgba(0,168,196,0.15)' }}
             >
-              Book Your First Lesson
-            </Button>
-            <Button
-              size="large"
-              className="!rounded-2xl !px-8 !h-14 !font-semibold !text-base !border-gray-300 !text-gray-800 hover:!border-gray-500 hover:!text-gray-900 !bg-white"
+              BOOK A LESSON
+            </button>
+            <button
               onClick={() => navigate('/shop')}
+              className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
+              style={{ fontFamily: '"Gotham Medium", sans-serif', background: 'transparent', color: '#4b4f54', border: '1.5px solid #4b4f54' }}
             >
-              Browse Shop
-            </Button>
+              BROWSE SHOP
+            </button>
           </div>
         </div>
       </div>
+
     </div>
   );
 };

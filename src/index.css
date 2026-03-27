@@ -1,6 +1,84 @@
 /* Import product image styles must be at top */
 @import './styles/product-images.css';
 
+/* ── Duotone Brand Fonts ───────────────────────────────────────── */
+@font-face {
+  font-family: 'Duotone Bold Extended';
+  src: url('../DuotoneFonts/QualityFonts/DUOTONE-BoldExtended.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Duotone Bold';
+  src: url('../DuotoneFonts/QualityFonts/DUOTONE-Bold.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Duotone Regular';
+  src: url('../DuotoneFonts/QualityFonts/DUOTONE-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Duotone Light Condensed';
+  src: url('../DuotoneFonts/QualityFonts/DUOTONE-LightCondensed.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Duotone Medium Condensed';
+  src: url('../DuotoneFonts/QualityFonts/DUOTONE-MediumCondensed.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham';
+  src: url('../DuotoneFonts/QualityFonts/Gotham-Bold-TR.woff2') format('woff2');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Light';
+  src: url('../DuotoneFonts/Gothamlight/fonts/Gotham-Light-TR.woff2') format('woff2'),
+       url('../DuotoneFonts/Gothamlight/fonts/Gotham-Light-TR.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gotham Medium';
+  src: url('../DuotoneFonts/QualityFonts/Gotham-Medium-TR.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+/* ────────────────────────────────────────────────────────────── */
+
+/* Global font smoothing for Gotham and Duotone fonts */
+.font-gotham-medium,
+.font-gotham-light,
+.font-gotham,
+[style*="Duotone"],
+[style*="Gotham"] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

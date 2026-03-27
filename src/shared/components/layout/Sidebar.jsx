@@ -532,7 +532,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
           <div>
             {/* Removed duplicate 'Main Menu' labels to simplify UI */}
             <ul className="mt-1 space-y-1">
-              {dynamicNavItems.map(item => (
+              {dynamicNavItems.map((item, index) => (
                 <li key={item.label}>
                   {/* Special handling for Shop - navigates directly */}
                   {item.isShopLink ? (
@@ -560,7 +560,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                             ) : (
                               <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
                             )}
-                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>}
+                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
                           </span>
                         ) : (
                           <>
@@ -641,7 +641,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                                     ) : item.icon ? (
                                       <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                                     ) : null}
-                                    <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>
+                                    <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
                                   </span>
                                 ) : (
                                   <>
@@ -744,7 +744,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                             ) : (
                               <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
                             )}
-                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em' }}>{item.label}</span>}
+                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
                           </span>
                         ) : (
                           <>

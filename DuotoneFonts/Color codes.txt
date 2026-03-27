@@ -1,0 +1,15 @@
+Print (spot colour): Pantone 7540 C
+Print (4 colour Process): C 20%, M 0%, Y 0%, K 80%
+Onscreen: R 75, G 79, B 84
+Web Hex Value: HEX #4b4f54
+Foil Colour for vinyl cut: Oracal®751C: 073 (Dark grey)
+Pantone Textile: 19-3900-TCX „Pavement“
+
+
+
+Print (spot colour): Pantone 3125 C
+Print (4 colour Process): C 90%, M 0%, Y 20%, K 0%
+Onscreen: R 0, G 168, B 196
+Web Hex Value: HEX #00a8c4
+Foil Colour for vinyl cut: Oracal®751C: 066 (Turquoise blue)
+Pantone Textile: 16-4725-TCX „Scuba Blue“ 

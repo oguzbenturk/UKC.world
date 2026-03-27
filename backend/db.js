@@ -350,6 +350,20 @@ try {
     await client.query('SELECT NOW()');
     logger.info('Test query successful');
       client.release();
+
+      // Pre-warm the pool: establish `min` connections eagerly so the first
+      // real requests don't pay the SSL + TCP handshake cost.
+      const minConns = parseNumericEnv(process.env.DB_POOL_MIN, 10);
+      const warmupCount = Math.max(0, minConns - 1); // one already acquired above
+      if (warmupCount > 0) {
+        const warmupClients = await Promise.allSettled(
+          Array.from({ length: warmupCount }, () => pool.connect())
+        );
+        for (const r of warmupClients) {
+          if (r.status === 'fulfilled') r.value.release();
+        }
+        logger.info(`Pool pre-warmed with ${warmupCount + 1} connections`);
+      }
     } catch (err) {
     logger.error('Error connecting to the database or running test query:', err);
       // If connection fails, we might want to exit or handle it gracefully
