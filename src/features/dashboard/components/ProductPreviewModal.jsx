@@ -11,7 +11,13 @@ const resolveImageUrl = (url) => {
     return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
-const { Text, Title, Paragraph } = Typography;
+    const { Text, Title, Paragraph } = Typography;
+
+    // Font class helpers
+    const duotoneBoldExtended = 'font-duotone-bold-extended';
+    const duotoneLightCondensed = 'font-duotone-light-condensed';
+    const duotoneRegular = 'font-duotone-regular';
+    const duotoneBold = 'font-duotone-bold';
 
 const ProductPreviewModal = ({ 
     product, 
@@ -407,19 +413,19 @@ const ProductPreviewModal = ({
                     </div>
 
                     {/* Product Name */}
-                    <Title level={3} style={{ margin: '0 0 12px', fontSize: 24, lineHeight: 1.3, fontWeight: 700, color: '#000' }}>
+                    <Title
+                        level={3}
+                        className={duotoneBoldExtended}
+                        style={{ margin: '0 0 12px', fontSize: 24, lineHeight: 1.3, color: '#000', fontWeight: 700 }}
+                    >
                         {product.name}
                     </Title>
 
                     {/* Description */}
                     {product.description && (
-                        <Paragraph 
-                            style={{ 
-                                marginBottom: 20, 
-                                fontSize: 15, 
-                                lineHeight: 1.6,
-                                color: '#595959'
-                            }}
+                        <Paragraph
+                            className={duotoneLightCondensed}
+                            style={{ marginBottom: 20, fontSize: 15, lineHeight: 1.6, color: '#595959' }}
                         >
                             {product.description}
                         </Paragraph>
@@ -592,55 +598,7 @@ const ProductPreviewModal = ({
                         )}
                     </div>
 
-                    {/* Product Details - Single View (No Tabs) */}
-                    {(product.gender || product.weight || dimensions) && (
-                        <div style={{ 
-                            marginBottom: 24, 
-                            padding: 16, 
-                            background: '#fafafa', 
-                            borderRadius: 12,
-                            border: '1px solid #f0f0f0'
-                        }}>
-                            <div style={{ marginBottom: 12 }}>
-                                <Text strong style={{ fontSize: 14, color: '#262626' }}>
-                                    <InfoCircleOutlined style={{ marginRight: 6 }} />
-                                    Product Details
-                                </Text>
-                            </div>
-                            <Row gutter={[16, 12]}>
-                                {product.gender && (
-                                    <Col span={12}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Gender</Text>
-                                        <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{product.gender}</div>
-                                    </Col>
-                                )}
-                                {product.weight && (
-                                    <Col span={12}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Weight</Text>
-                                        <div style={{ fontWeight: 600 }}>{product.weight} kg</div>
-                                    </Col>
-                                )}
-                                {dimensions?.length && (
-                                    <Col span={12}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Length</Text>
-                                        <div style={{ fontWeight: 600 }}>{dimensions.length} cm</div>
-                                    </Col>
-                                )}
-                                {dimensions?.width && (
-                                    <Col span={12}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Width</Text>
-                                        <div style={{ fontWeight: 600 }}>{dimensions.width} cm</div>
-                                    </Col>
-                                )}
-                                {dimensions?.height && (
-                                    <Col span={12}>
-                                        <Text type="secondary" style={{ fontSize: 12 }}>Height</Text>
-                                        <div style={{ fontWeight: 600 }}>{dimensions.height} cm</div>
-                                    </Col>
-                                )}
-                            </Row>
-                        </div>
-                    )}
+                    {/* Product details section removed as per latest requirements */}
 
                     {/* Description */}
                     {product.description && (
@@ -665,17 +623,8 @@ const ProductPreviewModal = ({
                             size="large"
                             icon={isInWishlist(product.id) ? <HeartFilled /> : <HeartOutlined />}
                             onClick={() => onWishlistToggle(product)}
-                            style={{ 
-                                borderRadius: 12, 
-                                height: 52,
-                                width: 52,
-                                padding: 0,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '2px solid #f0f0f0',
-                                color: isInWishlist(product.id) ? '#ff4d4f' : '#8c8c8c'
-                            }}
+                            className={`rounded-xl h-13 w-13 flex items-center justify-center border-2 border-[#4b4f54] text-[#00a8c4] bg-[#23272a] ${duotoneBold}`}
+                            style={{ padding: 0 }}
                         />
                         <Button
                             type="primary"
@@ -699,16 +648,8 @@ const ProductPreviewModal = ({
                                 (uniqueSizes.length > 0 && !selectedSize) ||
                                 (uniqueColors.length > 0 && !selectedColor)
                             }
-                            style={{ 
-                                flex: 1, 
-                                borderRadius: 12, 
-                                height: 52,
-                                fontWeight: 700,
-                                fontSize: 16,
-                                background: '#000',
-                                border: 'none',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}
+                            className={`flex-1 rounded-xl h-13 flex items-center justify-center bg-[#23272a] text-[#00a8c4] border-none shadow-lg ${duotoneBold}`}
+                            style={{ fontWeight: 700, fontSize: 16 }}
                         >
                             Add to Cart
                         </Button>

@@ -905,16 +905,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
                         message: 'Create an account or sign in to access all features',
                         returnUrl: location.pathname
                       })}
-                      className={`${commonLinkClasses} w-full text-left bg-blue-600 hover:bg-blue-700 text-white ${
+                      className={`${commonLinkClasses} w-full text-left font-duotone-bold ${
                         isCollapsed ? 'justify-center' : ''
                       }`}
+                      style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
                     >
                       <ArrowLeftOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
                       {!isCollapsed && 'Sign In'}
                     </button>
                     {/* Tooltip for collapsed mode */}
                     {isCollapsed && (
-                      <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-blue-600 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div className="absolute left-full top-0 ml-2 px-2 py-1 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50" style={{ background: '#4b4f54', color: '#00a8c4' }}>
                         Sign In
                       </div>
                     )}

@@ -63,68 +63,77 @@ const AcademyLandingPage = () => {
   return (
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
       
-      {/* Top Category Nav - Sticky */}
-      <div className="sticky top-0 z-30 border-b border-white/10 bg-[#0d1511]/80 backdrop-blur-md">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-start md:justify-center items-center overflow-x-auto py-4 gap-5 md:gap-10 lg:gap-12 scrollbar-hide no-scrollbar">
-                <button
-                  onClick={() => scrollToSection('kite-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'kite-section'
-                      ? 'text-emerald-400 border-b-2 border-emerald-400 pb-1 -mb-0.5'
-                      : 'text-white/60 hover:text-white pb-1'
-                  }`}
-                >
-                <RocketOutlined className="text-lg" />
-                <span>KITE</span>
-                </button>
-                <button
-                  onClick={() => scrollToSection('foil-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'foil-section'
-                      ? 'text-cyan-400 border-b-2 border-cyan-400 pb-1 -mb-0.5'
-                      : 'text-white/60 hover:text-white pb-1'
-                  }`}
-                >
-                <CloudOutlined className="text-lg" />
-                <span>FOIL</span>
-                </button>
-                <button
-                  onClick={() => scrollToSection('wing-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'wing-section'
-                      ? 'text-purple-400 border-b-2 border-purple-400 pb-1 -mb-0.5'
-                      : 'text-white/60 hover:text-white pb-1'
-                  }`}
-                >
-                <GlobalOutlined className="text-lg" />
-                <span>WING</span>
-                </button>
-                <button
-                  onClick={() => scrollToSection('efoil-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'efoil-section'
-                      ? 'text-yellow-400 border-b-2 border-yellow-400 pb-1 -mb-0.5'
-                      : 'text-white/60 hover:text-white pb-1'
-                  }`}
-                >
-                <ThunderboltOutlined className="text-lg" />
-                <span>E-FOIL</span>
-                </button>
-                <button
-                  onClick={() => scrollToSection('premium-section')}
-                  className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'premium-section'
-                      ? 'text-amber-400 border-b-2 border-amber-400 pb-1 -mb-0.5'
-                      : 'text-white/60 hover:text-white pb-1'
-                  }`}
-                >
-                <CrownOutlined className="text-lg" />
-                <span className="hidden sm:inline">PREMIUM</span><span className="sm:hidden">VIP</span>
-                </button>
-            </div>
-            </div>
+      {/* Top Category Nav - Sticky (ShopLandingPage style, no icons) */}
+      <div className="sticky top-0 z-30 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          {/* Scroll hint for mobile */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
+            <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </div>
+          <div className="flex justify-start md:justify-center items-center overflow-x-auto py-3 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
+            <button
+              onClick={() => scrollToSection('kite-section')}
+              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                activeSection === 'kite-section'
+                  ? 'border-b-2 pb-1 -mb-0.5'
+                  : 'text-white/70 hover:text-white pb-1'
+              }`}
+              style={activeSection === 'kite-section' ? { color: '#00a8c4', borderColor: '#00a8c4' } : undefined}
+            >
+              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+              <span>KITE</span>
+            </button>
+            <button
+              onClick={() => scrollToSection('foil-section')}
+              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                activeSection === 'foil-section'
+                  ? 'border-b-2 pb-1 -mb-0.5'
+                  : 'text-white/70 hover:text-white pb-1'
+              }`}
+              style={activeSection === 'foil-section' ? { color: '#00e0ff', borderColor: '#00e0ff' } : undefined}
+            >
+              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+              <span>FOIL</span>
+            </button>
+            <button
+              onClick={() => scrollToSection('wing-section')}
+              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                activeSection === 'wing-section'
+                  ? 'border-b-2 pb-1 -mb-0.5'
+                  : 'text-white/70 hover:text-white pb-1'
+              }`}
+              style={activeSection === 'wing-section' ? { color: '#a259ff', borderColor: '#a259ff' } : undefined}
+            >
+              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+              <span>WING</span>
+            </button>
+            <button
+              onClick={() => scrollToSection('efoil-section')}
+              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                activeSection === 'efoil-section'
+                  ? 'border-b-2 pb-1 -mb-0.5'
+                  : 'text-white/70 hover:text-white pb-1'
+              }`}
+              style={activeSection === 'efoil-section' ? { color: '#ffd600', borderColor: '#ffd600' } : undefined}
+            >
+              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+              <span>E-FOIL</span>
+            </button>
+            <button
+              onClick={() => scrollToSection('premium-section')}
+              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                activeSection === 'premium-section'
+                  ? 'border-b-2 pb-1 -mb-0.5'
+                  : 'text-white/70 hover:text-white pb-1'
+              }`}
+              style={activeSection === 'premium-section' ? { color: '#ffb300', borderColor: '#ffb300' } : undefined}
+            >
+              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+              <span className="hidden sm:inline">PREMIUM</span><span className="sm:hidden">VIP</span>
+            </button>
+          </div>
         </div>
+      </div>
 
       {/* Hero Banner Container */}
       <div id="kite-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
@@ -149,25 +158,31 @@ const AcademyLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
-                KITE LESSONS
+            <img
+              src="/DuotoneFonts/DPCURLADARKGREY.png"
+              alt="Duotone Dark Grey Logo"
+              className="w-40 sm:w-56 md:w-72 mb-2 drop-shadow-xl"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }}
+            />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+              KITE LESSONS
             </h1>
-            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
-                Start your kitesurfing journey — or take it to the next level.
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+              Start your kitesurfing journey — or take it to the next level.
             </p>
-            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-                From your very first kite to carving waves and chasing jumps, our IKO-certified instructors tailor every lesson to your pace. Beginners, improvers, and advanced riders all welcome.
+            <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+              From your very first kite to carving waves and chasing jumps, our IKO-certified instructors tailor every lesson to your pace. Beginners, improvers, and advanced riders all welcome.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <Button
+              <Button
                 type="primary"
                 size="large"
-                className="!bg-emerald-600 !border-emerald-600 hover:!bg-emerald-500 !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto"
+                className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none"
                 onClick={() => navigate('/academy/kite-lessons')}
-                >
+              >
                 Book Your Lesson
-                </Button>
+              </Button>
             </div>
         </div>
       </div>
@@ -369,6 +384,14 @@ const AcademyLandingPage = () => {
            scrollbar-width: none;
          }
        `}</style>
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center" style={{ margin: '64px 0 0 0' }}>
+        <img
+          src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '32px 0' }}
+        />
+      </div>
     </div>
   );
 };

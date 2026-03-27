@@ -80,6 +80,10 @@ export const ShopFiltersProvider = ({ children }) => {
             setSelectedSubcategory('all');
             setSelectedBrand('all');
         }
+        // Ensure view resets when switching categories inside shop page
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
     }, []);
 
     const handleSubcategoryChange = useCallback((value) => {

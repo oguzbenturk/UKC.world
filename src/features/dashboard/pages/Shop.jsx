@@ -76,8 +76,28 @@ const renderLoadingSkeletons = () => (
     </Row>
 );
 const ShopPage = () => {
+
+    // Ref for the horizontal category navbar
+    const categoryNavRef = useRef(null);
+
     const location = useLocation();
     const navigate = useNavigate();
+
+
+
+    // Scroll the category navbar into view on mount (entering Shop page from any route)
+    useEffect(() => {
+        // Scroll to the top of the Shop page container (including search bar)
+        const shopPage = document.querySelector('.shop-page');
+        if (shopPage) {
+            const rect = shopPage.getBoundingClientRect();
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            // Offset for both sticky header and category bar (64px + 64px = 128px)
+            const stickyOffset = 128;
+            const y = rect.top + scrollTop - stickyOffset;
+            window.scrollTo({ top: y, behavior: 'auto' });
+        }
+    }, []);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -231,6 +251,16 @@ const ShopPage = () => {
     const localHandleCategoryChange = useCallback((value, keepSubcategory = false) => {
         handleCategoryChange(value, keepSubcategory);
         setPagination({ page: 1, total: 0 });
+        // Scroll to the top of the Shop page container (including search bar)
+        const shopPage = document.querySelector('.shop-page');
+        if (shopPage) {
+            const rect = shopPage.getBoundingClientRect();
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            // Offset for both sticky header and category bar (64px + 64px = 128px)
+            const stickyOffset = 128;
+            const y = rect.top + scrollTop - stickyOffset;
+            window.scrollTo({ top: y, behavior: 'auto' });
+        }
     }, [handleCategoryChange]);
 
     const localHandleSubcategoryChange = useCallback((value) => {
@@ -288,6 +318,10 @@ const ShopPage = () => {
 
     const handleClosePreview = useCallback(() => {
         setPreviewProduct(null);
+        // Ensure scroll-to-top when modal closes
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
     }, []);
 
     const cartCount = getCartCount();
@@ -711,30 +745,40 @@ const ShopPage = () => {
     };
 
     return (
-        <div className="shop-page min-h-screen bg-gray-50 px-4 pb-28 pt-3 lg:px-6">
+        <div className="shop-page min-h-screen bg-gray-50 pb-28 lg:px-6">
             <div className="w-full">
-                {/* Category Navigation Bar */}
-                <div className="mb-3 -mx-4 px-4 overflow-x-auto scrollbar-hide no-scrollbar">
-                    <div className="flex items-center justify-center gap-2 min-w-max py-1">
-                        {SHOP_NAV_CATEGORIES.map((cat) => {
-                            const isActive = selectedCategory === cat.filterValue 
-                                || (cat.filterValue === 'all' && selectedCategory === 'featured');
-                            return (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => localHandleCategoryChange(cat.filterValue)}
-                                    className={`px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 border ${
-                                        isActive
-                                            ? 'bg-black text-white border-black shadow-sm'
-                                            : 'bg-black/5 text-gray-600 border-transparent hover:bg-black/10 hover:text-gray-900'
-                                    }`}
-                                >
-                                    {cat.label}
-                                </button>
-                            );
-                        })}
+                {/* Category Navigation Bar — matches ShopLandingPage style */}
+                <div className="sticky top-0 z-30 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md -mx-4 lg:-mx-6 mb-4">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                        {/* Scroll hint for mobile */}
+                        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
+                            <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                        <div ref={categoryNavRef} className="flex justify-start md:justify-center items-center overflow-x-auto py-3 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
+                            {SHOP_NAV_CATEGORIES.map((cat) => {
+                                const isActive = selectedCategory === cat.filterValue 
+                                    || (cat.filterValue === 'all' && selectedCategory === 'featured');
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => localHandleCategoryChange(cat.filterValue)}
+                                        className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                                            isActive
+                                                ? 'border-b-2 pb-1 -mb-0.5'
+                                                : 'text-white/70 hover:text-white pb-1'
+                                        }`}
+                                        style={isActive ? { color: '#00a8c4', borderColor: '#00a8c4' } : undefined}
+                                    >
+                                        <span className="md:hidden text-xs opacity-70">{'▸'}</span>
+                                        <span>{cat.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
+
+                <div className="px-4">
 
                 {renderHeader()}
                 
@@ -744,6 +788,7 @@ const ShopPage = () => {
                     <div className="flex-1 min-w-0">
                         {renderProducts()}
                     </div>
+                </div>
                 </div>
                 
                 {/* Floating Cart Button */}
@@ -756,7 +801,7 @@ const ShopPage = () => {
                         width: 56,
                         height: 56,
                         borderRadius: 16,
-                        background: '#111827',
+                        background: '#4b4f54', // Duotone Antrasit
                         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
                         display: 'flex',
                         alignItems: 'center',
@@ -768,7 +813,7 @@ const ShopPage = () => {
                     className="hover:scale-105 active:scale-95"
                 >
                     <Badge count={cartCount} size="small" offset={[-4, 4]} style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
-                        <ShoppingCartOutlined style={{ fontSize: 26, color: '#fff' }} />
+                        <ShoppingCartOutlined style={{ fontSize: 26, color: '#00a8c4' }} />
                     </Badge>
                 </div>
                 

@@ -159,17 +159,17 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
             <Text type="secondary" style={{ textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
               Explore our shop and find amazing gear for your next adventure!
             </Text>
-            <Button 
-              type="primary" 
-              onClick={onClose} 
+            <Button
+              onClick={onClose}
               size="large"
-              style={{ 
-                marginTop: 28, 
+              className="font-duotone-bold bg-[#4b4f54] text-[#00a8c4] border-none shadow-md hover:bg-[#23272a] hover:text-[#00a8c4]"
+              style={{
+                marginTop: 28,
                 borderRadius: 10,
                 height: 44,
                 paddingLeft: 32,
                 paddingRight: 32,
-                fontWeight: 500
+                fontWeight: 700
               }}
             >
               Start Shopping

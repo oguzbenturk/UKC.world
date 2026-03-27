@@ -76,7 +76,7 @@ const ProductCard = memo(({
                         </div>
                     ) : (
                         <div className="flex h-full w-full items-center justify-center bg-white rounded">
-                            <ShoppingCartOutlined className="text-5xl text-gray-200" />
+                                    <ShoppingCartOutlined className="text-5xl" style={{ color: '#00a8c4' }} />
                         </div>
                     )}
                 </div>
@@ -109,19 +109,19 @@ const ProductCard = memo(({
             {/* Content */}
             <div className="flex flex-col flex-grow p-4 pb-5">
                 {product.brand && (
-                    <span className="text-[11px] uppercase tracking-widest text-gray-400 font-semibold mb-1">
+                            <span className="text-[11px] uppercase tracking-widest text-gray-400 font-duotone-regular mb-1">
                         {product.brand}
                     </span>
                 )}
-                <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 mb-auto min-h-[40px] group-hover:text-[#ec4899] transition-colors duration-150 m-0">
+                        <p className="text-sm font-duotone-regular text-gray-900 leading-snug line-clamp-2 mb-auto min-h-[40px] group-hover:text-[#00a8c4] transition-colors duration-150 m-0">
                     {product.name}
                 </p>
                 <div className="flex items-baseline gap-2 mt-3">
-                    <span className={`text-base font-bold ${discountPercent > 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                            <span className={`text-base font-duotone-bold ${discountPercent > 0 ? 'text-red-500' : 'text-gray-900'}`}>
                         {formattedPrice}
                     </span>
                     {formattedOriginal && (
-                        <span className="text-xs text-gray-400 line-through">{formattedOriginal}</span>
+                                <span className="text-xs text-gray-400 line-through font-duotone-regular">{formattedOriginal}</span>
                     )}
                 </div>
             </div>

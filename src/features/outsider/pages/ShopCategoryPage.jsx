@@ -35,6 +35,7 @@ const ShopCategoryPage = () => {
   const { selectedCategory, handleCategoryChange } = useShopFilters();
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     if (section) {
       const category = SECTION_TO_CATEGORY[section] || 'all';
       // Only update category if it actually changed — avoids resetting subcategory

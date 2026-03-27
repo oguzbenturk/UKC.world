@@ -38,8 +38,8 @@
   - ✅ Remove `UKC.World` and `.shop` from the shop landing page navbar; instead, write `UKC.shop` in `Gotham` font.
   - ⏳ Create another banner under the filters, putting the `UKC.shop` logo (Gotham font) above the kiteboarding description.
 - **Filters:**
-  - ⏳ Font type for navbar filters should be `Duotone Light Condensed`.
-  - ⏳ Selected filter colors should be Duotone blue.
+  - ✅ Font type for navbar filters should be `Duotone Light Condensed`.
+  - ✅ Selected filter colors should be Duotone blue.
   - ⏳ Order of "All Products" should be: Kiteboard, Wing foil, Efoil, Icon, Accessories, Secondwind, etc.
 - **Interactions:**
   - ⏳ Clicking a category from the shop landing page should open the new page at the top (with filters), instead of slightly scrolled down.

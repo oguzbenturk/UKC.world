@@ -151,23 +151,42 @@ const ShopLandingPage = () => {
     window.dispatchEvent(new CustomEvent('shopLanding:sectionChange', { detail: sectionId }));
   };
 
+
+  // Helper to determine if we're on the landing page
+  const isLandingPage = window.location.pathname === '/shop';
+
+  // Click handler for filter bar
+  const handleFilterTabClick = (section) => {
+    if (isLandingPage) {
+      scrollToSection(section.id);
+    } else {
+      navigate(`/shop/${section.filterCategory}`);
+    }
+  };
+
   return (
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
 
       {/* Sticky Category Nav */}
       <div className="sticky top-0 z-30 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-start md:justify-center items-center overflow-x-auto py-4 gap-5 md:gap-10 lg:gap-12 scrollbar-hide no-scrollbar">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          {/* Scroll hint for mobile */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
+            <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </div>
+          <div className="flex justify-start md:justify-center items-center overflow-x-auto py-3 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => scrollToSection(s.id)}
-                className={`flex items-center gap-2 text-sm md:text-base font-semibold transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+                onClick={() => handleFilterTabClick(s)}
+                className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                   activeSection === s.id
-                    ? 'text-cyan-400 border-b-2 border-cyan-400 pb-1 -mb-0.5'
+                    ? 'border-b-2 pb-1 -mb-0.5'
                     : 'text-white/70 hover:text-white pb-1'
                 }`}
+                style={activeSection === s.id ? { color: '#00a8c4', borderColor: '#00a8c4' } : undefined}
               >
+                <span className="md:hidden text-xs opacity-70">{'▸'}</span>
                 <span>{s.label}</span>
               </button>
             ))}
@@ -204,21 +223,26 @@ const ShopLandingPage = () => {
 
           {/* Content */}
           <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="font-gotham-medium antialiased text-white" style={{ fontWeight: 500, letterSpacing: '0.1em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>UKC</span>
+              <span className="font-gotham-medium antialiased text-[#00a8c4]" style={{ fontWeight: 500, letterSpacing: 0, marginLeft: '-0.06em', fontSize: '1.5rem', textRendering: 'geometricPrecision' }}>.</span>
+              <span className="font-gotham-medium antialiased" style={{ fontWeight: 600, letterSpacing: '0.02em', fontSize: '1.25rem', color: '#ec4899', textRendering: 'geometricPrecision', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>Shop</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold mb-3 tracking-tight text-white drop-shadow-xl">
               {section.title}
             </h1>
-            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+            <p className="text-lg sm:text-xl font-duotone-bold text-white mb-2 drop-shadow">
               {section.subtitle}
             </p>
-            <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+            <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
               {section.description}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 px-4 sm:px-0">
               <Button
-                type="primary"
                 size="large"
-                className={`${section.btnClass} !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl hover:-translate-y-1 transition-transform w-full sm:w-auto`}
+                className="font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 text-base sm:text-lg !rounded-lg shadow-xl transition-all duration-150 focus:outline-none w-full sm:w-auto"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
                 icon={<ShoppingCartOutlined />}
                 onClick={() => navigate(`/shop/${section.filterCategory}`)}
               >
@@ -229,10 +253,12 @@ const ShopLandingPage = () => {
         </div>
       ))}
 
+      {/* Duotone Banner */}
+
       {/* Trust Section */}
       <div className="py-20 bg-[#0d1511]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center text-white mb-12">
+          <h2 className="text-2xl sm:text-3xl font-duotone-bold text-center text-white mb-12">
             Why Shop With Us?
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -240,22 +266,22 @@ const ShopLandingPage = () => {
               <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
                 <SafetyCertificateOutlined className="text-2xl text-emerald-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Authorized Dealer</h3>
-              <p className="text-sm text-white/60">Official Duotone, ION & Fliteboard dealer. Genuine products with full manufacturer warranty.</p>
+              <h3 className="text-lg font-duotone-bold text-white mb-2">Authorized Dealer</h3>
+              <p className="text-sm font-duotone-regular text-white/60">Official Duotone, ION & Fliteboard dealer. Genuine products with full manufacturer warranty.</p>
             </div>
             <div className="text-center">
               <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center mb-4">
                 <ThunderboltOutlined className="text-2xl text-cyan-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Expert Advice</h3>
-              <p className="text-sm text-white/60">Our instructors ride the gear they sell. Get real, hands-on advice from people who know.</p>
+              <h3 className="text-lg font-duotone-bold text-white mb-2">Expert Advice</h3>
+              <p className="text-sm font-duotone-regular text-white/60">Our instructors ride the gear they sell. Get real, hands-on advice from people who know.</p>
             </div>
             <div className="text-center">
               <div className="w-14 h-14 mx-auto rounded-full bg-purple-500/10 flex items-center justify-center mb-4">
                 <CustomerServiceOutlined className="text-2xl text-purple-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Try Before You Buy</h3>
-              <p className="text-sm text-white/60">Test equipment from our rental fleet before committing. Rent, ride, decide — then buy with confidence.</p>
+              <h3 className="text-lg font-duotone-bold text-white mb-2">Try Before You Buy</h3>
+              <p className="text-sm font-duotone-regular text-white/60">Test equipment from our rental fleet before committing. Rent, ride, decide — then buy with confidence.</p>
             </div>
           </div>
         </div>
@@ -264,40 +290,42 @@ const ShopLandingPage = () => {
       {/* CTA Section */}
       <div className="py-16 bg-[#0d1511]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold mb-4 text-white">Need Help Choosing?</h2>
-          <p className="text-gray-400 mb-8">Not sure which gear is right for you? Our team can recommend the perfect setup based on your level and riding style.</p>
+          <h2 className="text-2xl font-duotone-bold mb-4 text-white">Need Help Choosing?</h2>
+          <p className="text-gray-400 font-duotone-regular mb-8">Not sure which gear is right for you? Our team can recommend the perfect setup based on your level and riding style.</p>
           <div className="flex justify-center gap-4">
-            <Button
-              icon={<InfoCircleOutlined />}
-              size="large"
-              className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30"
-              onClick={() => navigate('/shop/browse')}
-            >
-              Browse All Products
-            </Button>
-            <Button
-              type="primary"
-              size="large"
-              className="!bg-emerald-600 !border-none hover:!bg-emerald-500"
-              onClick={() => navigate('/contact')}
-            >
-              Contact Us
-            </Button>
+              <div className="flex justify-center">
+                <Button
+                  size="large"
+                  className="font-duotone-bold !px-6 !py-3 !rounded-md transition-all duration-150 focus:outline-none"
+                  style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
+                  onClick={() => navigate('/contact')}
+                >
+                  Contact Us
+                </Button>
+              </div>
           </div>
         </div>
       </div>
+
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar,
         .no-scrollbar::-webkit-scrollbar {
           display: none;
         }
-        .scrollbar-hide,
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
       `}</style>
+
+      {/* Trust Section */}
+      {/* Trust Section */}
+      {/* Duotone Blue Banner (moved to bottom) */}
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center" style={{ margin: '64px 0 0 0' }}>
+        <img
+          src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '32px 0' }}
+        />
+      </div>
     </div>
   );
 };
