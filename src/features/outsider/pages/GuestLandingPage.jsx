@@ -33,6 +33,7 @@ const GuestLandingPage = () => {
       path: '/shop',
       tagline: 'Official Duotone Dealer',
       subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS', 'SecondWind'],
+      image: '/Images/guest/dice-sls-header.jpg',
     },
     {
       title: 'Academy',
@@ -41,6 +42,7 @@ const GuestLandingPage = () => {
       path: '/academy',
       tagline: 'IKO Certified Instructors',
       subItems: ['Kite Lessons', 'Foil Lessons', 'Wing Lessons', 'E-Foil', 'Premium'],
+      image: '/Images/guest/epump-header.jpg',
     },
     {
       title: 'Rentals',
@@ -49,6 +51,7 @@ const GuestLandingPage = () => {
       path: '/rental',
       tagline: 'Premium Equipment',
       subItems: ['Full Set', 'Kiteboard Only', 'Wetsuit', 'Harness & Bar', 'E-Foil'],
+      image: '/Images/guest/dpc-pingtan-kitefoil-rental.jpg',
     },
     {
       title: 'Membership',
@@ -57,6 +60,7 @@ const GuestLandingPage = () => {
       path: '/members/offerings',
       tagline: 'Exclusive Benefits',
       subItems: ['Beach Facilities', 'WIFI', 'Beach Toilets', 'Showers', 'Compressors', 'Launch & Land Assist', 'And Many More...'],
+      image: '/Images/guest/wing-foil.jpg',
     },
     {
       title: 'Care',
@@ -65,6 +69,7 @@ const GuestLandingPage = () => {
       path: '/care',
       tagline: 'All Brands Welcome',
       subItems: ['Kite Repair', 'Board Repair', 'Bar & Lines', 'Full Service'],
+      image: '/Images/guest/Efoilassist.jpg',
     },
     {
       title: 'Stay',
@@ -73,6 +78,7 @@ const GuestLandingPage = () => {
       path: '/stay',
       tagline: 'Beach-side Living',
       subItems: ['Farm House with Pool', 'Studio Apartments in Olive Oil'],
+      image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
     },
     {
       title: 'Experience',
@@ -81,6 +87,7 @@ const GuestLandingPage = () => {
       path: '/experience',
       tagline: 'Adventure Awaits',
       subItems: ['Kite Packages', 'Wing Packages', 'DownWinders', 'Camps'],
+      image: '/Images/ukc/kite-header.jpg.png',
     },
     {
       title: 'Community',
@@ -89,6 +96,7 @@ const GuestLandingPage = () => {
       path: '/services/events',
       tagline: 'Join the Tribe',
       subItems: ['Live Chat', 'Events & Meetups', 'Rider Community'],
+      image: '/Images/ukc/team.png',
     }
   ];
 
@@ -97,46 +105,57 @@ const GuestLandingPage = () => {
     return (
       <div
         onClick={() => navigate(service.path)}
-        className="group relative cursor-pointer flex flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-2"
+        className="group relative cursor-pointer flex flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
         style={{
-          background: withAlpha(service.accent, 1),
-          border: '1.5px solid rgba(75,79,84,0.3)',
-          boxShadow: '0 4px 20px rgba(75,79,84,0.12)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid rgba(75,79,84,0.12)',
+          boxShadow: '0 4px 20px rgba(75,79,84,0.10)',
+          background: '#fff',
         }}
       >
-        {/* Subtle dark overlay at bottom for depth */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30 pointer-events-none rounded-2xl z-0" />
-
-        <div className="relative z-10 p-5 flex flex-col flex-1">
-          {/* Icon */}
+        {/* Photo area with colored gradient overlay */}
+        <div className="relative h-40 overflow-hidden" style={{ background: service.accent }}>
+          <img
+            src={service.image}
+            alt={service.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+          {/* Colored gradient overlay */}
           <div
-            className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 mb-4 shadow-md"
-            style={{ background: 'rgba(255,255,255,0.22)', border: '1.5px solid rgba(255,255,255,0.35)' }}
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to bottom, ${service.accent}22 0%, ${service.accent}cc 100%)`,
+            }}
+          />
+          {/* Icon badge */}
+          <div
+            className="absolute top-3 left-3 w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)' }}
           >
-            <Icon className="w-5 h-5 text-white" style={{ filter: 'drop-shadow(0px 2px 2px rgba(0,0,0,0.3))' }} />
+            <Icon className="w-5 h-5 text-white" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
           </div>
+          {/* Title on photo */}
+          <div className="absolute bottom-3 left-4">
+            <h3
+              className="leading-none mb-0.5"
+              style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.3rem', color: 'white', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+            >
+              <span style={{ opacity: 0.8 }}>.</span>{service.title}
+            </h3>
+            <p
+              className="tracking-widest uppercase"
+              style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '9px', color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}
+            >
+              {service.tagline}
+            </p>
+          </div>
+        </div>
 
-          {/* Title — Gotham font, .Prefix style */}
-          <h3
-            className="leading-none mb-1 drop-shadow-md"
-            style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.25rem', color: 'white', letterSpacing: '0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}
-          >
-            <span style={{ opacity: 0.8 }}>.</span>{service.title}
-          </h3>
-          <p
-            className="tracking-widest uppercase mb-4 drop-shadow-sm"
-            style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '10px', color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
-          >
-            {service.tagline}
-          </p>
-
-          {/* Sub-items */}
-          <ul className="space-y-1.5 flex-1 mb-4">
+        {/* White content area */}
+        <div className="p-4 flex flex-col flex-1">
+          <ul className="space-y-1.5 flex-1 mb-3">
             {service.subItems.map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-sm drop-shadow-sm font-gotham-light" style={{ fontFamily: '"Gotham Light", sans-serif', color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 2px rgba(0,0,0,0.25)', fontWeight: 300, letterSpacing: '0.02em' }}>
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'rgba(255,255,255,0.8)' }} />
+              <li key={i} className="flex items-center gap-2 text-sm" style={{ fontFamily: '"Duotone Regular", sans-serif', color: '#4b4f54', letterSpacing: '0.01em' }}>
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: service.accent }} />
                 {item}
               </li>
             ))}
@@ -144,8 +163,8 @@ const GuestLandingPage = () => {
 
           {/* Explore row */}
           <div
-            className="flex items-center gap-1.5 text-xs tracking-[0.15em] uppercase border-t pt-3 drop-shadow-sm"
-            style={{ fontFamily: '"Gotham Medium", sans-serif', borderColor: 'rgba(255,255,255,0.3)', color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+            className="flex items-center gap-1.5 text-xs tracking-[0.15em] uppercase border-t pt-3"
+            style={{ fontFamily: '"Gotham Medium", sans-serif', borderColor: 'rgba(75,79,84,0.12)', color: service.accent }}
           >
             <span className="group-hover:underline">Explore</span>
             <ArrowRightIcon className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
@@ -177,6 +196,13 @@ const GuestLandingPage = () => {
           </span>
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(75,79,84,0.2))' }} />
         </div>
+        {/* Services description */}
+        <p className="text-center mt-3 mb-1" style={{ fontFamily: '"Duotone Regular", sans-serif', fontWeight: 400, fontSize: '0.95rem', lineHeight: '1.7', color: '#6b7280', letterSpacing: '0.02em' }}>
+          From gear to lessons, repairs to stays, everything you need for your water sports journey in{' '}
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Urla</span>.{' '}
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#00a8c4' }}>Duotone</span>{' '}
+          Dealer, professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
+        </p>
       </div>
 
       {/* Card Grid */}
