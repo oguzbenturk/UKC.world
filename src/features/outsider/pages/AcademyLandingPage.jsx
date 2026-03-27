@@ -54,79 +54,78 @@ const AcademyLandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Helper to scroll to specific sections
+  // Helper to scroll to specific sections while respecting sticky navbar
   const scrollToSection = (sectionId) => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+
+    // smooth scroll and rely on section scrollMarginTop for offset
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActiveSection(sectionId);
   };
 
   return (
-    <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
-      
+    <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-6 selection:bg-emerald-400/30">
       {/* Top Category Nav - Sticky (ShopLandingPage style, no icons) */}
-      <div className="sticky top-0 z-30 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
+      <div className="sticky top-0 z-50 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           {/* Scroll hint for mobile */}
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
             <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </div>
-          <div className="flex justify-start md:justify-center items-center overflow-x-auto py-3 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
+          <div className="flex justify-center items-center overflow-x-auto py-4 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
+
             <button
               onClick={() => scrollToSection('kite-section')}
-              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                 activeSection === 'kite-section'
-                  ? 'border-b-2 pb-1 -mb-0.5'
+                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
                   : 'text-white/70 hover:text-white pb-1'
               }`}
-              style={activeSection === 'kite-section' ? { color: '#00a8c4', borderColor: '#00a8c4' } : undefined}
             >
               <span className="md:hidden text-xs opacity-70">{'▸'}</span>
               <span>KITE</span>
             </button>
             <button
               onClick={() => scrollToSection('foil-section')}
-              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                 activeSection === 'foil-section'
-                  ? 'border-b-2 pb-1 -mb-0.5'
+                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
                   : 'text-white/70 hover:text-white pb-1'
               }`}
-              style={activeSection === 'foil-section' ? { color: '#00e0ff', borderColor: '#00e0ff' } : undefined}
             >
               <span className="md:hidden text-xs opacity-70">{'▸'}</span>
               <span>FOIL</span>
             </button>
             <button
               onClick={() => scrollToSection('wing-section')}
-              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                 activeSection === 'wing-section'
-                  ? 'border-b-2 pb-1 -mb-0.5'
+                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
                   : 'text-white/70 hover:text-white pb-1'
               }`}
-              style={activeSection === 'wing-section' ? { color: '#a259ff', borderColor: '#a259ff' } : undefined}
             >
               <span className="md:hidden text-xs opacity-70">{'▸'}</span>
               <span>WING</span>
             </button>
             <button
               onClick={() => scrollToSection('efoil-section')}
-              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                 activeSection === 'efoil-section'
-                  ? 'border-b-2 pb-1 -mb-0.5'
+                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
                   : 'text-white/70 hover:text-white pb-1'
               }`}
-              style={activeSection === 'efoil-section' ? { color: '#ffd600', borderColor: '#ffd600' } : undefined}
             >
               <span className="md:hidden text-xs opacity-70">{'▸'}</span>
               <span>E-FOIL</span>
             </button>
             <button
               onClick={() => scrollToSection('premium-section')}
-              className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
+              className={`flex items-center gap-1 text-sm md:text-base font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
                 activeSection === 'premium-section'
-                  ? 'border-b-2 pb-1 -mb-0.5'
+                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
                   : 'text-white/70 hover:text-white pb-1'
               }`}
-              style={activeSection === 'premium-section' ? { color: '#ffb300', borderColor: '#ffb300' } : undefined}
             >
               <span className="md:hidden text-xs opacity-70">{'▸'}</span>
               <span className="hidden sm:inline">PREMIUM</span><span className="sm:hidden">VIP</span>
@@ -136,14 +135,14 @@ const AcademyLandingPage = () => {
       </div>
 
       {/* Hero Banner Container */}
-      <div id="kite-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
+      <div id="kite-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
         {/* Background Image with loading state */}
         <div className="absolute inset-0 z-0">
           <img
             src="/Images/ukc/kite-header.jpg.png"
             alt="Kite lessons background"
             className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ${
-              imagesLoaded['kite'] ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+              imagesLoaded['kite'] ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={() => handleImageLoad('kite')}
             fetchpriority="high"
@@ -153,18 +152,22 @@ const AcademyLandingPage = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 to-green-900/20 animate-pulse" />
           )}
           {/* Enhanced Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#0d1511]" />
         </div>
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <img
-              src="/DuotoneFonts/DPCURLADARKGREY.png"
-              alt="Duotone Dark Grey Logo"
-              className="w-40 sm:w-56 md:w-72 mb-2 drop-shadow-xl"
-              style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))' }}
-            />
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+
+            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-[55vw] sm:w-[40vw] md:w-[28rem] max-w-[480px]">
+              <img
+                src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+                alt="Duotone Pro Center Urla White Logo"
+                className="w-full"
+                style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
+              />
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 mt-24">
               KITE LESSONS
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -188,14 +191,14 @@ const AcademyLandingPage = () => {
       </div>
 
       {/* Wing Foiling Banner Container */}
-      <div id="wing-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
+      <div id="wing-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
         {/* Background Image with loading state */}
         <div className="absolute inset-0 z-0">
           <img
             src="/Images/ukc/wing-header.png"
             alt="Wing foiling background"
             className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ${
-              imagesLoaded['wing'] ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+              imagesLoaded['wing'] ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={() => handleImageLoad('wing')}
             loading="lazy"
@@ -203,15 +206,15 @@ const AcademyLandingPage = () => {
           {!imagesLoaded['wing'] && (
             <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-fuchsia-900/20 animate-pulse" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#0d1511]" />
         </div>
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 WING FOILING
             </h1>
-            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
                 The fastest growing watersport in the world — and easier than you think.
             </p>
             <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
@@ -222,7 +225,7 @@ const AcademyLandingPage = () => {
                 <Button
                 type="primary"
                 size="large"
-                className="!bg-purple-600 !border-purple-600 hover:!bg-purple-500 !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl shadow-purple-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto"
+                className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none"
                 onClick={() => navigate('/academy/wing-lessons')}
                 >
                 Book Wing Lesson
@@ -232,13 +235,13 @@ const AcademyLandingPage = () => {
       </div>
 
       {/* Kite Foiling Banner Container */}
-      <div id="foil-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
+      <div id="foil-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
         <div className="absolute inset-0 z-0">
           <img
             src="/Images/ukc/foil-lessons-header.png"
             alt="Kite foiling background"
             className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ${
-              imagesLoaded['foil'] ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+              imagesLoaded['foil'] ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={() => handleImageLoad('foil')}
             loading="lazy"
@@ -246,14 +249,14 @@ const AcademyLandingPage = () => {
           {!imagesLoaded['foil'] && (
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 to-blue-900/20 animate-pulse" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#0d1511]" />
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 KITE FOILING
             </h1>
-            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
                 Take your kiting to new heights — literally.
             </p>
             <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
@@ -264,7 +267,7 @@ const AcademyLandingPage = () => {
                 <Button
                 type="primary"
                 size="large"
-                className="!bg-cyan-600 !border-cyan-600 hover:!bg-cyan-500 !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl shadow-cyan-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto"
+                className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none"
                 onClick={() => navigate('/academy/foil-lessons')}
                 >
                 Book Foil Lesson
@@ -274,13 +277,13 @@ const AcademyLandingPage = () => {
       </div>
 
       {/* E-Foiling Banner Container */}
-      <div id="efoil-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
+      <div id="efoil-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
         <div className="absolute inset-0 z-0">
           <img
             src="/Images/ukc/e-foil.png"
             alt="E-foiling background"
             className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ${
-              imagesLoaded['efoil'] ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+              imagesLoaded['efoil'] ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={() => handleImageLoad('efoil')}
             loading="lazy"
@@ -288,14 +291,14 @@ const AcademyLandingPage = () => {
           {!imagesLoaded['efoil'] && (
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-900/20 to-green-900/20 animate-pulse" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#0d1511]" />
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 E-FOILING
             </h1>
-            <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
                 No wind? No problem. Pure electric flight.
             </p>
             <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
@@ -306,7 +309,7 @@ const AcademyLandingPage = () => {
                 <Button
                 type="primary"
                 size="large"
-                className="!bg-green-600 !border-green-600 hover:!bg-green-500 !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl shadow-green-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto"
+                className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none"
                 onClick={() => navigate('/academy/efoil-lessons')}
                 >
                 Book E-Foil Session
@@ -316,13 +319,13 @@ const AcademyLandingPage = () => {
       </div>
 
       {/* Premium Banner Container */}
-      <div id="premium-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group">
+      <div id="premium-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
         <div className="absolute inset-0 z-0">
           <img
             src="/Images/ukc/kite-header.jpg.png"
             alt="Premium lessons background"
             className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ${
-              imagesLoaded['premium'] ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+              imagesLoaded['premium'] ? 'opacity-100' : 'opacity-0'
             }`}
             onLoad={() => handleImageLoad('premium')}
             loading="lazy"
@@ -330,14 +333,14 @@ const AcademyLandingPage = () => {
           {!imagesLoaded['premium'] && (
             <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 to-orange-900/20 animate-pulse" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#0d1511]" />
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 tracking-tight text-white drop-shadow-xl">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
             PREMIUM LESSONS
           </h1>
-          <p className="text-lg sm:text-xl font-medium text-white mb-2 drop-shadow">
+          <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
             Private coaching. Exclusive experience. Rapid results.
           </p>
           <p className="text-sm sm:text-base text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
@@ -348,7 +351,7 @@ const AcademyLandingPage = () => {
             <Button
               type="primary"
               size="large"
-              className="!bg-amber-600 !border-amber-600 hover:!bg-amber-500 !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !font-bold !rounded-lg shadow-xl shadow-amber-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto"
+                className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none"
               onClick={() => navigate('/academy/premium-lessons')}
             >
               Book Premium Lesson
@@ -360,13 +363,13 @@ const AcademyLandingPage = () => {
        {/* FAQ Placeholder - Adding "Missing" content */}
       <div className="py-20 bg-[#0d1511]">
          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-2xl font-bold mb-4 text-white">Have Questions?</h2>
+            <h2 className="text-2xl font-duotone-bold mb-4 text-white">Have Questions?</h2>
             <p className="text-gray-400 mb-8">Not sure which package is right for you? Our team is here to help plan your kiteboarding journey.</p>
             <div className="flex justify-center gap-4">
                  <Button icon={<InfoCircleOutlined />} size="large" className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30">
                     Read FAQ
                  </Button>
-                  <Button type="primary" size="large" className="!bg-emerald-600 !border-none hover:!bg-emerald-500" onClick={() => navigate('/contact')}>
+                  <Button type="primary" size="large" className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none" onClick={() => navigate('/contact')}>
                     Contact Us
                  </Button>
             </div>
@@ -385,11 +388,11 @@ const AcademyLandingPage = () => {
          }
        `}</style>
       {/* Centered White Logo at Bottom */}
-      <div className="w-full flex justify-center items-center" style={{ margin: '64px 0 0 0' }}>
+      <div className="w-full flex justify-center items-center" style={{ margin: '16px 0 16px 0' }}>
         <img
           src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
           alt="Duotone Pro Center Urla White Logo"
-          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '32px 0' }}
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
         />
       </div>
     </div>
