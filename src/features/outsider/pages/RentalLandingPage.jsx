@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { RightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
+import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
+
+const RENTAL_NAV_ITEMS = [
+  { id: 'standard-section', label: 'DUOTONE RENTAL', shortLabel: 'DUOTONE' },
+  { id: 'sls-section', label: 'SLS RENTAL', shortLabel: 'SLS' },
+  { id: 'dlab-section', label: 'D-LAB RENTAL', shortLabel: 'D-LAB' },
+  { id: 'efoil-section', label: 'E-FOIL RENTAL', shortLabel: 'E-FOIL' },
+];
 
 const RentalLandingPage = () => {
   const navigate = useNavigate();
@@ -51,55 +59,13 @@ const RentalLandingPage = () => {
 
   return (
     <div className="bg-[#16110d] min-h-screen text-white font-sans pb-20 selection:bg-orange-400/30">
-      
-      {/* Top Category Nav - Sticky */}
-      <div className="sticky top-0 z-50 border-b border-white/10 bg-[#16110d]/80 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            {/* Segment tabs */}
-            <div className="flex justify-between md:justify-center items-center overflow-x-auto py-3 md:py-4 space-x-4 md:space-x-12 scrollbar-hide">
-                <button 
-                  onClick={() => scrollToSection('standard-section')}
-                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'standard-section' 
-                      ? 'text-orange-400 font-bold border-b-2 border-orange-400 pb-1 hover:text-orange-300' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                STANDARD
-                </button>
-                <button 
-                  onClick={() => scrollToSection('sls-section')}
-                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'sls-section' 
-                      ? 'text-amber-400 font-bold border-b-2 border-amber-400 pb-1 hover:text-amber-300' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                SLS
-                </button>
-                <button 
-                  onClick={() => scrollToSection('dlab-section')}
-                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'dlab-section' 
-                      ? 'text-yellow-400 font-bold border-b-2 border-yellow-400 pb-1 hover:text-yellow-300' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                D-LAB
-                </button>
-                <button 
-                  onClick={() => scrollToSection('efoil-section')}
-                  className={`text-sm md:text-base font-medium transition-colors px-1 drop-shadow-md tracking-wide whitespace-nowrap ${
-                    activeSection === 'efoil-section' 
-                      ? 'text-yellow-300 font-bold border-b-2 border-yellow-300 pb-1 hover:text-yellow-200' 
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                E-FOIL
-                </button>
-            </div>
-          </div>
-      </div>
+
+      {/* Unified Sticky Category Nav */}
+      <StickyNavBar
+        items={RENTAL_NAV_ITEMS}
+        activeItem={activeSection}
+        onItemClick={(id) => scrollToSection(id)}
+      />
 
       {/* Hero / Standard Section */}
       <div id="standard-section" className="relative min-h-[500px] flex flex-col group">
@@ -117,23 +83,33 @@ const RentalLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
-            <div className="mb-4">
-                <span className="text-orange-400 font-bold tracking-widest uppercase text-sm md:text-base mb-2 block">
-                    We are Duotone Pro Center Urla - Powered by UKC
-                </span>
-                <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white drop-shadow-xl">
-                    STANDARD RENTAL
+            {/* Duotone Pro Center Urla Logo */}
+            <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px]">
+              <img
+                src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+                alt="Duotone Pro Center Urla"
+                className="w-full"
+                style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
+              />
+            </div>
+
+            <div className="mb-4 mt-24">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
+                    DUOTONE EQUIPMENT RENTAL
                 </h1>
-                <p className="text-gray-200 text-lg md:text-xl max-w-2xl mb-8 drop-shadow-md">
+                <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+                    Reliable, high-quality gear for every level.
+                </p>
+                <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
                     Not everyone needs the high end gear. Our standard rental range offers reliable, high-quality equipment perfect for progression and everyday sessions.
                 </p>
             </div>
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                ghost 
                 size="large" 
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+                className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/standard')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
@@ -158,21 +134,24 @@ const RentalLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
-            <span className="text-amber-400 font-bold tracking-widest uppercase text-sm md:text-base mb-2 block">
+            <span className="font-duotone-bold text-amber-400 tracking-widest uppercase text-sm md:text-base mb-2 block">
                 Strong Light Superior
             </span>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
                 SLS RENTAL
             </h1>
-            <p className="text-gray-200 text-lg md:text-xl max-w-2xl mb-8 drop-shadow-md">
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+                Lighter, stronger, more responsive.
+            </p>
+            <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
                 Experience the difference with our SLS range. Lighter, stronger, and more responsive equipment for those who demand performance.
             </p>
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                ghost 
                 size="large" 
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+                className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/sls')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
@@ -197,21 +176,24 @@ const RentalLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
-            <span className="text-yellow-400 font-bold tracking-widest uppercase text-sm md:text-base mb-2 block">
+            <span className="font-duotone-bold text-yellow-400 tracking-widest uppercase text-sm md:text-base mb-2 block">
                 Duotone Laboratory
             </span>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
                 D-LAB RENTAL
             </h1>
-            <p className="text-gray-200 text-lg md:text-xl max-w-2xl mb-8 drop-shadow-md">
-                The pinnacle of kiteboarding technology. Fly the lightest, most durable, and highest performing gear on the market.
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+                The pinnacle of kiteboarding technology.
+            </p>
+            <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                Fly the lightest, most durable, and highest performing gear on the market.
             </p>
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                ghost 
                 size="large" 
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+                className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/dlab')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
@@ -233,21 +215,24 @@ const RentalLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
-            <span className="text-yellow-300 font-bold tracking-widest uppercase text-sm md:text-base mb-2 block">
+            <span className="font-duotone-bold text-yellow-300 tracking-widest uppercase text-sm md:text-base mb-2 block">
                 Electric Hydrofoil
             </span>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
                 E-FOIL RENTAL
             </h1>
-            <p className="text-gray-200 text-lg md:text-xl max-w-2xl mb-8 drop-shadow-md">
-                No wind required. Glide silently above the water on our premium electric hydrofoils — the most unique watersports experience on the coast.
+            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+                No wind required. Electric flight.
+            </p>
+            <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+                Glide silently above the water on our premium electric hydrofoils — the most unique watersports experience on the coast.
             </p>
             
             <div className="flex flex-wrap gap-4">
                 <Button 
-                ghost 
                 size="large" 
-                className="!text-white !border-white/40 hover:!border-white hover:!bg-white/10 !h-14 !px-8 !text-lg !font-semibold !rounded-lg backdrop-blur-sm"
+                className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/efoil')}
                 >
                 View Details <RightOutlined className="text-xs ml-1" />
@@ -259,22 +244,24 @@ const RentalLandingPage = () => {
       {/* Contact Us Section */}
       <div className="py-16 sm:py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">Not sure which rental is right for you?</h2>
-          <p className="text-gray-400 mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-3 text-white">Not sure which rental is right for you?</h2>
+          <p className="font-duotone-regular text-[#e0e0e0] mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
             Our team is on hand to help you choose the right equipment for your level and goals. Just get in touch.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Button
               icon={<InfoCircleOutlined />}
               size="large"
-              className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30 !h-12 !rounded-lg"
+              className="font-duotone-bold !h-12 !rounded-md !px-8 shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+              style={{ background: 'transparent', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.4)' }}
             >
               Read FAQ
             </Button>
             <Button
               type="primary"
               size="large"
-              className="!bg-orange-600 !border-none hover:!bg-orange-500 !h-12 !rounded-lg !font-semibold"
+              className="font-duotone-bold !h-12 !rounded-md !px-10 !text-base shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               href="/contact"
             >
               Contact Us
@@ -283,6 +270,14 @@ const RentalLandingPage = () => {
         </div>
       </div>
 
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center" style={{ margin: '16px 0 16px 0' }}>
+        <img
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
+        />
+      </div>
     </div>
   );
 };

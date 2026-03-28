@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/hooks/useAuth';
+import ScrollToTop from '../shared/components/navigation/ScrollToTop';
 
 // ── Lightweight loading fallback for lazy-loaded routes ──
 const LazyFallback = () => (
@@ -306,7 +307,8 @@ const AppRoutes = () => {
 
   return (
     <Suspense fallback={<LazyFallback />}>
-    <Routes>
+      <ScrollToTop />
+      <Routes>
   <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to={landingRoute} replace />} />
   <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to={landingRoute} replace />} />
   <Route path="/reset-password" element={<ResetPassword />} />

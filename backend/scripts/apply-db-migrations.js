@@ -77,6 +77,8 @@ async function applySqlFile(client, filename) {
     await applySqlFile(client, 'add_package_hours_used_to_booking_participants.sql');
     await applySqlFile(client, 'add_cash_hours_used_to_booking_participants.sql');
   await applySqlFile(client, '009_create_spare_parts_orders.sql');
+    await applySqlFile(client, '200_add_waiting_payment_status_to_customer_packages.sql');
+    await applySqlFile(client, '201_create_bank_transfer_receipts.sql');
     console.log('Done applying migrations.');
   } catch (e) {
     console.error('Migration apply error:', e.message);

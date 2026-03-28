@@ -168,8 +168,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/services/events', label: 'Events' }
         ]
       }),
-      // Contact Us - Slate
-      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+      item('/contact', 'Contact', 'EnvelopeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' } // slate
       })
     ];
@@ -267,7 +266,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { textColor: '#f59e0b' } // amber
       }),
       // Contact Us - Slate
-      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+      item('/contact', 'Contact', 'EnvelopeIcon', {
         customStyle: { textColor: '#94a3b8' } // slate
       }),
       item('/student/profile', 'Profile', 'UserCircleIcon', {
@@ -330,7 +329,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
       }),
       // Contact Us - Slate
-      item('/contact', 'Contact Us', 'EnvelopeIcon', {
+      item('/contact', 'Contact', 'EnvelopeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' }
       })
     ];

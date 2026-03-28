@@ -95,7 +95,18 @@ const TeamPage = () => {
   }, [members]);
 
   return (
-    <div className="min-h-screen text-white font-sans relative overflow-x-hidden bg-[#17140b] selection:bg-sky-400/30">
+    <div className="min-h-screen text-white font-sans relative overflow-x-hidden bg-[#0d1511] selection:bg-[#00a8c4]/30">
+      
+      {/* Duotone Pro Center Urla Logo */}
+      <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
+        <img
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          alt="Duotone Pro Center Urla Logo"
+          className="w-full"
+          style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
+        />
+      </div>
+
       {/* Background orbs */}
       <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-12%] right-[-8%] w-[920px] h-[920px] bg-sky-300/10 rounded-full blur-[155px]" />
@@ -104,18 +115,15 @@ const TeamPage = () => {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 py-12 pb-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Tag className="mb-3 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider !bg-sky-500/10 !border-sky-500/30 !text-sky-400">
-            UKC.Community
-          </Tag>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight">
-            Meet Our{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-cyan-400">
-              Team
+      <div className="relative z-10 py-12 pb-6 pt-24 md:pt-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-20 md:mt-24">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-duotone-bold-extended text-white mb-3 tracking-tight uppercase">
+            MEET THE{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00a8c4] to-cyan-400">
+              DPC-URLA TEAM
             </span>
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg text-gray-300 font-duotone-regular max-w-2xl mx-auto leading-relaxed">
             Our passionate instructors and staff are here to make your water sports experience unforgettable.
           </p>
         </div>
@@ -193,13 +201,13 @@ const TeamPage = () => {
 
                     {/* Info */}
                     <div className="p-4 -mt-4 relative z-10">
-                      <h3 className="text-lg font-bold text-white mb-1 group-hover:text-sky-300 transition-colors truncate">
+                      <h3 className="text-lg font-duotone-bold text-white mb-1 group-hover:text-[#00a8c4] transition-colors truncate">
                         {name}
                       </h3>
 
                       {/* Bio */}
                       {member.bio && (
-                        <p className="text-gray-400 text-xs leading-relaxed line-clamp-3 mb-3">
+                        <p className="text-gray-400 text-xs font-duotone-regular leading-relaxed line-clamp-3 mb-3">
                           {member.bio}
                         </p>
                       )}
@@ -237,6 +245,15 @@ const TeamPage = () => {
             </div>
           </>
         )}
+      </div>
+
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center py-12">
+        <img
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
+        />
       </div>
     </div>
   );

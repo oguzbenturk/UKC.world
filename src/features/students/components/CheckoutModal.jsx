@@ -209,20 +209,26 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         width={420}
         centered
         closable={false}
+        className="ukc-checkout-modal"
+        rootClassName="dark"
+        styles={{ 
+          content: { padding: 0, backgroundColor: 'transparent', boxShadow: 'none' },
+          body: { padding: '24px', background: '#1a262b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }
+        }}
       >
         <Result
           status="success"
-          icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-          title="Order Placed Successfully!"
+          icon={<CheckCircleOutlined style={{ color: '#10b981' }} />}
+          title={<span style={{ color: '#fff' }} className="font-duotone-bold-extended">Order Placed Successfully!</span>}
           subTitle={
-            <div>
-              <Text>Order Number: <Text strong>{orderDetails.order_number}</Text></Text>
+            <div style={{ color: '#9ca3af' }} className="font-duotone-regular mt-2">
+              <Text style={{ color: '#d1d5db' }}>Order Number: <Text strong style={{ color: '#fff', marginLeft: 4 }}>{orderDetails.order_number}</Text></Text>
               <br />
-              <Text type="secondary">Thank you for your purchase!</Text>
+              <Text style={{ color: '#9ca3af', marginTop: 8, display: 'inline-block' }}>Thank you for your purchase!</Text>
             </div>
           }
           extra={[
-            <Button key="continue" type="primary" onClick={handleClose} size="large">
+            <Button key="continue" type="primary" onClick={handleClose} size="large" className="font-duotone-bold !bg-[#00a8c4] border-none !text-white hover:!opacity-90">
               Continue Shopping
             </Button>
           ]}
@@ -237,8 +243,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     gap: 10,
     padding: '10px 14px',
     borderRadius: 10,
-    border: paymentMethod === value ? '2px solid #3B82F6' : '1px solid #e5e7eb',
-    background: paymentMethod === value ? '#eff6ff' : '#fff',
+    border: paymentMethod === value ? '2px solid #00a8c4' : '1px solid rgba(255,255,255,0.08)',
+    background: paymentMethod === value ? 'rgba(0,168,196,0.05)' : 'rgba(255,255,255,0.03)',
     cursor: 'pointer',
     transition: 'all 0.15s',
   });
@@ -258,19 +264,25 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       centered
       title={null}
       closable
-      styles={{ body: { padding: '20px 24px 16px' } }}
+      closeIcon={<span className="text-white/40 hover:text-white transition-colors mt-2 mr-2">×</span>}
+      className="ukc-checkout-modal"
+      rootClassName="dark"
+      styles={{ 
+        content: { padding: 0, backgroundColor: 'transparent', boxShadow: 'none' },
+        body: { padding: '20px 24px 16px', background: '#1a262b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }
+      }}
     >
-      <Spin spinning={loading} indicator={<LoadingOutlined spin />} tip="Processing...">
+      <Spin spinning={loading} indicator={<LoadingOutlined spin />} tip={<span style={{color: '#00a8c4'}}>Processing...</span>}>
         {/* Header with total */}
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <ShoppingCartOutlined style={{ fontSize: 28, color: '#3B82F6', marginBottom: 4 }} />
-          <div style={{ fontSize: 28, fontWeight: 700, color: '#111', lineHeight: 1.2 }}>
+          <ShoppingCartOutlined style={{ fontSize: 28, color: '#00a8c4', marginBottom: 4 }} />
+          <div style={{ fontSize: 28, color: '#fff', lineHeight: 1.2 }} className="font-duotone-bold-extended">
             {formatDualAmount(finalTotal)}
           </div>
-          <Text type="secondary" style={{ fontSize: 13 }}>
+          <Text style={{ fontSize: 13, color: '#9ca3af' }} className="font-duotone-regular">
             {itemCount} {itemCount === 1 ? 'item' : 'items'}
             {voucherDiscount > 0 && (
-              <span style={{ color: '#52c41a', marginLeft: 6 }}>
+              <span style={{ color: '#10b981', marginLeft: 6 }}>
                 (-{formatCurrency(voucherDiscount, storageCurrency)} promo)
               </span>
             )}
@@ -292,29 +304,30 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
         {/* Delivery Address - inline */}
         <div style={{
-          background: '#f9fafb',
+          background: 'rgba(255,255,255,0.03)',
           borderRadius: 10,
           padding: '10px 14px',
           marginBottom: 12,
-          border: '1px solid #f0f0f0',
+          border: '1px solid rgba(255,255,255,0.08)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              <EnvironmentOutlined style={{ color: '#6b7280', flexShrink: 0 }} />
+              <EnvironmentOutlined style={{ color: '#9ca3af', flexShrink: 0 }} />
               {editingAddress ? (
-                <Text type="secondary" style={{ fontSize: 12 }}>Edit address</Text>
+                <Text style={{ fontSize: 12, color: '#9ca3af' }} className="font-duotone-regular">Edit address</Text>
               ) : hasCompleteAddress ? (
-                <Text style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Text style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }} className="font-duotone-regular">
                   {formatShippingAddress()}
                 </Text>
               ) : (
-                <Text type="warning" style={{ fontSize: 13 }}>Add delivery address</Text>
+                <Text style={{ fontSize: 13, color: '#f59e0b' }} className="font-duotone-regular">Add delivery address</Text>
               )}
             </div>
             <Button
-              type="link"
+              type="text"
               size="small"
-              style={{ padding: 0, height: 'auto', fontSize: 12 }}
+              className="!text-[#00a8c4] hover:!bg-[#00a8c4]/10 transition-all font-duotone-bold"
+              style={{ padding: '0 8px', height: 24, fontSize: 12, borderRadius: 6 }}
               onClick={() => setEditingAddress(!editingAddress)}
             >
               {editingAddress ? 'Cancel' : hasCompleteAddress ? 'Edit' : 'Add'}
@@ -322,39 +335,40 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           </div>
 
           {editingAddress && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
               <Input
                 placeholder="Street address"
                 value={deliveryAddress.address}
                 onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address: e.target.value }))}
-                size="small"
+                className="!bg-white/5 !border-white/10 !text-white !h-9 !rounded-lg [&_input]:!bg-transparent focus-within:!border-[#00a8c4] hover:!border-[#00a8c4]/50"
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <Input
                   placeholder="City"
                   value={deliveryAddress.city}
                   onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
-                  size="small"
+                  className="!bg-white/5 !border-white/10 !text-white !h-9 !rounded-lg [&_input]:!bg-transparent focus-within:!border-[#00a8c4] hover:!border-[#00a8c4]/50"
                 />
                 <Input
                   placeholder="ZIP"
                   value={deliveryAddress.zip_code}
                   onChange={(e) => setDeliveryAddress(prev => ({ ...prev, zip_code: e.target.value }))}
-                  size="small"
+                  className="!bg-white/5 !border-white/10 !text-white !h-9 !rounded-lg [&_input]:!bg-transparent focus-within:!border-[#00a8c4] hover:!border-[#00a8c4]/50"
                 />
               </div>
               <Input
                 placeholder="Country"
                 value={deliveryAddress.country}
                 onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
-                size="small"
+                className="!bg-white/5 !border-white/10 !text-white !h-9 !rounded-lg [&_input]:!bg-transparent focus-within:!border-[#00a8c4] hover:!border-[#00a8c4]/50"
               />
               <Button
                 type="primary"
                 size="small"
                 disabled={!hasCompleteAddress}
                 onClick={() => setEditingAddress(false)}
-                style={{ alignSelf: 'flex-end' }}
+                className="font-duotone-bold mt-1 !bg-[#00a8c4] !border-none !text-white hover:!opacity-90 disabled:!bg-white/10 disabled:!text-white/30 transition-all rounded-lg h-8"
+                style={{ alignSelf: 'flex-end', width: 90 }}
               >
                 Confirm
               </Button>
@@ -365,33 +379,49 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         {/* Payment Methods - compact cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
           <div style={paymentOptionStyle('wallet')} onClick={() => setPaymentMethod('wallet')}>
-            <Radio checked={paymentMethod === 'wallet'} style={{ margin: 0 }} />
-            <WalletOutlined style={{ fontSize: 18, color: canAffordWallet ? '#52c41a' : '#f59e0b' }} />
+            <div style={{
+              width: 18, 
+              height: 18, 
+              borderRadius: '50%', 
+              border: paymentMethod === 'wallet' ? '5px solid #00a8c4' : '2px solid rgba(255,255,255,0.2)',
+              marginRight: 4, 
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }} />
+            <WalletOutlined style={{ fontSize: 18, color: canAffordWallet ? '#10b981' : '#f59e0b' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text strong style={{ fontSize: 13 }}>Wallet</Text>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+              <Text style={{ fontSize: 13, color: '#fff' }} className="font-duotone-bold">Wallet</Text>
+              <Text style={{ fontSize: 11, display: 'block', color: '#9ca3af' }} className="font-duotone-regular">
                 Balance: {formatDualAmount(walletBal)}
               </Text>
             </div>
             {canAffordWallet ? (
-              <Tag color="success" style={{ margin: 0, fontSize: 11 }}>Full</Tag>
+              <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(16, 185, 129, 0.1)', border: 'none', color: '#10b981' }}>Full</Tag>
             ) : walletBal > 0 ? (
-              <Tag color="warning" style={{ margin: 0, fontSize: 11 }}>Partial</Tag>
+              <Tag color="warning" style={{ margin: 0, fontSize: 11, background: 'rgba(245, 158, 11, 0.1)', border: 'none', color: '#f59e0b' }}>Partial</Tag>
             ) : (
-              <Tag style={{ margin: 0, fontSize: 11 }}>Empty</Tag>
+              <Tag style={{ margin: 0, fontSize: 11, background: 'rgba(255,255,255,0.05)', border: 'none', color: '#9ca3af' }}>Empty</Tag>
             )}
           </div>
 
           <div style={paymentOptionStyle('credit_card')} onClick={() => setPaymentMethod('credit_card')}>
-            <Radio checked={paymentMethod === 'credit_card'} style={{ margin: 0 }} />
-            <CreditCardOutlined style={{ fontSize: 18, color: '#3B82F6' }} />
+            <div style={{
+              width: 18, 
+              height: 18, 
+              borderRadius: '50%', 
+              border: paymentMethod === 'credit_card' ? '5px solid #00a8c4' : '2px solid rgba(255,255,255,0.2)',
+              marginRight: 4, 
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }} />
+            <CreditCardOutlined style={{ fontSize: 18, color: '#00a8c4' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text strong style={{ fontSize: 13 }}>Card</Text>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+              <Text style={{ fontSize: 13, color: '#fff' }} className="font-duotone-bold">Card</Text>
+              <Text style={{ fontSize: 11, display: 'block', color: '#9ca3af' }} className="font-duotone-regular">
                 {walletBal > 0 ? 'Wallet balance used first' : 'Secure payment via Iyzico'}
               </Text>
             </div>
-            <SafetyCertificateOutlined style={{ color: '#52c41a', fontSize: 14 }} />
+            <SafetyCertificateOutlined style={{ color: '#10b981', fontSize: 14 }} />
           </div>
         </div>
 
@@ -399,19 +429,19 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         {showHybridInfo && (
           <div style={{
             padding: '8px 12px',
-            background: '#eff6ff',
+            background: 'rgba(0,168,196,0.1)',
             borderRadius: 8,
-            border: '1px solid #bfdbfe',
+            border: '1px solid rgba(0,168,196,0.2)',
             marginBottom: 12,
             fontSize: 12,
-            color: '#1d4ed8',
+            color: '#00a8c4',
             lineHeight: 1.5,
-          }}>
+          }} className="font-duotone-regular">
             <WalletOutlined style={{ marginRight: 4 }} />
-            <strong>{formatCurrency(Math.min(walletBal, finalTotal), storageCurrency)}</strong> from wallet
+            <strong className="font-duotone-bold text-white">{formatCurrency(Math.min(walletBal, finalTotal), storageCurrency)}</strong> from wallet
             {cardPortion > 0 && (
               <> + <CreditCardOutlined style={{ marginLeft: 2, marginRight: 4 }} />
-              <strong>{formatCurrency(cardPortion, storageCurrency)}</strong> by card</>
+              <strong className="font-duotone-bold text-white">{formatCurrency(cardPortion, storageCurrency)}</strong> by card</>
             )}
           </div>
         )}
@@ -429,21 +459,21 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           onClick={handleCheckout}
           disabled={(paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress}
           loading={loading}
+          className="font-duotone-bold !text-white hover:!opacity-90 active:scale-[0.99] transition-all disabled:!bg-white/5 disabled:!text-white/30"
           style={{
             height: 48,
             borderRadius: 10,
-            fontWeight: 600,
             fontSize: 15,
-            background: (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress ? undefined : '#3B82F6',
+            background: (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress ? undefined : '#00a8c4',
             border: 'none',
           }}
         >
           {paymentMethod === 'wallet' && canAffordWallet
-            ? `Pay ${formatCurrency(finalTotal, storageCurrency)}`
+            ? `Pay ${formatDualAmount(finalTotal, storageCurrency)}`
             : paymentMethod === 'wallet' && canUseHybridWallet
             ? 'Pay with Wallet + Card'
             : paymentMethod === 'credit_card'
-            ? `Pay ${formatCurrency(finalTotal, storageCurrency)}`
+            ? `Pay ${formatDualAmount(finalTotal, storageCurrency)}`
             : 'Place Order'
           }
         </Button>

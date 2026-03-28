@@ -239,20 +239,29 @@ const CareLandingPage = () => {
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-teal-400/30">
 
       {/* ── Hero ── */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden pt-12 md:pt-16">
         <div className="absolute inset-0 bg-gradient-to-br from-teal-900/30 via-transparent to-cyan-900/10 pointer-events-none" />
+        
+        {/* Duotone Pro Center Urla Logo */}
+        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
+          <img
+            src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+            alt="Duotone Pro Center Urla Logo"
+            className="w-full"
+            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
+          />
+        </div>
+
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-14 relative z-10 text-center">
-          <span className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-6 uppercase">
-            <ToolOutlined /> All Brands Welcome
-          </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 tracking-tight">
-            Equipment&nbsp;
-            <span className="text-teal-400">.Care</span>
-          </h1>
-          <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto">
-            Kite, board, bar &amp; lines — drop off your gear and let our technicians handle the rest.
-            Submit a request without creating an account.
-          </p>
+          <div className="mt-20 md:mt-24 mb-4">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-4 tracking-tight text-white drop-shadow-xl uppercase">
+              OFFICIAL REPAIR CENTER
+            </h1>
+            <p className="text-gray-300 text-lg sm:text-xl font-duotone-regular max-w-2xl mx-auto drop-shadow">
+              Kite, board, bar &amp; lines — All brands welcome. Drop off your gear and let our expert technicians handle the rest.
+              Submit a request without creating an account.
+            </p>
+          </div>
 
           {/* CTA for logged-in users */}
           {isAuthenticated && (
@@ -337,8 +346,8 @@ const CareLandingPage = () => {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-white mb-1">New Repair Request</h2>
-              <p className="text-white/40 text-sm mb-6">No account needed. We&apos;ll give you a tracking token when done.</p>
+              <h2 className="text-2xl font-duotone-bold-extended text-white mb-1 uppercase">New Repair Request</h2>
+              <p className="text-white/40 text-sm font-duotone-regular mb-6 uppercase">No account needed. We&apos;ll give you a tracking token when done.</p>
 
               <Form
                 form={form}
@@ -348,106 +357,108 @@ const CareLandingPage = () => {
                 className="care-form"
               >
                 {/* Contact info */}
-                <p className="text-xs text-teal-400 uppercase tracking-widest mb-3">Your Contact Info</p>
+                <p className="text-xs font-duotone-bold uppercase tracking-widest mb-3" style={{ color: '#00a8c4' }}>Your Contact Info</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <Form.Item
                     name="guestName"
-                    label={<span className="text-white/60 text-sm">Full Name</span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Full Name</span>}
                     rules={[{ required: true, message: 'Please enter your name' }]}
                   >
                     <Input
                       prefix={<UserOutlined className="text-white/30" />}
                       placeholder="John Doe"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
                     />
                   </Form.Item>
                   <Form.Item
                     name="guestEmail"
-                    label={<span className="text-white/60 text-sm">Email <span className="text-white/30">(recommended)</span></span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Email <span className="text-white/30">(recommended)</span></span>}
                     rules={[{ type: 'email', message: 'Enter a valid email' }]}
                   >
                     <Input
                       prefix={<MailOutlined className="text-white/30" />}
                       placeholder="you@example.com"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
                 <Form.Item
                   name="guestPhone"
-                  label={<span className="text-white/60 text-sm">Phone / WhatsApp</span>}
+                  label={<span className="text-white/60 text-sm font-duotone-regular">Phone / WhatsApp</span>}
                   rules={[{ required: true, message: 'Please enter a phone or WhatsApp number' }]}
                 >
                   <Input
                     prefix={<PhoneOutlined className="text-white/30" />}
                     placeholder="+90 530 000 00 00"
-                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500"
+                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
                   />
                 </Form.Item>
 
                 <Divider className="!border-white/10 !my-5" />
 
                 {/* Equipment info */}
-                <p className="text-xs text-teal-400 uppercase tracking-widest mb-3">Equipment Details</p>
+                <p className="text-xs font-duotone-bold text-white uppercase tracking-widest mb-3">Equipment Details</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <Form.Item
                     name="equipmentType"
-                    label={<span className="text-white/60 text-sm">Equipment Type</span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Equipment Type</span>}
                     rules={[{ required: true, message: 'Please select the equipment type' }]}
                   >
                     <Select
                       placeholder="Select type..."
                       options={EQUIPMENT_TYPES}
+                      className="font-duotone-regular"
                     />
                   </Form.Item>
                   <Form.Item
                     name="itemName"
-                    label={<span className="text-white/60 text-sm">Brand / Item Name</span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Brand / Item Name</span>}
                     rules={[{ required: true, message: 'Please enter a name or brand' }]}
                   >
                     <Input
                       placeholder="e.g. Cabrinha Switchblade 12m"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
 
                 <Form.Item
                   name="description"
-                  label={<span className="text-white/60 text-sm">Issue Description</span>}
+                  label={<span className="text-white/60 text-sm font-duotone-regular">Issue Description</span>}
                   rules={[{ required: true, message: 'Please describe the issue' }]}
                 >
                   <Input.TextArea
                     rows={4}
                     placeholder="Describe the damage or issue in as much detail as possible..."
-                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500 !resize-none"
+                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] !resize-none font-duotone-regular"
                   />
                 </Form.Item>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <Form.Item
                     name="priority"
-                    label={<span className="text-white/60 text-sm">Urgency</span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Urgency</span>}
                     rules={[{ required: true, message: 'Please select urgency' }]}
                   >
                     <Select
                       placeholder="How urgent?"
+                      className="font-duotone-regular"
                     >
                       {PRIORITY_OPTIONS.map((p) => (
                         <Select.Option key={p.value} value={p.value}>
-                          <Tag color={p.color} className="mr-2">{p.value.toUpperCase()}</Tag>
-                          {p.label}
+                          <Tag color={p.color} className="mr-2 font-duotone-bold">{p.value.toUpperCase()}</Tag>
+                          <span className="font-duotone-regular">{p.label}</span>
                         </Select.Option>
                       ))}
                     </Select>
                   </Form.Item>
                   <Form.Item
                     name="location"
-                    label={<span className="text-white/60 text-sm">Current Location <span className="text-white/30">(optional)</span></span>}
+                    label={<span className="text-white/60 text-sm font-duotone-regular">Current Location <span className="text-white/30 font-duotone-regular">(optional)</span></span>}
                   >
                     <Input
                       placeholder="e.g. Left at school storage"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
@@ -458,7 +469,8 @@ const CareLandingPage = () => {
                   loading={submitting}
                   size="large"
                   block
-                  className="!bg-teal-600 !border-none hover:!bg-teal-500 !rounded-xl !h-12 mt-2 font-semibold"
+                  className="!h-14 font-duotone-bold !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                  style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 >
                   Submit Repair Request
                 </Button>
@@ -472,22 +484,22 @@ const CareLandingPage = () => {
       {activeTab === 'track' && (
         <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8">
-            <h2 className="text-xl font-bold text-white mb-1">Track Your Repair</h2>
-            <p className="text-white/40 text-sm mb-6">
+            <h2 className="text-2xl font-duotone-bold-extended text-white mb-1 uppercase">Track Your Repair</h2>
+            <p className="text-white/40 text-sm font-duotone-regular mb-6 uppercase">
               Enter the tracking token you received when submitting your request.
             </p>
 
             <Form form={trackForm} onFinish={handleTrack} layout="vertical" requiredMark={false}>
               <Form.Item
                 name="token"
-                label={<span className="text-white/60 text-sm">Tracking Token</span>}
+                label={<span className="text-white/60 text-sm font-duotone-regular">Tracking Token</span>}
                 rules={[{ required: true, message: 'Please enter your tracking token' }]}
               >
                 <Input
                   prefix={<SearchOutlined className="text-white/30" />}
                   placeholder="Paste your tracking token here..."
                   size="large"
-                  className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-teal-500/50 focus:!border-teal-500 font-mono"
+                  className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-mono"
                 />
               </Form.Item>
               <Button
@@ -497,7 +509,8 @@ const CareLandingPage = () => {
                 size="large"
                 block
                 icon={<SearchOutlined />}
-                className="!bg-teal-600 !border-none hover:!bg-teal-500 !rounded-xl !h-12 font-semibold"
+                className="!h-14 font-duotone-bold !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               >
                 {tracking ? 'Looking up...' : 'Check Status'}
               </Button>
@@ -527,23 +540,14 @@ const CareLandingPage = () => {
         </div>
       )}
 
-      {/* ── Info strip ── */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { icon: '🏄', title: 'All Brands', desc: 'We repair any kite, board, or bar — regardless of brand.' },
-            { icon: '⚡', title: 'Fast Turnaround', desc: 'Most repairs completed within 24–72 hours depending on parts.' },
-            { icon: '📍', title: 'Drop off at school', desc: 'Bring your gear to the UKC beach store and we handle the rest.' },
-          ].map((item) => (
-            <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
-              <div className="text-3xl mb-3">{item.icon}</div>
-              <h3 className="font-semibold text-white mb-1">{item.title}</h3>
-              <p className="text-white/40 text-sm">{item.desc}</p>
-            </div>
-          ))}
-        </div>
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>
+        <img
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
+        />
       </div>
-
     </div>
   );
 };

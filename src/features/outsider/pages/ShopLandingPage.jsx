@@ -6,11 +6,13 @@ import {
   ThunderboltOutlined,
   SafetyCertificateOutlined,
   CustomerServiceOutlined,
-  InfoCircleOutlined
+  LeftOutlined,
+  RightOutlined
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useShopFilters } from '@/shared/contexts/ShopFiltersContext';
 import { productApi } from '@/shared/services/productApi';
+import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 
 const SECTIONS = [
   {
@@ -168,31 +170,12 @@ const ShopLandingPage = () => {
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
 
       {/* Sticky Category Nav */}
-      <div className="sticky top-0 z-30 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          {/* Scroll hint for mobile */}
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
-            <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </div>
-          <div className="flex justify-start md:justify-center items-center overflow-x-auto py-3 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleFilterTabClick(s)}
-                className={`flex items-center gap-1.5 text-base md:text-lg font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                  activeSection === s.id
-                    ? 'border-b-2 pb-1 -mb-0.5'
-                    : 'text-white/70 hover:text-white pb-1'
-                }`}
-                style={activeSection === s.id ? { color: '#00a8c4', borderColor: '#00a8c4' } : undefined}
-              >
-                <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-                <span>{s.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <StickyNavBar
+        className=""
+        items={SECTIONS}
+        activeItem={activeSection}
+        onItemClick={(id, item) => handleFilterTabClick(item)}
+      />
 
       {/* Hero Sections */}
       {SECTIONS.map((section, idx) => (

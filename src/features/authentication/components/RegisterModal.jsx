@@ -1,7 +1,7 @@
 // src/features/authentication/components/RegisterModal.jsx
 // Multi-step registration wizard: Account → Profile → Address
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker } from 'antd';
+import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined,
@@ -245,33 +245,33 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
   const pwStrength = getPasswordStrength(passwordValue);
 
   // ─── Shared form item label helper ───
-  const lbl = (text) => <span style={{ color: '#374151', fontSize: 13, fontWeight: 500 }}>{text}</span>;
+  const lbl = (text) => <span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">{text}</span>;
 
   const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 16, overflow: 'hidden', width: '100%', position: 'relative' }}>
+    <div className="flex flex-col bg-[#1a1c1e] text-white rounded-3xl overflow-hidden w-full relative border border-white/10 shadow-2xl">
       {/* Header with progress */}
-      <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)', padding: '28px 28px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, border: '1px solid rgba(255,255,255,0.25)' }}>
+      <div className="bg-gradient-to-br from-antrasit to-[#0f1013] p-7 pb-5">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-white/5 text-duotone-blue flex items-center justify-center text-2xl border border-white/10 shadow-inner">
             {STEPS[step].icon}
           </div>
           <div>
-            <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{STEPS[step].title}</h2>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, margin: 0, marginTop: 3 }}>{STEPS[step].subtitle}</p>
+            <h2 className="font-duotone-bold-extended text-white text-xl m-0 leading-tight uppercase tracking-tight">{STEPS[step].title}</h2>
+            <p className="font-duotone-regular text-gray-400 text-xs m-0 mt-1">{STEPS[step].subtitle}</p>
           </div>
         </div>
         {/* Step progress bars */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="flex gap-2">
           {STEPS.map((s, i) => (
-            <div key={s.key} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= step ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)', transition: 'all 0.3s' }} />
+            <div key={s.key} className={`flex-1 h-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-duotone-blue' : 'bg-white/10'}`} />
           ))}
         </div>
-        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, margin: 0, marginTop: 10, textAlign: 'right', fontWeight: 500 }}>Step {step + 1} of {STEPS.length}</p>
+        <p className="font-duotone-regular text-gray-500 text-[10px] m-0 mt-3 text-right uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
       </div>
 
       {/* Form body */}
-      <div style={{ padding: '24px 28px', background: '#fff', flex: 1 }}>
-        <Form form={form} layout="vertical" requiredMark={false} className="register-form">
+      <div className="p-7 px-8 bg-[#1a1c1e] flex-1">
+        <Form form={form} layout="vertical" requiredMark={false} className="register-form dark-form">
           {/* ─── STEP 1: Account ─── */}
           <div style={{ display: step === 0 ? 'block' : 'none' }}>
             <div className="grid grid-cols-2 gap-3">
@@ -384,7 +384,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
           {/* ─── STEP 2: Rider Profile ─── */}
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
             <Form.Item label={lbl('Phone Number')} required>
-              <Input.Group compact className="flex !rounded-lg overflow-hidden">
+              <Space.Compact className="flex !rounded-lg overflow-hidden w-full">
                 <Form.Item
                   name="country_code"
                   noStyle
@@ -423,7 +423,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                     className="!rounded-none"
                   />
                 </Form.Item>
-              </Input.Group>
+              </Space.Compact>
             </Form.Item>
 
             <div className="grid grid-cols-2 gap-3">
@@ -500,9 +500,9 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
           {/* ─── STEP 3: Address ─── */}
           <div style={{ display: step === 2 ? 'block' : 'none' }}>
-            <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <p style={{ color: '#1d4ed8', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-                📦 Your address will be used as the default delivery address for shop orders. You can always change it at checkout.
+            <div className="mb-4 p-4 rounded-xl bg-duotone-blue/5 border border-duotone-blue/20">
+              <p className="text-duotone-blue text-[11px] font-duotone-regular m-0 leading-relaxed">
+                <span className="mr-1">📦</span> Your address will be used as the default delivery address for shop orders. You can always change it at checkout.
               </p>
             </div>
 
@@ -560,7 +560,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
         </Form>
 
         {/* ─── Navigation buttons ─── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTop: '1px solid #e5e7eb' }}>
+        <div className="flex items-center justify-between mt-6 pt-5 border-t border-white/5">
           {step > 0 ? (
             <Button
               icon={<ArrowLeftOutlined />}
@@ -568,36 +568,38 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               disabled={loading}
               size="large"
               type="text"
-              style={{ color: '#6b7280', borderRadius: 8 }}
+              className="font-duotone-bold text-gray-400 hover:text-white flex items-center gap-2 border-0"
             >
-              Back
+              BACK
             </Button>
           ) : (
-            <Button onClick={handleClose} disabled={loading} size="large" style={{ color: '#6b7280', borderRadius: 8, borderColor: '#e5e7eb' }}>
-              Cancel
+            <Button 
+              onClick={handleClose} 
+              disabled={loading} 
+              size="large" 
+              className="font-duotone-bold text-gray-500 border-white/10 hover:border-white/20 hover:text-gray-400 bg-transparent rounded-xl"
+            >
+              CANCEL
             </Button>
           )}
 
           {step < STEPS.length - 1 ? (
-            <Button
-              type="primary"
+            <button
+              type="button"
               onClick={goNext}
-              size="large"
-              style={{ background: '#3b82f6', borderColor: '#3b82f6', borderRadius: 8, paddingLeft: 32, paddingRight: 32, fontWeight: 500 }}
+              className="font-duotone-bold bg-antrasit border border-duotone-blue/30 text-duotone-blue py-2.5 px-8 rounded-xl hover:bg-[#525759] hover:border-duotone-blue/60 transition-all flex items-center gap-2 tracking-widest text-xs"
             >
-              Continue <ArrowRightOutlined style={{ marginLeft: 4 }} />
-            </Button>
+              CONTINUE <ArrowRightOutlined />
+            </button>
           ) : (
-            <Button
-              type="primary"
+            <button
+              type="button"
               onClick={handleSubmit}
-              loading={loading}
-              size="large"
-              icon={<CheckOutlined />}
-              style={{ background: '#10b981', borderColor: '#10b981', borderRadius: 8, paddingLeft: 32, paddingRight: 32, fontWeight: 500 }}
+              disabled={loading}
+              className="font-duotone-bold bg-duotone-blue text-antrasit py-2.5 px-8 rounded-xl hover:bg-white transition-all flex items-center gap-2 tracking-widest text-xs shadow-lg shadow-duotone-blue/20"
             >
-              Create Account
-            </Button>
+              {loading ? 'CREATING...' : 'FINISH'} <CheckOutlined />
+            </button>
           )}
         </div>
       </div>
@@ -616,18 +618,23 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
       width={480}
       maskClosable={!loading}
       closable={true}
-      closeIcon={<span className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 mt-1">✕</span>}
+      closeIcon={<span className="text-gray-500 hover:text-white text-lg">✕</span>}
       destroyOnHidden
       styles={{ 
         content: { 
           padding: 0, 
           overflow: 'hidden', 
-          borderRadius: '16px',
+          borderRadius: '32px',
           backgroundColor: 'transparent',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' 
-        } 
+          border: 'none',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+        },
+        mask: {
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(0,0,0,0.4)'
+        }
       }}
-      className="register-modal"
+      className="register-modal brand-modal"
     >
       {content}
     </Modal>

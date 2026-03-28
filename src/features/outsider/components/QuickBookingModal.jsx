@@ -24,6 +24,8 @@ import {
   Select,
   Spin,
   Tag,
+  Upload,
+  Tooltip,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -36,12 +38,16 @@ import {
   TeamOutlined,
   UserOutlined,
   WalletOutlined,
+  UploadOutlined,
+  BankOutlined,
+  CopyOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import apiClient from '@/shared/services/apiClient';
+import apiClient, { resolveApiBaseUrl, getAccessToken } from '@/shared/services/apiClient';
 import { getAvailableSlots } from '@/features/bookings/components/api/calendarApi';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import calendarConfig from '@/config/calendarConfig';
@@ -138,6 +144,86 @@ const computeAvailableStarts = (slots, durationMinutes, isToday) => {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function maskIban(iban) {
+  if (!iban) return '';
+  const clean = iban.replace(/\s/g, '');
+  if (clean.length <= 8) return iban;
+  return clean.slice(0, 4) + ' •••• •••• ' + clean.slice(-4);
+}
+
+function CopyButton({ value }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value || '').then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <Tooltip title={copied ? 'Copied!' : 'Copy'} placement="top">
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="flex-shrink-0 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors ml-3"
+      >
+        {copied ? (
+          <><CheckOutlined className="text-green-500" /><span className="text-green-500">Copied</span></>
+        ) : (
+          <><CopyOutlined />Copy</>
+        )}
+      </button>
+    </Tooltip>
+  );
+}
+
+function BankDetailsCard({ account }) {
+  if (!account) return null;
+
+  const CURRENCY_COLOR = { EUR: 'blue', USD: 'green', GBP: 'purple', TRY: 'orange' };
+
+  const fields = [
+    { label: 'Bank', value: account.bankName },
+    { label: 'Account Holder', value: account.accountHolder },
+    { label: 'IBAN', value: account.iban, mono: true, copy: true },
+    ...(account.swiftCode ? [{ label: 'SWIFT / BIC', value: account.swiftCode, mono: true, copy: true }] : []),
+    ...(account.accountNumber ? [{ label: 'Account No.', value: account.accountNumber, mono: true, copy: true }] : []),
+    ...(account.routingNumber ? [{ label: 'Routing No.', value: account.routingNumber, mono: true, copy: true }] : []),
+  ];
+
+  return (
+    <div className="mt-3 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-blue-600/10 border-b border-blue-200">
+        <div className="flex items-center gap-2">
+          <BankOutlined className="text-blue-600" />
+          <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Transfer To</span>
+        </div>
+        <Tag color={CURRENCY_COLOR[account.currency] || 'default'} className="font-bold m-0 text-xs">
+          {account.currency}
+        </Tag>
+      </div>
+      <div className="px-4 py-0.5 divide-y divide-blue-100">
+        {fields.map(({ label, value, mono, copy }) => (
+          <div key={label} className="flex items-center justify-between py-2.5 gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">{label}</p>
+              <p className={`text-sm text-slate-800 leading-snug break-all ${mono ? 'font-mono tracking-wide' : 'font-medium'}`}>
+                {value}
+              </p>
+            </div>
+            {copy && <CopyButton value={value} />}
+          </div>
+        ))}
+      </div>
+      {account.instructions && (
+        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-200 flex gap-2">
+          <InfoCircleOutlined className="text-amber-500 mt-0.5 flex-shrink-0" />
+          <p className="text-[11px] text-amber-700 leading-snug">{account.instructions}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Get the best price for the given package in the user's currency.
  */
@@ -160,7 +246,7 @@ const resolvePkgPrice = (pkg, userCurrency, convertCurrency) => {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
-const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater, onCreateGroupLesson, onCreateGroupWithFriend }) => {
+const PayStep = ({ packageData, packageName, totalSessions, durationHours, displayPrice, priceCurrency, formatCurrency, paymentMethod, setPaymentMethod, walletBalance, walletCurrency, walletInsufficient, userCurrency, convertCurrency, purchasing, onPurchase, canPayLater, onCreateGroupLesson, onCreateGroupWithFriend, bankAccounts = [], selectedBankAccountId, setSelectedBankAccountId, selectedAccount, fileList = [], setFileList }) => {
   const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
     || (packageData?.name || '').toLowerCase().includes('group');
   // Dual-price: show EUR first, then user's local currency equivalent
@@ -241,7 +327,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Payment Method
           </p>
-          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className="grid gap-2 grid-cols-3">
             <button
               type="button"
               onClick={() => setPaymentMethod('wallet')}
@@ -280,33 +366,31 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
                 </div>
               )}
               <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`} />
-              <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-700' : 'text-slate-600'}`}>Credit Card</span>
+              <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-700' : 'text-slate-600'}`}>Card</span>
               <span className={`text-[10px] sm:text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`}>
                 Iyzico
               </span>
             </button>
-            {canPayLater && (
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('pay_later')}
-                className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
-                  paymentMethod === 'pay_later'
-                    ? 'border-orange-500 bg-orange-50 shadow-sm shadow-orange-500/10'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                {paymentMethod === 'pay_later' && (
-                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
-                    <CheckOutlined className="text-white text-[8px]" />
-                  </div>
-                )}
-                <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`} />
-                <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-orange-700' : 'text-slate-600'}`}>Pay Later</span>
-                <span className={`text-[10px] sm:text-xs ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`}>
-                  At the center
-                </span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('bank_transfer')}
+              className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
+                paymentMethod === 'bank_transfer'
+                  ? 'border-orange-500 bg-orange-50 shadow-sm shadow-orange-500/10'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {paymentMethod === 'bank_transfer' && (
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+                  <CheckOutlined className="text-white text-[8px]" />
+                </div>
+              )}
+              <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'bank_transfer' ? 'text-orange-500' : 'text-slate-400'}`} />
+              <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'bank_transfer' ? 'text-orange-700' : 'text-slate-600'}`}>Bank Transfer</span>
+              <span className={`text-[10px] sm:text-xs ${paymentMethod === 'bank_transfer' ? 'text-orange-500' : 'text-slate-400'}`}>
+                EFT / Havale
+              </span>
+            </button>
           </div>
 
           {walletInsufficient && paymentMethod === 'wallet' && (
@@ -318,6 +402,59 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
               description="Switch to Credit Card or top up your wallet first."
             />
           )}
+
+          {paymentMethod === 'bank_transfer' && (
+            <div className="mt-3 p-3 sm:p-4 rounded-xl border border-orange-200 bg-orange-50/50 animate-in fade-in slide-in-from-top-2 duration-200 space-y-3">
+              <div>
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-orange-700 mb-2">
+                  Select Bank Account
+                </p>
+                <Select
+                  placeholder="Choose account to transfer to…"
+                  className="w-full"
+                  size="large"
+                  value={selectedBankAccountId}
+                  onChange={setSelectedBankAccountId}
+                  options={bankAccounts.map((acc) => ({
+                    value: acc.id,
+                    label: `${acc.bankName} (${acc.currency}) - ${acc.iban ? acc.iban.slice(-6) : ''}`
+                  }))}
+                />
+              </div>
+
+              {selectedAccount && <BankDetailsCard account={selectedAccount} />}
+
+              {selectedAccount && (
+                <div className="pt-2 border-t border-orange-200/50">
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-orange-700 mb-2">
+                    Upload Receipt
+                  </p>
+                  <Upload
+                    onRemove={(file) => setFileList((prev) => prev.filter((item) => item.uid !== file.uid))}
+                    beforeUpload={(file) => {
+                      const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+                      if (!allowed.includes(file.type)) {
+                        App.useApp().message.error('Only JPEG, PNG, or PDF files are accepted.');
+                        return Upload.LIST_IGNORE;
+                      }
+                      setFileList([file]);
+                      return false;
+                    }}
+                    fileList={fileList}
+                    maxCount={1}
+                    accept=".jpg,.jpeg,.png,.pdf"
+                  >
+                    <Button icon={<UploadOutlined />} className="w-full">
+                      Select Receipt (JPEG, PNG or PDF)
+                    </Button>
+                  </Upload>
+                  <p className="text-[10px] text-orange-600/80 mt-2 leading-tight">
+                    Upload your bank transfer receipt — JPEG, PNG, or PDF accepted.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <Button
@@ -325,7 +462,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
           size="large"
           block
           loading={purchasing}
-          disabled={purchasing || (paymentMethod === 'wallet' && walletInsufficient)}
+          disabled={purchasing || (paymentMethod === 'wallet' && walletInsufficient) || (paymentMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0))}
           onClick={onPurchase}
           className="!h-12 sm:!h-14 !rounded-xl !text-sm sm:!text-base !font-bold"
           icon={<ShoppingOutlined />}
@@ -334,7 +471,7 @@ const PayStep = ({ packageData, packageName, totalSessions, durationHours, displ
             ? `Pay ${dualPrice}`
             : paymentMethod === 'credit_card'
               ? `Pay ${dualPrice} with Card`
-              : 'Confirm — Pay Later'}
+              : 'Confirm — Bank Transfer'}
         </Button>
 
         {/* Group Lesson Options */}
@@ -742,7 +879,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">Payment</span>
             <Tag color={paymentMethod === 'wallet' ? 'green' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
-              {paymentMethod === 'wallet' ? 'Paid' : 'Pay Later'}
+              {paymentMethod === 'wallet' ? 'Paid' : paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Processing'}
             </Tag>
           </div>
         )}
@@ -810,6 +947,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [pendingCustomerPackageId, setPendingCustomerPackageId] = useState(null);
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
+  const [fileList, setFileList] = useState([]);
 
   const [selectedInstructorId, setSelectedInstructorId] = useState(null);
   const [skipSchedule, setSkipSchedule] = useState(false);
@@ -874,6 +1013,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setIyzicoPaymentUrl(null);
       setShowIyzicoModal(false);
       setPendingCustomerPackageId(null);
+      setSelectedBankAccountId(null);
       preferredAppliedRef.current = false;
       setSessions([{ id: 1, date: null, time: null }]);
       sessionIdRef.current = 1;
@@ -947,6 +1087,41 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     staleTime: 300_000,
     retry: false,
   });
+
+  // ── Fetch Bank Accounts for Bank Transfer ────────────────────────────────
+  const { data: bankAccountsResponse = [] } = useQuery({
+    queryKey: ['quick-booking', 'bank-accounts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/wallet/bank-accounts');
+      return res.data?.results || [];
+    },
+    enabled: open && step === 0,
+    staleTime: 300_000,
+  });
+
+  const selectedAccount = useMemo(() => bankAccountsResponse.find(a => a.id === selectedBankAccountId), [bankAccountsResponse, selectedBankAccountId]);
+
+  // Utility to upload the dekont independently before saving booking
+  const uploadReceipt = async (file) => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      const token = getAccessToken() || localStorage.getItem('token');
+      const base = resolveApiBaseUrl();
+      const xhr = new XMLHttpRequest();
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          resolve(JSON.parse(xhr.responseText).url);
+        } else {
+          reject(new Error(JSON.parse(xhr.responseText || '{}').error || 'Upload failed'));
+        }
+      });
+      xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+      xhr.open('POST', `${base}/api/upload/wallet-deposit`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
+    });
+  };
 
   // ── Duration options ─────────────────────────────────────────────────────
   const remainingHours = purchasedPackage?.remainingHours ?? (durationHours || 0);
@@ -1072,25 +1247,58 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         <div style={{ marginTop: 8 }}>
           <p><strong>{packageData.name || serviceName || 'Package'}</strong></p>
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(pkgPrice, pkgCurrency)}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
+          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Bank Transfer'}</p>
         </div>
       ),
       okText: 'Confirm & Pay',
       cancelText: 'Go Back',
       centered: true,
-      onOk: () => {
+      onOk: async () => {
         setPurchasing(true);
+        let receiptUrl = null;
+        if (paymentMethod === 'bank_transfer') {
+          if (fileList.length === 0) {
+            message.error('Please upload a proof of payment (receipt/dekont)');
+            setPurchasing(false);
+            return;
+          }
+          try {
+            receiptUrl = await uploadReceipt(fileList[0]);
+          } catch (e) {
+            message.error(e.message || 'Error uploading receipt');
+            setPurchasing(false);
+            return;
+          }
+        }
+
         purchaseMutation.mutate({
           packageId: packageData.id,
           paymentMethod: paymentMethod,
+          ...(paymentMethod === 'bank_transfer' ? { bankAccountId: selectedBankAccountId, receiptUrl } : {})
         });
       },
     });
-  }, [packageData, studentId, paymentMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName, modal]);
+  }, [packageData, studentId, paymentMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName, modal, selectedBankAccountId, fileList]);
 
   const executeBookSessions = useCallback(async () => {
     const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
     if (!studentId || !selectedInstructorId || validSessions.length === 0) return;
+
+    let receiptUrl = null;
+    if (isStandalone && paymentMethod === 'bank_transfer') {
+      if (fileList.length === 0) {
+        message.error('Please upload a proof of payment (receipt/dekont)');
+        setBookingInProgress(false);
+        return;
+      }
+      try {
+        receiptUrl = await uploadReceipt(fileList[0]);
+      } catch (e) {
+        message.error(e.message || 'Error uploading receipt');
+        setBookingInProgress(false);
+        return;
+      }
+    }
 
     setBookingInProgress(true);
     let successCount = 0;
@@ -1110,7 +1318,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
               use_package: false,
               amount: servicePrice || 0, final_amount: servicePrice || 0, base_amount: servicePrice || 0,
               discount_percent: 0, discount_amount: 0,
-              payment_method: paymentMethod === 'wallet' ? 'wallet' : 'pay_later',
+              payment_method: paymentMethod,
+              ...(paymentMethod === 'bank_transfer' ? { bank_account_id: selectedBankAccountId, receiptUrl } : {})
             }
           : {
               student_user_id: studentId, instructor_user_id: selectedInstructorId,
@@ -1342,6 +1551,12 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           canPayLater={canPayLater}
           onCreateGroupLesson={handleCreateGroupLesson}
           onCreateGroupWithFriend={handleCreateGroupWithFriend}
+          bankAccounts={bankAccountsResponse}
+          selectedBankAccountId={selectedBankAccountId}
+          setSelectedBankAccountId={setSelectedBankAccountId}
+          selectedAccount={selectedAccount}
+          fileList={fileList}
+          setFileList={setFileList}
         />
       )}
       {step === 1 && (

@@ -423,14 +423,11 @@ const ExperiencePackagesPage = ({
       </div>
 
       <div className="relative z-10 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Tag className="mb-2 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider !bg-yellow-500/10 !border-yellow-500/30 !text-yellow-400">
-            UKC.Experience
-          </Tag>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-24">
+          <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-white mb-2 tracking-tight uppercase">
             {headline} <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-400">{accentWord}</span>
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg text-gray-300 font-duotone-regular max-w-2xl mx-auto leading-relaxed">
             {subheadline}
           </p>
 
@@ -438,7 +435,8 @@ const ExperiencePackagesPage = ({
             <Button
               type="primary"
               icon={<RocketOutlined />}
-              className="!bg-yellow-500 !border-yellow-500 hover:!bg-yellow-400 !text-black !font-bold !rounded-xl"
+              className="!h-12 !px-8 !text-base font-duotone-bold !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               onClick={() => {
                 if (!requireAuthForPurchase()) return;
                 navigate('/experience/book-package');
@@ -448,7 +446,7 @@ const ExperiencePackagesPage = ({
             </Button>
             <Button
               icon={<CalendarOutlined />}
-              className="!rounded-xl"
+              className="!h-12 !px-8 !text-base font-duotone-bold !rounded-md"
               onClick={() => navigate('/academy')}
             >
               Explore Lessons
@@ -524,11 +522,11 @@ const ExperiencePackagesPage = ({
                     </Tag>
                   </div>
 
-                  <div className="p-5 flex flex-col">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-bold text-white mb-1 group-hover:text-yellow-300 transition-colors line-clamp-2">{pkg.name}</h3>
-                      <p className="text-sm text-gray-400 line-clamp-2">{pkg.description || 'Complete experience bundle package.'}</p>
-                    </div>
+                    <div className="p-5 flex flex-col">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-duotone-bold text-white mb-1 group-hover:text-yellow-300 transition-colors line-clamp-2">{pkg.name}</h3>
+                        <p className="text-sm font-duotone-regular text-gray-400 line-clamp-2">{pkg.description || 'Complete experience bundle package.'}</p>
+                      </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
                       {(pkg.includesLessons !== false) && <Tag className="!bg-emerald-500/10 !border-emerald-500/30 !text-emerald-300">Lesson</Tag>}
@@ -571,10 +569,8 @@ const ExperiencePackagesPage = ({
                       <Button
                         type="primary"
                         size="small"
-                        className={ownedPkg
-                          ? '!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-400 !text-black !font-semibold'
-                          : '!bg-yellow-500 !border-yellow-500 hover:!bg-yellow-400 !text-black !font-semibold'
-                        }
+                        className="font-duotone-bold !rounded-md shadow-md transition-all duration-150 hover:scale-[1.02] active:scale-95"
+                        style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.1)' }}
                         onClick={(event) => {
                           event.stopPropagation();
                           handleOpenPurchaseModal(pkg);

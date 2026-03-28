@@ -1287,14 +1287,11 @@ const AcademyServicePackagesPage = ({
       {bgTheme}
       
       <div className="relative z-10 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Tag className={`mb-2 !px-4 !py-1 !rounded-full !font-bold uppercase tracking-wider ${academyTagClass}`}>
-            {academyTag}
-          </Tag>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8">
+          <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-white mb-4 uppercase">
             {headline} <span className={accentWordClass}>{accentWord}</span>
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl font-duotone-regular text-[#e0e0e0] max-w-3xl mx-auto leading-relaxed">
             {subheadline}
           </p>
 
@@ -1602,7 +1599,8 @@ const AcademyServicePackagesPage = ({
                         type="primary"
                         icon={selOwned ? <ClockCircleOutlined /> : <RocketOutlined />}
                         onClick={() => handleBookNow(selectedPackage, selectedDuration)}
-                        className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg !font-bold !border-none shadow-lg transition-transform active:scale-95 ${selOwned ? '!bg-emerald-600 hover:!bg-emerald-500' : selectedPackage.gradient}`}
+                        className={`!h-12 sm:!h-14 !rounded-md !text-base sm:!text-lg font-duotone-bold shadow-lg transition-transform hover:scale-[1.02] active:scale-95`}
+                        style={{ backgroundColor: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.3)' }}
                       >
                         {selOwned ? 'Schedule Session' : 'Book Now'}
                       </Button>
@@ -1632,7 +1630,8 @@ const AcademyServicePackagesPage = ({
               type="primary"
               size="large"
               onClick={() => navigate('/contact')}
-              className="!bg-emerald-600 !border-none hover:!bg-emerald-500 !h-12 !rounded-lg !font-semibold !px-8"
+              className="!h-12 !rounded-md font-duotone-bold !px-10 !text-base shadow-lg transition-transform hover:scale-[1.02] active:scale-95"
+              style={{ backgroundColor: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
             >
               Contact Us
             </Button>

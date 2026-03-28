@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Modal, Input, Select, Checkbox, Badge } from 'antd';
+import { Modal, Badge } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig';
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
-import { hasSubcategories, getHierarchicalSubcategories, PRODUCT_CATEGORIES } from '@/shared/constants/productCategories';
+import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
 import {
   HomeIcon,
   UsersIcon,
@@ -38,10 +38,12 @@ import {
   RocketLaunchIcon,
   LinkIcon,
   DocumentTextIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  CreditCardIcon,
+  BuildingLibraryIcon
 } from '@heroicons/react/24/outline';
 
-const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
+const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [isShopMode, setIsShopMode] = useState(false);
@@ -52,10 +54,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get current role for shop mode detection
-  let currentUserRole = undefined;
-  try { currentUserRole = JSON.parse(localStorage.getItem('user'))?.role?.toLowerCase(); } catch {}
-
   // All roles now get the UKC styled shop experience
   const isUKCRole = true;
 
@@ -64,24 +62,22 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     if (location.pathname.startsWith('/shop')) {
       setIsShopMode(true);
     } else {
-      // Exit shop mode when navigating away from shop
       setIsShopMode(false);
     }
   }, [location.pathname]);
 
-  // Handle back to menu - exit shop mode and reset filters
   const handleBackToMenu = () => {
     setIsShopMode(false);
-    navigate('/guest'); // Navigate to guest landing
+    navigate('/guest'); 
   };
 
   // Auto-expand parent items when their subitems are active
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) return;
+    const userString = localStorage.getItem('user');
+    if (!userString) return;
     
     try {
-      const parsedUser = JSON.parse(user);
+      const parsedUser = JSON.parse(userString);
       const currentRole = parsedUser?.role;
       const permissions = parsedUser?.permissions || null;
       const navItems = getNavItemsForRole(currentRole, permissions);
@@ -101,50 +97,30 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
       });
       
       setExpandedItems(prev => ({ ...prev, ...newExpandedState }));
-    } catch {
-      // Silently handle parse errors
+    } catch (e) {
+      // Ignore
     }
   }, [location.pathname]);
 
-  // Reset sidebar nav scroll to top on every route change so Shop is always visible
+  // Reset nav scroll on route change
   useEffect(() => {
     if (navRef.current) {
       navRef.current.scrollTop = 0;
     }
   }, [location.pathname]);
 
-  // Monitor viewport dimensions for responsive behavior
-  useEffect(() => {
-    const handleResize = () => {
-      // Responsive behavior handling without debug logging
-    };
-    
-    handleResize(); // Check on mount
-    window.addEventListener('resize', handleResize);
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Close sidebar when clicking outside (on mobile, tablets, and small screens up to 1200px)
+  // Handle clicks outside to close sidebar
   useEffect(() => {
     const handleClickOutside = (event) => {
-      const currentWidth = window.innerWidth;
-      
-      // Don't auto-close if clicking the navbar hamburger button
       const isHamburgerButton = event.target.closest('[data-sidebar-toggle="true"]');
-  if (isHamburgerButton) return;
+      if (isHamburgerButton) return;
       
-      const shouldClose = isOpen && currentWidth < 1200 && sidebarRef.current && !sidebarRef.current.contains(event.target);
-      
-      // Debug all clicks for 853x1280 device
-  // Removed debug logs
-      
-  if (shouldClose) toggleSidebar();
+      if (isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        toggleSidebar();
+      }
     };
 
-    // Debug: Log when event listeners are attached/removed
     if (isOpen) {
-      // Add a small delay to prevent immediate closure when opening via hamburger button
       const timeoutId = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
         document.addEventListener('touchstart', handleClickOutside);
@@ -155,31 +131,19 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
         document.removeEventListener('mousedown', handleClickOutside);
         document.removeEventListener('touchstart', handleClickOutside);
       };
-    } else {
-      // No-op
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
   }, [isOpen, toggleSidebar]);
-    const baseLinkClasses = "flex items-center px-3 py-2.5 rounded-md transition-colors duration-75 ease-out text-sm font-medium";
-  // Light mode: dark text on white sidebar | Dark mode: light text on dark sidebar
+
+  const baseLinkClasses = "flex items-center px-3 py-2.5 rounded-md transition-colors duration-75 ease-out text-sm font-medium";
   const commonLinkClasses = `${baseLinkClasses} text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60`;
-  const activeLinkClasses = "!bg-slate-100 !text-slate-900 border-l-2 border-[#2d6a3e] pl-[10px] dark:!bg-slate-800/80 dark:!text-white";
+  const activeLinkClasses = "border-l-2 border-[#2d6a3e] pl-[10px] !text-sky-600 dark:!text-sky-300";
   const groupLabelClasses = "px-3 pb-2 text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider";
-  // Split sub-item classes - base without hover, and hover-only
-  const subItemBaseClasses = "py-2.5 text-sm transition-colors duration-75 ease-out block border-l-2";
-  const subItemInactiveClasses = `${subItemBaseClasses} pl-11 rounded-md border-l-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/40 dark:hover:text-white`;
-  const subItemActiveClasses = `${subItemBaseClasses} !pl-[42px] !text-slate-900 !bg-slate-100 !rounded-r-md !rounded-l-none !border-l-[#2d6a3e] !border-solid dark:!text-white dark:!bg-slate-800/60`;
-  // const collapsedLinkClasses = "flex items-center justify-center px-2 py-2.5 text-slate-300 hover:bg-slate-700/50 hover:text-sky-300 rounded-md transition-colors duration-150 ease-in-out text-sm font-medium";
+  const subItemInactiveClasses = "py-2.5 text-sm pl-11 rounded-md border-l-2 border-transparent transition-colors duration-75 ease-out block text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/40 dark:hover:text-white";
+  const subItemActiveClasses = "py-2.5 text-sm !pl-[42px] !text-sky-600 !bg-slate-100 !rounded-r-md !rounded-l-none !border-l-[#2d6a3e] border-l-2 !border-solid transition-colors duration-75 ease-out block dark:!text-sky-300 dark:!bg-slate-800/60";
 
   const showLogoutConfirmation = () => {
     setIsLogoutModalVisible(true);
-    if (isOpen && window.innerWidth < 1200) {
-      toggleSidebar();
-    }
+    if (isOpen) toggleSidebar();
   };
 
   const handleLogoutConfirm = async () => {
@@ -192,9 +156,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     }
   };
 
-  const handleLogoutCancel = () => {
-    setIsLogoutModalVisible(false);
-  };
+  const handleLogoutCancel = () => setIsLogoutModalVisible(false);
 
   const toggleExpanded = (label) => {
     setExpandedItems(prev => ({
@@ -203,80 +165,38 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     }));
   };
 
-  const isItemActive = (path) => {
-    return location.pathname === path;
-  };
-  const isSubItemActive = (item) => {
+  const isItemActive = (path) => location.pathname === path;
+  const isParentActive = (item) => {
+    if (isItemActive(item.to)) return true;
     if (item.subItems) {
-      return item.subItems.some(subItem => isItemActive(subItem.to));
+      return item.subItems.some(sub => isItemActive(sub.to));
     }
     return false;
   };
-  const isParentActive = (item) => {
-    if (isItemActive(item.to)) return true;
-    return isSubItemActive(item);
-  };
 
-  // Build dynamic nav + system items from role config
   const allIconMap = {
-    HomeIcon,
-    ShoppingBagIcon,
-    UsersIcon,
-    AcademicCapIcon,
-    CurrencyDollarIcon,
-    CalendarDaysIcon,
-    CubeIcon,
-    CogIcon,
-    QuestionMarkCircleIcon,
-    TrashIcon,
-    PresentationChartBarIcon,
-    BellAlertIcon,
-    WrenchScrewdriverIcon,
-    MegaphoneIcon,
-    ChatBubbleLeftRightIcon,
-    SparklesIcon,
-    WalletIcon,
-    LifebuoyIcon,
-    UserCircleIcon,
-    EnvelopeIcon,
-    RocketLaunchIcon,
-    LinkIcon,
-    DocumentTextIcon,
-    ArrowUturnLeftIcon
+    HomeIcon, ShoppingBagIcon, UsersIcon, AcademicCapIcon, CurrencyDollarIcon,
+    CalendarDaysIcon, CubeIcon, CogIcon, QuestionMarkCircleIcon, TrashIcon,
+    PresentationChartBarIcon, BellAlertIcon, WrenchScrewdriverIcon, MegaphoneIcon,
+    ChatBubbleLeftRightIcon, SparklesIcon, WalletIcon, LifebuoyIcon, UserCircleIcon,
+    EnvelopeIcon, RocketLaunchIcon, LinkIcon, DocumentTextIcon, ArrowUturnLeftIcon
   };
 
-  let currentRole = undefined;
-  let userPermissions = null;
-  try { 
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    currentRole = storedUser?.role;
-    userPermissions = storedUser?.permissions || null;
-  } catch {}
+  let currentUser = undefined;
+  try { currentUser = JSON.parse(localStorage.getItem('user')); } catch {}
+  const currentRole = currentUser?.role;
+  const userPermissions = currentUser?.permissions || null;
 
   const dynamicNavItems = getNavItemsForRole(currentRole, userPermissions).map(n => ({
-    ...n,
-    icon: allIconMap[n.icon] || HomeIcon
+    ...n, icon: allIconMap[n.icon] || HomeIcon
   }));
   const dynamicSystemItems = getSystemItemsForRole(currentRole, userPermissions).map(n => ({
-    ...n,
-    icon: allIconMap[n.icon] || CogIcon
+    ...n, icon: allIconMap[n.icon] || CogIcon
   }));
 
-  // Get shop item for shop mode sidebar
-  const shopItem = dynamicNavItems.find(item => item.isShopLink);
-
-  // Shop filters context - only use when shop mode is active
   const shopFilters = useShopFilters();
 
-  // Recursive subcategory tree renderer for shop sidebar
   const renderSubcategoryTree = (nodes, catValue, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, depth) => {
-    // Style config per depth level
-    const textSize = depth === 0 ? 'text-sm' : 'text-xs';
-    const py = depth === 0 ? 'py-1.5' : 'py-1';
-    const chevronSize = depth === 0 ? 'h-2.5 w-2.5' : 'h-2 w-2';
-    const toggleW = depth === 0 ? 'w-5 h-7' : 'w-4 h-6';
-    const spacerW = depth === 0 ? 'w-5' : 'w-4';
-
     return nodes.map((node) => {
       const isActive = selectedCategory === catValue && selectedSubcategory === node.value;
       const hasChildren = node.children && node.children.length > 0;
@@ -289,21 +209,19 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
             {hasChildren ? (
               <button
                 onClick={() => toggleCategoryExpanded(expandKey)}
-                className={`${toggleW} flex items-center justify-center text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300`}
+                className="w-5 h-7 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
               >
-                <ChevronRightIcon className={`${chevronSize} transition-transform duration-150 ${isNodeExpanded ? 'rotate-90' : ''}`} />
+                <ChevronRightIcon className={`h-2.5 w-2.5 transition-transform duration-150 ${isNodeExpanded ? 'rotate-90' : ''}`} />
               </button>
             ) : (
-              <div className={spacerW} />
+              <div className="w-5" />
             )}
             <button
               onClick={() => {
                 handleSubcategoryChange(node.value);
-                if (hasChildren && !isNodeExpanded) {
-                  toggleCategoryExpanded(expandKey);
-                }
+                if (hasChildren && !isNodeExpanded) toggleCategoryExpanded(expandKey);
               }}
-              className={`flex-1 flex items-center px-2 ${py} rounded ${textSize} transition-all ${
+              className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-all ${
                 isActive
                   ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/30'
@@ -323,34 +241,18 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
     });
   };
 
-  // Shop Mode Sidebar Content with Full Filters
   const renderShopSidebar = () => {
     const {
-      selectedCategory,
-      selectedSubcategory,
-      sortBy,
-      showInStockOnly,
-      searchText,
-      expandedCategories,
-      activeFilterCount,
-      availableCategories,
-      handleCategoryChange: contextHandleCategoryChange,
-      handleSubcategoryChange: contextHandleSubcategoryChange,
-      handleSortChange,
-      handleSearchChange,
-      setShowInStockOnly,
-      clearAllFilters,
-      toggleCategoryExpanded,
-      setExpandedCategories
+      selectedCategory, selectedSubcategory, showInStockOnly, expandedCategories,
+      availableCategories, handleCategoryChange: contextHandleCategoryChange,
+      handleSubcategoryChange: contextHandleSubcategoryChange, setShowInStockOnly,
+      clearAllFilters, toggleCategoryExpanded, setExpandedCategories, activeFilterCount
     } = shopFilters;
 
-    // Check if we're on the landing page (not the browse/category page)
     const isLandingPage = location.pathname === '/shop';
 
-    // Wrap handlers to also navigate when on landing page
     const handleCategoryChange = (value) => {
       contextHandleCategoryChange(value);
-      // Expand clicked category, collapse all others
       setExpandedCategories(prev => {
         const next = {};
         Object.keys(prev).forEach(k => { next[k] = false; });
@@ -358,33 +260,25 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
         return next;
       });
       if (isLandingPage) {
-        if (value === 'featured' || value === 'all') {
-          navigate('/shop/browse');
-        } else {
-          navigate(`/shop/${value}`);
-        }
+        if (value === 'featured' || value === 'all') navigate('/shop/browse');
+        else navigate(`/shop/${value}`);
       }
     };
 
     const handleSubcategoryChange = (value, forCategory) => {
-      // If clicking a subcategory from a different category, switch category first
       const effectiveCategory = forCategory || selectedCategory;
       if (forCategory && forCategory !== selectedCategory) {
-        contextHandleCategoryChange(forCategory, true); // keepSubcategory
+        contextHandleCategoryChange(forCategory, true);
       }
       contextHandleSubcategoryChange(value);
       if (isLandingPage) {
-        if (effectiveCategory && effectiveCategory !== 'featured' && effectiveCategory !== 'all') {
-          navigate(`/shop/${effectiveCategory}`);
-        } else {
-          navigate('/shop/browse');
-        }
+        if (effectiveCategory && effectiveCategory !== 'featured' && effectiveCategory !== 'all') navigate(`/shop/${effectiveCategory}`);
+        else navigate('/shop/browse');
       }
     };
 
     return (
       <div className="overflow-y-auto overflow-x-hidden h-full px-2 pt-2 pb-4 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-600">
-        {/* Shop Header - Centered, Bigger */}
         <div className="px-3 mb-4">
           <div className="flex items-center justify-center text-xl font-bold">
             <span style={{ color: '#2d6a3e', fontSize: '1.75rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
@@ -392,36 +286,23 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
           </div>
         </div>
 
-        {/* Back to Menu Button - Top of sidebar */}
         <div className="px-2 mb-4">
-          <button
-            onClick={handleBackToMenu}
-            className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60"
-          >
+          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             <span>Back to Menu</span>
           </button>
         </div>
 
-        {/* Filters Header */}
         <div className="px-3 mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FunnelIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider dark:text-slate-400">
-              Filters
-            </span>
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider dark:text-slate-400">Filters</span>
           </div>
           {activeFilterCount > 0 && (
-            <button
-              onClick={clearAllFilters}
-              className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
-            >
-              Clear all
-            </button>
+            <button onClick={clearAllFilters} className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">Clear all</button>
           )}
         </div>
 
-        {/* Categories — always show all with expandable subcategories */}
         <div className="px-3 mb-4">
           <div className="space-y-0.5">
             {availableCategories.map((cat) => {
@@ -430,52 +311,26 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
               const hasSubs = !isSpecialCategory && hasSubcategories(cat.value);
               const subcats = hasSubs ? getHierarchicalSubcategories(cat.value) : [];
               const isCategoryActive = selectedCategory === cat.value;
-              // Auto-expand on first selection, but allow manual collapse
-              const isExpanded = expandedCategories[cat.value] !== undefined 
-                ? expandedCategories[cat.value]  // User has explicitly toggled
-                : isCategoryActive;              // Default: auto-expand if active
-              const showCount = cat.count > 0;
+              const isExpanded = expandedCategories[cat.value] !== undefined ? expandedCategories[cat.value] : isCategoryActive;
 
               return (
                 <div key={cat.value}>
-                  {/* Category row */}
                   <div className="flex items-center">
-                    {/* Expand/collapse toggle */}
                     {hasSubs ? (
-                      <button
-                        onClick={() => toggleCategoryExpanded(cat.value)}
-                        className="w-6 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-transform duration-150"
-                      >
+                      <button onClick={() => toggleCategoryExpanded(cat.value)} className="w-6 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
                         <ChevronRightIcon className={`h-3 w-3 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
                     ) : (
                       <div className="w-6" />
                     )}
-                    <button
-                      onClick={() => {
-                        handleCategoryChange(cat.value);
-                      }}
-                      className={`flex-1 flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-all ${
-                        isActive
-                          ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white'
-                          : isCategoryActive
-                            ? 'bg-slate-100 text-slate-800 font-medium dark:bg-slate-700/50 dark:text-slate-200'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/30'
-                      }`}
-                    >
+                    <button onClick={() => handleCategoryChange(cat.value)} className={`flex-1 flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-all ${isActive ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white' : isCategoryActive ? 'bg-slate-100 text-slate-800 font-medium dark:bg-slate-700/50 dark:text-slate-200' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/30'}`}>
                       <span>{cat.label}</span>
-                      {showCount && (
-                        <span className={`text-xs ${isActive ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                          {cat.count}
-                        </span>
-                      )}
+                      {cat.count > 0 && <span className={`text-xs ${isActive ? 'text-slate-500' : 'text-slate-400'}`}>{cat.count}</span>}
                     </button>
                   </div>
-
-                  {/* Subcategories — show for any expanded category */}
                   {hasSubs && isExpanded && (
                     <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-2 dark:border-slate-600">
-                      {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, (subValue) => handleSubcategoryChange(subValue, cat.value), 0)}
+                      {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, (v) => handleSubcategoryChange(v, cat.value), 0)}
                     </div>
                   )}
                 </div>
@@ -484,28 +339,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
           </div>
         </div>
 
-        {/* Divider */}
         <div className="my-4 border-t border-slate-200 dark:border-slate-700" />
 
-        {/* In Stock Only Toggle */}
         <div className="px-3">
           <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors">
-            <input
-              type="checkbox"
-              checked={showInStockOnly}
-              onChange={(e) => setShowInStockOnly(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-400 bg-white text-[#2d6a3e] focus:ring-[#2d6a3e] focus:ring-offset-0 dark:border-slate-500 dark:bg-slate-700"
-            />
+            <input type="checkbox" checked={showInStockOnly} onChange={(e) => setShowInStockOnly(e.target.checked)} className="w-4 h-4 rounded border-slate-400 bg-white text-[#2d6a3e] focus:ring-[#2d6a3e] dark:border-slate-500 dark:bg-slate-700" />
             <span>In Stock Only</span>
           </label>
         </div>
 
-        {/* Other Services Button - Bottom of sidebar */}
         <div className="px-2 mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
-          <button
-            onClick={handleBackToMenu}
-            className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60"
-          >
+          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             <span>Other Services</span>
           </button>
@@ -517,481 +361,274 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, isDark }) => {
   return (
     <>
       <div className={isDark ? 'dark' : ''}>
-        <aside 
-          ref={sidebarRef}
-          className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isOpen ? 'open' : ''}`}
-        >
-          {/* Shop Mode Sidebar */}
+        <aside ref={sidebarRef} className={`sidebar ${isOpen ? 'open' : ''}`}>
           {isShopMode && isUKCRole ? (
             <nav className="flex flex-col h-full overflow-hidden">
               {renderShopSidebar()}
             </nav>
           ) : (
-          <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
-          
-          <div>
-            {/* Removed duplicate 'Main Menu' labels to simplify UI */}
-            <ul className="mt-1 space-y-1">
-              {dynamicNavItems.map((item, index) => (
-                <li key={item.label}>
-                  {/* Special handling for Shop - navigates directly */}
-                  {item.isShopLink ? (
-                    <div className="relative group">
-                      <NavLink
-                        to={item.to}
-                        className={({ isActive }) =>
-                          `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${isCollapsed ? 'justify-center' : item.customStyle?.centered ? 'justify-center' : ''}`
-                        }
-                        onClick={() => {
-                          setIsShopMode(true);
-                          if (isOpen && window.innerWidth < 1200) toggleSidebar();
-                        }}
-                      >
-                        {item.customStyle?.centered && !isCollapsed ? (
-                          // Centered Shop header - matches shop sidebar style
-                          <div className="flex items-center justify-center">
-                            <span style={{ color: item.customStyle.dotColor || '#2d6a3e', fontSize: '1.5rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
-                            <span style={{ color: item.customStyle.textColor, letterSpacing: '0.02em', fontSize: '1.1rem', fontWeight: 600 }}>{item.label}</span>
-                          </div>
-                        ) : item.customStyle ? (
-                          <span className="flex items-center text-[15px] font-semibold">
-                            {item.customStyle.dotColor ? (
-                              <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
-                            ) : (
-                              <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
-                            )}
-                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
-                          </span>
-                        ) : (
-                          <>
-                            <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                            {!isCollapsed && item.label}
-                          </>
-                        )}
-                      </NavLink>
-                      {isCollapsed && (
-                        <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                          {item.label}
-                        </div>
-                      )}
-                    </div>
-                  ) : item.subItems ? (
-                    <div>
-                      {isCollapsed ? (
-                        // Collapsed view for items with subItems - show as tooltip
+            <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
+              
+              <div>
+                <ul className="mt-1 space-y-1">
+                  {dynamicNavItems.filter(item => item.label !== 'Contact').map((item) => (
+                    <li key={item.label}>
+                      {item.isShopLink ? (
                         <div className="relative group">
                           <NavLink
                             to={item.to}
-                            className={`${commonLinkClasses} justify-center ${isParentActive(item) ? 'text-white' : ''}`}
-                            onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
+                            className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${item.customStyle?.centered ? 'justify-center' : ''}`}
+                            onClick={() => {
+                              setIsShopMode(true);
+                              if (isOpen) toggleSidebar();
+                            }}
                           >
-                            {item.customStyle ? (
-                              <span className="flex items-center text-lg font-semibold">
-                                {item.customStyle.dotColor ? (
-                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
-                                ) : (
-                                  <item.icon className="h-5 w-5" style={{ color: item.customStyle.textColor }} />
-                                )}
-                              </span>
+                            {item.customStyle?.centered ? (
+                              <div className="flex items-center justify-center">
+                                <span style={{ color: item.customStyle.dotColor || '#2d6a3e', fontSize: '1.5rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
+                                <span style={{ color: item.customStyle.textColor, letterSpacing: '0.02em', fontSize: '1.25rem', fontWeight: 600 }}>{item.label}</span>
+                              </div>
                             ) : (
-                              <item.icon className="h-5 w-5" />
+                              <span className="flex items-center text-[15px] font-semibold">
+                                {item.customStyle?.dotColor ? (
+                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                ) : (
+                                  <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle?.textColor }} />
+                                )}
+                                <span style={{ color: item.customStyle?.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                              </span>
                             )}
                           </NavLink>
-                          {/* Tooltip */}
-                          <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                            {item.label}
-                          </div>
                         </div>
-                      ) : (
-                        // Expanded view for items with subItems
-                        <>
-                          
+                      ) : item.subItems ? (
+                        <div>
                           {(() => {
                             const Component = item.isDirectLink ? NavLink : 'button';
-                            const props = item.isDirectLink 
-                              ? { 
-                                  to: item.to, 
-                                  onClick: (e) => {
-                                      toggleExpanded(item.label);
-                                      // Close sidebar on mobile when navigating via direct link
-                                      if (isOpen && window.innerWidth < 1200) toggleSidebar();
-                                  },
-                                  className: ({ isActive }) => `${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isActive || isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`
-                                }
-                              : {
-                                  onClick: () => toggleExpanded(item.label),
-                                  className: `${commonLinkClasses} w-full ${item.customStyle?.centered ? 'justify-center' : 'justify-between'} ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`
-                                };
-                                
+                            const props = item.isDirectLink ? {
+                              to: item.to,
+                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`,
+                              onClick: () => {
+                                toggleExpanded(item.label);
+                                if (item.isDirectLink && isOpen) toggleSidebar(); 
+                              }
+                            } : {
+                              onClick: () => toggleExpanded(item.label),
+                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`
+                            };
+
                             return (
                               <Component {...props}>
-
-                            {item.customStyle?.centered ? (
-                              // Centered item (like Shop at top)
-                              <span className="text-base font-semibold tracking-widest" style={{ color: item.customStyle.textColor }}>
-                                {item.label}
-                              </span>
-                            ) : (
-                              // Normal left-aligned item with icon
-                              <div className="flex items-center">
-                                {item.customStyle ? (
-                                  <span className="flex items-center text-[15px] font-semibold mr-0">
-                                    {item.customStyle.dotColor ? (
-                                      <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
-                                    ) : item.icon ? (
-                                      <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
-                                    ) : null}
-                                    <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
-                                  </span>
-                                ) : (
-                                  <>
-                                    <item.icon className="h-5 w-5 mr-3" />
-                                    {item.label}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                            {!item.customStyle?.centered && (
-                              <ChevronDownIcon 
-                                className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} 
-                              />
-                            )}
-                          
+                                <div className="flex items-center">
+                                  {item.customStyle ? (
+                                    <span className="flex items-center text-[15px] font-semibold">
+                                      {item.customStyle.dotColor ? (
+                                        <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      ) : item.icon ? (
+                                        <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
+                                      ) : null}
+                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <item.icon className="h-5 w-5 mr-3" />
+                                      <span>{item.label}</span>
+                                    </>
+                                  )}
+                                </div>
+                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
                               </Component>
                             );
                           })()}
                           {expandedItems[item.label] && (
                             <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
-                              {item.subItems.map(subItem => {
+                              {item.subItems.map((subItem) => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
-                                // Resolve sub-item icon if specified
                                 const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
-                                const subItemIconColor = subItem.iconColor || parentColor;
-                                const subItemDotColor = subItem.dotColor || '#2d6a3e';
                                 return (
-                                  <NavLink
-                                    key={subItem.to}
-                                    to={subItem.to}
-                                    end
-                                    className={({ isActive }) => 
-                                      isActive ? subItemActiveClasses : subItemInactiveClasses
-                                    }
-                                    onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
-                                  >
-                                    {item.label === 'Profile' ? (
-                                      <span className="flex items-center">
-                                        <span
-                                          style={{
-                                            color: parentColor,
-                                            opacity: 0.45,
-                                            marginRight: '0.4rem',
-                                            fontSize: '0.8rem',
-                                            lineHeight: '1'
-                                          }}
-                                        >–</span>
-                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
-                                      </span>
-                                    ) : SubItemIcon ? (
-                                      <span className="flex items-center">
-                                        <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItemIconColor, opacity: 0.75 }} />
-                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
-                                      </span>
-                                    ) : subItem.dotColor ? (
-                                      <span className="flex items-center">
-                                        <span style={{ color: subItemDotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
-                                        <span style={{ color: subItemDotColor, opacity: 0.85 }}>{subItem.label}</span>
-                                      </span>
-                                    ) : subItem.noDot ? (
-                                      <span className="flex items-center">
-                                        <span style={{ color: parentColor, opacity: 0.75, paddingLeft: '0.45rem' }}>{subItem.label}</span>
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center">
-                                        <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
-                                        <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
-                                      </span>
-                                    )}
+                                  <NavLink key={subItem.to} to={subItem.to} end className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses} onClick={() => { if (isOpen) toggleSidebar(); }}>
+                                    <span className="flex items-center">
+                                      {SubItemIcon ? (
+                                        <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItem.iconColor || parentColor, opacity: 0.75 }} />
+                                      ) : subItem.dotColor ? (
+                                        <span style={{ color: subItem.dotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      ) : (
+                                        <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      )}
+                                      <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                    </span>
                                   </NavLink>
                                 );
                               })}
                             </div>
                           )}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    // Regular nav items
-                    <div className="relative group">
-                      <NavLink 
-                        to={item.to} 
-                        className={({ isActive }) => 
-                          `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${
-                            isCollapsed ? 'justify-center' : ''
-                          }`
-                        }
-                        onClick={() => {
-                          const currentWidth = window.innerWidth;
-                          const shouldClose = isOpen && currentWidth < 1200;
-                          
-                          // Enhanced debugging for 853x1280 device
-                          if (shouldClose) toggleSidebar();
-                        }}
-                      >
-                        {item.customStyle ? (
-                          <span className="flex items-center text-[15px] font-semibold">
-                            {item.customStyle.dotColor ? (
-                              <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: isCollapsed ? '0' : '0.2rem' }}>•</span>
-                            ) : (
-                              <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} style={{ color: item.customStyle.textColor }} />
-                            )}
-                            {!isCollapsed && <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>}
-                          </span>
-                        ) : (
-                          <>
-                            <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                            {!isCollapsed && item.label}
-                          </>
-                        )}
-                      </NavLink>
-                      {/* Tooltip for collapsed mode */}
-                      {isCollapsed && (
-                        <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                          {item.label}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-
-          <div>
-            {!isCollapsed && dynamicSystemItems.length > 0 && <span className={groupLabelClasses}>System</span>}
-            <ul className="mt-1 space-y-1">
-              {dynamicSystemItems.map(item => (
-                <li key={item.label}>
-                  {item.subItems ? (
-                    <div>
-                      {isCollapsed ? (
-                        // Collapsed view for items with subItems - show as tooltip
-                        <div className="relative group">
-                          <button
-                            onClick={() => toggleExpanded(item.label)}
-                            className={`${commonLinkClasses} justify-center ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`}
-                          >
-                            {item.customStyle ? (
-                              <span className="flex items-center text-lg font-bold">
-                                {item.customStyle.dotColor ? (
-                                  <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', marginRight: '0.25rem' }}>•</span>
-                                ) : (
-                                  <item.icon className="h-5 w-5" style={{ color: item.customStyle.textColor }} />
-                                )}
-                              </span>
-                            ) : (
-                              <item.icon className="h-5 w-5" />
-                            )}
-                          </button>
-                          {/* Tooltip */}
-                          <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                            {item.label}
-                          </div>
                         </div>
                       ) : (
-                        // Expanded view for items with subItems
-                        <>
-                          <button 
-                            onClick={() => toggleExpanded(item.label)}
-                            className={`${commonLinkClasses} w-full justify-between ${isParentActive(item) ? 'text-sky-600 dark:text-sky-300' : ''}`}
-                          >
-                            <div className="flex items-center">
-                              {item.image ? (
-                                <img src={item.image} alt={item.label} className="h-5 w-5 mr-3 object-contain" />
+                        <NavLink to={item.to} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`} onClick={() => { if (isOpen) toggleSidebar(); }}>
+                          {item.customStyle ? (
+                            <span className="flex items-center text-[15px] font-semibold">
+                              {item.customStyle.dotColor ? (
+                                <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
                               ) : (
-                                <item.icon className="h-5 w-5 mr-3" />
+                                <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                               )}
-                              {item.label}
-                            </div>
-                            <ChevronDownIcon 
-                              className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} 
-                            />
-                          </button>
-                          {expandedItems[item.label] && (
-                            <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
-                              {item.subItems.map(subItem => {
-                                // Resolve sub-item icon if specified
-                                const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
-                                const subItemIconColor = subItem.iconColor || '#94a3b8';
-                                const subItemDotColor = subItem.dotColor || '#2d6a3e';
-                                return (
-                                <NavLink
-                                  key={subItem.to}
-                                  to={subItem.to}
-                                  end
-                                  className={({ isActive }) => 
-                                    isActive ? subItemActiveClasses : subItemInactiveClasses
-                                  }
-                                  onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
-                                >
-                                  {item.label === 'Profile' ? (
-                                    <span className="flex items-center">
-                                      <span
-                                        style={{
-                                          color: 'inherit',
-                                          opacity: 0.45,
-                                          marginRight: '0.4rem',
-                                          fontSize: '0.8rem',
-                                          lineHeight: '1'
-                                        }}
-                                      >–</span>
-                                      <span>{subItem.label}</span>
-                                    </span>
-                                  ) : SubItemIcon ? (
-                                    <span className="flex items-center">
-                                      <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItemIconColor, opacity: 0.75 }} />
-                                      <span>{subItem.label}</span>
-                                    </span>
-                                  ) : subItem.dotColor ? (
-                                    <span className="flex items-center">
-                                      <span style={{ color: subItemDotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
-                                      <span style={{ color: subItemDotColor, opacity: 0.85 }}>{subItem.label}</span>
+                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                            </span>
+                          ) : (
+                            <>
+                              <item.icon className="h-5 w-5 mr-3" />
+                              <span>{item.label}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                {dynamicSystemItems.length > 0 && <span className={groupLabelClasses}>System</span>}
+                <ul className="mt-1 space-y-1">
+                  {dynamicSystemItems.map((item) => (
+                    <li key={item.label}>
+                      {item.subItems ? (
+                        <div>
+                          {(() => {
+                            const Component = item.isDirectLink ? NavLink : 'button';
+                            const props = item.isDirectLink ? {
+                              to: item.to,
+                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`,
+                              onClick: () => toggleExpanded(item.label)
+                            } : {
+                              onClick: () => toggleExpanded(item.label),
+                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`
+                            };
+
+                            return (
+                              <Component {...props}>
+                                <div className="flex items-center">
+                                  {item.customStyle ? (
+                                    <span className="flex items-center text-[15px] font-semibold">
+                                      {item.customStyle.dotColor ? (
+                                        <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      ) : (
+                                        <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
+                                      )}
+                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
                                     </span>
                                   ) : (
-                                    <span className="flex items-center">
-                                      <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem', alignSelf: 'flex-end', marginBottom: '0.15rem' }}>•</span>
-                                      <span>{subItem.label}</span>
-                                    </span>
+                                    <>
+                                      <item.icon className="h-5 w-5 mr-3" />
+                                      <span>{item.label}</span>
+                                    </>
                                   )}
-                                </NavLink>
-                              );
+                                </div>
+                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
+                              </Component>
+                            );
+                          })()}
+                          {expandedItems[item.label] && (
+                            <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
+                              {item.subItems.map((subItem) => {
+                                const parentColor = item.customStyle?.textColor || '#94a3b8';
+                                const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
+                                return (
+                                  <NavLink key={subItem.to} to={subItem.to} end className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses} onClick={() => { if (isOpen) toggleSidebar(); }}>
+                                    <span className="flex items-center">
+                                      {SubItemIcon ? (
+                                        <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItem.iconColor || parentColor, opacity: 0.75 }} />
+                                      ) : subItem.dotColor ? (
+                                        <span style={{ color: subItem.dotColor, fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      ) : (
+                                        <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                                      )}
+                                      <span style={{ color: parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                    </span>
+                                  </NavLink>
+                                );
                               })}
                             </div>
                           )}
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="relative group">
-                      <NavLink 
-                        to={item.to} 
-                        className={({ isActive }) => 
-                          `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${
-                            isCollapsed ? 'justify-center' : ''
-                          }`
-                        }
-                        onClick={isOpen && window.innerWidth < 1200 ? toggleSidebar : undefined}
-                      >
-                        <item.icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                        {!isCollapsed && item.label}
-                      </NavLink>
-                      {/* Tooltip for collapsed mode */}
-                      {isCollapsed && (
-                        <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                          {item.label}
                         </div>
+                      ) : (
+                        <NavLink to={item.to} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`} onClick={() => { if (isOpen) toggleSidebar(); }}>
+                          {item.customStyle ? (
+                            <span className="flex items-center text-[15px] font-semibold">
+                              {item.customStyle.dotColor ? (
+                                <span style={{ color: item.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                              ) : (
+                                <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
+                              )}
+                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                            </span>
+                          ) : (
+                            <>
+                              <item.icon className="h-5 w-5 mr-3" />
+                              <span>{item.label}</span>
+                            </>
+                          )}
+                        </NavLink>
                       )}
-                    </div>
-                  )}
-                </li>
-              ))}
-              <li>
-                {isGuest ? (
-                  /* Sign In button for guests */
-                  <div className="relative group">
-                    <button 
-                      onClick={() => openAuthModal({
-                        title: 'Sign In to UKC.World',
-                        message: 'Create an account or sign in to access all features',
-                        returnUrl: location.pathname
-                      })}
-                      className={`${commonLinkClasses} w-full text-left font-duotone-bold ${
-                        isCollapsed ? 'justify-center' : ''
-                      }`}
-                      style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
-                    >
-                      <ArrowLeftOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                      {!isCollapsed && 'Sign In'}
-                    </button>
-                    {/* Tooltip for collapsed mode */}
-                    {isCollapsed && (
-                      <div className="absolute left-full top-0 ml-2 px-2 py-1 text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50" style={{ background: '#4b4f54', color: '#00a8c4' }}>
-                        Sign In
-                      </div>
+                    </li>
+                  ))}
+                  <li>
+                    {isGuest ? (
+                      <button onClick={() => openAuthModal({ title: 'Sign In', message: 'Sign in to access features', returnUrl: location.pathname })} className={`${commonLinkClasses} w-full text-left font-duotone-bold`} style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)' }}>
+                        <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3" />
+                        <span>Sign In</span>
+                      </button>
+                    ) : (
+                      <button onClick={showLogoutConfirmation} className={`${commonLinkClasses} w-full text-left`}>
+                        <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
+                        <span>Logout</span>
+                      </button>
                     )}
-                  </div>
-                ) : (
-                  /* Logout button for authenticated users */
-                  <div className="relative group">
-                    <button 
-                      onClick={showLogoutConfirmation}
-                      className={`${commonLinkClasses} w-full text-left ${
-                        isCollapsed ? 'justify-center' : ''
-                      }`}
-                    >
-                      <ArrowRightOnRectangleIcon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-                      {!isCollapsed && 'Logout'}
-                    </button>
-                    {/* Tooltip for collapsed mode */}
-                    {isCollapsed && (
-                      <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                        Logout
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            </ul>
-          </div>
+                  </li>
+                </ul>
+              </div>
 
-          {/* Payment Methods */}
-          <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
-            {!isCollapsed && <span className={groupLabelClasses}>Payment Methods</span>}
-            <ul className="mt-1 space-y-1">
-              <li>
-                <div className="relative group">
-                  <button
-                    onClick={() => { window.dispatchEvent(new Event('wallet:deposit')); if (isOpen && window.innerWidth < 1200) toggleSidebar(); }}
-                    className={`${commonLinkClasses} w-full text-left ${isCollapsed ? 'justify-center' : ''}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-                    </svg>
-                    {!isCollapsed && 'Credit Card'}
-                  </button>
-                  {isCollapsed && (
-                    <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                      Credit Card
-                    </div>
-                  )}
-                </div>
-              </li>
-              <li>
-                <div className="relative group">
-                  <button
-                    onClick={() => { window.dispatchEvent(new Event('wallet:bank-transfer')); if (isOpen && window.innerWidth < 1200) toggleSidebar(); }}
-                    className={`${commonLinkClasses} w-full text-left ${isCollapsed ? 'justify-center' : ''}`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
-                    </svg>
-                    {!isCollapsed && 'Bank Transfer'}
-                  </button>
-                  {isCollapsed && (
-                    <div className="absolute left-full top-0 ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 dark:bg-slate-700">
-                      Bank Transfer
-                    </div>
-                  )}
-                </div>
-              </li>
-            </ul>
-          </div>
-          </nav>
+              <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
+                {/* Contact - styled exactly like others but kept at bottom */}
+                {dynamicNavItems.find(i => i.label === 'Contact') && (() => {
+                  const contactItem = dynamicNavItems.find(i => i.label === 'Contact');
+                  return (
+                    <NavLink
+                      to={contactItem.to}
+                      className={({ isActive }) => `${commonLinkClasses} w-full mb-1 ${isActive ? activeLinkClasses : ''}`}
+                      onClick={() => { if (isOpen) toggleSidebar(); }}
+                    >
+                      <span className="flex items-center text-[15px] font-semibold">
+                        {contactItem.customStyle?.dotColor ? (
+                          <span style={{ color: contactItem.customStyle.dotColor, fontSize: '1.5rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
+                        ) : (
+                          <contactItem.icon className="h-5 w-5 mr-3" style={{ color: contactItem.customStyle?.textColor }} />
+                        )}
+                        <span style={{ color: contactItem.customStyle?.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{contactItem.label}</span>
+                      </span>
+                    </NavLink>
+                  );
+                })()}
+                <span className={groupLabelClasses}>Payment Methods</span>
+                <ul className="mt-1 space-y-1">
+                  <li>
+                    <button onClick={() => { window.dispatchEvent(new Event('wallet:deposit')); if (isOpen) toggleSidebar(); }} className={`${commonLinkClasses} w-full text-left`}>
+                      <CreditCardIcon className="h-5 w-5 mr-3" />
+                      <span>Credit Card</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button onClick={() => { window.dispatchEvent(new Event('wallet:bank-transfer')); if (isOpen) toggleSidebar(); }} className={`${commonLinkClasses} w-full text-left`}>
+                      <BuildingLibraryIcon className="h-5 w-5 mr-3" />
+                      <span>Bank Transfer</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </nav>
           )}
         </aside>
       </div>
-      
-      {/* Logout Confirmation Modal */}
+
       <Modal
         title="Confirm Logout"
         open={isLogoutModalVisible}

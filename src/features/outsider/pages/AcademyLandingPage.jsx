@@ -11,10 +11,21 @@ import {
   GlobalOutlined,
   ThunderboltOutlined,
   CrownOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  LeftOutlined,
+  RightOutlined
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
+
+const ACADEMY_NAV_ITEMS = [
+  { id: 'kite-section', label: 'KITE' },
+  { id: 'foil-section', label: 'FOIL' },
+  { id: 'wing-section', label: 'WING' },
+  { id: 'efoil-section', label: 'E-FOIL' },
+  { id: 'premium-section', label: 'PREMIUM', shortLabel: 'VIP' },
+];
 
 const AcademyLandingPage = () => {
   const navigate = useNavigate();
@@ -31,29 +42,6 @@ const AcademyLandingPage = () => {
     setImagesLoaded(prev => ({ ...prev, [sectionId]: true }));
   };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = ['kite-section', 'foil-section', 'wing-section', 'efoil-section', 'premium-section'];
-      
-      const scrollPosition = window.scrollY + window.innerHeight / 3;
-
-      for (const sectionId of sections) {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          const { offsetTop, offsetHeight } = element;
-          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-            setActiveSection(sectionId);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   // Helper to scroll to specific sections while respecting sticky navbar
   const scrollToSection = (sectionId) => {
     const target = document.getElementById(sectionId);
@@ -67,72 +55,13 @@ const AcademyLandingPage = () => {
   return (
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-6 selection:bg-emerald-400/30">
       {/* Top Category Nav - Sticky (ShopLandingPage style, no icons) */}
-      <div className="sticky top-0 z-50 border-b border-white/5 bg-[#1e2b33] backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          {/* Scroll hint for mobile */}
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#1e2b33] to-transparent z-10 pointer-events-none flex items-center justify-end md:hidden">
-            <svg className="w-4 h-4 text-white/40 animate-pulse mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </div>
-          <div className="flex justify-center items-center overflow-x-auto py-4 gap-4 md:gap-8 lg:gap-10 scrollbar-hide no-scrollbar pr-8 md:pr-0">
-
-            <button
-              onClick={() => scrollToSection('kite-section')}
-              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                activeSection === 'kite-section'
-                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
-                  : 'text-white/70 hover:text-white pb-1'
-              }`}
-            >
-              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-              <span>KITE</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('foil-section')}
-              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                activeSection === 'foil-section'
-                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
-                  : 'text-white/70 hover:text-white pb-1'
-              }`}
-            >
-              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-              <span>FOIL</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('wing-section')}
-              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                activeSection === 'wing-section'
-                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
-                  : 'text-white/70 hover:text-white pb-1'
-              }`}
-            >
-              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-              <span>WING</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('efoil-section')}
-              className={`flex items-center gap-3 text-lg md:text-xl font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                activeSection === 'efoil-section'
-                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
-                  : 'text-white/70 hover:text-white pb-1'
-              }`}
-            >
-              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-              <span>E-FOIL</span>
-            </button>
-            <button
-              onClick={() => scrollToSection('premium-section')}
-              className={`flex items-center gap-1 text-sm md:text-base font-duotone-light-condensed transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap ${
-                activeSection === 'premium-section'
-                  ? 'text-[#00a8c4] border-b-2 border-[#00a8c4] pb-1 -mb-0.5'
-                  : 'text-white/70 hover:text-white pb-1'
-              }`}
-            >
-              <span className="md:hidden text-xs opacity-70">{'▸'}</span>
-              <span className="hidden sm:inline">PREMIUM</span><span className="sm:hidden">VIP</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <StickyNavBar
+        className="sticky top-0 z-50"
+        bgColor="bg-[#0d1511]"
+        items={ACADEMY_NAV_ITEMS}
+        activeItem={activeSection}
+        onItemClick={(id) => scrollToSection(id)}
+      />
 
       {/* Hero Banner Container */}
       <div id="kite-section" className="relative min-h-[500px] sm:min-h-[600px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
@@ -158,16 +87,16 @@ const AcademyLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
 
-            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-[55vw] sm:w-[40vw] md:w-[28rem] max-w-[480px]">
+            <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px]">
               <img
-                src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+                src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
                 alt="Duotone Pro Center Urla White Logo"
                 className="w-full"
                 style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
               />
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 mt-24">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 mt-24">
               KITE LESSONS
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -211,7 +140,7 @@ const AcademyLandingPage = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 WING FOILING
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -253,7 +182,7 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 KITE FOILING
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -295,7 +224,7 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
                 E-FOILING
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -337,7 +266,7 @@ const AcademyLandingPage = () => {
         </div>
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-32 w-full">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-3 tracking-tight text-white drop-shadow-xl">
             PREMIUM LESSONS
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
@@ -366,7 +295,7 @@ const AcademyLandingPage = () => {
             <h2 className="text-2xl font-duotone-bold mb-4 text-white">Have Questions?</h2>
             <p className="text-gray-400 mb-8">Not sure which package is right for you? Our team is here to help plan your kiteboarding journey.</p>
             <div className="flex justify-center gap-4">
-                 <Button icon={<InfoCircleOutlined />} size="large" className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30">
+                 <Button icon={<InfoCircleOutlined />} size="large" className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30 font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg drop-shadow hover:-translate-y-1 transition-transform w-full sm:w-auto">
                     Read FAQ
                  </Button>
                   <Button type="primary" size="large" className="bg-[#4b4f54] text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:-translate-y-1 transition-transform w-full sm:w-auto border-none" onClick={() => navigate('/contact')}>
@@ -390,7 +319,7 @@ const AcademyLandingPage = () => {
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '16px 0 16px 0' }}>
         <img
-          src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
           alt="Duotone Pro Center Urla White Logo"
           style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
         />

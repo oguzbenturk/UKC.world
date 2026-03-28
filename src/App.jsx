@@ -88,12 +88,8 @@ const AppLayoutWithAuth = () => {
                             location.pathname.startsWith('/group-invitation/') ||
                             location.pathname === '/'; // Add root path to public form routes for layout
 
-  // Initialize sidebar state based on screen size
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    // Only open by default on large screens (≥1200px)
-    return typeof window !== 'undefined' && window.innerWidth >= 1200;
-  });
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Initialize sidebar state based on screen size (start closed everywhere)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [forceShowApp, setForceShowApp] = useState(false);
   const { isAuthenticated, loading, user, error, consent, requiresConsent, updateConsent, consentLoading } = useAuth();
   const { message: messageApi } = AntdApp.useApp();
@@ -142,10 +138,6 @@ const AppLayoutWithAuth = () => {
 
     return () => clearTimeout(timeoutId);
   }, [loading, isAuthenticated]);
-    // Initialize sidebar state in window object
-  useEffect(() => {
-    window.sidebarCollapsed = isSidebarCollapsed;
-  }, [isSidebarCollapsed]);
 
   // Initialize real-time service when user is authenticated
   useEffect(() => {
@@ -166,19 +158,12 @@ const AppLayoutWithAuth = () => {
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
-  };  const toggleSidebarCollapsed = () => {
-    const newState = !isSidebarCollapsed;
-    setIsSidebarCollapsed(newState);
-    // Make sidebar state globally accessible
-    window.sidebarCollapsed = newState;
-    // Dispatch event to notify other components
-    window.dispatchEvent(new Event('sidebarStateChanged'));
   };
 
-  // Auto-close sidebar on mobile/tablet devices when resizing
+  // Auto-close sidebar when resizing or navigating
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1200 && isSidebarOpen) {
+      if (isSidebarOpen) {
         setIsSidebarOpen(false);
       }
     };
@@ -272,7 +257,7 @@ const AppLayoutWithAuth = () => {
   return (
     <div className="flex flex-col h-dvh">
       {consentModal}
-  <Navbar toggleSidebar={toggleSidebar} toggleSidebarCollapsed={toggleSidebarCollapsed} />
+  <Navbar toggleSidebar={toggleSidebar} />
   <NotificationRealtimeBridge />
   <WalletModalManager />
   <RescheduleConfirmationModal />
@@ -281,11 +266,9 @@ const AppLayoutWithAuth = () => {
         <Sidebar 
           isOpen={isSidebarOpen} 
           toggleSidebar={toggleSidebar} 
-          isCollapsed={isSidebarCollapsed}
-          toggleCollapsed={toggleSidebarCollapsed}
           isDark={isDark}
         />        
-        <main className={`content-container ${isSidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'} flex-1 safe-pb`}>
+        <main className="content-container flex-1 safe-pb">
           <AppRoutes />
         </main>
       </div>

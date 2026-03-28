@@ -899,13 +899,14 @@ router.post('/',
     
     const { 
       date, start_hour, duration, student_user_id, instructor_user_id, 
-      status, amount, notes, location, equipment_ids, use_package, service_id,
+      status, amount, location, equipment_ids, use_package, service_id,
       voucherId,  // Voucher/promo code to apply
       partner_user_id,  // Optional: group partner's user ID
       partner_customer_package_id  // Optional: group partner's customer_package ID
     } = req.body;
     let walletCurrency = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || null;
+    let finalNotes = req.body.notes || '';
     
     // If currency not provided, get from customer's preferred_currency (for price lookup)
     if (!walletCurrency && student_user_id) {
@@ -1058,11 +1059,11 @@ router.post('/',
         // Look up the specifically requested package (validates ownership + active + enough hours)
         const specificParams = [requestedPackageId, student_user_id, parseFloat(bookingDuration)];
         const specificSql = `
-          SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name
+          SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, lesson_service_name, status as pkg_status
           FROM customer_packages 
           WHERE id = $1 
             AND customer_id = $2
-            AND status = 'active' 
+            AND status IN ('active', 'waiting_payment') 
             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $3)
             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
           LIMIT 1
@@ -1074,11 +1075,11 @@ router.post('/',
       if (packageCheck.rows.length === 0) {
         const params = [student_user_id, parseFloat(bookingDuration)];
         let sql = `
-          SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+          SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name, cp.status as pkg_status
           FROM customer_packages cp
           LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
           WHERE cp.customer_id = $1 
-            AND cp.status = 'active' 
+            AND cp.status IN ('active', 'waiting_payment') 
             AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) >= $2)
             AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
         `;
@@ -1124,9 +1125,10 @@ router.post('/',
                   AND COALESCE(rental_days_remaining, 0) <= 0
                   AND COALESCE(accommodation_nights_remaining, 0) <= 0
                 THEN 'used_up'
+                WHEN status = 'waiting_payment' THEN 'waiting_payment'
                 ELSE 'active'
               END
-          WHERE id = $3 AND status = 'active' 
+          WHERE id = $3 AND status IN ('active', 'waiting_payment') 
             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $4::numeric)
             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
           RETURNING id, package_name, used_hours, remaining_hours, status
@@ -1146,6 +1148,13 @@ router.post('/',
         finalPaymentStatus = 'package';
         finalAmount = 0;
         usedPackageId = packageToUse.id;
+
+        // If the package is waiting_payment (bank transfer pending admin approval),
+        // mark the booking as pending_payment so it doesn't appear on the calendar
+        if (packageToUse.pkg_status === 'waiting_payment') {
+          finalStatus = 'pending_payment';
+          finalPaymentStatus = 'pending_payment';
+        }
       } else {
         return res.status(400).json({ 
           error: 'Insufficient or mismatched package',
@@ -1321,6 +1330,11 @@ router.post('/',
       } else if (requestedPaymentMethod === 'credit_card') {
         // Credit card: don't charge wallet — Iyzico handles the payment
         finalPaymentStatus = 'pending_payment';
+      } else if (requestedPaymentMethod === 'bank_transfer') {
+        // Bank transfer: don't charge wallet — manual admin approval handles the payment
+        // Set to 'waiting_payment' to ensure the lesson doesn't appear on the confirmed calendar
+        finalPaymentStatus = 'waiting_payment';
+        finalNotes = (finalNotes ? finalNotes + ' | ' : '') + `Bank Transfer requested | Bank Account ID: ${req.body.bank_account_id || 'Not specified'}`;
       } else if (finalAmount > 0) {
         pendingTransactions.push({
           userId: student_user_id,
@@ -1392,7 +1406,7 @@ router.post('/',
       parseFloat(req.body.discount_percent) || 0, // Ensure numeric type
       parseFloat(discountAmount) || 0, // Ensure numeric type
       parseFloat(calculatedFinalAmount) || 0, // Ensure numeric type
-      notes || '',
+      finalNotes,
       location || 'TBD',
       req.body.weather_conditions || 'Good',
       req.body.service_id,
@@ -1409,6 +1423,27 @@ router.post('/',
     const bookingResult = await client.query(insertBookingQuery, bookingInsertValues);
     
     const booking = bookingResult.rows[0];
+
+    // For bank transfers, insert the receipt tracking row immediately
+    if (requestedPaymentMethod === 'bank_transfer' && req.body.receiptUrl) {
+      await client.query(`
+        INSERT INTO bank_transfer_receipts (
+          user_id, booking_id, bank_account_id, receipt_url, amount, currency, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        student_user_id,
+        booking.id,
+        req.body.bank_account_id || null,
+        req.body.receiptUrl,
+        finalAmount || 0,
+        req.body.currency || 'EUR',
+        'pending'
+      ]);
+      
+      logger.info('Bank transfer receipt recorded for individual booking', {
+        userId: student_user_id, bookingId: booking.id, receiptUrl: req.body.receiptUrl
+      });
+    }
 
     // Now create any pending transactions with booking_id
     for (const tx of (pendingTransactions || [])) {
@@ -2951,7 +2986,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
             SELECT id, package_name, remaining_hours, total_hours, used_hours
             FROM customer_packages
             WHERE customer_id = $1
-              AND status = 'active'
+              AND status IN ('active', 'waiting_payment')
               AND (expiry_date IS NULL OR expiry_date >= $2)
           `;
           if (svcName) {
@@ -2993,8 +3028,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
                   WHEN $2::numeric <= 0
                     AND COALESCE(rental_days_remaining, 0) <= 0
                     AND COALESCE(accommodation_nights_remaining, 0) <= 0
-                  THEN 'used_up' ELSE 'active' END
-            WHERE id = $4 AND status = 'active'
+                  THEN 'used_up' WHEN status = 'waiting_payment' THEN 'waiting_payment' ELSE 'active' END
+            WHERE id = $4 AND status IN ('active', 'waiting_payment')
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
           `, [newUsed, newRemaining, normalizedDate, pkg.id, consumeFromPackage]);
@@ -5951,6 +5986,171 @@ router.post('/:id/suggest-time', authenticateJWT, async (req, res) => {
   } catch (error) {
     logger.error('Error suggesting time for partner booking', { bookingId: req.params.id, error: error?.message });
     res.status(500).json({ error: 'Failed to suggest time' });
+  }
+});
+
+/**
+ * GET /bookings/pending-transfers
+ * Admin/Staff route to fetch all pending bank transfer receipts
+ */
+router.get('/pending-transfers', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner', 'staff']), async (req, res) => {
+  try {
+    const { status = 'pending', limit = 50, offset = 0 } = req.query;
+    
+    // Join with users, bookings, and customer_packages to return all context
+    const query = `
+      SELECT r.*, 
+             u.first_name, u.last_name, u.email,
+             b.service_id, b.date as booking_date, b.start_hour, b.duration,
+             cp.package_name, cp.lesson_service_name,
+             ba.bank_name, ba.iban, ba.currency as bank_currency
+      FROM bank_transfer_receipts r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN bookings b ON r.booking_id = b.id
+      LEFT JOIN customer_packages cp ON r.customer_package_id = cp.id
+      LEFT JOIN wallet_bank_accounts ba ON r.bank_account_id = ba.id
+      WHERE r.status = $1
+      ORDER BY r.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    
+    const countQuery = `SELECT COUNT(*) FROM bank_transfer_receipts WHERE status = $1`;
+    
+    const [result, countResult] = await Promise.all([
+      pool.query(query, [status, limit, offset]),
+      pool.query(countQuery, [status])
+    ]);
+    
+    res.json({
+      results: result.rows,
+      pagination: {
+        total: parseInt(countResult.rows[0].count, 10),
+        limit: parseInt(limit, 10),
+        offset: parseInt(offset, 10)
+      }
+    });
+  } catch (err) {
+    logger.error('Error fetching pending transfers', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch pending transfers' });
+  }
+});
+
+/**
+ * PATCH /bookings/pending-transfers/:id/action
+ * Admin explicitly approves or rejects the bank transfer
+ */
+router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { action, reviewerNotes } = req.body; // action: 'approve' | 'reject'
+    
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Lock the receipt row
+    const receiptRes = await client.query('SELECT * FROM bank_transfer_receipts WHERE id = $1 FOR UPDATE', [id]);
+    if (receiptRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Receipt not found' });
+    }
+    
+    const receipt = receiptRes.rows[0];
+    if (receipt.status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Receipt is already ${receipt.status}` });
+    }
+    
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    
+    // Update receipt status
+    await client.query(
+      `UPDATE bank_transfer_receipts 
+       SET status = $1, notes = CONCAT(notes, ' | Reviewer Note: ', $2::text), updated_at = NOW() 
+       WHERE id = $3`,
+      [newStatus, reviewerNotes || '', id]
+    );
+    
+    // If approved, verify the associated booking or customer package
+    if (newStatus === 'approved') {
+      if (receipt.booking_id) {
+        // standalone booking
+        await client.query(
+          `UPDATE bookings 
+           SET payment_status = 'paid', status = 'confirmed', updated_at = NOW() 
+           WHERE id = $1`,
+          [receipt.booking_id]
+        );
+        logger.info('Standalone booking confirmed via bank transfer approval', { bookingId: receipt.booking_id, receiptId: id });
+        
+        // Notify student
+        try {
+          req.socketService?.emitToChannel(`user:${receipt.user_id}`, 'notification:new', {
+            notification: { title: 'Payment Approved', message: 'Your bank transfer was approved and lesson confirmed!', type: 'success' }
+          });
+        } catch (e) { /* ignore */ }
+      } else if (receipt.customer_package_id) {
+        // package purchase
+        await client.query(
+          `UPDATE customer_packages 
+           SET status = 'active'
+           WHERE id = $1`,
+           [receipt.customer_package_id]
+        );
+        logger.info('Package activated via bank transfer approval', { pkgId: receipt.customer_package_id, receiptId: id });
+        
+        // Let's also verify any lessons booked WITHIN this package
+        await client.query(
+          `UPDATE bookings 
+           SET payment_status = 'package', status = 'confirmed', updated_at = NOW() 
+           WHERE customer_package_id = $1 AND payment_status = 'waiting_payment'`,
+          [receipt.customer_package_id]
+        );
+        
+        try {
+          req.socketService?.emitToChannel(`user:${receipt.user_id}`, 'notification:new', {
+            notification: { title: 'Package Activated', message: 'Your bank transfer was approved and package is now active!', type: 'success' }
+          });
+        } catch (e) { /* ignore */ }
+      }
+    } else {
+      // Rejected
+      if (receipt.booking_id) {
+        await client.query(
+          `UPDATE bookings SET payment_status = 'failed', status = 'cancelled', notes = CONCAT(notes, ' | Payment Rejected'), updated_at = NOW() WHERE id = $1`,
+          [receipt.booking_id]
+        );
+      } else if (receipt.customer_package_id) {
+        // Packages remain 'waiting_payment' so they are not active? Let's mark as expired
+        await client.query(
+          `UPDATE customer_packages SET status = 'expired', notes = CONCAT(notes, ' | Payment Rejected') WHERE id = $1`,
+          [receipt.customer_package_id]
+        );
+        // And cancel associated bookings
+        await client.query(
+          `UPDATE bookings SET payment_status = 'failed', status = 'cancelled', updated_at = NOW() WHERE customer_package_id = $1`,
+          [receipt.customer_package_id]
+        );
+      }
+      
+      try {
+        req.socketService?.emitToChannel(`user:${receipt.user_id}`, 'notification:new', {
+          notification: { title: 'Bank Transfer Rejected', message: `Your bank transfer was rejected: ${reviewerNotes || 'No notes left'}`, type: 'error' }
+        });
+      } catch (e) { /* ignore */ }
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: `Receipt ${newStatus} successfully` });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    logger.error('Error processing bank transfer receipt', { error: err.message });
+    res.status(500).json({ error: 'Failed to process action' });
+  } finally {
+    client.release();
   }
 });
 

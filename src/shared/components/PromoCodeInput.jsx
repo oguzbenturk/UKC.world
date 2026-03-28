@@ -190,15 +190,17 @@ const PromoCodeInput = ({
           }}
           onKeyPress={handleKeyPress}
           disabled={disabled || validating}
-          prefix={<GiftOutlined style={{ color: '#999' }} />}
+          prefix={<GiftOutlined className="text-white/40" />}
           style={{ textTransform: 'uppercase' }}
           status={error ? 'error' : undefined}
+          className="!bg-white/5 !border-white/10 !text-white [&_input]:!text-white [&_input::placeholder]:!text-white/50 [&::placeholder]:!text-white/50 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] transition-colors"
         />
         <Button
           type="primary"
           onClick={handleValidate}
           loading={validating}
           disabled={disabled || !code.trim()}
+          className="font-duotone-bold !bg-[#00a8c4] !text-white !border-none hover:!opacity-90 disabled:!bg-white/10 disabled:!text-white/30 transition-all"
         >
           Apply
         </Button>

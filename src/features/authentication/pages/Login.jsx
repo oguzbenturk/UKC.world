@@ -5,8 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/shared/hooks/useAuth';
 import RegisterModal from '../components/RegisterModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
+import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 
-// Feature icons as static components (not recreated on each render)
+// Feature icons as static components
 const DashboardIcon = (props) => (
   <svg {...props} viewBox="0 0 20 20" fill="currentColor">
     <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
@@ -37,26 +38,19 @@ const UsersIcon = (props) => (
   </svg>
 );
 
-const AIIcon = (props) => (
-  <svg {...props} viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-  </svg>
-);
-
 // Static features data
 const FEATURES = [
   { text: 'Dashboard Analytics', Icon: DashboardIcon },
-  { text: 'Easy Booking', Icon: CalendarIcon },
-  { text: 'Equipment & Rentals', Icon: EquipmentIcon },
-  { text: 'Track Finances', Icon: FinanceIcon },
-  { text: 'User Management', Icon: UsersIcon },
-  { text: 'AI-Powered Insights', Icon: AIIcon },
+  { text: 'Lesson Booking', Icon: CalendarIcon },
+  { text: 'Equipment Rentals', Icon: EquipmentIcon },
+  { text: 'Finance Tracking', Icon: FinanceIcon },
+  { text: 'Community Management', Icon: UsersIcon },
 ];
 
 const Login = () => {
   usePageSEO({
-    title: 'Login | Plannivo',
-    description: 'Sign in to manage lessons, rentals, customers, and operations.',
+    title: 'Login | UKC.',
+    description: 'Sign in to manage lessons, rentals, customers, and operations at Duotone Pro Center Urla.',
     path: '/login'
   });
 
@@ -81,11 +75,9 @@ const Login = () => {
         setEmail(rememberedEmail);
         setRememberMe(true);
       }
-      // Cleanup old password storage
       localStorage.removeItem('rememberedPassword');
       didPrefill.current = true;
       
-      // Check if navigated with state to show forgot password modal
       if (location.state?.showForgotPassword) {
         setShowForgotPasswordModal(true);
       }
@@ -139,7 +131,6 @@ const Login = () => {
       const result = await login(email, password);
       
       if (result) {
-        // Save email if remember me is checked
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', email);
         } else {
@@ -161,175 +152,164 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      {/* Scrollable container */}
-      <div className="min-h-screen overflow-y-auto py-8 px-4">
-        <div className="max-w-md mx-auto lg:max-w-4xl">
+    <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background blobs for depth */}
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-duotone-blue/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-antrasit/30 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-duotone-blue/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+
+      <div className="relative w-full max-w-5xl">
+        <div className="lg:flex lg:items-stretch overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
           
-          {/* Main Card */}
-          <div className="bg-slate-800/90 backdrop-blur rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
-            <div className="lg:flex">
+          {/* Left panel: Login Form */}
+          <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
+            {/* Logo and branding */}
+            <div className="text-center mb-10">
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <span className="font-gotham-medium text-5xl text-white tracking-tight">UKC.</span>
+              </div>
               
-              {/* Login Form Section */}
-              <div className="p-6 sm:p-8 lg:w-1/2">
-                {/* Logo & Header */}
-                <div className="text-center mb-6">
-                  <img 
-                    src="/logo.png?v=3" 
-                    alt="Plannivo" 
-                    className="w-48 h-auto mx-auto mb-4"
-                  />
-                  <h1 className="text-2xl font-bold text-white">Member Login</h1>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Access your dashboard and manage activities
-                  </p>
-                </div>
+              <img 
+                src={dpcLogo} 
+                alt="Duotone Pro Center Urla" 
+                className="h-14 w-auto mx-auto mb-10"
+              />
+              
+              <h1 className="font-duotone-bold-extended text-3xl text-white mb-2 uppercase tracking-tight">Member Login</h1>
+              <p className="font-duotone-regular text-gray-400 text-sm">
+                Welcome back to Duotone Pro Center Urla.
+              </p>
+            </div>
 
-                {/* Error Message */}
-                {error && (
-                  <div className="bg-red-900/30 border border-red-800/50 rounded-lg p-3 mb-4">
-                    <p className="text-red-300 text-sm text-center">{error}</p>
-                  </div>
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+                <p className="font-duotone-regular text-red-400 text-sm text-center">{error}</p>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block font-duotone-bold text-xs uppercase tracking-wider text-gray-400 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full font-duotone-regular bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-duotone-blue/50 focus:border-duotone-blue/50 transition-all"
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block font-duotone-bold text-xs uppercase tracking-wider text-gray-400">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="font-duotone-regular text-xs text-duotone-blue hover:text-duotone-blue/80 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full font-duotone-regular bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-duotone-blue/50 focus:border-duotone-blue/50 transition-all"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded bg-white/5 border-white/10 text-duotone-blue focus:ring-duotone-blue focus:ring-offset-black"
+                />
+                <label htmlFor="remember-me" className="ml-2 font-duotone-regular text-sm text-gray-400">
+                  Stay signed in
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full font-duotone-bold bg-antrasit border border-duotone-blue/30 text-duotone-blue py-4 px-6 rounded-xl hover:bg-[#525759] hover:border-duotone-blue/60 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  boxShadow: '0 0 15px rgba(0,168,196,0.1)',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                {isLoading ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <>
+                    SIGN IN
+                    <div className="w-px h-3 bg-duotone-blue/30 mx-1 group-hover:bg-duotone-blue/60 transition-colors"></div>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </>
                 )}
+              </button>
+            </form>
 
-                {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
-                      Email
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label htmlFor="password" className="text-sm font-medium text-slate-300">
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleForgotPassword}
-                        className="text-xs text-sky-400 hover:text-sky-300"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full px-3 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      id="remember"
-                      name="remember"
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-sky-500 focus:ring-sky-500"
-                    />
-                    <label htmlFor="remember" className="ml-2 text-sm text-slate-300">
-                      Remember me
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-sky-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center"
-                  >
-                    {isLoading ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Signing in...
-                      </>
-                    ) : (
-                      'Sign In'
-                    )}
-                  </button>
-                </form>
-
-                {/* Mobile: Register CTA */}
-                <div className="mt-6 pt-4 border-t border-slate-700 lg:hidden">
-                  <p className="text-slate-400 text-sm text-center mb-3">
-                    Don't have an account?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterModal(true)}
-                    className="w-full py-2.5 border border-sky-500 text-sky-400 hover:bg-sky-500/10 font-medium rounded-lg transition-colors"
-                  >
-                    Create Account
-                  </button>
-                </div>
-              </div>
-
-              {/* Features Section - Desktop */}
-              <div className="hidden lg:block lg:w-1/2 p-8 bg-slate-900/50">
-                <h2 className="text-xl font-bold text-white mb-2">Welcome to Plannivo</h2>
-                <p className="text-slate-400 text-sm mb-6">
-                  Complete management solution for kitesurfing schools and rentals.
-                </p>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {FEATURES.map(({ text, Icon }) => (
-                    <div key={text} className="flex items-center gap-3">
-                      <Icon className="w-5 h-5 text-sky-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-sm">{text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-slate-700">
-                  <p className="text-slate-400 text-sm mb-3">
-                    Don't have an account?
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterModal(true)}
-                    className="w-full py-2.5 border border-sky-500 text-sky-400 hover:bg-sky-500/10 font-medium rounded-lg transition-colors"
-                  >
-                    Create Account
-                  </button>
-                </div>
-              </div>
+            {/* Mobile Register */}
+            <div className="mt-8 text-center lg:hidden">
+              <p className="font-duotone-regular text-sm text-gray-500 mb-4">
+                Don't have an account?
+              </p>
+              <button
+                onClick={() => setShowRegisterModal(true)}
+                className="font-duotone-bold text-xs uppercase tracking-widest text-white hover:text-duotone-blue transition-colors underline underline-offset-8"
+              >
+                Create Account
+              </button>
             </div>
           </div>
 
-          {/* Mobile: Features below the card */}
-          <div className="mt-6 lg:hidden">
-            <div className="bg-slate-800/60 rounded-xl p-5 border border-slate-700/50">
-              <h3 className="text-lg font-semibold text-white mb-4 text-center">
-                Why Plannivo?
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
+          {/* Right panel: Features & Branding */}
+          <div className="hidden lg:flex lg:w-1/2 p-12 bg-white/5 border-l border-white/5 flex-col justify-between">
+            <div>
+              <h2 className="font-duotone-bold-extended text-2xl text-white mb-6">Expertise. Excellence. Experience.</h2>
+              <div className="space-y-6">
                 {FEATURES.map(({ text, Icon }) => (
-                  <div key={text} className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                    <span className="text-slate-300 text-xs">{text}</span>
+                  <div key={text} className="flex items-center gap-4 group">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-duotone-blue border border-white/10 group-hover:bg-duotone-blue group-hover:text-white transition-all duration-300">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="font-duotone-regular text-gray-300">{text}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-12 p-8 rounded-2xl bg-duotone-blue/10 border border-duotone-blue/20">
+              <p className="font-duotone-regular text-sm text-gray-300 mb-6 italic">
+                "Join the leading watersports community in Urla. Access your progress, book sessions, and manage your membership with UKC."
+              </p>
+              <div className="flex flex-col gap-4">
+                <p className="font-duotone-bold text-xs uppercase tracking-widest text-duotone-blue">
+                  New here?
+                </p>
+                <button
+                  onClick={() => setShowRegisterModal(true)}
+                  className="font-duotone-bold bg-white text-antrasit py-3 px-6 rounded-xl hover:bg-gray-100 transition-all text-center tracking-widest"
+                >
+                  CREATE ACCOUNT
+                </button>
               </div>
             </div>
           </div>
@@ -337,14 +317,13 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Register Modal */}
+      {/* Modals */}
       <RegisterModal
         visible={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}
         onSuccess={() => setShowRegisterModal(false)}
       />
       
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}

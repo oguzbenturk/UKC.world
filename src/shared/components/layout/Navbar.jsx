@@ -73,7 +73,7 @@ const resolveWalletBalance = (summary, user) => {
   return typeof extracted === 'number' && Number.isFinite(extracted) ? extracted : undefined;
 };
 
-export const Navbar = ({ toggleSidebar }) => { 
+export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => { 
   // Mobile NavLinks menu is no longer used (only sidebar toggle remains)
   // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -216,6 +216,10 @@ export const Navbar = ({ toggleSidebar }) => {
     setIsLogoutModalVisible(false);
   };
 
+  const handleSidebarToggle = () => {
+    if (toggleSidebar) toggleSidebar();
+  };
+
   return (
     <div className="dark safe-pt">
       <nav
@@ -237,15 +241,15 @@ export const Navbar = ({ toggleSidebar }) => {
             <div className="flex items-center h-16">
               {/* Left Section - fixed width */}
               <div className="flex items-center flex-shrink-0">
-                {/* Mobile/Tablet Menu Toggle - visible only on screens smaller than 1200px */}
+                {/* Mobile/Tablet Menu Toggle - visible on all screens */}
                   <button 
-                  onClick={toggleSidebar}
-                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#00a8c4] xl:hidden transition-colors duration-150 ease-in-out"
+                  onClick={handleSidebarToggle}
+                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#00a8c4] transition-colors duration-150 ease-in-out"
                   aria-expanded={false}
-                  aria-label="Open sidebar"
+                  aria-label="Toggle sidebar"
                   data-sidebar-toggle="true"
                 >
-                  <span className="sr-only">Open sidebar</span>
+                  <span className="sr-only">Toggle sidebar</span>
                   <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
                 </button>
 
@@ -592,7 +596,7 @@ export const Navbar = ({ toggleSidebar }) => {
                   <button
                     onClick={() => {
                       openAuthModal({
-                        title: 'Sign In to UKC.World',
+                        title: 'Sign In to UKC',
                         message: 'Create an account or sign in to access all features',
                         returnUrl: location.pathname
                       });

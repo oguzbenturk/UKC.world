@@ -1,18 +1,10 @@
 import { useState } from 'react';
-import { Modal, Input, Button, Typography, Space, Alert } from 'antd';
-import { message } from '@/shared/utils/antdStatic';
+import { Modal, Input, Button, Space, Alert } from 'antd';
 import { MailOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 
-const { Text, Title } = Typography;
-
 /**
  * ForgotPasswordModal - Modal for requesting password reset email
- * 
- * Security features:
- * - Rate limited on backend (3 requests per hour)
- * - No email enumeration (always shows success message)
- * - Secure token sent via email
  */
 const ForgotPasswordModal = ({ visible, onClose }) => {
   const [email, setEmail] = useState('');
@@ -30,19 +22,15 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
     setError(null);
 
     try {
-      const response = await apiClient.post('/auth/forgot-password', {
+      await apiClient.post('/auth/forgot-password', {
         email: email.trim().toLowerCase()
       });
-
-      // Success
       setSuccess(true);
     } catch (err) {
       console.error('Password reset request failed:', err);
-      // Rate limit error
       if (err.response?.status === 429) {
         setError('Too many requests. Please wait before trying again.');
       } else {
-        // Still show success to prevent email enumeration
         setSuccess(true);
       }
     } finally {
@@ -63,116 +51,122 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
     }
   };
 
+  const content = (
+    <div className="flex flex-col bg-[#1a1c1e] text-white rounded-3xl overflow-hidden w-full relative border border-white/10 shadow-2xl p-8">
+      {!success ? (
+        <>
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-duotone-blue text-3xl shadow-inner">
+              <MailOutlined />
+            </div>
+            <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Forgot Password?</h2>
+            <p className="font-duotone-regular text-gray-400 text-sm">
+              Enter your email and we'll send you a link to reset your password.
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6">
+              <Alert
+                message={error}
+                type="error"
+                showIcon
+                closable
+                onClose={() => setError(null)}
+                className="rounded-xl border-red-500/20 bg-red-500/10 text-red-400"
+              />
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <div>
+              <label className="block font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500 mb-2">
+                Email Address
+              </label>
+              <Input
+                prefix={<MailOutlined className="text-gray-600 mr-2" />}
+                type="email"
+                placeholder="name@example.com"
+                size="large"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="bg-white/5 border-white/10 rounded-xl text-white h-12 focus:border-duotone-blue focus:ring-duotone-blue"
+                autoFocus
+              />
+            </div>
+
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2 tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
+            >
+              {loading ? 'SENDING...' : 'SEND RESET LINK'}
+            </button>
+
+            <button
+              onClick={handleClose}
+              className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors flex items-center justify-center gap-2 text-xs tracking-widest"
+            >
+              <ArrowLeftOutlined /> BACK TO LOGIN
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="text-center py-4">
+          <div className="w-16 h-16 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-green-400 text-3xl shadow-inner">
+            <CheckCircleOutlined />
+          </div>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Check Your Email</h2>
+          <p className="font-duotone-regular text-gray-400 text-sm mb-6">
+            If an account exists with <strong className="text-white">{email}</strong>, you will receive a reset link shortly.
+          </p>
+          
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-left mb-8">
+            <h4 className="font-duotone-bold text-xs text-duotone-blue mb-2 uppercase tracking-widest">Didn't receive it?</h4>
+            <p className="font-duotone-regular text-xs text-gray-400 leading-relaxed">
+              Check your spam folder or verify you entered the correct address. The link expires in 1 hour.
+            </p>
+          </div>
+          
+          <button
+            onClick={handleClose}
+            className="w-full font-duotone-bold bg-white text-antrasit py-4 rounded-xl hover:bg-gray-100 transition-all tracking-widest text-sm"
+          >
+            RETURN TO LOGIN
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       open={visible}
       onCancel={handleClose}
       footer={null}
       centered
-      width={420}
-      className="forgot-password-modal"
+      width={440}
+      closable={true}
+      closeIcon={<span className="text-gray-500 hover:text-white text-lg">✕</span>}
       destroyOnHidden
+      styles={{ 
+        content: { 
+          padding: 0, 
+          overflow: 'hidden', 
+          borderRadius: '32px',
+          backgroundColor: 'transparent',
+          border: 'none',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+        },
+        mask: {
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(0,0,0,0.4)'
+        }
+      }}
+      className="forgot-password-modal brand-modal"
     >
-      <div className="py-4">
-        {!success ? (
-          // Request form
-          <>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                <MailOutlined className="text-3xl text-blue-600" />
-              </div>
-              <Title level={4} className="mb-2">Forgot Password?</Title>
-              <Text type="secondary">
-                Enter your email address and we'll send you a link to reset your password.
-              </Text>
-            </div>
-
-            {error && (
-              <Alert
-                message={error}
-                type="error"
-                showIcon
-                className="mb-4"
-                closable
-                onClose={() => setError(null)}
-              />
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <Input
-                  prefix={<MailOutlined className="text-gray-400" />}
-                  type="email"
-                  name="email"
-                  id="forgot-email"
-                  autoComplete="email"
-                  placeholder="Enter your email"
-                  size="large"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleKeyPress(e)}
-                  autoFocus
-                />
-              </div>
-
-              <Button
-                type="primary"
-                size="large"
-                block
-                loading={loading}
-                onClick={handleSubmit}
-              >
-                Send Reset Link
-              </Button>
-
-              <Button
-                type="link"
-                icon={<ArrowLeftOutlined />}
-                onClick={handleClose}
-                className="w-full"
-              >
-                Back to Login
-              </Button>
-            </div>
-          </>
-        ) : (
-          // Success message
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircleOutlined className="text-3xl text-green-600" />
-            </div>
-            <Title level={4} className="mb-2">Check Your Email</Title>
-            <Text type="secondary" className="block mb-4">
-              If an account exists with <strong>{email}</strong>, you will receive a password reset link shortly.
-            </Text>
-            <Text type="secondary" className="block mb-6 text-sm">
-              The link will expire in 1 hour for security reasons.
-            </Text>
-            
-            <Space direction="vertical" className="w-full">
-              <Alert
-                message="Didn't receive the email?"
-                description="Check your spam folder, or verify you entered the correct email address."
-                type="info"
-                showIcon
-              />
-              
-              <Button
-                type="primary"
-                size="large"
-                block
-                onClick={handleClose}
-                className="mt-4"
-              >
-                Return to Login
-              </Button>
-            </Space>
-          </div>
-        )}
-      </div>
+      {content}
     </Modal>
   );
 };

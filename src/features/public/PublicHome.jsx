@@ -1,11 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
-import dpcLogo from '../../../DuotoneFonts/DPC-URLAtransparentonwhite.png';
+import { ArrowRightIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/outline';
+import dpcLogo from '../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import bgVideo from '../../../DuotoneFonts/backgroundvideo.mp4';
 
 const PublicHome = () => {
   const navigate = useNavigate();
+  const [isMuted, setIsMuted] = React.useState(true);
+  const videoRef = React.useRef(null);
+
+  const toggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = nextMuted;
+      if (!nextMuted) {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  };
 
   return (
     <div className="relative h-screen min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-[#0f1013] text-white font-sans">
@@ -14,9 +27,10 @@ const PublicHome = () => {
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/50 to-black/80 z-10" />
         <video
+          ref={videoRef}
           autoPlay
           loop
-          muted
+          muted={isMuted}
           playsInline
           className="w-full h-full object-cover"
         >
@@ -26,17 +40,16 @@ const PublicHome = () => {
 
       {/* Content Container - pb-32 added to lift content up and avoid overlapping footer */}
       <div className="relative z-20 flex flex-col items-center justify-center text-center px-4 max-w-5xl mx-auto w-full pb-32">
-        
+
         {/* Brand block — centered */}
         <div className="flex flex-col items-center mb-8">
           {/* Main Brand Title */}
           <div className="flex items-baseline mb-3">
             <span className="font-gotham-medium antialiased text-white drop-shadow-2xl" style={{ fontSize: 'clamp(2.5rem, 7vw, 5rem)', fontWeight: 500, textRendering: 'geometricPrecision', letterSpacing: 0, lineHeight: 1 }}>UKC</span>
-            <span style={{ display: 'inline-block', width: 'clamp(0.32rem, 0.85vw, 0.62rem)', height: 'clamp(0.32rem, 0.85vw, 0.62rem)', borderRadius: '50%', backgroundColor: '#00a8c4', marginLeft: '0.05em', marginBottom: '0.12em', flexShrink: 0 }} />
           </div>
 
           {/* Logo */}
-          <img src={dpcLogo} alt="Duotone Pro Center Urla" style={{ height: '85px', objectFit: 'contain', filter: 'invert(1)' }} />
+          <img src={dpcLogo} alt="Duotone Pro Center Urla" style={{ height: '75px', objectFit: 'contain' }} />
         </div>
 
 {/* Description / Services Quick View */}
@@ -62,6 +75,23 @@ const PublicHome = () => {
             <ArrowRightIcon className="w-4 h-4 text-[#00a8c4] group-hover:translate-x-1 transition-transform duration-300 flex-shrink-0" />
           </button>
         </div>
+
+        {/* Mute/Unmute classic icon control below Discover */}
+        <button
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'}
+          className="mt-8 inline-flex h-12 min-w-[90px] flex-col items-center justify-center rounded-md bg-black/20 opacity-70 transition hover:opacity-100"
+          style={{ backdropFilter: 'blur(4px)' }}
+        >
+          <span className="flex items-center justify-center text-white w-full h-10">
+            {isMuted ? (
+              <SpeakerXMarkIcon className="h-6 w-6 text-white opacity-95 m-auto" />
+            ) : (
+              <SpeakerWaveIcon className="h-6 w-6 text-white opacity-95 m-auto" />
+            )}
+          </span>
+          <span className="text-[10px] text-white/75 mt-1">{isMuted ? 'UNMUTE' : 'MUTE'}</span>
+        </button>
 
       </div>
 

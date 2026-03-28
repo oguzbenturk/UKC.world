@@ -284,20 +284,57 @@ router.post('/repair-image', authenticateJWT, imageUpload.single('image'), (req,
   }
 });
 
-router.post('/wallet-deposit', authenticateJWT, imageUpload.single('image'), (req, res) => {
-  try {
+// Configure multer for bank transfer / wallet deposit receipts (JPEG, PNG, PDF)
+const receiptsDir = path.join(uploadsDir, 'receipts');
+if (!fs.existsSync(receiptsDir)) {
+  fs.mkdirSync(receiptsDir, { recursive: true });
+}
+
+const receiptStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, receiptsDir),
+  filename: (req, file, cb) => {
+    const ext = normalizeSafeExtension(file.originalname, '.bin');
+    const safeUser = (req.user?.id || 'user').toString();
+    cb(null, `receipt-${safeUser}-${Date.now()}${ext}`);
+  }
+});
+
+const RECEIPT_MIME_TO_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'application/pdf': '.pdf',
+};
+
+const receiptFileFilter = (_req, file, cb) => {
+  const mime = (file.mimetype || '').toLowerCase();
+  if (RECEIPT_MIME_TO_EXT[mime]) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPEG, PNG, or PDF files are accepted for receipts.'));
+  }
+};
+
+const receiptUpload = multer({
+  storage: receiptStorage,
+  fileFilter: receiptFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+router.post('/wallet-deposit', authenticateJWT, (req, res) => {
+  receiptUpload.single('image')(req, res, (err) => {
+    if (err) {
+      // Multer validation error — return clean 400 instead of crashing connection
+      return res.status(400).json({ error: err.message || 'File upload rejected.' });
+    }
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-
-    const relativePath = `/uploads/images/${req.file.filename}`;
-    console.log('Wallet deposit proof uploaded:', relativePath);
+    const relativePath = `/uploads/receipts/${req.file.filename}`;
+    console.log('Bank transfer receipt uploaded:', relativePath);
     res.json({ url: relativePath });
-  } catch (error) {
-    console.error('Error uploading wallet deposit proof:', error);
-    res.status(500).json({ error: 'Failed to upload wallet deposit proof' });
-  }
+  });
 });
+
 
 // Chat media upload endpoints
 const chatImagesDir = path.join(uploadsDir, 'chat-images');

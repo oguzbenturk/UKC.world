@@ -14,48 +14,48 @@ const CONTACT_CHANNELS = [
     key: 'whatsapp',
     icon: <WhatsAppOutlined className="text-3xl" />,
     label: 'WhatsApp',
-    value: '+90 530 000 00 00',
+    value: '+90 507 138 91 96',
     description: 'Fastest response. Message us any time.',
-    href: 'https://wa.me/905300000000',
-    color: 'text-green-400',
-    bg: 'bg-green-500/10 border-green-500/20 hover:border-green-400/50',
-    btnClass: '!bg-green-600 !border-none hover:!bg-green-500',
+    href: 'https://wa.me/905071389196',
+    color: 'text-[#25D366]',
+    bg: 'bg-[#25D366]/5 border-[#25D366]/10 hover:border-[#25D366]/30',
+    btnClass: '!bg-[#25D366] !border-none hover:opacity-90',
     btnLabel: 'Open WhatsApp',
   },
   {
     key: 'email',
     icon: <MailOutlined className="text-3xl" />,
     label: 'Email',
-    value: 'info@ukc.world',
+    value: 'ukcturkey@gmail.com',
     description: 'For detailed enquiries, bookings, and partnerships.',
-    href: 'mailto:info@ukc.world',
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/10 border-sky-500/20 hover:border-sky-400/50',
-    btnClass: '!bg-sky-600 !border-none hover:!bg-sky-500',
+    href: 'mailto:ukcturkey@gmail.com',
+    color: 'text-[#00a8c4]',
+    bg: 'bg-[#00a8c4]/5 border-[#00a8c4]/10 hover:border-[#00a8c4]/30',
+    btnClass: '!bg-[#00a8c4] !border-none hover:opacity-90',
     btnLabel: 'Send Email',
   },
   {
     key: 'instagram',
     icon: <InstagramOutlined className="text-3xl" />,
     label: 'Instagram',
-    value: '@ukc.world',
+    value: '@urlakitecenter',
     description: 'Follow us for daily conditions, videos, and news.',
-    href: 'https://instagram.com/ukc.world',
-    color: 'text-pink-400',
-    bg: 'bg-pink-500/10 border-pink-500/20 hover:border-pink-400/50',
-    btnClass: '!bg-pink-600 !border-none hover:!bg-pink-500',
+    href: 'https://instagram.com/urlakitecenter',
+    color: 'text-[#E1306C]',
+    bg: 'bg-[#E1306C]/5 border-[#E1306C]/10 hover:border-[#E1306C]/30',
+    btnClass: '!bg-[#E1306C] !border-none hover:opacity-90',
     btnLabel: 'Visit Instagram',
   },
   {
     key: 'phone',
     icon: <PhoneOutlined className="text-3xl" />,
     label: 'Phone',
-    value: '+90 530 000 00 00',
+    value: '+90 507 138 91 96',
     description: 'Give us a call during school hours.',
-    href: 'tel:+905300000000',
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10 border-violet-500/20 hover:border-violet-400/50',
-    btnClass: '!bg-violet-600 !border-none hover:!bg-violet-500',
+    href: 'tel:+905071389196',
+    color: 'text-[#8b5cf6]',
+    bg: 'bg-[#8b5cf6]/5 border-[#8b5cf6]/10 hover:border-[#8b5cf6]/30',
+    btnClass: '!bg-[#8b5cf6] !border-none hover:opacity-90',
     btnLabel: 'Call Now',
   },
 ];
@@ -71,15 +71,12 @@ const ContactPage = () => {
 
       {/* Hero */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 via-transparent to-cyan-900/10 pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-14 relative z-10 text-center">
-          <span className="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-widest px-4 py-1.5 rounded-full mb-6 uppercase">
-            Get In Touch
-          </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00a8c4]/5 via-transparent to-white/5 pointer-events-none" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 relative z-10 text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-duotone-bold-extended mb-6 tracking-tight">
             We&apos;d love to hear from you
           </h1>
-          <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto">
+          <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto font-duotone-regular">
             Whether you have a question about lessons, rentals, availability, or just want to say hi — reach out through any of the channels below.
           </p>
         </div>
@@ -117,24 +114,29 @@ const ContactPage = () => {
       {/* Location + Hours */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <div className="flex gap-4 items-start p-6 rounded-2xl bg-white/5 border border-white/8">
-            <EnvironmentOutlined className="text-2xl text-emerald-400 mt-0.5 flex-shrink-0" />
+          <a 
+            href="https://www.google.com/maps/place/URLA+KITE+CENTER+-+U+K+C/@38.331293,26.6346796,15z/data=!4m10!1m2!2m1!1sDuotone+Pro+Center+Urla!3m6!1s0x14bb90e11e890789:0x7e293042b26fdc!8m2!3d38.331293!4d26.653734!15sChdEdW90b25lIFBybyBDZW50ZXIgVXJsYVoZIhdkdW90b25lIHBybyBjZW50ZXIgdXJsYZIBCWtpdGVfc2hvcJoBI0NoWkRTVWhOTUc5blMwVkpRMEZuU1VSeWRVOWZRV05SRUFF4AEA-gEFCNIHEEc!16s%2Fg%2F11clyt0vxn?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex gap-4 items-start p-6 rounded-2xl bg-white/5 border border-white/8 hover:border-white/20 transition-all cursor-pointer no-underline group"
+          >
+            <EnvironmentOutlined className="text-2xl text-white mt-0.5 flex-shrink-0 group-hover:text-[#00a8c4] transition-colors" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Find Us</p>
-              <p className="text-white font-semibold text-lg mb-1">Duotone Pro Center Urla</p>
-              <p className="text-gray-400 text-sm leading-relaxed">
+              <p className="text-xs font-duotone-bold uppercase tracking-widest text-[#00a8c4] mb-1">Find Us</p>
+              <p className="text-white font-duotone-bold text-lg mb-1 group-hover:text-[#00a8c4] transition-colors">Duotone Pro Center Urla</p>
+              <p className="text-gray-400 text-sm leading-relaxed font-duotone-regular">
                 Urla, İzmir — Turkey<br />
                 Right on the waterfront.
               </p>
             </div>
-          </div>
+          </a>
 
           <div className="flex gap-4 items-start p-6 rounded-2xl bg-white/5 border border-white/8">
-            <ClockCircleOutlined className="text-2xl text-emerald-400 mt-0.5 flex-shrink-0" />
+            <ClockCircleOutlined className="text-2xl text-white mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">School Hours</p>
-              <p className="text-white font-semibold text-lg mb-1">Every Day</p>
-              <p className="text-gray-400 text-sm leading-relaxed">
+              <p className="text-xs font-duotone-bold uppercase tracking-widest text-[#00a8c4] mb-1">School Hours</p>
+              <p className="text-white font-duotone-bold text-lg mb-1">Every Day</p>
+              <p className="text-gray-400 text-sm leading-relaxed font-duotone-regular">
                 09:00 – 18:00<br />
                 Wind &amp; weather dependent.
               </p>

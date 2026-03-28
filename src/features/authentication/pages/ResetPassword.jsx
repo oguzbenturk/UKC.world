@@ -5,29 +5,15 @@ import { message } from '@/shared/utils/antdStatic';
 import { LockOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 
+import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
+
 const { Text, Title, Paragraph } = Typography;
 
 // Static logo component
 const Logo = () => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 200 60" 
-    className="h-10 w-auto"
-    aria-label="Plannivo Logo"
-  >
-    <text
-      x="100"
-      y="40"
-      textAnchor="middle"
-      fontFamily="'Segoe UI', system-ui, -apple-system, sans-serif"
-      fontSize="28"
-      fontWeight="700"
-      fill="#1890ff"
-      letterSpacing="1"
-    >
-      Plannivo
-    </text>
-  </svg>
+  <div className="flex items-center justify-center gap-2 mb-6">
+    <img src={dpcLogo} alt="UKC." style={{ height: '50px', objectFit: 'contain' }} />
+  </div>
 );
 
 /**
@@ -130,13 +116,13 @@ const ResetPassword = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center py-8">
+      <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-2xl">
           <Spin size="large" />
-          <Paragraph className="mt-4 text-gray-600">
+          <p className="font-duotone-regular mt-6 text-gray-400">
             Validating your reset link...
-          </Paragraph>
-        </Card>
+          </p>
+        </div>
       </div>
     );
   }
@@ -144,26 +130,22 @@ const ResetPassword = () => {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <div className="text-center py-4">
-            <div className="w-20 h-20 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircleOutlined className="text-4xl text-green-600" />
-            </div>
-            <Title level={3} className="mb-2">Password Reset Successful!</Title>
-            <Paragraph className="text-gray-600 mb-6">
-              Your password has been reset successfully. You can now log in with your new password.
-            </Paragraph>
-            <Button 
-              type="primary" 
-              size="large" 
-              block 
-              onClick={goToLogin}
-            >
-              Go to Login
-            </Button>
+      <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-2xl">
+          <div className="w-20 h-20 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-green-400 shadow-inner">
+            <CheckCircleOutlined className="text-4xl" />
           </div>
-        </Card>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">Success!</h2>
+          <p className="font-duotone-regular text-gray-400 mb-8">
+            Your password has been reset successfully. You can now log in with your new password.
+          </p>
+          <button
+            onClick={goToLogin}
+            className="w-full font-duotone-bold bg-white text-antrasit py-4 rounded-xl hover:bg-gray-100 transition-all tracking-widest text-sm shadow-lg"
+          >
+            GO TO LOGIN
+          </button>
+        </div>
       </div>
     );
   }
@@ -171,84 +153,82 @@ const ResetPassword = () => {
   // Error/Invalid token state
   if (!tokenValid || error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <div className="text-center py-4">
-            <div className="w-20 h-20 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-              <CloseCircleOutlined className="text-4xl text-red-600" />
-            </div>
-            <Title level={3} className="mb-2">Link Expired or Invalid</Title>
-            <Paragraph className="text-gray-600 mb-4">
-              {error || 'This password reset link has expired or is invalid.'}
-            </Paragraph>
-            <Alert
-              message="Password reset links expire after 1 hour for security reasons."
-              type="info"
-              showIcon
-              className="mb-6 text-left"
-            />
-            <Space direction="vertical" className="w-full">
-              <Button 
-                type="primary" 
-                size="large" 
-                block 
-                onClick={requestNewLink}
-              >
-                Request New Reset Link
-              </Button>
-              <Button 
-                type="link" 
-                block 
-                onClick={goToLogin}
-              >
-                Return to Login
-              </Button>
-            </Space>
+      <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-2xl">
+          <div className="w-20 h-20 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-red-400 shadow-inner">
+            <CloseCircleOutlined className="text-4xl" />
           </div>
-        </Card>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">Link Invalid</h2>
+          <p className="font-duotone-regular text-gray-400 mb-6">
+            {error || 'This password reset link has expired or is invalid.'}
+          </p>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left mb-8">
+            <p className="font-duotone-regular text-xs text-duotone-blue leading-relaxed m-0">
+              ℹ️ Reset links expire after 1 hour for security reasons.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <button
+              onClick={requestNewLink}
+              className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
+            >
+              REQUEST NEW LINK
+            </button>
+            <button
+              onClick={goToLogin}
+              className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors tracking-widest text-xs"
+            >
+              RETURN TO LOGIN
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Password reset form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <div className="text-center mb-6">
+    <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-12 px-4 shadow-inner">
+      {/* Background blobs */}
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-duotone-blue/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+      <div className="absolute -bottom-8 right-20 w-72 h-72 bg-antrasit/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+
+      <div className="relative w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 sm:p-12 shadow-2xl">
+        <div className="text-center mb-8">
           <Logo />
-          <Title level={3} className="mt-4 mb-2">Reset Your Password</Title>
-          <Text type="secondary">
-            Enter a new password for <strong>{email}</strong>
-          </Text>
+          <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Reset Password</h1>
+          <p className="font-duotone-regular text-gray-400 text-sm">
+            Enter a new password for <strong className="text-white">{email}</strong>
+          </p>
         </div>
 
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          requiredMark={false}
+          className="dark-form"
         >
           <Form.Item
             name="password"
-            label="New Password"
+            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">New Password</span>}
             rules={[
               { required: true, message: 'Please enter a new password' },
               { min: 8, message: 'Password must be at least 8 characters' },
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined className="text-gray-400" />}
-              placeholder="Enter new password"
+              prefix={<LockOutlined className="text-gray-600 mr-2" />}
+              placeholder="••••••••"
               size="large"
+              className="bg-white/5 border-white/10 rounded-xl text-white h-12 focus:border-duotone-blue focus:ring-duotone-blue"
               autoComplete="new-password"
-              iconRender={(visible) => 
-                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-              }
             />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
-            label="Confirm Password"
+            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">Confirm Password</span>}
             dependencies={['password']}
             rules={[
               { required: true, message: 'Please confirm your password' },
@@ -263,50 +243,44 @@ const ResetPassword = () => {
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined className="text-gray-400" />}
-              placeholder="Confirm new password"
+              prefix={<LockOutlined className="text-gray-600 mr-2" />}
+              placeholder="••••••••"
               size="large"
+              className="bg-white/5 border-white/10 rounded-xl text-white h-12 focus:border-duotone-blue focus:ring-duotone-blue"
               autoComplete="new-password"
-              iconRender={(visible) => 
-                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-              }
             />
           </Form.Item>
 
-          <Alert
-            message="Password Requirements"
-            description={
-              <ul className="list-disc pl-4 mt-1 mb-0 text-sm">
-                <li>At least 8 characters long</li>
-                <li>Choose a strong, unique password</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-            className="mb-4"
-          />
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left mb-8">
+            <h4 className="font-duotone-bold text-[10px] text-duotone-blue mb-2 uppercase tracking-widest">Requirements:</h4>
+            <ul className="list-none p-0 m-0 space-y-1">
+              <li className="font-duotone-regular text-[11px] text-gray-400 flex items-center gap-2">
+                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> At least 8 characters long
+              </li>
+              <li className="font-duotone-regular text-[11px] text-gray-400 flex items-center gap-2">
+                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> Choose a strong, unique password
+              </li>
+            </ul>
+          </div>
 
-          <Form.Item className="mb-2">
-            <Button
-              type="primary"
-              htmlType="submit"
-              size="large"
-              block
-              loading={submitting}
+          <Form.Item className="mb-4">
+            <button
+              type="submit"
+              className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
             >
-              Reset Password
-            </Button>
+              {submitting ? 'RESETTING...' : 'RESET PASSWORD'}
+            </button>
           </Form.Item>
 
-          <Button
-            type="link"
-            block
+          <button
+            type="button"
             onClick={goToLogin}
+            className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors tracking-widest text-xs"
           >
-            Cancel and Return to Login
-          </Button>
+            CANCEL AND RETURN
+          </button>
         </Form>
-      </Card>
+      </div>
     </div>
   );
 };

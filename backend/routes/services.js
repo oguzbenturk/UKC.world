@@ -818,7 +818,9 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       checkOutDate,
       voucherId,  // Voucher/promo code to apply
       rentalDates,     // Array of 'YYYY-MM-DD' strings for rental days
-      lessonBookings   // Array of { date, instructorId, startTime, duration }
+      lessonBookings,  // Array of { date, instructorId, startTime, duration }
+      bankAccountId,   // ID of the bank account selected for transfer
+      receiptUrl       // Uploaded proof of transfer url
     } = req.body;
     const userId = req.user?.id;
     const actorId = resolveActorId(req);
@@ -832,7 +834,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     }
 
     // Validate payment method
-    const validPaymentMethods = ['wallet', 'credit_card', 'pay_later'];
+    const validPaymentMethods = ['wallet', 'credit_card', 'pay_later', 'bank_transfer'];
     const normalizedPaymentMethod = paymentMethod || 'wallet';
     
     if (!validPaymentMethods.includes(normalizedPaymentMethod)) {
@@ -1159,9 +1161,11 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     const pkgIncludesAccommodation = pkg.includes_accommodation || false;
     
     // Credit card packages start as 'pending_payment' and are only activated by the
-    // Iyzico payment callback once the payment is confirmed. All other methods are
-    // immediately active (wallet deducted above, or pay_later accepted by policy).
-    const initialStatus = normalizedPaymentMethod === 'credit_card' ? 'pending_payment' : 'active';
+    // Iyzico payment callback once the payment is confirmed.
+    // Bank transfers start as 'waiting_payment' until an admin confirms the receipt.
+    const initialStatus = normalizedPaymentMethod === 'credit_card' ? 'pending_payment'
+      : normalizedPaymentMethod === 'bank_transfer' ? 'waiting_payment'
+      : 'active';
 
     const customerPackageQuery = `
       INSERT INTO customer_packages (
@@ -1187,6 +1191,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       purchaseNotes = 'Payment via credit card (Iyzico)';
     } else if (normalizedPaymentMethod === 'pay_later') {
       purchaseNotes = 'Payment pending - Pay Later';
+    } else if (normalizedPaymentMethod === 'bank_transfer') {
+      purchaseNotes = `Bank Transfer requested | Bank Account ID: ${bankAccountId || 'Not specified'}`;
     }
     
     // Always store the EUR base price in customer_packages so earnings
@@ -1220,6 +1226,29 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       pkg.accommodation_unit_name || null,
       initialStatus  // $23
     ]);
+
+    const createdPackage = customerPackageRows[0];
+
+    // For bank transfers, insert the receipt into the new tracking table
+    if (normalizedPaymentMethod === 'bank_transfer' && receiptUrl) {
+      await client.query(`
+        INSERT INTO bank_transfer_receipts (
+          user_id, customer_package_id, bank_account_id, receipt_url, amount, currency, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        userId,
+        customerPackageId,
+        bankAccountId,
+        receiptUrl,
+        packagePrice,
+        priceCurrency,
+        'pending'
+      ]);
+      
+      logger.info('Bank transfer receipt recorded for package purchase', {
+        userId, packageId, customerPackageId, receiptUrl, bankAccountId
+      });
+    }
 
     // Create accommodation booking if package includes accommodation
     if (includesAccommodation && pkg.accommodation_unit_id && checkInDate && checkOutDate) {

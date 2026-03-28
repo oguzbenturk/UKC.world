@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs } from 'antd';
-import { CalendarDaysIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, UserGroupIcon, ClockIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'react-router-dom';
 import BookingCalendarPage from '@/features/bookings/pages/BookingCalendarPage';
 import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchingPage';
 import LessonMatchUpsTab from '@/features/bookings/pages/LessonMatchUpsTab';
+import PendingLessonsTab from '@/features/calendars/components/PendingLessonsTab';
 
 /**
  * LessonsCalendar - Shows lesson bookings in calendar view and group requests
@@ -12,7 +13,7 @@ import LessonMatchUpsTab from '@/features/bookings/pages/LessonMatchUpsTab';
 const LessonsCalendar = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  const validTabs = ['calendar', 'group-requests', 'lesson-matchups'];
+  const validTabs = ['calendar', 'group-requests', 'lesson-matchups', 'pending-transfers'];
   const [activeTab, setActiveTab] = useState(validTabs.includes(tabFromUrl) ? tabFromUrl : 'calendar');
 
   // Sync tab state with URL changes (e.g. notification click navigating here)
@@ -73,6 +74,20 @@ const LessonsCalendar = () => {
       children: (
         <div className="h-full overflow-y-auto">
           <LessonMatchUpsTab />
+        </div>
+      )
+    },
+    {
+      key: 'pending-transfers',
+      label: (
+        <span className="flex items-center gap-2">
+          <BanknotesIcon className="w-4 h-4" />
+          Pending Lessons
+        </span>
+      ),
+      children: (
+        <div className="h-full overflow-y-auto w-full">
+          <PendingLessonsTab />
         </div>
       )
     }

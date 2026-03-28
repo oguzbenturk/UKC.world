@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Spin, Alert, message, Modal, Select } from 'antd';
 import {
   CrownOutlined,
@@ -178,10 +178,10 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, u
       )}
 
       <div className="flex flex-col flex-1 p-6">
-        <h3 className="text-base font-bold text-white leading-tight mb-1">{offering.name}</h3>
+        <h3 className="text-base font-duotone-bold text-white leading-tight mb-1">{offering.name}</h3>
         {offering.description && (
           <p
-            className="text-xs leading-relaxed line-clamp-2 mb-4"
+            className="text-xs font-duotone-regular leading-relaxed line-clamp-2 mb-4"
             style={{ color: 'rgba(255,255,255,0.45)' }}
           >
             {offering.description}
@@ -232,12 +232,13 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, u
         <button
           onClick={() => onPurchase(offering)}
           disabled={isOwned}
-          className="w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2 border-0 mt-auto"
+          className="w-full py-3 rounded-md font-duotone-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2 border-0 mt-auto shadow-lg"
           style={{
-            background: isOwned ? 'rgba(255,255,255,0.06)' : accent.btn,
-            color: isOwned ? 'rgba(255,255,255,0.3)' : '#fff',
+            background: isOwned ? 'rgba(255,255,255,0.06)' : '#4b4f54',
+            color: isOwned ? 'rgba(255,255,255,0.3)' : '#00a8c4',
             cursor: isOwned ? 'not-allowed' : 'pointer',
-            boxShadow: isOwned ? 'none' : `0 4px 20px ${accent.ring}55`,
+            border: isOwned ? 'none' : '1px solid rgba(0,168,196,0.5)',
+            boxShadow: isOwned ? 'none' : '0 0 12px rgba(0,168,196,0.2)',
           }}
         >
           {isOwned ? (
@@ -378,23 +379,28 @@ const MemberOfferings = () => {
   const modalAccent = purchaseModal.offering ? getAccent(purchaseModal.offering.badge_color) : DEFAULT_ACCENT;
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: 'linear-gradient(140deg, #0f172a 0%, #1e1b4b 50%, #0c1445 100%)' }}>
+    <div className="min-h-screen font-sans" style={{ background: '#0d1511' }}>
 
       {/* Hero */}
-      <div className="relative">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 text-center">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest mb-5"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.65)' }}
-          >
-            <SafetyCertificateOutlined /> Membership Plans
+      <div className="relative pt-12 md:pt-16">
+        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
+          <img
+            src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+            alt="Duotone Pro Center Urla"
+            className="w-full"
+            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
+          />
+        </div>
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 text-center relative z-0">
+          <div className="mt-20 md:mt-24 mb-4">
+            <h1 className="text-3xl md:text-5xl font-duotone-bold-extended text-white mb-3 tracking-tight">
+              MEMBERSHIPS
+            </h1>
+            <p className="text-lg md:text-xl font-duotone-regular max-w-2xl mx-auto leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              Choose a plan that fits your schedule. Every membership unlocks access to facilities, services, and exclusive member benefits.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">
-            Membership Plans & Benefits
-          </h1>
-          <p className="text-base max-w-xl mx-auto leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            Choose a plan that fits your schedule. Every membership unlocks access to facilities, services, and exclusive member benefits.
-          </p>
 
           {/* Trust indicators */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -496,8 +502,8 @@ const MemberOfferings = () => {
           <>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-bold text-white">Available Plans</h2>
-                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{offerings.length} plan{offerings.length !== 1 ? 's' : ''} to choose from</p>
+                <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-white uppercase">Available Plans</h2>
+                <p className="text-xs font-duotone-regular mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{offerings.length} plan{offerings.length !== 1 ? 's' : ''} to choose from</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -644,6 +650,14 @@ const MemberOfferings = () => {
           message.error(msg || 'Payment failed');
         }}
       />
+      {/* Centered White Logo at Bottom */}
+      <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>
+        <img
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          alt="Duotone Pro Center Urla White Logo"
+          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
+        />
+      </div>
     </div>
   );
 };

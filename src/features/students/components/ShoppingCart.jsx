@@ -86,33 +86,36 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
         header: { display: 'none' },
         body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }
       }}
-      className="cart-drawer"
+      className="ukc-cart-drawer"
+      rootClassName="dark"
     >
       {/* Custom Header */}
       <div style={{ 
         padding: '16px 20px', 
-        borderBottom: '1px solid #f0f0f0',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: '#fff',
+        background: 'linear-gradient(180deg, #3a4a4f 0%, #2e3f44 60%, #263840 100%)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,168,196,0.15)',
         position: 'sticky',
         top: 0,
         zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <ShoppingCartOutlined style={{ fontSize: 22, color: '#111827' }} />
+          <ShoppingCartOutlined style={{ fontSize: 22, color: '#00a8c4' }} />
           <div>
-            <Title level={5} style={{ margin: 0, fontSize: 16 }}>Cart</Title>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Title level={5} style={{ margin: 0, fontSize: 16, color: '#fff' }} className="font-duotone-bold-extended tracking-tight">Cart</Title>
+            <Text style={{ fontSize: 12, color: '#9ca3af' }} className="font-duotone-regular">
               {itemCount} {itemCount === 1 ? 'item' : 'items'}
             </Text>
           </div>
         </div>
         <Button 
           type="text" 
-          icon={<CloseOutlined style={{ fontSize: 16 }} />} 
+          icon={<CloseOutlined style={{ fontSize: 16, color: '#fff' }} />} 
           onClick={onClose}
+          className="hover:!bg-white/10"
           style={{ 
             borderRadius: 8, 
             width: 36, 
@@ -129,7 +132,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
         flex: 1, 
         overflowY: 'auto', 
         padding: '16px 16px',
-        background: '#f8f9fb',
+        background: '#0d1511',
         WebkitOverflowScrolling: 'touch'
       }}>
         {cart.length === 0 ? (
@@ -145,24 +148,25 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               width: 120,
               height: 120,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #f0f2f5 0%, #e8e8e8 100%)',
+              background: 'rgba(0,168,196,0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 24
+              marginBottom: 24,
+              border: '1px solid rgba(0,168,196,0.2)'
             }}>
-              <ShoppingCartOutlined style={{ fontSize: 48, color: '#bfbfbf' }} />
+              <ShoppingCartOutlined style={{ fontSize: 48, color: '#00a8c4' }} />
             </div>
-            <Title level={4} style={{ marginBottom: 8, color: '#595959', textAlign: 'center' }}>
+            <Title level={4} style={{ marginBottom: 8, color: '#fff', textAlign: 'center' }} className="font-duotone-bold-extended">
               Your cart is empty
             </Title>
-            <Text type="secondary" style={{ textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>
+            <Text style={{ textAlign: 'center', maxWidth: 260, lineHeight: 1.6, color: '#9ca3af' }} className="font-duotone-regular">
               Explore our shop and find amazing gear for your next adventure!
             </Text>
             <Button
               onClick={onClose}
               size="large"
-              className="font-duotone-bold bg-[#4b4f54] text-[#00a8c4] border-none shadow-md hover:bg-[#23272a] hover:text-[#00a8c4]"
+              className="font-duotone-bold bg-[#00a8c4] text-white border-none shadow-lg shadow-[#00a8c4]/20 hover:!opacity-90 active:scale-[0.98] transition-all"
               style={{
                 marginTop: 28,
                 borderRadius: 10,
@@ -181,11 +185,11 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               <div 
                 key={item.cartItemId || item.id}
                 style={{ 
-                  background: '#fff', 
+                  background: 'rgba(255,255,255,0.03)', 
                   borderRadius: 16, 
                   padding: 14,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                  border: '1px solid #f0f0f0'
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  border: '1px solid rgba(255,255,255,0.08)'
                 }}
               >
                 <div style={{ display: 'flex', gap: 14 }}>
@@ -196,7 +200,8 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                     borderRadius: 12, 
                     overflow: 'hidden',
                     flexShrink: 0,
-                    background: '#f5f5f5'
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.05)'
                   }}>
                     {item.image_url ? (
                       <Image
@@ -213,7 +218,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         alignItems: 'center', 
                         justifyContent: 'center' 
                       }}>
-                        <ShoppingCartOutlined style={{ fontSize: 28, color: '#d9d9d9' }} />
+                        <ShoppingCartOutlined style={{ fontSize: 28, color: 'rgba(255,255,255,0.2)' }} />
                       </div>
                     )}
                   </div>
@@ -225,25 +230,26 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         {item.brand && (
                           <Text style={{ 
                             fontSize: 11, 
-                            color: '#8c8c8c', 
+                            color: '#9ca3af', 
                             textTransform: 'uppercase', 
                             letterSpacing: 0.5,
                             display: 'block',
                             marginBottom: 2
-                          }}>
+                          }} className="font-duotone-regular">
                             {item.brand}
                           </Text>
                         )}
                         <Text 
-                          strong
                           style={{ 
                             fontSize: 14, 
                             lineHeight: 1.3,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            color: '#fff'
                           }}
+                          className="font-duotone-bold"
                         >
                           {item.name}
                         </Text>
@@ -257,9 +263,11 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                                   margin: 0, 
                                   padding: '1px 8px',
                                   borderRadius: 4,
-                                  background: '#f5f5f5',
-                                  border: '1px solid #e8e8e8'
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  color: '#d1d5db'
                                 }}
+                                className="font-duotone-regular"
                               >
                                 Size: {item.selectedSize}
                               </Tag>
@@ -271,12 +279,14 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                                   margin: 0, 
                                   padding: '1px 8px',
                                   borderRadius: 4,
-                                  background: '#f5f5f5',
-                                  border: '1px solid #e8e8e8',
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 4
+                                  gap: 4,
+                                  color: '#d1d5db'
                                 }}
+                                className="font-duotone-regular"
                               >
                                 <span 
                                   style={{ 
@@ -284,7 +294,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                                     height: 10, 
                                     borderRadius: '50%', 
                                     background: item.selectedColor.toLowerCase(),
-                                    border: '1px solid #d9d9d9',
+                                    border: '1px solid rgba(255,255,255,0.2)',
                                     flexShrink: 0
                                   }} 
                                 />
@@ -298,9 +308,9 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         <Button
                           type="text"
                           size="small"
-                          danger
                           icon={<DeleteOutlined style={{ fontSize: 14 }} />}
                           onClick={() => removeFromCart(item.cartItemId || item.id)}
+                          className="!text-[#ef4444] hover:!bg-[#ef4444]/20 !opacity-80 hover:!opacity-100 transition-all"
                           style={{ 
                             borderRadius: 8, 
                             flexShrink: 0,
@@ -312,7 +322,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                     </div>
 
                     {/* Price */}
-                    <Text strong style={{ color: '#1890ff', fontSize: 16, marginTop: 6 }}>
+                    <Text style={{ color: '#00a8c4', fontSize: 16, marginTop: 6 }} className="font-duotone-bold">
                       {formatDualAmount(item.price, item.currency || storageCurrency)}
                     </Text>
 
@@ -322,7 +332,8 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         display: 'inline-flex', 
                         alignItems: 'center', 
                         gap: 0,
-                        background: '#f5f5f5',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.05)',
                         borderRadius: 10,
                         padding: 3
                       }}>
@@ -332,6 +343,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                           icon={<MinusOutlined style={{ fontSize: 11 }} />}
                           onClick={() => handleQuantityChange(item.cartItemId || item.id, -1, item.quantity, item.stock_quantity)}
                           disabled={item.quantity <= 1}
+                          className="!text-white disabled:!text-white/20 hover:!bg-white/10"
                           style={{ 
                             width: 30, 
                             height: 30, 
@@ -345,8 +357,9 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                           minWidth: 36, 
                           textAlign: 'center', 
                           fontWeight: 600,
-                          fontSize: 14 
-                        }}>
+                          fontSize: 14,
+                          color: '#fff' 
+                        }} className="font-duotone-regular">
                           {item.quantity}
                         </span>
                         <Button
@@ -355,6 +368,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                           icon={<PlusOutlined style={{ fontSize: 11 }} />}
                           onClick={() => handleQuantityChange(item.cartItemId || item.id, 1, item.quantity, item.stock_quantity)}
                           disabled={item.quantity >= item.stock_quantity}
+                          className="!text-white disabled:!text-white/20 hover:!bg-white/10"
                           style={{ 
                             width: 30, 
                             height: 30, 
@@ -372,7 +386,8 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                           size="small"
                           icon={<HeartOutlined style={{ fontSize: 14 }} />}
                           onClick={() => handleMoveToWishlist(item)}
-                          style={{ borderRadius: 8, color: '#8c8c8c', width: 32, height: 32 }}
+                          className="!text-white/60 hover:!text-white hover:!bg-white/10 transition-all"
+                          style={{ borderRadius: 8, width: 32, height: 32 }}
                         />
                       </Tooltip>
                     </div>
@@ -388,15 +403,17 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
       {cart.length > 0 && (
         <div style={{ 
           padding: '16px 20px 20px', 
-          borderTop: '1px solid #f0f0f0',
-          background: '#fff',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.03)'
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          background: '#1a262b',
+          boxShadow: '0 -4px 12px rgba(0,0,0,0.3)',
+          position: 'relative',
+          zIndex: 10
         }}>
           {/* Order Summary */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text type="secondary" style={{ fontSize: 13 }}>Subtotal ({itemCount} items)</Text>
-              <Text strong style={{ fontSize: 14 }}>{formatDualAmount(total)}</Text>
+              <Text style={{ fontSize: 13, color: '#9ca3af' }} className="font-duotone-regular">Subtotal ({itemCount} items)</Text>
+              <Text style={{ fontSize: 14, color: '#fff' }} className="font-duotone-bold">{formatDualAmount(total)}</Text>
             </div>
             
             <div style={{ 
@@ -404,45 +421,48 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               justifyContent: 'space-between', 
               alignItems: 'center',
               padding: '10px 14px',
-              background: canAfford ? '#f6ffed' : '#fff2f0',
+              background: canAfford ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
               borderRadius: 10,
               marginBottom: 10,
-              border: `1px solid ${canAfford ? '#b7eb8f' : '#ffccc7'}`
+              border: `1px solid ${canAfford ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
             }}>
               <Space size={6}>
-                <WalletOutlined style={{ color: canAfford ? '#52c41a' : '#faad14', fontSize: 16 }} />
-                <Text style={{ color: canAfford ? '#389e0d' : '#d48806', fontSize: 13 }}>
+                <WalletOutlined style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 16 }} />
+                <Text style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 13 }} className="font-duotone-bold">
                   Your Balance
                 </Text>
               </Space>
-              <Text strong style={{ color: canAfford ? '#389e0d' : '#d48806', fontSize: 14 }}>
+              <Text style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 14 }} className="font-duotone-bold">
                 {formatDualAmount(userBalance || 0)}
               </Text>
             </div>
 
             {!canAfford && (
-              <Tag 
-                color="warning" 
+              <div 
                 style={{ 
                   width: '100%', 
                   textAlign: 'center', 
                   padding: '8px 12px',
                   borderRadius: 8,
                   margin: 0,
-                  fontSize: 13
+                  fontSize: 13,
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  color: '#fbbf24',
+                  border: '1px solid rgba(245, 158, 11, 0.2)'
                 }}
+                className="font-duotone-regular"
               >
                 Wallet low – other payment options available
-              </Tag>
+              </div>
             )}
           </div>
 
-          <Divider style={{ margin: '14px 0' }} />
+          <Divider style={{ margin: '14px 0', borderColor: 'rgba(255,255,255,0.08)' }} />
 
           {/* Total */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Title level={5} style={{ margin: 0, fontSize: 15 }}>Total</Title>
-            <Title level={4} style={{ margin: 0, color: '#1890ff', fontSize: 20 }}>
+            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#fff' }} className="font-duotone-bold-extended">Total</Title>
+            <Title level={4} style={{ margin: 0, color: '#00a8c4', fontSize: 20 }} className="font-duotone-bold">
               {formatDualAmount(total)}
             </Title>
           </div>
@@ -454,14 +474,15 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
             block
             icon={<CreditCardOutlined style={{ fontSize: 18 }} />}
             onClick={handleCheckout}
+            className="!font-duotone-bold !text-white hover:!opacity-90 active:scale-[0.99] transition-all"
             style={{
               height: 52,
               borderRadius: 12,
               fontWeight: 600,
               fontSize: 16,
-              background: '#3B82F6',
+              background: '#00a8c4',
               border: 'none',
-              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+              boxShadow: '0 4px 12px rgba(0, 168, 196, 0.3)'
             }}
           >
             Proceed to Checkout
@@ -475,8 +496,8 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
             gap: 8, 
             marginTop: 14 
           }}>
-            <SafetyCertificateOutlined style={{ color: '#52c41a', fontSize: 13 }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <SafetyCertificateOutlined style={{ color: '#10b981', fontSize: 13 }} />
+            <Text style={{ fontSize: 12, color: '#9ca3af' }} className="font-duotone-regular">
               Secure checkout • Instant delivery
             </Text>
           </div>
