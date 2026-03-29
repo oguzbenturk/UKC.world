@@ -14,7 +14,7 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import dpcLogo from '../../../../DuotoneFonts/DPC-URLAtransparentonwhite.png';
+import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 
 const GuestLandingPage = () => {
   const navigate = useNavigate();

@@ -14,7 +14,6 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { getNavItemsForRole } from '@/shared/utils/navConfig';
 import { APP_VERSION } from '@/shared/constants/version';
-import dpcLogo from '../../../../DuotoneFonts/DPC-URLAtransparentonwhite.png';
 
 const profileImageCandidateKeys = [
   'profile_image_url',

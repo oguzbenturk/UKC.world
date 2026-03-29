@@ -304,7 +304,7 @@ const ShopLandingPage = () => {
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '64px 0 0 0' }}>
         <img
-          src={new URL('@/../../DuotoneFonts/DPCLOGOWHITEONEMPTY.png', import.meta.url).href}
+          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg', import.meta.url).href}
           alt="Duotone Pro Center Urla White Logo"
           style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '32px 0' }}
         />
