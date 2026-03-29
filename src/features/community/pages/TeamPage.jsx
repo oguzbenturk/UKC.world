@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Tag, Spin } from 'antd';
+import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
   TeamOutlined,
   GlobalOutlined,
@@ -100,7 +101,7 @@ const TeamPage = () => {
       {/* Duotone Pro Center Urla Logo */}
       <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
         <img
-          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          src={dpsLogo}
           alt="Duotone Pro Center Urla Logo"
           className="w-full"
           style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
@@ -250,7 +251,7 @@ const TeamPage = () => {
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center py-12">
         <img
-          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          src={dpsLogo}
           alt="Duotone Pro Center Urla White Logo"
           style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
         />

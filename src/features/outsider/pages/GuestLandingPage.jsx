@@ -14,7 +14,7 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
+import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 
 const GuestLandingPage = () => {
   const navigate = useNavigate();
@@ -184,7 +184,7 @@ const GuestLandingPage = () => {
       {/* Header */}
       <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
         <div className="flex justify-center mb-8">
-          <img src={dpcLogo} alt="Duotone Pro Center Logo" className="mx-auto w-full sm:w-[85%] md:w-[500px]" style={{ filter: 'drop-shadow(0 2px 8px rgba(75,79,84,0.18))', display: 'block', height: 'auto' }} />
+          <img src={dpcLogo} alt="Duotone Pro Center Logo" className="mx-auto w-full sm:w-[85%] md:w-[500px]" style={{ filter: 'invert(1) drop-shadow(0 2px 8px rgba(75,79,84,0.18))', display: 'block', height: 'auto' }} />
         </div>
         {/* Divider */}
         <div className="flex items-center gap-5 mb-4">

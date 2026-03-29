@@ -4,6 +4,7 @@ import { Button } from 'antd';
 import { RightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
+import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 
 const RENTAL_NAV_ITEMS = [
   { id: 'standard-section', label: 'DUOTONE RENTAL', shortLabel: 'DUOTONE' },
@@ -86,7 +87,7 @@ const RentalLandingPage = () => {
             {/* Duotone Pro Center Urla Logo */}
             <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px]">
               <img
-                src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+                src={dpsLogo}
                 alt="Duotone Pro Center Urla"
                 className="w-full"
                 style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
@@ -273,7 +274,7 @@ const RentalLandingPage = () => {
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '16px 0 16px 0' }}>
         <img
-          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg', import.meta.url).href}
+          src={dpsLogo}
           alt="Duotone Pro Center Urla White Logo"
           style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
         />

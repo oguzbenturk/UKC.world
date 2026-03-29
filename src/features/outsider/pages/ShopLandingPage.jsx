@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
+import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import {
   ShoppingCartOutlined,
   ThunderboltOutlined,
@@ -304,7 +305,7 @@ const ShopLandingPage = () => {
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '64px 0 0 0' }}>
         <img
-          src={new URL('@/../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg', import.meta.url).href}
+          src={dpcLogo}
           alt="Duotone Pro Center Urla White Logo"
           style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '32px 0' }}
         />
