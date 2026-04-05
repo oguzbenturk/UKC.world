@@ -9,10 +9,12 @@ RUN npm install -g npm@11.5.1
 # Copy package files and install dependencies as root (for proper permissions)
 COPY package*.json ./
 
-# Install only production dependencies with clean install
-RUN npm ci --omit=dev --ignore-scripts --silent && \
+# Install build tools for native modules (bcrypt), then remove after
+RUN apk add --no-cache python3 make g++ && \
+    npm ci --omit=dev --ignore-scripts --silent && \
     npm rebuild bcrypt --build-from-source && \
-    npm cache verify
+    npm cache verify && \
+    apk del python3 make g++
 
 # Copy application code
 COPY . .
