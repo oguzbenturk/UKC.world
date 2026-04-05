@@ -65,11 +65,34 @@ const ADDON_LABELS = {
     'harnesses': 'Harness',
 };
 
+// Subcategories where a size picker (e.g. S-M / M-L) should appear per add-on product
+const SUBCATEGORIES_WITH_SIZES = new Set(['bars', 'bars-trust', 'bars-click', 'chickenloops']);
+
+const parseJSONField = (field) => {
+    if (!field) return null;
+    if (typeof field === 'string') { try { return JSON.parse(field); } catch { return null; } }
+    return field;
+};
+
+function getAddonSizes(addon) {
+    const variants = parseJSONField(addon.variants);
+    if (Array.isArray(variants) && variants.length > 0) {
+        const sizes = [...new Set(variants.map(v => v.size || v.label).filter(Boolean))];
+        if (sizes.length > 0) return sizes;
+    }
+    const sizes = parseJSONField(addon.sizes);
+    if (Array.isArray(sizes) && sizes.length > 0) {
+        return sizes.map(s => (typeof s === 'string' ? s : s.size || s.label || '')).filter(Boolean);
+    }
+    return [];
+}
+
 const ProductAddOns = ({ category, subcategory, currentProductId, onSelectionChange }) => {
     const [addonGroups, setAddonGroups] = useState([]);
     const [expandedGroup, setExpandedGroup] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedIds, setSelectedIds] = useState(new Set());
+    const [addonSizes, setAddonSizes] = useState({}); // { [addon.id]: selectedSize }
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
 
     const addonSubcategories = ADDON_MAP[subcategory] || [];
@@ -121,12 +144,18 @@ const ProductAddOns = ({ category, subcategory, currentProductId, onSelectionCha
         const next = new Set(selectedIds);
         if (next.has(addon.id)) {
             next.delete(addon.id);
+            setAddonSizes(prev => { const n = { ...prev }; delete n[addon.id]; return n; });
         } else {
             next.add(addon.id);
         }
         setSelectedIds(next);
         const allGroupProducts = addonGroups.flatMap(g => g.products);
-        onSelectionChange?.(allGroupProducts.filter(p => next.has(p.id)));
+        const currentSizes = { ...addonSizes };
+        onSelectionChange?.(
+            allGroupProducts
+                .filter(p => next.has(p.id))
+                .map(p => ({ ...p, _selectedSize: currentSizes[p.id] || null }))
+        );
     };
 
     if (loading || addonGroups.length === 0) return null;
@@ -158,44 +187,92 @@ const ProductAddOns = ({ category, subcategory, currentProductId, onSelectionCha
                                     const price = convertCurrency
                                         ? convertCurrency(addon.price, addonCurrency, userCurrency)
                                         : addon.price;
+                                    const isSelected = selectedIds.has(addon.id);
+                                    const showSizes = SUBCATEGORIES_WITH_SIZES.has(group.subcategory);
+                                    const sizeOptions = showSizes ? getAddonSizes(addon) : [];
+                                    const chosenSize = addonSizes[addon.id];
+                                    const needsSize = sizeOptions.length > 0 && !chosenSize;
                                     return (
-                                        <div key={addon.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                                            <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
-                                                {imgSrc ? (
-                                                    <img src={imgSrc} alt={addon.name} className="w-full h-full object-contain" />
+                                        <div key={addon.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                                                    {imgSrc ? (
+                                                        <img src={imgSrc} alt={addon.name} className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <ShoppingCartOutlined className="text-gray-300 text-lg" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-duotone-regular text-gray-800 truncate m-0">
+                                                        {addon.name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 font-duotone-regular m-0">
+                                                        {formatCurrency(price, userCurrency)}
+                                                    </p>
+                                                </div>
+                                                {isSelected ? (
+                                                    <button
+                                                        onClick={() => toggleAddon(addon)}
+                                                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-duotone-bold
+                                                            bg-green-600 border border-green-500 text-white
+                                                            hover:bg-green-700 transition-all duration-300 cursor-pointer"
+                                                    >
+                                                        <CheckOutlined style={{ fontSize: 10 }} />
+                                                        Added
+                                                    </button>
                                                 ) : (
-                                                    <ShoppingCartOutlined className="text-gray-300 text-lg" />
+                                                    <button
+                                                        onClick={() => !needsSize && toggleAddon(addon)}
+                                                        disabled={needsSize}
+                                                        title={needsSize ? 'Select a size first' : undefined}
+                                                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-duotone-bold
+                                                            transition-all duration-300
+                                                            ${needsSize
+                                                                ? 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                                                                : 'bg-antrasit border border-duotone-blue/30 text-duotone-blue hover:bg-[#525759] hover:border-duotone-blue/60 cursor-pointer'
+                                                            }`}
+                                                    >
+                                                        <PlusOutlined style={{ fontSize: 10 }} />
+                                                        {needsSize ? 'Pick size' : 'Add'}
+                                                    </button>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-duotone-regular text-gray-800 truncate m-0">
-                                                    {addon.name}
-                                                </p>
-                                                <p className="text-xs text-gray-400 font-duotone-regular m-0">
-                                                    {formatCurrency(price, userCurrency)}
-                                                </p>
-                                            </div>
-                                            {selectedIds.has(addon.id) ? (
-                                                <button
-                                                    onClick={() => toggleAddon(addon)}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-duotone-bold
-                                                        bg-green-600 border border-green-500 text-white
-                                                        hover:bg-green-700 transition-all duration-300 cursor-pointer"
-                                                >
-                                                    <CheckOutlined style={{ fontSize: 10 }} />
-                                                    Added
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => toggleAddon(addon)}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-duotone-bold
-                                                        bg-antrasit border border-duotone-blue/30 text-duotone-blue
-                                                        hover:bg-[#525759] hover:border-duotone-blue/60
-                                                        transition-all duration-300 cursor-pointer"
-                                                >
-                                                    <PlusOutlined style={{ fontSize: 10 }} />
-                                                    Add
-                                                </button>
+
+                                            {/* Size picker for bars / chickenloops */}
+                                            {sizeOptions.length > 0 && (
+                                                <div className="mt-2 ml-15 flex flex-wrap gap-1.5" style={{ marginLeft: '60px' }}>
+                                                    {sizeOptions.map(sz => (
+                                                        <button
+                                                            key={sz}
+                                                            onClick={() => {
+                                                                const newSize = chosenSize === sz ? undefined : sz;
+                                                                setAddonSizes(prev => {
+                                                                    const n = { ...prev };
+                                                                    if (newSize) n[addon.id] = newSize;
+                                                                    else delete n[addon.id];
+                                                                    return n;
+                                                                });
+                                                                // If already added and size changes, update selection
+                                                                if (isSelected) {
+                                                                    const allGroupProducts = addonGroups.flatMap(g => g.products);
+                                                                    const currentSizes = { ...addonSizes, [addon.id]: newSize };
+                                                                    onSelectionChange?.(
+                                                                        allGroupProducts
+                                                                            .filter(p => selectedIds.has(p.id))
+                                                                            .map(p => ({ ...p, _selectedSize: currentSizes[p.id] || null }))
+                                                                    );
+                                                                }
+                                                            }}
+                                                            className={`px-2.5 py-1 text-xs rounded border font-duotone-regular transition-colors ${
+                                                                chosenSize === sz
+                                                                    ? 'bg-slate-900 border-slate-900 text-white'
+                                                                    : 'bg-white border-gray-300 text-gray-600 hover:border-gray-500'
+                                                            }`}
+                                                        >
+                                                            {sz}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             )}
                                         </div>
                                     );

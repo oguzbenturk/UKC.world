@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Spin, Alert, message, Modal, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber } from 'antd';
+import TwoColumnModal from '@/shared/components/ui/TwoColumnModal';
+import { Spin, Alert, message, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
@@ -207,7 +208,6 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, u
   const eurFormatted = formatCurrency(eurPrice, 'EUR');
   const showLocal = userCurrency && userCurrency !== 'EUR';
   const localFormatted = showLocal ? formatCurrency(convertCurrency(price, businessCurrency, userCurrency), userCurrency) : null;
-  const parsedFeatures = parseFeatures(offering.features);
   const accent = getAccent(offering.badge_color);
   const durationLabel = formatDuration(offering.duration_days);
   const isHighlighted = offering.highlighted;
@@ -217,96 +217,83 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, u
   return (
     <div
       onClick={() => !isSoldOut && onPurchase(offering)}
-      className={`group relative isolate overflow-hidden rounded-3xl bg-[#1a1f26]/55 backdrop-blur-2xl backdrop-saturate-[1.2] transition-[transform,box-shadow,border-color] duration-300 flex flex-col ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
-      style={{ border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 10px rgba(0,168,196,0.3), 0 0 25px rgba(0,168,196,0.15), 0 0 50px rgba(0,168,196,0.05)' }}
-      onMouseEnter={e => { if (!isSoldOut) { e.currentTarget.style.border = '1px solid rgba(0,168,196,0.75)'; e.currentTarget.style.boxShadow = '0 0 15px rgba(0,168,196,0.45), 0 0 35px rgba(0,168,196,0.2), 0 0 60px rgba(0,168,196,0.08)'; } }}
-      onMouseLeave={e => { e.currentTarget.style.border = '1px solid rgba(0,168,196,0.5)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(0,168,196,0.3), 0 0 25px rgba(0,168,196,0.15), 0 0 50px rgba(0,168,196,0.05)'; }}
+      className={`group relative isolate overflow-hidden rounded-3xl flex flex-col min-h-[360px] transition-[transform,box-shadow] duration-300 ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
+      style={{ border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 2px 20px rgba(0,0,0,0.35)' }}
+      onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,168,196,0.25), 0 0 0 1px rgba(0,168,196,0.35)'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 20px rgba(0,0,0,0.35)'; }}
     >
-      {/* Header — image or icon fallback */}
-      <div className="h-36 sm:h-40 relative rounded-t-3xl overflow-hidden">
+      {/* Image — 70% of card */}
+      <div className="flex-[7] relative overflow-hidden min-h-[200px]">
         {offering.image_url ? (
           <img
             src={offering.image_url}
             alt={offering.name}
-            className="absolute inset-0 w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.03] group-hover:brightness-110 group-hover:contrast-110"
+            className="absolute inset-0 w-full h-full object-cover max-md:group-hover:scale-[1.03] transition-transform duration-500 md:transition-none"
             loading="lazy"
           />
         ) : (
           <div
             className="absolute inset-0 flex items-center justify-center"
-            style={{ background: `linear-gradient(160deg, ${accent.ring}25 0%, rgba(26,31,38,0.6) 100%)` }}
+            style={{ background: `linear-gradient(160deg, ${accent.ring}40 0%, #0f1117 100%)` }}
           >
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl text-white"
-              style={{ background: accent.btn, boxShadow: `0 6px 20px ${accent.ring}55` }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl text-white"
+              style={{ background: accent.btn, boxShadow: `0 8px 24px ${accent.ring}55` }}
             >
               {ICON_MAP[offering.icon] || <CrownOutlined />}
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-900/10 via-[#1a1d22]/40 to-[#1a1d22]/70 mix-blend-multiply" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(180,220,240,0.08)_0%,transparent_70%)]" />
-        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-white/[0.06]" />
 
-        {/* Best Value ribbon */}
+        {/* Gradient — bottom blends into text panel */}
+        <div
+          className="absolute inset-0 z-[1] pointer-events-none"
+          style={{ background: 'linear-gradient(to top, #1a1f26 0%, rgba(26,31,38,0.55) 30%, transparent 70%)' }}
+        />
+        <div className="absolute inset-0 z-[1] pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(180,220,240,0.06)_0%,transparent_65%)]" />
+
+        {/* Price badge — top right */}
+        <div className="absolute top-3 right-3 z-10 bg-black/85 px-2 py-1.5 rounded-lg text-right">
+          {durationLabel && (
+            <p className="text-[9px] font-duotone-bold-extended text-white uppercase tracking-wider leading-none">{durationLabel}</p>
+          )}
+          <p className="text-[7px] font-duotone-regular text-white/55 uppercase tracking-widest mt-0.5 leading-none">PRICE</p>
+          <p className="text-sm font-duotone-bold-extended italic text-white leading-tight">{eurFormatted}</p>
+          {showLocal && <p className="text-[8px] text-white/50 font-duotone-regular leading-snug">~{localFormatted}</p>}
+        </div>
+
+        {/* Best Value — top left (like POPULAR on lesson cards) */}
         {isHighlighted && (
-          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
-            <StarFilled className="text-yellow-500" /> Best Value
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-0.5 rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-duotone-bold text-white">
+            <StarFilled className="text-yellow-500" style={{ fontSize: 9 }} /> Best Value
           </div>
         )}
 
         {/* Active badge */}
         {isOwned && (
-          <div className="absolute top-4 left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-md">
+          <div className={`absolute z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-md left-3 ${isHighlighted ? 'top-11' : 'top-3'}`}>
             <CheckCircleFilled style={{ fontSize: 9 }} /> {storageUnit ? `Unit #${storageUnit}` : 'Active'}
           </div>
         )}
 
-        {/* Storage availability badge */}
+        {/* Storage availability */}
         {isStorage && offering.available_count != null && (
-          <div className={`absolute ${isOwned ? 'top-12' : 'top-4'} left-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md ${
-            isSoldOut ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
-          }`}>
-            {isSoldOut ? 'Sold Out' : `${offering.available_count} of ${offering.total_capacity} available`}
+          <div className={`absolute z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-md left-3 ${isSoldOut ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'} ${isOwned ? 'top-[4.5rem]' : isHighlighted ? 'top-11' : 'top-3'}`}>
+            {isSoldOut ? 'Sold Out' : `${offering.available_count} left`}
           </div>
         )}
       </div>
 
-      {/* Body */}
-      <div className="relative z-10 -mt-px pt-5 px-4 pb-4 bg-[#1a1f26]/50 backdrop-blur-2xl backdrop-saturate-[1.2] rounded-b-3xl flex-1 flex flex-col">
-        <h3 className="text-base sm:text-lg font-duotone-bold-extended text-white mb-1 transition-colors leading-tight break-words group-hover:text-cyan-300">{offering.name}</h3>
+      {/* Text panel — 30% of card */}
+      <div className="flex-[3] relative z-10 flex flex-col justify-center px-4 py-3 bg-[#1a1f26]">
+        <h3 className="text-sm sm:text-base font-duotone-bold-extended text-white uppercase tracking-wide leading-snug break-words">
+          {offering.name}
+        </h3>
         {offering.description && (
-          <p className="text-xs text-gray-400 mb-4 font-duotone-regular uppercase tracking-wide break-words line-clamp-2">{offering.description}</p>
+          <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 font-duotone-regular line-clamp-3 leading-snug break-words">
+            {offering.description}
+          </p>
         )}
-
-        {/* Features (max 3) */}
-        {parsedFeatures.length > 0 && (
-          <div className="space-y-2 mb-4">
-            {parsedFeatures.slice(0, 3).map((feat, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-gray-300 font-duotone-regular">
-                <CheckOutlined style={{ color: '#00a8c4', fontSize: 11 }} className="flex-shrink-0" />
-                <span className="break-words line-clamp-1">{feat}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Price pinned to bottom */}
-        <div className="flex items-end justify-between border-t border-white/[0.08] pt-4 mt-auto">
-          <div>
-            <p className="text-xs text-gray-500 mb-1 font-duotone-regular">{isOwned ? 'Your plan' : 'Price'}</p>
-            <p className="text-lg sm:text-xl font-duotone-bold-extended text-white">{eurFormatted}</p>
-            {showLocal && (
-              <p className="text-[10px] text-gray-500 font-duotone-regular">~{localFormatted}</p>
-            )}
-          </div>
-          {durationLabel && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-duotone-regular text-gray-400 bg-white/[0.06] border border-white/[0.08]">
-              <ClockCircleOutlined style={{ fontSize: 10 }} />
-              {durationLabel}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -484,7 +471,6 @@ const MemberOfferings = () => {
       message.warning('No storage slots available at the moment.');
       return;
     }
-    if (isGuest) { message.info('Please sign in to purchase a membership.'); openAuthModal({ title: 'Sign In to Purchase', message: 'Create an account or sign in to purchase a membership.', mode: 'register', returnUrl: '/members/offerings' }); return; }
     if (isStaff && !selectedCustomer) { message.warning('Select a customer first.'); return; }
     setStartDate(dayjs());
     setPaymentMethod('wallet');
@@ -496,6 +482,10 @@ const MemberOfferings = () => {
 
   const executePurchase = async () => {
     if (!purchaseModal.offering) return;
+    if (isGuest) {
+      openAuthModal({ title: 'Sign In to Purchase', message: 'Create an account or sign in to purchase a membership.', mode: 'register', returnUrl: '/members/offerings' });
+      return;
+    }
     const offering = purchaseModal.offering;
     const dateStr = startDate ? startDate.toISOString() : undefined;
     const isDeposit = paymentMethod === 'deposit';
@@ -731,288 +721,258 @@ const MemberOfferings = () => {
       </div>
 
       {/* Purchase Modal */}
-      <Modal
-        open={purchaseModal.visible}
-        onCancel={() => setPurchaseModal({ visible: false, offering: null })}
-        footer={null}
-        width={520}
-        centered
-        destroyOnHidden
-        style={{ maxWidth: '94vw' }}
-        styles={{
-          content: { borderRadius: 16, padding: '16px 16px 20px' },
-          header: { marginBottom: 0, paddingBottom: 12 },
-        }}
-        title={purchaseModal.offering ? (
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${purchaseModal.offering.category === 'storage' ? 'bg-gradient-to-br from-orange-500 to-orange-600 shadow-orange-500/20' : 'bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-cyan-500/20'}`}>
-              {purchaseModal.offering.category === 'storage'
-                ? <InboxOutlined className="text-white text-sm sm:text-base" />
-                : <CrownOutlined className="text-white text-sm sm:text-base" />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
-                {purchaseModal.offering.category === 'storage' ? 'Reserve Storage' : 'Purchase Membership'}
-              </h3>
-              <p className="text-[10px] sm:text-xs text-slate-400 leading-tight mt-0.5 truncate">{purchaseModal.offering.name}</p>
-            </div>
-          </div>
-        ) : null}
-      >
-        {purchaseModal.offering && (() => {
-          const offering = purchaseModal.offering;
-          const eurBase = businessCurrency === 'EUR' ? (offering.price || 0) : convertCurrency(offering.price || 0, businessCurrency, 'EUR');
-          const eurFormatted = formatCurrency(eurBase, 'EUR');
-          const showLocal = userCurrency && userCurrency !== 'EUR';
-          const localFormatted = showLocal ? formatCurrency(convertCurrency(offering.price || 0, businessCurrency, userCurrency), userCurrency) : null;
-          const dualPrice = showLocal ? `${eurFormatted} (~${localFormatted})` : eurFormatted;
-          const features = parseFeatures(offering.features);
-          const durLabel = formatDuration(offering.duration_days);
-          const endDate = offering.duration_days && startDate ? startDate.add(offering.duration_days, 'day') : null;
-          const isPending = purchaseMutation.isPending || assignMutation.isPending;
-          const walletIsInsufficient = paymentMethod === 'wallet' && eurBase > walletBalance;
-          const depositAmount = parseFloat((eurBase * 0.2).toFixed(2));
-          const remainingAmount = parseFloat((eurBase - depositAmount).toFixed(2));
-          const fmtDual = (amt) => {
-            const e = formatCurrency(amt, 'EUR');
-            if (!showLocal) return e;
-            return `${e} (~${formatCurrency(convertCurrency(amt, 'EUR', userCurrency), userCurrency)})`;
-          };
+      {purchaseModal.offering && (() => {
+        const offering = purchaseModal.offering;
+        const accent = getAccent(offering.badge_color);
+        const isStorage = offering.category === 'storage';
+        const eurBase = businessCurrency === 'EUR' ? (offering.price || 0) : convertCurrency(offering.price || 0, businessCurrency, 'EUR');
+        const eurFormatted = formatCurrency(eurBase, 'EUR');
+        const showLocal = userCurrency && userCurrency !== 'EUR';
+        const localFormatted = showLocal ? formatCurrency(convertCurrency(offering.price || 0, businessCurrency, userCurrency), userCurrency) : null;
+        const dualPrice = showLocal ? `${eurFormatted} (~${localFormatted})` : eurFormatted;
+        const features = parseFeatures(offering.features);
+        const durLabel = formatDuration(offering.duration_days);
+        const endDate = offering.duration_days && startDate ? startDate.add(offering.duration_days, 'day') : null;
+        const isPending = purchaseMutation.isPending || assignMutation.isPending;
+        const walletIsInsufficient = paymentMethod === 'wallet' && eurBase > walletBalance;
+        const depositAmount = parseFloat((eurBase * 0.2).toFixed(2));
+        const remainingAmount = parseFloat((eurBase - depositAmount).toFixed(2));
+        const fmtDual = (amt) => {
+          const e = formatCurrency(amt, 'EUR');
+          if (!showLocal) return e;
+          return `${e} (~${formatCurrency(convertCurrency(amt, 'EUR', userCurrency), userCurrency)})`;
+        };
+        const walletDisplayBalance = convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance;
+        const walletFormatted = formatCurrency(walletDisplayBalance, userCurrency);
 
-          return (
-            <div className="space-y-4 sm:space-y-5">
-              {/* Offering summary card */}
-              <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-cyan-50/30 p-4 sm:p-5">
-                <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-cyan-500/[0.04]" />
-                <div className="relative">
-                  <h3 className="text-base sm:text-lg font-duotone-bold-extended text-slate-900 leading-tight">{offering.name}</h3>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    {durLabel && <Tag color="cyan" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{durLabel}</Tag>}
-                    {offering.period && <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{offering.period}</Tag>}
-                  </div>
-                  {offering.description && (
-                    <p className="text-xs sm:text-sm text-slate-500 mt-2 line-clamp-2 font-duotone-regular">{offering.description}</p>
+        return (
+          <TwoColumnModal
+            open={purchaseModal.visible}
+            onClose={() => setPurchaseModal({ visible: false, offering: null })}
+            maxWidth={900}
+            leftContent={
+              <>
+                {/* Hero */}
+                <div className="relative h-48 shrink-0 sm:h-56 md:h-[min(42vh,22rem)]">
+                  {offering.image_url ? (
+                    <img
+                      src={offering.image_url}
+                      alt={offering.name}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{ background: `linear-gradient(160deg, ${accent.ring}30 0%, #1a1f26 100%)` }}
+                    >
+                      <div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl text-white"
+                        style={{ background: accent.btn, boxShadow: `0 8px 24px ${accent.ring}55` }}
+                      >
+                        {ICON_MAP[offering.icon] || <CrownOutlined />}
+                      </div>
+                    </div>
                   )}
-
-                  {/* Features */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-20 bg-gradient-to-t from-slate-50 via-slate-50/25 to-transparent" aria-hidden />
+                  <div className="absolute bottom-3 left-3 z-10 pr-12 sm:bottom-4 sm:left-4 max-w-[calc(100%-3rem)]">
+                    <div className={`mb-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-duotone-bold uppercase tracking-wider ${isStorage ? 'bg-orange-600/80 text-orange-100' : 'bg-cyan-600/80 text-cyan-100'}`}>
+                      {isStorage ? <InboxOutlined className="text-[10px]" /> : <CrownOutlined className="text-[10px]" />}
+                      {isStorage ? 'Storage' : 'Membership'}
+                    </div>
+                    <h2 className="text-base font-duotone-bold-extended leading-snug text-slate-900 drop-shadow-sm sm:text-xl">
+                      {offering.name}
+                    </h2>
+                  </div>
+                </div>
+                {/* Scrollable info */}
+                <div className="tcm-scroll p-4 sm:p-5 md:min-h-0 md:flex-1 md:overflow-y-auto md:p-7">
+                  {offering.description && (
+                    <p className="font-duotone-regular text-sm leading-relaxed text-slate-500 mb-5">{offering.description}</p>
+                  )}
                   {features.length > 0 && (
-                    <div className="mt-3 space-y-1.5">
-                      {features.slice(0, 5).map((feat, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs text-slate-600 font-duotone-regular">
-                          <CheckOutlined className="mt-0.5 flex-shrink-0" style={{ color: '#00a8c4', fontSize: 11 }} />
-                          <span className="line-clamp-1">{feat}</span>
+                    <div className="flex flex-col gap-2 mb-5">
+                      {features.map((feat, i) => (
+                        <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                          <CheckOutlined className="shrink-0 text-[#00a8c4]" style={{ fontSize: 11 }} />
+                          <span className="font-duotone-regular text-sm text-slate-600">{feat}</span>
                         </div>
                       ))}
-                      {features.length > 5 && (
-                        <p className="text-[10px] text-slate-400 pl-5">+{features.length - 5} more benefits</p>
+                    </div>
+                  )}
+                  {durLabel && (
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <ClockCircleOutlined className="shrink-0 text-slate-400" style={{ fontSize: 13 }} />
+                      <span className="font-duotone-regular text-sm text-slate-600">{durLabel} validity</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            }
+            rightContent={
+              <>
+                {/* Scrollable options */}
+                <div className="tcm-scroll space-y-4 sm:space-y-5 p-4 sm:p-5 md:min-h-0 md:flex-1 md:overflow-y-auto md:p-7">
+                  {offering.duration_days && (
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                        <CalendarOutlined className="mr-1" /> Start Date
+                      </p>
+                      <DatePicker
+                        value={startDate}
+                        onChange={(d) => setStartDate(d || dayjs())}
+                        className="w-full !rounded-xl !h-11"
+                        format="dddd, MMMM D, YYYY"
+                        disabledDate={(current) => current && current < dayjs().startOf('day')}
+                        allowClear={false}
+                      />
+                      {endDate && (
+                        <p className="text-[10px] sm:text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                          <ClockCircleOutlined style={{ fontSize: 10 }} />
+                          Valid until {endDate.format('MMMM D, YYYY')} ({offering.duration_days} days)
+                        </p>
                       )}
                     </div>
                   )}
-
-                  <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-end justify-between">
-                    <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">Total Price</span>
-                    <span className="text-2xl sm:text-3xl font-duotone-bold-extended text-slate-900 tracking-tight leading-none">{dualPrice}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Start date picker — show for all offerings with duration */}
-              {offering.duration_days && (
-                <div>
-                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                    <CalendarOutlined className="mr-1" /> Start Date
-                  </p>
-                  <DatePicker
-                    value={startDate}
-                    onChange={(d) => setStartDate(d || dayjs())}
-                    className="w-full !rounded-xl !h-11"
-                    format="dddd, MMMM D, YYYY"
-                    disabledDate={(current) => current && current < dayjs().startOf('day')}
-                    allowClear={false}
-                  />
-                  {endDate && (
-                    <p className="text-[10px] sm:text-xs text-slate-400 mt-1.5 flex items-center gap-1">
-                      <ClockCircleOutlined style={{ fontSize: 10 }} />
-                      Valid until {endDate.format('MMMM D, YYYY')} ({offering.duration_days} days)
-                    </p>
+                  {isStorage && offering.available_count != null && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs text-cyan-700">
+                      <InboxOutlined />
+                      <span>You will be assigned <strong>Storage Unit #{(offering.total_capacity || 0) - (offering.available_count || 0) + 1}</strong></span>
+                    </div>
                   )}
-                </div>
-              )}
-
-              {/* Storage unit assignment preview */}
-              {offering.category === 'storage' && offering.available_count != null && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs text-cyan-700">
-                  <InboxOutlined />
-                  <span>You will be assigned <strong>Storage Unit #{(offering.total_capacity || 0) - (offering.available_count || 0) + 1}</strong></span>
-                </div>
-              )}
-
-              {/* Payment method grid */}
-              <div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Payment Method</p>
-                {(() => {
-                  const walletDisplayBalance = convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance;
-                  const walletFormatted = formatCurrency(walletDisplayBalance, userCurrency);
-                  return (
-                  <>
-                <div className="grid gap-2 grid-cols-3">
-                  {[
-                    { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', activeColor: '#3b82f6', activeBg: '#eff6ff', sub: walletFormatted },
-                    { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981', activeBg: '#ecfdf5', sub: 'Iyzico' },
-                    { key: 'deposit', icon: <SafetyCertificateOutlined />, label: 'Deposit 20%', activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
-                  ].map(({ key, icon, label, activeColor, activeBg, sub }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setPaymentMethod(key)}
-                      className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${
-                        paymentMethod === key
-                          ? 'shadow-sm'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                      style={paymentMethod === key ? { borderColor: activeColor, backgroundColor: activeBg } : {}}
-                    >
-                      {paymentMethod === key && (
-                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: activeColor }}>
-                          <CheckOutlined className="text-white text-[8px]" />
-                        </div>
-                      )}
-                      <span className={`text-lg sm:text-xl ${paymentMethod === key ? '' : 'text-slate-400'}`} style={paymentMethod === key ? { color: activeColor } : {}}>
-                        {icon}
-                      </span>
-                      <span className={`text-[11px] sm:text-xs font-semibold ${paymentMethod === key ? 'text-slate-700' : 'text-slate-600'}`}>{label}</span>
-                      {sub && <span className="text-[9px] sm:text-[10px] text-slate-400 -mt-0.5 leading-tight">{sub}</span>}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Insufficient wallet balance warning */}
-                {paymentMethod === 'wallet' && walletIsInsufficient && (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    icon={<WarningOutlined />}
-                    className="!mt-2 !rounded-xl !text-xs"
-                    message={`Insufficient balance. You have ${walletFormatted} but need ${dualPrice}.`}
-                  />
-                )}
-                  </>
-                  );
-                })()}
-
-                {/* Deposit sub-options */}
-                {paymentMethod === 'deposit' && (
-                  <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 font-duotone-regular">Deposit (20%)</span>
-                      <span className="font-duotone-bold text-slate-900">{fmtDual(depositAmount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500 font-duotone-regular">Remaining on arrival</span>
-                      <span className="font-duotone-bold text-slate-900">{fmtDual(remainingAmount)}</span>
-                    </div>
-                    <div className="border-t border-violet-200 pt-2.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Pay deposit via</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981' },
-                          { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer', activeColor: '#3b82f6' },
-                        ].map(({ key, icon, label, activeColor }) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setDepositMethod(key)}
-                            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 transition-all text-center cursor-pointer ${
-                              depositMethod === key ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
-                            }`}
-                            style={depositMethod === key ? { borderColor: activeColor, backgroundColor: `${activeColor}10` } : {}}
-                          >
-                            <span className="text-sm" style={depositMethod === key ? { color: activeColor } : { color: '#94a3b8' }}>{icon}</span>
-                            <span className={`text-xs font-semibold ${depositMethod === key ? 'text-slate-700' : 'text-slate-500'}`}>{label}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {depositMethod === 'bank_transfer' && (
-                        <>
-                          <div className="mt-3">
-                            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">
-                              Select Bank Account
-                            </p>
-                            <Select
-                              placeholder="Choose account to transfer to…"
-                              className="w-full"
-                              size="large"
-                              value={selectedBankAccountId}
-                              onChange={setSelectedBankAccountId}
-                              options={bankAccounts.map((acc) => ({
-                                value: acc.id,
-                                label: `${acc.bankName} (${acc.currency}) - ${acc.iban ? acc.iban.slice(-6) : ''}`
-                              }))}
-                            />
-                          </div>
-                          {selectedAccount && <BankDetailsCard account={selectedAccount} />}
-                          {selectedAccount && (
-                            <div className="mt-3 pt-2 border-t border-violet-200/50">
-                              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">
-                                Upload Receipt
-                              </p>
-                              <Upload
-                                onRemove={(file) => setFileList((prev) => prev.filter((item) => item.uid !== file.uid))}
-                                beforeUpload={(file) => {
-                                  const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
-                                  if (!allowed.includes(file.type)) {
-                                    message.error('Only JPEG, PNG, or PDF files are accepted.');
-                                    return Upload.LIST_IGNORE;
-                                  }
-                                  setFileList([file]);
-                                  return false;
-                                }}
-                                fileList={fileList}
-                                maxCount={1}
-                                accept=".jpg,.jpeg,.png,.pdf"
-                              >
-                                <Button icon={<UploadOutlined />} className="w-full">
-                                  Select Receipt (JPEG, PNG or PDF)
-                                </Button>
-                              </Upload>
-                              <p className="text-[10px] mt-2 leading-tight text-violet-600/80">
-                                {`Upload your deposit receipt for ${fmtDual(depositAmount)} — JPEG, PNG, or PDF accepted.`}
-                              </p>
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Payment Method</p>
+                    <div className="grid gap-2 grid-cols-3">
+                      {[
+                        { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', activeColor: '#3b82f6', activeBg: '#eff6ff', sub: walletFormatted },
+                        { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981', activeBg: '#ecfdf5', sub: 'Iyzico' },
+                        { key: 'deposit', icon: <SafetyCertificateOutlined />, label: 'Deposit 20%', activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
+                      ].map(({ key, icon, label, activeColor, activeBg, sub }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setPaymentMethod(key)}
+                          className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${paymentMethod === key ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                          style={paymentMethod === key ? { borderColor: activeColor, backgroundColor: activeBg } : {}}
+                        >
+                          {paymentMethod === key && (
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: activeColor }}>
+                              <CheckOutlined className="text-white text-[8px]" />
                             </div>
                           )}
-                        </>
-                      )}
+                          <span className={`text-lg sm:text-xl ${paymentMethod === key ? '' : 'text-slate-400'}`} style={paymentMethod === key ? { color: activeColor } : {}}>{icon}</span>
+                          <span className={`text-[11px] sm:text-xs font-semibold ${paymentMethod === key ? 'text-slate-700' : 'text-slate-600'}`}>{label}</span>
+                          {sub && <span className="text-[9px] sm:text-[10px] text-slate-400 -mt-0.5 leading-tight">{sub}</span>}
+                        </button>
+                      ))}
                     </div>
+                    {paymentMethod === 'wallet' && walletIsInsufficient && (
+                      <Alert type="warning" showIcon icon={<WarningOutlined />} className="!mt-2 !rounded-xl !text-xs" message={`Insufficient balance. You have ${walletFormatted} but need ${dualPrice}.`} />
+                    )}
+                    {paymentMethod === 'deposit' && (
+                      <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3 space-y-2.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-duotone-regular">Deposit (20%)</span>
+                          <span className="font-duotone-bold text-slate-900">{fmtDual(depositAmount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-duotone-regular">Remaining on arrival</span>
+                          <span className="font-duotone-bold text-slate-900">{fmtDual(remainingAmount)}</span>
+                        </div>
+                        <div className="border-t border-violet-200 pt-2.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Pay deposit via</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981' },
+                              { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer', activeColor: '#3b82f6' },
+                            ].map(({ key, icon, label, activeColor }) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => setDepositMethod(key)}
+                                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 transition-all text-center cursor-pointer ${depositMethod === key ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                style={depositMethod === key ? { borderColor: activeColor, backgroundColor: `${activeColor}10` } : {}}
+                              >
+                                <span className="text-sm" style={depositMethod === key ? { color: activeColor } : { color: '#94a3b8' }}>{icon}</span>
+                                <span className={`text-xs font-semibold ${depositMethod === key ? 'text-slate-700' : 'text-slate-500'}`}>{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                          {depositMethod === 'bank_transfer' && (
+                            <>
+                              <div className="mt-3">
+                                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">Select Bank Account</p>
+                                <Select
+                                  placeholder="Choose account to transfer to…"
+                                  className="w-full"
+                                  size="large"
+                                  value={selectedBankAccountId}
+                                  onChange={setSelectedBankAccountId}
+                                  options={bankAccounts.map((acc) => ({
+                                    value: acc.id,
+                                    label: `${acc.bankName} (${acc.currency}) - ${acc.iban ? acc.iban.slice(-6) : ''}`
+                                  }))}
+                                />
+                              </div>
+                              {selectedAccount && <BankDetailsCard account={selectedAccount} />}
+                              {selectedAccount && (
+                                <div className="mt-3 pt-2 border-t border-violet-200/50">
+                                  <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">Upload Receipt</p>
+                                  <Upload
+                                    onRemove={(file) => setFileList((prev) => prev.filter((item) => item.uid !== file.uid))}
+                                    beforeUpload={(file) => {
+                                      const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+                                      if (!allowed.includes(file.type)) { message.error('Only JPEG, PNG, or PDF files are accepted.'); return Upload.LIST_IGNORE; }
+                                      setFileList([file]);
+                                      return false;
+                                    }}
+                                    fileList={fileList}
+                                    maxCount={1}
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                  >
+                                    <Button icon={<UploadOutlined />} className="w-full">Select Receipt (JPEG, PNG or PDF)</Button>
+                                  </Upload>
+                                  <p className="text-[10px] mt-2 leading-tight text-violet-600/80">
+                                    {`Upload your deposit receipt for ${fmtDual(depositAmount)} — JPEG, PNG, or PDF accepted.`}
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Staff assignment info */}
-              {isStaff && selectedCustomerName && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-50 border border-cyan-200 text-sm text-cyan-700">
-                  <UserOutlined /> Assigning to <strong>{selectedCustomerName}</strong>
+                  {isStaff && selectedCustomerName && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-50 border border-cyan-200 text-sm text-cyan-700">
+                      <UserOutlined /> Assigning to <strong>{selectedCustomerName}</strong>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Purchase button */}
-              <button
-                onClick={executePurchase}
-                disabled={isPending || ownedOfferingIds.has(offering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0))}
-                className="w-full py-3.5 rounded-xl font-duotone-bold text-sm sm:text-base tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                style={{
-                  background: '#4b4f54',
-                  color: '#00a8c4',
-                  border: '1px solid rgba(0,168,196,0.5)',
-                  boxShadow: '0 0 8px rgba(0,168,196,0.2)',
-                }}
-              >
-                {isPending ? 'Processing...' : ownedOfferingIds.has(offering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${fmtDual(depositAmount)}` : offering.category === 'storage' ? `Reserve Storage — ${dualPrice}` : `Purchase — ${dualPrice}`}
-              </button>
-            </div>
-          );
-        })()}
-      </Modal>
+                {/* Sticky purchase footer */}
+                <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_24px_rgba(15,23,42,0.06)] sm:px-5 md:px-7 md:py-5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-duotone-bold uppercase tracking-wider text-slate-500">Total</p>
+                      {durLabel && <p className="text-xs font-duotone-regular text-slate-400">{durLabel}</p>}
+                    </div>
+                    <span className="shrink-0 font-duotone-bold-extended text-xl tracking-tight text-slate-900 sm:text-2xl">{dualPrice}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={executePurchase}
+                    disabled={!isGuest && (isPending || ownedOfferingIds.has(offering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))}
+                    className="w-full h-12 rounded-xl font-duotone-bold text-base tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.25)' }}
+                  >
+                    {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(offering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${fmtDual(depositAmount)}` : isStorage ? `Reserve Storage — ${dualPrice}` : `Purchase — ${dualPrice}`}
+                  </button>
+                </div>
+              </>
+            }
+          />
+        );
+      })()}
 
       {/* Iyzico Credit Card Payment Modal */}
       <IyzicoPaymentModal
