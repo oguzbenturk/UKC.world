@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import { Button, Tag, Spin, message } from 'antd';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +28,15 @@ import {
   refreshOpenPackageDetailsModal,
 } from '@/features/outsider/stores/packageDetailsModalStore';
 import { packageDetailsModalDepsRef } from '@/features/outsider/stores/packageDetailsModalDepsRef';
+
+const LESSON_NAV_ITEMS = [
+  { id: 'kite',    label: 'KITE LESSONS',   shortLabel: 'KITE',   path: '/academy/kite-lessons' },
+  { id: 'wing',    label: 'WING LESSONS',   shortLabel: 'WING',   path: '/academy/wing-lessons' },
+  { id: 'foil',    label: 'FOIL LESSONS',   shortLabel: 'FOIL',   path: '/academy/foil-lessons' },
+  { id: 'efoil',   label: 'E-FOIL LESSONS', shortLabel: 'E-FOIL', path: '/academy/efoil-lessons' },
+  { id: 'premium', label: 'PREMIUM',        shortLabel: 'VIP',    path: '/academy/premium-lessons' },
+];
+const LESSON_KEYS = new Set(['kite', 'wing', 'foil', 'efoil', 'premium']);
 
 const AcademyServicePackagesPage = ({
   seoTitle,
@@ -1423,16 +1433,31 @@ const AcademyServicePackagesPage = ({
           formatPrice={formatPrice}
           cardTitleHoverClass={cardTitleHoverClass}
           onCardClick={() => handleCardClick(pkg)}
+          showCheapestPerHour={!isStayPage && !isRentalPage && LESSON_KEYS.has(normalize(dynamicServiceKey || ''))}
         />
       );
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayPackages, cardTitleHoverClass, userCurrency, isStayPage, dynamicServiceKey]);
+  }, [displayPackages, cardTitleHoverClass, userCurrency, isStayPage, isRentalPage, dynamicServiceKey]);
+
+  const isLessonNavPage = LESSON_KEYS.has(normalize(dynamicServiceKey || ''));
 
   return (
-    <div className={`min-h-screen text-slate-900 font-sans relative overflow-x-hidden ${pageBackgroundClass} ${selectionClass}`}>
+    <div className={`min-h-screen text-slate-900 font-sans relative ${pageBackgroundClass} ${selectionClass}`} style={{ overflowX: 'clip' }}>
       {bgTheme}
-      
+
+      {/* Lesson category sticky nav — shown on all individual lesson pages */}
+      {isLessonNavPage && (
+        <StickyNavBar
+          items={LESSON_NAV_ITEMS}
+          activeItem={normalize(dynamicServiceKey)}
+          onItemClick={(id) => {
+            const item = LESSON_NAV_ITEMS.find(n => n.id === id);
+            if (item) navigate(item.path);
+          }}
+        />
+      )}
+
       <div className="relative z-10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8">
           <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-slate-900 mb-4 uppercase">

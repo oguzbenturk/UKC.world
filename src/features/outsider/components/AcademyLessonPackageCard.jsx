@@ -12,6 +12,28 @@ function getCheapestDuration(durations) {
   }, durations[0]);
 }
 
+function parseHoursFromStr(h) {
+  const s = String(h ?? '').trim();
+  const m = s.match(/^([\d.]+)\s*h$/i);
+  if (m) return parseFloat(m[1]);
+  return null;
+}
+
+/** Returns { duration, perHour } where perHour is the cheapest price-per-hour across all durations. */
+function getCheapestPerHourRate(durations) {
+  if (!Array.isArray(durations) || !durations.length) return { duration: null, perHour: null };
+  let best = null;
+  let bestRate = Infinity;
+  for (const d of durations) {
+    const price = Number(d.price);
+    const h = parseHoursFromStr(d.hours);
+    if (!Number.isFinite(price) || !h || h <= 0) continue;
+    const rate = price / h;
+    if (rate < bestRate) { bestRate = rate; best = d; }
+  }
+  return { duration: best, perHour: best ? bestRate : null };
+}
+
 function formatDurationBadgeLine(hours) {
   const s = String(hours ?? '').trim();
   if (!s || s === '—') return 'SESSION';
@@ -86,6 +108,8 @@ export default function AcademyLessonPackageCard({
   formatPrice,
   cardTitleHoverClass = '',
   onCardClick,
+  /** Show cheapest per-hour rate instead of cheapest total price (lesson pages only) */
+  showCheapestPerHour = false,
   /** Experience / service bundles: label for badge row 2 (e.g. "Lessons + Stay") */
   bundleSummaryLabel,
   /** Optional emerald note above title (e.g. owned remaining) */
@@ -107,9 +131,22 @@ export default function AcademyLessonPackageCard({
   let priceLabel;
 
   if (hasLessonDurations) {
-    durationLine = formatDurationBadgeLine(cheapest.hours);
-    tier = tierLine(pkg);
-    priceLabel = formatPrice(cheapest.price);
+    if (showCheapestPerHour) {
+      const { duration: bestDur, perHour } = getCheapestPerHourRate(durationRows);
+      if (bestDur && perHour != null) {
+        durationLine = '1-HOUR';
+        tier = tierLine(pkg);
+        priceLabel = formatPrice(Math.round(perHour * 100) / 100);
+      } else {
+        durationLine = formatDurationBadgeLine(cheapest.hours);
+        tier = tierLine(pkg);
+        priceLabel = formatPrice(cheapest.price);
+      }
+    } else {
+      durationLine = formatDurationBadgeLine(cheapest.hours);
+      tier = tierLine(pkg);
+      priceLabel = formatPrice(cheapest.price);
+    }
   } else if (Number.isFinite(singlePrice)) {
     durationLine = bundlePrimaryStatLine(pkg);
     tier = truncateTier(bundleSummaryLabel || tierLine(pkg));
