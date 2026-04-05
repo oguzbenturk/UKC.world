@@ -1,0 +1,104 @@
+/* Gear Showcase Styles */
+.gear-showcase {
+  margin: 1.5rem 0;
+}
+
+.gear-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.gear-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.gear-image-container {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.gear-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 20px;
+  transition: transform 0.3s ease;
+}
+
+.gear-card:hover .gear-image {
+  transform: scale(1.05);
+}
+
+.gear-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: white;
+  font-size: 48px;
+}
+
+.gear-fallback span {
+  margin-top: 10px;
+  font-size: 16px;
+}
+
+.gear-modal-image {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gear-card .ant-card-meta-title {
+  color: #333;
+  font-size: 16px;
+}
+
+.gear-card .ant-card-meta-description {
+  color: #666;
+}
+
+.gear-card .ant-card-actions {
+  background: #fafafa;
+}
+
+.gear-card .ant-card-actions > li {
+  margin: 8px 0;
+}
+
+.gear-card .ant-card-actions button {
+  border: none;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .gear-image-container {
+    height: 150px;
+  }
+  
+  .gear-image {
+    padding: 15px;
+  }
+}
+
+/* Hover effects for better interaction */
+.gear-card .ant-card-actions button:hover {
+  transform: translateY(-1px);
+}
+
+/* Tag styling */
+.gear-card .ant-tag {
+  font-weight: 600;
+  border: none;
+  font-size: 12px;
+}

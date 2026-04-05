@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(js|sql|ts\\)$\")"
+    ]
+  }
+}

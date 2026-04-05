@@ -1,0 +1,261 @@
+/* Eye-Friendly Time Range Slot Styling */
+.time-range-slot {
+  position: relative;
+  border: 2px solid var(--border-color, var(--border));
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-1);
+  background-color: var(--bg-color, var(--surface));
+  padding: var(--spacing-2);
+  transition: all 0.2s ease;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 75%;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.time-range-slot .slot-time {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.time-range-slot .slot-content {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.time-range-slot.status-available {
+  --border-color: var(--accent);
+  --bg-color: rgba(16, 185, 129, 0.08);
+  cursor: pointer;
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%);
+}
+
+.time-range-slot.status-booked {
+  --border-color: var(--status-booked);
+  --bg-color: rgba(239, 68, 68, 0.08);
+  opacity: 0.8;
+  border-color: var(--status-booked);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.05) 100%);
+}
+
+/* Duration display */
+.slot-duration {
+  font-size: 0.75rem;
+  color: #555;
+  margin-top: 2px;
+}
+
+/* Compact mode in Month View */
+.time-range-slot.compact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  font-size: 0.9rem; /* Slightly increased font size */
+  padding: 6px 8px; /* Increased padding */
+  margin-bottom: 4px; /* Increased margin */
+  min-height: 48px; /* Increased from 40px to 48px */
+  max-height: none;
+  height: auto;
+}
+
+.time-range-slot.compact .slot-time {
+  font-size: 0.85rem;
+}
+
+.time-range-slot.compact .slot-instructor {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.time-range-slot:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+
+.time-range-slot.status-available:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+/* Gentle status indicators */
+.time-range-slot .slot-status-indicator {
+  position: absolute;
+  top: var(--spacing-1);
+  right: var(--spacing-1);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.time-range-slot.status-available .slot-status-indicator {
+  background-color: var(--accent);
+}
+
+.time-range-slot.status-booked .slot-status-indicator {
+  background-color: var(--status-booked);
+}
+
+/* Slot range display in month view */
+.slot-range {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+/* Professional confirmation overlay */
+.time-range-slot.show-confirm {
+  z-index: 10;
+}
+
+.slot-confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--surface) 0%, var(--bg-primary) 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.2s ease;
+  z-index: 5;
+  border: 2px solid var(--primary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.slot-confirm-message {
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: var(--spacing-3);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.slot-confirm-duration {
+  font-weight: normal;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-1);
+}
+
+.slot-confirm-buttons {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.slot-confirm-button {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: var(--text-sm);
+}
+
+.slot-confirm-button.confirm {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.slot-confirm-button.confirm:hover {
+  background: linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.slot-confirm-button.cancel {
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.slot-confirm-button.cancel:hover {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--gray-400);
+}
+
+/* Time block in grid views */
+.time-block .slot-confirm-overlay {
+  padding: 4px;
+}
+
+.time-block .slot-confirm-message {
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.time-block .slot-confirm-button {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+}
+
+/* Daily view specific styling */
+.daily-grid .time-range-slot {
+  margin-bottom: 0;
+  border-radius: 4px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 60px;
+}
+
+.daily-grid .time-range-slot .slot-content {
+  width: 100%;
+}
+
+.daily-grid .time-range-slot.status-available:hover {
+  transform: none;
+  box-shadow: inset 0 0 0 2px #4caf50;
+  cursor: pointer;
+}
+
+/* Student name display in daily view */
+.daily-grid .slot-student {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.daily-grid .slot-service {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.daily-grid .book-slot-prompt {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4caf50;
+  text-align: center;
+  display: block;
+  width: 100%;
+}

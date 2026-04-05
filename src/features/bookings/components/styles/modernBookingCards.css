@@ -1,0 +1,551 @@
+/* Modern Futuristic Booking Cards Styles */
+
+/* Glass morphism effect for booking cards */
+.booking-card-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px 0 rgba(31, 38, 135, 0.37),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Animated gradient backgrounds */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.booking-card-animated {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Holographic border effect */
+.holographic-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.holographic-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.holographic-border:hover::before {
+  left: 100%;
+}
+
+/* Neon glow effects */
+.neon-glow-emerald {
+  box-shadow: 
+    0 0 5px rgba(16, 185, 129, 0.5),
+    0 0 10px rgba(16, 185, 129, 0.3),
+    0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.neon-glow-blue {
+  box-shadow: 
+    0 0 5px rgba(59, 130, 246, 0.5),
+    0 0 10px rgba(59, 130, 246, 0.3),
+    0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.neon-glow-amber {
+  box-shadow: 
+    0 0 5px rgba(245, 158, 11, 0.5),
+    0 0 10px rgba(245, 158, 11, 0.3),
+    0 0 15px rgba(245, 158, 11, 0.2);
+}
+
+/* Futuristic time slot styling */
+.time-slot-modern {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.time-slot-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.05) 0%,
+    rgba(147, 51, 234, 0.05) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.time-slot-modern:hover::before {
+  opacity: 1;
+}
+
+/* Pulse animation for status indicators */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Floating animation for add buttons */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+.float-animation {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Cyber grid background for time slots */
+.cyber-grid {
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Smooth scale and glow transitions */
+.booking-card-interactive {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.booking-card-interactive:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Status badge modern styling */
+.status-badge-modern {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* Instructor avatar modern styling */
+.instructor-avatar-modern {
+  position: relative;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    0 0 0 2px rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.instructor-avatar-modern:hover {
+  transform: scale(1.1);
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.15),
+    0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+/* Time display modern styling */
+.time-display-modern {
+  font-family: 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* Enhanced Daily View Styles */
+
+/* Daily view container */
+.daily-view-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  min-height: 100vh;
+}
+
+/* Time slot grid improvements */
+.time-slot-grid {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Individual time slot styling */
+.time-slot-row {
+  position: relative;
+  height: 60px;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.time-slot-row:hover {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.03) 0%, rgba(147, 51, 234, 0.03) 100%);
+}
+
+.time-slot-row:last-child {
+  border-bottom: none;
+}
+
+/* Time label styling */
+.time-label {
+  width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 2px solid #e2e8f0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.time-label-text {
+  font-family: 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+/* Booking slot area */
+.booking-slot-area {
+  position: relative;
+  height: 100%;
+  margin-left: 80px;
+  padding: 4px;
+}
+
+/* Empty slot hover effects */
+.empty-slot-hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: linear-gradient(90deg, 
+    rgba(59, 130, 246, 0.05) 0%, 
+    rgba(147, 51, 234, 0.05) 100%
+  );
+  border-radius: 8px;
+  border: 2px dashed rgba(59, 130, 246, 0.2);
+}
+
+.time-slot-row:hover .empty-slot-hover {
+  opacity: 1;
+}
+
+/* Add booking button */
+.add-booking-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #3b82f6;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.add-booking-btn:hover {
+  color: #1d4ed8;
+  transform: scale(1.05);
+}
+
+.add-booking-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.125rem;
+  box-shadow: 
+    0 4px 6px -1px rgba(59, 130, 246, 0.3),
+    0 2px 4px -1px rgba(59, 130, 246, 0.1);
+  transition: all 0.3s ease;
+}
+
+.add-booking-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 12px -1px rgba(59, 130, 246, 0.4),
+    0 4px 8px -1px rgba(59, 130, 246, 0.2);
+}
+
+/* Floating booking cards in daily view */
+.floating-booking-card {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.floating-booking-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  z-index: 20;
+}
+
+/* Booking card content layout */
+.booking-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.booking-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.booking-card-footer {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: between;
+}
+
+/* Student name styling */
+.student-name {
+  font-weight: 700;
+  color: white;
+  font-size: 0.875rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Service name styling */
+.service-name {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Instructor info styling */
+.instructor-info {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+}
+
+.instructor-indicator {
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Duration indicator */
+.duration-indicator {
+  position: absolute;
+  bottom: 0.25rem;
+  right: 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  font-family: 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+/* Not available slot styling */
+.not-available-slot {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #6c757d;
+  position: relative;
+}
+
+.not-available-slot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 80px;
+  right: 8px;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #dee2e6,
+    #dee2e6 5px,
+    transparent 5px,
+    transparent 10px
+  );
+}
+
+.not-available-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6c757d;
+  background: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .booking-card-interactive:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .booking-card-animated {
+    animation: none;
+  }
+  
+  .time-label {
+    width: 60px;
+  }
+  
+  .booking-slot-area {
+    margin-left: 60px;
+  }
+  
+  .time-label-text {
+    font-size: 0.625rem;
+    padding: 0.125rem 0.25rem;
+  }
+  
+  .student-name {
+    font-size: 0.75rem;
+  }
+  
+  .service-name,
+  .instructor-info {
+    font-size: 0.625rem;
+  }
+  
+  .add-booking-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 0.875rem;
+  }
+}
+
+/* Header styling for daily view */
+.daily-view-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+  padding: 1rem 1.5rem;
+}
+
+.daily-view-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.daily-view-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  background: #eff6ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #dbeafe;
+}
+
+/* Improved scroll behavior */
+.daily-view-scroll-container {
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.daily-view-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.daily-view-scroll-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.daily-view-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.daily-view-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

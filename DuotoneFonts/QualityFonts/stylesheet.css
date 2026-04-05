@@ -1,0 +1,56 @@
+@font-face {
+    font-family: 'DUOTONE';
+    src: url('DUOTONE-Bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DUOTONE Light Condensed';
+    src: url('DUOTONE-LightCondensed.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DUOTONE Extended';
+    src: url('DUOTONE-BoldExtended.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DUOTONE Medium Condensed';
+    src: url('DUOTONE-MediumCondensed.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'DUOTONE';
+    src: url('DUOTONE-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gotham TR';
+    src: url('Gotham-Bold-TR.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gotham TR';
+    src: url('Gotham-Medium-TR.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+

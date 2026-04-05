@@ -1,0 +1,33 @@
+# docker-compose.override.yml -- Local development overrides (auto-loaded by docker-compose)
+# Adds port mappings, volume mounts for hot reload, and dev mode settings
+
+services:
+  frontend:
+    ports:
+      - "3000:80"  # Local port for frontend
+    volumes:
+      - ./src:/app/src  # Frontend code sync for hot reload
+      - ./public:/app/public
+      - uploads_data:/var/www/uploads
+    environment:
+      - NODE_ENV=development
+
+  backend:
+    ports:
+      - "4000:4000"  # Local port for backend API
+    volumes:
+      - ./backend:/app  # Backend code sync for hot reload
+      - /app/node_modules  # Keep node_modules in container
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - ENABLE_CORS=true
+    command: ["npm", "run", "dev"]  # Development mode
+
+  db:
+    ports:
+      - "5432:5432"  # Direct access to PostgreSQL
+
+  redis:
+    ports:
+      - "6379:6379"  # Direct access to Redis

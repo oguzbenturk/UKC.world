@@ -1,0 +1,3668 @@
+// backend/routes/services.js
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { pool } from '../db.js';
+import { authenticateJWT } from './auth.js';
+import { authorizeRoles as authorize } from '../middlewares/authorize.js';
+import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
+import CurrencyService from '../services/currencyService.js';
+import { logger } from '../middlewares/errorHandler.js';
+import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
+import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
+import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
+import { setPackagePrices, getPackagePrices, setServicePrices, getServicePrices, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
+import voucherService from '../services/voucherService.js';
+import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
+const router = express.Router();
+
+// Minimal currency defaults to prevent FK errors when currency_settings isn't seeded
+const CURRENCY_DEFAULTS = {
+  EUR: { name: 'Euro', symbol: '€', rate: 1.0 },
+  USD: { name: 'US Dollar', symbol: '$', rate: 1.1 },
+  GBP: { name: 'British Pound', symbol: '£', rate: 0.85 },
+  TRY: { name: 'Turkish Lira', symbol: '₺', rate: 32.5 },
+  CAD: { name: 'Canadian Dollar', symbol: 'C$', rate: 1.45 },
+  AUD: { name: 'Australian Dollar', symbol: 'A$', rate: 1.65 },
+};
+
+async function ensureCurrencyExists(client, code) {
+  if (!code) return;
+  const currencyCode = String(code).toUpperCase();
+  const exists = await client.query('SELECT 1 FROM currency_settings WHERE currency_code = $1', [currencyCode]);
+  if (exists.rowCount > 0) return;
+  const def = CURRENCY_DEFAULTS[currencyCode] || { name: currencyCode, symbol: currencyCode, rate: 1.0 };
+  await client.query(
+    `INSERT INTO currency_settings (currency_code, currency_name, symbol, is_active, exchange_rate, base_currency, decimal_places)
+     VALUES ($1, $2, $3, true, $4, false, 2)
+     ON CONFLICT (currency_code) DO NOTHING`,
+    [currencyCode, def.name, def.symbol, def.rate]
+  );
+}
+
+// Get all services
+router.get('/', async (req, res) => {
+  try {
+    const { category, level, isPackage } = req.query;
+    
+    let query = `
+      SELECT s.*, 
+            p.name as package_name, 
+            p.price as package_price, 
+            p.sessions_count,
+            cs.symbol as currency_symbol
+      FROM services s
+      LEFT JOIN service_packages p ON s.package_id = p.id
+      LEFT JOIN currency_settings cs ON s.currency = cs.currency_code
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    
+    // Apply filters if provided
+    if (category) {
+      query += ` AND s.category = $${queryParams.length + 1}`;
+      queryParams.push(category);
+    }
+    
+    if (level) {
+      query += ` AND s.level = $${queryParams.length + 1}`;
+      queryParams.push(level);
+    }
+    
+    if (isPackage === 'true') {
+      query += ` AND s.package_id IS NOT NULL`;
+    } else if (isPackage === 'false') {
+      query += ` AND s.package_id IS NULL`;
+    }
+    
+    query += ` ORDER BY s.name ASC`;
+    
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Fetch prices for all services in parallel
+    const servicesWithPrices = await Promise.all(rows.map(async row => {
+      const isPackageResult = row.package_id !== null;
+      const prices = await getServicePrices(row.id);
+      
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        category: row.category,
+        level: row.level,
+        serviceType: row.service_type,
+        duration: row.duration,
+        price: row.price,
+        currency: row.currency,
+        currencySymbol: row.currency_symbol,
+        prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) || 0 }],
+        maxParticipants: row.max_participants,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        includes: row.includes,
+        imageUrl: row.image_url,
+        disciplineTag: row.discipline_tag || null,
+        lessonCategoryTag: row.lesson_category_tag || null,
+        levelTag: row.level_tag || null,
+        rentalSegment: row.rental_segment || null,
+        isPackage: isPackageResult,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        ...(isPackageResult && {
+          packageName: row.package_name,
+          packagePrice: row.package_price,
+          sessionsCount: row.sessions_count
+        })
+      };
+    }));
+    
+    res.json(servicesWithPrices);
+  } catch (error) {
+  logger.error('Error fetching services:', error);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+// Get service categories
+router.get('/categories', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM service_categories ORDER BY name');
+    res.json(rows);
+  } catch (error) {
+  logger.error('Error fetching service categories:', error);
+    res.status(500).json({ error: 'Failed to fetch service categories' });
+  }
+});
+
+// ============ PACKAGE ROUTES ============
+// Note: These must be defined BEFORE the /:id route to avoid conflicts
+
+// Get all packages
+router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { packageType } = req.query;
+    
+    let query = `
+      SELECT 
+        p.*,
+        ls.name as linked_lesson_service_name,
+        rs.name as linked_rental_service_name,
+        au.name as linked_accommodation_unit_name,
+        au.type as linked_accommodation_unit_type,
+        au.category as linked_accommodation_unit_category
+      FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
+      LEFT JOIN accommodation_units au ON au.id = p.accommodation_unit_id
+      WHERE 1=1
+    `;
+    const queryParams = [];
+    
+    // Filter by package_type if provided
+    if (packageType) {
+      queryParams.push(packageType);
+      query += ` AND p.package_type = $${queryParams.length}`;
+    }
+    
+    query += ` ORDER BY p.created_at DESC`;
+    
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Fetch prices for all packages in parallel
+    const packagesWithPrices = await Promise.all(rows.map(async row => {
+      const prices = await getPackagePrices(row.id);
+      
+      // Determine lesson service name from JOIN or fallback to stored name
+      const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
+      
+      // Determine rental service name from JOIN or fallback to stored name
+      const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
+      
+      // Determine accommodation name from JOIN or fallback to stored name
+      const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+      const accommodationUnitType = row.linked_accommodation_unit_type || null;
+      const accommodationUnitCategory = row.linked_accommodation_unit_category || null;
+      
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        price: parseFloat(row.price),
+        currency: row.currency || 'EUR',
+        currencySymbol: row.currency === 'USD' ? '$' : '€',
+        prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) }],
+        sessionsCount: row.sessions_count,
+        totalHours: parseFloat(row.total_hours) || 0,
+        lessonServiceName: lessonServiceName,
+        disciplineTag: row.discipline_tag || null,
+        lessonCategoryTag: row.lesson_category_tag || null,
+        levelTag: row.level_tag || null,
+        // New unified package type fields
+        packageType: row.package_type || 'lesson',
+        includesAccommodation: row.includes_accommodation || false,
+        includesRental: row.includes_rental || false,
+        includesLessons: row.includes_lessons !== false, // default true for backwards compatibility
+        accommodationNights: row.accommodation_nights || 0,
+        rentalDays: row.rental_days || 0,
+        imageUrl: row.image_url || null,
+        // Service reference fields
+        lessonServiceId: row.lesson_service_id || null,
+        equipmentId: row.equipment_id || null,
+        accommodationUnitId: row.accommodation_unit_id || null,
+        rentalServiceId: row.rental_service_id || null,
+        equipmentName: row.equipment_name || null,
+        accommodationUnitName: accommodationUnitName,
+        accommodationUnitType: accommodationUnitType,
+        accommodationUnitCategory: accommodationUnitCategory,
+        rentalServiceName: rentalServiceName,
+        // Per-component pricing
+        packageHourlyRate: row.package_hourly_rate ? parseFloat(row.package_hourly_rate) : null,
+        packageDailyRate: row.package_daily_rate ? parseFloat(row.package_daily_rate) : null,
+        packageNightlyRate: row.package_nightly_rate ? parseFloat(row.package_nightly_rate) : null,
+        // Event-specific fields
+        eventStartDate: row.event_start_date || null,
+        eventEndDate: row.event_end_date || null,
+        eventLocation: row.event_location || null,
+        departureLocation: row.departure_location || null,
+        destinationLocation: row.destination_location || null,
+        maxParticipants: row.max_participants || null,
+        currentParticipants: row.current_participants || 0,
+        minSkillLevel: row.min_skill_level || null,
+        minAge: row.min_age || null,
+        maxAge: row.max_age || null,
+        itinerary: row.itinerary || null,
+        eventStatus: row.event_status || null,
+        pricePerHour: row.total_hours ? Math.round(parseFloat(row.price) / parseFloat(row.total_hours)) : 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        status: 'active'
+      };
+    }));
+    
+    res.json(packagesWithPrices);
+  } catch (error) {
+  logger.error('Error fetching packages:', error);
+    res.status(500).json({ error: 'Failed to fetch packages' });
+  }
+});
+
+// Public lesson packages endpoint (no auth)
+// Used by guest-facing academy pages (e.g. /academy/kite-lessons)
+router.get('/packages/public', async (req, res) => {
+  try {
+    const { category } = req.query;
+
+    let query = `
+      SELECT 
+        p.*,
+        ls.name as linked_lesson_service_name,
+        ls.service_type as linked_lesson_service_type,
+        ls.discipline_tag as linked_discipline_tag,
+        ls.lesson_category_tag as linked_lesson_category_tag,
+        ls.level_tag as linked_level_tag,
+        rs.name as linked_rental_service_name,
+        au.name as linked_accommodation_unit_name,
+        au.type as linked_accommodation_unit_type,
+        au.category as linked_accommodation_unit_category,
+        au.image_url as linked_accommodation_image_url,
+        au.images as linked_accommodation_images
+      FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
+      LEFT JOIN accommodation_units au ON au.id = p.accommodation_unit_id
+      WHERE (
+        p.includes_lessons = true
+        OR p.includes_rental = true
+        OR p.includes_accommodation = true
+        OR p.package_type IN (
+          'lesson',
+          'rental',
+          'accommodation',
+          'lesson_rental',
+          'accommodation_lesson',
+          'accommodation_rental',
+          'all_inclusive',
+          'downwinders',
+          'camps'
+        )
+      )
+    `;
+
+    const queryParams = [];
+
+    if (category) {
+      queryParams.push(category);
+      query += ` AND (p.discipline_tag = $${queryParams.length} OR p.lesson_category_tag = $${queryParams.length})`;
+    }
+
+    query += ' ORDER BY p.total_hours ASC NULLS LAST, p.price ASC';
+
+    const { rows } = await pool.query(query, queryParams);
+
+    const packagesWithPrices = await Promise.all(rows.map(async (row) => {
+      const prices = await getPackagePrices(row.id);
+
+      const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
+      const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
+      const accommodationUnitName = row.linked_accommodation_unit_name || row.accommodation_unit_name || null;
+      const accommodationUnitType = row.linked_accommodation_unit_type || null;
+      const accommodationUnitCategory = row.linked_accommodation_unit_category || null;
+      const accommodationImageUrl = row.linked_accommodation_image_url || null;
+      const accommodationImages = row.linked_accommodation_images || [];
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        price: parseFloat(row.price),
+        currency: row.currency || 'EUR',
+        prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) }],
+        sessionsCount: row.sessions_count,
+        totalHours: parseFloat(row.total_hours) || 0,
+        lessonServiceName,
+        lessonServiceType: row.linked_lesson_service_type || null,
+        // Inherit discipline info from linked service when package's own tags are null
+        disciplineTag: row.discipline_tag || row.linked_discipline_tag || null,
+        lessonCategoryTag: row.lesson_category_tag || row.linked_lesson_category_tag || null,
+        levelTag: row.level_tag || row.linked_level_tag || null,
+        packageType: row.package_type || 'lesson',
+        includesAccommodation: row.includes_accommodation || false,
+        includesRental: row.includes_rental || false,
+        includesLessons: row.includes_lessons !== false,
+        accommodationNights: row.accommodation_nights || 0,
+        rentalDays: row.rental_days || 0,
+        imageUrl: row.image_url || null,
+        lessonServiceId: row.lesson_service_id || null,
+        rentalServiceId: row.rental_service_id || null,
+        accommodationUnitId: row.accommodation_unit_id || null,
+        equipmentName: row.equipment_name || null,
+        accommodationUnitName,
+        accommodationUnitType,
+        accommodationUnitCategory,
+        accommodationImageUrl,
+        accommodationImages,
+        rentalServiceName,
+        // Event-specific fields
+        eventStartDate: row.event_start_date || null,
+        eventEndDate: row.event_end_date || null,
+        eventLocation: row.event_location || null,
+        departureLocation: row.departure_location || null,
+        destinationLocation: row.destination_location || null,
+        maxParticipants: row.max_participants || null,
+        currentParticipants: row.current_participants || 0,
+        minSkillLevel: row.min_skill_level || null,
+        minAge: row.min_age || null,
+        maxAge: row.max_age || null,
+        itinerary: row.itinerary || null,
+        eventStatus: row.event_status || null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    }));
+
+    res.json(packagesWithPrices);
+  } catch (error) {
+    logger.error('Error fetching public lesson packages:', error);
+    res.status(500).json({ error: 'Failed to fetch public packages' });
+  }
+});
+
+// Create new package
+router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { 
+      name, price, currency, prices, sessionsCount, totalHours, lessonServiceName, 
+      disciplineTag, lessonCategoryTag, levelTag, description,
+      // New unified package type fields
+      packageType, includesAccommodation, includesRental, includesLessons,
+      accommodationNights, rentalDays, imageUrl,
+      // Service reference fields
+      lessonServiceId, equipmentId, accommodationUnitId, rentalServiceId,
+      equipmentName, accommodationUnitName, rentalServiceName,
+      // Per-component pricing
+      packageHourlyRate, packageDailyRate, packageNightlyRate,
+      // Event-specific fields (for downwinders/camps)
+      eventStartDate, eventEndDate, eventLocation, departureLocation, destinationLocation,
+      maxParticipants, minSkillLevel, minAge, maxAge, itinerary, eventStatus
+    } = req.body;
+    const actorId = resolveActorId(req);
+    const now = new Date();
+    
+    // Validate based on package type
+    const pType = packageType || 'lesson';
+    // Only require lesson service if explicitly included AND not an event-based package
+    const isEventPackage = ['downwinders', 'camps'].includes(pType);
+    const needsLessonService = !isEventPackage && (pType === 'lesson' || includesLessons === true);
+    const hasLessonService = lessonServiceId || (lessonServiceName && lessonServiceName !== 'Unknown Service');
+
+    const normalizeDisciplineTag = (tag) => {
+      const value = String(tag || '').trim().toLowerCase();
+      if (!value) return null;
+      if (value === 'foil') return 'kite_foil';
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      return ALLOWED.includes(value) ? value : null;
+    };
+    
+    if (needsLessonService && !hasLessonService) {
+      return res.status(400).json({ 
+        error: 'Lesson service is required for lesson packages. Please select a lesson type/service for this package.' 
+      });
+    }
+    
+    // Start transaction
+    await client.query('BEGIN');
+
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
+    let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
+    let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
+    let resolvedLevelTag = levelTag || null;
+
+    if (lessonServiceId) {
+      const linkedService = await client.query(
+        `SELECT discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1`,
+        [lessonServiceId]
+      );
+      if (linkedService.rows.length > 0) {
+        resolvedDisciplineTag = resolvedDisciplineTag || linkedService.rows[0].discipline_tag || null;
+        resolvedLessonCategoryTag = resolvedLessonCategoryTag || linkedService.rows[0].lesson_category_tag || null;
+        resolvedLevelTag = resolvedLevelTag || linkedService.rows[0].level_tag || null;
+      }
+    }
+    
+    // Determine primary price/currency (for backwards compatibility)
+    // If prices array provided, use first entry as primary; otherwise use price/currency
+    let primaryPrice = price ?? 0;  // Default to 0 if not provided
+    let primaryCurrency = currency || 'EUR';
+    if (Array.isArray(prices) && prices.length > 0) {
+      primaryPrice = prices[0].price ?? 0;
+      primaryCurrency = prices[0].currencyCode || prices[0].currency || 'EUR';
+    }
+    
+    const packageId = uuidv4();
+    const packageColumns = [
+      'id',
+      'name',
+      'description',
+      'price',
+      'sessions_count',
+      'currency',
+      'total_hours',
+      'lesson_service_name',
+      'discipline_tag',
+      'lesson_category_tag',
+      'level_tag',
+      'package_type',
+      'includes_accommodation',
+      'includes_rental',
+      'includes_lessons',
+      'accommodation_nights',
+      'rental_days',
+      'image_url',
+      'lesson_service_id',
+      'equipment_id',
+      'accommodation_unit_id',
+      'rental_service_id',
+      'equipment_name',
+      'accommodation_unit_name',
+      'rental_service_name',
+      'event_start_date',
+      'event_end_date',
+      'event_location',
+      'departure_location',
+      'destination_location',
+      'max_participants',
+      'current_participants',
+      'min_skill_level',
+      'min_age',
+      'max_age',
+      'itinerary',
+      'event_status',
+      'package_hourly_rate',
+      'package_daily_rate',
+      'package_nightly_rate',
+      'created_at',
+      'updated_at'
+    ];
+    const packageValues = [
+      packageId,
+      name,
+      description || null,
+      parseFloat(primaryPrice),
+      parseInt(sessionsCount) || 0,
+      primaryCurrency.toUpperCase(),
+      parseFloat(totalHours) || 0,
+      lessonServiceName || null,
+      resolvedDisciplineTag,
+      resolvedLessonCategoryTag,
+      resolvedLevelTag,
+      pType,
+      includesAccommodation || false,
+      includesRental || false,
+      // For event packages, default to false; for others, default to true for backwards compatibility
+      isEventPackage ? (includesLessons || false) : (includesLessons !== false),
+      parseInt(accommodationNights) || 0,
+      parseInt(rentalDays) || 0,
+      imageUrl || null,
+      lessonServiceId || null,
+      equipmentId || null,
+      accommodationUnitId || null,
+      rentalServiceId || null,
+      equipmentName || null,
+      accommodationUnitName || null,
+      rentalServiceName || null,
+      eventStartDate || null,
+      eventEndDate || null,
+      eventLocation || null,
+      departureLocation || null,
+      destinationLocation || null,
+      maxParticipants ? parseInt(maxParticipants) : null,
+      0, // current_participants starts at 0
+      minSkillLevel || null,
+      minAge ? parseInt(minAge) : null,
+      maxAge ? parseInt(maxAge) : null,
+      itinerary ? JSON.stringify(itinerary) : null,
+      eventStatus || 'scheduled',
+      packageHourlyRate ? parseFloat(packageHourlyRate) : null,
+      packageDailyRate ? parseFloat(packageDailyRate) : null,
+      packageNightlyRate ? parseFloat(packageNightlyRate) : null,
+      now,
+      now
+    ];
+      const { columns: packageInsertColumns, values: packageInsertValues } = appendCreatedBy(
+        packageColumns,
+        packageValues,
+        actorId
+      );
+    const packagePlaceholders = packageInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
+
+    const { rows } = await client.query(
+      `INSERT INTO service_packages (${packageInsertColumns.join(', ')}) VALUES (${packagePlaceholders}) RETURNING *`,
+      packageInsertValues
+    );
+    
+    // Handle multi-currency prices
+    let allPrices = [];
+    if (Array.isArray(prices) && prices.length > 0) {
+      // Normalize prices array format
+      const normalizedPrices = prices.map(p => ({
+        currencyCode: (p.currencyCode || p.currency || 'EUR').toUpperCase(),
+        price: parseFloat(p.price)
+      }));
+      await setPackagePrices(client, packageId, normalizedPrices);
+      allPrices = normalizedPrices;
+    } else if (primaryPrice != null) {
+      // Single price provided - store in prices table too
+      await setPackagePrices(client, packageId, [{ currencyCode: primaryCurrency.toUpperCase(), price: parseFloat(primaryPrice) }]);
+      allPrices = [{ currencyCode: primaryCurrency.toUpperCase(), price: parseFloat(primaryPrice) }];
+    }
+    
+    await client.query('COMMIT');
+    
+    const newPackage = {
+      id: rows[0].id,
+      name: rows[0].name,
+      description: rows[0].description || '',
+      price: parseFloat(rows[0].price),
+      currency: rows[0].currency,
+      currencySymbol: rows[0].currency === 'USD' ? '$' : '€',
+      prices: allPrices,
+      sessionsCount: rows[0].sessions_count,
+      totalHours: parseFloat(rows[0].total_hours) || 0,
+      lessonServiceName: rows[0].lesson_service_name,
+      pricePerHour: rows[0].total_hours ? Math.round(parseFloat(rows[0].price) / parseFloat(rows[0].total_hours)) : 0,
+      disciplineTag: rows[0].discipline_tag || null,
+      lessonCategoryTag: rows[0].lesson_category_tag || null,
+      levelTag: rows[0].level_tag || null,
+      packageType: rows[0].package_type || 'lesson',
+      includesAccommodation: rows[0].includes_accommodation || false,
+      includesRental: rows[0].includes_rental || false,
+      includesLessons: rows[0].includes_lessons !== false,
+      accommodationNights: rows[0].accommodation_nights || 0,
+      rentalDays: rows[0].rental_days || 0,
+      imageUrl: rows[0].image_url || null,
+      // Service reference fields
+      lessonServiceId: rows[0].lesson_service_id || null,
+      equipmentId: rows[0].equipment_id || null,
+      accommodationUnitId: rows[0].accommodation_unit_id || null,
+      rentalServiceId: rows[0].rental_service_id || null,
+      equipmentName: rows[0].equipment_name || null,
+      accommodationUnitName: rows[0].accommodation_unit_name || null,
+      rentalServiceName: rows[0].rental_service_name || null,
+      // Per-component pricing
+      packageHourlyRate: rows[0].package_hourly_rate ? parseFloat(rows[0].package_hourly_rate) : null,
+      packageDailyRate: rows[0].package_daily_rate ? parseFloat(rows[0].package_daily_rate) : null,
+      packageNightlyRate: rows[0].package_nightly_rate ? parseFloat(rows[0].package_nightly_rate) : null,
+      // Event-specific fields
+      eventStartDate: rows[0].event_start_date || null,
+      eventEndDate: rows[0].event_end_date || null,
+      eventLocation: rows[0].event_location || null,
+      departureLocation: rows[0].departure_location || null,
+      destinationLocation: rows[0].destination_location || null,
+      maxParticipants: rows[0].max_participants || null,
+      currentParticipants: rows[0].current_participants || 0,
+      minSkillLevel: rows[0].min_skill_level || null,
+      minAge: rows[0].min_age || null,
+      maxAge: rows[0].max_age || null,
+      itinerary: rows[0].itinerary || null,
+      eventStatus: rows[0].event_status || null,
+      createdAt: rows[0].created_at,
+      updatedAt: rows[0].updated_at,
+      status: 'active'
+    };
+    
+    res.status(201).json(newPackage);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Error creating package:', {
+      error: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ 
+      error: 'Failed to create package',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Get available packages for purchase (public endpoint for students/outsiders)
+// This endpoint returns packages based on their package_type field
+// Package types: lesson, rental, accommodation, lesson_rental, accommodation_lesson, accommodation_rental, all_inclusive
+router.get('/packages/available', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  try {
+    const { category, packageType: reqPackageType } = req.query;
+    
+    // Base query - get all packages with JOINs to resolve service names
+    let query = `
+      SELECT p.*,
+        ls.name as linked_lesson_service_name,
+        rs.name as linked_rental_service_name
+      FROM service_packages p
+      LEFT JOIN services ls ON ls.id = p.lesson_service_id
+      LEFT JOIN services rs ON rs.id = p.rental_service_id
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    
+    // Filter by packageType (preferred new method) or legacy category
+    if (reqPackageType) {
+      // New package_type based filtering
+      queryParams.push(reqPackageType);
+      query += ` AND p.package_type = $${queryParams.length}`;
+    } else if (category) {
+      // Legacy category-based filtering (for backwards compatibility)
+      // Uses both package_type field AND legacy tags
+      if (category === 'lesson') {
+        query += ` AND (
+          p.package_type = 'lesson'
+          OR (p.package_type IS NULL AND p.includes_lessons = true AND p.includes_rental = false AND p.includes_accommodation = false)
+        )`;
+      } else if (category === 'rental') {
+        query += ` AND (
+          p.package_type = 'rental'
+          OR (p.includes_rental = true AND p.includes_lessons = false AND p.includes_accommodation = false)
+        )`;
+      } else if (category === 'accommodation') {
+        query += ` AND (
+          p.package_type = 'accommodation'
+          OR (p.includes_accommodation = true AND p.includes_lessons = false AND p.includes_rental = false)
+        )`;
+      } else if (category === 'lesson_rental') {
+        query += ` AND (
+          p.package_type = 'lesson_rental'
+          OR (p.includes_lessons = true AND p.includes_rental = true AND p.includes_accommodation = false)
+        )`;
+      } else if (category === 'accommodation_rental') {
+        query += ` AND (
+          p.package_type = 'accommodation_rental'
+          OR (p.includes_accommodation = true AND p.includes_rental = true AND p.includes_lessons = false)
+        )`;
+      } else if (category === 'accommodation_lesson') {
+        query += ` AND (
+          p.package_type = 'accommodation_lesson'
+          OR (p.includes_accommodation = true AND p.includes_lessons = true AND p.includes_rental = false)
+        )`;
+      } else if (category === 'all_inclusive') {
+        query += ` AND (
+          p.package_type = 'all_inclusive'
+          OR (p.includes_accommodation = true AND p.includes_rental = true AND p.includes_lessons = true)
+        )`;
+      }
+    }
+    
+    query += ` ORDER BY p.price ASC`;
+    
+    const { rows } = await pool.query(query, queryParams);
+    
+    // Fetch prices for all packages in parallel
+    const packagesWithPrices = await Promise.all(rows.map(async (row) => {
+      // Use the stored package_type, or determine from legacy tags
+      let packageType = row.package_type || 'lesson';
+      if (!row.package_type) {
+        const lcTag = (row.lesson_category_tag || '').toLowerCase();
+        const discTag = (row.discipline_tag || '').toLowerCase();
+        
+        if (lcTag === 'rental' || discTag === 'rental') {
+          packageType = 'rental';
+        } else if (lcTag === 'accommodation' || discTag === 'accommodation') {
+          packageType = 'accommodation';
+        }
+      }
+      
+      // Fetch multi-currency prices
+      let prices = [];
+      try {
+        prices = await getPackagePrices(row.id);
+      } catch (e) {
+        // If package_prices table doesn't exist or other error, use default price
+        logger.warn(`Could not fetch package prices for ${row.id}: ${e.message}`);
+      }
+      
+      // If no prices in package_prices table, add the default price
+      if (prices.length === 0 && row.price) {
+        prices = [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) }];
+      }
+      
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        price: parseFloat(row.price),
+        currency: row.currency || 'EUR',
+        prices, // Include multi-currency prices array
+        currencySymbol: row.currency === 'USD' ? '$' : '€',
+        sessionsCount: row.sessions_count,
+        totalHours: parseFloat(row.total_hours) || 0,
+        lessonServiceName: row.linked_lesson_service_name || row.lesson_service_name || null,
+        lessonServiceId: row.lesson_service_id || null,
+        rentalServiceId: row.rental_service_id || null,
+        rentalServiceName: row.linked_rental_service_name || row.rental_service_name || null,
+        disciplineTag: row.discipline_tag || null,
+        lessonCategoryTag: row.lesson_category_tag || null,
+        levelTag: row.level_tag || null,
+        packageType,
+        includesAccommodation: row.includes_accommodation || false,
+        includesRental: row.includes_rental || false,
+        includesLessons: row.includes_lessons !== false,
+        accommodationNights: row.accommodation_nights || 0,
+        rentalDays: row.rental_days || 0,
+        imageUrl: row.image_url || null,
+        pricePerHour: row.total_hours ? Math.round(parseFloat(row.price) / parseFloat(row.total_hours)) : 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        status: 'active'
+      };
+    }));
+    
+    res.json(packagesWithPrices);
+  } catch (error) {
+    logger.error('Error fetching available packages:', error);
+    res.status(500).json({ error: 'Failed to fetch available packages' });
+  }
+});
+
+// Get user's purchased packages (for students/outsiders)
+router.get('/packages/my-packages', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const query = `
+      SELECT 
+        cp.id,
+        cp.package_name,
+        cp.lesson_service_name,
+        cp.total_hours,
+        cp.remaining_hours,
+        COALESCE(cp.hours_used, 0) as hours_used,
+        cp.purchase_price as total_price,
+        cp.currency,
+        cp.purchase_date,
+        cp.expiry_date,
+        cp.status,
+        cp.notes as description,
+        sp.description as package_description
+      FROM customer_packages cp
+      LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
+      WHERE cp.customer_id = $1
+      ORDER BY cp.purchase_date DESC
+    `;
+
+    const { rows } = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      data: rows
+    });
+  } catch (error) {
+    logger.error('Error fetching user packages:', error);
+    res.status(500).json({ error: 'Failed to fetch packages' });
+  }
+});
+
+// Purchase a package (for students/outsiders)
+// Supports: wallet, external processors (iyzico, paytr, binance_pay, etc.), pay_later
+router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const {
+      packageId,
+      paymentMethod,
+      checkInDate,
+      checkOutDate,
+      voucherId,  // Voucher/promo code to apply
+      rentalDates,     // Array of 'YYYY-MM-DD' strings for rental days
+      /** Optional: buy a lesson package scaled to this many hours (price ∝ hours / package total_hours). */
+      proRataTotalHours,
+      lessonBookings,  // Array of { date, instructorId, startTime, duration }
+      bankAccountId,   // ID of the bank account selected for transfer
+      receiptUrl,      // Uploaded proof of transfer url
+      depositPercent,  // Optional: deposit percentage (e.g. 20 for 20% deposit)
+      depositAmount    // Optional: pre-calculated deposit amount
+    } = req.body;
+    const userId = req.user?.id;
+    const actorId = resolveActorId(req);
+    
+    if (!packageId) {
+      return res.status(400).json({ error: 'Package ID is required' });
+    }
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Validate payment method
+    const validPaymentMethods = ['wallet', 'credit_card', 'pay_later', 'bank_transfer'];
+    const normalizedPaymentMethod = paymentMethod || 'wallet';
+    
+    if (!validPaymentMethods.includes(normalizedPaymentMethod)) {
+      return res.status(400).json({ error: `Invalid payment method. Supported: ${validPaymentMethods.join(', ')}` });
+    }
+
+    // Pay at center (pay_later) is now available for all authenticated customers
+    // This allows students to choose cash payment at reception, similar to member offerings
+    
+    await client.query('BEGIN');
+    
+    // Get the package details
+    const packageResult = await client.query(
+      'SELECT * FROM service_packages WHERE id = $1',
+      [packageId]
+    );
+    
+    if (packageResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Package not found' });
+    }
+    
+    const pkg = packageResult.rows[0];
+    const defaultPackagePrice = parseFloat(pkg.price);
+    const defaultPackageCurrency = pkg.currency || 'EUR';
+    
+    // Check if package includes accommodation and validate availability
+    const includesAccommodation = pkg.includes_accommodation || 
+      pkg.package_type === 'accommodation' || 
+      pkg.package_type === 'accommodation_rental' ||
+      pkg.package_type === 'accommodation_lesson' ||
+      pkg.package_type === 'all_inclusive';
+
+    let accommodationBookingId = null;
+    let accommodationUnitData = null;
+    /** Entitlement consumed by bookings created in this purchase (for customer_packages counters). */
+    let packageBookedLessonHours = 0;
+    let packageBookedRentalDays = 0;
+    let packageBookedAccommodationNights = 0;
+    let voucherRedemptionInfo = null;
+
+    if (includesAccommodation) {
+      // Require check-in and check-out dates for accommodation packages
+      if (!checkInDate || !checkOutDate) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Check-in and check-out dates are required for accommodation packages',
+          code: 'DATES_REQUIRED'
+        });
+      }
+
+      // Validate dates
+      const checkIn = new Date(checkInDate);
+      const checkOut = new Date(checkOutDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (checkIn < today) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Check-in date cannot be in the past' });
+      }
+
+      if (checkOut <= checkIn) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Check-out date must be after check-in date' });
+      }
+
+      // Check if package has an accommodation unit assigned
+      if (!pkg.accommodation_unit_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'This package does not have an accommodation unit assigned. Please contact support.',
+          code: 'NO_UNIT_ASSIGNED'
+        });
+      }
+
+      // Get the accommodation unit details
+      const unitResult = await client.query(
+        'SELECT * FROM accommodation_units WHERE id = $1',
+        [pkg.accommodation_unit_id]
+      );
+
+      if (unitResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Accommodation unit not found',
+          code: 'UNIT_NOT_FOUND'
+        });
+      }
+
+      accommodationUnitData = unitResult.rows[0];
+
+      if (accommodationUnitData.status !== 'Available') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Accommodation unit is not available',
+          code: 'UNIT_UNAVAILABLE'
+        });
+      }
+
+      // Check for overlapping bookings
+      const overlapResult = await client.query(
+        `SELECT id FROM accommodation_bookings 
+         WHERE unit_id = $1 
+         AND status NOT IN ('cancelled')
+         AND (check_in_date, check_out_date) OVERLAPS ($2::date, $3::date)`,
+        [pkg.accommodation_unit_id, checkInDate, checkOutDate]
+      );
+
+      if (overlapResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Accommodation is not available for the selected dates. Please choose different dates.',
+          code: 'DATES_UNAVAILABLE',
+          conflictingDates: { checkIn: checkInDate, checkOut: checkOutDate }
+        });
+      }
+
+      logger.info('Accommodation availability confirmed for package purchase', {
+        packageId,
+        unitId: pkg.accommodation_unit_id,
+        checkInDate,
+        checkOutDate,
+        userId
+      });
+    }
+    
+    // Get user's preferred currency to check wallet balance
+    let userCurrency = defaultPackageCurrency;
+    try {
+      const userCurrencyResult = await client.query(
+        'SELECT preferred_currency FROM users WHERE id = $1',
+        [userId]
+      );
+      if (userCurrencyResult.rows.length > 0 && userCurrencyResult.rows[0].preferred_currency) {
+        userCurrency = userCurrencyResult.rows[0].preferred_currency;
+      }
+    } catch (err) {
+      logger.warn('Could not fetch user preferred currency, using package currency', { userId, error: err.message });
+    }
+    
+    // Get the package price in user's currency from multi-currency price table
+    let packagePrice = defaultPackagePrice;
+    let priceCurrency = defaultPackageCurrency;
+    
+    try {
+      const currencyPrice = await getPackagePriceInCurrency(packageId, userCurrency);
+      if (currencyPrice && currencyPrice.price > 0) {
+        packagePrice = currencyPrice.price;
+        priceCurrency = currencyPrice.currencyCode;
+        logger.info('Using multi-currency price for package purchase', {
+          packageId,
+          userCurrency,
+          price: packagePrice,
+          priceCurrency
+        });
+      } else {
+        logger.warn('No price found for user currency, using default package price', {
+          packageId,
+          userCurrency,
+          defaultPrice: defaultPackagePrice,
+          defaultCurrency: defaultPackageCurrency
+        });
+      }
+    } catch (priceErr) {
+      logger.warn('Failed to fetch multi-currency price, using default', {
+        packageId,
+        userCurrency,
+        error: priceErr.message
+      });
+    }
+
+    const basePackageTotalHours = parseFloat(pkg.total_hours) || 0;
+    let purchaseTotalHours = basePackageTotalHours;
+    let storageEurPrice = defaultPackagePrice;
+
+    if (proRataTotalHours != null && proRataTotalHours !== '') {
+      const reqH = parseFloat(proRataTotalHours);
+      if (!Number.isFinite(reqH) || reqH < 0.5 || reqH > 48) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid custom lesson hours (allowed 0.5–48)' });
+      }
+      if (includesAccommodation || basePackageTotalHours <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Custom lesson hours are not available for this package',
+          code: 'PRO_RATA_NOT_ALLOWED',
+        });
+      }
+      const scale = reqH / basePackageTotalHours;
+      packagePrice = parseFloat((packagePrice * scale).toFixed(2));
+      storageEurPrice = parseFloat((defaultPackagePrice * scale).toFixed(2));
+      purchaseTotalHours = reqH;
+    }
+    
+    // Voucher/promo code handling
+    let voucherDiscount = 0;
+    let appliedVoucher = null;
+    let originalPrice = packagePrice;
+    
+    if (voucherId) {
+      try {
+        const voucherCode = await voucherService.resolveVoucherLookupCode(voucherId);
+        if (!voucherCode) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'This voucher code does not exist',
+            code: 'VOUCHER_INVALID',
+          });
+        }
+
+        const voucherValidation = await voucherService.validateVoucher({
+          code: voucherCode,
+          userId,
+          userRole: req.user?.role,
+          context: 'packages',
+          amount: packagePrice,
+          currency: priceCurrency,
+          serviceId: packageId != null ? String(packageId) : undefined,
+        });
+
+        if (!voucherValidation.valid) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: voucherValidation.message || voucherValidation.error || 'Invalid voucher code',
+            code: 'VOUCHER_INVALID',
+          });
+        }
+
+        const fullVoucher = await voucherService.getVoucherById(voucherValidation.voucher.id);
+        if (!fullVoucher) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: 'Voucher not found',
+            code: 'VOUCHER_INVALID',
+          });
+        }
+        appliedVoucher = fullVoucher;
+
+        // Handle wallet_credit type vouchers - don't apply as discount, add to wallet later
+        if (appliedVoucher.voucher_type === 'wallet_credit') {
+          logger.info('Wallet credit voucher will be applied after purchase', {
+            voucherId: appliedVoucher.id,
+            creditAmount: appliedVoucher.discount_value,
+            userId
+          });
+        } else {
+          // Calculate discount for percentage/fixed amount
+          const discountResult = voucherService.calculateDiscount(appliedVoucher, packagePrice, priceCurrency);
+          voucherDiscount = discountResult.discountAmount;
+          packagePrice = discountResult.finalAmount;
+
+          logger.info('Voucher discount applied to package purchase', {
+            voucherId: appliedVoucher.id,
+            voucherCode: appliedVoucher.code,
+            originalPrice,
+            discountAmount: voucherDiscount,
+            finalPrice: packagePrice,
+            voucherType: appliedVoucher.voucher_type,
+            userId
+          });
+        }
+      } catch (voucherErr) {
+        logger.error('Error validating voucher', {
+          voucherId,
+          userId,
+          error: voucherErr.message
+        });
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Failed to validate voucher',
+          code: 'VOUCHER_ERROR'
+        });
+      }
+    }
+    
+    let walletDeducted = false;
+    let availableBalance = 0;
+    let newBalance = 0;
+
+    // Handle wallet payment
+    if (normalizedPaymentMethod === 'wallet') {
+      // Check user's wallet balance in the price currency first
+      const balanceResult = await client.query(
+        `SELECT available_amount FROM wallet_balances 
+         WHERE user_id = $1 AND currency = $2`,
+        [userId, priceCurrency]
+      );
+      
+      availableBalance = balanceResult.rows.length > 0 
+        ? parseFloat(balanceResult.rows[0].available_amount) 
+        : 0;
+      
+      // If balance in price currency is insufficient, check all wallet balances
+      // to find a currency where the user CAN afford the package
+      if (availableBalance < packagePrice) {
+        const allBalancesResult = await client.query(
+          `SELECT available_amount, currency FROM wallet_balances 
+           WHERE user_id = $1 AND available_amount > 0
+           ORDER BY available_amount DESC`,
+          [userId]
+        );
+        
+        for (const walletRow of allBalancesResult.rows) {
+          const walletCurrency = walletRow.currency;
+          const walletBalance = parseFloat(walletRow.available_amount);
+          
+          // Skip the currency we already checked
+          if (walletCurrency === priceCurrency) continue;
+          
+          // Try to get explicit price in this wallet currency
+          let priceInWalletCurrency = null;
+          const walletCurrencyPrice = await getPackagePriceInCurrency(packageId, walletCurrency);
+          if (walletCurrencyPrice && walletCurrencyPrice.price > 0) {
+            priceInWalletCurrency = walletCurrencyPrice.price;
+          } else {
+            // No explicit price — convert using exchange rates
+            try {
+              const converted = await CurrencyService.convertCurrency(packagePrice, priceCurrency, walletCurrency);
+              if (converted > 0) {
+                priceInWalletCurrency = converted;
+              }
+            } catch (convErr) {
+              logger.warn('Failed to convert package price to wallet currency', {
+                packageId, fromCurrency: priceCurrency, toWalletCurrency: walletCurrency, error: convErr.message
+              });
+            }
+          }
+          
+          // If user can afford it in this currency, use it
+          if (priceInWalletCurrency !== null && walletBalance >= priceInWalletCurrency) {
+            availableBalance = walletBalance;
+            packagePrice = priceInWalletCurrency;
+            priceCurrency = walletCurrency;
+            break;
+          }
+        }
+      }
+      
+      if (availableBalance < packagePrice) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Insufficient wallet balance',
+          required: packagePrice,
+          available: availableBalance,
+          currency: priceCurrency
+        });
+      }
+      walletDeducted = true;
+    }
+
+    // trusted_customer with pay_later: debit wallet (allow negative) so debt is tracked
+    if (normalizedPaymentMethod === 'pay_later' && req.user?.role === 'trusted_customer' && packagePrice > 0) {
+      walletDeducted = true; // triggers wallet transaction recording after purchase
+      // Mark that this is a pay_later negative-balance deduction
+      // The actual recording happens below in the walletDeducted block with allowNegative: true
+    }
+    
+    // Create the customer package record
+    const customerPackageId = uuidv4();
+    const expiryDate = new Date();
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
+
+    // Determine payment status based on method
+    const paymentStatus = normalizedPaymentMethod === 'pay_later' ? 'pending'
+      : normalizedPaymentMethod === 'credit_card' ? 'pending_payment'
+      : 'paid';
+    
+    // Extract package details including rental days and accommodation nights
+    const pkgTotalHours = purchaseTotalHours;
+    const pkgRentalDays = parseInt(pkg.rental_days) || 0;
+    const pkgAccommodationNights = parseInt(pkg.accommodation_nights) || 0;
+    const pkgType = pkg.package_type || 'lesson';
+    const pkgIncludesLessons = pkg.includes_lessons !== false;
+    const pkgIncludesRental = pkg.includes_rental || false;
+    const pkgIncludesAccommodation = pkg.includes_accommodation || false;
+    
+    // Credit card packages start as 'pending_payment' and are only activated by the
+    // Iyzico payment callback once the payment is confirmed.
+    // Bank transfers start as 'waiting_payment' until an admin confirms the receipt.
+    const initialStatus = normalizedPaymentMethod === 'credit_card' ? 'pending_payment'
+      : normalizedPaymentMethod === 'bank_transfer' ? 'waiting_payment'
+      : 'active';
+
+    const customerPackageQuery = `
+      INSERT INTO customer_packages (
+        id, customer_id, service_package_id, package_name, lesson_service_name,
+        total_hours, remaining_hours, purchase_price, currency, expiry_date, status, purchase_date, notes,
+        check_in_date, check_out_date,
+        rental_days_total, rental_days_remaining, rental_days_used,
+        accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
+        package_type, includes_lessons, includes_rental, includes_accommodation,
+        rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $23, NOW(), $10, $11, $12,
+              $13, $13, 0,
+              $14, $14, 0,
+              $15, $16, $17, $18,
+              $19, $20, $21, $22)
+      RETURNING *
+    `;
+
+    // Build notes for payment tracking
+    let purchaseNotes = null;
+    if (normalizedPaymentMethod === 'credit_card') {
+      purchaseNotes = 'Payment via credit card (Iyzico)';
+    } else if (normalizedPaymentMethod === 'pay_later') {
+      purchaseNotes = 'Payment pending - Pay Later';
+    } else if (normalizedPaymentMethod === 'bank_transfer') {
+      purchaseNotes = `Bank Transfer requested | Bank Account ID: ${bankAccountId || 'Not specified'}`;
+    }
+    
+    // Always store the EUR base price in customer_packages so earnings
+    // calculations are currency-agnostic. The customer may have paid in TRY or
+    // another currency, but the canonical record price is always EUR.
+    const storagePrice = storageEurPrice;  // EUR amount stored on customer_packages (scaled when pro-rata)
+    const storageCurrency = defaultPackageCurrency; // should be 'EUR'
+
+    const { rows: customerPackageRows } = await client.query(customerPackageQuery, [
+      customerPackageId,
+      userId,
+      packageId,
+      pkg.name,
+      pkg.lesson_service_name || pkg.name,
+      pkgTotalHours,
+      storagePrice,
+      storageCurrency,
+      expiryDate,
+      purchaseNotes,
+      checkInDate || null,
+      checkOutDate || null,
+      pkgRentalDays,
+      pkgAccommodationNights,
+      pkgType,
+      pkgIncludesLessons,
+      pkgIncludesRental,
+      pkgIncludesAccommodation,
+      pkg.rental_service_id || null,
+      pkg.rental_service_name || null,
+      pkg.accommodation_unit_id || null,
+      pkg.accommodation_unit_name || null,
+      initialStatus  // $23
+    ]);
+
+    const createdPackage = customerPackageRows[0];
+
+    // For bank transfers, insert the receipt into the new tracking table
+    if (normalizedPaymentMethod === 'bank_transfer' && receiptUrl) {
+      const isDeposit = depositPercent > 0;
+      const receiptAmount = isDeposit
+        ? (depositAmount || parseFloat((packagePrice * depositPercent / 100).toFixed(2)))
+        : packagePrice;
+
+      await client.query(`
+        INSERT INTO bank_transfer_receipts (
+          user_id, customer_package_id, bank_account_id, receipt_url, amount, currency, status, admin_notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        userId,
+        customerPackageId,
+        bankAccountId,
+        receiptUrl,
+        receiptAmount,
+        priceCurrency,
+        'pending',
+        isDeposit ? `DEPOSIT ${depositPercent}% — Paid: ${receiptAmount} ${priceCurrency}, Remaining: ${parseFloat((packagePrice - receiptAmount).toFixed(2))} ${priceCurrency} due on arrival. Full price: ${packagePrice} ${priceCurrency}` : null
+      ]);
+      
+      logger.info('Bank transfer receipt recorded for package purchase', {
+        userId, packageId, customerPackageId, receiptUrl, bankAccountId,
+        ...(isDeposit ? { depositPercent, receiptAmount, fullPrice: packagePrice } : {})
+      });
+
+      try {
+        req.socketService?.emitToChannel('dashboard', 'pending-transfer:new', { type: 'package', packageId: customerPackageId });
+      } catch (e) { /* ignore */ }
+    }
+
+    // Create accommodation booking if package includes accommodation
+    if (includesAccommodation && pkg.accommodation_unit_id && checkInDate && checkOutDate) {
+      try {
+        await client.query('SAVEPOINT accommodation_booking');
+        accommodationBookingId = uuidv4();
+        const checkIn = new Date(checkInDate);
+        const checkOut = new Date(checkOutDate);
+        const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+        
+        // Price is already included in package, so accommodation booking is pre-paid
+        await client.query(
+          `INSERT INTO accommodation_bookings 
+           (id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', $8, $3, NOW(), NOW())`,
+          [
+            accommodationBookingId,
+            pkg.accommodation_unit_id,
+            userId,
+            checkInDate,
+            checkOutDate,
+            1, // Default 1 guest, can be updated later
+            0, // Price included in package
+            `Package booking: ${pkg.name} (Customer Package ID: ${customerPackageId})`
+          ]
+        );
+
+        packageBookedAccommodationNights = nights;
+
+        logger.info('Accommodation booking created for package purchase', {
+          accommodationBookingId,
+          customerPackageId,
+          unitId: pkg.accommodation_unit_id,
+          checkInDate,
+          checkOutDate,
+          nights,
+          userId
+        });
+      } catch (accBookingErr) {
+        await client.query('ROLLBACK TO SAVEPOINT accommodation_booking');
+        logger.error('Failed to create accommodation booking for package', {
+          customerPackageId,
+          error: accBookingErr.message
+        });
+        // Don't fail the whole transaction, but log the error
+        // The accommodation dates are still saved in customer_packages
+      }
+    }
+
+    // === Create individual lesson bookings if provided ===
+    if (Array.isArray(lessonBookings) && lessonBookings.length > 0 && pkg.lesson_service_id) {
+      for (const lesson of lessonBookings) {
+        try {
+          if (!lesson.date || !lesson.instructorId || !lesson.startTime) continue;
+          await client.query('SAVEPOINT lesson_booking');
+          const bookingId = uuidv4();
+          const lessonDuration = parseFloat(lesson.duration) || 1;
+          const startHour = parseFloat(lesson.startTime);
+          const endHour = startHour + lessonDuration;
+
+          await client.query(
+            `INSERT INTO bookings (
+              id, service_id, student_user_id, instructor_user_id,
+              date, start_hour, end_hour, duration,
+              status, payment_method, payment_status,
+              amount, final_amount,
+              customer_package_id, package_id,
+              notes, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'package', 'package', 0, 0, $9, $10, $11, NOW(), NOW())`,
+            [
+              bookingId,
+              pkg.lesson_service_id,
+              userId,
+              lesson.instructorId,
+              lesson.date,
+              startHour,
+              endHour,
+              lessonDuration,
+              customerPackageId,
+              packageId,
+              `Package booking: ${pkg.name}`
+            ]
+          );
+
+          packageBookedLessonHours += lessonDuration;
+
+          logger.info('Lesson booking created for package purchase', {
+            bookingId, customerPackageId, date: lesson.date,
+            instructorId: lesson.instructorId
+          });
+        } catch (lessonBookErr) {
+          await client.query('ROLLBACK TO SAVEPOINT lesson_booking');
+          logger.warn('Failed to create lesson booking for package', {
+            customerPackageId, lesson, error: lessonBookErr.message
+          });
+        }
+      }
+    }
+
+    // === Create rental records for selected rental dates (same shape as rentals.js / bookings.js) ===
+    if (Array.isArray(rentalDates) && rentalDates.length > 0 && pkg.rental_service_id) {
+      const createdByRental = actorId || userId;
+      const equipId = pkg.rental_service_id;
+      const rentalCurrency = priceCurrency || defaultPackageCurrency || 'EUR';
+      const equipmentIdsJson = JSON.stringify([equipId]);
+      const equipmentDetails = JSON.stringify({
+        [equipId]: {
+          id: equipId,
+          name: pkg.rental_service_name || 'Package rental',
+          category: 'rental',
+          price: 0,
+          currency: rentalCurrency
+        }
+      });
+
+      for (const rentalDate of rentalDates) {
+        try {
+          if (!rentalDate) continue;
+          await client.query('SAVEPOINT rental_record');
+          const rentalDateFormatted = String(rentalDate).split('T')[0];
+          const startDate = new Date(`${rentalDateFormatted}T00:00:00.000Z`);
+          const endDate = new Date(`${rentalDateFormatted}T23:59:59.999Z`);
+
+          const { rows: rentalIns } = await client.query(
+            `INSERT INTO rentals (
+              user_id, equipment_ids, rental_date, start_date, end_date,
+              status, total_price, payment_status, equipment_details, notes,
+              created_by, family_member_id, participant_type, customer_package_id, rental_days_used,
+              updated_at
+            ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, NULL, 'self', $12, 1, NOW())
+            RETURNING id`,
+            [
+              userId,
+              equipmentIdsJson,
+              rentalDateFormatted,
+              startDate,
+              endDate,
+              'pending',
+              0,
+              'package',
+              equipmentDetails,
+              `Package rental: ${pkg.name}`,
+              createdByRental,
+              customerPackageId
+            ]
+          );
+
+          const newRentalId = rentalIns[0]?.id;
+          if (newRentalId) {
+            await client.query(
+              `INSERT INTO rental_equipment (rental_id, equipment_id, daily_rate, created_by)
+               VALUES ($1, $2, 0, $3)`,
+              [newRentalId, equipId, createdByRental]
+            );
+          }
+
+          packageBookedRentalDays += 1;
+
+          logger.info('Rental record created for package purchase', {
+            rentalId: newRentalId, customerPackageId, date: rentalDateFormatted
+          });
+        } catch (rentalErr) {
+          await client.query('ROLLBACK TO SAVEPOINT rental_record');
+          logger.warn('Failed to create rental record for package', {
+            customerPackageId, rentalDate, error: rentalErr.message
+          });
+        }
+      }
+    }
+
+    // Reflect pre-booked lessons / rentals / stay on the package entitlement (same transaction)
+    const capEntitlement = (n, max) => Math.min(Math.max(0, n), Math.max(0, max));
+    const totalHoursCap = parseFloat(pkg.total_hours) || 0;
+    const rentalDaysCap = parseInt(pkg.rental_days, 10) || 0;
+    const nightsCap = parseInt(pkg.accommodation_nights, 10) || 0;
+    const usedHours = capEntitlement(packageBookedLessonHours, totalHoursCap);
+    const usedRentalDays = capEntitlement(packageBookedRentalDays, rentalDaysCap);
+    const usedAccommodationNights = capEntitlement(packageBookedAccommodationNights, nightsCap);
+    const remHours = Math.max(0, totalHoursCap - usedHours);
+    const remRentalDays = Math.max(0, rentalDaysCap - usedRentalDays);
+    const remAccommodationNights = Math.max(0, nightsCap - usedAccommodationNights);
+
+    const { rows: usageUpdatedRows } = await client.query(
+      `UPDATE customer_packages SET
+        used_hours = $1,
+        remaining_hours = $2,
+        rental_days_used = $3,
+        rental_days_remaining = $4,
+        accommodation_nights_used = $5,
+        accommodation_nights_remaining = $6,
+        last_used_date = CURRENT_DATE,
+        updated_at = NOW()
+      WHERE id = $7
+      RETURNING *`,
+      [
+        usedHours,
+        remHours,
+        usedRentalDays,
+        remRentalDays,
+        usedAccommodationNights,
+        remAccommodationNights,
+        customerPackageId
+      ]
+    );
+    const customerPackageAfterUsage = usageUpdatedRows[0] || customerPackageRows[0];
+
+    // Voucher: redeem inside this transaction for all methods except credit_card (deferred to Iyzico callback)
+    if (appliedVoucher && normalizedPaymentMethod === 'credit_card') {
+      await client.query(
+        `UPDATE customer_packages SET
+          pending_voucher_id = $1,
+          pending_voucher_meta = $2::jsonb,
+          updated_at = NOW()
+        WHERE id = $3`,
+        [
+          appliedVoucher.id,
+          JSON.stringify({
+            originalPrice,
+            voucherDiscount,
+            finalPrice: packagePrice,
+            priceCurrency,
+            voucherType: appliedVoucher.voucher_type,
+            discountValue: appliedVoucher.discount_value
+          }),
+          customerPackageId
+        ]
+      );
+      voucherRedemptionInfo = {
+        voucherId: appliedVoucher.id,
+        code: appliedVoucher.code,
+        type: appliedVoucher.voucher_type,
+        discountApplied: voucherDiscount,
+        originalPrice,
+        finalPrice: packagePrice,
+        pendingUntilPayment: true
+      };
+    } else if (appliedVoucher) {
+      await voucherService.redeemVoucher({
+        voucherId: appliedVoucher.id,
+        userId,
+        referenceType: 'package',
+        referenceId: customerPackageId,
+        originalAmount: originalPrice,
+        discountAmount: voucherDiscount,
+        finalAmount: packagePrice,
+        currency: priceCurrency,
+        client
+      });
+      voucherRedemptionInfo = {
+        voucherId: appliedVoucher.id,
+        code: appliedVoucher.code,
+        type: appliedVoucher.voucher_type,
+        discountApplied: voucherDiscount,
+        originalPrice,
+        finalPrice: packagePrice
+      };
+      if (appliedVoucher.voucher_type === 'wallet_credit') {
+        const creditResult = await voucherService.applyWalletCredit(
+          userId,
+          appliedVoucher.discount_value,
+          appliedVoucher.id,
+          priceCurrency,
+          client
+        );
+        voucherRedemptionInfo.walletCreditApplied = Math.abs(
+          parseFloat(creditResult?.amount ?? appliedVoucher.discount_value) || 0
+        );
+        voucherRedemptionInfo.walletCurrency = creditResult?.currency || priceCurrency;
+        logger.info('Wallet credit voucher applied', {
+          voucherId: appliedVoucher.id,
+          userId,
+          creditAmount: voucherRedemptionInfo.walletCreditApplied,
+          currency: voucherRedemptionInfo.walletCurrency
+        });
+      }
+      logger.info('Voucher redeemed for package purchase', {
+        voucherId: appliedVoucher.id,
+        customerPackageId,
+        userId,
+        discountApplied: voucherDiscount
+      });
+    }
+
+    // Record wallet transaction if paying by wallet (or trusted_customer pay_later)
+    const isTrustedPayLater = normalizedPaymentMethod === 'pay_later' && req.user?.role === 'trusted_customer';
+    if (walletDeducted) {
+      try {
+        await recordLegacyTransaction({
+          client,
+          userId,
+          amount: -Math.abs(packagePrice),
+          transactionType: 'package_purchase',
+          status: isTrustedPayLater ? 'pending' : 'completed',
+          direction: 'debit',
+          description: isTrustedPayLater
+            ? `Package Purchase (Pay Later): ${pkg.name}`
+            : `Package Purchase: ${pkg.name}`,
+          currency: priceCurrency,
+          paymentMethod: normalizedPaymentMethod,
+          referenceNumber: customerPackageId,
+          metadata: {
+            packageId: customerPackageId,
+            servicePackageId: packageId,
+            totalHours: parseFloat(pkg.total_hours) || 0,
+            purchasePrice: packagePrice,
+            priceCurrency: priceCurrency,
+            source: 'services:packages:self-purchase',
+            payLater: isTrustedPayLater || false
+          },
+          entityType: 'customer_package',
+          relatedEntityType: 'customer_package',
+          relatedEntityId: customerPackageId,
+          createdBy: actorId || userId,
+          allowNegative: isTrustedPayLater // Allow negative balance for trusted_customer pay_later
+        });
+      } catch (walletError) {
+        logger.error('Failed to record package purchase in wallet ledger', {
+          userId,
+          packageId: customerPackageId,
+          error: walletError?.message
+        });
+        throw walletError;
+      }
+
+      // Get updated wallet balance
+      const updatedBalanceResult = await client.query(
+        `SELECT available_amount FROM wallet_balances 
+         WHERE user_id = $1 AND currency = $2`,
+        [userId, priceCurrency]
+      );
+      
+      newBalance = updatedBalanceResult.rows.length > 0 
+        ? parseFloat(updatedBalanceResult.rows[0].available_amount) 
+        : 0;
+    }
+
+    await client.query('COMMIT');
+
+    // For credit card payments, initiate Iyzico checkout after commit
+    // NOTE: ledger entry is recorded AFTER this block so failed iyzico attempts
+    // don't leave ghost pending transactions in the wallet.
+    let iyzicoPaymentPageUrl = null;
+    if (normalizedPaymentMethod === 'credit_card' && packagePrice > 0) {
+      try {
+        // Prefer charging in the user's preferred currency so the Iyzico checkout
+        // shows the amount they expect (e.g. TRY for Turkish users).
+        let iyzicoAmount = packagePrice;
+        let iyzicoCurrency = priceCurrency || 'EUR';
+        if (userCurrency && userCurrency !== priceCurrency) {
+          try {
+            // First check if there is an explicit price in the user's currency
+            const userCurrencyPrice = await getPackagePriceInCurrency(packageId, userCurrency);
+            if (userCurrencyPrice && userCurrencyPrice.price > 0) {
+              iyzicoAmount = userCurrencyPrice.price;
+              iyzicoCurrency = userCurrencyPrice.currencyCode;
+            } else {
+              // Fall back to exchange-rate conversion
+              const converted = await CurrencyService.convertCurrency(packagePrice, priceCurrency, userCurrency);
+              if (converted > 0) {
+                iyzicoAmount = converted;
+                iyzicoCurrency = userCurrency;
+              }
+            }
+          } catch (convErr) {
+            logger.warn('Could not convert package price to user currency for Iyzico, using base currency', {
+              packageId, from: priceCurrency, to: userCurrency, error: convErr.message
+            });
+          }
+        }
+
+        const iyzicoItems = [{
+          id: String(packageId),
+          name: pkg.name || 'Package Purchase',
+          price: parseFloat(iyzicoAmount).toFixed(2)
+        }];
+
+        const gatewayResult = await initiateDeposit({
+          amount: iyzicoAmount,
+          currency: iyzicoCurrency,
+          userId,
+          referenceCode: `PKG-${customerPackageId}`,
+          items: iyzicoItems
+        });
+
+        iyzicoPaymentPageUrl = gatewayResult.paymentPageUrl;
+
+        // Store the iyzico token so the callback can find this package by token
+        if (gatewayResult.gatewayTransactionId) {
+          await pool.query(
+            `UPDATE customer_packages SET gateway_transaction_id = $1 WHERE id = $2`,
+            [gatewayResult.gatewayTransactionId, customerPackageId]
+          );
+        }
+      } catch (iyzicoErr) {
+        logger.error('Failed to initiate Iyzico payment for package purchase', {
+          customerPackageId,
+          userId,
+          error: iyzicoErr.message
+        });
+        return res.status(500).json({ error: 'Failed to initiate card payment. Please try again.' });
+      }
+    }
+
+    // Record a ledger entry for non-wallet purchases so they appear in financial history
+    // For credit card this only runs once iyzico initiation has succeeded above.
+    if (!walletDeducted && packagePrice > 0) {
+      try {
+        const paymentLabel = normalizedPaymentMethod === 'credit_card' ? 'Credit Card'
+          : normalizedPaymentMethod === 'pay_later' ? 'Pay Later'
+          : normalizedPaymentMethod === 'cash' ? 'Cash' : normalizedPaymentMethod;
+        await recordTransaction({
+          userId,
+          amount: -Math.abs(packagePrice),
+          transactionType: 'package_purchase',
+          status: normalizedPaymentMethod === 'credit_card' ? 'pending' : (normalizedPaymentMethod === 'pay_later' ? 'pending' : 'completed'),
+          direction: 'debit',
+          availableDelta: 0, // Don't affect wallet balance — payment is external
+          description: `Package Purchase (${paymentLabel}): ${pkg.name}`,
+          currency: priceCurrency,
+          paymentMethod: normalizedPaymentMethod,
+          referenceNumber: customerPackageId,
+          metadata: {
+            packageId: customerPackageId,
+            servicePackageId: packageId,
+            totalHours: parseFloat(pkg.total_hours) || 0,
+            purchasePrice: packagePrice,
+            priceCurrency: priceCurrency,
+            source: 'services:packages:self-purchase',
+            paymentMethod: normalizedPaymentMethod
+          },
+          entityType: 'customer_package',
+          relatedEntityType: 'customer_package',
+          relatedEntityId: customerPackageId,
+          createdBy: actorId || userId,
+        });
+      } catch (ledgerErr) {
+        logger.warn('Failed to record non-wallet package purchase ledger entry', {
+          userId, packageId: customerPackageId, error: ledgerErr.message
+        });
+      }
+    }
+
+    // Check if user should be upgraded from outsider to student after first package purchase.
+    // For credit card payments the package is not yet paid, defer upgrade to the payment callback.
+    let roleUpgradeInfo = null;
+    if (req.user?.role === 'outsider' && normalizedPaymentMethod !== 'credit_card') {
+      const upgradeResult = await upgradeOutsiderToStudent(userId);
+      
+      if (upgradeResult.success && upgradeResult.newRole === 'student') {
+        roleUpgradeInfo = {
+          upgraded: true,
+          newRole: 'student',
+          message: 'Your account has been upgraded to Student! You now have access to the Student Dashboard.'
+        };
+      }
+    }
+    
+    const response = {
+      success: true,
+      message: 'Package purchased successfully',
+      paymentMethod: normalizedPaymentMethod,
+      paymentStatus,
+      customerPackage: {
+        id: customerPackageAfterUsage.id,
+        packageName: pkg.name,
+        totalHours: parseFloat(customerPackageAfterUsage.total_hours) || 0,
+        remainingHours: parseFloat(customerPackageAfterUsage.remaining_hours) || 0,
+        usedHours: parseFloat(customerPackageAfterUsage.used_hours) || 0,
+        rentalDaysUsed: parseInt(customerPackageAfterUsage.rental_days_used, 10) || 0,
+        rentalDaysRemaining: parseInt(customerPackageAfterUsage.rental_days_remaining, 10) || 0,
+        accommodationNightsUsed: parseInt(customerPackageAfterUsage.accommodation_nights_used, 10) || 0,
+        accommodationNightsRemaining: parseInt(customerPackageAfterUsage.accommodation_nights_remaining, 10) || 0,
+        purchasePrice: packagePrice,
+        currency: priceCurrency,
+        expiryDate,
+        status: initialStatus,
+        checkInDate: checkInDate || null,
+        checkOutDate: checkOutDate || null
+      }
+    };
+
+    // Add voucher info if one was applied
+    if (voucherRedemptionInfo) {
+      response.voucher = voucherRedemptionInfo;
+    }
+
+    // Add accommodation booking info if created
+    if (accommodationBookingId && accommodationUnitData) {
+      const checkIn = new Date(checkInDate);
+      const checkOut = new Date(checkOutDate);
+      const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      
+      response.accommodationBooking = {
+        id: accommodationBookingId,
+        unitId: pkg.accommodation_unit_id,
+        unitName: accommodationUnitData.name,
+        unitType: accommodationUnitData.type,
+        checkInDate,
+        checkOutDate,
+        nights,
+        status: 'confirmed'
+      };
+    }
+
+    // Add role upgrade info if applicable
+    if (roleUpgradeInfo) {
+      response.roleUpgrade = roleUpgradeInfo;
+    }
+
+    // Add wallet info if wallet payment
+    if (walletDeducted) {
+      response.wallet = {
+        previousBalance: availableBalance,
+        deducted: packagePrice,
+        newBalance,
+        currency: priceCurrency
+      };
+    }
+
+    // Add Iyzico payment URL if credit card payment
+    if (iyzicoPaymentPageUrl) {
+      response.paymentPageUrl = iyzicoPaymentPageUrl;
+    }
+
+    res.status(201).json(response);
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Error purchasing package:', error);
+    res.status(500).json({ error: error.message || 'Failed to purchase package' });
+  } finally {
+    client.release();
+  }
+});
+
+// Update package
+// eslint-disable-next-line complexity
+router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const actorId = resolveActorId(req);
+    const { 
+      name, price, currency, prices, sessionsCount, totalHours, lessonServiceName, 
+      disciplineTag, lessonCategoryTag, levelTag, description,
+      // New unified package type fields
+      packageType, includesAccommodation, includesRental, includesLessons,
+      accommodationNights, rentalDays, imageUrl,
+      // Service reference fields
+      lessonServiceId, equipmentId, accommodationUnitId, rentalServiceId,
+      equipmentName, accommodationUnitName, rentalServiceName,
+      // Per-component pricing
+      packageHourlyRate, packageDailyRate, packageNightlyRate
+    } = req.body;
+    
+    // Validate based on package type
+    const pType = packageType || 'lesson';
+    // Only require lesson service if explicitly included AND not an event-based package
+    const isEventPackage = ['downwinders', 'camps'].includes(pType);
+    const needsLessonService = !isEventPackage && (pType === 'lesson' || includesLessons === true);
+    const hasLessonService = lessonServiceId || (lessonServiceName && lessonServiceName !== 'Unknown Service');
+
+    const normalizeDisciplineTag = (tag) => {
+      const value = String(tag || '').trim().toLowerCase();
+      if (!value) return null;
+      if (value === 'foil') return 'kite_foil';
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      return ALLOWED.includes(value) ? value : null;
+    };
+    
+    if (needsLessonService && !hasLessonService) {
+      return res.status(400).json({ 
+        error: 'Lesson service is required for lesson packages. Please select a lesson type/service for this package.' 
+      });
+    }
+    
+    await client.query('BEGIN');
+
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
+    let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
+    let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
+    let resolvedLevelTag = levelTag || null;
+
+    if (lessonServiceId) {
+      const linkedService = await client.query(
+        `SELECT discipline_tag, lesson_category_tag, level_tag FROM services WHERE id = $1`,
+        [lessonServiceId]
+      );
+      if (linkedService.rows.length > 0) {
+        resolvedDisciplineTag = resolvedDisciplineTag || linkedService.rows[0].discipline_tag || null;
+        resolvedLessonCategoryTag = resolvedLessonCategoryTag || linkedService.rows[0].lesson_category_tag || null;
+        resolvedLevelTag = resolvedLevelTag || linkedService.rows[0].level_tag || null;
+      }
+    }
+    
+    // Determine primary price/currency (for backwards compatibility)
+    let primaryPrice = price ?? 0;  // Default to 0 if not provided
+    let primaryCurrency = currency || 'EUR';
+    if (Array.isArray(prices) && prices.length > 0) {
+      primaryPrice = prices[0].price ?? 0;
+      primaryCurrency = prices[0].currencyCode || prices[0].currency || 'EUR';
+    }
+    
+    const query = `
+      UPDATE service_packages 
+      SET name = $1, description = $2, price = $3, currency = $4, sessions_count = $5, total_hours = $6, 
+          lesson_service_name = $7, discipline_tag = $8, lesson_category_tag = $9, level_tag = $10, 
+          package_type = $11, includes_accommodation = $12, includes_rental = $13, includes_lessons = $14,
+          accommodation_nights = $15, rental_days = $16, image_url = $17,
+          lesson_service_id = $18, equipment_id = $19, accommodation_unit_id = $20, rental_service_id = $21,
+          equipment_name = $22, accommodation_unit_name = $23, rental_service_name = $24,
+          package_hourly_rate = $25, package_daily_rate = $26, package_nightly_rate = $27, updated_at = NOW()
+      WHERE id = $28
+      RETURNING *
+    `;
+    
+    const { rows } = await client.query(query, [
+      name,
+      description || null,
+      parseFloat(primaryPrice),
+      (primaryCurrency || 'EUR').toUpperCase(),
+      parseInt(sessionsCount) || 0,
+      parseFloat(totalHours) || 0,
+      lessonServiceName || null,
+      resolvedDisciplineTag,
+      resolvedLessonCategoryTag,
+      resolvedLevelTag,
+      pType,
+      includesAccommodation || false,
+      includesRental || false,
+      // For event packages, default to false; for others, default to true for backwards compatibility
+      isEventPackage ? (includesLessons || false) : (includesLessons !== false),
+      parseInt(accommodationNights) || 0,
+      parseInt(rentalDays) || 0,
+      imageUrl || null,
+      lessonServiceId || null,
+      equipmentId || null,
+      accommodationUnitId || null,
+      rentalServiceId || null,
+      equipmentName || null,
+      accommodationUnitName || null,
+      rentalServiceName || null,
+      packageHourlyRate ? parseFloat(packageHourlyRate) : null,
+      packageDailyRate ? parseFloat(packageDailyRate) : null,
+      packageNightlyRate ? parseFloat(packageNightlyRate) : null,
+      id
+    ]);
+    
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Package not found' });
+    }
+    
+    // Handle multi-currency prices
+    let allPrices = [];
+    if (Array.isArray(prices) && prices.length > 0) {
+      const normalizedPrices = prices.map(p => ({
+        currencyCode: (p.currencyCode || p.currency || 'EUR').toUpperCase(),
+        price: parseFloat(p.price)
+      }));
+      await setPackagePrices(client, id, normalizedPrices);
+      allPrices = normalizedPrices;
+    } else if (primaryPrice != null) {
+      // Single price provided - sync to prices table
+      await setPackagePrices(client, id, [{ currencyCode: (primaryCurrency || 'EUR').toUpperCase(), price: parseFloat(primaryPrice) }]);
+      allPrices = [{ currencyCode: (primaryCurrency || 'EUR').toUpperCase(), price: parseFloat(primaryPrice) }];
+    }
+    
+    await client.query('COMMIT');
+    
+    const updatedPackage = {
+      id: rows[0].id,
+      name: rows[0].name,
+      description: rows[0].description || '',
+      price: parseFloat(rows[0].price),
+      currency: rows[0].currency,
+      currencySymbol: rows[0].currency === 'USD' ? '$' : '€',
+      prices: allPrices,
+      sessionsCount: rows[0].sessions_count,
+      totalHours: parseFloat(rows[0].total_hours) || 0,
+      lessonServiceName: rows[0].lesson_service_name,
+      pricePerHour: rows[0].total_hours ? Math.round(parseFloat(rows[0].price) / parseFloat(rows[0].total_hours)) : 0,
+      disciplineTag: rows[0].discipline_tag || null,
+      lessonCategoryTag: rows[0].lesson_category_tag || null,
+      levelTag: rows[0].level_tag || null,
+      packageType: rows[0].package_type || 'lesson',
+      includesAccommodation: rows[0].includes_accommodation || false,
+      includesRental: rows[0].includes_rental || false,
+      includesLessons: rows[0].includes_lessons !== false,
+      accommodationNights: rows[0].accommodation_nights || 0,
+      rentalDays: rows[0].rental_days || 0,
+      imageUrl: rows[0].image_url || null,
+      // Service reference fields
+      lessonServiceId: rows[0].lesson_service_id || null,
+      equipmentId: rows[0].equipment_id || null,
+      accommodationUnitId: rows[0].accommodation_unit_id || null,
+      rentalServiceId: rows[0].rental_service_id || null,
+      equipmentName: rows[0].equipment_name || null,
+      accommodationUnitName: rows[0].accommodation_unit_name || null,
+      rentalServiceName: rows[0].rental_service_name || null,
+      packageHourlyRate: rows[0].package_hourly_rate ? parseFloat(rows[0].package_hourly_rate) : null,
+      packageDailyRate: rows[0].package_daily_rate ? parseFloat(rows[0].package_daily_rate) : null,
+      packageNightlyRate: rows[0].package_nightly_rate ? parseFloat(rows[0].package_nightly_rate) : null,
+      createdAt: rows[0].created_at,
+      updatedAt: rows[0].updated_at,
+      status: 'active'
+    };
+    
+    res.json(updatedPackage);
+  } catch (error) {
+    await client.query('ROLLBACK');
+  logger.error('Error updating package:', error);
+    res.status(500).json({ error: 'Failed to update package' });
+  } finally {
+    client.release();
+  }
+});
+
+// Cancel a pending_payment customer package (called by the student when iyzico payment is abandoned/failed)
+router.post('/customer-packages/:id/cancel', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId || req.user?.id;
+
+    // Fetch the package — must be owned by this user and in pending_payment state
+    const { rows } = await pool.query(
+      `SELECT id, customer_id, status, package_name FROM customer_packages WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
+
+    const cp = rows[0];
+
+    // Security: only the owner (or admin/manager) can cancel
+    const isOwner = String(cp.customer_id) === String(userId);
+    const isPrivileged = ['admin', 'manager', 'super_admin'].includes(req.user?.role);
+    if (!isOwner && !isPrivileged) {
+      return res.status(403).json({ error: 'Not authorized to cancel this package' });
+    }
+
+    // Idempotent: already cancelled — treat as success
+    if (cp.status === 'cancelled') {
+      return res.json({ success: true, message: 'Package already cancelled' });
+    }
+
+    // Only allow cancelling pending_payment packages via this endpoint
+    if (cp.status !== 'pending_payment') {
+      return res.status(409).json({ error: `Cannot cancel a package with status '${cp.status}'` });
+    }
+
+    await pool.query(
+      `UPDATE customer_packages
+       SET status = 'cancelled',
+           notes = COALESCE(notes, '') || ' | Cancelled: payment not completed',
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id]
+    );
+
+    logger.info('Customer package cancelled due to failed/abandoned payment', {
+      customerPackageId: id, userId, packageName: cp.package_name
+    });
+
+    return res.json({ success: true, message: 'Package cancelled' });
+  } catch (err) {
+    logger.error('Error cancelling customer package', { error: err.message, packageId: req.params.id });
+    return res.status(500).json({ error: 'Failed to cancel package' });
+  }
+});
+
+// Delete package
+router.delete('/packages/:id', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, check if any services are linked to this package
+    const linkedServices = await pool.query(
+      'SELECT id, name FROM services WHERE package_id = $1', 
+      [id]
+    );
+    
+    if (linkedServices.rows.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete package because it has linked services',
+        details: `${linkedServices.rows.length} service(s) are linked to this package`,
+        linkedServices: linkedServices.rows.map(s => ({ id: s.id, name: s.name })),
+        suggestion: 'Remove the package association from all linked services first, or use force delete.'
+      });
+    }
+    
+    const { rows } = await pool.query('DELETE FROM service_packages WHERE id = $1 RETURNING *', [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
+    
+    res.json({ message: 'Package deleted successfully' });
+  } catch (error) {
+  logger.error('Error deleting package:', error);
+    
+    // Check if it's a foreign key constraint error
+    if (error.code === '23503') {
+      return res.status(400).json({ 
+        error: 'Cannot delete package due to existing references',
+        details: 'This package is referenced by other records in the database'
+      });
+    }
+    
+    res.status(500).json({ error: 'Failed to delete package' });
+  }
+});
+
+// Force delete package (removes package association from linked services)
+router.delete('/packages/:id/force', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    const actorId = resolveActorId(req);
+    
+    const { id } = req.params;
+    
+    // First, update all linked services to remove package association
+    const unlinkResult = await client.query(
+  'UPDATE services SET package_id = NULL, updated_at = NOW() WHERE package_id = $1 RETURNING id, name',
+      [id, actorId || null]
+    );
+    
+    // Then delete the package
+    const deleteResult = await client.query(
+      'DELETE FROM service_packages WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (deleteResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Package not found' });
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      message: 'Package deleted successfully',
+      unlinkedServices: unlinkResult.rows.length,
+      details: unlinkResult.rows.length > 0 
+        ? `Unlinked ${unlinkResult.rows.length} service(s) from the package`
+        : 'No services were linked to this package'
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+  logger.error('Error force deleting package:', error);
+    res.status(500).json({ error: 'Failed to force delete package' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============ END PACKAGE ROUTES ============
+
+// Get a single service by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT s.*, 
+            p.name as package_name, 
+            p.price as package_price, 
+            p.sessions_count,
+            cs.symbol as currency_symbol
+      FROM services s
+      LEFT JOIN service_packages p ON s.package_id = p.id
+      LEFT JOIN currency_settings cs ON s.currency = cs.currency_code
+      WHERE s.id = $1
+    `;
+    
+    const { rows } = await pool.query(query, [id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    const row = rows[0];
+    const isPackage = row.package_id !== null;
+    
+    // Fetch multi-currency prices
+    const prices = await getServicePrices(row.id);
+    
+    const service = {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      level: row.level,
+  disciplineTag: row.discipline_tag || null,
+  lessonCategoryTag: row.lesson_category_tag || null,
+  levelTag: row.level_tag || null,
+      serviceType: row.service_type,
+      duration: row.duration,
+      price: row.price,
+      currency: row.currency,
+      currencySymbol: row.currency_symbol,
+      prices: prices.length > 0 ? prices : [{ currencyCode: row.currency || 'EUR', price: parseFloat(row.price) || 0 }],
+      maxParticipants: row.max_participants,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      includes: row.includes,
+      imageUrl: row.image_url,
+      isPackage,
+      ...(isPackage && {
+        packageName: row.package_name,
+        packagePrice: row.package_price,
+        sessionsCount: row.sessions_count
+      })
+    };
+    
+    res.json(service);
+  } catch (error) {
+  logger.error(`Error fetching service with ID ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to fetch service' });
+  }
+});
+
+// Create a new service
+// eslint-disable-next-line complexity
+router.post('/', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    const actorId = resolveActorId(req);
+    const now = new Date();
+    // Temporary debug log to diagnose missing fields from frontend
+    try {
+      logger.info('POST /api/services incoming body snapshot', {
+        bodyKeys: Object.keys(req.body || {}),
+        name: req.body?.name,
+        duration: req.body?.duration,
+        category: req.body?.category,
+        serviceType: req.body?.serviceType,
+        price: req.body?.price,
+        currency: req.body?.currency,
+      });
+    } catch {}
+
+    const {
+      name,
+      description,
+      category,
+      level,
+      serviceType,
+      duration,
+      price,
+      maxParticipants,
+      startTime,
+      endTime,
+      includes,
+      imageUrl,
+      isPackage,
+      packageName,
+      packagePrice,
+      sessionsCount,
+      currency,
+      disciplineTag,
+      lessonCategoryTag,
+      levelTag,
+      rentalSegment,
+    } = req.body || {};
+
+    // Resolve and validate critical fields
+    const resolvedName = (typeof name === 'string' && name.trim())
+      ? name.trim()
+      : (typeof req.body?.serviceName === 'string' && req.body.serviceName.trim() ? req.body.serviceName.trim() : null);
+    const resolvedCategory = (typeof category === 'string' && category.trim()) ? category.trim() : 'lesson';
+    const resolvedLevel = (typeof level === 'string' && level.trim()) ? level.trim() : 'all-levels';
+    const resolvedMaxParticipants = (maxParticipants != null)
+      ? parseInt(maxParticipants)
+      : null;
+    const resolvedServiceType = (typeof serviceType === 'string' && serviceType.trim())
+      ? serviceType.trim()
+      : (resolvedMaxParticipants && resolvedMaxParticipants > 1 ? 'group' : 'private');
+    const resolvedDuration = duration != null ? parseFloat(duration) : null;
+    const resolvedPrice = price != null ? parseFloat(price) : null;
+    const resolvedCurrency = (typeof currency === 'string' && currency.trim()) ? currency.trim() : 'EUR';
+
+    // Fail fast on required fields
+    if (!resolvedName) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Validation error: name is required',
+        receivedKeys: Object.keys(req.body || {}),
+        hint: 'Send { name: string, duration: number, price: number, category: string, serviceType: string }',
+      });
+    }
+    if (resolvedDuration == null || Number.isNaN(resolvedDuration)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Validation error: duration is required and must be a number' });
+    }
+    if (resolvedPrice == null || Number.isNaN(resolvedPrice)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Validation error: price is required and must be a number' });
+    }
+
+    try {
+      logger.info('POST /api/services resolved fields', {
+        resolvedName,
+        resolvedCategory,
+        resolvedLevel,
+        resolvedServiceType,
+        resolvedDuration,
+        resolvedPrice,
+        resolvedMaxParticipants,
+        resolvedCurrency,
+      });
+    } catch {}
+
+    // Ensure currency exists to satisfy FK when migrations/seeds didn't run
+    await ensureCurrencyExists(client, resolvedCurrency);
+    
+    let packageId = null;
+    
+    // If it's a package, create or update the package first
+    if (isPackage) {
+      const packageColumns = [
+        'name',
+        'price',
+        'sessions_count',
+        'lesson_service_name',
+        'total_hours',
+        'created_at',
+        'updated_at'
+      ];
+      const packageValues = [
+        packageName,
+        packagePrice,
+        sessionsCount,
+        resolvedName, // Set lesson_service_name to match the service name
+        resolvedDuration * sessionsCount, // Calculate total hours
+        now,
+        now
+      ];
+      const { columns: packageInsertColumns, values: packageInsertValues } = appendCreatedBy(
+        packageColumns,
+        packageValues,
+        actorId
+      );
+      const packagePlaceholders = packageInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
+
+      const packageResult = await client.query(
+        `INSERT INTO service_packages (${packageInsertColumns.join(', ')}) VALUES (${packagePlaceholders}) RETURNING id`,
+        packageInsertValues
+      );
+      packageId = packageResult.rows[0].id;
+    }
+    
+    // Create the service
+    const serviceId = uuidv4();
+    const serviceColumns = [
+      'id',
+      'name',
+      'description',
+      'category',
+      'level',
+      'service_type',
+      'duration',
+      'price',
+      'max_participants',
+      'start_time',
+      'end_time',
+      'includes',
+      'image_url',
+      'package_id',
+      'currency',
+      'discipline_tag',
+      'lesson_category_tag',
+      'level_tag',
+      'rental_segment',
+      'created_at',
+      'updated_at'
+    ];
+    const serviceValues = [
+      serviceId,
+      resolvedName,
+      description || null,
+      resolvedCategory,
+      resolvedLevel,
+      resolvedServiceType,
+      resolvedDuration,
+      resolvedPrice,
+      resolvedMaxParticipants || null,
+      startTime || null,
+      endTime || null,
+      includes || null,
+      imageUrl || null,
+      packageId,
+      resolvedCurrency,
+      disciplineTag || null,
+      lessonCategoryTag || null,
+      levelTag || null,
+      rentalSegment || null,
+      now,
+      now
+    ];
+    const { columns: serviceInsertColumns, values: serviceInsertValues } = appendCreatedBy(
+      serviceColumns,
+      serviceValues,
+      actorId
+    );
+    const servicePlaceholders = serviceInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
+
+    await client.query(
+      `INSERT INTO services (${serviceInsertColumns.join(', ')}) VALUES (${servicePlaceholders})`,
+      serviceInsertValues
+    );
+    
+    // Handle multi-currency prices for the service
+    const { prices } = req.body || {};
+    let allPrices = [];
+    if (Array.isArray(prices) && prices.length > 0) {
+      const normalizedPrices = prices.map(p => ({
+        currencyCode: (p.currencyCode || p.currency || 'EUR').toUpperCase(),
+        price: parseFloat(p.price)
+      }));
+      await setServicePrices(client, serviceId, normalizedPrices);
+      allPrices = normalizedPrices;
+    } else if (resolvedPrice != null) {
+      // Single price provided - sync to prices table
+      await setServicePrices(client, serviceId, [{ currencyCode: resolvedCurrency.toUpperCase(), price: resolvedPrice }]);
+      allPrices = [{ currencyCode: resolvedCurrency.toUpperCase(), price: resolvedPrice }];
+    }
+    
+    await client.query('COMMIT');
+    
+    // Fetch the complete created service with currency symbol
+    const fetchCreatedQuery = `
+      SELECT s.*, 
+            p.name as package_name, 
+            p.price as package_price, 
+            p.sessions_count,
+            cs.symbol as currency_symbol
+      FROM services s
+      LEFT JOIN service_packages p ON s.package_id = p.id
+      LEFT JOIN currency_settings cs ON s.currency = cs.currency_code
+      WHERE s.id = $1
+    `;
+    
+    const createdResult = await client.query(fetchCreatedQuery, [serviceId]);
+    
+    if (createdResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Created service not found' });
+    }
+    
+    const row = createdResult.rows[0];
+    const isPackageResult = row.package_id !== null;
+    
+    const createdService = {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      level: row.level,
+      serviceType: row.service_type,
+      duration: row.duration,
+      price: row.price,
+      currency: row.currency,
+      currencySymbol: row.currency_symbol,
+      prices: allPrices,
+      maxParticipants: row.max_participants,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      includes: row.includes,
+      imageUrl: row.image_url,
+      disciplineTag: row.discipline_tag || null,
+      lessonCategoryTag: row.lesson_category_tag || null,
+      levelTag: row.level_tag || null,
+      rentalSegment: row.rental_segment || null,
+      isPackage: isPackageResult,
+      ...(isPackageResult && {
+        packageName: row.package_name,
+        packagePrice: row.package_price,
+        sessionsCount: row.sessions_count
+      })
+    };
+    
+    // Broadcast real-time event for service creation
+    if (req.socketService) {
+      try {
+        req.socketService.emitToChannel('general', 'service:created', createdService);
+      } catch (socketError) {
+  logger.error('Error broadcasting service creation:', socketError);
+      }
+    }
+    
+    res.status(201).json(createdService);
+  } catch (error) {
+    await client.query('ROLLBACK');
+  logger.error('Error creating service:', error);
+    res.status(500).json({ error: 'Failed to create service' });
+  } finally {
+    client.release();
+  }
+});
+
+// Update an existing service
+// eslint-disable-next-line complexity
+router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    const actorId = resolveActorId(req);
+    
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      category,
+      level,
+      serviceType,
+      duration,
+      price,
+      maxParticipants,
+      startTime,
+      endTime,
+      includes,
+      imageUrl,
+      isPackage,
+      packageName,
+      packagePrice,
+      sessionsCount,
+      currency
+    } = req.body;
+    
+    // Check if service exists
+    const checkQuery = 'SELECT package_id FROM services WHERE id = $1';
+    const checkResult = await client.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    const existingPackageId = checkResult.rows[0].package_id;
+    let packageId = existingPackageId;
+    
+    // Handle package changes
+    if (isPackage) {
+      if (existingPackageId) {
+        // Update existing package
+        const updatePackageQuery = `
+          UPDATE service_packages
+          SET name = $1, price = $2, sessions_count = $3,
+              lesson_service_name = $4, total_hours = $5,
+              updated_at = NOW()
+          WHERE id = $6
+        `;
+        await client.query(updatePackageQuery, [
+          packageName,
+          packagePrice,
+          sessionsCount,
+          name, // Set lesson_service_name to match the service name
+          duration * sessionsCount, // Calculate total hours
+          existingPackageId
+        ]);
+      } else {
+        // Create new package
+        const packageColumns = [
+          'name',
+          'price',
+          'sessions_count',
+          'lesson_service_name',
+          'total_hours',
+          'created_at',
+          'updated_at'
+        ];
+        const packageValues = [
+          packageName,
+          packagePrice,
+          sessionsCount,
+          name, // Set lesson_service_name to match the service name
+          duration * sessionsCount, // Calculate total hours
+          new Date(),
+          new Date()
+        ];
+        const { columns: packageInsertColumns, values: packageInsertValues } = appendCreatedBy(
+          packageColumns,
+          packageValues,
+          actorId
+        );
+        const packagePlaceholders = packageInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
+        const packageResult = await client.query(
+          `INSERT INTO service_packages (${packageInsertColumns.join(', ')}) VALUES (${packagePlaceholders}) RETURNING id`,
+          packageInsertValues
+        );
+        packageId = packageResult.rows[0].id;
+      }
+    } else {
+      // Remove package association if it was previously a package
+      packageId = null;
+    }
+    
+  // Ensure currency exists before update to avoid FK violation
+  await ensureCurrencyExists(client, currency);
+
+  // Update the service
+  const updateServiceQuery = `
+      UPDATE services
+      SET name = $1, description = $2, category = $3, level = $4,
+          service_type = $5, duration = $6, price = $7, max_participants = $8,
+          start_time = $9, end_time = $10, includes = $11, image_url = $12,
+      package_id = $13, currency = $14,
+      discipline_tag = $15, lesson_category_tag = $16, level_tag = $17,
+      rental_segment = $18,
+      updated_at = NOW()
+    WHERE id = $19
+    `;
+    
+    await client.query(updateServiceQuery, [
+      name,
+      description,
+      category,
+      level,
+      serviceType,
+      duration,
+      price,
+      maxParticipants || null,
+      startTime || null,
+      endTime || null,
+      includes || null,
+      imageUrl || null,
+      packageId,
+      currency,
+      req.body?.disciplineTag || null,
+      req.body?.lessonCategoryTag || null,
+      req.body?.levelTag || null,
+      req.body?.rentalSegment || null,
+      id
+    ]);
+    
+    // Handle multi-currency prices for the service
+    const { prices } = req.body || {};
+    let allPrices = [];
+    if (Array.isArray(prices) && prices.length > 0) {
+      const normalizedPrices = prices.map(p => ({
+        currencyCode: (p.currencyCode || p.currency || 'EUR').toUpperCase(),
+        price: parseFloat(p.price)
+      }));
+      await setServicePrices(client, id, normalizedPrices);
+      allPrices = normalizedPrices;
+    } else if (price != null && currency) {
+      // Single price provided - sync to prices table
+      await setServicePrices(client, id, [{ currencyCode: (currency || 'EUR').toUpperCase(), price: parseFloat(price) }]);
+      allPrices = [{ currencyCode: (currency || 'EUR').toUpperCase(), price: parseFloat(price) }];
+    }
+    
+    await client.query('COMMIT');
+    
+    // Fetch the complete updated service with currency symbol
+    const fetchUpdatedQuery = `
+      SELECT s.*, 
+            p.name as package_name, 
+            p.price as package_price, 
+            p.sessions_count,
+            cs.symbol as currency_symbol
+      FROM services s
+      LEFT JOIN service_packages p ON s.package_id = p.id
+      LEFT JOIN currency_settings cs ON s.currency = cs.currency_code
+      WHERE s.id = $1
+    `;
+    
+    const updatedResult = await client.query(fetchUpdatedQuery, [id]);
+    
+    if (updatedResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Updated service not found' });
+    }
+    
+    const row = updatedResult.rows[0];
+    const isPackageResult = row.package_id !== null;
+    
+    const updatedService = {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      level: row.level,
+      serviceType: row.service_type,
+      duration: row.duration,
+      price: row.price,
+      currency: row.currency,
+      currencySymbol: row.currency_symbol,
+      prices: allPrices,
+      maxParticipants: row.max_participants,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      includes: row.includes,
+      imageUrl: row.image_url,
+      disciplineTag: row.discipline_tag || null,
+      lessonCategoryTag: row.lesson_category_tag || null,
+      levelTag: row.level_tag || null,
+      rentalSegment: row.rental_segment || null,
+      isPackage: isPackageResult,
+      ...(isPackageResult && {
+        packageName: row.package_name,
+        packagePrice: row.package_price,
+        sessionsCount: row.sessions_count
+      })
+    };
+    
+    res.json(updatedService);
+  } catch (error) {
+    await client.query('ROLLBACK');
+  logger.error(`Error updating service with ID ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to update service' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete a service
+router.delete('/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const { id } = req.params;
+    
+    // Check if service exists and get its package_id if any
+    const checkQuery = 'SELECT package_id FROM services WHERE id = $1';
+    const checkResult = await client.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+    
+    const packageId = checkResult.rows[0].package_id;
+    
+    // Delete the service
+    await client.query('DELETE FROM services WHERE id = $1', [id]);
+    
+    // If it was part of a package and no other services use it, delete the package too
+    if (packageId) {
+      const checkPackageUsageQuery = 'SELECT COUNT(*) FROM services WHERE package_id = $1';
+      const packageUsageResult = await client.query(checkPackageUsageQuery, [packageId]);
+      
+      if (parseInt(packageUsageResult.rows[0].count) === 0) {
+        await client.query('DELETE FROM service_packages WHERE id = $1', [packageId]);
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({ message: 'Service deleted successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+  logger.error(`Error deleting service with ID ${req.params.id}:`, error);
+    res.status(500).json({ error: 'Failed to delete service' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get service categories
+router.get('/categories/list', async (req, res) => {
+  try {
+    const query = 'SELECT DISTINCT category FROM services ORDER BY category';
+    const { rows } = await pool.query(query);
+    
+    const categories = rows.map(row => row.category);
+    res.json(categories);
+  } catch (error) {
+  logger.error('Error fetching service categories:', error);
+    res.status(500).json({ error: 'Failed to fetch service categories' });  }
+});
+
+// ===== PACKAGE MANAGEMENT ENDPOINTS =====
+
+// ============ CUSTOMER PACKAGE ROUTES ============
+// Routes for managing customer-purchased packages
+
+// Get customer packages for a specific customer
+router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  const runQuery = async () => {
+    const { customerId } = req.params;
+    const userRole = req.user?.role;
+    const authenticatedUserId = req.user?.id;
+    
+    // Students and outsiders can only access their own packages
+    if ((userRole === 'student' || userRole === 'outsider') && customerId !== authenticatedUserId) {
+      return res.status(403).json({ error: 'You can only access your own packages' });
+    }
+
+    const query = `
+      SELECT cp.*, sp.name as service_package_name, sp.lesson_service_name,
+             sp.discipline_tag as sp_discipline_tag,
+             sp.lesson_category_tag as sp_lesson_category_tag,
+             sp.level_tag as sp_level_tag,
+             sp.package_type as sp_package_type,
+             sp.includes_lessons as sp_includes_lessons,
+             sp.includes_rental as sp_includes_rental,
+             sp.includes_accommodation as sp_includes_accommodation
+      FROM customer_packages cp
+      LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
+      WHERE cp.customer_id = $1
+      ORDER BY cp.created_at DESC
+    `;
+
+    const { rows } = await pool.query(query, [customerId]);
+
+    const customerPackages = rows.map(row => ({
+      id: row.id,
+      customerId: row.customer_id,
+      servicePackageId: row.service_package_id,
+      packageName: row.package_name,
+      lessonType: row.lesson_service_name || row.package_name,
+      // Lesson hours tracking
+      totalHours: parseFloat(row.total_hours) || 0,
+      usedHours: parseFloat(row.used_hours) || 0,
+      remainingHours: parseFloat(row.remaining_hours) || 0,
+      // Also include the original database field names for compatibility
+      total_hours: parseFloat(row.total_hours) || 0,
+      used_hours: parseFloat(row.used_hours) || 0,
+      remaining_hours: parseFloat(row.remaining_hours) || 0,
+      // Rental tracking
+      rentalDaysTotal: parseInt(row.rental_days_total) || 0,
+      rentalDaysUsed: parseInt(row.rental_days_used) || 0,
+      rentalDaysRemaining: parseInt(row.rental_days_remaining) || 0,
+      rental_days_total: parseInt(row.rental_days_total) || 0,
+      rental_days_used: parseInt(row.rental_days_used) || 0,
+      rental_days_remaining: parseInt(row.rental_days_remaining) || 0,
+      // Accommodation tracking
+      accommodationNightsTotal: parseInt(row.accommodation_nights_total) || 0,
+      accommodationNightsUsed: parseInt(row.accommodation_nights_used) || 0,
+      accommodationNightsRemaining: parseInt(row.accommodation_nights_remaining) || 0,
+      accommodation_nights_total: parseInt(row.accommodation_nights_total) || 0,
+      accommodation_nights_used: parseInt(row.accommodation_nights_used) || 0,
+      accommodation_nights_remaining: parseInt(row.accommodation_nights_remaining) || 0,
+      // Package type and includes flags
+      packageType: row.package_type || row.sp_package_type || 'lesson',
+      package_type: row.package_type || row.sp_package_type || 'lesson',
+      includesLessons: row.includes_lessons !== false,
+      includesRental: row.includes_rental || false,
+      includesAccommodation: row.includes_accommodation || false,
+      includes_lessons: row.includes_lessons !== false,
+      includes_rental: row.includes_rental || false,
+      includes_accommodation: row.includes_accommodation || false,
+      // Service references
+      rentalServiceId: row.rental_service_id || null,
+      rentalServiceName: row.rental_service_name || null,
+      accommodationUnitId: row.accommodation_unit_id || null,
+      accommodationUnitName: row.accommodation_unit_name || null,
+      // Other fields
+      package_name: row.package_name,
+      lesson_service_name: row.lesson_service_name || row.package_name,
+      price: parseFloat(row.purchase_price),
+      // structured tags from service_packages (if any)
+      disciplineTag: row.sp_discipline_tag || null,
+      lessonCategoryTag: row.sp_lesson_category_tag || null,
+      levelTag: row.sp_level_tag || null,
+      currency: row.currency || 'EUR',
+      purchaseDate: row.purchase_date,
+      expiryDate: row.expiry_date,
+      lastUsedDate: row.last_used_date,
+      status: row.status,
+      notes: row.notes,
+      checkInDate: row.check_in_date,
+      checkOutDate: row.check_out_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    res.json(customerPackages);
+  };
+
+  try {
+    await runQuery();
+  } catch (error) {
+    // Handle transient connection issues with one retry
+    const message = String(error?.message || '').toLowerCase();
+    const isTransient =
+      message.includes('terminated unexpectedly') ||
+      message.includes('connection reset') ||
+      message.includes('socket hang up') ||
+      message.includes('server closed the connection');
+
+    if (isTransient) {
+      try {
+  logger.warn('Retrying customer-packages query after transient DB error...');
+        await new Promise(r => setTimeout(r, 200));
+        await runQuery();
+        return;
+      } catch (retryErr) {
+  logger.error('Retry failed for customer packages:', retryErr);
+      }
+    }
+
+  logger.error('Error fetching customer packages:', error);
+    res.status(500).json({ error: 'Failed to fetch customer packages' });
+  }
+});
+
+// Get customer's available rental packages (packages with remaining rental days)
+router.get('/customer-packages/:customerId/rental', authenticateJWT, authorize(['admin', 'manager', 'student', 'outsider']), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const userRole = req.user?.role?.toLowerCase();
+    const authenticatedUserId = req.user?.id;
+    
+    // Students and outsiders can only access their own packages
+    if ((userRole === 'student' || userRole === 'outsider') && customerId !== authenticatedUserId) {
+      return res.status(403).json({ error: 'You can only access your own packages' });
+    }
+
+    const query = `
+      SELECT 
+        id, customer_id, package_name, 
+        rental_days_total, rental_days_used, rental_days_remaining,
+        includes_rental, status, expiry_date,
+        rental_service_id, rental_service_name
+      FROM customer_packages
+      WHERE customer_id = $1
+        AND status = 'active'
+        AND includes_rental = true
+        AND rental_days_remaining > 0
+      ORDER BY created_at ASC
+    `;
+
+    const { rows } = await pool.query(query, [customerId]);
+
+    const packages = rows.map(row => ({
+      id: row.id,
+      customerId: row.customer_id,
+      packageName: row.package_name,
+      rentalDaysTotal: parseInt(row.rental_days_total) || 0,
+      rentalDaysUsed: parseInt(row.rental_days_used) || 0,
+      rentalDaysRemaining: parseInt(row.rental_days_remaining) || 0,
+      rentalServiceId: row.rental_service_id,
+      rentalServiceName: row.rental_service_name,
+      status: row.status,
+      expiryDate: row.expiry_date
+    }));
+
+    res.json(packages);
+  } catch (error) {
+    logger.error('Error fetching customer rental packages:', error);
+    res.status(500).json({ error: 'Failed to fetch rental packages' });
+  }
+});
+
+// Create/Purchase a package for a customer
+// eslint-disable-next-line complexity
+router.post('/customer-packages', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const {
+      customerId,
+      servicePackageId,
+      packageName,
+      lessonServiceName,
+      totalHours,
+      purchasePrice,
+      currency,
+      expiryDate,
+      notes,
+      // New fields for combo packages
+      rentalDays,
+      accommodationNights,
+      packageType,
+      includesLessons,
+      includesRental,
+      includesAccommodation,
+      rentalServiceId,
+      rentalServiceName,
+      accommodationUnitId,
+      accommodationUnitName
+    } = req.body;
+    
+    // Validate required fields
+    if (!customerId || !servicePackageId || !packageName || !purchasePrice) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: customerId, servicePackageId, packageName, purchasePrice' 
+      });
+    }
+
+  const actorId = resolveActorId(req);
+  const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      const packagePrice = parseFloat(purchasePrice);
+      
+      // Verify customer exists and get their preferred currency
+      const userCheck = await client.query('SELECT id, balance, preferred_currency FROM users WHERE id = $1', [customerId]);
+      if (userCheck.rows.length === 0) {
+        throw new Error('Customer not found');
+      }
+      
+      // Get the service package details to inherit combo package values if not provided
+      let pkgDetails = null;
+      try {
+        const spResult = await client.query('SELECT * FROM service_packages WHERE id = $1', [servicePackageId]);
+        if (spResult.rows.length > 0) {
+          pkgDetails = spResult.rows[0];
+        }
+      } catch (spErr) {
+        logger.warn('Could not fetch service package details', { servicePackageId, error: spErr.message });
+      }
+      
+      // Storage currency is always EUR (base currency)
+      // We accept currency param for frontend display purposes but always store in EUR
+      const storageCurrency = 'EUR';
+      const inputCurrency = currency || userCheck.rows[0].preferred_currency || 'EUR';
+      
+      // Use provided values or fallback to service package values
+      const pkgTotalHours = parseFloat(totalHours) || parseFloat(pkgDetails?.total_hours) || 0;
+      const pkgRentalDays = parseInt(rentalDays) || parseInt(pkgDetails?.rental_days) || 0;
+      const pkgAccommodationNights = parseInt(accommodationNights) || parseInt(pkgDetails?.accommodation_nights) || 0;
+      const pkgType = packageType || pkgDetails?.package_type || 'lesson';
+      const pkgIncludesLessons = includesLessons !== undefined ? includesLessons : (pkgDetails?.includes_lessons !== false);
+      const pkgIncludesRental = includesRental !== undefined ? includesRental : (pkgDetails?.includes_rental || false);
+      const pkgIncludesAccommodation = includesAccommodation !== undefined ? includesAccommodation : (pkgDetails?.includes_accommodation || false);
+      
+      // Create the package record
+      const customerPackageId = uuidv4();
+      const packageQuery = `
+        INSERT INTO customer_packages (
+          id, customer_id, service_package_id, package_name, lesson_service_name,
+          total_hours, remaining_hours, purchase_price, currency, expiry_date, notes, status,
+          rental_days_total, rental_days_remaining, rental_days_used,
+          accommodation_nights_total, accommodation_nights_remaining, accommodation_nights_used,
+          package_type, includes_lessons, includes_rental, includes_accommodation,
+          rental_service_id, rental_service_name, accommodation_unit_id, accommodation_unit_name
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, 'active',
+                $11, $11, 0,
+                $12, $12, 0,
+                $13, $14, $15, $16,
+                $17, $18, $19, $20)
+        RETURNING *
+      `;
+      
+      const { rows } = await client.query(packageQuery, [
+        customerPackageId,
+        customerId,
+        servicePackageId,
+        packageName,
+        lessonServiceName || packageName,
+        pkgTotalHours,
+        packagePrice,
+        storageCurrency, // Always store in EUR
+        expiryDate || null,
+        notes || null,
+        pkgRentalDays,
+        pkgAccommodationNights,
+        pkgType,
+        pkgIncludesLessons,
+        pkgIncludesRental,
+        pkgIncludesAccommodation,
+        rentalServiceId || pkgDetails?.rental_service_id || null,
+        rentalServiceName || pkgDetails?.rental_service_name || null,
+        accommodationUnitId || pkgDetails?.accommodation_unit_id || null,
+        accommodationUnitName || pkgDetails?.accommodation_unit_name || null
+      ]);
+
+      // Create package purchase transaction (debit from customer balance)
+      try {
+        await recordLegacyTransaction({
+          client,
+          userId: customerId,
+          amount: -Math.abs(packagePrice),
+          transactionType: 'package_purchase',
+          status: 'completed',
+          direction: 'debit',
+          description: `Package Purchase: ${packageName}`,
+          currency: storageCurrency, // Always store in EUR
+          paymentMethod: 'package_deal',
+          referenceNumber: customerPackageId,
+          metadata: {
+            packageId: customerPackageId,
+            servicePackageId,
+            totalHours: parseFloat(totalHours) || 0,
+            purchasePrice: packagePrice,
+            source: 'services:customer-packages:create',
+            inputCurrency // Track original input currency for audit
+          },
+          entityType: 'customer_package',
+          relatedEntityType: 'customer_package',
+          relatedEntityId: customerPackageId,
+          createdBy: actorId || null,
+          allowNegative: true
+        });
+      } catch (walletError) {
+        logger.error('Failed to record package purchase in wallet ledger', {
+          customerId,
+          packageId: customerPackageId,
+          error: walletError?.message
+        });
+        throw walletError;
+      }
+      
+      await client.query('COMMIT');
+      
+      const newCustomerPackage = {
+        id: rows[0].id,
+        customerId: rows[0].customer_id,
+        servicePackageId: rows[0].service_package_id,
+        packageName: rows[0].package_name,
+        lessonType: rows[0].lesson_service_name,
+        totalHours: parseFloat(rows[0].total_hours) || 0,
+        usedHours: parseFloat(rows[0].used_hours) || 0,
+        remainingHours: parseFloat(rows[0].remaining_hours) || 0,
+        // Rental tracking
+        rentalDaysTotal: parseInt(rows[0].rental_days_total) || 0,
+        rentalDaysUsed: parseInt(rows[0].rental_days_used) || 0,
+        rentalDaysRemaining: parseInt(rows[0].rental_days_remaining) || 0,
+        // Accommodation tracking
+        accommodationNightsTotal: parseInt(rows[0].accommodation_nights_total) || 0,
+        accommodationNightsUsed: parseInt(rows[0].accommodation_nights_used) || 0,
+        accommodationNightsRemaining: parseInt(rows[0].accommodation_nights_remaining) || 0,
+        // Package type info
+        packageType: rows[0].package_type || 'lesson',
+        includesLessons: rows[0].includes_lessons !== false,
+        includesRental: rows[0].includes_rental || false,
+        includesAccommodation: rows[0].includes_accommodation || false,
+        // Service references
+        rentalServiceId: rows[0].rental_service_id || null,
+        rentalServiceName: rows[0].rental_service_name || null,
+        accommodationUnitId: rows[0].accommodation_unit_id || null,
+        accommodationUnitName: rows[0].accommodation_unit_name || null,
+        // Other fields
+        price: parseFloat(rows[0].purchase_price),
+        currency: rows[0].currency,
+        purchaseDate: rows[0].purchase_date,
+        expiryDate: rows[0].expiry_date,
+        status: rows[0].status,
+        notes: rows[0].notes,
+        createdAt: rows[0].created_at,
+        updatedAt: rows[0].updated_at
+      };
+      
+      res.status(201).json({
+        ...newCustomerPackage,
+        message: `Package assigned successfully. €${packagePrice} deducted from customer balance.`
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    logger.error('Error creating customer package:', error);
+    res.status(500).json({ error: 'Failed to create customer package', details: error.message });
+  }
+});
+
+// Use hours from a customer package
+router.post('/customer-packages/:id/use-hours', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hoursToUse, bookingDate, notes } = req.body;
+    
+    if (!hoursToUse || hoursToUse <= 0) {
+      return res.status(400).json({ error: 'Invalid hours to use' });
+    }
+    
+    // Get current package details
+    const getCurrentQuery = 'SELECT * FROM customer_packages WHERE id = $1';
+    const currentResult = await pool.query(getCurrentQuery, [id]);
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer package not found' });
+    }
+    
+    const currentPackage = currentResult.rows[0];
+    const remainingHours = parseFloat(currentPackage.remaining_hours) || 0;
+    
+    if (hoursToUse > remainingHours) {
+      return res.status(400).json({ 
+        error: `Insufficient hours. Only ${remainingHours} hours remaining.` 
+      });
+    }
+    
+    // Update package hours
+    const newUsedHours = (parseFloat(currentPackage.used_hours) || 0) + parseFloat(hoursToUse);
+    const newRemainingHours = remainingHours - parseFloat(hoursToUse);
+    const rentalDaysRemaining = parseInt(currentPackage.rental_days_remaining) || 0;
+    const accommodationNightsRemaining = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    const isFullyUsed = newRemainingHours <= 0 && rentalDaysRemaining <= 0 && accommodationNightsRemaining <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
+    
+    const updateQuery = `
+      UPDATE customer_packages 
+      SET used_hours = $1, remaining_hours = $2, last_used_date = $3, status = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(updateQuery, [
+      newUsedHours,
+      newRemainingHours,
+      bookingDate || new Date().toISOString().split('T')[0],
+      newStatus,
+      id
+    ]);
+    
+    // Create a session/booking record (simplified)
+    // In a real app, this would create a proper booking record
+    const sessionRecord = {
+      id: uuidv4(),
+      customerPackageId: id,
+      customerId: currentPackage.customer_id,
+      hoursUsed: parseFloat(hoursToUse),
+      bookingDate: bookingDate || new Date().toISOString().split('T')[0],
+      notes: notes || `Used ${hoursToUse} hours from ${currentPackage.package_name}`,
+      createdAt: new Date().toISOString()
+    };
+    
+    const updatedPackage = {
+      id: rows[0].id,
+      customerId: rows[0].customer_id,
+      servicePackageId: rows[0].service_package_id,
+      packageName: rows[0].package_name,
+      lessonType: rows[0].lesson_service_name,
+      totalHours: parseFloat(rows[0].total_hours) || 0,
+      usedHours: parseFloat(rows[0].used_hours) || 0,
+      remainingHours: parseFloat(rows[0].remaining_hours) || 0,
+      price: parseFloat(rows[0].purchase_price),
+      currency: rows[0].currency,
+      purchaseDate: rows[0].purchase_date,
+      expiryDate: rows[0].expiry_date,
+      lastUsedDate: rows[0].last_used_date,
+      status: rows[0].status,
+      notes: rows[0].notes,
+      packageType: 'lesson-only',
+      createdAt: rows[0].created_at,
+      updatedAt: rows[0].updated_at
+    };
+    
+    res.json({
+      package: updatedPackage,
+      session: sessionRecord,
+      message: `Successfully used ${hoursToUse} hours. ${newRemainingHours} hours remaining.`
+    });
+    
+  } catch (error) {
+    logger.error('Error using package hours:', error);
+    res.status(500).json({ error: 'Failed to use package hours' });
+  }
+});
+
+// Use rental days from a customer package
+router.post('/customer-packages/:id/use-rental-days', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { daysToUse, rentalDate, notes, rentalId } = req.body;
+    
+    if (!daysToUse || daysToUse <= 0) {
+      return res.status(400).json({ error: 'Invalid days to use' });
+    }
+    
+    // Get current package details
+    const getCurrentQuery = 'SELECT * FROM customer_packages WHERE id = $1';
+    const currentResult = await pool.query(getCurrentQuery, [id]);
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer package not found' });
+    }
+    
+    const currentPackage = currentResult.rows[0];
+    
+    // Check if package includes rental
+    if (!currentPackage.includes_rental) {
+      return res.status(400).json({ error: 'This package does not include rental days' });
+    }
+    
+    const remainingDays = parseInt(currentPackage.rental_days_remaining) || 0;
+    
+    if (daysToUse > remainingDays) {
+      return res.status(400).json({ 
+        error: `Insufficient rental days. Only ${remainingDays} days remaining.` 
+      });
+    }
+    
+    // Update package rental days
+    const newUsedDays = (parseInt(currentPackage.rental_days_used) || 0) + parseInt(daysToUse);
+    const newRemainingDays = remainingDays - parseInt(daysToUse);
+    
+    // Determine if package is fully used (check all components)
+    const lessonHoursRemaining = parseFloat(currentPackage.remaining_hours) || 0;
+    const accommodationNightsRemaining = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    const isFullyUsed = lessonHoursRemaining <= 0 && newRemainingDays <= 0 && accommodationNightsRemaining <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
+    
+    const updateQuery = `
+      UPDATE customer_packages 
+      SET rental_days_used = $1, rental_days_remaining = $2, last_used_date = $3, status = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(updateQuery, [
+      newUsedDays,
+      newRemainingDays,
+      rentalDate || new Date().toISOString().split('T')[0],
+      newStatus,
+      id
+    ]);
+    
+    logger.info('Rental days used from package', {
+      packageId: id,
+      customerId: currentPackage.customer_id,
+      daysUsed: daysToUse,
+      remainingDays: newRemainingDays,
+      rentalId
+    });
+    
+    res.json({
+      package: {
+        id: rows[0].id,
+        customerId: rows[0].customer_id,
+        packageName: rows[0].package_name,
+        rentalDaysTotal: parseInt(rows[0].rental_days_total) || 0,
+        rentalDaysUsed: parseInt(rows[0].rental_days_used) || 0,
+        rentalDaysRemaining: parseInt(rows[0].rental_days_remaining) || 0,
+        status: rows[0].status
+      },
+      message: `Successfully used ${daysToUse} rental days. ${newRemainingDays} days remaining.`
+    });
+    
+  } catch (error) {
+    logger.error('Error using package rental days:', error);
+    res.status(500).json({ error: 'Failed to use package rental days' });
+  }
+});
+
+// Use accommodation nights from a customer package
+router.post('/customer-packages/:id/use-accommodation-nights', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nightsToUse, checkInDate, checkOutDate, notes, accommodationBookingId } = req.body;
+    
+    if (!nightsToUse || nightsToUse <= 0) {
+      return res.status(400).json({ error: 'Invalid nights to use' });
+    }
+    
+    // Get current package details
+    const getCurrentQuery = 'SELECT * FROM customer_packages WHERE id = $1';
+    const currentResult = await pool.query(getCurrentQuery, [id]);
+    
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer package not found' });
+    }
+    
+    const currentPackage = currentResult.rows[0];
+    
+    // Check if package includes accommodation
+    if (!currentPackage.includes_accommodation) {
+      return res.status(400).json({ error: 'This package does not include accommodation nights' });
+    }
+    
+    const remainingNights = parseInt(currentPackage.accommodation_nights_remaining) || 0;
+    
+    if (nightsToUse > remainingNights) {
+      return res.status(400).json({ 
+        error: `Insufficient accommodation nights. Only ${remainingNights} nights remaining.` 
+      });
+    }
+    
+    // Update package accommodation nights
+    const newUsedNights = (parseInt(currentPackage.accommodation_nights_used) || 0) + parseInt(nightsToUse);
+    const newRemainingNights = remainingNights - parseInt(nightsToUse);
+    
+    // Determine if package is fully used (check all components)
+    const lessonHoursRemaining = parseFloat(currentPackage.remaining_hours) || 0;
+    const rentalDaysRemaining = parseInt(currentPackage.rental_days_remaining) || 0;
+    const isFullyUsed = lessonHoursRemaining <= 0 && rentalDaysRemaining <= 0 && newRemainingNights <= 0;
+    const newStatus = isFullyUsed ? 'used_up' : currentPackage.status;
+    
+    const effectiveCheckIn = checkInDate || new Date().toISOString().split('T')[0];
+    const effectiveCheckOut = checkOutDate || (() => {
+      const parts = effectiveCheckIn.split('-');
+      const d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+      d.setUTCDate(d.getUTCDate() + parseInt(nightsToUse));
+      return d.toISOString().split('T')[0];
+    })();
+
+    const updateQuery = `
+      UPDATE customer_packages 
+      SET accommodation_nights_used = $1, accommodation_nights_remaining = $2, last_used_date = $3, status = $4,
+          check_in_date = $6, check_out_date = $7, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(updateQuery, [
+      newUsedNights,
+      newRemainingNights,
+      effectiveCheckIn,
+      newStatus,
+      id,
+      effectiveCheckIn,
+      effectiveCheckOut,
+    ]);
+    
+    logger.info('Accommodation nights used from package', {
+      packageId: id,
+      customerId: currentPackage.customer_id,
+      nightsUsed: nightsToUse,
+      remainingNights: newRemainingNights,
+      accommodationBookingId
+    });
+
+    // Record manager commission for the consumed accommodation nights
+    try {
+      const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
+
+      // Look up nightly rate — prefer package_nightly_rate from service_packages
+      let accomAmount = 0;
+      const unitId = currentPackage.accommodation_unit_id;
+
+      // 1. Try stored package nightly rate
+      if (currentPackage.service_package_id) {
+        const spRes = await pool.query(
+          'SELECT package_nightly_rate FROM service_packages WHERE id = $1',
+          [currentPackage.service_package_id]
+        );
+        const storedRate = parseFloat(spRes.rows[0]?.package_nightly_rate) || 0;
+        if (storedRate > 0) {
+          accomAmount = storedRate * parseInt(nightsToUse);
+        }
+      }
+
+      // 2. Fallback to accommodation unit price_per_night
+      if (accomAmount <= 0 && unitId) {
+        const unitRes = await pool.query(
+          'SELECT price_per_night FROM accommodation_units WHERE id = $1',
+          [unitId]
+        );
+        if (unitRes.rows.length > 0) {
+          accomAmount = parseFloat(unitRes.rows[0].price_per_night) * parseInt(nightsToUse);
+        }
+      }
+      // 3. Last fallback: pro-rata from package purchase price
+      if (accomAmount <= 0) {
+        const totalNights = parseInt(currentPackage.accommodation_nights_total) || 1;
+        let pkgPrice = parseFloat(currentPackage.purchase_price) || 0;
+        accomAmount = Math.round((pkgPrice / totalNights * parseInt(nightsToUse)) * 100) / 100;
+      }
+
+      if (accomAmount > 0) {
+        await recordAccommodationCommission({
+          id: `pkg-accom-${id}`,
+          total_price: accomAmount,
+          currency: currentPackage.currency || 'EUR',
+          check_in_date: effectiveCheckIn,
+          check_out_date: effectiveCheckOut,
+          guest_id: currentPackage.customer_id,
+          unit_id: unitId,
+          guests_count: 1,
+        });
+        logger.info('Accommodation commission recorded from package', { packageId: id, amount: accomAmount });
+      }
+    } catch (commErr) {
+      logger.warn('Failed to record accommodation commission from package:', commErr.message);
+    }
+
+    res.json({
+      package: {
+        id: rows[0].id,
+        customerId: rows[0].customer_id,
+        packageName: rows[0].package_name,
+        accommodationNightsTotal: parseInt(rows[0].accommodation_nights_total) || 0,
+        accommodationNightsUsed: parseInt(rows[0].accommodation_nights_used) || 0,
+        accommodationNightsRemaining: parseInt(rows[0].accommodation_nights_remaining) || 0,
+        status: rows[0].status
+      },
+      message: `Successfully used ${nightsToUse} accommodation nights. ${newRemainingNights} nights remaining.`
+    });
+    
+  } catch (error) {
+    logger.error('Error using package accommodation nights:', error);
+    res.status(500).json({ error: 'Failed to use package accommodation nights' });
+  }
+});
+
+// Delete a customer package and all dependent data
+router.delete('/customer-packages/:id', authorize(['admin', 'manager']), async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const { id } = req.params;
+    const actorId = resolveActorId(req);
+    const forceFullRefund = req.query.forceFullRefund === 'true';
+
+    const deleteResult = await forceDeleteCustomerPackage({
+      client,
+      packageId: id,
+      actorId,
+      issueRefund: true,
+      forceFullRefund
+    });
+
+    await client.query('COMMIT');
+
+    logger.info('Customer package force-deleted with cleanup', {
+      packageId: id,
+      participantRefsCleared: deleteResult.cleanup.participantReferencesCleared,
+      bookingRefsCleared: deleteResult.cleanup.bookingReferencesCleared,
+      refundAmount: deleteResult.refundDetails.calculatedRefundAmount,
+      remainingHours: deleteResult.refundDetails.remainingHours,
+      totalHours: deleteResult.refundDetails.totalHours
+    });
+
+    const refundAmount = deleteResult.refundDetails.calculatedRefundAmount;
+    const remainingHours = deleteResult.refundDetails.remainingHours;
+    const totalHours = deleteResult.refundDetails.totalHours;
+
+    const refundMessage = refundAmount > 0
+      ? `€${refundAmount.toFixed(2)} partial refund for ${remainingHours} unused hours`
+      : 'No refund (package fully used)';
+
+    res.json({
+      message: 'Customer package deleted successfully',
+      refund: refundMessage,
+      cleanup: deleteResult.cleanup,
+      refundDetails: deleteResult.refundDetails,
+      walletSummary: deleteResult.walletSummary,
+      walletTransaction: mapWalletTransactionForResponse(deleteResult.walletTransaction)
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.statusCode === 404) {
+      return res.status(404).json({ error: error.message });
+    }
+    logger.error('Error force-deleting customer package:', error);
+    res.status(500).json({ error: 'Failed to delete customer package' });
+  } finally {
+    client.release();
+  }
+});
+
+// Archive a customer package (soft disable without refund) - REMOVED, using force-delete instead
+
+// ============ END CUSTOMER PACKAGE ROUTES ============
+
+// ============ CATEGORY ROUTES ============
+
+// Create new category
+router.post('/categories', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { name, type, description, status = 'active' } = req.body;
+    
+    if (!name || !type) {
+      return res.status(400).json({ error: 'Name and type are required' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO service_categories (name, type, description, status, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+       RETURNING *`,
+      [name, type, description, status]
+    );
+    
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    logger.error('Error creating category:', error);
+    if (error.code === '23505') {
+      res.status(409).json({ error: 'Category name already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to create category' });
+    }
+  }
+});
+
+// Update category
+router.put('/categories/:id', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, description, status } = req.body;
+    
+    if (!name || !type) {
+      return res.status(400).json({ error: 'Name and type are required' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE service_categories 
+       SET name = $1, type = $2, description = $3, status = $4, updated_at = NOW()
+       WHERE id = $5 
+       RETURNING *`,
+      [name, type, description, status, id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    res.json(rows[0]);
+  } catch (error) {
+    logger.error('Error updating category:', error);
+    if (error.code === '23505') {
+      res.status(409).json({ error: 'Category name already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to update category' });
+    }
+  }
+});
+
+// Delete category
+router.delete('/categories/:id', authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if category is in use
+    const { rows: servicesUsingCategory } = await pool.query(
+      'SELECT COUNT(*) as count FROM services WHERE category = (SELECT name FROM service_categories WHERE id = $1)',
+      [id]
+    );
+    
+    if (parseInt(servicesUsingCategory[0].count) > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete category that is in use by services' 
+      });
+    }
+    
+    const { rows } = await pool.query(
+      'DELETE FROM service_categories WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    res.json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    logger.error('Error deleting category:', error);
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+});
+
+export default router;

@@ -1,0 +1,353 @@
+/* 
+ * Enhanced Eye-Friendly Daily View Styles 
+ * Modern design with softer colors and improved visual hierarchy
+ */
+
+/* Daily View Container */
+.daily-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+/* Daily Header - Redesigned with Eye-Friendly Colors */
+.daily-header {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-5) var(--spacing-6);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+}
+
+.date-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.daily-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.daily-date .day-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+}
+
+.daily-date .day-number.today {
+  background-color: white;
+  color: var(--primary);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+}
+
+.date-info {
+  flex: 1;
+}
+
+.day-title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  letter-spacing: -0.5px;
+}
+
+.today-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(4px);
+  color: white;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  margin-left: var(--spacing-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Daily Grid - Enhanced for Eye Comfort */
+.daily-grid {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: calc(100vh - 300px);
+  min-width: max-content;
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: var(--surface);
+  margin: var(--spacing-4);
+}
+
+.daily-grid-header {
+  display: grid;
+  grid-template-columns: 120px repeat(var(--instructor-count, 4), minmax(150px, 1fr));
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  min-width: max-content;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.time-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-3);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.03);
+  border-right: 1px solid var(--border);
+  height: 60px;
+}
+
+.instructor-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2);
+  border-right: 1px solid var(--border);
+  text-align: center;
+  height: 60px;
+  box-sizing: border-box;
+  min-width: 150px;
+  max-width: 180px;
+  background-color: var(--surface);
+  transition: all 0.3s ease;
+}
+
+.instructor-header-cell:hover {
+  background-color: var(--bg-primary);
+}
+
+.instructor-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Time Slot Rows */
+.time-slot-row {
+  display: grid;
+  grid-template-columns: 120px repeat(var(--instructor-count, 4), minmax(150px, 1fr));
+  border-bottom: 1px solid var(--border);
+  height: 75px;
+  width: 100%;
+  min-width: max-content;
+  transition: all 0.2s ease;
+}
+
+.time-slot-row:hover {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+.time-label-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+
+.instructor-slot-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-1);
+  border-right: 1px solid var(--border-light);
+  height: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.instructor-slot-cell:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Time Slot Component Overrides for Daily View */
+.daily-view .time-slot {
+  width: 65px;
+  height: 65px;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+.daily-view .time-slot.status-available {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%);
+  border: 1px solid var(--status-available);
+  cursor: pointer;
+}
+
+.daily-view .time-slot.status-available:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 
+    0 4px 12px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
+.daily-view .time-slot.status-booked {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%);
+  border: 1px solid var(--status-booked);
+}
+
+.daily-view .time-slot.status-unavailable {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.02) 100%);
+  border: 1px solid var(--status-unavailable);
+  opacity: 0.7;
+}
+
+/* Time Slot Content for Daily View */
+.daily-view .time-slot .slot-time {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.daily-view .time-slot .slot-student {
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  max-width: 100%;
+  color: var(--text-secondary);
+}
+
+.daily-view .time-slot .book-slot-prompt {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--status-available);
+  text-align: center;
+  font-weight: 600;
+}
+
+.daily-view .time-slot .slot-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* Empty State - Enhanced */
+.empty-state-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--spacing-6);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+  margin: var(--spacing-6);
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.4;
+  color: var(--primary);
+}
+
+.empty-state-large h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-2);
+  color: var(--text-primary);
+}
+
+.empty-state-large p {
+  font-size: var(--text-base);
+  max-width: 500px;
+  margin-bottom: var(--spacing-6);
+  color: var(--text-secondary);
+}
