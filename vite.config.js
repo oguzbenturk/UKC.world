@@ -2,12 +2,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import Inspector from 'vite-plugin-react-inspector'
 
 const devPort = Number(process.env.VITE_DEV_PORT || process.env.PORT || 3000);
 const runtimeNodeEnv = process.env.VITEST ? 'test' : (process.env.NODE_ENV || 'production');
 
 export default defineConfig({
-  plugins: [react()],  
+  plugins: [
+    react(),
+    Inspector({ enabled: process.env.NODE_ENV !== 'production' }),
+  ],
   base: '/',
   define: {
     // Prevent service worker registration in development

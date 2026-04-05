@@ -45,7 +45,8 @@ router.get('/', async (req, res) => {
         mo.gradient_opacity,
         mo.category,
         mo.total_capacity,
-        CASE 
+        mo.group_key,
+        CASE
           WHEN mo.category = 'storage' AND mo.total_capacity IS NOT NULL THEN
             mo.total_capacity - COALESCE(storage_global.cnt, 0)
           ELSE NULL
@@ -682,7 +683,8 @@ router.put(
         text_color,
         gradient_opacity,
         category,
-        total_capacity
+        total_capacity,
+        group_key
       } = req.body;
 
       const { rows: [offering] } = await pool.query(`
@@ -708,15 +710,17 @@ router.put(
           gradient_opacity = COALESCE($20, gradient_opacity),
           category = COALESCE($21, category),
           total_capacity = $22,
+          group_key = $23,
           updated_at = NOW()
         WHERE id = $1
         RETURNING *
       `, [
-        id, name, description, price, period, 
-        features ? JSON.stringify(features) : null, 
-        icon, badge, badge_color, highlighted, is_active, sort_order, 
+        id, name, description, price, period,
+        features ? JSON.stringify(features) : null,
+        icon, badge, badge_color, highlighted, is_active, sort_order,
         duration_days, image_url, use_image_background, card_style, button_text, gradient_color, text_color, gradient_opacity,
-        category, total_capacity !== undefined ? (total_capacity || null) : null
+        category, total_capacity !== undefined ? (total_capacity || null) : null,
+        group_key !== undefined ? (group_key || null) : null
       ]);
 
       if (!offering) {

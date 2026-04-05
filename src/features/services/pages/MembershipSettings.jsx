@@ -166,6 +166,7 @@ function MembershipSettings() {
       gradient_opacity: record.gradient_opacity ?? 70,
       category: record.category || 'membership',
       total_capacity: record.total_capacity,
+      group_key: record.group_key || '',
     });
     setModalVisible(true);
   };
@@ -192,6 +193,7 @@ function MembershipSettings() {
           duration_days: values.duration_days ? Number(values.duration_days) : null,
           image_url: imageUrl,
           total_capacity: isStorage ? (values.total_capacity ? Number(values.total_capacity) : null) : null,
+          group_key: values.group_key?.trim() || null,
         };
         await apiClient.put(`/member-offerings/${editingOffering.id}`, payload);
         message.success(`${isStorage ? 'Storage' : 'Membership'} updated`);
@@ -631,14 +633,23 @@ function MembershipSettings() {
 
               {/* ── EDIT MODE: single price/duration ── */}
               {editingOffering && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Form.Item name="price" label="Price" rules={[{ required: true }]}>
-                    <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Form.Item name="price" label="Price" rules={[{ required: true }]}>
+                      <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                    </Form.Item>
+                    <Form.Item name="duration_days" label="Duration (Days)">
+                      <InputNumber className="w-full" min={1} placeholder="30" />
+                    </Form.Item>
+                  </div>
+                  <Form.Item
+                    name="group_key"
+                    label="Group Key"
+                    extra="Offerings with the same group key collapse into one card with duration options. E.g. beach_pass"
+                  >
+                    <Input placeholder="e.g. beach_pass" allowClear />
                   </Form.Item>
-                  <Form.Item name="duration_days" label="Duration (Days)">
-                    <InputNumber className="w-full" min={1} placeholder="30" />
-                  </Form.Item>
-                </div>
+                </>
               )}
 
               {/* ── CREATE MODE: tier pricing table (both membership and storage) ── */}

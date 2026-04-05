@@ -202,21 +202,23 @@ const formatDuration = (days) => {
   return `${Math.round(days / 365)} Years`;
 };
 
-const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, userCurrency, businessCurrency, isOwned, storageUnit }) => {
-  const price = offering.price || 0;
+const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurrency, userCurrency, businessCurrency, isOwned, storageUnit }) => {
+  const isGroup = !!group;
+  // For groups use the minimum price across all variants
+  const price = isGroup ? Math.min(...group.map(o => o.price || 0)) : (offering.price || 0);
   const eurPrice = businessCurrency === 'EUR' ? price : convertCurrency(price, businessCurrency, 'EUR');
   const eurFormatted = formatCurrency(eurPrice, 'EUR');
   const showLocal = userCurrency && userCurrency !== 'EUR';
   const localFormatted = showLocal ? formatCurrency(convertCurrency(price, businessCurrency, userCurrency), userCurrency) : null;
   const accent = getAccent(offering.badge_color);
-  const durationLabel = formatDuration(offering.duration_days);
+  const durationLabel = isGroup ? null : formatDuration(offering.duration_days);
   const isHighlighted = offering.highlighted;
   const isStorage = offering.category === 'storage';
-  const isSoldOut = isStorage && offering.available_count != null && offering.available_count <= 0;
+  const isSoldOut = !isGroup && isStorage && offering.available_count != null && offering.available_count <= 0;
 
   return (
     <div
-      onClick={() => !isSoldOut && onPurchase(offering)}
+      onClick={() => !isSoldOut && onPurchase(offering, isGroup ? group : null)}
       className={`group relative isolate overflow-hidden rounded-3xl flex flex-col min-h-[360px] transition-[transform,box-shadow] duration-300 ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
       style={{ border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 2px 20px rgba(0,0,0,0.35)' }}
       onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,168,196,0.25), 0 0 0 1px rgba(0,168,196,0.35)'; }}
@@ -254,10 +256,12 @@ const OfferingCard = ({ offering, onPurchase, formatCurrency, convertCurrency, u
 
         {/* Price badge — top right */}
         <div className="absolute top-3 right-3 z-10 bg-black/85 px-2 py-1.5 rounded-lg text-right">
-          {durationLabel && (
+          {isGroup ? (
+            <p className="text-[9px] font-duotone-bold-extended text-white uppercase tracking-wider leading-none">{group.length} plans</p>
+          ) : durationLabel ? (
             <p className="text-[9px] font-duotone-bold-extended text-white uppercase tracking-wider leading-none">{durationLabel}</p>
-          )}
-          <p className="text-[7px] font-duotone-regular text-white/55 uppercase tracking-widest mt-0.5 leading-none">PRICE</p>
+          ) : null}
+          <p className="text-[7px] font-duotone-regular text-white/55 uppercase tracking-widest mt-0.5 leading-none">{isGroup ? 'FROM' : 'PRICE'}</p>
           <p className="text-sm font-duotone-bold-extended italic text-white leading-tight">{eurFormatted}</p>
           {showLocal && <p className="text-[8px] text-white/50 font-duotone-regular leading-snug">~{localFormatted}</p>}
         </div>
@@ -312,7 +316,7 @@ const MemberOfferings = () => {
   const { openAuthModal } = useAuthModal();
   const { formatCurrency, convertCurrency, userCurrency, businessCurrency } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null });
+  const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null, group: null, selectedVariant: null });
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
@@ -421,6 +425,33 @@ const MemberOfferings = () => {
     return map;
   }, [activePurchases]);
 
+  // Collapse offerings that share a group_key into a single card item.
+  // Items without a group_key are left as standalone.
+  const groupedItems = useMemo(() => {
+    const groupMap = new Map(); // group_key → [offerings in original sort_order]
+    for (const o of offerings) {
+      if (o.group_key) {
+        if (!groupMap.has(o.group_key)) groupMap.set(o.group_key, []);
+        groupMap.get(o.group_key).push(o);
+      }
+    }
+    const seen = new Set();
+    const result = [];
+    for (const o of offerings) {
+      if (o.group_key) {
+        if (!seen.has(o.group_key)) {
+          seen.add(o.group_key);
+          // Sort variants by duration_days asc for the picker UI
+          const variants = [...groupMap.get(o.group_key)].sort((a, b) => (a.duration_days || 0) - (b.duration_days || 0));
+          result.push({ isGroup: true, key: o.group_key, group: variants, representative: o });
+        }
+      } else {
+        result.push({ isGroup: false, offering: o });
+      }
+    }
+    return result;
+  }, [offerings]);
+
   const purchaseMutation = useMutation({
     mutationFn: purchaseMembership,
     onSuccess: (data) => {
@@ -439,7 +470,7 @@ const MemberOfferings = () => {
         const unitMsg = data?.purchase?.storage_unit ? ` — Storage Unit #${data.purchase.storage_unit}` : '';
         message.success(`Purchase successful!${unitMsg}`);
       }
-      setPurchaseModal({ visible: false, offering: null });
+      setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
       queryClient.invalidateQueries(['member-offerings']);
       queryClient.invalidateQueries(['my-member-purchases']);
     },
@@ -456,7 +487,7 @@ const MemberOfferings = () => {
     onSuccess: () => {
       const c = customers.find(c => c.id === selectedCustomer);
       message.success(`Membership assigned to ${c ? `${c.first_name} ${c.last_name}` : 'customer'}!`);
-      setPurchaseModal({ visible: false, offering: null });
+      setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
       setSelectedCustomer(null);
       queryClient.invalidateQueries(['member-offerings']);
       queryClient.invalidateQueries(['admin-member-purchases']);
@@ -466,8 +497,8 @@ const MemberOfferings = () => {
     },
   });
 
-  const handlePurchase = (offering) => {
-    if (offering.category === 'storage' && offering.available_count != null && offering.available_count <= 0) {
+  const handlePurchase = (offering, group = null) => {
+    if (!group && offering.category === 'storage' && offering.available_count != null && offering.available_count <= 0) {
       message.warning('No storage slots available at the moment.');
       return;
     }
@@ -477,7 +508,8 @@ const MemberOfferings = () => {
     setDepositMethod('credit_card');
     setSelectedBankAccountId(null);
     setFileList([]);
-    setPurchaseModal({ visible: true, offering });
+    // For groups: pre-select the first (shortest/cheapest) variant
+    setPurchaseModal({ visible: true, offering, group, selectedVariant: group ? group[0] : null });
   };
 
   const executePurchase = async () => {
@@ -486,7 +518,8 @@ const MemberOfferings = () => {
       openAuthModal({ title: 'Sign In to Purchase', message: 'Create an account or sign in to purchase a membership.', mode: 'register', returnUrl: '/members/offerings' });
       return;
     }
-    const offering = purchaseModal.offering;
+    // For grouped offerings use the selected variant; for standalone use the offering itself
+    const offering = purchaseModal.selectedVariant || purchaseModal.offering;
     const dateStr = startDate ? startDate.toISOString() : undefined;
     const isDeposit = paymentMethod === 'deposit';
     const actualMethod = isDeposit ? depositMethod : paymentMethod;
@@ -663,21 +696,39 @@ const MemberOfferings = () => {
 
         {/* Cards grid */}
         {!isLoading && !error && offerings.length > 0 && (() => {
-          const membershipOfferings = offerings.filter(o => o.category !== 'storage');
-          const storageOfferings = offerings.filter(o => o.category === 'storage');
+          const membershipItems = groupedItems.filter(item =>
+            item.isGroup ? item.representative.category !== 'storage' : item.offering.category !== 'storage'
+          );
+          const storageItems = groupedItems.filter(item =>
+            item.isGroup ? item.representative.category === 'storage' : item.offering.category === 'storage'
+          );
+
           const renderGrid = (items) => (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {items.map(offering => (
+              {items.map(item => item.isGroup ? (
                 <OfferingCard
-                  key={offering.id}
-                  offering={offering}
+                  key={`group-${item.key}`}
+                  offering={item.representative}
+                  group={item.group}
                   onPurchase={handlePurchase}
                   formatCurrency={formatCurrency}
                   convertCurrency={convertCurrency}
                   userCurrency={userCurrency}
                   businessCurrency={businessCurrency}
-                  isOwned={ownedOfferingIds.has(offering.id)}
-                  storageUnit={storageUnitMap[offering.id]}
+                  isOwned={item.group.some(o => ownedOfferingIds.has(o.id))}
+                  storageUnit={item.group.reduce((u, o) => u || storageUnitMap[o.id], null)}
+                />
+              ) : (
+                <OfferingCard
+                  key={item.offering.id}
+                  offering={item.offering}
+                  onPurchase={handlePurchase}
+                  formatCurrency={formatCurrency}
+                  convertCurrency={convertCurrency}
+                  userCurrency={userCurrency}
+                  businessCurrency={businessCurrency}
+                  isOwned={ownedOfferingIds.has(item.offering.id)}
+                  storageUnit={storageUnitMap[item.offering.id]}
                 />
               ))}
             </div>
@@ -685,27 +736,27 @@ const MemberOfferings = () => {
 
           return (
           <>
-            {membershipOfferings.length > 0 && (
+            {membershipItems.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Memberships</h2>
-                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">{membershipOfferings.length} plan{membershipOfferings.length !== 1 ? 's' : ''} to choose from</p>
+                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">{membershipItems.length} plan{membershipItems.length !== 1 ? 's' : ''} to choose from</p>
                   </div>
                 </div>
-                {renderGrid(membershipOfferings)}
+                {renderGrid(membershipItems)}
               </>
             )}
 
-            {storageOfferings.length > 0 && (
+            {storageItems.length > 0 && (
               <>
-                <div className={`flex items-center justify-between mb-6 ${membershipOfferings.length > 0 ? 'mt-16' : ''}`}>
+                <div className={`flex items-center justify-between mb-6 ${membershipItems.length > 0 ? 'mt-16' : ''}`}>
                   <div>
                     <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Storage</h2>
-                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secure equipment storage — {storageOfferings.length} option{storageOfferings.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secure equipment storage — {storageItems.length} option{storageItems.length !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
-                {renderGrid(storageOfferings)}
+                {renderGrid(storageItems)}
               </>
             )}
 
@@ -722,17 +773,20 @@ const MemberOfferings = () => {
 
       {/* Purchase Modal */}
       {purchaseModal.offering && (() => {
-        const offering = purchaseModal.offering;
+        const offering = purchaseModal.offering; // representative — used for image/name/desc/features
+        const group = purchaseModal.group;
+        // activeOffering drives price, duration, and the actual purchase call
+        const activeOffering = purchaseModal.selectedVariant || offering;
         const accent = getAccent(offering.badge_color);
-        const isStorage = offering.category === 'storage';
-        const eurBase = businessCurrency === 'EUR' ? (offering.price || 0) : convertCurrency(offering.price || 0, businessCurrency, 'EUR');
+        const isStorage = activeOffering.category === 'storage';
+        const eurBase = businessCurrency === 'EUR' ? (activeOffering.price || 0) : convertCurrency(activeOffering.price || 0, businessCurrency, 'EUR');
         const eurFormatted = formatCurrency(eurBase, 'EUR');
         const showLocal = userCurrency && userCurrency !== 'EUR';
-        const localFormatted = showLocal ? formatCurrency(convertCurrency(offering.price || 0, businessCurrency, userCurrency), userCurrency) : null;
+        const localFormatted = showLocal ? formatCurrency(convertCurrency(activeOffering.price || 0, businessCurrency, userCurrency), userCurrency) : null;
         const dualPrice = showLocal ? `${eurFormatted} (~${localFormatted})` : eurFormatted;
         const features = parseFeatures(offering.features);
-        const durLabel = formatDuration(offering.duration_days);
-        const endDate = offering.duration_days && startDate ? startDate.add(offering.duration_days, 'day') : null;
+        const durLabel = formatDuration(activeOffering.duration_days);
+        const endDate = activeOffering.duration_days && startDate ? startDate.add(activeOffering.duration_days, 'day') : null;
         const isPending = purchaseMutation.isPending || assignMutation.isPending;
         const walletIsInsufficient = paymentMethod === 'wallet' && eurBase > walletBalance;
         const depositAmount = parseFloat((eurBase * 0.2).toFixed(2));
@@ -748,7 +802,7 @@ const MemberOfferings = () => {
         return (
           <TwoColumnModal
             open={purchaseModal.visible}
-            onClose={() => setPurchaseModal({ visible: false, offering: null })}
+            onClose={() => setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null })}
             maxWidth={900}
             leftContent={
               <>
@@ -813,7 +867,90 @@ const MemberOfferings = () => {
               <>
                 {/* Scrollable options */}
                 <div className="tcm-scroll space-y-4 sm:space-y-5 p-4 sm:p-5 md:min-h-0 md:flex-1 md:overflow-y-auto md:p-7">
-                  {offering.duration_days && (
+                  {/* Duration variant picker — only for grouped offerings */}
+                  {group && group.length > 1 && (
+                    <div>
+                      <h3 className="flex items-center gap-2 text-base font-duotone-bold-extended text-slate-900 sm:text-lg mb-3">
+                        <ClockCircleOutlined className="text-slate-400" /> Choose duration
+                      </h3>
+                      <div className="flex flex-col gap-2">
+                        {group.map(variant => {
+                          const vDur = formatDuration(variant.duration_days) || `${variant.duration_days}d`;
+                          const vEur = businessCurrency === 'EUR' ? (variant.price || 0) : convertCurrency(variant.price || 0, businessCurrency, 'EUR');
+                          const vPrice = formatCurrency(vEur, 'EUR');
+                          const vLocal = (userCurrency && userCurrency !== 'EUR')
+                            ? formatCurrency(convertCurrency(variant.price || 0, businessCurrency, userCurrency), userCurrency)
+                            : null;
+                          const isSelected = activeOffering.id === variant.id;
+                          const isVariantOwned = ownedOfferingIds.has(variant.id);
+                          const rowBase = 'relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200';
+                          const rowState = isVariantOwned
+                            ? isSelected
+                              ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
+                              : 'border-emerald-500/25 bg-emerald-500/[0.06] hover:border-emerald-500/50 hover:bg-emerald-500/10'
+                            : isSelected
+                              ? 'border-[rgba(0,168,196,0.55)] bg-[rgba(0,168,196,0.07)] shadow-[0_0_0_1px_rgba(0,168,196,0.12)]'
+                              : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white';
+                          return (
+                            <div
+                              key={variant.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setPurchaseModal(prev => ({ ...prev, selectedVariant: variant }))}
+                              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPurchaseModal(prev => ({ ...prev, selectedVariant: variant })); } }}
+                              className={`${rowBase} ${rowState}`}
+                            >
+                              {/* Radio circle */}
+                              <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                                isVariantOwned
+                                  ? isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-emerald-400/60 bg-white'
+                                  : isSelected ? 'border-[#00a8c4] bg-[#00a8c4]'    : 'border-slate-300 bg-white'
+                              }`}>
+                                {isSelected ? <CheckOutlined className="text-[10px] text-white" /> : null}
+                              </div>
+
+                              {/* Left label section */}
+                              <div className="min-w-0 flex-1">
+                                {/* Duration + tag badge + active badge */}
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className={`font-duotone-bold text-sm ${isSelected || isVariantOwned ? 'text-slate-900' : 'text-slate-600'}`}>
+                                    {vDur}
+                                  </span>
+                                  {variant.badge && (
+                                    <span className={`rounded border px-2 py-0.5 text-[10px] font-duotone-regular ${isSelected || isVariantOwned ? 'border-slate-300 text-slate-700' : 'border-slate-200 text-slate-500'}`}>
+                                      {variant.badge}
+                                    </span>
+                                  )}
+                                  {isVariantOwned && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                                      <CheckCircleFilled style={{ fontSize: 9 }} /> Active
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Offering name (label line) */}
+                                <p className={`mt-0.5 truncate text-xs font-duotone-regular ${isSelected || isVariantOwned ? 'text-slate-600' : 'text-slate-500'}`}>
+                                  {variant.name}
+                                </p>
+                                {/* Validity (sessions line) */}
+                                {variant.duration_days && (
+                                  <p className="mt-0.5 text-[11px] text-slate-400 font-duotone-regular">
+                                    {variant.duration_days} days validity
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Right price */}
+                              <div className="shrink-0 text-right">
+                                <span className="font-duotone-bold-extended text-sm text-slate-900 sm:text-base">{vPrice}</span>
+                                {vLocal && <p className="text-[10px] text-slate-400 font-duotone-regular">~{vLocal}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {activeOffering.duration_days && (
                     <div>
                       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                         <CalendarOutlined className="mr-1" /> Start Date
@@ -829,15 +966,15 @@ const MemberOfferings = () => {
                       {endDate && (
                         <p className="text-[10px] sm:text-xs text-slate-400 mt-1.5 flex items-center gap-1">
                           <ClockCircleOutlined style={{ fontSize: 10 }} />
-                          Valid until {endDate.format('MMMM D, YYYY')} ({offering.duration_days} days)
+                          Valid until {endDate.format('MMMM D, YYYY')} ({activeOffering.duration_days} days)
                         </p>
                       )}
                     </div>
                   )}
-                  {isStorage && offering.available_count != null && (
+                  {isStorage && activeOffering.available_count != null && (
                     <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs text-cyan-700">
                       <InboxOutlined />
-                      <span>You will be assigned <strong>Storage Unit #{(offering.total_capacity || 0) - (offering.available_count || 0) + 1}</strong></span>
+                      <span>You will be assigned <strong>Storage Unit #{(activeOffering.total_capacity || 0) - (activeOffering.available_count || 0) + 1}</strong></span>
                     </div>
                   )}
                   <div>
@@ -961,11 +1098,11 @@ const MemberOfferings = () => {
                   <button
                     type="button"
                     onClick={executePurchase}
-                    disabled={!isGuest && (isPending || ownedOfferingIds.has(offering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))}
+                    disabled={!isGuest && (isPending || ownedOfferingIds.has(activeOffering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))}
                     className="w-full h-12 rounded-xl font-duotone-bold text-base tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.25)' }}
                   >
-                    {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(offering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${fmtDual(depositAmount)}` : isStorage ? `Reserve Storage — ${dualPrice}` : `Purchase — ${dualPrice}`}
+                    {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(activeOffering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${fmtDual(depositAmount)}` : isStorage ? `Reserve Storage — ${dualPrice}` : `Purchase — ${dualPrice}`}
                   </button>
                 </div>
               </>
@@ -984,7 +1121,7 @@ const MemberOfferings = () => {
           setIyzicoPaymentUrl(null);
           setPendingPurchaseId(null);
           message.success('Payment confirmed! Membership activated.');
-          setPurchaseModal({ visible: false, offering: null });
+          setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
           queryClient.invalidateQueries(['member-offerings']);
           queryClient.invalidateQueries(['my-member-purchases']);
         }}
