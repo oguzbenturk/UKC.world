@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import TwoColumnModal from '@/shared/components/ui/TwoColumnModal';
+import MemberUpsellBanner from '@/features/members/components/MemberUpsellBanner';
 import { Spin, Alert, message, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -17,7 +18,6 @@ import {
   TrophyOutlined,
   RocketOutlined,
   ThunderboltOutlined,
-  ThunderboltFilled,
   FireOutlined,
   HeartOutlined,
   GiftOutlined,
@@ -37,7 +37,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
-import apiClient, { resolveApiBaseUrl, getAccessToken } from '@/shared/services/apiClient';
+import apiClient from '@/shared/services/apiClient';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const fetchMemberOfferings = async () => {
@@ -66,21 +66,12 @@ const parseFeatures = (features) => {
   return [];
 };
 
-const uploadReceipt = (file) => new Promise((resolve, reject) => {
+const uploadReceipt = async (file) => {
   const formData = new FormData();
   formData.append('image', file);
-  const token = getAccessToken() || localStorage.getItem('token');
-  const base = resolveApiBaseUrl();
-  const xhr = new XMLHttpRequest();
-  xhr.addEventListener('load', () => {
-    if (xhr.status === 200) resolve(JSON.parse(xhr.responseText).url);
-    else reject(new Error(JSON.parse(xhr.responseText || '{}').error || 'Upload failed'));
-  });
-  xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-  xhr.open('POST', `${base}/api/upload/wallet-deposit`);
-  if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-  xhr.send(formData);
-});
+  const { data } = await apiClient.post('/upload/wallet-deposit', formData);
+  return data.url;
+};
 
 function CopyButton({ value }) {
   const [copied, setCopied] = useState(false);
@@ -219,13 +210,13 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
   return (
     <div
       onClick={() => !isSoldOut && onPurchase(offering, isGroup ? group : null)}
-      className={`group relative isolate overflow-hidden rounded-3xl flex flex-col min-h-[360px] transition-[transform,box-shadow] duration-300 ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
+      className={`group relative isolate overflow-hidden rounded-3xl flex flex-col h-[360px] transition-[transform,box-shadow] duration-300 ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
       style={{ border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 2px 20px rgba(0,0,0,0.35)' }}
       onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,168,196,0.25), 0 0 0 1px rgba(0,168,196,0.35)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 20px rgba(0,0,0,0.35)'; }}
     >
       {/* Image — 70% of card */}
-      <div className="flex-[7] relative overflow-hidden min-h-[200px]">
+      <div className="flex-[7] min-h-0 relative overflow-hidden">
         {offering.image_url ? (
           <img
             src={offering.image_url}
@@ -289,7 +280,7 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
       </div>
 
       {/* Text panel — 30% of card */}
-      <div className="flex-[3] relative z-10 flex flex-col justify-center px-4 py-3 bg-[#1a1f26]">
+      <div className="flex-[3] min-h-0 overflow-hidden relative z-10 flex flex-col justify-center px-4 py-3 bg-[#1a1f26]">
         <h3 className="text-sm sm:text-base font-duotone-bold-extended text-white uppercase tracking-wide leading-snug break-words">
           {offering.name}
         </h3>
@@ -310,13 +301,17 @@ const PAYMENT_REASON_LABELS = {
   card_declined: 'Your card was declined. Please try a different card.',
 };
 
+const PURCHASE_MODAL_CLOSED = { visible: false, offering: null, group: null, selectedVariant: null };
+
+const VARIANT_ROW_BASE = 'relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200';
+
 const MemberOfferings = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const { formatCurrency, convertCurrency, userCurrency, businessCurrency } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [purchaseModal, setPurchaseModal] = useState({ visible: false, offering: null, group: null, selectedVariant: null });
+  const [purchaseModal, setPurchaseModal] = useState(PURCHASE_MODAL_CLOSED);
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
@@ -415,8 +410,11 @@ const MemberOfferings = () => {
     [bankAccounts, selectedBankAccountId]
   );
 
-  const activePurchases = myPurchases.filter(p => p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > new Date()));
-  const ownedOfferingIds = new Set(activePurchases.map(p => p.offering_id));
+  const activePurchases = useMemo(
+    () => myPurchases.filter(p => p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > new Date())),
+    [myPurchases]
+  );
+  const ownedOfferingIds = useMemo(() => new Set(activePurchases.map(p => p.offering_id)), [activePurchases]);
   const storageUnitMap = useMemo(() => {
     const map = {};
     activePurchases.forEach(p => {
@@ -470,7 +468,7 @@ const MemberOfferings = () => {
         const unitMsg = data?.purchase?.storage_unit ? ` — Storage Unit #${data.purchase.storage_unit}` : '';
         message.success(`Purchase successful!${unitMsg}`);
       }
-      setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
+      setPurchaseModal(PURCHASE_MODAL_CLOSED);
       queryClient.invalidateQueries(['member-offerings']);
       queryClient.invalidateQueries(['my-member-purchases']);
     },
@@ -487,7 +485,7 @@ const MemberOfferings = () => {
     onSuccess: () => {
       const c = customers.find(c => c.id === selectedCustomer);
       message.success(`Membership assigned to ${c ? `${c.first_name} ${c.last_name}` : 'customer'}!`);
-      setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
+      setPurchaseModal(PURCHASE_MODAL_CLOSED);
       setSelectedCustomer(null);
       queryClient.invalidateQueries(['member-offerings']);
       queryClient.invalidateQueries(['admin-member-purchases']);
@@ -602,27 +600,6 @@ const MemberOfferings = () => {
             </p>
           </div>
 
-          {/* Trust indicators */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <CheckCircleFilled style={{ color: '#10b981', fontSize: 13 }} />
-              Instant activation
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircleFilled style={{ color: '#10b981', fontSize: 13 }} />
-              Secure payment
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircleFilled style={{ color: '#10b981', fontSize: 13 }} />
-              No hidden fees
-            </span>
-            {!isLoading && offerings.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                <CrownOutlined style={{ color: '#818cf8', fontSize: 13 }} />
-                {offerings.length} plans available
-              </span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -702,9 +679,16 @@ const MemberOfferings = () => {
           const storageItems = groupedItems.filter(item =>
             item.isGroup ? item.representative.category === 'storage' : item.offering.category === 'storage'
           );
+          const hasBoth = membershipItems.length > 0 && storageItems.length > 0;
 
-          const renderGrid = (items) => (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          // When both sections exist side-by-side (xl+), cap at 2 cols to avoid cramping.
+          // With a single item, skip the inner 2-col split so the card fills the full section width.
+          const renderGrid = (items, sideBySide = false) => {
+            const colCss = sideBySide
+              ? items.length > 1 ? 'sm:grid-cols-2 xl:grid-cols-2' : ''
+              : 'sm:grid-cols-2 lg:grid-cols-4';
+            return (
+            <div className={`grid grid-cols-1 gap-4 auto-rows-[360px] ${colCss}`}>
               {items.map(item => item.isGroup ? (
                 <OfferingCard
                   key={`group-${item.key}`}
@@ -733,32 +717,36 @@ const MemberOfferings = () => {
               ))}
             </div>
           );
+          };
 
           return (
           <>
-            {membershipItems.length > 0 && (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Memberships</h2>
-                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">{membershipItems.length} plan{membershipItems.length !== 1 ? 's' : ''} to choose from</p>
+            {/* At xl+ with both sections: side-by-side columns. Below xl: stacked. */}
+            <div className={hasBoth ? 'xl:grid xl:grid-cols-2 xl:gap-12 xl:items-start max-w-5xl mx-auto' : 'max-w-md mx-auto'}>
+              {membershipItems.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Memberships</h2>
+                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">{membershipItems.length} plan{membershipItems.length !== 1 ? 's' : ''} to choose from</p>
+                    </div>
                   </div>
+                  {renderGrid(membershipItems, hasBoth)}
                 </div>
-                {renderGrid(membershipItems)}
-              </>
-            )}
+              )}
 
-            {storageItems.length > 0 && (
-              <>
-                <div className={`flex items-center justify-between mb-6 ${membershipItems.length > 0 ? 'mt-16' : ''}`}>
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Storage</h2>
-                    <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secure equipment storage — {storageItems.length} option{storageItems.length !== 1 ? 's' : ''}</p>
+              {storageItems.length > 0 && (
+                <div className={hasBoth ? 'mt-16 xl:mt-0' : 'mt-16'}>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Storage</h2>
+                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secure equipment storage — {storageItems.length} option{storageItems.length !== 1 ? 's' : ''}</p>
+                    </div>
                   </div>
+                  {renderGrid(storageItems, hasBoth)}
                 </div>
-                {renderGrid(storageItems)}
-              </>
-            )}
+              )}
+            </div>
 
             {/* Bottom trust strip */}
             <div className="mt-16 flex flex-wrap justify-center gap-8 text-xs text-slate-400">
@@ -802,7 +790,7 @@ const MemberOfferings = () => {
         return (
           <TwoColumnModal
             open={purchaseModal.visible}
-            onClose={() => setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null })}
+            onClose={() => setPurchaseModal(PURCHASE_MODAL_CLOSED)}
             maxWidth={900}
             leftContent={
               <>
@@ -883,7 +871,6 @@ const MemberOfferings = () => {
                             : null;
                           const isSelected = activeOffering.id === variant.id;
                           const isVariantOwned = ownedOfferingIds.has(variant.id);
-                          const rowBase = 'relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200';
                           const rowState = isVariantOwned
                             ? isSelected
                               ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
@@ -898,7 +885,7 @@ const MemberOfferings = () => {
                               tabIndex={0}
                               onClick={() => setPurchaseModal(prev => ({ ...prev, selectedVariant: variant }))}
                               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPurchaseModal(prev => ({ ...prev, selectedVariant: variant })); } }}
-                              className={`${rowBase} ${rowState}`}
+                              className={`${VARIANT_ROW_BASE} ${rowState}`}
                             >
                               {/* Radio circle */}
                               <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
@@ -1121,7 +1108,7 @@ const MemberOfferings = () => {
           setIyzicoPaymentUrl(null);
           setPendingPurchaseId(null);
           message.success('Payment confirmed! Membership activated.');
-          setPurchaseModal({ visible: false, offering: null, group: null, selectedVariant: null });
+          setPurchaseModal(PURCHASE_MODAL_CLOSED);
           queryClient.invalidateQueries(['member-offerings']);
           queryClient.invalidateQueries(['my-member-purchases']);
         }}
@@ -1138,6 +1125,9 @@ const MemberOfferings = () => {
           message.error(msg || 'Payment failed');
         }}
       />
+      {/* Upsell Banner */}
+      <MemberUpsellBanner />
+
       {/* Centered Logo at Bottom */}
       <div className="w-full flex flex-col items-center" style={{ margin: '48px 0 24px 0' }}>
         <img

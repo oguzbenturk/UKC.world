@@ -560,23 +560,14 @@ const ShopLandingPage = () => {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
-                <SafetyCertificateOutlined className="text-2xl text-emerald-400" />
-              </div>
               <h3 className="text-lg font-duotone-bold text-white mb-2">Authorized Dealer</h3>
               <p className="text-sm font-duotone-regular text-white/60">Official Duotone, ION & Fliteboard dealer. Genuine products with full manufacturer warranty.</p>
             </div>
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center mb-4">
-                <ThunderboltOutlined className="text-2xl text-cyan-400" />
-              </div>
               <h3 className="text-lg font-duotone-bold text-white mb-2">Expert Advice</h3>
               <p className="text-sm font-duotone-regular text-white/60">Our instructors ride the gear they sell. Get real, hands-on advice from people who know.</p>
             </div>
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto rounded-full bg-purple-500/10 flex items-center justify-center mb-4">
-                <CustomerServiceOutlined className="text-2xl text-purple-400" />
-              </div>
               <h3 className="text-lg font-duotone-bold text-white mb-2">Try Before You Buy</h3>
               <p className="text-sm font-duotone-regular text-white/60">Test equipment from our rental fleet before committing. Rent, ride, decide — then buy with confidence.</p>
             </div>
