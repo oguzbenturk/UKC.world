@@ -9,10 +9,9 @@ RUN npm install -g npm@11.5.1
 # Copy package files and install dependencies as root (for proper permissions)
 COPY package*.json ./
 
-# Install build tools for native modules (bcrypt), then remove after
+# Install build tools needed for bcrypt (Alpine uses musl, no prebuilt binaries)
 RUN apk add --no-cache python3 make g++ && \
-    npm ci --omit=dev --ignore-scripts --silent && \
-    npm rebuild bcrypt --build-from-source && \
+    npm ci --omit=dev --silent && \
     npm cache verify && \
     apk del python3 make g++
 
