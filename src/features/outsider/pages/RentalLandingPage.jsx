@@ -11,7 +11,7 @@ import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.s
 import standardRentalHeroBg from '../../../../DuotoneFonts/DPSLOGOS/Website-DSC07450.jpg';
 
 const RENTAL_NAV_ITEMS = [
-  { id: 'standard-section', label: 'DUOTONE RENTAL', shortLabel: 'DUOTONE' },
+  { id: 'standard-section', label: 'STANDARD RENTAL', shortLabel: 'STANDARD' },
   { id: 'sls-section', label: 'SLS RENTAL', shortLabel: 'SLS' },
   { id: 'dlab-section', label: 'D-LAB RENTAL', shortLabel: 'D-LAB' },
   { id: 'efoil-section', label: 'E-FOIL RENTAL', shortLabel: 'E-FOIL' },
