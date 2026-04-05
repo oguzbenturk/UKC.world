@@ -1,0 +1,75 @@
+/* 
+ * Eye-Friendly Calendar Styles
+ * Main entry point for all enhanced calendar styling
+ */
+
+/* 
+ * Color palette:
+ * - Primary: #3B82F6 (Gentle sky blue)
+ * - Secondary: #F59E0B (Warm amber)
+ * - Accent: #10B981 (Fresh mint green)
+ * - Background: Soft warm grays
+ * - Text: Balanced contrast for readability
+ */
+
+/* Import all enhanced styles */
+@import './TimeSlot.css';
+@import './TimeRangeSlots.css';
+@import './DailyViewEnhanced.css';
+@import './WeekViewEnhanced.css';
+
+/* Additional global calendar styles */
+
+.booking-calendar-wrapper {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-xl);
+  box-shadow: 
+    0 10px 25px -5px rgba(0, 0, 0, 0.05),
+    0 8px 10px -6px rgba(0, 0, 0, 0.03);
+}
+
+/* Calendar navigation buttons with improved focus for eye comfort */
+.btn-nav:focus {
+  outline: none;
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Calendar view buttons with improved focus for eye comfort */
+.btn-view:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Improved animation for smoother transitions */
+.calendar-content-transition {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Empty state styling with softer appearance */
+.empty-calendar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+  color: var(--text-muted);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--border);
+  margin: var(--spacing-6);
+}
+
+/* Loading indicator with more subtle styling */
+.calendar-loading {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-xl);
+}
+
+.loading-spinner {
+  border: 3px solid rgba(59, 130, 246, 0.1);
+  border-top: 3px solid var(--primary);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+}

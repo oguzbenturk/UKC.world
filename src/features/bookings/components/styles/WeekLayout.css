@@ -1,0 +1,153 @@
+/* Week Layout Styles for DayView */
+
+.week-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Days header with numbers */
+.week-days-header {
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f5f7fa;
+}
+
+.day-column-header {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+  padding: 10px 5px;
+  border-right: 1px solid #e0e0e0;
+}
+
+.day-column-header:last-child {
+  border-right: none;
+}
+
+.day-number {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.current-day .day-number {
+  color: #1976d2;
+}
+
+.available-count {
+  font-size: 0.85rem;
+  color: #4caf50;
+  margin-top: 4px;
+}
+
+/* Week grid with instructor schedules */
+.week-schedule-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.instructor-schedule-row {
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.day-slot-container {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 5px;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.day-slot-container:last-child {
+  border-right: none;
+}
+
+.instructor-name {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+/* Time block cards */
+.time-block-card {
+  padding: 8px;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  position: relative;
+}
+
+.time-block-card.status-available {
+  background-color: rgba(76, 175, 80, 0.7);
+  border: 1px solid #4caf50;
+}
+
+.time-block-card.status-available:hover {
+  background-color: rgba(76, 175, 80, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.time-block-card.status-booked {
+  background-color: rgba(244, 67, 54, 0.7);
+  border: 1px solid #f44336;
+}
+
+.time-block-card.status-booked:hover {
+  background-color: rgba(244, 67, 54, 0.9);
+}
+
+.time-block-card.pre-scheduled {
+  background: linear-gradient(to right, rgba(56, 142, 60, 0.85), rgba(76, 175, 80, 0.75));
+  border-left: 3px solid #2e7d32;
+}
+
+.time-block-card.pre-scheduled:hover {
+  background: linear-gradient(to right, rgba(56, 142, 60, 0.95), rgba(76, 175, 80, 0.85));
+}
+
+.time-range {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.instructor-name-small {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+/* No instructors message */
+.no-instructors-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .day-column-header {
+    min-width: 100px;
+  }
+  
+  .day-slot-container {
+    min-width: 100px;
+  }
+}
+
+/* Special styling for highlighting today */
+.current-day {
+  background-color: rgba(25, 118, 210, 0.1);
+}

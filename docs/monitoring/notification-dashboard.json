@@ -1,0 +1,82 @@
+{
+  "uid": "plannivo-notifications",
+  "title": "Notification Pipeline",
+  "tags": ["plannivo", "notifications"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Queue depth vs active workers",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "expr": "notification_queue_depth",
+          "legendFormat": "queue depth"
+        },
+        {
+          "expr": "notification_active_jobs",
+          "legendFormat": "active jobs"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Job results last 5m",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["sum"], "fields": "" },
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(notification_jobs_total{result='processed'}[5m]))",
+          "legendFormat": "processed"
+        },
+        {
+          "expr": "sum(increase(notification_jobs_total{result='failed'}[5m]))",
+          "legendFormat": "failed"
+        },
+        {
+          "expr": "sum(increase(notification_jobs_total{result='dropped'}[5m]))",
+          "legendFormat": "dropped"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Wait vs processing latency (p95)",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(notification_job_wait_duration_ms_bucket[5m])))",
+          "legendFormat": "queue wait p95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(notification_job_duration_ms_bucket[5m])))",
+          "legendFormat": "processing p95"
+        }
+      ]
+    }
+  ]
+}

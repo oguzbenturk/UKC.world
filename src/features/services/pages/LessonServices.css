@@ -1,0 +1,184 @@
+/* Lesson Services Page Styles */
+
+.lesson-hero-bg {
+  background: linear-gradient(135deg, #1e40af 0%, #059669 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.lesson-hero-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="a" cx="50%" cy="50%"><stop offset="0%" stop-color="%23ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="%23ffffff" stop-opacity="0"/></radialGradient></defs><circle cx="200" cy="200" r="100" fill="url(%23a)"/><circle cx="800" cy="300" r="150" fill="url(%23a)"/><circle cx="400" cy="700" r="120" fill="url(%23a)"/></svg>') center/cover;
+  opacity: 0.3;
+}
+
+.lesson-card-hover {
+  transition: all 0.3s ease;
+}
+
+.lesson-card-hover:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.lesson-package-card {
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.lesson-package-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.lesson-package-card.selected {
+  border-color: #3b82f6;
+  background-color: #dbeafe;
+}
+
+.testimonial-card {
+  position: relative;
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.testimonial-card:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+}
+
+.testimonial-card::before {
+  content: '"';
+  position: absolute;
+  top: 1rem;
+  left: 1.5rem;
+  font-size: 4rem;
+  color: #e5e7eb;
+  font-family: serif;
+  line-height: 1;
+}
+
+.star-rating {
+  color: #fbbf24;
+  font-size: 1.2rem;
+}
+
+.booking-summary-card {
+  background: linear-gradient(135deg, #dbeafe 0%, #f0f9ff 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 0.75rem;
+}
+
+.lesson-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+@media (max-width: 768px) {
+  .lesson-type-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .lesson-hero-bg {
+    padding: 2rem 1rem;
+  }
+  
+  .testimonial-card {
+    padding: 1.5rem;
+  }
+}
+
+/* Animation for lesson type cards */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lesson-type-card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.lesson-type-card:nth-child(1) { animation-delay: 0.1s; }
+.lesson-type-card:nth-child(2) { animation-delay: 0.2s; }
+.lesson-type-card:nth-child(3) { animation-delay: 0.3s; }
+.lesson-type-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Modal enhancements */
+.lesson-booking-modal .ant-modal-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-bottom: 2px solid #e2e8f0;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.lesson-booking-modal .ant-modal-content {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.package-selection-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.package-selection-card:hover {
+  border-color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+.package-selection-card.selected {
+  border-color: #3b82f6;
+  background-color: #dbeafe;
+}
+
+/* Success states */
+.success-indicator {
+  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+  border: 2px solid #10b981;
+  color: #047857;
+}
+
+/* Trust indicators */
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 2rem;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem;
+  font-weight: 600;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.trust-badge:hover {
+  border-color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+.trust-badge .icon {
+  margin-right: 0.5rem;
+  color: #3b82f6;
+}

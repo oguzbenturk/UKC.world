@@ -1,0 +1,469 @@
+/* Product Image Display Styles */
+
+.product-image-container {
+  width: 100%;
+  height: 200px;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 6px;
+  position: relative;
+}
+
+.product-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.product-image:hover {
+  transform: scale(1.05);
+}
+
+/* For shop page cards */
+.shop-image-container {
+  width: 100%;
+  height: 224px; /* h-56 equivalent */
+  background-color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.shop-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.shop-image:hover {
+  transform: scale(1.02);
+}
+
+/* Modern Shop Page Styles */
+.product-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #e8e8e8;
+}
+
+.product-card:hover {
+  box-shadow: 0 8px 24px rgba(24, 144, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.product-image-gallery {
+  position: relative;
+  height: 240px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.main-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .main-product-image {
+  transform: scale(1.02);
+}
+
+.image-count-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  padding: 4px 8px;
+  backdrop-filter: blur(4px);
+}
+
+.image-count-badge .ant-badge-count {
+  background: #1890ff;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Multiple image gallery modal styles */
+.ant-modal-content .ant-modal-body {
+  padding: 20px;
+}
+
+.ant-modal-content .ant-image {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+.ant-modal-content .ant-image:hover {
+  transform: scale(1.02);
+}
+
+/* Enhanced click indicator for multiple images */
+.main-product-image[style*="cursor: pointer"] {
+  position: relative;
+}
+
+.main-product-image[style*="cursor: pointer"]:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(24, 144, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.main-product-image[style*="cursor: pointer"]:hover:before {
+  opacity: 1;
+}
+
+.product-title {
+  font-size: 16px;
+  color: #262626;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-description {
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Fallback for no image */
+.no-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa0a6;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Enhanced Product Management Colors */
+.product-management-card {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 1px solid #d9d9d9;
+}
+
+.product-management-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+}
+
+.status-tag-active {
+  background-color: #f6ffed;
+  border-color: #52c41a;
+  color: #52c41a;
+}
+
+.status-tag-inactive {
+  background-color: #fff7e6;
+  border-color: #faad14;
+  color: #faad14;
+}
+
+.status-tag-discontinued {
+  background-color: #fff2f0;
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.category-tag {
+  background-color: #e6f4ff;
+  border-color: #1890ff;
+  color: #1890ff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .product-detail-modal.ant-modal {
+    top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .product-image-container,
+  .shop-image-container,
+  .product-image-gallery {
+    height: 180px;
+  }
+  
+  .product-card {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-image-container,
+  .shop-image-container,
+  .product-image-gallery {
+    height: 160px;
+  }
+}
+
+/* Nuclear Override for Pagination - Remove ALL Ant Design Styling */
+div.custom-pagination.ant-pagination,
+div.custom-pagination.ant-pagination *,
+.custom-pagination.ant-pagination .ant-pagination-item,
+.custom-pagination.ant-pagination .ant-pagination-item-active,
+.custom-pagination.ant-pagination .ant-pagination-prev,
+.custom-pagination.ant-pagination .ant-pagination-next {
+  all: unset !important;
+  box-sizing: border-box !important;
+}
+
+div.custom-pagination.ant-pagination {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-total-text {
+  color: #666 !important;
+  margin-right: 16px !important;
+  font-size: 14px !important;
+  font-weight: normal !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-prev,
+.custom-pagination.ant-pagination .ant-pagination-next,
+.custom-pagination.ant-pagination .ant-pagination-item {
+  display: inline-block !important;
+  padding: 4px 8px !important;
+  color: #666 !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  text-decoration: none !important;
+  min-width: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-item-active {
+  color: #000 !important;
+  font-weight: 600 !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-prev:hover,
+.custom-pagination.ant-pagination .ant-pagination-next:hover,
+.custom-pagination.ant-pagination .ant-pagination-item:hover {
+  color: #333 !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-item a,
+.custom-pagination.ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+.custom-pagination.ant-pagination .ant-pagination-next .ant-pagination-item-link {
+  all: unset !important;
+  color: inherit !important;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  display: inline !important;
+  cursor: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-disabled {
+  color: #ccc !important;
+  cursor: not-allowed !important;
+  background: none !important;
+  border: none !important;
+}
+
+.custom-pagination.ant-pagination .ant-pagination-jump-prev,
+.custom-pagination.ant-pagination .ant-pagination-jump-next {
+  background: none !important;
+  border: none !important;
+  color: #666 !important;
+  box-shadow: none !important;
+}
+
+/* Hide any ::before or ::after pseudo elements that might be adding styling */
+.custom-pagination.ant-pagination *::before,
+.custom-pagination.ant-pagination *::after {
+  display: none !important;
+}
+
+/* Beautiful Product Detail Modal */
+.product-detail-modal .ant-modal-content {
+  border-radius: 16px !important;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+.product-detail-modal .ant-modal-header {
+  display: none;
+}
+
+.product-detail-modal .ant-modal-body {
+  padding: 0 !important;
+}
+
+.product-detail-modal .ant-modal-close {
+  top: 16px !important;
+  right: 16px !important;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5) !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  border: none !important;
+}
+
+.product-detail-modal .ant-modal-close-x {
+  color: white !important;
+  font-size: 14px !important;
+  line-height: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.product-detail-modal .ant-modal-close:hover {
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Smooth animations for modal */
+.product-detail-modal .ant-modal-content {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Hover effects for action buttons in modal */
+.product-detail-modal .ant-btn:hover {
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Mobile optimizations for product detail modal */
+@media (max-width: 768px) {
+  /* Make modal take full viewport height using dynamic viewport units to avoid URL bar issues */
+  .product-detail-modal .ant-modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .product-detail-modal .ant-modal-body {
+    padding: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+  }
+  .product-detail-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .product-detail-image {
+    height: 24dvh !important;
+    max-height: 200px !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  .product-detail-info {
+    padding: 8px 12px 0 12px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .pd-title {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+  .pd-price { font-size: 20px !important; }
+  .pd-desc {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 4 !important;
+    line-clamp: 4 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+  .pd-stock { font-size: 14px !important; }
+  .product-detail-actions {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding: 6px 12px calc(env(safe-area-inset-bottom) + 6px) 12px !important;
+    border-top: 1px solid #f0f0f0;
+  }
+  .product-detail-actions .ant-btn { height: 40px !important; font-size: 14px !important; }
+}
+
+/* Extra-tight layout for small phones */
+@media (max-width: 420px), (max-height: 700px) {
+  .product-detail-image {
+    height: 18dvh !important;
+    max-height: 160px !important;
+  }
+}
+
+/* Micro adjustments for badges/dots on mobile */
+@media (max-width: 768px) {
+  .pd-count { font-size: 11px !important; padding: 4px 8px !important; top: 10px !important; right: 10px !important; }
+  .pd-dots { gap: 6px !important; bottom: 8px !important; }
+}

@@ -1,0 +1,339 @@
+/* 
+ * Eye-Friendly Week View Styles
+ * Modern design with softer colors and improved visual hierarchy
+ */
+
+/* Week View Container */
+.week-view {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+/* Week Header */
+.week-header {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-5) var(--spacing-6);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.week-title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  margin-bottom: var(--spacing-2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.week-date-range {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.9;
+}
+
+/* Week Grid */
+.week-timeslots-header {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  min-width: max-content;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.week-day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-3);
+  border-left: 1px solid var(--border);
+  text-align: center;
+  background-color: var(--surface);
+  transition: all 0.3s ease;
+}
+
+.week-day-header.today {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.05) 100%);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.week-day-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-2);
+}
+
+.week-day-number {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  transition: all 0.3s ease;
+}
+
+.today .week-day-number {
+  background-color: var(--primary);
+  color: white;
+  box-shadow: 
+    0 2px 8px rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Week Grid Styles - Enhanced with Monthly View Design */
+.week-timeslots-grid {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  margin: var(--spacing-4);
+}
+
+/* Time Slot Rows */
+.week-timeslot-row {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  min-height: 70px;
+  transition: all 0.2s ease;
+}
+
+.week-timeslot-row:last-child {
+  border-bottom: none;
+}
+
+.week-timeslot-row:hover {
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+.week-time-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+
+.week-timeslot-cell {
+  height: 100%;
+  padding: var(--spacing-2);
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  min-height: 70px;
+}
+
+.week-timeslot-cell:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Week Day Slots - Enhanced Time Slot Styling */
+.week-view .time-slot {
+  width: 100%;
+  min-height: 60px;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-1);
+  transition: all 0.3s ease;
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+}
+
+.week-view .time-slot.status-available {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%);
+  border: 1px solid var(--status-available);
+}
+
+.week-view .time-slot.status-available:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 12px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
+.week-view .time-slot.status-booked {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%);
+  border: 1px solid var(--status-booked);
+}
+
+.week-view .time-slot.status-unavailable {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.02) 100%);
+  border: 1px solid var(--status-unavailable);
+  opacity: 0.7;
+}
+
+.week-view .time-slot.pre-scheduled {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.08) 100%);
+  border: 2px solid var(--status-available);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    0 2px 8px rgba(16, 185, 129, 0.15),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4);
+}
+
+.week-view .time-slot.pre-scheduled:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(52, 211, 153, 0.12) 100%);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 6px 16px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Slot Content Styling */
+.slot-time {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.slot-instructor {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.week-view .time-slot.status-available .slot-time {
+  color: var(--status-available);
+}
+
+.week-view .time-slot.status-booked .slot-time {
+  color: var(--status-booked);
+}
+
+.week-view .time-slot.pre-scheduled .slot-time {
+  color: var(--status-available);
+  font-weight: 700;
+}
+
+.week-view .time-slot.pre-scheduled .slot-instructor {
+  color: var(--status-available);
+  opacity: 0.9;
+}
+
+/* No Slots State */
+.no-slots {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-muted);
+  padding: var(--spacing-4) 0;
+  font-size: var(--text-xs);
+  opacity: 0.6;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--surface) 100%);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  transition: all 0.2s ease;
+}
+
+.no-slots:hover {
+  opacity: 0.8;
+  border-color: var(--primary-light);
+}
+
+/* Enhanced Responsive Design */
+@media (max-width: 768px) {
+  .week-timeslots-header {
+    grid-template-columns: 60px repeat(7, 1fr);
+  }
+  
+  .week-timeslot-row {
+    grid-template-columns: 60px repeat(7, 1fr);
+    min-height: 60px;
+  }
+  
+  .week-time-col {
+    padding: var(--spacing-1);
+    font-size: var(--text-xs);
+  }
+  
+  .week-day-header {
+    padding: var(--spacing-2);
+  }
+  
+  .week-day-name {
+    font-size: var(--text-xs);
+  }
+  
+  .week-day-number {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-sm);
+  }
+  
+  .week-view .time-slot {
+    min-height: 45px;
+    padding: var(--spacing-1) var(--spacing-2);
+  }
+  
+  .slot-time {
+    font-size: var(--text-xs);
+  }
+  
+  .slot-instructor {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .week-timeslots-header {
+    grid-template-columns: 50px repeat(7, minmax(80px, 1fr));
+  }
+  
+  .week-timeslot-row {
+    grid-template-columns: 50px repeat(7, minmax(80px, 1fr));
+    min-height: 50px;
+  }
+  
+  .week-timeslot-cell {
+    padding: var(--spacing-1);
+    min-height: 50px;
+  }
+  
+  .week-view .time-slot {
+    min-height: 40px;
+    padding: var(--spacing-1);
+  }
+}

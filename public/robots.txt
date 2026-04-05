@@ -1,0 +1,9 @@
+# robots.txt
+User-agent: *
+Allow: /
+
+# Disallow private app endpoints if any
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://plannivo.com/sitemap.xml

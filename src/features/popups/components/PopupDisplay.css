@@ -1,0 +1,227 @@
+/* PopupDisplay.css */
+.popup-modal {
+  z-index: 9999;
+}
+
+.popup-modal .ant-modal-content {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border: none;
+  overflow: hidden;
+}
+
+.popup-modal .ant-modal-body {
+  position: relative;
+  overflow: hidden;
+}
+
+.popup-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+}
+
+.popup-background::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(2px);
+}
+
+/* Theme variants */
+.popup-modal.popup-default .ant-modal-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.popup-modal.popup-modern .ant-modal-content {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.popup-modal.popup-business .ant-modal-content {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.popup-modal.popup-elegant .ant-modal-content {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+}
+
+.popup-modal.popup-minimal {
+  background: #ffffff;
+  color: #333333;
+  border: 1px solid #e8e8e8;
+}
+
+/* Animation styles */
+.popup-fade-enter {
+  opacity: 0;
+}
+
+.popup-fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.popup-fade-exit {
+  opacity: 1;
+}
+
+.popup-fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.popup-slide-enter {
+  transform: translateY(-100%);
+}
+
+.popup-slide-enter-active {
+  transform: translateY(0);
+  transition: transform 300ms ease-out;
+}
+
+.popup-zoom-enter {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.popup-zoom-enter-active {
+  transform: scale(1);
+  opacity: 1;
+  transition: all 200ms ease-out;
+}
+
+.popup-bounce-enter {
+  transform: scale(0.3);
+  opacity: 0;
+}
+
+.popup-bounce-enter-active {
+  transform: scale(1);
+  opacity: 1;
+  transition: all 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Content styling */
+.popup-content-block {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.popup-button-primary {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.popup-button-primary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.popup-social-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.popup-social-links .ant-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(5px);
+}
+
+.popup-social-links .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .popup-modal .ant-modal {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .popup-modal .ant-modal-content {
+    margin: 0;
+  }
+  
+  .popup-content-block {
+    margin: 4px;
+    padding: 12px;
+  }
+  
+  .popup-social-links {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Steps customization */
+.popup-modal .ant-steps {
+  margin-bottom: 24px;
+}
+
+.popup-modal .ant-steps-item-title {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.popup-modal .ant-steps-item-description {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.popup-modal .ant-steps-item-process .ant-steps-item-icon {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.popup-modal .ant-steps-item-finish .ant-steps-item-icon {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Image styling */
+.popup-modal .ant-image {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.popup-modal .ant-image img {
+  border-radius: 8px;
+}
+
+/* Card styling for content blocks */
+.popup-modal .ant-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.popup-modal .ant-card-body {
+  padding: 16px;
+}
+
+.popup-modal .ant-card .ant-typography {
+  color: white !important;
+}

@@ -1,0 +1,102 @@
+/* Add this at the bottom of DailyView.css */
+
+/* Scroll indicator styling */
+.scroll-indicator {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--gray-600);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  animation: fadeInOut 3s infinite;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Improve horizontal scrolling */
+.daily-grid-container {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: calc(100vh - 300px);
+  padding-bottom: 40px; /* Space for scroll indicator */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--gray-200);
+}
+
+/* Custom scrollbar for Webkit browsers */
+.daily-grid-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.daily-grid-container::-webkit-scrollbar-track {
+  background: var(--gray-200);
+  border-radius: 4px;
+}
+
+.daily-grid-container::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 4px;
+}
+
+/* Make instructor names more visible by truncating with ellipsis */
+.instructor-header-cell {
+  position: relative;
+  padding: var(--spacing-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Style for instructor name abbreviation in small views */
+.instructor-initials {
+  display: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-700);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: var(--gray-100);
+  text-align: center;
+  line-height: 30px;
+}
+
+/* Mobile/small screen optimization */
+@media (max-width: 768px) {
+  .instructor-name {
+    display: none;
+  }
+  
+  .instructor-initials {
+    display: block;
+  }
+  
+  .instructor-header-cell,
+  .instructor-slot-cell {
+    width: 70px;
+    min-width: 70px;
+  }
+  
+  .time-header-cell,
+  .time-label-cell {
+    width: 80px;
+    min-width: 80px;
+  }
+  
+  .daily-grid-header,
+  .time-slot-row {
+    grid-template-columns: 80px repeat(var(--instructor-count, 4), 70px);
+  }
+}

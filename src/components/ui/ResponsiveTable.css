@@ -1,0 +1,263 @@
+/* Responsive Table Container Styles */
+.responsive-table-container {
+  width: 100%;
+}
+
+/* Mobile card enhancements */
+@media (max-width: 768px) {
+  .responsive-table-container .ant-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .responsive-table-container .ant-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+  
+  .responsive-table-container .ant-card-body {
+    padding: 16px;
+  }
+  
+  .responsive-table-container .ant-card-actions {
+    background: #fafafa;
+    border-top: 1px solid #f0f0f0;
+  }
+  
+  /* Enhance mobile readability */
+  .responsive-table-container .ant-tag {
+    font-weight: 500;
+    border-radius: 6px;
+  }
+  
+  /* Better spacing for mobile */
+  .responsive-table-container .space-y-3 > * + * {
+    margin-top: 12px;
+  }
+  
+  .responsive-table-container .space-y-2 > * + * {
+    margin-top: 8px;
+  }
+}
+
+/* Desktop table enhancements */
+@media (min-width: 769px) {
+  .responsive-table-container .ant-table-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d8 #f8f9fa;
+  }
+  
+  .responsive-table-container .ant-table-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .responsive-table-container .ant-table-scroll::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 4px;
+  }
+  
+  .responsive-table-container .ant-table-scroll::-webkit-scrollbar-thumb {
+    background: #d4d4d8;
+    border-radius: 4px;
+  }
+  
+  .responsive-table-container .ant-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #a1a1aa;
+  }
+}
+
+/* View mode toggle styles */
+.responsive-table-container .ant-btn-group .ant-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 32px;
+}
+
+.responsive-table-container .ant-btn-group .ant-btn-primary {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+/* Status badge improvements */
+.responsive-table-container .ant-tag.text-xs {
+  font-size: 11px;
+  padding: 2px 6px;
+  line-height: 1.2;
+}
+
+/* Mobile card grid improvements */
+.responsive-table-container .grid {
+  display: grid;
+}
+
+.responsive-table-container .grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.responsive-table-container .gap-4 {
+  gap: 16px;
+}
+
+/* Loading and empty states */
+.responsive-table-container .text-center {
+  text-align: center;
+}
+
+.responsive-table-container .py-8 {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.responsive-table-container .text-gray-500 {
+  color: #6b7280;
+}
+
+/* Card hover states */
+.responsive-table-container .transition-shadow {
+  transition: box-shadow 0.3s ease;
+}
+
+.responsive-table-container .cursor-pointer {
+  cursor: pointer;
+}
+
+/* Typography improvements */
+.responsive-table-container .font-medium {
+  font-weight: 500;
+}
+
+.responsive-table-container .font-bold {
+  font-weight: 700;
+}
+
+.responsive-table-container .text-sm {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.responsive-table-container .text-xs {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.responsive-table-container .text-lg {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+/* Color utilities */
+.responsive-table-container .text-gray-900 {
+  color: #111827;
+}
+
+.responsive-table-container .text-gray-600 {
+  color: #4b5563;
+}
+
+.responsive-table-container .text-gray-500 {
+  color: #6b7280;
+}
+
+.responsive-table-container .text-green-600 {
+  color: #059669;
+}
+
+.responsive-table-container .text-red-600 {
+  color: #dc2626;
+}
+
+.responsive-table-container .text-blue-500 {
+  color: #3b82f6;
+}
+
+.responsive-table-container .text-purple-500 {
+  color: #8b5cf6;
+}
+
+/* Background utilities */
+.responsive-table-container .bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+.responsive-table-container .bg-blue-100 {
+  background-color: #dbeafe;
+}
+
+.responsive-table-container .bg-blue-600 {
+  background-color: #2563eb;
+}
+
+/* Border utilities */
+.responsive-table-container .border-t {
+  border-top-width: 1px;
+}
+
+.responsive-table-container .border-gray-100 {
+  border-color: #f3f4f6;
+}
+
+/* Spacing utilities */
+.responsive-table-container .p-2 {
+  padding: 8px;
+}
+
+.responsive-table-container .pt-2 {
+  padding-top: 8px;
+}
+
+.responsive-table-container .mb-1 {
+  margin-bottom: 4px;
+}
+
+.responsive-table-container .mb-2 {
+  margin-bottom: 8px;
+}
+
+.responsive-table-container .mb-3 {
+  margin-bottom: 12px;
+}
+
+.responsive-table-container .mt-1 {
+  margin-top: 4px;
+}
+
+.responsive-table-container .ml-2 {
+  margin-left: 8px;
+}
+
+/* Flexbox utilities */
+.responsive-table-container .flex {
+  display: flex;
+}
+
+.responsive-table-container .items-center {
+  align-items: center;
+}
+
+.responsive-table-container .justify-between {
+  justify-content: space-between;
+}
+
+.responsive-table-container .justify-end {
+  justify-content: flex-end;
+}
+
+.responsive-table-container .gap-1 {
+  gap: 4px;
+}
+
+.responsive-table-container .gap-2 {
+  gap: 8px;
+}
+
+/* Border radius utilities */
+.responsive-table-container .rounded {
+  border-radius: 4px;
+}
+
+.responsive-table-container .rounded-md {
+  border-radius: 6px;
+}

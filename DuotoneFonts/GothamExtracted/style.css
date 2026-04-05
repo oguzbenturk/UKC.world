@@ -1,0 +1,13 @@
+/* font converted using font-converter.net. thank you! */
+@font-face {
+  font-family: "Gotham-Bold-TR";
+  src: url("./fonts/Gotham-Bold-TR.eot"); /* IE9 Compat Modes */
+  src: url("./fonts/Gotham-Bold-TR.eot?#iefix") format("embedded-opentype"), /* IE6-IE8 */
+    url("./fonts/Gotham-Bold-TR.otf") format("opentype"), /* Open Type Font */
+    url("./fonts/Gotham-Bold-TR.svg") format("svg"), /* Legacy iOS */
+    url("./fonts/Gotham-Bold-TR.ttf") format("truetype"), /* Safari, Android, iOS */
+    url("./fonts/Gotham-Bold-TR.woff") format("woff"), /* Modern Browsers */
+    url("./fonts/Gotham-Bold-TR.woff2") format("woff2"); /* Modern Browsers */
+  font-weight: normal;
+  font-style: normal;
+}

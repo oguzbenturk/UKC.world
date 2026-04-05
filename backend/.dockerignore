@@ -1,0 +1,34 @@
+# ===========================================
+# Backend .dockerignore — Backend build context
+# Build context: ./backend (used by backend/Dockerfile*)
+# ===========================================
+
+# Dependencies (rebuilt inside container)
+node_modules
+
+# Runtime data directories
+logs
+backups
+uploads
+
+# Environment files (injected via docker-compose)
+.env
+.env.*
+
+# Documentation
+docs
+
+# IDE
+.vscode
+
+# Debug and utility scripts
+_*.js
+_*.cjs
+
+# Docker files
+Dockerfile
+Dockerfile.production
+
+# Test config
+jest.config.js
+babel.config.cjs
