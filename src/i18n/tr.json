@@ -1,0 +1,192 @@
+{
+  "app": {
+    "name": "UKC World",
+    "tagline": "Kite Okulu & Su Sporları"
+  },
+  "auth": {
+    "signIn": "Giriş Yap",
+    "signInTitle": "Tekrar Hoş Geldiniz",
+    "signInSubtitle": "UKC World hesabınıza giriş yapın",
+    "signUp": "Kayıt Ol",
+    "signUpTitle": "Hesap Oluştur",
+    "signUpSubtitle": "UKC World'e katılın",
+    "logout": "Çıkış Yap",
+    "email": "E-posta",
+    "password": "Şifre",
+    "confirmPassword": "Şifreyi Onayla",
+    "name": "Ad Soyad",
+    "forgotPassword": "Şifremi Unuttum",
+    "resetPassword": "Şifre Sıfırla",
+    "resetPasswordSent": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.",
+    "twoFactor": "İki Faktörlü Doğrulama",
+    "twoFactorCode": "6 haneli kodu girin",
+    "twoFactorSubtitle": "Kimlik doğrulama uygulamanızdaki kodu girin",
+    "verify": "Doğrula",
+    "enableBiometric": "Yüz ID ile Hızlı Giriş",
+    "enableBiometricSubtitle": "Bir sonraki girişinizde Yüz ID kullanmak ister misiniz?",
+    "useBiometric": "Yüz ID Kullan",
+    "usePassword": "Şifre Kullan",
+    "noAccount": "Hesabınız yok mu?",
+    "haveAccount": "Zaten hesabınız var mı?"
+  },
+  "tabs": {
+    "home": "Ana Sayfa",
+    "bookings": "Rezervasyonlar",
+    "wallet": "Cüzdan",
+    "chat": "Mesajlar",
+    "profile": "Profil"
+  },
+  "home": {
+    "welcome": "Hoş geldiniz",
+    "upcomingLessons": "Yaklaşan Dersler",
+    "quickActions": "Hızlı İşlemler",
+    "bookLesson": "Ders Rezerve Et",
+    "bookRental": "Ekipman Kirala",
+    "myBalance": "Bakiyem",
+    "noUpcoming": "Yaklaşan dersiniz yok",
+    "bookFirstLesson": "İlk dersinizi şimdi rezerve edin!"
+  },
+  "bookings": {
+    "title": "Rezervasyonlarım",
+    "newBooking": "Yeni Rezervasyon",
+    "bookLesson": "Ders Rezerve Et",
+    "selectService": "Hizmet Seçin",
+    "selectDate": "Tarih Seçin",
+    "selectTime": "Saat Seçin",
+    "selectInstructor": "Eğitmen Seçin",
+    "anyInstructor": "Herhangi bir eğitmen",
+    "summary": "Özet",
+    "confirmBooking": "Rezervasyonu Onayla",
+    "noBookings": "Henüz rezervasyonunuz yok",
+    "status": {
+      "pending": "Beklemede",
+      "confirmed": "Onaylandı",
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal Edildi",
+      "no_show": "Gelmedi"
+    },
+    "cancel": "İptal Et",
+    "cancelConfirm": "Bu rezervasyonu iptal etmek istediğinize emin misiniz?",
+    "detail": "Rezervasyon Detayı",
+    "addToCalendar": "Takvime Ekle",
+    "instructor": "Eğitmen",
+    "date": "Tarih",
+    "time": "Saat",
+    "duration": "Süre",
+    "hours": "saat"
+  },
+  "rentals": {
+    "title": "Kiralamalarım",
+    "newRental": "Ekipman Kirala",
+    "selectEquipment": "Ekipman Seçin",
+    "noRentals": "Aktif kiralama yok",
+    "status": {
+      "pending": "Beklemede",
+      "upcoming": "Yaklaşıyor",
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal Edildi"
+    }
+  },
+  "wallet": {
+    "title": "Cüzdan",
+    "balance": "Bakiye",
+    "deposit": "Para Yükle",
+    "withdraw": "Para Çek",
+    "transactions": "İşlem Geçmişi",
+    "noTransactions": "İşlem geçmişi yok",
+    "depositAmount": "Yüklenecek Tutar",
+    "selectCurrency": "Para Birimi Seçin",
+    "payWithCard": "Kart ile Öde",
+    "payWithCrypto": "Kripto ile Öde",
+    "paymentProcessing": "Ödeme işleniyor...",
+    "paymentSuccess": "Ödeme Başarılı",
+    "paymentFailed": "Ödeme Başarısız",
+    "payWithWallet": "Cüzdan ile Öde",
+    "insufficientBalance": "Yetersiz bakiye",
+    "transactionTypes": {
+      "credit": "Yükleme",
+      "debit": "Ödeme",
+      "deposit": "Depozit",
+      "payment": "Ödeme",
+      "refund": "İade",
+      "voucher": "Kupon"
+    }
+  },
+  "shop": {
+    "title": "Mağaza",
+    "browseProducts": "Ürünlere Göz At",
+    "addToCart": "Sepete Ekle",
+    "cart": "Sepet",
+    "checkout": "Ödemeye Geç",
+    "myOrders": "Siparişlerim",
+    "noProducts": "Ürün bulunamadı",
+    "noOrders": "Henüz sipariş yok",
+    "inStock": "Stokta",
+    "outOfStock": "Stok Yok"
+  },
+  "chat": {
+    "title": "Mesajlar",
+    "noConversations": "Henüz konuşma yok",
+    "typeMessage": "Mesaj yaz...",
+    "send": "Gönder",
+    "today": "Bugün",
+    "yesterday": "Dün"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "noNotifications": "Bildirim yok",
+    "markAllRead": "Tümünü Okundu İşaretle",
+    "enableNotifications": "Bildirimleri Etkinleştir",
+    "enableNotificationsSubtitle": "Rezervasyon hatırlatmaları almak ister misiniz?"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Profili Düzenle",
+    "settings": "Ayarlar",
+    "privacy": "Gizlilik",
+    "notificationPrefs": "Bildirim Tercihleri",
+    "language": "Dil",
+    "deleteAccount": "Hesabı Sil",
+    "deleteAccountConfirm": "Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+    "version": "Sürüm"
+  },
+  "consent": {
+    "title": "Kullanım Koşulları",
+    "subtitle": "Devam etmek için lütfen koşulları kabul edin",
+    "acceptTerms": "Kullanım Koşullarını Kabul Ediyorum",
+    "emailMarketing": "E-posta ile bilgilendirme almak istiyorum",
+    "smsMarketing": "SMS ile bilgilendirme almak istiyorum",
+    "whatsappMarketing": "WhatsApp ile bilgilendirme almak istiyorum",
+    "save": "Kaydet ve Devam Et"
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "retry": "Tekrar Dene",
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "save": "Kaydet",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "back": "Geri",
+    "next": "İleri",
+    "done": "Tamam",
+    "close": "Kapat",
+    "search": "Ara",
+    "noResults": "Sonuç bulunamadı",
+    "pullToRefresh": "Yenilemek için aşağı çekin",
+    "offline": "İnternet bağlantısı yok",
+    "offlineSubtitle": "Bazı özellikler çevrimiçi bağlantı gerektirir"
+  },
+  "errors": {
+    "network": "İnternet bağlantınızı kontrol edin",
+    "unauthorized": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
+    "validation": "Lütfen tüm alanları doğru doldurun",
+    "server": "Sunucu hatası. Lütfen daha sonra tekrar deneyin.",
+    "notFound": "İstenen içerik bulunamadı",
+    "rateLimit": "Çok fazla deneme. Lütfen bir dakika bekleyin.",
+    "unknown": "Beklenmeyen bir hata oluştu"
+  }
+}

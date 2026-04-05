@@ -1,0 +1,192 @@
+{
+  "app": {
+    "name": "UKC World",
+    "tagline": "Kite School & Watersports"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signInTitle": "Welcome Back",
+    "signInSubtitle": "Sign in to your UKC World account",
+    "signUp": "Create Account",
+    "signUpTitle": "Create Account",
+    "signUpSubtitle": "Join UKC World",
+    "logout": "Log Out",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Full Name",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "resetPasswordSent": "Password reset link has been sent to your email.",
+    "twoFactor": "Two-Factor Authentication",
+    "twoFactorCode": "Enter 6-digit code",
+    "twoFactorSubtitle": "Enter the code from your authenticator app",
+    "verify": "Verify",
+    "enableBiometric": "Enable Face ID",
+    "enableBiometricSubtitle": "Would you like to use Face ID for future sign-ins?",
+    "useBiometric": "Use Face ID",
+    "usePassword": "Use Password",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?"
+  },
+  "tabs": {
+    "home": "Home",
+    "bookings": "Bookings",
+    "wallet": "Wallet",
+    "chat": "Chat",
+    "profile": "Profile"
+  },
+  "home": {
+    "welcome": "Welcome",
+    "upcomingLessons": "Upcoming Lessons",
+    "quickActions": "Quick Actions",
+    "bookLesson": "Book a Lesson",
+    "bookRental": "Rent Equipment",
+    "myBalance": "My Balance",
+    "noUpcoming": "No upcoming lessons",
+    "bookFirstLesson": "Book your first lesson now!"
+  },
+  "bookings": {
+    "title": "My Bookings",
+    "newBooking": "New Booking",
+    "bookLesson": "Book a Lesson",
+    "selectService": "Select Service",
+    "selectDate": "Select Date",
+    "selectTime": "Select Time",
+    "selectInstructor": "Select Instructor",
+    "anyInstructor": "Any instructor",
+    "summary": "Summary",
+    "confirmBooking": "Confirm Booking",
+    "noBookings": "No bookings yet",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No Show"
+    },
+    "cancel": "Cancel",
+    "cancelConfirm": "Are you sure you want to cancel this booking?",
+    "detail": "Booking Detail",
+    "addToCalendar": "Add to Calendar",
+    "instructor": "Instructor",
+    "date": "Date",
+    "time": "Time",
+    "duration": "Duration",
+    "hours": "hours"
+  },
+  "rentals": {
+    "title": "My Rentals",
+    "newRental": "Rent Equipment",
+    "selectEquipment": "Select Equipment",
+    "noRentals": "No active rentals",
+    "status": {
+      "pending": "Pending",
+      "upcoming": "Upcoming",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "wallet": {
+    "title": "Wallet",
+    "balance": "Balance",
+    "deposit": "Add Funds",
+    "withdraw": "Withdraw",
+    "transactions": "Transaction History",
+    "noTransactions": "No transactions yet",
+    "depositAmount": "Amount to Add",
+    "selectCurrency": "Select Currency",
+    "payWithCard": "Pay with Card",
+    "payWithCrypto": "Pay with Crypto",
+    "paymentProcessing": "Processing payment...",
+    "paymentSuccess": "Payment Successful",
+    "paymentFailed": "Payment Failed",
+    "payWithWallet": "Pay with Wallet",
+    "insufficientBalance": "Insufficient balance",
+    "transactionTypes": {
+      "credit": "Top Up",
+      "debit": "Payment",
+      "deposit": "Deposit",
+      "payment": "Payment",
+      "refund": "Refund",
+      "voucher": "Voucher"
+    }
+  },
+  "shop": {
+    "title": "Shop",
+    "browseProducts": "Browse Products",
+    "addToCart": "Add to Cart",
+    "cart": "Cart",
+    "checkout": "Checkout",
+    "myOrders": "My Orders",
+    "noProducts": "No products found",
+    "noOrders": "No orders yet",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock"
+  },
+  "chat": {
+    "title": "Messages",
+    "noConversations": "No conversations yet",
+    "typeMessage": "Type a message...",
+    "send": "Send",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "No notifications",
+    "markAllRead": "Mark All as Read",
+    "enableNotifications": "Enable Notifications",
+    "enableNotificationsSubtitle": "Would you like to receive booking reminders?"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "settings": "Settings",
+    "privacy": "Privacy",
+    "notificationPrefs": "Notification Preferences",
+    "language": "Language",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
+    "version": "Version"
+  },
+  "consent": {
+    "title": "Terms of Service",
+    "subtitle": "Please accept the terms to continue",
+    "acceptTerms": "I accept the Terms of Service",
+    "emailMarketing": "I want to receive email updates",
+    "smsMarketing": "I want to receive SMS updates",
+    "whatsappMarketing": "I want to receive WhatsApp updates",
+    "save": "Save & Continue"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try Again",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "close": "Close",
+    "search": "Search",
+    "noResults": "No results found",
+    "pullToRefresh": "Pull to refresh",
+    "offline": "No internet connection",
+    "offlineSubtitle": "Some features require an internet connection"
+  },
+  "errors": {
+    "network": "Please check your internet connection",
+    "unauthorized": "Your session has expired. Please sign in again.",
+    "validation": "Please fill in all fields correctly",
+    "server": "Server error. Please try again later.",
+    "notFound": "The requested content was not found",
+    "rateLimit": "Too many attempts. Please wait a minute.",
+    "unknown": "An unexpected error occurred"
+  }
+}

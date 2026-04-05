@@ -1,0 +1,33 @@
+export const colors = {
+  brand: {
+    primary: '#0284C7',
+    primaryDark: '#0369A1',
+    dark: '#1E293B',
+    darker: '#0F172A',
+  },
+  success: '#22C55E',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
+  white: '#FFFFFF',
+  gray: {
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    200: '#E2E8F0',
+    300: '#CBD5E1',
+    400: '#94A3B8',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
+    800: '#1E293B',
+    900: '#0F172A',
+  },
+  status: {
+    confirmed: '#22C55E',
+    pending: '#F59E0B',
+    cancelled: '#EF4444',
+    completed: '#6366F1',
+    active: '#0284C7',
+    upcoming: '#0284C7',
+  },
+} as const;
