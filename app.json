@@ -24,7 +24,9 @@
         "NSUserTrackingUsageDescription": "We use anonymous analytics to improve your app experience.",
         "NSCalendarsUsageDescription": "Used to add your lesson bookings to your calendar."
       },
-      "associatedDomains": ["applinks:plannivo.com"]
+      "associatedDomains": [
+        "applinks:plannivo.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -44,7 +46,10 @@
               "host": "plannivo.com"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -75,11 +80,10 @@
           "faceIDPermission": "Used for quick and secure sign-in."
         }
       ],
-      "expo-screen-capture",
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
+          "icon": "./assets/icon.png",
           "color": "#0284C7",
           "sounds": [],
           "enableBackgroundRemoteNotifications": true
@@ -90,7 +94,9 @@
         {
           "userTrackingPermission": "We use anonymous analytics to improve your app experience."
         }
-      ]
+      ],
+      "expo-localization",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
