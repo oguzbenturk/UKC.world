@@ -63,7 +63,6 @@ export default function BookingsScreen() {
       <FlashList
         data={bookings}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={90}
         renderItem={({ item }) => <BookingItem booking={item} />}
         contentContainerStyle={styles.list}
         refreshing={isRefetching}

@@ -1,7 +1,9 @@
 import Decimal from 'decimal.js';
 
-export function formatCurrency(amount: number | string | Decimal, currency: string): string {
-  const dec = new Decimal(amount);
+type DecimalValue = number | string | InstanceType<typeof Decimal>;
+
+export function formatCurrency(amount: DecimalValue, currency: string): string {
+  const dec = new Decimal(String(amount));
   const num = dec.toNumber();
 
   switch (currency.toUpperCase()) {
@@ -18,18 +20,18 @@ export function formatCurrency(amount: number | string | Decimal, currency: stri
   }
 }
 
-export function addCurrency(a: number | string | Decimal, b: number | string | Decimal): Decimal {
-  return new Decimal(a).plus(new Decimal(b));
+export function addCurrency(a: DecimalValue, b: DecimalValue): InstanceType<typeof Decimal> {
+  return new Decimal(String(a)).plus(new Decimal(String(b)));
 }
 
-export function subtractCurrency(a: number | string | Decimal, b: number | string | Decimal): Decimal {
-  return new Decimal(a).minus(new Decimal(b));
+export function subtractCurrency(a: DecimalValue, b: DecimalValue): InstanceType<typeof Decimal> {
+  return new Decimal(String(a)).minus(new Decimal(String(b)));
 }
 
-export function multiplyCurrency(a: number | string | Decimal, b: number | string | Decimal): Decimal {
-  return new Decimal(a).times(new Decimal(b));
+export function multiplyCurrency(a: DecimalValue, b: DecimalValue): InstanceType<typeof Decimal> {
+  return new Decimal(String(a)).times(new Decimal(String(b)));
 }
 
-export function hasSufficientBalance(balance: number | string | Decimal, required: number | string | Decimal): boolean {
-  return new Decimal(balance).gte(new Decimal(required));
+export function hasSufficientBalance(balance: DecimalValue, required: DecimalValue): boolean {
+  return new Decimal(String(balance)).gte(new Decimal(String(required)));
 }

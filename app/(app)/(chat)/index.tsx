@@ -61,7 +61,6 @@ export default function ChatListScreen() {
       <FlashList
         data={conversations}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={70}
         renderItem={({ item }) => <ConversationItem conv={item} />}
         contentContainerStyle={styles.list}
         refreshing={isRefetching}

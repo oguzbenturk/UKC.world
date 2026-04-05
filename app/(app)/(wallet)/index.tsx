@@ -93,7 +93,6 @@ export default function WalletScreen() {
         <FlashList
           data={transactions}
           keyExtractor={(item) => String(item.id)}
-          estimatedItemSize={70}
           renderItem={({ item }) => <TransactionItem tx={item} />}
           contentContainerStyle={styles.txList}
           ListEmptyComponent={<EmptyState icon="💳" title={t('wallet.noTransactions')} />}

@@ -49,7 +49,6 @@ export default function RentalsScreen() {
       <FlashList
         data={rentals}
         keyExtractor={(item) => String(item.id)}
-        estimatedItemSize={80}
         renderItem={({ item }) => <RentalItem rental={item} />}
         contentContainerStyle={styles.list}
         refreshing={isRefetching}
