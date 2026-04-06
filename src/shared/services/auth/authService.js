@@ -24,6 +24,10 @@ class AuthService {
    */
   async login(email, password) {
     try {
+      // Ensure a CSRF cookie exists before the POST (bootstrap for fresh sessions)
+      if (!document.cookie.includes('csrf_token=')) {
+        await apiClient.get('/auth/csrf');
+      }
       const response = await apiClient.post('/auth/login', {
         email,
         password

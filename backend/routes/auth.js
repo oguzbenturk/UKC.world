@@ -51,6 +51,13 @@ const parseCookies = (cookieHeader = '') => {
     }, {});
 };
 
+// CSRF bootstrap endpoint — sets the csrf_token cookie so the login page can proceed
+// Must be GET (CSRF_SAFE_METHOD) and unauthenticated.
+router.get('/csrf', (req, res) => {
+  setCsrfCookie(res);
+  res.json({ ok: true });
+});
+
 // Enhanced login endpoint with 2FA support and security features
 router.post('/login', authRateLimit, async (req, res) => {
   const { email, password } = req.body;
