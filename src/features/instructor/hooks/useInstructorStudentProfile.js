@@ -3,7 +3,10 @@ import {
   fetchInstructorStudentProfile,
   updateInstructorStudentProfile,
   createInstructorStudentProgress,
-  deleteInstructorStudentProgress
+  deleteInstructorStudentProgress,
+  createStudentGoal,
+  updateStudentGoal as updateStudentGoalApi,
+  deleteStudentGoal
 } from '../services/instructorApi';
 
 export function useInstructorStudentProfile(studentId) {
@@ -12,6 +15,7 @@ export function useInstructorStudentProfile(studentId) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [progressSaving, setProgressSaving] = useState(false);
+  const [goalSaving, setGoalSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!studentId) return;
@@ -86,6 +90,44 @@ export function useInstructorStudentProfile(studentId) {
     }
   }, [studentId]);
 
+  const addGoal = useCallback(async (payload) => {
+    if (!studentId) return null;
+    setGoalSaving(true);
+    try {
+      const created = await createStudentGoal(studentId, payload);
+      setProfile(prev => prev ? { ...prev, goals: [created, ...(prev.goals || [])] } : prev);
+      return created;
+    } catch (err) { throw err; }
+    finally { setGoalSaving(false); }
+  }, [studentId]);
+
+  const editGoal = useCallback(async (goalId, payload) => {
+    if (!studentId) return null;
+    setGoalSaving(true);
+    try {
+      const updated = await updateStudentGoalApi(studentId, goalId, payload);
+      setProfile(prev => prev ? {
+        ...prev,
+        goals: (prev.goals || []).map(g => g.id === goalId ? updated : g)
+      } : prev);
+      return updated;
+    } catch (err) { throw err; }
+    finally { setGoalSaving(false); }
+  }, [studentId]);
+
+  const removeGoal = useCallback(async (goalId) => {
+    if (!studentId) return;
+    setGoalSaving(true);
+    try {
+      await deleteStudentGoal(studentId, goalId);
+      setProfile(prev => prev ? {
+        ...prev,
+        goals: (prev.goals || []).filter(g => g.id !== goalId)
+      } : prev);
+    } catch (err) { throw err; }
+    finally { setGoalSaving(false); }
+  }, [studentId]);
+
   const derived = useMemo(() => {
     if (!profile) return null;
     const totalHours = profile.stats?.totalHours || 0;
@@ -105,6 +147,10 @@ export function useInstructorStudentProfile(studentId) {
     addProgress,
     removeProgress,
     saving,
-    progressSaving
+    progressSaving,
+    addGoal,
+    editGoal,
+    removeGoal,
+    goalSaving
   };
 }

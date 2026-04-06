@@ -3,8 +3,8 @@ const colorScale = ['bg-emerald-200', 'bg-emerald-300', 'bg-emerald-400', 'bg-em
 const LessonStatusHeatmap = ({ breakdown = [] }) => {
   if (!breakdown.length) {
     return (
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Lesson activity</h2>
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Lesson activity</h2>
         <p className="mt-2 text-sm text-slate-500">Book a few sessions to unlock insights.</p>
       </section>
     );
@@ -13,9 +13,9 @@ const LessonStatusHeatmap = ({ breakdown = [] }) => {
   const maxValue = breakdown.reduce((max, item) => Math.max(max, item.count), 0) || 1;
 
   return (
-    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 shadow-sm p-6 space-y-4">
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
       <header>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Lesson activity</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Lesson activity</h2>
         <p className="text-xs text-slate-500">Status distribution across all upcoming and past bookings.</p>
       </header>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -24,12 +24,12 @@ const LessonStatusHeatmap = ({ breakdown = [] }) => {
           return (
             <div
               key={item.status}
-              className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-4 transition hover:-translate-y-0.5 hover:shadow-sm`}
+              className={`rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:shadow-sm`}
             >
-              <span className={`inline-block rounded-lg px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-100 ${colorScale[intensityIndex]}`}>
+              <span className={`inline-block rounded-lg px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700 ${colorScale[intensityIndex]}`}>
                 {item.status}
               </span>
-              <p className="mt-3 text-2xl font-semibold text-slate-900 dark:text-white">{item.count}</p>
+              <p className="mt-3 text-2xl font-semibold text-slate-900">{item.count}</p>
               <p className="text-xs text-slate-500">sessions</p>
             </div>
           );

@@ -6,7 +6,11 @@ import {
   getInstructorStudentProfile,
   updateInstructorStudentProfile,
   addInstructorStudentProgress,
-  removeInstructorStudentProgress
+  removeInstructorStudentProgress,
+  getStudentGoals,
+  addStudentGoal,
+  updateStudentGoal,
+  removeStudentGoal
 } from '../services/instructorService.js';
 import {
   listInstructorNotes,
@@ -97,6 +101,34 @@ router.delete('/me/notes/:noteId', authorizeRoles(['instructor', 'manager']), as
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/me/students/:studentId/goals', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
+  try {
+    const goals = await getStudentGoals(req.user.id, req.params.studentId);
+    res.json({ goals });
+  } catch (err) { next(err); }
+});
+
+router.post('/me/students/:studentId/goals', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
+  try {
+    const goal = await addStudentGoal(req.user.id, req.params.studentId, req.body || {});
+    res.status(201).json(goal);
+  } catch (err) { next(err); }
+});
+
+router.patch('/me/students/:studentId/goals/:goalId', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
+  try {
+    const goal = await updateStudentGoal(req.user.id, req.params.studentId, req.params.goalId, req.body || {});
+    res.json(goal);
+  } catch (err) { next(err); }
+});
+
+router.delete('/me/students/:studentId/goals/:goalId', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
+  try {
+    await removeStudentGoal(req.user.id, req.params.studentId, req.params.goalId);
+    res.status(204).send();
+  } catch (err) { next(err); }
 });
 
 router.get('/me/dashboard', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {

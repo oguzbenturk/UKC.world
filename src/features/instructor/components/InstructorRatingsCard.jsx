@@ -28,7 +28,7 @@ const RatingItem = ({ rating }) => {
   const studentName = rating.isAnonymous ? 'Anonymous Student' : (rating.studentName || 'Student');
   
   return (
-    <List.Item className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+    <List.Item className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <div className="w-full">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -40,7 +40,7 @@ const RatingItem = ({ rating }) => {
               {!rating.isAnonymous && studentName[0]?.toUpperCase()}
             </Avatar>
             <div>
-              <Text strong className="text-slate-800 dark:text-white">{studentName}</Text>
+              <Text strong className="text-slate-800">{studentName}</Text>
               <div className="flex items-center gap-2">
                 <Rate disabled value={rating.rating} className="text-sm" />
                 <Tag 
@@ -58,10 +58,10 @@ const RatingItem = ({ rating }) => {
         </div>
         
         {rating.feedbackText && (
-          <div className="mt-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+          <div className="mt-3 rounded-lg bg-slate-50 p-3">
             <div className="flex items-start gap-2">
               <MessageOutlined className="mt-1 text-slate-400" />
-              <Paragraph className="!mb-0 text-slate-600 dark:text-slate-300">
+              <Paragraph className="!mb-0 text-slate-600">
                 "{rating.feedbackText}"
               </Paragraph>
             </div>
@@ -104,12 +104,12 @@ const StatsOverview = ({ summary, stats }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
       {/* Average Rating Card */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6 dark:border-slate-700 dark:from-amber-900/20 dark:to-orange-900/20">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6">
         <div className="flex items-center justify-between">
           <div>
             <Text type="secondary" className="text-xs uppercase tracking-wide">Your Rating</Text>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-amber-600 dark:text-amber-400">
+              <span className="text-4xl font-bold text-amber-600">
                 {averageRating.toFixed(1)}
               </span>
               <StarFilled className="text-2xl text-amber-500" />
@@ -119,20 +119,20 @@ const StatsOverview = ({ summary, stats }) => {
               Based on {totalRatings} rating{totalRatings !== 1 ? 's' : ''}
             </Text>
           </div>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 shadow-lg dark:bg-slate-800">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 shadow-lg">
             <TrophyFilled className="text-4xl text-amber-500" />
           </div>
         </div>
       </div>
 
       {/* Distribution Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
         <Text type="secondary" className="text-xs uppercase tracking-wide">Rating Distribution</Text>
         <div className="mt-4 space-y-2">
           {distribution.map(({ star, count, percent }) => (
             <div key={star} className="flex items-center gap-3">
               <div className="flex w-12 items-center gap-1">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{star}</span>
+                <span className="text-sm font-medium text-slate-600">{star}</span>
                 <StarFilled className="text-amber-400 text-xs" />
               </div>
               <Progress 
@@ -147,8 +147,8 @@ const StatsOverview = ({ summary, stats }) => {
           ))}
         </div>
         {fiveStarPercent > 0 && (
-          <div className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/20">
-            <Text className="text-sm text-emerald-700 dark:text-emerald-400">
+          <div className="mt-4 rounded-lg bg-emerald-50 px-3 py-2">
+            <Text className="text-sm text-emerald-700">
               🌟 {fiveStarPercent.toFixed(0)}% of your ratings are 5 stars!
             </Text>
           </div>
@@ -176,7 +176,7 @@ const InstructorRatingsCard = ({ limit = 5 }) => {
 
   return (
     <Card 
-      className="rounded-2xl border border-slate-200 shadow-sm dark:border-slate-700"
+      className="rounded-2xl border border-slate-200 shadow-sm"
       title={
         <Space>
           <StarFilled className="text-amber-500" />
@@ -186,7 +186,7 @@ const InstructorRatingsCard = ({ limit = 5 }) => {
       loading={isLoading}
     >
       {error && (
-        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-400">
+        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
           {error.message || 'Failed to load ratings'}
         </div>
       )}
@@ -209,7 +209,7 @@ const InstructorRatingsCard = ({ limit = 5 }) => {
             />
           ) : (
             <>
-              <Text strong className="mb-3 block text-slate-700 dark:text-slate-300">
+              <Text strong className="mb-3 block text-slate-700">
                 Recent Feedback
               </Text>
               <List

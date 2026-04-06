@@ -20,6 +20,7 @@ import ErrorBoundary from '@/shared/components/error/ErrorBoundary';
 // Import context and hooks
 import { useCalendar } from '../contexts/CalendarContext';
 import { useKeyboardShortcuts, createCalendarShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 /**
  * Modern booking calendar with daily, weekly, and monthly views
@@ -280,6 +281,8 @@ const ModernCalendar = () => {
     selectedSlot: _selectedSlot,
     setSelectedSlot
   } = useCalendar();  // State for modals
+  const { user } = useAuth();
+  const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isBulkBookingModalOpen, setIsBulkBookingModalOpen] = useState(false);
   const [isBookingDetailModalOpen, setIsBookingDetailModalOpen] = useState(false);
@@ -463,6 +466,7 @@ const ModernCalendar = () => {
 
       {/* Quick Action: FAB opens single booking modal directly */}
 
+      {!isInstructor && (
       <button
         onClick={() => handleNewBooking()}
         className="fixed bottom-6 right-6 h-14 w-14 z-50"
@@ -478,6 +482,7 @@ const ModernCalendar = () => {
           </div>
         </div>
       </button>
+      )}
     </div>
   );
 };

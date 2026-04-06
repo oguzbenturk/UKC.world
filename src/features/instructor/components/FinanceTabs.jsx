@@ -18,7 +18,7 @@ const FinanceTabs = ({ tabs = [], initialKey, onChange }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -27,7 +27,7 @@ const FinanceTabs = ({ tabs = [], initialKey, onChange }) => {
             className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
               tab.key === activeKey
                 ? 'bg-sky-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <span>{tab.label}</span>
@@ -41,12 +41,12 @@ const FinanceTabs = ({ tabs = [], initialKey, onChange }) => {
       </div>
 
       {activeTab?.description && (
-        <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs uppercase tracking-wide text-slate-500">
           {activeTab.description}
         </p>
       )}
 
-      <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 xl:p-6 transition">
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 xl:p-6 transition">
         {activeTab?.content}
       </div>
     </div>

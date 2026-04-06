@@ -33,6 +33,7 @@ const GlobalFAB = () => {
     isAuthenticated &&
     user &&
     !NON_STAFF_ROLES.includes(user.role?.toLowerCase?.() || '');
+  const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
 
   // Close menu on outside click
   useEffect(() => {
@@ -46,7 +47,7 @@ const GlobalFAB = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  if (!isStaff || isHidden) return null;
+  if (!isStaff || isHidden || isInstructor) return null;
 
   return (
     <>

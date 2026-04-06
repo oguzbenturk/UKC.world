@@ -41,11 +41,11 @@ const EarningsTrendCard = ({
   }, [chartData, pendingThreshold?.amount]);
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-4 space-y-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">Earnings trend</p>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Last 12 weeks</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Last 12 weeks</h3>
         </div>
         {pendingThreshold && (
           <p className="text-xs text-slate-500 max-w-[160px] text-right">
@@ -57,7 +57,7 @@ const EarningsTrendCard = ({
       </div>
 
       {loading && !chartData.length ? (
-        <div className="h-48 rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+        <div className="h-48 rounded-lg bg-slate-100 animate-pulse" />
       ) : !chartData.length ? (
         <div className="h-48 flex items-center justify-center text-sm text-slate-500">
           No earnings recorded yet.
@@ -94,10 +94,10 @@ const EarningsTrendCard = ({
                 }}
                 formatter={(value) => [formatCurrency(value), 'Earnings']}
                 contentStyle={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                  border: 'none',
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '0.5rem',
-                  color: '#f8fafc',
+                  color: '#1e293b',
                   padding: '0.75rem 1rem',
                 }}
                 wrapperStyle={{ zIndex: 30 }}

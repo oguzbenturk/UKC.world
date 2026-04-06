@@ -2,37 +2,37 @@ import { useEffect } from 'react';
 
 export const THEME_STORAGE_KEY = 'plannivo-theme';
 
-// Dark mode only - no light mode support
+// Light mode only - dark mode removed
 export const useTheme = () => {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
     }
 
-    // Always force dark mode
-    document.documentElement.classList.add('dark');
+    // Always force light mode
+    document.documentElement.classList.remove('dark');
     
     const body = document.body;
     if (body) {
-      body.setAttribute('data-theme', 'dark');
+      body.setAttribute('data-theme', 'light');
     }
 
-    // Set dark theme color for mobile browsers
+    // Set light theme color for mobile browsers
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
     if (themeColorMeta) {
-      themeColorMeta.setAttribute('content', '#0f172a');
+      themeColorMeta.setAttribute('content', '#ffffff');
     }
 
-    // Store dark mode preference
+    // Store light mode preference
     try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+      window.localStorage.setItem(THEME_STORAGE_KEY, 'light');
     } catch {
       // Ignore storage write issues (private browsing, etc.)
     }
   }, []);
 
   return {
-    theme: 'dark',
-    isDark: true,
+    theme: 'light',
+    isDark: false,
   };
 };

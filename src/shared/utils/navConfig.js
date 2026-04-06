@@ -307,17 +307,12 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/calendars', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
         subItems: [
-          { to: '/calendars/lessons', label: 'Lessons' },
           { to: '/bookings/calendar', label: 'Calendar View' },
           { to: '/services/events', label: 'Events' }
         ]
       }),
-      // Member - Pistachio Green
-      item('/members/offerings', 'Member', 'SparklesIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
-      }),
-      // Repairs - Teal
-      item('/repairs', 'Repairs', 'WrenchScrewdriverIcon', {
+      // Care - Teal
+      item('/care', 'Care', 'WrenchScrewdriverIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
       // Finance - Emerald

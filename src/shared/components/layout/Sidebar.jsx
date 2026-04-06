@@ -43,7 +43,7 @@ import {
   BuildingLibraryIcon
 } from '@heroicons/react/24/outline';
 
-const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
+const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [isShopMode, setIsShopMode] = useState(false);
@@ -135,11 +135,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
   }, [isOpen, toggleSidebar]);
 
   const baseLinkClasses = "flex items-center px-3 py-2.5 rounded-md transition-colors duration-75 ease-out text-sm font-medium";
-  const commonLinkClasses = `${baseLinkClasses} text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60`;
-  const activeLinkClasses = "border-l-2 border-[#2d6a3e] pl-[10px] !text-sky-600 dark:!text-sky-300";
-  const groupLabelClasses = "px-3 pb-2 text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider";
-  const subItemInactiveClasses = "py-2.5 text-sm pl-11 rounded-md border-l-2 border-transparent transition-colors duration-75 ease-out block text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/40 dark:hover:text-white";
-  const subItemActiveClasses = "py-2.5 text-sm !pl-[42px] !text-sky-600 !bg-slate-100 !rounded-r-md !rounded-l-none !border-l-[#2d6a3e] border-l-2 !border-solid transition-colors duration-75 ease-out block dark:!text-sky-300 dark:!bg-slate-800/60";
+  const commonLinkClasses = `${baseLinkClasses} text-slate-200 hover:text-white hover:bg-white/10`;
+  const activeLinkClasses = "border-l-2 border-[#2d6a3e] pl-[10px] !text-sky-400";
+  const groupLabelClasses = "px-3 pb-2 text-xs text-slate-400 font-semibold uppercase tracking-wider";
+  const subItemInactiveClasses = "py-2.5 text-sm pl-11 rounded-md border-l-2 border-transparent transition-colors duration-75 ease-out block text-slate-300 hover:bg-white/10 hover:text-white";
+  const subItemActiveClasses = "py-2.5 text-sm !pl-[42px] !text-sky-400 !bg-white/10 !rounded-r-md !rounded-l-none !border-l-[#2d6a3e] border-l-2 !border-solid transition-colors duration-75 ease-out block";
 
   const showLogoutConfirmation = () => {
     setIsLogoutModalVisible(true);
@@ -209,7 +209,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
             {hasChildren ? (
               <button
                 onClick={() => toggleCategoryExpanded(expandKey)}
-                className="w-5 h-7 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                className="w-5 h-7 flex items-center justify-center text-slate-400 hover:text-slate-200"
               >
                 <ChevronRightIcon className={`h-2.5 w-2.5 transition-transform duration-150 ${isNodeExpanded ? 'rotate-90' : ''}`} />
               </button>
@@ -223,8 +223,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
               }}
               className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-all ${
                 isActive
-                  ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/30'
+                  ? 'bg-white/15 text-white font-medium'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <span>{node.label}</span>
@@ -232,7 +232,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
           </div>
 
           {hasChildren && isNodeExpanded && (
-            <div className="ml-5 mt-0.5 space-y-0.5 border-l border-slate-200 pl-2 dark:border-slate-700">
+            <div className="ml-5 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
               {renderSubcategoryTree(node.children, catValue, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, handleSubcategoryChange, depth + 1)}
             </div>
           )}
@@ -287,7 +287,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
         </div>
 
         <div className="px-2 mb-4">
-          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60">
+          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-md transition-all duration-150">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             <span>Back to Menu</span>
           </button>
@@ -295,11 +295,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
 
         <div className="px-3 mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FunnelIcon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider dark:text-slate-400">Filters</span>
+            <FunnelIcon className="h-4 w-4 text-slate-400" />
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Filters</span>
           </div>
           {activeFilterCount > 0 && (
-            <button onClick={clearAllFilters} className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">Clear all</button>
+            <button onClick={clearAllFilters} className="text-xs text-slate-400 hover:text-white">Clear all</button>
           )}
         </div>
 
@@ -317,19 +317,19 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                 <div key={cat.value}>
                   <div className="flex items-center">
                     {hasSubs ? (
-                      <button onClick={() => toggleCategoryExpanded(cat.value)} className="w-6 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
+                      <button onClick={() => toggleCategoryExpanded(cat.value)} className="w-6 h-8 flex items-center justify-center text-slate-400 hover:text-slate-200">
                         <ChevronRightIcon className={`h-3 w-3 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
                     ) : (
                       <div className="w-6" />
                     )}
-                    <button onClick={() => handleCategoryChange(cat.value)} className={`flex-1 flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-all ${isActive ? 'bg-slate-200 text-slate-900 font-medium dark:bg-slate-700 dark:text-white' : isCategoryActive ? 'bg-slate-100 text-slate-800 font-medium dark:bg-slate-700/50 dark:text-slate-200' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/30'}`}>
+                    <button onClick={() => handleCategoryChange(cat.value)} className={`flex-1 flex items-center justify-between px-2 py-2 rounded-lg text-sm transition-all ${isActive ? 'bg-white/15 text-white font-medium' : isCategoryActive ? 'bg-white/10 text-slate-100 font-medium' : 'text-slate-300 hover:bg-white/10'}`}>
                       <span>{cat.label}</span>
                       {cat.count > 0 && <span className={`text-xs ${isActive ? 'text-slate-500' : 'text-slate-400'}`}>{cat.count}</span>}
                     </button>
                   </div>
                   {hasSubs && isExpanded && (
-                    <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-2 dark:border-slate-600">
+                    <div className="ml-6 mt-0.5 space-y-0.5 border-l-2 border-white/10 pl-2">
                       {renderSubcategoryTree(subcats, cat.value, selectedCategory, selectedSubcategory, expandedCategories, toggleCategoryExpanded, (v) => handleSubcategoryChange(v, cat.value), 0)}
                     </div>
                   )}
@@ -339,17 +339,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
           </div>
         </div>
 
-        <div className="my-4 border-t border-slate-200 dark:border-slate-700" />
+        <div className="my-4 border-t border-white/10" />
 
         <div className="px-3">
-          <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors">
-            <input type="checkbox" checked={showInStockOnly} onChange={(e) => setShowInStockOnly(e.target.checked)} className="w-4 h-4 rounded border-slate-400 bg-white text-[#2d6a3e] focus:ring-[#2d6a3e] dark:border-slate-500 dark:bg-slate-700" />
+          <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors">
+            <input type="checkbox" checked={showInStockOnly} onChange={(e) => setShowInStockOnly(e.target.checked)} className="w-4 h-4 rounded border-slate-400 bg-white text-[#2d6a3e] focus:ring-[#2d6a3e]" />
             <span>In Stock Only</span>
           </label>
         </div>
 
-        <div className="px-2 mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
-          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-all duration-150 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60">
+        <div className="px-2 mt-6 border-t border-white/10 pt-4">
+          <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-md transition-all duration-150">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             <span>Other Services</span>
           </button>
@@ -360,14 +360,14 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
 
   return (
     <>
-      <div className={isDark ? 'dark' : ''}>
+      <div>
         <aside ref={sidebarRef} className={`sidebar ${isOpen ? 'open' : ''}`}>
           {isShopMode && isUKCRole ? (
             <nav className="flex flex-col h-full overflow-hidden">
               {renderShopSidebar()}
             </nav>
           ) : (
-            <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-300 hover:scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600">
+            <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
               
               <div>
                 <ul className="mt-1 space-y-1">
@@ -406,14 +406,14 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                             const Component = item.isDirectLink ? NavLink : 'button';
                             const props = item.isDirectLink ? {
                               to: item.to,
-                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`,
+                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-400' : ''}`,
                               onClick: () => {
                                 toggleExpanded(item.label);
-                                if (item.isDirectLink && isOpen) toggleSidebar(); 
+                                if (item.isDirectLink && isOpen) toggleSidebar();
                               }
                             } : {
                               onClick: () => toggleExpanded(item.label),
-                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`
+                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-400' : ''}`
                             };
 
                             return (
@@ -440,7 +440,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                             );
                           })()}
                           {expandedItems[item.label] && (
-                            <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
+                            <div className="mt-1 ml-2 border-l border-white/10">
                               {item.subItems.map((subItem) => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
                                 const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
@@ -497,11 +497,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                             const Component = item.isDirectLink ? NavLink : 'button';
                             const props = item.isDirectLink ? {
                               to: item.to,
-                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`,
+                              className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-400' : ''}`,
                               onClick: () => toggleExpanded(item.label)
                             } : {
                               onClick: () => toggleExpanded(item.label),
-                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-600 dark:!text-sky-300' : ''}`
+                              className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-400' : ''}`
                             };
 
                             return (
@@ -528,7 +528,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                             );
                           })()}
                           {expandedItems[item.label] && (
-                            <div className="mt-1 ml-2 border-l border-slate-200 dark:border-slate-700">
+                            <div className="mt-1 ml-2 border-l border-white/10">
                               {item.subItems.map((subItem) => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
                                 const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
@@ -587,7 +587,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isDark }) => {
                 </ul>
               </div>
 
-              <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-700">
+              <div className="mt-auto pt-3 border-t border-white/10">
                 {/* Contact - styled exactly like others but kept at bottom */}
                 {dynamicNavItems.find(i => i.label === 'Contact') && (() => {
                   const contactItem = dynamicNavItems.find(i => i.label === 'Contact');

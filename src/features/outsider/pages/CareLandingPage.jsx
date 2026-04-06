@@ -160,7 +160,8 @@ const TrackingResult = ({ request }) => {
 /* ─────────────────────────────────────────────── main page ── */
 
 const CareLandingPage = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const ADMIN_ROLES = ['admin', 'manager', 'developer'];
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
@@ -265,7 +266,7 @@ const CareLandingPage = () => {
           </div>
 
           {/* CTA for logged-in users */}
-          {isAuthenticated && (
+          {isAuthenticated && ADMIN_ROLES.includes(user?.role?.toLowerCase?.() || '') && (
             <div className="mt-8 inline-flex items-center gap-3 bg-teal-500/10 border border-teal-500/20 rounded-2xl px-6 py-4">
               <span className="text-teal-300 text-sm">You&rsquo;re logged in — see all your requests in one place</span>
               <Button

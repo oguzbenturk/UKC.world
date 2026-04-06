@@ -3,13 +3,29 @@
 ## What is this project?
 Plannivo is a business management platform for watersports academies (kite surfing focus). It handles bookings, CRM, finances, instructors, inventory, rentals, and more.
 
-## Critical Warning
-**Local dev connects to the PRODUCTION database.** Do NOT run any destructive database operations (DROP, DELETE, TRUNCATE, schema changes, db:reset scripts) without explicit user confirmation. Treat every database write as if it affects real users and real data.
+## Database Setup
+
+**Local dev uses a local Docker PostgreSQL database — NOT production.**
+
+- Start local DB: `npm run db:dev:up`
+- Sync production data locally: `npm run db:sync` (reads SSH creds from `.deploy.secrets.json`)
+- Active dev env: `backend/.env` → always points to `localhost:5432/plannivo_dev`
+- Production env: `backend/.env.production` (gitignored, only used during `push-all`)
+
+`push-all.js` temporarily swaps `backend/.env` to production credentials during the git commit/push window, then restores `backend/.env.development` immediately after. After every `push-all`, local dev is always back on the local DB.
+
+**Safe daily workflow:**
+```
+npm run db:dev:up    # once per machine restart
+npm run db:sync      # refresh local data from production (optional)
+npm run dev          # develop against local DB — writes never touch production
+npm run push-all     # deploy to production when ready
+```
 
 ## Tech Stack
 - **Frontend:** React 18, Vite, React Router 7
 - **Backend:** Node.js, Express (ESM modules)
-- **Database:** PostgreSQL (production DB used in dev)
+- **Database:** PostgreSQL (local Docker in dev, production on remote server)
 - **UI:** Ant Design + TailwindCSS + MUI + Headless UI
 - **State:** TanStack React Query, React Context
 - **Testing:** Vitest (unit), Playwright (E2E), Jest (backend)
@@ -44,7 +60,9 @@ backend/                Backend (Express)
 - `npm run build` — Production build
 - `npm run test` — Unit tests (Vitest)
 - `npm run test:e2e` — E2E tests (Playwright)
-- `npm run push-all` — Push to all remotes
+- `npm run push-all` — Deploy to production (swaps env, bumps version, commits, pushes, SSH rebuilds server)
+- `npm run db:dev:up` — Start local PostgreSQL + Redis Docker containers
+- `npm run db:sync` — Copy production DB into local dev container
 - `npm run migrate:up` — Run DB migrations
 
 ## Path Aliases

@@ -43,26 +43,26 @@ const MyStudents = () => {
     <div className="space-y-6 p-4 md:p-6 max-w-6xl">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">My Students</h1>
-          <p className="text-slate-600 dark:text-slate-300 mt-1 text-sm">Hours, lessons, progress & upcoming sessions.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">My Students</h1>
+          <p className="text-slate-600 mt-1 text-sm">Hours, lessons, progress & upcoming sessions.</p>
         </div>
         <div className="flex gap-3 items-center">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search students..."
-            className="px-4 py-2 rounded-lg border border-indigo-100 dark:border-slate-600 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/70"
+            className="px-4 py-2 rounded-lg border border-indigo-100 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/70"
           />
           <button
             onClick={refetch}
-            className="px-4 py-2 rounded-md text-sm font-medium bg-slate-900 text-white border border-slate-800 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-sm"
+            className="px-4 py-2 rounded-md text-sm font-medium bg-sky-600 text-white border border-sky-600 hover:bg-sky-500 transition-colors shadow-sm"
           >
             Refresh
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 backdrop-blur p-0 overflow-hidden shadow-xl">
+      <div className="rounded-2xl border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
         {loading && (
           <div className="p-6 flex items-center gap-3 text-slate-600"><div className="spinner" /><span>Loading students...</span></div>
         )}
@@ -75,7 +75,7 @@ const MyStudents = () => {
         {!loading && !error && filtered.length > 0 && (
           <div className="overflow-auto">
             <table className="min-w-full text-sm">
-              <thead className="text-xs uppercase tracking-wide text-white bg-slate-900/95 dark:bg-slate-800 border-b border-slate-700">
+              <thead className="text-xs uppercase tracking-wide text-slate-700 bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-semibold">Student</th>
                   <th className="text-left px-4 py-3 font-semibold">Skill</th>
@@ -86,10 +86,10 @@ const MyStudents = () => {
                   <th className="text-left px-4 py-3 font-semibold w-48">Progress</th>
                 </tr>
               </thead>
-              <tbody className="bg-slate-50/60 dark:bg-slate-800/40">
+              <tbody className="bg-slate-50/60">
                 {filtered.map((s, idx) => (
-                  <tr key={s.studentId} className={`border-b last:border-b-0 border-slate-200/70 dark:border-slate-700/60 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900/60' : 'bg-slate-100/80 dark:bg-slate-800/60'}`}>
-                    <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                  <tr key={s.studentId} className={`border-b last:border-b-0 border-slate-200/70 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100/80'}`}>
+                    <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => navigate(`/instructor/students/${s.studentId}`)}
@@ -98,20 +98,20 @@ const MyStudents = () => {
                         {s.name}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.skillLevel || '—'}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{s.totalLessonCount}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{s.totalHours}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{fmtDate(s.lastLessonAt)}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{fmtTime(s.upcomingLessonAt)}</td>
+                    <td className="px-4 py-3 text-slate-600">{s.skillLevel || '—'}</td>
+                    <td className="px-4 py-3 text-slate-700">{s.totalLessonCount}</td>
+                    <td className="px-4 py-3 text-slate-700">{s.totalHours}</td>
+                    <td className="px-4 py-3 text-slate-500">{fmtDate(s.lastLessonAt)}</td>
+                    <td className="px-4 py-3 text-slate-500">{fmtTime(s.upcomingLessonAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500 transition-all"
                             style={{ width: `${s.progressPercent}%` }}
                           />
                         </div>
-                        <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400"><span>{s.progressPercent}%</span><span>20h Goal</span></div>
+                        <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500"><span>{s.progressPercent}%</span><span>20h Goal</span></div>
                       </div>
                     </td>
                   </tr>

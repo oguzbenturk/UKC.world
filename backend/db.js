@@ -212,6 +212,16 @@ try {
 
   logger.info(`Using connection string from ${connectionSource} (masked user:pass)`);
 
+  // Safety net: hard-fail if local dev is pointed at the production IP
+  if (process.env.NODE_ENV !== 'production' && connectionString.includes('217.154.201.29')) {
+    throw new Error(
+      '\n🚨  PRODUCTION DATABASE detected in a non-production environment!\n' +
+      '    Update DATABASE_URL in backend/.env to your local DB:\n' +
+      '    postgresql://plannivo:password@localhost:5432/plannivo_dev\n' +
+      '    Then start the local DB with: npm run db:dev:up\n'
+    );
+  }
+
   let dbHost = '';
   try {
     dbHost = new URL(connectionString).hostname || '';

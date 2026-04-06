@@ -29,7 +29,7 @@ const HeroCarousel = ({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 shadow-sm"
+      className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       data-testid="hero-carousel"
     >
       <div
@@ -43,19 +43,19 @@ const HeroCarousel = ({
           >
             <header className="flex items-center gap-3">
               {slide.pill && (
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${slide.pill.variant ?? 'bg-sky-100 text-sky-700 dark:bg-sky-400/20 dark:text-sky-200'}`}>
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${slide.pill.variant ?? 'bg-sky-100 text-sky-700'}`}>
                   {slide.pill.label}
                 </span>
               )}
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {slide.eyebrow || 'Instructor Highlight'}
               </p>
             </header>
-            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 dark:text-white leading-snug">
+            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 leading-snug">
               {slide.title}
             </h2>
             {slide.body && (
-              <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+              <p className="text-sm md:text-base text-slate-600 leading-relaxed">
                 {slide.body}
               </p>
             )}
@@ -74,7 +74,7 @@ const HeroCarousel = ({
                   <button
                     type="button"
                     onClick={slide.cta.secondary.onClick}
-                    className="inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                    className="inline-flex items-center justify-center rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
                   >
                     {slide.cta.secondary.label}
                   </button>
@@ -82,7 +82,7 @@ const HeroCarousel = ({
               </div>
             )}
             {slide.footer && (
-              <footer className="mt-auto pt-4 text-xs text-slate-500 dark:text-slate-400">
+              <footer className="mt-auto pt-4 text-xs text-slate-500">
                 {slide.footer}
               </footer>
             )}
@@ -96,7 +96,7 @@ const HeroCarousel = ({
             key={slide.id || index}
             type="button"
             aria-label={`Go to slide ${index + 1}`}
-            className={`${dotBase} ${index === activeIndex ? 'bg-sky-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+            className={`${dotBase} ${index === activeIndex ? 'bg-sky-500' : 'bg-slate-200'}`}
             onClick={() => setActiveIndex(index)}
           />
         ))}

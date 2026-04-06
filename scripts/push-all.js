@@ -340,6 +340,9 @@ docker run -d --name backend \\
 echo "Waiting for backend..."
 sleep 5
 
+echo "Running database migrations..."
+docker exec backend node backend/migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
+
 echo "Starting frontend..."
 docker run -d --name frontend \\
   --network plannivo_app-network \\

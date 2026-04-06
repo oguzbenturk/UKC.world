@@ -368,6 +368,7 @@ const MemberOfferings = () => {
   const userRole = user?.role?.toLowerCase() || '';
   const customerRoles = ['student', 'outsider', 'trusted_customer'];
   const isStaff = !isGuest && !customerRoles.includes(userRole) && userRole !== '';
+  const isAdminStaff = !isGuest && ['admin', 'manager', 'developer', 'super_admin', 'owner'].includes(userRole);
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers-for-membership'],
@@ -375,7 +376,7 @@ const MemberOfferings = () => {
       const { data } = await apiClient.get('/users');
       return (data || []).filter(u => customerRoles.includes(u.role?.toLowerCase()) || (!u.role && !u.is_admin && !u.is_staff));
     },
-    enabled: isStaff,
+    enabled: isAdminStaff,
   });
 
   const filteredCustomers = customers.filter(c => {
@@ -500,7 +501,7 @@ const MemberOfferings = () => {
       message.warning('No storage slots available at the moment.');
       return;
     }
-    if (isStaff && !selectedCustomer) { message.warning('Select a customer first.'); return; }
+    if (isAdminStaff && !selectedCustomer) { message.warning('Select a customer first.'); return; }
     setStartDate(dayjs());
     setPaymentMethod('wallet');
     setDepositMethod('credit_card');
@@ -547,7 +548,7 @@ const MemberOfferings = () => {
       receiptUrl,
     };
 
-    if (isStaff && selectedCustomer) {
+    if (isAdminStaff && selectedCustomer) {
       assignMutation.mutate({ userId: selectedCustomer, ...payload });
     } else {
       purchaseMutation.mutate(payload);
@@ -606,7 +607,7 @@ const MemberOfferings = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
 
         {/* Staff panel */}
-        {isStaff && (
+        {isAdminStaff && (
           <div
             className="mb-8 rounded-2xl p-5 bg-white/70 backdrop-blur-xl border border-slate-200"
           >
@@ -1067,7 +1068,7 @@ const MemberOfferings = () => {
                       </div>
                     )}
                   </div>
-                  {isStaff && selectedCustomerName && (
+                  {isAdminStaff && selectedCustomerName && (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-50 border border-cyan-200 text-sm text-cyan-700">
                       <UserOutlined /> Assigning to <strong>{selectedCustomerName}</strong>
                     </div>

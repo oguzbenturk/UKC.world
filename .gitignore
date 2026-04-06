@@ -59,6 +59,9 @@ backend/uploads/**
 backend/backups/**
 !backend/backups/.gitkeep
 
+# DB sync dump (transient — cleaned up after sync, but gitignore as safety net)
+prod_dump.sql
+
 # Ad-hoc lesson marketing images (optional local only)
 DuotoneFonts/Lesson pictures/
 

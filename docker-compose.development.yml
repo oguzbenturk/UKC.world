@@ -13,7 +13,6 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./ksprodb.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U plannivo -d plannivo_dev"]

@@ -11,13 +11,13 @@ const formatLessonTime = (startTime) => {
 };
 
 const LessonRow = ({ lesson }) => (
-  <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3 bg-white dark:bg-slate-900/60">
+  <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 bg-white">
     <div>
-      <p className="text-sm font-semibold text-slate-900 dark:text-white">{lesson.studentName}</p>
+      <p className="text-sm font-semibold text-slate-900">{lesson.studentName}</p>
       <p className="text-xs text-slate-500">{lesson.status}</p>
     </div>
     <div className="text-right">
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{formatLessonTime(lesson.startTime)}</p>
+      <p className="text-sm font-medium text-slate-700">{formatLessonTime(lesson.startTime)}</p>
       <p className="text-xs text-slate-500">{lesson.durationHours}h</p>
     </div>
   </div>
@@ -27,10 +27,10 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
   const placeholders = Array.from({ length: 3 }, (_, index) => `placeholder-${index}`);
 
   return (
-    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 shadow-sm p-6 space-y-3">
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Upcoming lessons</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Upcoming lessons</h2>
           <p className="text-xs text-slate-500">Plan ahead with quick access to session details.</p>
         </div>
         <span className="hidden sm:block text-xs text-slate-500">
@@ -41,7 +41,7 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
       {loading && !groupedLessons.length ? (
         <div className="space-y-3">
           {placeholders.map((key) => (
-            <div key={key} className="h-16 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+            <div key={key} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
           ))}
         </div>
       ) : !groupedLessons.length ? (
@@ -51,8 +51,8 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
           {groupedLessons.map((group) => (
             <Disclosure key={group.label} as={Fragment}>
               {({ open }) => (
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                  <Disclosure.Button className="flex w-full items-center justify-between bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                  <Disclosure.Button className="flex w-full items-center justify-between bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
                     <span>{group.label}</span>
                     <div className="flex items-center gap-3 text-xs text-slate-500">
                       <span>{group.lessons.length} sessions</span>
@@ -69,7 +69,7 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
                     leaveFrom="transform scale-y-100 opacity-100"
                     leaveTo="transform scale-y-95 opacity-0"
                   >
-                    <Disclosure.Panel className="space-y-2 bg-white dark:bg-slate-900/60 px-4 py-3">
+                    <Disclosure.Panel className="space-y-2 bg-white px-4 py-3">
                       {group.lessons.map((lesson) => (
                         <LessonRow key={lesson.id} lesson={lesson} />
                       ))}

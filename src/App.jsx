@@ -15,7 +15,6 @@ import Sidebar from './shared/components/layout/Sidebar';
 import PopupManager from './features/popups/components/PopupManager';
 import AuthModal from './shared/components/ui/AuthModal';
 import { useAuth } from './shared/hooks/useAuth';
-import { useTheme } from './shared/hooks/useTheme';
 import { realTimeService } from './shared/services/realTimeService';
 import ErrorBoundary from './shared/components/error/ErrorBoundary';
 import AppErrorFallback from './shared/components/error/AppErrorFallback';
@@ -95,7 +94,6 @@ const AppLayoutWithAuth = () => {
   const [forceShowApp, setForceShowApp] = useState(false);
   const { isAuthenticated, loading, user, error, consent, requiresConsent, updateConsent, consentLoading } = useAuth();
   const { message: messageApi } = AntdApp.useApp();
-  const { isDark } = useTheme();
 
   const consentSnapshot = consent || {
     latestTermsVersion: 'current',
@@ -273,7 +271,6 @@ const AppLayoutWithAuth = () => {
         <Sidebar 
           isOpen={isSidebarOpen} 
           toggleSidebar={toggleSidebar} 
-          isDark={isDark}
         />        
         <main className="content-container flex-1 safe-pb">
           <AppRoutes />

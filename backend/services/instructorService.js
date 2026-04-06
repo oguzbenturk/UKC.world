@@ -136,7 +136,7 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
   try {
     const studentRow = await ensureStudentAccess(client, instructorId, studentId);
 
-    const [statsRes, progressRes, levelsRes, skillsRes, lessonsRes] = await Promise.all([
+    const [statsRes, progressRes, levelsRes, skillsRes, lessonsRes, goalsRes] = await Promise.all([
       client.query(
         `SELECT COUNT(*) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled') AS total_lessons,
                 COALESCE(SUM(b.duration), 0) AS total_hours,
@@ -186,6 +186,14 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
             AND b.deleted_at IS NULL
           ORDER BY start_ts DESC
           LIMIT 6`,
+        [instructorId, studentId]
+      ),
+      client.query(
+        `SELECT id, title, description, target_date, status, notes, created_at, updated_at
+           FROM student_goals
+          WHERE student_id = $2 AND instructor_id = $1
+          ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'achieved' THEN 1 ELSE 2 END,
+                   target_date NULLS LAST, created_at DESC`,
         [instructorId, studentId]
       )
     ]);
@@ -238,6 +246,12 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         endTime: row.end_ts ? row.end_ts.toISOString() : null,
         durationHours: Number(row.duration || 0),
         status: row.status || 'pending'
+      })),
+      goals: goalsRes.rows.map(r => ({
+        id: r.id, title: r.title, description: r.description,
+        targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+        status: r.status, notes: r.notes,
+        createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
       }))
     };
 
@@ -385,6 +399,114 @@ export async function removeInstructorStudentProgress(instructorId, studentId, p
     await invalidateInstructorDashboardCache(instructorId);
 
     return { success: true };
+  } finally {
+    client.release();
+  }
+}
+
+export async function getStudentGoals(instructorId, studentId) {
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const { rows } = await client.query(
+      `SELECT id, title, description, target_date, status, notes, created_at, updated_at
+         FROM student_goals
+        WHERE student_id = $1 AND instructor_id = $2
+        ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'achieved' THEN 1 ELSE 2 END,
+                 target_date NULLS LAST, created_at DESC`,
+      [studentId, instructorId]
+    );
+    return rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      status: r.status,
+      notes: r.notes,
+      createdAt: r.created_at.toISOString(),
+      updatedAt: r.updated_at.toISOString()
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+export async function addStudentGoal(instructorId, studentId, payload) {
+  const { title, description, targetDate, notes } = payload || {};
+  if (!title || !String(title).trim()) {
+    const err = new Error('title is required'); err.status = 400; throw err;
+  }
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const { rows } = await client.query(
+      `INSERT INTO student_goals (student_id, instructor_id, title, description, target_date, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, title, description, target_date, status, notes, created_at, updated_at`,
+      [studentId, instructorId,
+       String(title).trim(),
+       description ? String(description).trim() : null,
+       targetDate ? new Date(targetDate).toISOString().split('T')[0] : null,
+       notes ? String(notes).trim() : null]
+    );
+    const r = rows[0];
+    return {
+      id: r.id, title: r.title, description: r.description,
+      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      status: r.status, notes: r.notes,
+      createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateStudentGoal(instructorId, studentId, goalId, payload) {
+  const { title, description, targetDate, status, notes } = payload || {};
+  const VALID_STATUS = ['pending', 'achieved', 'cancelled'];
+  if (status && !VALID_STATUS.includes(status)) {
+    const err = new Error(`status must be one of ${VALID_STATUS.join(', ')}`); err.status = 400; throw err;
+  }
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const updates = []; const values = [];
+    if (title !== undefined)       { updates.push(`title = $${values.length+1}`);       values.push(String(title).trim()); }
+    if (description !== undefined) { updates.push(`description = $${values.length+1}`); values.push(description ? String(description).trim() : null); }
+    if (targetDate !== undefined)  { updates.push(`target_date = $${values.length+1}`); values.push(targetDate ? new Date(targetDate).toISOString().split('T')[0] : null); }
+    if (status !== undefined)      { updates.push(`status = $${values.length+1}`);      values.push(status); }
+    if (notes !== undefined)       { updates.push(`notes = $${values.length+1}`);       values.push(notes ? String(notes).trim() : null); }
+    if (!updates.length) { const err = new Error('No fields to update'); err.status = 400; throw err; }
+    updates.push(`updated_at = NOW()`);
+    values.push(goalId, studentId, instructorId);
+    const { rows } = await client.query(
+      `UPDATE student_goals SET ${updates.join(', ')}
+        WHERE id = $${values.length-2} AND student_id = $${values.length-1} AND instructor_id = $${values.length}
+        RETURNING id, title, description, target_date, status, notes, created_at, updated_at`,
+      values
+    );
+    if (!rows.length) { const err = new Error('Goal not found'); err.status = 404; throw err; }
+    const r = rows[0];
+    return {
+      id: r.id, title: r.title, description: r.description,
+      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      status: r.status, notes: r.notes,
+      createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function removeStudentGoal(instructorId, studentId, goalId) {
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const { rowCount } = await client.query(
+      `DELETE FROM student_goals WHERE id = $1 AND student_id = $2 AND instructor_id = $3`,
+      [goalId, studentId, instructorId]
+    );
+    if (!rowCount) { const err = new Error('Goal not found'); err.status = 404; throw err; }
   } finally {
     client.release();
   }

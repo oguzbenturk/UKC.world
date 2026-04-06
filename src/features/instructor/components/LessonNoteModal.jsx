@@ -42,7 +42,7 @@ const ModalHeader = () => (
 
 // Lesson info component
 const LessonInfo = ({ studentName, serviceName, lessonDate }) => (
-  <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
+  <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
     <div className="flex items-center gap-4">
       <Avatar size={48} icon={<UserOutlined />} className="bg-gradient-to-br from-sky-400 to-indigo-500">
         {studentName[0]?.toUpperCase()}
@@ -71,7 +71,7 @@ const VisibilitySelector = ({ visibility, setVisibility }) => (
     label={
       <Space>
         {visibility === 'student_visible' ? <UnlockOutlined className="text-emerald-500" /> : <LockOutlined className="text-amber-500" />}
-        <Text className="text-slate-600 dark:text-slate-300">Who can see this note?</Text>
+        <Text className="text-slate-600">Who can see this note?</Text>
       </Space>
     }
     initialValue="student_visible"
@@ -116,12 +116,12 @@ VisibilitySelector.propTypes = {
 
 // Pin option component
 const PinOption = () => (
-  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <PushpinOutlined className="text-lg text-indigo-500" />
         <div>
-          <Text strong className="text-slate-700 dark:text-slate-200">Pin this note</Text>
+          <Text strong className="text-slate-700">Pin this note</Text>
           <Paragraph className="!mb-0 text-xs text-slate-500">Pinned notes appear at the top of the student&apos;s profile</Paragraph>
         </div>
       </div>
@@ -238,7 +238,7 @@ export const LessonNoteModal = ({
             <Form layout="vertical" form={form} requiredMark={false}>
               <Form.Item 
                 name="note"
-                label={<Text className="text-slate-600 dark:text-slate-300">Your notes about this lesson</Text>}
+                label={<Text className="text-slate-600">Your notes about this lesson</Text>}
                 rules={[{ required: true, message: 'Please enter your notes' }]}
               >
                 <Input.TextArea 

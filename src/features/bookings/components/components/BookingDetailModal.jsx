@@ -8,6 +8,7 @@ import globalRequestThrottle from '@/shared/utils/requestThrottle';
 import { useToast } from '@/shared/contexts/ToastContext';
 import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
@@ -26,6 +27,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const { showSuccess, showError } = useToast();
   const { getCurrencySymbol, businessCurrency } = useCurrency();
   const currencySymbol = getCurrencySymbol(businessCurrency);
+  const { user } = useAuth();
+  const canModifyBooking = ['manager', 'admin', 'developer'].includes(user?.role?.toLowerCase?.() || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -1431,6 +1434,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-2 pt-4 border-t border-slate-200">
+                      {canModifyBooking && (
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -1464,6 +1468,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           Delete
                         </button>
                       </div>
+                      )}
 
                       {/* Status Actions */}
                       <div className="flex flex-wrap gap-2">

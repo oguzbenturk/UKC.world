@@ -4,6 +4,7 @@ import { CalendarDaysIcon, UserGroupIcon, ClockIcon, BanknotesIcon, CreditCardIc
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
+import { useAuth } from '@/shared/hooks/useAuth';
 import BookingCalendarPage from '@/features/bookings/pages/BookingCalendarPage';
 import GroupLessonMatchingPage from '@/features/bookings/pages/GroupLessonMatchingPage';
 import LessonMatchUpsTab from '@/features/bookings/pages/LessonMatchUpsTab';
@@ -14,6 +15,8 @@ import PendingMemberPaymentsTab from '@/features/members/components/PendingMembe
  * LessonsCalendar - Shows lesson bookings in calendar view and group requests
  */
 const LessonsCalendar = () => {
+  const { user } = useAuth();
+  const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const validTabs = ['calendar', 'group-requests', 'lesson-matchups', 'pending-transfers', 'pending-payments'];
@@ -27,6 +30,7 @@ const LessonsCalendar = () => {
       return res.data?.results?.length || res.data?.pagination?.total || 0;
     },
     refetchInterval: 60000,
+    enabled: !isInstructor,
     staleTime: 30000,
   });
 
@@ -38,6 +42,7 @@ const LessonsCalendar = () => {
       return all.filter(r => r.source === 'group_booking').length;
     },
     refetchInterval: 60000,
+    enabled: !isInstructor,
     staleTime: 30000,
   });
 
@@ -49,6 +54,7 @@ const LessonsCalendar = () => {
       return all.filter(r => r.source === 'request').length;
     },
     refetchInterval: 60000,
+    enabled: !isInstructor,
     staleTime: 30000,
   });
 
@@ -59,6 +65,7 @@ const LessonsCalendar = () => {
       return res.data?.results?.length || res.data?.pagination?.total || 0;
     },
     refetchInterval: 60000,
+    enabled: !isInstructor,
     staleTime: 30000,
   });
 
@@ -164,6 +171,9 @@ const LessonsCalendar = () => {
       )
     }
   ];
+  const visibleTabItems = isInstructor
+    ? tabItems.filter(t => t.key === 'calendar')
+    : tabItems;
 
   return (
     <div className="p-4 h-full flex flex-col">
@@ -182,7 +192,7 @@ const LessonsCalendar = () => {
       <Tabs 
         activeKey={activeTab}
         onChange={handleTabChange}
-        items={tabItems}
+        items={visibleTabItems}
         className="flex-1 h-full flex flex-col lessons-calendar-tabs"
       />
     </div>

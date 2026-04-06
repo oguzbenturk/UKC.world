@@ -1,8 +1,8 @@
 const SurveyCard = ({ onSurveyStart }) => (
-  <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-gradient-to-r from-violet-500/10 via-sky-500/10 to-emerald-500/10 dark:from-violet-500/20 dark:via-sky-500/20 dark:to-emerald-500/20 p-6">
-    <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-200">Help us improve</p>
-    <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">Share feedback on the new dashboard</h3>
-    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+  <section className="rounded-2xl border border-slate-200 bg-gradient-to-r from-violet-500/10 via-sky-500/10 to-emerald-500/10 p-6">
+    <p className="text-xs uppercase tracking-wide text-slate-500">Help us improve</p>
+    <h3 className="mt-2 text-lg font-semibold text-slate-900">Share feedback on the new dashboard</h3>
+    <p className="mt-1 text-sm text-slate-600">
       A 45-second survey to prioritize what matters most for your teaching workflow.
     </p>
     <div className="mt-4 flex flex-wrap gap-3">
@@ -15,7 +15,7 @@ const SurveyCard = ({ onSurveyStart }) => (
       </button>
       <a
         href="https://docs.plannivo.com/instructor-dashboard-changelog"
-        className="inline-flex items-center text-sm text-violet-700 dark:text-violet-200 hover:underline"
+        className="inline-flex items-center text-sm text-violet-700 hover:underline"
         target="_blank"
         rel="noreferrer"
       >

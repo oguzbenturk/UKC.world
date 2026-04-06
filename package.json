@@ -41,7 +41,12 @@
     "services:upsert:lessons:dry": "npm run services:upsert:lessons:dry --prefix backend",
     "packages:upsert:lessons": "npm run packages:upsert:lessons --prefix backend",
     "packages:upsert:lessons:dry": "npm run packages:upsert:lessons:dry --prefix backend",
-    "killports": "node scripts/kill-ports.js"
+    "killports": "node scripts/kill-ports.js",
+    "db:dev:up": "docker compose -f docker-compose.development.yml up -d",
+    "db:dev:down": "docker compose -f docker-compose.development.yml down",
+    "db:dev:reset": "docker compose -f docker-compose.development.yml down -v && docker compose -f docker-compose.development.yml up -d",
+    "db:sync": "node scripts/db-sync-from-prod.js",
+    "dev:reset-passwords": "node backend/scripts/dev-reset-passwords.js"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

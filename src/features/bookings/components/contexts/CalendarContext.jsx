@@ -10,6 +10,7 @@ import { autoLoginWithRetry } from '@/shared/utils/autoLogin';
 import { logger } from '@/shared/utils/logger';
 import eventBus from '@/shared/utils/eventBus';
 import { realTimeService } from '@/shared/services/realTimeService';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 // Enhanced in-memory cache for performance optimization
 const dataCache = {
@@ -217,6 +218,7 @@ export const useCalendar = () => {
  * @param {React.ReactNode} props.children - Child components
  */
 function CalendarProvider({ children }) {
+  const { user } = useAuth();
   // Get URL search parameters and navigation
   const [searchParams, setSearchParams] = useSearchParams();
   const urlView = searchParams.get('view');
@@ -312,7 +314,12 @@ function CalendarProvider({ children }) {
   // ==========================================
   // SECTION 4: FILTER STATE
   // ==========================================
-  const [selectedInstructors, setSelectedInstructors] = useState([]);
+  const [selectedInstructors, setSelectedInstructors] = useState(() => {
+    if (user?.role?.toLowerCase?.() === 'instructor' && user?.id) {
+      return [user.id];
+    }
+    return [];
+  });
   const [selectedServices, setSelectedServices] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -1519,9 +1526,15 @@ function CalendarProvider({ children }) {
   }, [bookings, isLoading, refreshCounter, refreshData, selectedDate, view]);
 
   // ==========================================
+  // ==========================================
   // SECTION 9: CONTEXT VALUE & PROVIDER
   // ==========================================
     // Organized context value with grouped exports
+  const safeSetSelectedInstructors = useCallback((val) => {
+    if (user?.role?.toLowerCase?.() === 'instructor') return;
+    setSelectedInstructors(val);
+  }, [user]);
+
   const value = {
     // View State
     view,
@@ -1545,7 +1558,7 @@ function CalendarProvider({ children }) {
     
     // Filter State
     selectedInstructors,
-    setSelectedInstructors,
+    setSelectedInstructors: safeSetSelectedInstructors,
     selectedServices,
     setSelectedServices,
     showFilters,
