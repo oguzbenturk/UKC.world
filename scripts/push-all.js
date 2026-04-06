@@ -341,7 +341,7 @@ echo "Waiting for backend..."
 sleep 5
 
 echo "Running database migrations..."
-docker exec backend node backend/migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
+docker exec backend node migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
 
 echo "Starting frontend..."
 docker run -d --name frontend \\
