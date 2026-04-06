@@ -1,27 +1,27 @@
 -- Migration 223: Create skill_levels, skills, student_progress, student_goals tables
 
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- 1. Skill levels (Beginner → Expert)
 CREATE TABLE IF NOT EXISTS skill_levels (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        VARCHAR(64)  NOT NULL,
+  name        VARCHAR(64)  NOT NULL UNIQUE,
   description TEXT,
   order_index INT          NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_skill_levels_name ON skill_levels(name);
 CREATE INDEX IF NOT EXISTS idx_skill_levels_order ON skill_levels(order_index);
 
 -- 2. Skills (linked to a level)
 CREATE TABLE IF NOT EXISTS skills (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name           VARCHAR(128) NOT NULL,
+  name           VARCHAR(128) NOT NULL UNIQUE,
   description    TEXT,
   skill_level_id UUID REFERENCES skill_levels(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_skills_name ON skills(name);
 CREATE INDEX IF NOT EXISTS idx_skills_level ON skills(skill_level_id);
 
 -- 3. Student progress (instructor records achieved skills)
