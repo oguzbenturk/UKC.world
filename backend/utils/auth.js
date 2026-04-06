@@ -2,8 +2,10 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import bcrypt from 'bcrypt';
 
-// Secret should be in environment variables in production
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start without it.');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Authenticate JWT token middleware
 export const authenticateJWT = (req, res, next) => {
@@ -16,10 +18,19 @@ export const authenticateJWT = (req, res, next) => {
   try {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Reject temporary 2FA tokens — they must not be used as full session tokens
+    if (decoded.temp2fa) {
+      return res.status(401).json({ error: 'Two-factor authentication required.' });
+    }
+
+    if (!decoded.id) {
+      return res.status(401).json({ error: 'Invalid token format.' });
+    }
+
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('JWT Authentication error:', error);
     return res.status(403).json({ error: 'Invalid token.' });
   }
 };

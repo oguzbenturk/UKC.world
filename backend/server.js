@@ -89,13 +89,14 @@ import publicFormsRouter from './routes/publicForms.js';
 import adminRouter from './routes/admin.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import './services/alerts/notificationAlertService.js';
-import { 
-  securityHeaders, 
-  apiRateLimit, 
+import {
+  securityHeaders,
+  apiRateLimit,
   authRateLimit,
   sanitizeInput,
   securityResponseHeaders,
-  configureCORS
+  configureCORS,
+  csrfMiddleware,
 } from './middlewares/security.js';
 import { 
   globalErrorHandler, 
@@ -296,6 +297,10 @@ app.use('/api', (req, res, next) => {
 // SEC-046 FIX: Input sanitization re-enabled with robust xss library
 // This prevents XSS attacks by sanitizing all incoming data
 app.use(sanitizeInput());
+
+// CSRF protection — double-submit cookie pattern
+// Skips Bearer-token requests and server-to-server callback paths automatically
+app.use('/api', csrfMiddleware);
 
 // Make socketService available to routes via middleware
 app.use((req, res, next) => {

@@ -792,6 +792,7 @@ router.get('/packages/my-packages', authenticateJWT, authorize(['admin', 'manage
       FROM customer_packages cp
       LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
       WHERE cp.customer_id = $1
+        AND cp.status NOT IN ('cancelled', 'pending_payment', 'waiting_payment')
       ORDER BY cp.purchase_date DESC
     `;
 
@@ -2033,6 +2034,23 @@ router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) =>
     res.status(500).json({ error: 'Failed to update package' });
   } finally {
     client.release();
+  }
+});
+
+// Check payment status of a customer package (polling fallback for Iyzico modal)
+router.get('/customer-packages/:id/payment-status', authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const { rows } = await pool.query(
+      `SELECT id, status FROM customer_packages WHERE id = $1 AND customer_id = $2 LIMIT 1`,
+      [id, userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Package not found' });
+    res.json({ id: rows[0].id, status: rows[0].status });
+  } catch (error) {
+    logger.error('Error checking package payment status:', error);
+    res.status(500).json({ error: 'Failed to check status' });
   }
 });
 

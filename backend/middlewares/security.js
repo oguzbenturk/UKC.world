@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import xss from 'xss'; // SEC-046 FIX: Use robust XSS library
+import crypto from 'crypto';
 
 /**
  * Security Middleware Configuration
@@ -125,7 +126,7 @@ export const twoFactorRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `2fa_${req.ip}_${req.body?.tempToken || 'unknown'}`
+  keyGenerator: (req) => `2fa_${req.ip}`
 });
 
 export const passwordResetRateLimit = rateLimit({
@@ -359,6 +360,65 @@ export const logSecurityEvent = async (pool, userId, action, req, details = {}) 
   }
 };
 
+// ── CSRF Protection (double-submit cookie) ────────────────────────────────
+const CSRF_COOKIE = 'csrf_token';
+const CSRF_HEADER = 'x-csrf-token';
+const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+// Paths that are exempt: server-to-server callbacks have no browser cookies
+const CSRF_EXEMPT_PREFIXES = ['/api/finances/callback/', '/api/webhooks/'];
+
+/**
+ * Set a new CSRF token cookie. Call this after every login / token refresh
+ * so the frontend always has a fresh token.
+ */
+export const setCsrfCookie = (res) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  res.cookie(CSRF_COOKIE, token, {
+    httpOnly: false,          // Must be JS-readable so the frontend can send it as a header
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+  return token;
+};
+
+/**
+ * CSRF middleware — validates the double-submit cookie pattern.
+ * Skips:
+ *   • Safe HTTP methods (GET / HEAD / OPTIONS)
+ *   • Requests using an Authorization: Bearer header (not cookie-based, no CSRF risk)
+ *   • Server-to-server callback paths
+ */
+export const csrfMiddleware = (req, res, next) => {
+  if (CSRF_SAFE_METHODS.has(req.method)) return next();
+
+  // Skip Bearer-token authenticated requests (primary app flow)
+  const auth = req.headers['authorization'] || '';
+  if (auth.startsWith('Bearer ')) return next();
+
+  // Skip known server-to-server paths
+  const path = req.originalUrl || req.path;
+  if (CSRF_EXEMPT_PREFIXES.some((p) => path.startsWith(p))) return next();
+
+  // Validate double-submit
+  const cookieHeader = req.headers.cookie || '';
+  const cookieCsrf = cookieHeader
+    .split(';')
+    .map((s) => s.trim())
+    .find((s) => s.startsWith(`${CSRF_COOKIE}=`))
+    ?.split('=')[1];
+
+  const headerCsrf = req.headers[CSRF_HEADER];
+
+  if (!cookieCsrf || !headerCsrf || cookieCsrf !== headerCsrf) {
+    return res.status(403).json({ error: 'CSRF token validation failed.' });
+  }
+
+  next();
+};
+// ──────────────────────────────────────────────────────────────────────────
+
 export default {
   securityHeaders,
   apiRateLimit,
@@ -370,5 +430,7 @@ export default {
   securityResponseHeaders,
   configureCORS,
   commonValidations,
-  logSecurityEvent
+  logSecurityEvent,
+  setCsrfCookie,
+  csrfMiddleware,
 };

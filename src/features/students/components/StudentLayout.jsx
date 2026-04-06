@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { App, Spin } from 'antd';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { featureFlags } from '@/shared/config/featureFlags';
 import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import StudentBookingWizard from './StudentBookingWizard';
-import StudentQuickActions from './StudentQuickActions';
-import { getPreferredCurrency } from '../utils/getPreferredCurrency';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 
@@ -22,108 +19,30 @@ const StudentPortalDisabled = () => (
   </div>
 );
 
-const StudentProgressOverview = ({ loading, completed, upcoming, completionPercent, className }) => {
-  const baseClasses = 'flex flex-col items-start gap-2 rounded-2xl bg-white/10 px-5 py-4 text-sm shadow-inner backdrop-blur';
-  return (
-    <div className={className ? `${baseClasses} ${className}` : baseClasses}>
-    {loading ? (
-      <Spin size="small" />
-    ) : (
-      <>
-        <span className="text-xs uppercase tracking-wider text-white/70">Lesson Progress</span>
-        <span className="text-lg font-semibold">{completed} completed · {upcoming} upcoming</span>
-        <div className="flex w-full items-center gap-3 pt-1">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/30">
-            <span className="block h-full rounded-full bg-lime-300" style={{ width: `${completionPercent}%` }} />
-          </div>
-          <span className="text-sm font-medium">{completionPercent}%</span>
-        </div>
-      </>
-    )}
-    </div>
-  );
-};
-
-const StudentHeader = ({
-  fullName,
-  ratingsReminders = [],
-  onRateLesson,
-}) => (
-  <header className="rounded-3xl border border-slate-200 bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 p-6 text-white shadow-lg dark:border-slate-700">
-    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-      <div className="flex-1">
-        <p className="text-sm uppercase tracking-widest text-white/70">Welcome back</p>
-        <h1 className="mt-1 text-3xl font-duotone-bold-extended">{fullName}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          Track your lessons, manage packages, and stay on top of payments—from any device.
-        </p>
-      </div>
-      {ratingsReminders.length > 0 && (
-        <div className="flex flex-col items-start gap-2 rounded-2xl bg-white/10 px-5 py-4 text-sm shadow-inner backdrop-blur md:w-64">
-          <span className="text-xs uppercase tracking-wider text-white/70">Pending Ratings</span>
-          <span className="text-lg font-semibold">{ratingsReminders.length} lesson{ratingsReminders.length > 1 ? 's' : ''} to rate</span>
-          <button
-            type="button"
-            onClick={() => onRateLesson?.(ratingsReminders[0])}
-            className="mt-1 rounded-full bg-white/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/30"
-          >
-            Rate now
-          </button>
-        </div>
-      )}
-    </div>
-  </header>
+const StudentWelcome = ({ firstName }) => (
+  <div className="rounded-3xl border border-slate-200 bg-white px-8 py-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+    <h1 className="text-3xl font-duotone-bold-extended text-slate-900 dark:text-white">
+      Welcome, {firstName}
+    </h1>
+    <div className="mt-3 h-0.5 w-10 rounded-full bg-sky-400" />
+  </div>
 );
 
 const StudentLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { data, isLoading, refetch } = useStudentDashboard();
-  const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
+  const { data } = useStudentDashboard();
+  const { businessCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
-  
-  // Storage currency is always EUR (base currency)
+
   const storageCurrency = businessCurrency || 'EUR';
-  // Query wallet in storage currency (EUR)
   const { data: walletSummary } = useWalletSummary({ currency: storageCurrency });
-  const { notification } = App.useApp();
+
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const showHeroNav = normalizedPath === '/student/dashboard';
-  const currency = useMemo(() => {
-    const fallback = userCurrency ? { code: userCurrency, symbol: getCurrencySymbol(userCurrency) } : undefined;
-    return getPreferredCurrency(user, walletSummary, data, fallback);
-  }, [user, walletSummary, data, userCurrency, getCurrencySymbol]);
-  
-  const displayCurrency = currency?.code || userCurrency || storageCurrency;
 
-  // Compute wallet balance by summing ALL currency rows, each converted
-  // to the display currency.  This avoids the old bug where only the EUR
-  // row was read and TRY deposits were either ignored or double-converted.
-  const walletBalance = useMemo(() => {
-    const allBalances = walletSummary?.balances;
-    if (Array.isArray(allBalances) && allBalances.length > 0) {
-      return allBalances.reduce((sum, row) => {
-        const amt = Number(row.available) || 0;
-        if (amt === 0) return sum;
-        if (row.currency === displayCurrency || !convertCurrency) return sum + amt;
-        return sum + convertCurrency(amt, row.currency, displayCurrency);
-      }, 0);
-    }
-    // Single-currency fallback (walletSummary.available + its currency)
-    const singleAmt = Number(walletSummary?.available) || 0;
-    if (singleAmt === 0) return 0;
-    const singleCur = walletSummary?.currency || storageCurrency;
-    if (singleCur === displayCurrency || !convertCurrency) return singleAmt;
-    return convertCurrency(singleAmt, singleCur, displayCurrency);
-  }, [walletSummary, convertCurrency, displayCurrency, storageCurrency]);
-  const handleWalletOpen = () => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('wallet:open'));
-      window.dispatchEvent(new CustomEvent('studentWallet:open'));
-    }
-  };
   const handleBookingOpen = (defaults = {}) => {
     setBookingInitialData(defaults);
     setBookingOpen(true);
@@ -137,49 +56,25 @@ const StudentLayout = () => {
   useEffect(() => {
     if (location.state?.openBooking || location.state?.serviceCategory || location.state?.discipline) {
       const initialData = {};
-      
-      if (location.state.serviceCategory) {
-        initialData.serviceCategory = location.state.serviceCategory;
-      }
-      if (location.state.discipline) {
-        initialData.discipline = location.state.discipline;
-      }
-      
+      if (location.state.serviceCategory) initialData.serviceCategory = location.state.serviceCategory;
+      if (location.state.discipline) initialData.discipline = location.state.discipline;
       handleBookingOpen(initialData);
-      
-      // Clear the navigation state to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
 
-
-
-
-
-
-
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return () => {};
-    }
+    if (typeof window === 'undefined') return () => {};
     const listener = (event) => {
       const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
       setBookingInitialData(detail);
       setBookingOpen(true);
     };
     window.addEventListener('studentBooking:open', listener);
-    return () => {
-      window.removeEventListener('studentBooking:open', listener);
-    };
+    return () => window.removeEventListener('studentBooking:open', listener);
   }, []);
 
-  const metrics = useMemo(() => ({
-    completed: data?.stats?.completedSessions ?? 0,
-    upcoming: data?.stats?.upcomingSessions ?? 0,
-    completionPercent: Math.min(100, Math.round(data?.stats?.completionPercent ?? 0))
-  }), [data]);
-
-  const fullName = user?.first_name ? `${user.first_name} ${user?.last_name ?? ''}`.trim() : user?.name || 'Student';
+  const firstName = user?.first_name || user?.name?.split(' ')[0] || 'there';
   const outletContext = useMemo(() => ({ overview: data, layout: { showHeroNav }, walletSummary }), [data, showHeroNav, walletSummary]);
 
   if (!featureFlags.studentPortal) {
@@ -188,42 +83,10 @@ const StudentLayout = () => {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-6 font-duotone-regular">
-      {showHeroNav && (
-        <>
-          <StudentHeader
-            fullName={fullName}
-            ratingsReminders={data?.ratingsReminders ?? []}
-            onRateLesson={(booking) => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('student:rateLesson', { detail: booking }));
-              }
-            }}
-          />
-        </>
-      )}
-      <section className={showHeroNav ? 'mt-6' : ''}>
+      {showHeroNav && <StudentWelcome firstName={firstName} />}
+      <section className={showHeroNav ? 'mt-4' : ''}>
         <Outlet context={outletContext} />
       </section>
-      <StudentQuickActions
-        onOpenWallet={handleWalletOpen}
-        onOpenBooking={() => handleBookingOpen({})}
-        onBookAccommodation={() => handleBookingOpen({ preferredCategory: 'accommodation' })}
-        onBookRental={() => handleBookingOpen({ preferredCategory: 'rental' })}
-        onBuyPackage={() => {
-          // Open booking wizard with buy package mode
-          // Setting showBuyPackages: true would need to be handled in the wizard
-          handleBookingOpen({ showBuyPackages: true });
-        }}
-        onRateLesson={() => {
-          // Dispatch event to trigger rating modal from dashboard
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('student:rateLesson'));
-          }
-        }}
-        ratingsCount={data?.ratingsReminders?.length ?? 0}
-        currency={currency}
-        balance={walletBalance}
-      />
       <StudentBookingWizard
         open={bookingOpen}
         onClose={handleBookingClose}

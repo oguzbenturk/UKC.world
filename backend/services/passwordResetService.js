@@ -205,7 +205,7 @@ export async function resetPassword(token, email, newPassword, ipAddress) {
   const client = await pool.connect();
 
   try {
-    await client.query('BEGIN');
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
 
     // Validate token
     const tokenHash = hashToken(token);

@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import twoFactorService from '../services/twoFactorService.js';
 import permissionService from '../services/permissionService.js';
-import { authRateLimit, passwordResetRateLimit } from '../middlewares/security.js';
+import { authRateLimit, passwordResetRateLimit, setCsrfCookie } from '../middlewares/security.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getConsentStatus, LATEST_TERMS_VERSION } from '../services/userConsentService.js';
 import { requestPasswordReset, validateResetToken, resetPassword } from '../services/passwordResetService.js';
@@ -220,6 +220,11 @@ export const authenticateJWT = async (req, res, next) => {
         console.log('❌ Auth failed: Invalid token format');
       }
       return res.status(401).json({ error: 'Invalid token format' });
+    }
+
+    // Reject temporary 2FA tokens — they must not be used as full session tokens
+    if (verified.temp2fa) {
+      return res.status(401).json({ error: 'Two-factor authentication required.' });
     }
     
     // SEC-007: Check if token is blacklisted (revoked)
@@ -445,7 +450,8 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
     // SEC-006 FIX: Set httpOnly auth cookie
     const maxAgeMs = 2 * 60 * 60 * 1000;
     res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
-    
+    setCsrfCookie(res);
+
     res.json({
       token,
       user: userData,
@@ -766,6 +772,7 @@ async function completeLogin(user, req, res) {
     // SEC-006 FIX: Set httpOnly auth cookie
     const maxAgeMs = 2 * 60 * 60 * 1000;
     res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
+    setCsrfCookie(res);
 
     // Remove sensitive data
     delete user.password_hash;

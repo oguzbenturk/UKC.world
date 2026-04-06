@@ -51,8 +51,14 @@ const OutsiderPackagesPage = () => {
           const hoursRemaining = totalHours - hoursUsed;
           const usagePercent = totalHours > 0 ? (hoursUsed / totalHours) * 100 : 0;
           
-          const isExpired = pkg.expiry_date && new Date(pkg.expiry_date) < new Date();
-          const isActive = !isExpired && hoursRemaining > 0;
+          const isExpired = pkg.status === 'expired' || (pkg.expiry_date && new Date(pkg.expiry_date) < new Date());
+          const isUsedUp = pkg.status === 'used_up' || hoursRemaining <= 0;
+
+          const statusTag = pkg.status === 'active' && !isExpired && !isUsedUp
+            ? <Tag color="green" icon={<CheckCircleOutlined />}>Active</Tag>
+            : isExpired
+              ? <Tag color="red" icon={<ClockCircleOutlined />}>Expired</Tag>
+              : <Tag color="orange">Used Up</Tag>;
 
           return (
             <Col xs={24} sm={24} md={12} lg={8} key={pkg.id}>
@@ -64,15 +70,7 @@ const OutsiderPackagesPage = () => {
                     <span>{pkg.package_name}</span>
                   </div>
                 }
-                extra={
-                  isActive ? (
-                    <Tag color="green" icon={<CheckCircleOutlined />}>Active</Tag>
-                  ) : isExpired ? (
-                    <Tag color="red" icon={<ClockCircleOutlined />}>Expired</Tag>
-                  ) : (
-                    <Tag color="orange">Used Up</Tag>
-                  )
-                }
+                extra={statusTag}
               >
                 <Row gutter={16} style={{ marginBottom: '16px' }}>
                   <Col span={12}>

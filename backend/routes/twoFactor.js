@@ -6,19 +6,57 @@ import crypto from 'crypto';
 import twoFactorService from '../services/twoFactorService.js';
 import permissionService from '../services/permissionService.js';
 import { authenticateJWT } from './auth.js';
-import { authRateLimit } from '../middlewares/security.js';
+import { authRateLimit, twoFactorRateLimit, setCsrfCookie } from '../middlewares/security.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 
 const router = express.Router();
 
-// Environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'plannivo-jwt-secret-key';
+// ── Backup code helpers ────────────────────────────────────────────────────
+// Generates 8 cryptographically random backup codes (8 uppercase hex chars each)
+function generateBackupCodes() {
+  return Array.from({ length: 8 }, () =>
+    crypto.randomBytes(4).toString('hex').toUpperCase()
+  );
+}
+
+async function hashBackupCodes(codes) {
+  return Promise.all(codes.map((c) => bcrypt.hash(c, 10)));
+}
+
+async function verifyAndConsumeBackupCode(userId, submittedCode) {
+  const result = await pool.query(
+    'SELECT two_factor_backup_codes FROM users WHERE id = $1',
+    [userId]
+  );
+  const stored = result.rows[0]?.two_factor_backup_codes;
+  if (!stored || stored.length === 0) return false;
+
+  for (let i = 0; i < stored.length; i++) {
+    const match = await bcrypt.compare(submittedCode, stored[i]);
+    if (match) {
+      // Remove consumed code
+      const remaining = [...stored.slice(0, i), ...stored.slice(i + 1)];
+      await pool.query(
+        'UPDATE users SET two_factor_backup_codes = $1 WHERE id = $2',
+        [remaining, userId]
+      );
+      return true;
+    }
+  }
+  return false;
+}
+// ───────────────────────────────────────────────────────────────────────────
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start without it.');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '24h';
 
 /**
  * Setup 2FA - Generate secret and QR code
  */
-router.post('/setup-2fa', authenticateJWT, async (req, res) => {
+router.post('/setup-2fa', authenticateJWT, authRateLimit, async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
@@ -59,7 +97,7 @@ router.post('/setup-2fa', authenticateJWT, async (req, res) => {
 /**
  * Enable 2FA - Verify TOTP code and enable 2FA
  */
-router.post('/enable-2fa', authenticateJWT, async (req, res) => {
+router.post('/enable-2fa', authenticateJWT, twoFactorRateLimit, async (req, res) => {
   try {
     const { token } = req.body;
     const userId = req.user.id;
@@ -89,17 +127,27 @@ router.post('/enable-2fa', authenticateJWT, async (req, res) => {
     // Enable 2FA
     const success = await twoFactorService.enableTwoFactor(userId, userData.two_factor_secret);
     if (!success) {
-      return res.status(500).json({ 
-        error: 'Failed to enable two-factor authentication' 
+      return res.status(500).json({
+        error: 'Failed to enable two-factor authentication'
       });
     }
+
+    // Generate backup codes and store hashed versions
+    const plainCodes = generateBackupCodes();
+    const hashedCodes = await hashBackupCodes(plainCodes);
+    await pool.query(
+      'UPDATE users SET two_factor_backup_codes = $1 WHERE id = $2',
+      [hashedCodes, userId]
+    );
 
     // Log security event
     await logSecurityEvent(userId, 'enable_2fa', req);
 
-    res.json({ 
+    res.json({
       message: 'Two-factor authentication enabled successfully',
-      enabled: true 
+      enabled: true,
+      // Returned ONCE — user must save these; they cannot be retrieved again
+      backupCodes: plainCodes,
     });
 
   } catch (error) {
@@ -111,7 +159,7 @@ router.post('/enable-2fa', authenticateJWT, async (req, res) => {
 /**
  * Disable 2FA - Verify password and disable 2FA
  */
-router.post('/disable-2fa', authenticateJWT, async (req, res) => {
+router.post('/disable-2fa', authenticateJWT, authRateLimit, async (req, res) => {
   try {
     const { password, token } = req.body;
     const userId = req.user.id;
@@ -182,7 +230,7 @@ router.post('/disable-2fa', authenticateJWT, async (req, res) => {
 /**
  * Verify 2FA token during login
  */
-router.post('/verify-2fa', authRateLimit, async (req, res) => {
+router.post('/verify-2fa', twoFactorRateLimit, async (req, res) => {
   try {
     if (isAuthCreationDisabled()) {
       return res.status(503).json({
@@ -191,17 +239,25 @@ router.post('/verify-2fa', authRateLimit, async (req, res) => {
       });
     }
 
-    const { tempToken, token } = req.body;
+    const { tempToken, token, backupCode } = req.body;
 
-    if (!tempToken || !token) {
-      return res.status(400).json({ 
-        error: 'Temporary token and verification code are required' 
+    if (!tempToken || (!token && !backupCode)) {
+      return res.status(400).json({
+        error: 'Temporary token and either a verification code or backup code are required'
       });
     }
 
-    if (token.length !== 6 || !/^\d{6}$/.test(token)) {
-      return res.status(400).json({ 
-        error: 'Valid 6-digit verification code is required' 
+    const usingBackupCode = !!backupCode;
+
+    if (!usingBackupCode && (token.length !== 6 || !/^\d{6}$/.test(token))) {
+      return res.status(400).json({
+        error: 'Valid 6-digit verification code is required'
+      });
+    }
+
+    if (usingBackupCode && !/^[0-9A-F]{8}$/.test(backupCode)) {
+      return res.status(400).json({
+        error: 'Invalid backup code format'
       });
     }
 
@@ -219,18 +275,25 @@ router.post('/verify-2fa', authRateLimit, async (req, res) => {
     // Get user's 2FA secret
     const userData = await twoFactorService.getUserTwoFactor(decoded.userId);
     if (!userData || !userData.two_factor_enabled || !userData.two_factor_secret) {
-      return res.status(400).json({ 
-        error: 'Two-factor authentication not enabled for this user' 
+      return res.status(400).json({
+        error: 'Two-factor authentication not enabled for this user'
       });
     }
 
-    // Verify TOTP token
-    const isValid = twoFactorService.verifyToken(token, userData.two_factor_secret);
-    if (!isValid) {
-      await logSecurityEvent(decoded.userId, 'failed_2fa_verification', req);
-      return res.status(400).json({ 
-        error: 'Invalid verification code' 
-      });
+    // Verify TOTP or backup code
+    let isValid = false;
+    if (usingBackupCode) {
+      isValid = await verifyAndConsumeBackupCode(decoded.userId, backupCode);
+      if (!isValid) {
+        await logSecurityEvent(decoded.userId, 'failed_2fa_backup_code', req);
+        return res.status(400).json({ error: 'Invalid backup code' });
+      }
+    } else {
+      isValid = twoFactorService.verifyToken(token, userData.two_factor_secret);
+      if (!isValid) {
+        await logSecurityEvent(decoded.userId, 'failed_2fa_verification', req);
+        return res.status(400).json({ error: 'Invalid verification code' });
+      }
     }
 
     // Get full user data
@@ -277,6 +340,7 @@ router.post('/verify-2fa', authRateLimit, async (req, res) => {
     // Log successful 2FA verification
     await logSecurityEvent(user.id, 'successful_2fa_verification', req);
 
+    setCsrfCookie(res);
     res.json({
       user,
       token: finalToken,
@@ -286,6 +350,77 @@ router.post('/verify-2fa', authRateLimit, async (req, res) => {
   } catch (error) {
     console.error('2FA verification error:', error);
     res.status(500).json({ error: 'Two-factor authentication verification failed' });
+  }
+});
+
+/**
+ * How many backup codes remain (does NOT reveal the codes themselves)
+ */
+router.get('/backup-codes/count', authenticateJWT, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT two_factor_backup_codes FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const codes = rows[0]?.two_factor_backup_codes || [];
+    res.json({ remaining: codes.length });
+  } catch (error) {
+    console.error('Backup code count error:', error);
+    res.status(500).json({ error: 'Failed to get backup code count' });
+  }
+});
+
+/**
+ * Regenerate backup codes — requires password + current TOTP
+ */
+router.post('/backup-codes/regenerate', authenticateJWT, twoFactorRateLimit, async (req, res) => {
+  try {
+    const { password, token } = req.body;
+    const userId = req.user.id;
+
+    if (!password || !token) {
+      return res.status(400).json({ error: 'Password and TOTP code are required' });
+    }
+
+    const userResult = await pool.query(
+      'SELECT password_hash, two_factor_enabled, two_factor_secret FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const user = userResult.rows[0];
+
+    if (!user.two_factor_enabled) {
+      return res.status(400).json({ error: '2FA is not enabled' });
+    }
+
+    const passwordOk = await bcrypt.compare(password, user.password_hash);
+    if (!passwordOk) {
+      await logSecurityEvent(userId, 'failed_backup_regen_bad_password', req);
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    const totpOk = twoFactorService.verifyToken(token, user.two_factor_secret);
+    if (!totpOk) {
+      await logSecurityEvent(userId, 'failed_backup_regen_bad_totp', req);
+      return res.status(400).json({ error: 'Invalid TOTP code' });
+    }
+
+    const plainCodes = generateBackupCodes();
+    const hashedCodes = await hashBackupCodes(plainCodes);
+    await pool.query(
+      'UPDATE users SET two_factor_backup_codes = $1 WHERE id = $2',
+      [hashedCodes, userId]
+    );
+
+    await logSecurityEvent(userId, 'regenerated_backup_codes', req);
+
+    res.json({
+      message: 'Backup codes regenerated. Save these — they cannot be shown again.',
+      backupCodes: plainCodes,
+    });
+  } catch (error) {
+    console.error('Backup code regeneration error:', error);
+    res.status(500).json({ error: 'Failed to regenerate backup codes' });
   }
 });
 

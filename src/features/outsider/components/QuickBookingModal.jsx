@@ -998,6 +998,8 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [pendingCustomerPackageId, setPendingCustomerPackageId] = useState(null);
+  const iyzicoConfirmedRef = useRef(false);
+  const pendingCardPackageRef = useRef(null);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
   const [fileList, setFileList] = useState([]);
 
@@ -1279,11 +1281,54 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     }
   }, [instructorsData, preferredData, selectedInstructorId]);
 
+  // Polling fallback: check every 3s if the pending package became active
+  // (catches cases where the socket event was missed due to disconnect/reconnect)
+  const handleIyzicoSuccess = useCallback(async () => {
+    if (iyzicoConfirmedRef.current) return;
+    iyzicoConfirmedRef.current = true;
+    setShowIyzicoModal(false);
+    setIyzicoPaymentUrl(null);
+    setPendingCustomerPackageId(null);
+    if (pendingCardPackageRef.current) {
+      setPurchasedPackage(pendingCardPackageRef.current);
+      setIsExistingPackage(false);
+      pendingCardPackageRef.current = null;
+    }
+    // Refresh JWT so the new role (student) is reflected in the session
+    try { await refreshToken(); } catch { /* non-blocking */ }
+    queryClient.invalidateQueries({ queryKey: ['wallet'] });
+    queryClient.invalidateQueries({ queryKey: ['student-booking'] });
+    queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
+    queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
+    message.success('Payment confirmed! Package purchased.');
+    setStep(1);
+  }, [queryClient, refreshToken]);
+
+  const { data: iyzicoPolledStatus } = useQuery({
+    queryKey: ['iyzico-pkg-status', pendingCustomerPackageId],
+    queryFn: () =>
+      apiClient
+        .get(`/services/customer-packages/${pendingCustomerPackageId}/payment-status`)
+        .then((r) => r.data?.status),
+    enabled: !!showIyzicoModal && !!pendingCustomerPackageId,
+    refetchInterval: 3000,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (iyzicoPolledStatus === 'active' && showIyzicoModal) {
+      handleIyzicoSuccess();
+    }
+  }, [iyzicoPolledStatus, showIyzicoModal, handleIyzicoSuccess]);
+
   const purchaseMutation = useMutation({
     mutationFn: (payload) => apiClient.post('/services/packages/purchase', payload),
     onSuccess: async (res) => {
       // For credit card payments, show the Iyzico payment modal
       if (res.data?.paymentPageUrl) {
+        iyzicoConfirmedRef.current = false;
+        pendingCardPackageRef.current = res.data.customerPackage || null;
         setIyzicoPaymentUrl(res.data.paymentPageUrl);
         setPendingCustomerPackageId(res.data.customerPackage?.id || null);
         setShowIyzicoModal(true);
@@ -1727,17 +1772,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       visible={showIyzicoModal}
       paymentPageUrl={iyzicoPaymentUrl}
       socketEventName="package:payment_confirmed"
-      onSuccess={() => {
-        setShowIyzicoModal(false);
-        setIyzicoPaymentUrl(null);
-        setPendingCustomerPackageId(null);
-        queryClient.invalidateQueries({ queryKey: ['wallet'] });
-        queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
-        queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
-        message.success('Payment confirmed! Package purchased.');
-        setStep(1);
-      }}
+      onSuccess={handleIyzicoSuccess}
       onClose={() => {
+        iyzicoConfirmedRef.current = false;
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
         if (pendingCustomerPackageId) {
@@ -1747,6 +1784,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         }
       }}
       onError={(msg) => {
+        iyzicoConfirmedRef.current = false;
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
         if (pendingCustomerPackageId) {

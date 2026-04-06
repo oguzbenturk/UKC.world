@@ -128,15 +128,33 @@ export const clearAccessToken = () => {
   }
 };
 
-// Request interceptor to add auth token
+function getCsrfToken() {
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Request interceptor to add auth token + CSRF header
 apiClient.interceptors.request.use(
   (config) => {
     const token = inMemoryAccessToken || localStorage.getItem('token');
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
+    // Attach CSRF token for non-GET requests (defense-in-depth for cookie-auth paths)
+    const method = (config.method || 'get').toLowerCase();
+    if (method !== 'get' && method !== 'head' && method !== 'options') {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+
     return config;
   },
   (error) => {
