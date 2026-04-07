@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification } from './notificationDispatcherUnified.js';
 import { sendEmail } from './emailService.js';
 import { buildWaiverConfirmationEmail } from './emailTemplates/waiverConfirmation.js';
 
@@ -104,11 +104,11 @@ export async function dispatchWaiverSigned({ waiver, signerUserId, targetUserId 
 
   // Insert in-app notification for dashboard
   try {
-    await insertNotification({
+    await dispatchNotification({
       userId: signerUserId,
+      type: 'waiver',
       title: 'Waiver signed successfully',
       message: `Waiver version ${waiver.waiver_version} was signed on ${signedAtFormatted} for ${memberDescriptor}.`,
-      type: 'waiver',
       data: {
         waiverId: waiver.id,
         waiverVersion: waiver.waiver_version,
@@ -191,11 +191,11 @@ export async function dispatchWaiverPendingReminder({
   const reminderMessage = message || 'Your liability waiver needs attention. Please review and sign to keep booking lessons.';
 
   try {
-    await insertNotification({
+    await dispatchNotification({
       userId,
+      type: 'waiver',
       title: 'Action needed: Waiver pending',
       message: reminderMessage,
-      type: 'waiver',
       data: {
         scope,
         latestVersion,

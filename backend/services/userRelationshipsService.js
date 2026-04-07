@@ -5,7 +5,7 @@
 
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification } from './notificationDispatcherUnified.js';
 
 /**
  * Send a friend request to another user
@@ -92,11 +92,11 @@ export const sendFriendRequest = async (senderId, receiverId, message = null) =>
         const senderName = senderResult.rows[0]?.full_name || 'Someone';
         
         // Notify receiver
-        await insertNotification({
+        await dispatchNotification({
           userId: receiverId,
+          type: 'friend_request',
           title: 'Friend Request',
           message: `${senderName} sent you a friend request`,
-          type: 'friend_request',
           data: {
             relationshipId: existing.id,
             senderId,
@@ -134,11 +134,11 @@ export const sendFriendRequest = async (senderId, receiverId, message = null) =>
     const senderName = senderResult.rows[0]?.full_name || 'Someone';
 
     // Notify receiver
-    await insertNotification({
+    await dispatchNotification({
       userId: receiverId,
+      type: 'friend_request',
       title: 'Friend Request',
       message: `${senderName} sent you a friend request`,
-      type: 'friend_request',
       data: {
         relationshipId,
         senderId,
@@ -231,11 +231,11 @@ export const acceptFriendRequest = async (userId, relationshipId) => {
     const receiverName = receiverResult.rows[0]?.full_name || 'Someone';
 
     // Notify sender that request was accepted
-    await insertNotification({
+    await dispatchNotification({
       userId: relationship.sender_id,
+      type: 'friend_request_accepted',
       title: 'Friend Request Accepted',
       message: `${receiverName} accepted your friend request! You can now invite them to group lessons.`,
-      type: 'friend_request_accepted',
       data: {
         relationshipId,
         receiverId: userId,

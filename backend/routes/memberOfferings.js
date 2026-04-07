@@ -8,6 +8,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import CurrencyService from '../services/currencyService.js';
+import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 
 const router = Router();
 
@@ -1156,14 +1157,14 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
 
       // Send notification
       try {
-        await client.query(`
-          INSERT INTO notifications (user_id, type, title, message, data)
-          VALUES ($1, 'payment', 'Membership Activated!', $2, $3)
-        `, [
-          receipt.user_id,
-          'Your bank transfer has been approved and your membership is now active.',
-          JSON.stringify({ memberPurchaseId: receipt.member_purchase_id })
-        ]);
+        await dispatchNotification({
+          userId: receipt.user_id,
+          type: 'payment',
+          title: 'Membership Activated!',
+          message: 'Your bank transfer has been approved and your membership is now active.',
+          data: { memberPurchaseId: receipt.member_purchase_id },
+          client
+        });
       } catch { /* ignore notification errors */ }
 
     } else {
@@ -1174,14 +1175,14 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
       );
 
       try {
-        await client.query(`
-          INSERT INTO notifications (user_id, type, title, message, data)
-          VALUES ($1, 'payment', 'Payment Rejected', $2, $3)
-        `, [
-          receipt.user_id,
-          'Your bank transfer for the membership was rejected. Please contact support for details.',
-          JSON.stringify({ memberPurchaseId: receipt.member_purchase_id })
-        ]);
+        await dispatchNotification({
+          userId: receipt.user_id,
+          type: 'payment',
+          title: 'Payment Rejected',
+          message: 'Your bank transfer for the membership was rejected. Please contact support for details.',
+          data: { memberPurchaseId: receipt.member_purchase_id },
+          client
+        });
       } catch { /* ignore notification errors */ }
     }
 

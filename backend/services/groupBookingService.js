@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { logger } from '../middlewares/errorHandler.js';
 import { recordTransaction } from './walletService.js';
+import { dispatchNotification } from './notificationDispatcherUnified.js';
 import CurrencyService from './currencyService.js';
 import { checkAndUpgradeAfterBooking } from './roleUpgradeService.js';
 
@@ -300,17 +301,12 @@ export const addParticipantsByUserIds = async (groupBookingId, organizerId, part
       ]);
 
       // Create notification for the participant with action buttons
-      await client.query(`
-        INSERT INTO notifications (
-          id, user_id, type, title, message, data, status, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        uuidv4(),
+      await dispatchNotification({
         userId,
-        'group_booking_invitation',
-        'Group Lesson Invitation',
-        `You have been invited to join a group lesson: ${group.title}`,
-        JSON.stringify({
+        type: 'booking',
+        title: 'Group Lesson Invitation',
+        message: `You have been invited to join a group lesson: ${group.title}`,
+        data: {
           groupBookingId,
           participantId,
           serviceId: group.service_id,
@@ -325,10 +321,10 @@ export const addParticipantsByUserIds = async (groupBookingId, organizerId, part
             label: 'View Details',
             href: `/student/group-bookings/${groupBookingId}`
           }
-        }),
-        'sent',
-        now
-      ]);
+        },
+        idempotencyKey: `group-invite:${groupBookingId}:participant:${userId}`,
+        client
+      });
 
       participants.push({
         id: participantId,
@@ -499,19 +495,15 @@ export const declineGroupBookingInvitation = async (userId, groupBookingId, reas
       );
       const userName = userResult.rows[0]?.full_name || 'A participant';
 
-      await client.query(`
-        INSERT INTO notifications (
-          id, user_id, type, title, message, data, status, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      `, [
-        uuidv4(),
-        group.organizer_id,
-        'group_booking_declined',
-        'Participant Declined',
-        `${userName} has declined to join your group lesson: ${group.title}`,
-        JSON.stringify({ groupBookingId, declinedUserId: userId, reason }),
-        'sent'
-      ]);
+      await dispatchNotification({
+        userId: group.organizer_id,
+        type: 'booking',
+        title: 'Participant Declined',
+        message: `${userName} has declined to join your group lesson: ${group.title}`,
+        data: { groupBookingId, declinedUserId: userId, reason },
+        idempotencyKey: `group-declined:${groupBookingId}:user:${userId}`,
+        client
+      });
     }
 
     await client.query('COMMIT');

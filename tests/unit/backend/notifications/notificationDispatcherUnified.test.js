@@ -45,7 +45,14 @@ beforeAll(async () => {
 
 beforeEach(() => {
   clearPreferenceCache();
-  jest.clearAllMocks();
+  pool.query.mockReset();
+  // Re-apply the default insertNotification implementation after clearing mocks
+  // (jest.clearAllMocks would wipe the beforeAll mock implementation)
+  insertNotification.mockReset();
+  insertNotification.mockImplementation(async ({ userId, title }) => {
+    if (!userId || !title) return { inserted: false, reason: 'missing-fields' };
+    return { inserted: true, id: `notif-${Date.now()}` };
+  });
 });
 
 describe('notificationDispatcherUnified', () => {

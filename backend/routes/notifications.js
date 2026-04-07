@@ -4,7 +4,7 @@ import { authorizeRoles as authorize } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { filterUsersByConsent, classifyNotification, CHANNEL, COMMUNICATION_TYPE } from '../services/marketingConsentService.js';
 
 const router = express.Router();
@@ -168,16 +168,15 @@ router.post('/send',
       const notifications = await Promise.all(
         subscriptions.map(async (subscription) => {
           try {
-            const result = await insertNotification({
+            const result = await dispatchNotification({
               userId: subscription.user_id,
+              type,
               title,
               message,
-              type,
               data: { ...data, isMarketing: isMarketingNotification },
-              status: 'sent'
             });
 
-            return result.inserted ? { id: result.id, user_id: subscription.user_id } : null;
+            return result.sent ? { id: result.id, user_id: subscription.user_id } : null;
           } catch (error) {
             logger.error(`Error storing notification for user ${subscription.user_id}:`, error);
             return null;

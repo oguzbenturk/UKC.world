@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification } from './notificationDispatcherUnified.js';
 import bookingNotificationService from './bookingNotificationService.js';
 
 const ALLOWED_SERVICE_TYPES = new Set(['lesson', 'rental', 'accommodation']);
@@ -640,16 +640,16 @@ export async function queueRatingReminder({
 
     const idempotencyKey = `rating-request:${bookingId}:student:${studentId}`;
 
-    const insertResult = await insertNotification({
+    const insertResult = await dispatchNotification({
       userId: studentId,
+      type: 'rating_request',
       title,
       message,
-      type: 'rating_request',
       data: notificationData,
       idempotencyKey
     });
 
-    if (!insertResult.inserted) {
+    if (!insertResult.sent) {
       const refreshResult = await pool.query(
         `UPDATE notifications
             SET read_at = NULL,

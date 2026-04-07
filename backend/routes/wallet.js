@@ -6,7 +6,7 @@ import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { logPaymentEvent, sendPaymentAlert } from '../services/alertService.js'; // Phase 3: Monitoring
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import {
   getBalance,
   getAllBalances,
@@ -374,25 +374,20 @@ router.post('/deposit', authenticateJWT, depositLimiter, [
 
       // Persistent in-app notifications
       try {
-        const { rows: admins } = await pool.query(
-          `SELECT id FROM users WHERE role IN ('admin', 'manager') AND deleted_at IS NULL AND id != $1 LIMIT 20`,
-          [userId]
-        );
-        await Promise.all(admins.map(admin =>
-          insertNotification({
-            userId: admin.id,
-            title: 'New Bank Transfer Deposit',
-            message: `${userName} submitted a bank transfer deposit of ${depositAmount}`,
-            type: 'bank_transfer_deposit',
-            data: {
-              depositId: result.deposit?.id,
-              amount: parseFloat(amount),
-              currency: currency || 'EUR',
-              cta: { label: 'Review deposit', href: '/calendars/lessons?tab=pending-payments' },
-            },
-            idempotencyKey: `bank-deposit:${result.deposit?.id}:admin:${admin.id}`,
-          })
-        ));
+        await dispatchToStaff({
+          type: 'bank_transfer_deposit',
+          title: 'New Bank Transfer Deposit',
+          message: `${userName} submitted a bank transfer deposit of ${depositAmount}`,
+          data: {
+            depositId: result.deposit?.id,
+            amount: parseFloat(amount),
+            currency: currency || 'EUR',
+            cta: { label: 'Review deposit', href: '/calendars/lessons?tab=pending-payments' },
+          },
+          idempotencyPrefix: `bank-deposit:${result.deposit?.id}`,
+          excludeUserIds: [userId],
+          roles: ['admin', 'manager'],
+        });
       } catch (notifErr) {
         logger.warn('Failed to send deposit notifications:', notifErr.message);
       }

@@ -29,14 +29,29 @@ beforeAll(async () => {
   dispatchToStaff = dispatcherModule.dispatchToStaff;
   clearPreferenceCache = dispatcherModule.clearPreferenceCache;
 
-  // Get mocked pool
+  // Get mocked modules
   const dbModule = await import('../../../../backend/db.js');
   pool = dbModule.pool;
+
+  const writerModule = await import('../../../../backend/services/notificationWriter.js');
+  var _insertNotification = writerModule.insertNotification;
+
+  // Store reference for beforeEach re-application
+  globalThis.__testInsertNotification = _insertNotification;
 });
 
 beforeEach(() => {
   clearPreferenceCache();
-  jest.clearAllMocks();
+  pool.query.mockReset();
+  // Re-apply insertNotification implementation (jest.clearAllMocks wipes beforeAll mocks)
+  const mockFn = globalThis.__testInsertNotification;
+  if (mockFn) {
+    mockFn.mockReset();
+    mockFn.mockImplementation(async ({ userId, title }) => {
+      if (!userId || !title) return { inserted: false, reason: 'missing-fields' };
+      return { inserted: true, id: `notif-${Date.now()}` };
+    });
+  }
 });
 
 describe('Notification Integration Tests', () => {
@@ -179,8 +194,9 @@ describe('Notification Integration Tests', () => {
       const bookingId = 'acc-booking-789';
       const guestId = 'guest-123';
 
+      // accommodation_booking maps to new_booking_alerts in PREFERENCE_MAP
       pool.query.mockResolvedValueOnce({
-        rows: [{ booking_updates: false }]
+        rows: [{ new_booking_alerts: false }]
       });
 
       const result = await dispatchNotification({

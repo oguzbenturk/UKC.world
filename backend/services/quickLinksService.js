@@ -2,7 +2,7 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchToStaff } from './notificationDispatcherUnified.js';
 
 /**
  * Generate a unique link code
@@ -248,68 +248,38 @@ async function notifyAdminsAboutRegistration(registration, link, client = null) 
   const executor = client || pool;
   
   try {
-    // Get all admin and manager users
-    const adminQuery = `
-      SELECT u.id, u.first_name, u.last_name
-      FROM users u
-      JOIN roles r ON u.role_id = r.id
-      WHERE r.name IN ('admin', 'manager')
-        AND u.deleted_at IS NULL
-    `;
-    const adminResult = await executor.query(adminQuery);
-    
-    if (adminResult.rows.length === 0) {
-      logger.warn('No admins/managers found to notify about quick link registration');
-      return;
-    }
-
-    logger.info(`Found ${adminResult.rows.length} admins/managers to notify about registration`, {
-      registrationId: registration.id,
-      adminIds: adminResult.rows.map(a => a.id)
-    });
-
     const registrantName = `${registration.first_name} ${registration.last_name}`;
     const serviceType = link.service_type || 'service';
-    
-    // Send notification to each admin/manager
-    for (const admin of adminResult.rows) {
-      const idempotencyKey = `quick-link-reg:${registration.id}:admin:${admin.id}`;
-      
-      logger.debug('Inserting quick link registration notification', {
-        adminId: admin.id,
+
+    const result = await dispatchToStaff({
+      type: 'quick_link_registration',
+      title: 'New Quick Link Registration',
+      message: `${registrantName} registered via quick link "${link.name}" for ${serviceType}`,
+      data: {
         registrationId: registration.id,
-        idempotencyKey
-      });
-      
-      const result = await insertNotification({
-        userId: admin.id,
-        title: 'New Quick Link Registration',
-        message: `${registrantName} registered via quick link "${link.name}" for ${serviceType}`,
-        type: 'quick_link_registration',
-        data: {
-          registrationId: registration.id,
-          quickLinkId: link.id,
-          quickLinkName: link.name,
-          registrantName,
-          registrantEmail: registration.email,
-          serviceType: link.service_type,
-          action: 'view_quick_link_registration',
-          cta: {
-            label: 'View Registration',
-            href: `/admin/quick-links/${link.id}/registrations`
-          }
-        },
-        idempotencyKey,
-        client: executor
-      });
-      
-      logger.info('Quick link notification insert result', { 
-        adminId: admin.id, 
-        result 
-      });
+        quickLinkId: link.id,
+        quickLinkName: link.name,
+        registrantName,
+        registrantEmail: registration.email,
+        serviceType: link.service_type,
+        action: 'view_quick_link_registration',
+        cta: {
+          label: 'View Registration',
+          href: `/admin/quick-links/${link.id}/registrations`
+        }
+      },
+      idempotencyPrefix: `quick-link-reg:${registration.id}`,
+      roles: ['admin', 'manager'],
+      client: executor
+    });
+
+    logger.info('Quick link registration notifications dispatched', {
+      registrationId: registration.id,
+      notified: result.notified
+    });
     }
     
-    logger.info(`Notified ${adminResult.rows.length} admins/managers about quick link registration`, {
+    logger.info(`Notified ${result.notified} admins/managers about quick link registration`, {
       registrationId: registration.id,
       quickLinkId: link.id
     });

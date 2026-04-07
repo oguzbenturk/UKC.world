@@ -9,7 +9,7 @@ import { recordLegacyTransaction, createDepositRequest, getAllBalances } from '.
 import { forceDeleteRental } from '../services/rentalCleanupService.js';
 import CurrencyService from '../services/currencyService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 const router = Router();
@@ -1082,11 +1082,11 @@ router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
         const rentalDate = rental.rental_date
           ? new Date(rental.rental_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
           : '';
-        await insertNotification({
+        await dispatchNotification({
           userId: rental.user_id,
+          type: 'rental_approved',
           title: 'Rental Approved',
           message: `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been approved!`,
-          type: 'rental_approved',
           data: { rentalId: rental.id, link: '/student/my-rentals' },
         });
         // Emit real-time notification
@@ -1261,11 +1261,11 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
         const message = wasPending
           ? `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been declined. Any charges have been refunded.`
           : `Your rental of ${equipmentLabel}${rentalDate ? ` on ${rentalDate}` : ''} has been cancelled.`;
-        await insertNotification({
+        await dispatchNotification({
           userId: rental.user_id,
+          type: 'rental_declined',
           title,
           message,
-          type: 'rental_declined',
           data: { rentalId: rental.id, link: '/student/my-rentals' },
         });
         if (req.socketService) {

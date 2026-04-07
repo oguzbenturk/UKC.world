@@ -4,6 +4,7 @@ import cron from 'node-cron';
 import CurrencyService from './currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { pool } from '../db.js';
+import { dispatchToStaff } from './notificationDispatcherUnified.js';
 
 // Track running state
 let isRunning = false;
@@ -225,35 +226,18 @@ class ExchangeRateService {
    */
   static async notifyAdminOfFailures(results) {
     try {
-      const { rows: admins } = await pool.query(`
-        SELECT u.id, u.email, u.name
-        FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE r.name = 'admin' AND u.email IS NOT NULL
-      `);
-
-      if (admins.length === 0) {
-        logger.warn('No admin users found for currency update failure notification');
-        return;
-      }
-
       const failedCurrencies = results.errors.map(e => e.currency).join(', ');
-      const notificationContent = {
-        title: 'Currency Update Failed',
-        message: `Failed to update exchange rates for: ${failedCurrencies}. Please check manually in Settings → Currency Management.`,
-        type: 'warning',
-        category: 'system'
-      };
 
-      // Try to insert notifications
       try {
-        for (const admin of admins) {
-          await pool.query(`
-            INSERT INTO notifications (user_id, title, message, type, category, read, created_at)
-            VALUES ($1, $2, $3, $4, $5, false, NOW())
-          `, [admin.id, notificationContent.title, notificationContent.message, notificationContent.type, notificationContent.category]);
-        }
-        logger.info(`Sent currency failure notifications to ${admins.length} admin(s)`);
+        const result = await dispatchToStaff({
+          type: 'warning',
+          title: 'Currency Update Failed',
+          message: `Failed to update exchange rates for: ${failedCurrencies}. Please check manually in Settings → Currency Management.`,
+          data: { category: 'system', failedCurrencies: results.errors.map(e => e.currency) },
+          idempotencyPrefix: `currency-update-failed:${new Date().toISOString().split('T')[0]}`,
+          roles: ['admin']
+        });
+        logger.info(`Sent currency failure notifications to ${result.notified} admin(s)`);
       } catch (notifError) {
         logger.warn('Could not create admin notifications:', notifError.message);
       }

@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import axios from 'axios';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification } from './notificationDispatcherUnified.js';
 
 class WeatherMonitoringService {
   constructor() {
@@ -181,11 +181,11 @@ class WeatherMonitoringService {
       const eventKey = weatherData?.dt ? `weather:${weatherData.dt}` : `weather:${new Date().toISOString()}`;
 
       for (const recipient of recipients.rows) {
-        await insertNotification({
+        await dispatchNotification({
           userId: recipient.id,
+          type: 'weather',
           title,
           message,
-          type: 'weather',
           data: { weatherData, severity },
           idempotencyKey: `${eventKey}:user:${recipient.id}`
         });
@@ -211,11 +211,11 @@ class WeatherMonitoringService {
       const recipients = [booking.student_id, booking.instructor_id];
 
       for (const recipientId of recipients) {
-        await insertNotification({
+        await dispatchNotification({
           userId: recipientId,
+          type: 'booking',
           title,
           message,
-          type: 'booking',
           data: { bookingId: booking.id, forecast },
           idempotencyKey: `booking-weather:${booking.id}:user:${recipientId}`
         });

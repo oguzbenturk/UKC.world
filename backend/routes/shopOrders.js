@@ -10,7 +10,7 @@ import socketService from '../services/socketService.js';
 import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import CurrencyService from '../services/currencyService.js';
 import { addTag } from '../services/userTagService.js';
 
@@ -19,32 +19,24 @@ const router = express.Router();
 // Helper to notify admins and managers about a new shop order
 async function notifyAdminsNewOrder(order, items, buyerName) {
   try {
-    const adminsResult = await pool.query(`
-      SELECT u.id FROM users u
-      JOIN roles r ON u.role_id = r.id
-      WHERE r.name IN ('admin', 'manager')
-        AND u.deleted_at IS NULL
-    `);
-
     const itemSummary = items.length <= 3
       ? items.map(i => `${i.product_name} x${i.quantity}`).join(', ')
       : `${items.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${items.length - 2} more`;
 
-    for (const admin of adminsResult.rows) {
-      await insertNotification({
-        userId: admin.id,
-        title: 'New Shop Order',
-        message: `${buyerName} placed order #${order.order_number} (${itemSummary}) - Total: €${parseFloat(order.total_amount).toFixed(2)}`,
-        type: 'shop_order',
-        data: {
-          orderId: order.id,
-          orderNumber: order.order_number,
-          totalAmount: order.total_amount,
-          itemCount: items.length,
-          link: `/services/shop-orders`
-        }
-      });
-    }
+    await dispatchToStaff({
+      type: 'shop_order',
+      title: 'New Shop Order',
+      message: `${buyerName} placed order #${order.order_number} (${itemSummary}) - Total: €${parseFloat(order.total_amount).toFixed(2)}`,
+      data: {
+        orderId: order.id,
+        orderNumber: order.order_number,
+        totalAmount: order.total_amount,
+        itemCount: items.length,
+        link: `/services/shop-orders`
+      },
+      idempotencyPrefix: `shop-order:${order.id}`,
+      roles: ['admin', 'manager']
+    });
   } catch (err) {
     logger.warn('Failed to notify admins about new shop order:', err.message);
   }

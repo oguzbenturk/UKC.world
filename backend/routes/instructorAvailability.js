@@ -2,7 +2,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
@@ -119,33 +119,26 @@ router.post(
           ? start_date
           : `${start_date} → ${end_date}`;
 
-        const adminManagers = await pool.query(
-          `SELECT u.id FROM users u
-           JOIN roles r ON r.id = u.role_id
-           WHERE r.name IN ('admin', 'manager') AND u.deleted_at IS NULL`
-        );
-
-        for (const recipient of adminManagers.rows) {
-          await insertNotification({
-            userId: recipient.id,
-            title: 'Time-Off Request',
-            message: `${instructorName} requested ${typeLabel} (${dateRange})${reason ? ': ' + reason : ''}.`,
-            type: 'instructor_time_off_request',
-            data: {
-              instructorId: req.user.id,
-              instructorName,
-              availabilityEntryId: entry.id,
-              startDate: start_date,
-              endDate: end_date,
-              entryType: type,
-              reason: reason || null,
-              cta: {
-                label: 'Review Request',
-                href: `/instructors?open=${req.user.id}&tab=availability`,
-              },
+        await dispatchToStaff({
+          type: 'instructor_time_off_request',
+          title: 'Time-Off Request',
+          message: `${instructorName} requested ${typeLabel} (${dateRange})${reason ? ': ' + reason : ''}.`,
+          data: {
+            instructorId: req.user.id,
+            instructorName,
+            availabilityEntryId: entry.id,
+            startDate: start_date,
+            endDate: end_date,
+            entryType: type,
+            reason: reason || null,
+            cta: {
+              label: 'Review Request',
+              href: `/instructors?open=${req.user.id}&tab=availability`,
             },
-          });
-        }
+          },
+          idempotencyPrefix: `time-off:${entry.id}`,
+          roles: ['admin', 'manager'],
+        });
       } catch (notifErr) {
         logger.error('Error sending time-off notifications:', notifErr);
       }

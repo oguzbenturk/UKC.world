@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification, dispatchToStaff } from './notificationDispatcherUnified.js';
 
 /**
  * Get all repair requests (admin/manager) or user's own requests
@@ -285,11 +285,11 @@ export async function updateRepairRequest(requestId, updates) {
         type: 'repair_update'
       });
       
-      await insertNotification({
+      await dispatchNotification({
         userId: currentRepair.user_id,
+        type: 'repair_update',
         title: notificationTitle,
         message: notificationMessage,
-        type: 'repair_update',
         data: {
           repairRequestId: requestId,
           itemName: updatedRepair.item_name,
@@ -460,11 +460,11 @@ export async function addRepairComment(repairRequestId, userId, userRole, messag
       // Notify the other party (admin notifies user, user notifies admin)
       if (isAdminOrManager) {
         // Admin/manager replied - notify the customer
-        await insertNotification({
+        await dispatchNotification({
           userId: repairRequest.user_id,
+          type: 'repair_comment',
           title: 'New Reply on Repair Request',
           message: `Staff replied to your repair request for "${repairRequest.item_name}": ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}`,
-          type: 'repair_comment',
           data: {
             repairRequestId,
             itemName: repairRequest.item_name,
@@ -477,30 +477,23 @@ export async function addRepairComment(repairRequestId, userId, userRole, messag
         });
       } else {
         // Customer replied - notify all admins and managers
-        const adminQuery = await pool.query(
-          `SELECT u.id FROM users u 
-           JOIN roles r ON u.role_id = r.id 
-           WHERE r.name IN ('admin', 'manager') AND u.deleted_at IS NULL`
-        );
-        
-        for (const admin of adminQuery.rows) {
-          await insertNotification({
-            userId: admin.id,
-            title: 'Customer Reply on Repair Request',
-            message: `Customer replied to repair request for "${repairRequest.item_name}": ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}`,
-            type: 'repair_comment',
-            data: {
-              repairRequestId,
-              itemName: repairRequest.item_name,
-              commentId: newComment.id,
-              customerUserId: userId,
-              cta: {
-                label: 'View Conversation',
-                href: '/repairs'
-              }
+        await dispatchToStaff({
+          type: 'repair_comment',
+          title: 'Customer Reply on Repair Request',
+          message: `Customer replied to repair request for "${repairRequest.item_name}": ${message.substring(0, 100)}${message.length > 100 ? '...' : ''}`,
+          data: {
+            repairRequestId,
+            itemName: repairRequest.item_name,
+            commentId: newComment.id,
+            customerUserId: userId,
+            cta: {
+              label: 'View Conversation',
+              href: '/repairs'
             }
-          });
-        }
+          },
+          idempotencyPrefix: `repair-comment:${newComment.id}`,
+          roles: ['admin', 'manager']
+        });
       }
     } catch (notifError) {
       logger.error('Failed to send repair comment notification:', notifError);

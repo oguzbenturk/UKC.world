@@ -597,11 +597,11 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
         const participantName = [gb.first_name, gb.last_name].filter(Boolean).join(' ') || gb.email;
         const notificationMessage = `${participantName} has accepted your invitation to "${gb.title || 'Group Lesson'}".`;
 
-        await insertNotification({
+        await dispatchNotification({
           userId: gb.organizer_id,
+          type: 'group_booking_accepted',
           title: 'Invitation Accepted',
           message: notificationMessage,
-          type: 'group_booking_accepted',
           data: {
             groupBookingId: result.groupBookingId,
             participantUserId: userId,
@@ -716,11 +716,11 @@ router.post('/:id/accept', authenticateJWT, async (req, res, next) => {
         const participantName = [gb.first_name, gb.last_name].filter(Boolean).join(' ') || gb.email;
         const notificationMessage = `${participantName} has accepted your invitation to "${gb.title || 'Group Lesson'}".`;
 
-        await insertNotification({
+        await dispatchNotification({
           userId: gb.organizer_id,
+          type: 'group_booking_accepted',
           title: 'Invitation Accepted',
           message: notificationMessage,
-          type: 'group_booking_accepted',
           data: {
             groupBookingId: id,
             participantUserId: userId,
@@ -858,11 +858,11 @@ router.post('/:id/suggest-time', authenticateJWT, async (req, res, next) => {
         const participantName = [gb.first_name, gb.last_name].filter(Boolean).join(' ') || gb.email;
         const notifMsg = `${participantName} suggested a different time for "${gb.title || 'Group Lesson'}": ${suggestedDate}${suggestedTime ? ' at ' + suggestedTime : ''}.`;
 
-        await insertNotification({
+        await dispatchNotification({
           userId: gb.organizer_id,
+          type: 'group_booking_time_suggestion',
           title: 'Time Suggestion',
           message: notifMsg,
-          type: 'group_booking_time_suggestion',
           data: {
             groupBookingId: id,
             participantUserId: userId,
@@ -965,11 +965,11 @@ router.post('/:id/pay', authenticateJWT, async (req, res, next) => {
         const notificationMessage = `${participantName} has paid ${currencySymbol}${paidAmount.toFixed(2)} for "${gb.title || 'Group Lesson'}".`;
 
         // Persistent DB notification
-        await insertNotification({
+        await dispatchNotification({
           userId: gb.organizer_id,
+          type: 'group_booking_payment',
           title: 'Participant Payment Received',
           message: notificationMessage,
-          type: 'group_booking_payment',
           data: { groupBookingId: id, participantUserId: userId, link: `/student/group-bookings/${id}` },
         });
 
@@ -1471,12 +1471,11 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
     // Notify all participants
     for (const p of participants) {
       if (!p.user_id) continue;
-      await insertNotification({
-        client,
+      await dispatchNotification({
         userId: p.user_id,
+        type: 'booking_confirmed',
         title: `Group lesson confirmed: ${gb.service_name || gb.title}`,
         message: `Your group lesson on ${dateLabel} at ${timeLabel} with ${instructorName} has been confirmed!`,
-        type: 'booking_confirmed',
         data: {
           bookingId: booking.id,
           groupBookingId: id,
@@ -1486,18 +1485,18 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
           instructorName,
           cta: { label: 'View lesson', href: `/student/schedule?date=${isoDate}` }
         },
-        idempotencyKey: `group-confirmed:${id}:participant:${p.user_id}`
+        idempotencyKey: `group-confirmed:${id}:participant:${p.user_id}`,
+        client
       });
     }
 
     // Notify instructor
     const studentNames = participants.map(p => p.full_name || p.user_name || 'Student').join(', ');
-    await insertNotification({
-      client,
+    await dispatchNotification({
       userId: finalInstructorId,
+      type: 'booking_instructor',
       title: `New group lesson: ${gb.service_name || gb.title}`,
       message: `Group lesson with ${studentNames} on ${dateLabel} at ${timeLabel}`,
-      type: 'booking_instructor',
       data: {
         bookingId: booking.id,
         groupBookingId: id,
@@ -1507,7 +1506,8 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
         students: participants.map(p => ({ id: p.user_id, name: p.full_name || p.user_name })),
         cta: { label: 'View in daily program', href: `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${booking.id}` }
       },
-      idempotencyKey: `group-confirmed:${id}:instructor:${finalInstructorId}`
+      idempotencyKey: `group-confirmed:${id}:instructor:${finalInstructorId}`,
+      client
     });
 
     await client.query('COMMIT');
