@@ -318,7 +318,18 @@ const buildFallbackStudentOverview = (studentId, fallbackUser = {}) => {
       upcomingSessions: 0,
       totalHours: 0,
       nextSessionAt: null,
-      completionPercent: 0
+      completionPercent: 0,
+      completedRentals: 0,
+      upcomingRentals: 0,
+      totalRentalDays: 0,
+      totalRentalSpent: 0,
+      completedAccommodations: 0,
+      upcomingAccommodations: 0,
+      totalAccommodationNights: 0,
+      totalAccommodationSpent: 0,
+      completedOrders: 0,
+      pendingOrders: 0,
+      totalOrdersSpent: 0
     },
     packages: [],
     upcomingSessions: [],
@@ -616,7 +627,10 @@ export async function getStudentOverview(studentId, options = {}) {
       transactionsRes,
       supportRes,
       previousLessonsRes,
-      instructorNotesRes
+      instructorNotesRes,
+      rentalStatsRes,
+      accommodationStatsRes,
+      shopStatsRes
     ] = await Promise.all([
       client.query(profileQuery, [normalizedStudentId]),
       client.query(
@@ -648,6 +662,32 @@ export async function getStudentOverview(studentId, options = {}) {
           WHERE (b.student_user_id = $1 OR b.customer_user_id = $1
                  OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
             AND b.deleted_at IS NULL`,
+        [normalizedStudentId]
+      ),
+      client.query(
+        `SELECT COUNT(*) FILTER (WHERE status IN ('completed','returned','closed') AND deleted_at IS NULL) AS completed_rentals,
+                COUNT(*) FILTER (WHERE status IN ('pending','active','in_progress') AND deleted_at IS NULL) AS upcoming_rentals,
+                COALESCE(SUM(EXTRACT(DAY FROM (end_date - start_date))) FILTER (WHERE status != 'cancelled' AND deleted_at IS NULL), 0) AS total_rental_days,
+                COALESCE(SUM(total_price) FILTER (WHERE status != 'cancelled' AND deleted_at IS NULL), 0) AS total_rental_spent
+           FROM rentals
+          WHERE user_id = $1`,
+        [normalizedStudentId]
+      ),
+      client.query(
+        `SELECT COUNT(*) FILTER (WHERE status = 'confirmed' AND check_out_date < CURRENT_DATE AND deleted_at IS NULL) AS completed_accommodations,
+                COUNT(*) FILTER (WHERE status = 'confirmed' AND check_in_date >= CURRENT_DATE AND deleted_at IS NULL) AS upcoming_accommodations,
+                COALESCE(SUM(check_out_date - check_in_date) FILTER (WHERE status = 'confirmed' AND deleted_at IS NULL), 0) AS total_accommodation_nights,
+                COALESCE(SUM(total_price) FILTER (WHERE status = 'confirmed' AND deleted_at IS NULL), 0) AS total_accommodation_spent
+           FROM accommodation_bookings
+          WHERE guest_id = $1`,
+        [normalizedStudentId]
+      ),
+      client.query(
+        `SELECT COUNT(*) FILTER (WHERE status IN ('delivered','shipped') AND payment_status = 'completed' AND deleted_at IS NULL) AS completed_orders,
+                COUNT(*) FILTER (WHERE status IN ('pending','processing','confirmed') AND payment_status != 'refunded' AND deleted_at IS NULL) AS pending_orders,
+                COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'completed' AND deleted_at IS NULL), 0) AS total_orders_spent
+           FROM shop_orders
+          WHERE user_id = $1`,
         [normalizedStudentId]
       ),
       hasCustomerPackages
@@ -916,6 +956,9 @@ export async function getStudentOverview(studentId, options = {}) {
       });
 
   const statsRow = firstRowOf(statsRes) || {};
+  const rentalStatsRow = firstRowOf(rentalStatsRes) || {};
+  const accommodationStatsRow = firstRowOf(accommodationStatsRes) || {};
+  const shopStatsRow = firstRowOf(shopStatsRes) || {};
     const packages = rowsOf(packagesRes).map((row) => {
       const totalHours = coalesceNumber(row.total_hours);
       const usedHours = coalesceNumber(row.used_hours);
@@ -1262,7 +1305,18 @@ export async function getStudentOverview(studentId, options = {}) {
         upcomingSessions: coalesceNumber(statsRow.upcoming_count),
         totalHours: coalesceNumber(statsRow.total_hours),
         nextSessionAt: buildLocalTimeIso(statsRow.next_session_date, statsRow.next_session_hour).startIso,
-        completionPercent
+        completionPercent,
+        completedRentals: coalesceNumber(rentalStatsRow.completed_rentals),
+        upcomingRentals: coalesceNumber(rentalStatsRow.upcoming_rentals),
+        totalRentalDays: coalesceNumber(rentalStatsRow.total_rental_days),
+        totalRentalSpent: coalesceNumber(rentalStatsRow.total_rental_spent),
+        completedAccommodations: coalesceNumber(accommodationStatsRow.completed_accommodations),
+        upcomingAccommodations: coalesceNumber(accommodationStatsRow.upcoming_accommodations),
+        totalAccommodationNights: coalesceNumber(accommodationStatsRow.total_accommodation_nights),
+        totalAccommodationSpent: coalesceNumber(accommodationStatsRow.total_accommodation_spent),
+        completedOrders: coalesceNumber(shopStatsRow.completed_orders),
+        pendingOrders: coalesceNumber(shopStatsRow.pending_orders),
+        totalOrdersSpent: coalesceNumber(shopStatsRow.total_orders_spent)
       },
       packages,
       upcomingSessions,

@@ -277,12 +277,6 @@ async function notifyAdminsAboutRegistration(registration, link, client = null) 
       registrationId: registration.id,
       notified: result.notified
     });
-    }
-    
-    logger.info(`Notified ${result.notified} admins/managers about quick link registration`, {
-      registrationId: registration.id,
-      quickLinkId: link.id
-    });
   } catch (error) {
     // Don't fail the registration if notification fails
     logger.error('Failed to send quick link registration notifications:', error.message);

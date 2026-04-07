@@ -245,8 +245,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/experience/kite-packages', label: 'Kite Packages' },
           { to: '/experience/wing-packages', label: 'Wing Packages' },
           { to: '/experience/downwinders', label: 'DownWinders' },
-          { to: '/experience/camps', label: 'Camps' },
-          { to: '/student/courses', label: 'My Experience' }
+          { to: '/experience/camps', label: 'Camps' }
         ]
       }),
       // 8. Community - Sky Blue (with dot styling like others)

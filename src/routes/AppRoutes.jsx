@@ -82,7 +82,6 @@ const HelpSupport = lazyWithRetry(() => import('../features/help/pages/HelpSuppo
 const StudentLayout = lazyWithRetry(() => import('../features/students/components/StudentLayout'));
 const StudentDashboard = lazyWithRetry(() => import('../features/students/pages/StudentDashboard'));
 const StudentSchedule = lazyWithRetry(() => import('../features/students/pages/StudentSchedule'));
-const StudentCourses = lazyWithRetry(() => import('../features/students/pages/StudentCourses'));
 const StudentPayments = lazyWithRetry(() => import('../features/students/pages/StudentPayments'));
 const StudentSupport = lazyWithRetry(() => import('../features/students/pages/StudentSupport'));
 const StudentProfile = lazyWithRetry(() => import('../features/students/pages/StudentProfile'));
@@ -428,7 +427,6 @@ const AppRoutes = () => {
             <Route index element={<Navigate to="/student/dashboard" replace />} />
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="schedule" element={<StudentSchedule />} />
-            <Route path="courses" element={<StudentCourses />} />
             <Route path="payments" element={<StudentPayments />} />
             <Route path="support" element={<StudentSupport />} />
             <Route path="profile" element={<StudentProfile />} />

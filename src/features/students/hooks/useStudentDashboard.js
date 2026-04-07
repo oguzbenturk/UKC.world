@@ -4,7 +4,6 @@ import { studentPortalApi } from '../services/studentPortalApi';
 const queryKeys = {
   dashboard: ['student-portal', 'dashboard'],
   schedule: (filters) => ['student-portal', 'schedule', filters],
-  courses: ['student-portal', 'courses'],
   invoices: ['student-portal', 'invoices'],
   profile: ['student-portal', 'profile'],
   preferences: ['student-portal', 'preferences'],
@@ -27,13 +26,6 @@ export const useStudentSchedule = (filters) => {
     queryKey: queryKeys.schedule(filters),
     queryFn: () => studentPortalApi.fetchSchedule(filters),
     staleTime: 60_000
-  });
-};
-
-export const useStudentCourses = () => {
-  return useQuery({
-    queryKey: queryKeys.courses,
-    queryFn: studentPortalApi.fetchCourses
   });
 };
 
