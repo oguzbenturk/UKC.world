@@ -2144,11 +2144,11 @@ router.post('/',
         const bookerName = req.user?.name || req.user?.first_name || 'Your partner';
         const sessionDate = date;
         const sessionTime = `${Math.floor(parseFloat(start_hour))}:${String(Math.round((parseFloat(start_hour) % 1) * 60)).padStart(2, '0')}`;
-        await insertNotification({
+        await dispatchNotification({
           userId: partner_user_id,
+          type: 'booking',
           title: 'Group Session Invite',
           message: `${bookerName} wants to book a ${bookingDuration}h ${bookingServiceName || 'group'} lesson with you on ${sessionDate} at ${sessionTime}. Do you accept?`,
-          type: 'booking',
           data: {
             bookingId: booking.id,
             bookerUserId: student_user_id,
@@ -4051,11 +4051,11 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
             ]);
 
             // 2) Create in-app notification for the student
-            await insertNotification({
+            await dispatchNotification({
               userId: studentId,
+              type: 'booking_rescheduled_by_admin',
               title: `${serviceName} rescheduled`,
               message: changeMessage,
-              type: 'booking_rescheduled_by_admin',
               data: {
                 bookingId: updatedBooking.id,
                 dateChanged,
@@ -6072,11 +6072,11 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     if (status === 'confirmed' && booking.student_user_id) {
       try {
 
-        await insertNotification({
+        await dispatchNotification({
           userId: booking.student_user_id,
+          type: 'booking_confirmed',
           title: 'Booking Confirmed',
           message: `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been confirmed!`,
-          type: 'booking_confirmed',
           data: {
             bookingId: booking.id,
             serviceId: booking.service_id,
@@ -6095,11 +6095,11 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     // === Notify student when booking is cancelled/declined ===
     if (status === 'cancelled' && booking.student_user_id) {
       try {
-        await insertNotification({
+        await dispatchNotification({
           userId: booking.student_user_id,
+          type: 'booking_declined',
           title: 'Booking Declined',
           message: `Your ${notifServiceName} booking${notifBookingDate ? ` on ${notifBookingDate}` : ''} has been declined. Any charges have been refunded.`,
-          type: 'booking_declined',
           data: {
             bookingId: booking.id,
             serviceId: booking.service_id,
@@ -6229,11 +6229,11 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
     const booking = result.rows[0];
     const partnerName = req.user?.name || req.user?.first_name || 'Your partner';
     try {
-      await insertNotification({
+      await dispatchNotification({
         userId: booking.student_user_id,
+        type: 'booking',
         title: 'Partner Accepted!',
         message: `${partnerName} accepted your ${booking.service_name || 'group'} lesson invite on ${booking.date}.`,
-        type: 'booking',
         data: { bookingId: id, action: 'partner_accepted' }
       });
     } catch (notifErr) {
@@ -6318,11 +6318,11 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
     // Notify the organizer
     const partnerName = req.user?.name || req.user?.first_name || 'Your partner';
     try {
-      await insertNotification({
+      await dispatchNotification({
         userId: booking.student_user_id,
+        type: 'booking',
         title: 'Partner Declined',
         message: `${partnerName} declined your ${booking.service_name || 'group'} lesson invite on ${booking.date}. Package hours have been refunded.`,
-        type: 'booking',
         data: { bookingId: id, action: 'partner_declined' }
       });
     } catch (notifErr) {
@@ -6392,11 +6392,11 @@ router.post('/:id/suggest-time', authenticateJWT, async (req, res) => {
     const notifMsg = `${partnerName} suggested a different time for your ${booking.service_name || 'group'} lesson: ${suggestedDate}${timeStr}.${msgSuffix}`;
 
     try {
-      await insertNotification({
+      await dispatchNotification({
         userId: booking.student_user_id,
+        type: 'booking',
         title: 'Time Suggestion',
         message: notifMsg,
-        type: 'booking',
         data: {
           bookingId: id,
           action: 'partner_suggest_time',

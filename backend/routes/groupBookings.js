@@ -25,7 +25,7 @@ import {
 } from '../services/groupBookingService.js';
 import { pool } from '../db.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import CurrencyService from '../services/currencyService.js';
 
@@ -275,48 +275,29 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
 
     // Notify admins/managers about new group booking (fire-and-forget)
     try {
-      const staffQuery = await pool.query(
-        `SELECT u.id FROM users u
-         JOIN roles r ON r.id = u.role_id
-         WHERE r.name IN ('admin', 'manager', 'owner')
-           AND u.deleted_at IS NULL
-           AND u.id != $1`,
+      const creatorResult = await pool.query(
+        `SELECT COALESCE(name, CONCAT(first_name, ' ', last_name)) as full_name FROM users WHERE id = $1`,
         [userId]
       );
-      if (staffQuery.rows.length > 0) {
-        const creatorResult = await pool.query(
-          `SELECT COALESCE(name, CONCAT(first_name, ' ', last_name)) as full_name FROM users WHERE id = $1`,
-          [userId]
-        );
-        const creatorName = creatorResult.rows[0]?.full_name || 'A student';
-        const svcResult = await pool.query('SELECT name FROM services WHERE id = $1', [serviceId]);
-        const serviceName = svcResult.rows[0]?.name || title || 'Group Lesson';
+      const creatorName = creatorResult.rows[0]?.full_name || 'A student';
+      const svcResult = await pool.query('SELECT name FROM services WHERE id = $1', [serviceId]);
+      const serviceName = svcResult.rows[0]?.name || title || 'Group Lesson';
 
-        await Promise.all(
-          staffQuery.rows.map(staff =>
-            insertNotification({
-              userId: staff.id,
-              title: 'New group booking request',
-              message: `${creatorName} created a group booking for ${serviceName}${scheduledDate ? ` on ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`,
-              type: 'new_booking_alert',
-              data: {
-                groupBookingId: groupBooking.id,
-                type: 'group_booking_created',
-                serviceName,
-                studentNames: creatorName,
-                cta: { label: 'View group requests', href: `/calendars/lessons?tab=group-requests&groupBookingId=${groupBooking.id}` }
-              },
-              idempotencyKey: `group-created:${groupBooking.id}:staff:${staff.id}`
-            })
-          )
-        );
-        // Emit socket notification
-        if (req.socketService) {
-          for (const staff of staffQuery.rows) {
-            req.socketService.emitToChannel(`user:${staff.id}`, 'notification:new', {});
-          }
-        }
-      }
+      await dispatchToStaff({
+        type: 'new_booking_alert',
+        title: 'New group booking request',
+        message: `${creatorName} created a group booking for ${serviceName}${scheduledDate ? ` on ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`,
+        data: {
+          groupBookingId: groupBooking.id,
+          type: 'group_booking_created',
+          serviceName,
+          studentNames: creatorName,
+          cta: { label: 'View group requests', href: `/calendars/lessons?tab=group-requests&groupBookingId=${groupBooking.id}` }
+        },
+        idempotencyPrefix: `group-created:${groupBooking.id}`,
+        excludeUserIds: [userId],
+        roles: ['admin', 'manager', 'owner']
+      });
     } catch (notifErr) {
       logger.warn('Failed to send admin notification for group booking', { error: notifErr.message });
     }

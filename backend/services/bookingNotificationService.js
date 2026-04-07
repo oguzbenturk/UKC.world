@@ -525,14 +525,15 @@ class BookingNotificationService {
 
       await Promise.all(
         managers.map((manager) =>
-          insertNotification({
+          dispatchNotification({
             client,
             userId: manager.id,
             title: `Reschedule request: ${serviceName}`,
             message,
             type: 'reschedule_request',
             data: notificationData,
-            idempotencyKey: `reschedule-request:${bookingId}:manager:${manager.id}:${Date.now()}`
+            idempotencyKey: `reschedule-request:${bookingId}:manager:${manager.id}:${Date.now()}`,
+            checkPreference: false
           })
         )
       );
@@ -540,14 +541,15 @@ class BookingNotificationService {
       // Also notify the instructor
       if (booking.instructor_id) {
         const instructorMessage = `${studentName} rescheduled their ${serviceName} to ${newDateLabel} at ${newTimeLabel}.`;
-        await insertNotification({
+        await dispatchNotification({
           client,
           userId: booking.instructor_id,
           title: `Lesson rescheduled: ${serviceName}`,
           message: instructorMessage,
           type: 'booking_rescheduled',
           data: notificationData,
-          idempotencyKey: `reschedule-request:${bookingId}:instructor:${booking.instructor_id}:${Date.now()}`
+          idempotencyKey: `reschedule-request:${bookingId}:instructor:${booking.instructor_id}:${Date.now()}`,
+          checkPreference: false
         });
       }
 
@@ -694,52 +696,10 @@ class BookingNotificationService {
   }
 
   /**
-   * Check if a user has new booking alerts enabled
-   */
-  async _checkUserBookingAlerts(client, userId) {
-    try {
-      const result = await client.query(
-        `SELECT COALESCE(ns.new_booking_alerts, true) AS new_booking_alerts
-         FROM users u
-         LEFT JOIN notification_settings ns ON ns.user_id = u.id
-         WHERE u.id = $1`,
-        [userId]
-      );
-      return result.rows[0]?.new_booking_alerts !== false;
-    } catch (error) {
-      logger.warn('Failed to check user booking alerts preference', { userId, error: error.message });
-      return true; // Default to sending if we can't check
-    }
-  }
-
-  /**
-   * Notify all managers and admins about a new booking
+   * Notify all managers and admins about a new booking via unified dispatcher
    */
   async _notifyStaffAboutNewBooking(client, { bookingId, isoDate, dateLabel, timeLabel, serviceName, serviceType, studentNamesDisplay, instructorName, instructorId, createdBy }) {
     try {
-      // Get all admins and managers who have new_booking_alerts enabled (or haven't set preferences)
-      // Exclude the instructor AND the person who created the booking
-      const staffQuery = await client.query(
-        `SELECT u.id, u.name, r.name AS role_name
-         FROM users u
-         JOIN roles r ON r.id = u.role_id
-         LEFT JOIN notification_settings ns ON ns.user_id = u.id
-         WHERE r.name IN ('admin', 'manager', 'owner')
-           AND u.deleted_at IS NULL
-           AND COALESCE(ns.new_booking_alerts, true) = true
-           AND u.id != $1
-           AND u.id != $2`,
-        [
-          instructorId || '00000000-0000-0000-0000-000000000000',
-          createdBy || '00000000-0000-0000-0000-000000000000'
-        ]
-      );
-
-      if (!staffQuery.rows.length) {
-        logger.debug('No staff members to notify about new booking', { bookingId });
-        return;
-      }
-
       const staffMessage = `${serviceName} for ${studentNamesDisplay} with ${instructorName} on ${dateLabel} at ${timeLabel}`;
 
       // Determine CTA based on service type — rental bookings go to Rental Requests tab
@@ -749,7 +709,7 @@ class BookingNotificationService {
         : (isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily');
       const ctaLabel = isRental ? 'View rental requests' : 'View in daily program';
       const notificationTitle = isRental ? 'New rental request' : 'New booking request';
-      
+
       const notificationData = {
         bookingId,
         type: 'new_booking_alert',
@@ -766,24 +726,21 @@ class BookingNotificationService {
         }
       };
 
-      await Promise.all(
-        staffQuery.rows.map((staff) =>
-          insertNotification({
-            client,
-            userId: staff.id,
-            title: notificationTitle,
-            message: staffMessage,
-            type: 'new_booking_alert',
-            data: notificationData,
-            idempotencyKey: `booking-created:${bookingId}:staff:${staff.id}`
-          })
-        )
-      );
+      const result = await dispatchToStaff({
+        type: 'new_booking_alert',
+        title: notificationTitle,
+        message: staffMessage,
+        data: notificationData,
+        idempotencyPrefix: `booking-created:${bookingId}`,
+        excludeUserIds: [instructorId, createdBy].filter(Boolean),
+        roles: ['admin', 'manager', 'owner'],
+        client
+      });
 
-      logger.info('Staff notified about new booking', { 
-        bookingId, 
-        staffCount: staffQuery.rows.length,
-        staffIds: staffQuery.rows.map(s => s.id)
+      logger.info('Staff notified about new booking', {
+        bookingId,
+        staffNotified: result.notified,
+        staffSkipped: result.skipped
       });
     } catch (error) {
       logger.error('Failed to notify staff about new booking', { bookingId, error: error.message });
@@ -829,7 +786,7 @@ class BookingNotificationService {
 
       await Promise.all(
         students.map((student) =>
-          insertNotification({
+          dispatchNotification({
             client,
             userId: student.id,
             title: `Lesson confirmed: ${serviceName}`,
@@ -974,15 +931,15 @@ class BookingNotificationService {
           }
         };
 
-          await insertNotification({
-            client,
-          userId: student.id,
-          title: 'Lesson checked out',
-          message,
-          type: 'booking_completed_student',
+          await dispatchNotification({
+            userId: student.id,
+            type: 'booking_completed_student',
+            title: 'Lesson checked out',
+            message,
             data,
-            idempotencyKey: `lesson-completed:${booking.id}:student:${student.id}`
-        });
+            idempotencyKey: `lesson-completed:${booking.id}:student:${student.id}`,
+            client
+          });
       })
     );
   }
@@ -1059,14 +1016,14 @@ class BookingNotificationService {
         }
       };
 
-      await insertNotification({
-        client,
+      await dispatchNotification({
         userId: instructorId,
+        type: 'lesson_rating_instructor',
         title: 'New lesson rating received',
         message,
-        type: 'lesson_rating_instructor',
         data,
-        idempotencyKey: `lesson-rating:${ratingId}:instructor:${instructorId}`
+        idempotencyKey: `lesson-rating:${ratingId}:instructor:${instructorId}`,
+        client
       });
     } catch (error) {
       logger.error('Failed to send instructor rating notification', { ratingId, error: error.message });
@@ -1200,12 +1157,11 @@ class BookingNotificationService {
           ? `Your rental of ${equipmentLabel} on ${dateLabel} has been confirmed using your package.`
           : `Your rental of ${equipmentLabel} on ${dateLabel} has been confirmed.`;
 
-        await insertNotification({
-          client,
+        await dispatchNotification({
           userId: rental.customer_id,
+          type: 'rental_customer',
           title: `Rental confirmed: ${equipmentLabel}`,
           message: customerMessage,
-          type: 'rental_customer',
           data: {
             rentalId: rental.id,
             role: 'customer',
@@ -1215,51 +1171,36 @@ class BookingNotificationService {
             paymentStatus: rental.payment_status,
             cta: { label: 'View my rentals', href: '/rental/my-rentals' }
           },
-          idempotencyKey: `rental-created:${rental.id}:customer:${rental.customer_id}`
+          idempotencyKey: `rental-created:${rental.id}:customer:${rental.customer_id}`,
+          client
         });
       }
 
-      // 2) Notify managers/admins
-      const staffQuery = await client.query(
-        `SELECT u.id, u.name
-         FROM users u
-         JOIN roles r ON r.id = u.role_id
-         LEFT JOIN notification_settings ns ON ns.user_id = u.id
-         WHERE r.name IN ('super_admin', 'admin', 'manager', 'owner')
-           AND u.status = 'active'
-           AND u.deleted_at IS NULL
-           AND COALESCE(ns.new_booking_alerts, true) = true
-           AND u.id != $1`,
-        [rental.created_by || '00000000-0000-0000-0000-000000000000']
-      );
-
+      // 2) Notify managers/admins via unified dispatcher
       const staffMessage = `${customerName} rented ${equipmentLabel} for ${dateLabel}.`;
 
-      await Promise.all(
-        staffQuery.rows.map(staff =>
-          insertNotification({
-            client,
-            userId: staff.id,
-            title: `New rental: ${equipmentLabel}`,
-            message: staffMessage,
-            type: 'new_rental_alert',
-            data: {
-              rentalId: rental.id,
-              role: 'staff',
-              customerName,
-              equipmentNames,
-              date: toIsoDate(rental.rental_date || rental.start_date),
-              cta: { label: 'View rental', href: '/calendars/rentals' }
-            },
-            idempotencyKey: `rental-created:${rental.id}:staff:${staff.id}`
-          })
-        )
-      );
+      const staffResult = await dispatchToStaff({
+        type: 'new_rental_alert',
+        title: `New rental: ${equipmentLabel}`,
+        message: staffMessage,
+        data: {
+          rentalId: rental.id,
+          role: 'staff',
+          customerName,
+          equipmentNames,
+          date: toIsoDate(rental.rental_date || rental.start_date),
+          cta: { label: 'View rental', href: '/calendars/rentals' }
+        },
+        idempotencyPrefix: `rental-created:${rental.id}`,
+        excludeUserIds: [rental.created_by].filter(Boolean),
+        roles: ['super_admin', 'admin', 'manager', 'owner'],
+        client
+      });
 
       logger.info('Rental notifications sent', {
         rentalId,
         customerNotified: !!rental.customer_id,
-        staffNotified: staffQuery.rows.length
+        staffNotified: staffResult.notified
       });
     } catch (error) {
       logger.error('Failed to send rental notifications', { rentalId, error: error.message });
