@@ -10,7 +10,6 @@ import NextLessonHero from '../components/dashboard/NextLessonHero';
 import StatsStrip from '../components/dashboard/StatsStrip';
 import RatingPrompt from '../components/dashboard/RatingPrompt';
 import PackageCards from '../components/dashboard/PackageCards';
-import InstructorNotesFeed from '../components/dashboard/InstructorNotesFeed';
 import QuickLinks from '../components/dashboard/QuickLinks';
 import { studentPortalApi } from '../services/studentPortalApi';
 
@@ -318,11 +317,14 @@ const StudentDashboard = () => {
 
       <RatingPrompt reminders={unratedBookings} onRate={handleOpenRating} />
 
-      <StatsStrip stats={overview.stats} businessCurrency={businessCurrency} />
+      <StatsStrip
+        stats={overview.stats}
+        businessCurrency={businessCurrency}
+        upcomingLessons={overview.upcomingSessions || []}
+        pastLessons={overview.previousLessons || []}
+      />
 
       <PackageCards packages={overview.packages} />
-
-      <InstructorNotesFeed notes={overview.instructorNotes} />
 
       <InstructorRecommendations />
 

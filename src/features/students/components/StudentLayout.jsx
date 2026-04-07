@@ -4,6 +4,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { featureFlags } from '@/shared/config/featureFlags';
 import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import StudentBookingWizard from './StudentBookingWizard';
+import StudentQuickActions from './StudentQuickActions';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 
@@ -91,6 +92,15 @@ const StudentLayout = () => {
         open={bookingOpen}
         onClose={handleBookingClose}
         initialData={bookingInitialData}
+      />
+      <StudentQuickActions
+        onOpenWallet={() => window.dispatchEvent(new CustomEvent('studentWallet:open'))}
+        onOpenBooking={() => handleBookingOpen()}
+        onBookAccommodation={() => navigate('/stay/my-accommodation')}
+        onBookRental={() => navigate('/rental/book-equipment')}
+        onBuyPackage={() => handleBookingOpen({ showBuyPackages: true })}
+        balance={walletSummary?.available}
+        currency={{ code: storageCurrency }}
       />
     </div>
   );

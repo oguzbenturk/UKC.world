@@ -180,22 +180,22 @@ const StudentPayments = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Wallet Balance</p>
-          <p className="mt-2 text-xl font-bold text-slate-900">{formatDualAmount(rawWalletBalance, storageCurrency)}</p>
+          <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(rawWalletBalance, storageCurrency)}</p>
           <p className="mt-1 text-xs text-slate-400">Available to spend</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settled</p>
-          <p className="mt-2 text-xl font-bold text-slate-900">{totals.settledCount}</p>
+          <p className="mt-2 text-xl font-bold text-emerald-600">{totals.settledCount}</p>
           <p className="mt-1 text-xs text-slate-400">Completed invoices</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settled Amount</p>
-          <p className="mt-2 text-xl font-bold text-slate-900">{formatDualAmount(totals.settledAmount, storageCurrency)}</p>
+          <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(totals.settledAmount, storageCurrency)}</p>
           <p className="mt-1 text-xs text-slate-400">Total paid</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending</p>
-          <p className="mt-2 text-xl font-bold text-slate-900">{totals.pendingCount}</p>
+          <p className="mt-2 text-xl font-bold text-rose-600">{totals.pendingCount}</p>
           <p className="mt-1 text-xs text-slate-400">Awaiting processing</p>
         </div>
       </div>
@@ -250,13 +250,16 @@ const StudentPayments = () => {
                   const dateSource = row.lessonDate || row.createdAt;
                   const status = String(row.status || '').toLowerCase();
                   const badgeCls = STATUS_STYLES[status] || 'bg-slate-100 text-slate-600 border-slate-200';
+                  const amt = Number.parseFloat(row.amount ?? 0);
+                  const isCredit = row.direction === 'credit' || row.type === 'refund' || row.type === 'credit';
+                  const amountCls = (isCredit || amt > 0) ? 'text-emerald-600' : 'text-rose-600';
                   return (
                     <tr key={row.id || idx} className={`border-b border-slate-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
                       <td className="px-5 py-3.5 text-slate-600 whitespace-nowrap">
                         {dateSource ? dayjs(dateSource).format('MMM D, YYYY') : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-slate-800">{row.description || '—'}</td>
-                      <td className="px-5 py-3.5 text-right font-medium text-slate-900 whitespace-nowrap">
+                      <td className={`px-5 py-3.5 text-right font-medium whitespace-nowrap ${amountCls}`}>
                         {formatAmountForRow(row.amount, row)}
                       </td>
                       <td className="px-5 py-3.5">

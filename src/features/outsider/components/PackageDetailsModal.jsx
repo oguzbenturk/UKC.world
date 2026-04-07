@@ -212,8 +212,8 @@ const PackageDetailsModal = ({ depsRef }) => {
               'relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200';
             const rowState = ownedPkg
               ? isSelected
-                ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
-                : 'border-emerald-500/25 bg-emerald-500/[0.06] hover:border-emerald-500/50 hover:bg-emerald-500/10'
+                ? 'border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400/40'
+                : 'border-emerald-400 bg-emerald-50 hover:border-emerald-500 hover:bg-emerald-100'
               : isSelected
                 ? 'border-[rgba(0,168,196,0.55)] bg-[rgba(0,168,196,0.07)] shadow-[0_0_0_1px_rgba(0,168,196,0.12)]'
                 : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white';
@@ -240,7 +240,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                 <div
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                     ownedPkg
-                      ? isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-emerald-400/60 bg-white'
+                      ? isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-emerald-400 bg-emerald-100'
                       : isSelected ? 'border-[#00a8c4] bg-[#00a8c4]'    : 'border-slate-300 bg-white'
                   }`}
                 >
@@ -257,7 +257,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                       </span>
                     ) : null}
                     {ownedPkg ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
                         <GiftOutlined className="text-[10px]" /> Owned
                       </span>
                     ) : null}
@@ -274,7 +274,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                         ? `${ownedRemaining}h remaining`
                         : ownedLessonsFullyScheduledPending
                           ? `${ownedUsed}h of ${ownedTotal}h scheduled (pending confirmation)`
-                          : ownedTotal > 0 ? 'No lesson hours remaining' : ''}
+                          : ownedTotal > 0 ? 'No hours remaining' : ''}
                     </p>
                   ) : null}
                 </div>
@@ -367,8 +367,8 @@ const PackageDetailsModal = ({ depsRef }) => {
                 <div className="min-w-0">
                   {selOwned ? (
                     <>
-                      <p className="text-xs font-duotone-bold uppercase tracking-wider text-emerald-600">You own this package</p>
-                      <p className="text-xs font-duotone-regular text-emerald-600/90">
+                      <p className="text-sm font-duotone-bold uppercase tracking-wider text-emerald-600">You own this package</p>
+                      <p className="text-sm font-duotone-regular text-emerald-600/90">
                         {selLessonsFullyScheduledPending
                           ? `${selOwnedUsed}h of ${selOwnedTotal}h scheduled — pending staff confirmation`
                           : `${selOwnedRemaining}h remaining — schedule a session`}
@@ -383,7 +383,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                 </div>
                 <div className="shrink-0 text-right">
                   {selOwned ? (
-                    <span className="flex items-center justify-end gap-1 text-lg font-duotone-bold text-emerald-600">
+                    <span className="flex items-center justify-end gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white shadow-sm">
                       <GiftOutlined /> Owned
                     </span>
                   ) : (

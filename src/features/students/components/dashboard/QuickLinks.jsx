@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { CalendarDaysIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, CreditCardIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 
 const links = [
-  { to: '/student/schedule', label: 'My Schedule', icon: CalendarDaysIcon, color: 'text-[#00a8c4] bg-sky-50'    },
-  { to: '/student/payments', label: 'Payments',    icon: CreditCardIcon,   color: 'text-violet-600 bg-violet-50'  },
+  { to: '/student/schedule',       label: 'My Schedule',   icon: CalendarDaysIcon, color: 'text-[#00a8c4] bg-sky-50'       },
+  { to: '/student/payments',       label: 'Payments',      icon: CreditCardIcon,   color: 'text-violet-600 bg-violet-50'   },
+  { to: '/student/group-bookings', label: 'Group Lessons', icon: UserGroupIcon,    color: 'text-emerald-600 bg-emerald-50' },
 ];
 
 const QuickLinks = () => {

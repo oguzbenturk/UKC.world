@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App, Button, Tag } from 'antd';
+import { App, Button, Tag, Segmented } from 'antd';
 import { RocketOutlined, CalendarOutlined } from '@ant-design/icons';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import AcademyLessonPackageCard from './AcademyLessonPackageCard';
@@ -284,12 +284,14 @@ const ExperiencePackagesPage = ({
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [selectedPackageVariants, setSelectedPackageVariants] = useState([]);
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [allInclusiveModalOpen, setAllInclusiveModalOpen] = useState(false);
   const [downwinderModalOpen, setDownwinderModalOpen] = useState(false);
+  const [selectedVariants, setSelectedVariants] = useState({});
 
   // ── Fetch user's owned customer packages ──────────────────────────────────
   const { data: ownedPackages = [] } = useQuery({
@@ -363,6 +365,29 @@ const ExperiencePackagesPage = ({
     );
   }, [sortedPackages]);
 
+  // Group packages by lesson service name
+  const groupedPackages = useMemo(() => {
+    const groups = {};
+
+    sortedPackages.forEach((pkg) => {
+      const serviceKey = pkg.lessonServiceName || pkg.lesson_service_name || 'Other';
+      if (!groups[serviceKey]) {
+        groups[serviceKey] = {
+          serviceName: serviceKey,
+          bundleType: pkg.bundleType,
+          variants: []
+        };
+      }
+      groups[serviceKey].variants.push(pkg);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const byType = getSectionOrder(a.bundleType) - getSectionOrder(b.bundleType);
+      if (byType !== 0) return byType;
+      return (Number(a.variants[0]?.price) || 0) - (Number(b.variants[0]?.price) || 0);
+    });
+  }, [sortedPackages]);
+
   const purchaseMutation = useMutation({
     mutationFn: async (purchaseData) => {
       const response = await apiClient.post('/services/packages/purchase', purchaseData);
@@ -413,6 +438,9 @@ const ExperiencePackagesPage = ({
       setDownwinderModalOpen(true);
       return;
     }
+    // Find the group this package belongs to and pass all sibling variants
+    const group = groupedPackages.find((g) => g.variants.some((v) => v.id === pkg.id));
+    setSelectedPackageVariants(group ? group.variants : [pkg]);
     setSelectedPackage(pkg);
     setDetailOpen(true);
   };
@@ -544,8 +572,16 @@ const ExperiencePackagesPage = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-              {sortedPackages.map((pkg) => {
-                const ownedPkg = ownedByPackageId.get(String(pkg.id));
+              {groupedPackages.map((group) => {
+                const selectedVariantIdx = selectedVariants[group.serviceName] ?? 0;
+                const selectedPkg = group.variants[selectedVariantIdx];
+
+                // Check if ANY variant in this group is owned
+                const anyOwnedVariant = group.variants.find((v) => ownedByPackageId.has(String(v.id)));
+                const isGroupOwned = !!anyOwnedVariant;
+
+                // Build hint text from the owned variant(s)
+                const ownedPkg = ownedByPackageId.get(String(selectedPkg.id)) || (anyOwnedVariant ? ownedByPackageId.get(String(anyOwnedVariant.id)) : null);
                 const ownedRemaining = ownedPkg ? (parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0) : 0;
                 const ownedUsedHours = ownedPkg ? (parseFloat(ownedPkg.usedHours ?? ownedPkg.used_hours) || 0) : 0;
                 const ownedTotalHours = ownedPkg ? (parseFloat(ownedPkg.totalHours ?? ownedPkg.total_hours) || 0) : 0;
@@ -563,30 +599,49 @@ const ExperiencePackagesPage = ({
                   ownedUsedHours > 0;
                 const ownedHint = ownedPkg
                   ? (ownedParts.length
-                    ? `Owned · ${ownedParts.join(' · ')} remaining`
+                    ? `${ownedParts.join(' · ')} remaining`
                     : ownedLessonsPending
-                      ? 'Owned · lessons scheduled (pending confirmation)'
-                      : 'Owned — tap for details')
+                      ? 'Lessons scheduled'
+                      : 'Tap for details')
                   : undefined;
 
-                const coverSrc = getExperienceCardCoverResolved(pkg);
-                const summaryLabel = EXPERIENCE_TYPE_LABELS[pkg.bundleType] || 'Experience';
+                const coverSrc = getExperienceCardCoverResolved(selectedPkg);
+                const summaryLabel = EXPERIENCE_TYPE_LABELS[selectedPkg.bundleType] || 'Experience';
 
                 return (
-                  <AcademyLessonPackageCard
-                    key={pkg.id}
-                    pkg={{
-                      ...pkg,
-                      featured: !!pkg.featured,
-                    }}
-                    resolvedImageSrc={coverSrc}
-                    imagePosition="center center"
-                    formatPrice={formatCardPrice}
-                    cardTitleHoverClass={cardTitleHoverClass}
-                    bundleSummaryLabel={summaryLabel}
-                    ownedHint={ownedHint}
-                    onCardClick={() => openPackageDetail(pkg)}
-                  />
+                  <div key={group.serviceName} className="flex flex-col h-full">
+                    <AcademyLessonPackageCard
+                      pkg={{
+                        ...selectedPkg,
+                        featured: !!selectedPkg.featured,
+                      }}
+                      resolvedImageSrc={coverSrc}
+                      imagePosition="center center"
+                      formatPrice={formatCardPrice}
+                      cardTitleHoverClass={cardTitleHoverClass}
+                      bundleSummaryLabel={summaryLabel}
+                      ownedHint={ownedHint}
+                      isOwned={isGroupOwned}
+                      onCardClick={() => openPackageDetail(selectedPkg)}
+                    />
+                    {group.variants.length > 1 && (
+                      <div className="mt-3 px-1">
+                        <Segmented
+                          value={selectedVariantIdx}
+                          onChange={(idx) => setSelectedVariants({
+                            ...selectedVariants,
+                            [group.serviceName]: idx
+                          })}
+                          options={group.variants.map((variant, idx) => ({
+                            label: variant.name,
+                            value: idx,
+                          }))}
+                          block
+                          className="!w-full text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -596,6 +651,7 @@ const ExperiencePackagesPage = ({
 
       <ExperienceDetailModal
         pkg={selectedPackage}
+        variants={selectedPackageVariants}
         visible={detailOpen}
         onClose={() => setDetailOpen(false)}
         onBuy={handleOpenPurchaseModal}

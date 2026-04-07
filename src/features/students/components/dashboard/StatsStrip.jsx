@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
+import LessonsSection from './LessonsSection';
 
 const accentColors = {
   // Lessons
@@ -33,32 +34,36 @@ const StatPill = ({ label, value, accentKey }) => (
   </div>
 );
 
-const CollapsibleStatGroup = ({ icon, label, items, isExpanded, onToggle }) => (
+const CollapsibleStatGroup = ({ label, items, isExpanded, onToggle, children }) => (
   <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
     <button
       onClick={onToggle}
       className="w-full px-4 py-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition-colors"
     >
-      <div className="flex items-center gap-3">
-        <span className="text-xl">{icon}</span>
-        <h3 className="font-duotone-bold text-sm text-slate-900 uppercase tracking-wide">{label}</h3>
-      </div>
+      <h3 className="font-duotone-bold text-sm text-slate-900 uppercase tracking-wide">{label}</h3>
       <ChevronDownIcon className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
     </button>
 
     {isExpanded && (
-      <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/30 overflow-x-auto">
-        <div className="flex gap-3 scrollbar-none">
-          {items.map((item) => (
-            <StatPill key={item.accentKey} label={item.label} value={item.value} accentKey={item.accentKey} />
-          ))}
+      <>
+        <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/30 overflow-x-auto">
+          <div className="flex gap-3 scrollbar-none">
+            {items.map((item) => (
+              <StatPill key={item.accentKey} label={item.label} value={item.value} accentKey={item.accentKey} />
+            ))}
+          </div>
         </div>
-      </div>
+        {children && (
+          <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-3">
+            {children}
+          </div>
+        )}
+      </>
     )}
   </div>
 );
 
-const StatsStrip = ({ stats, businessCurrency }) => {
+const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons = [] }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary } = useWalletSummary({ enabled: true, currency: storageCurrency });
@@ -112,7 +117,6 @@ const StatsStrip = ({ stats, businessCurrency }) => {
 
     return {
       lessons: {
-        icon: '📚',
         label: 'Lessons',
         items: [
           { label: 'Completed', value: completedLessons, accentKey: 'completed' },
@@ -121,7 +125,6 @@ const StatsStrip = ({ stats, businessCurrency }) => {
         ]
       },
       rentals: {
-        icon: '🎒',
         label: 'Rentals',
         items: [
           { label: 'Completed', value: completedRentals, accentKey: 'rentals_completed' },
@@ -131,7 +134,6 @@ const StatsStrip = ({ stats, businessCurrency }) => {
         ]
       },
       accommodations: {
-        icon: '🏨',
         label: 'Accommodations',
         items: [
           { label: 'Completed', value: completedAccommodations, accentKey: 'accommodations_completed' },
@@ -141,7 +143,6 @@ const StatsStrip = ({ stats, businessCurrency }) => {
         ]
       },
       shop: {
-        icon: '🛍️',
         label: 'Shop',
         items: [
           { label: 'Completed', value: completedOrders, accentKey: 'orders_completed' },
@@ -150,7 +151,6 @@ const StatsStrip = ({ stats, businessCurrency }) => {
         ]
       },
       wallet: {
-        icon: '💰',
         label: 'Wallet',
         items: [
           { label: 'Balance', value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
@@ -171,12 +171,15 @@ const StatsStrip = ({ stats, businessCurrency }) => {
       {Object.entries(statGroups).map(([key, group]) => (
         <CollapsibleStatGroup
           key={key}
-          icon={group.icon}
           label={group.label}
           items={group.items}
           isExpanded={expandedSections[key]}
           onToggle={() => toggleSection(key)}
-        />
+        >
+          {key === 'lessons' && (upcomingLessons.length > 0 || pastLessons.length > 0) && (
+            <LessonsSection upcoming={upcomingLessons} past={pastLessons} />
+          )}
+        </CollapsibleStatGroup>
       ))}
     </div>
   );

@@ -620,6 +620,9 @@ export async function getStudentOverview(studentId, options = {}) {
       profileRes,
       upcomingRes,
       statsRes,
+      rentalStatsRes,
+      accommodationStatsRes,
+      shopStatsRes,
       packagesRes,
       progressRes,
       notificationsRes,
@@ -627,10 +630,7 @@ export async function getStudentOverview(studentId, options = {}) {
       transactionsRes,
       supportRes,
       previousLessonsRes,
-      instructorNotesRes,
-      rentalStatsRes,
-      accommodationStatsRes,
-      shopStatsRes
+      instructorNotesRes
     ] = await Promise.all([
       client.query(profileQuery, [normalizedStudentId]),
       client.query(
@@ -665,27 +665,27 @@ export async function getStudentOverview(studentId, options = {}) {
         [normalizedStudentId]
       ),
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE status IN ('completed','returned','closed') AND deleted_at IS NULL) AS completed_rentals,
-                COUNT(*) FILTER (WHERE status IN ('pending','active','in_progress') AND deleted_at IS NULL) AS upcoming_rentals,
-                COALESCE(SUM(EXTRACT(DAY FROM (end_date - start_date))) FILTER (WHERE status != 'cancelled' AND deleted_at IS NULL), 0) AS total_rental_days,
-                COALESCE(SUM(total_price) FILTER (WHERE status != 'cancelled' AND deleted_at IS NULL), 0) AS total_rental_spent
+        `SELECT COUNT(*) FILTER (WHERE status IN ('completed','returned','closed')) AS completed_rentals,
+                COUNT(*) FILTER (WHERE status IN ('pending','active','in_progress')) AS upcoming_rentals,
+                COALESCE(SUM(EXTRACT(DAY FROM (end_date - start_date))) FILTER (WHERE status != 'cancelled'), 0) AS total_rental_days,
+                COALESCE(SUM(total_price) FILTER (WHERE status != 'cancelled'), 0) AS total_rental_spent
            FROM rentals
           WHERE user_id = $1`,
         [normalizedStudentId]
       ),
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE status = 'confirmed' AND check_out_date < CURRENT_DATE AND deleted_at IS NULL) AS completed_accommodations,
-                COUNT(*) FILTER (WHERE status = 'confirmed' AND check_in_date >= CURRENT_DATE AND deleted_at IS NULL) AS upcoming_accommodations,
-                COALESCE(SUM(check_out_date - check_in_date) FILTER (WHERE status = 'confirmed' AND deleted_at IS NULL), 0) AS total_accommodation_nights,
-                COALESCE(SUM(total_price) FILTER (WHERE status = 'confirmed' AND deleted_at IS NULL), 0) AS total_accommodation_spent
+        `SELECT COUNT(*) FILTER (WHERE status = 'confirmed' AND check_out_date < CURRENT_DATE) AS completed_accommodations,
+                COUNT(*) FILTER (WHERE status = 'confirmed' AND check_in_date >= CURRENT_DATE) AS upcoming_accommodations,
+                COALESCE(SUM(check_out_date - check_in_date) FILTER (WHERE status = 'confirmed'), 0) AS total_accommodation_nights,
+                COALESCE(SUM(total_price) FILTER (WHERE status = 'confirmed'), 0) AS total_accommodation_spent
            FROM accommodation_bookings
           WHERE guest_id = $1`,
         [normalizedStudentId]
       ),
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE status IN ('delivered','shipped') AND payment_status = 'completed' AND deleted_at IS NULL) AS completed_orders,
-                COUNT(*) FILTER (WHERE status IN ('pending','processing','confirmed') AND payment_status != 'refunded' AND deleted_at IS NULL) AS pending_orders,
-                COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'completed' AND deleted_at IS NULL), 0) AS total_orders_spent
+        `SELECT COUNT(*) FILTER (WHERE status IN ('delivered','shipped') AND payment_status = 'completed') AS completed_orders,
+                COUNT(*) FILTER (WHERE status IN ('pending','processing','confirmed') AND payment_status != 'refunded') AS pending_orders,
+                COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'completed'), 0) AS total_orders_spent
            FROM shop_orders
           WHERE user_id = $1`,
         [normalizedStudentId]
@@ -868,7 +868,9 @@ export async function getStudentOverview(studentId, options = {}) {
               LIMIT 3`,
             [normalizedStudentId]
           )
-        : Promise.resolve({ rows: [] })
+        : Promise.resolve({ rows: [] }),
+      previousLessonsPromise,
+      instructorNotesPromise
     ]);
 
     const rowsOf = (result) => (Array.isArray(result?.rows) ? result.rows : []);

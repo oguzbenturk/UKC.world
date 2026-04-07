@@ -74,13 +74,17 @@ const getFallbackImage = (disciplineKey) => {
  *   onBuy          – callback(pkg) to trigger purchase
  *   disciplineKey  – string for fallback image selection
  */
-const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, disciplineKey }) => {
+const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, onBuy, disciplineKey }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
 
   const [photoIndex, setPhotoIndex] = useState(0);
   const [itineraryExpanded, setItineraryExpanded] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [activeVariantIdx, setActiveVariantIdx] = useState(0);
+
+  // The currently displayed package (either the selected variant or the passed pkg)
+  const activePkg = variants.length > 0 ? (variants[activeVariantIdx] ?? pkg) : pkg;
 
   // Reset on open
   useEffect(() => {
@@ -89,32 +93,35 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
       setItineraryExpanded(false);
       setPreviewVisible(false);
       setPreviewIndex(0);
+      // Reset to the variant matching the passed pkg
+      const idx = variants.findIndex((v) => v.id === pkg?.id);
+      setActiveVariantIdx(idx >= 0 ? idx : 0);
     }
   }, [visible, pkg?.id]);
 
   const fallback = getFallbackImage(disciplineKey);
   /** Stay bundles: accommodation gallery only (no service/package marketing image). */
   const displayImages = useMemo(() => {
-    if (!pkg) return [fallback];
-    const accomCoverUrl = pkg.accommodationImageUrl || pkg.accommodation_image_url;
+    if (!activePkg) return [fallback];
+    const accomCoverUrl = activePkg.accommodationImageUrl || activePkg.accommodation_image_url;
     const accomCover = accomCoverUrl ? [accomCoverUrl] : [];
-    const accomGallery = toImageArray(pkg.accommodationImages || pkg.accommodation_images);
+    const accomGallery = toImageArray(activePkg.accommodationImages || activePkg.accommodation_images);
     const accomOnly = [...accomCover, ...accomGallery].filter(Boolean);
     let list;
-    if (pkgIncludesStay(pkg)) {
+    if (pkgIncludesStay(activePkg)) {
       list = Array.from(new Set(accomOnly));
     } else {
-      const pkgCoverUrl = pkg.imageUrl || pkg.image_url;
+      const pkgCoverUrl = activePkg.imageUrl || activePkg.image_url;
       const pkgCover = pkgCoverUrl ? [pkgCoverUrl] : [];
       list = Array.from(new Set([...accomOnly, ...pkgCover].filter(Boolean)));
     }
     return list.length > 0 ? list : [fallback];
-  }, [pkg, fallback]);
+  }, [activePkg, fallback]);
 
   useEffect(() => {
-    setPhotoIndex((i) => (displayImages.length ? Math.min(i, displayImages.length - 1) : 0));
-    setPreviewIndex((i) => (displayImages.length ? Math.min(i, displayImages.length - 1) : 0));
-  }, [displayImages]);
+    setPhotoIndex(0);
+    setPreviewIndex(0);
+  }, [activePkg?.id]);
 
   const formatPrice = (eurPrice) => {
     const eurFormatted = formatCurrency(eurPrice, 'EUR');
@@ -144,27 +151,27 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
     setPhotoIndex((i) => (i + 1) % displayImages.length);
   };
 
-  if (!pkg) return null;
+  if (!activePkg) return null;
 
-  const isEvent = normalize(pkg.packageType) === 'downwinders' || normalize(pkg.packageType) === 'camps';
-  const bundleType = pkg.bundleType || normalize(pkg.packageType);
+  const isEvent = normalize(activePkg.packageType) === 'downwinders' || normalize(activePkg.packageType) === 'camps';
+  const bundleType = activePkg.bundleType || normalize(activePkg.packageType);
   const typeLabel = EXPERIENCE_TYPE_LABELS[bundleType] || 'Experience';
 
   const itineraryPreview = (() => {
-    if (!pkg.itinerary) return '';
-    const text = pkg.itinerary;
+    if (!activePkg.itinerary) return '';
+    const text = activePkg.itinerary;
     const day2Index = text.toLowerCase().indexOf('day 2');
     if (day2Index > 0) return text.substring(0, day2Index).trim();
     return text.length > 300 ? text.substring(0, 300) + '...' : text;
   })();
 
-  const stays = pkgIncludesStay(pkg);
+  const stays = pkgIncludesStay(activePkg);
 
   return (
     <BrandPackageModalShell
       open={visible}
       onClose={onClose}
-      animationKey={pkg.id}
+      animationKey={activePkg.id}
       ariaLabelledBy="experience-detail-modal-title"
       maxWidthClass="max-w-[1040px]"
     >
@@ -186,7 +193,7 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
               <img
                 key={displayImages[photoIndex]}
                 src={displayImages[photoIndex]}
-                alt={`${pkg.name} – photo ${photoIndex + 1}`}
+                alt={`${activePkg.name} – photo ${photoIndex + 1}`}
                 className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 cursor-zoom-in"
                 loading="eager"
                 onClick={() => { setPreviewIndex(photoIndex); setPreviewVisible(true); }}
@@ -244,12 +251,12 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                   {typeLabel}
                 </div>
                 <h2 id="experience-detail-modal-title" className="text-lg sm:text-xl font-duotone-bold-extended text-white leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
-                  {pkg.name}
+                  {activePkg.name}
                 </h2>
               </div>
 
               {/* Featured badge */}
-              {pkg.featured && (
+              {activePkg.featured && (
                 <div className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-md text-slate-900 px-2 py-0.5 rounded-full text-[10px] font-duotone-bold shadow-md flex items-center gap-0.5 z-20 border border-slate-200">
                   <StarFilled className="text-[10px] text-yellow-500" /> FEATURED
                 </div>
@@ -275,78 +282,78 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
             <div className="p-5 flex-grow overflow-y-auto pkg-modal-scroll">
               {/* Quick stats */}
               <div className="flex flex-wrap gap-3 mb-5">
-                {pkg.totalHours > 0 && (
+                {activePkg.totalHours > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
                     <ClockCircleOutlined className="text-[#00a8c4]" />
-                    <span><strong className="text-slate-900">{Math.round(Number(pkg.totalHours))}h</strong> lessons</span>
+                    <span><strong className="text-slate-900">{Math.round(Number(activePkg.totalHours))}h</strong> lessons</span>
                   </div>
                 )}
-                {pkg.accommodationNights > 0 && (
+                {activePkg.accommodationNights > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
                     <CalendarOutlined className="text-[#00a8c4]" />
-                    <span><strong className="text-slate-900">{pkg.accommodationNights}</strong> nights</span>
+                    <span><strong className="text-slate-900">{activePkg.accommodationNights}</strong> nights</span>
                   </div>
                 )}
-                {pkg.rentalDays > 0 && (
+                {activePkg.rentalDays > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
                     <ThunderboltFilled className="text-[#00a8c4]" />
-                    <span><strong className="text-slate-900">{pkg.rentalDays}</strong> rental days</span>
+                    <span><strong className="text-slate-900">{activePkg.rentalDays}</strong> rental days</span>
                   </div>
                 )}
-                {pkg.maxParticipants > 0 && (
+                {activePkg.maxParticipants > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
                     <TeamOutlined className="text-[#00a8c4]" />
-                    <span>Max <strong className="text-slate-900">{pkg.maxParticipants}</strong> riders</span>
+                    <span>Max <strong className="text-slate-900">{activePkg.maxParticipants}</strong> riders</span>
                   </div>
                 )}
               </div>
 
               {/* Description */}
-              {pkg.description && (
-                <p className="text-slate-600 text-sm font-duotone-regular leading-relaxed mb-5">{pkg.description}</p>
+              {activePkg.description && (
+                <p className="text-slate-600 text-sm font-duotone-regular leading-relaxed mb-5">{activePkg.description}</p>
               )}
 
               {/* Includes badges */}
               <div className="flex flex-wrap gap-2 mb-5">
-                {pkg.includesLessons !== false && <Tag className="!bg-emerald-500/10 !border-emerald-500/30 !text-emerald-800 !rounded-full">Lessons</Tag>}
-                {!!pkg.includesRental && <Tag className="!bg-orange-500/10 !border-orange-500/30 !text-orange-800 !rounded-full">Rental</Tag>}
+                {activePkg.includesLessons !== false && <Tag className="!bg-emerald-500/10 !border-emerald-500/30 !text-emerald-800 !rounded-full">Lessons</Tag>}
+                {!!activePkg.includesRental && <Tag className="!bg-orange-500/10 !border-orange-500/30 !text-orange-800 !rounded-full">Rental</Tag>}
                 {stays && <Tag className="!bg-sky-500/10 !border-sky-500/30 !text-sky-800 !rounded-full">Stay</Tag>}
               </div>
 
               {/* Event-specific details */}
               {isEvent && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-                  {pkg.departureLocation && (
+                  {activePkg.departureLocation && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Departure</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.departureLocation}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.departureLocation}</p>
                     </div>
                   )}
-                  {pkg.destinationLocation && (
+                  {activePkg.destinationLocation && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Destination</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.destinationLocation}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.destinationLocation}</p>
                     </div>
                   )}
-                  {pkg.eventLocation && (
+                  {activePkg.eventLocation && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 flex items-center gap-1 font-duotone-regular"><EnvironmentOutlined /> Location</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.eventLocation}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.eventLocation}</p>
                     </div>
                   )}
-                  {pkg.minSkillLevel && (
+                  {activePkg.minSkillLevel && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Skill Level</p>
-                      <p className="text-slate-900 text-sm font-medium capitalize font-duotone-regular">{pkg.minSkillLevel}</p>
+                      <p className="text-slate-900 text-sm font-medium capitalize font-duotone-regular">{activePkg.minSkillLevel}</p>
                     </div>
                   )}
-                  {(pkg.eventStartDate || pkg.eventEndDate) && (
+                  {(activePkg.eventStartDate || activePkg.eventEndDate) && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-2">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Event Dates</p>
                       <p className="text-slate-900 text-sm font-medium font-duotone-regular">
-                        {pkg.eventStartDate && new Date(pkg.eventStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {pkg.eventStartDate && pkg.eventEndDate && ' → '}
-                        {pkg.eventEndDate && new Date(pkg.eventEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {activePkg.eventStartDate && new Date(activePkg.eventStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {activePkg.eventStartDate && activePkg.eventEndDate && ' → '}
+                        {activePkg.eventEndDate && new Date(activePkg.eventEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   )}
@@ -356,38 +363,38 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
               {/* Regular package service details */}
               {!isEvent && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-                  {pkg.includesLessons && pkg.lessonServiceName && (
+                  {activePkg.includesLessons && activePkg.lessonServiceName && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Lesson Service</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.lessonServiceName}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.lessonServiceName}</p>
                     </div>
                   )}
-                  {stays && pkg.accommodationUnitName && (
+                  {stays && activePkg.accommodationUnitName && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Accommodation</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.accommodationUnitName}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.accommodationUnitName}</p>
                     </div>
                   )}
-                  {pkg.includesRental && (pkg.rentalServiceName || pkg.equipmentName) && (
+                  {activePkg.includesRental && (activePkg.rentalServiceName || activePkg.equipmentName) && (
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <p className="text-slate-500 text-xs uppercase tracking-wide mb-1 font-duotone-regular">Rental Option</p>
-                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{pkg.rentalServiceName || pkg.equipmentName}</p>
+                      <p className="text-slate-900 text-sm font-medium font-duotone-regular">{activePkg.rentalServiceName || activePkg.equipmentName}</p>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Itinerary */}
-              {isEvent && pkg.itinerary && (
+              {isEvent && activePkg.itinerary && (
                 <div>
                   <h4 className="text-slate-900 font-duotone-bold-extended mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
                     <ThunderboltFilled className="text-[#00a8c4]" /> Itinerary
                   </h4>
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <pre className="text-slate-700 whitespace-pre-wrap font-sans text-sm leading-relaxed mb-0 font-duotone-regular">
-                      {itineraryExpanded ? pkg.itinerary : itineraryPreview}
+                      {itineraryExpanded ? activePkg.itinerary : itineraryPreview}
                     </pre>
-                    {(pkg.itinerary.toLowerCase().includes('day 2') || pkg.itinerary.length > 300) && (
+                    {(activePkg.itinerary.toLowerCase().includes('day 2') || activePkg.itinerary.length > 300) && (
                       <Button
                         type="link"
                         onClick={() => setItineraryExpanded(!itineraryExpanded)}
@@ -402,15 +409,56 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
             </div>
           </div>
 
-          {/* ── RIGHT: Booking Panel (unchanged feature set; styling aligned with package modal) ── */}
+          {/* ── RIGHT: Booking Panel ── */}
           <div className="lg:w-[40%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col min-h-0 pkg-modal-scroll">
-            <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-slate-900 mb-5 flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-slate-900 mb-4 flex items-center gap-2">
               <RocketOutlined className="text-[#00a8c4]" /> Package Details
             </h3>
 
+            {/* Variant selector — only shown when there are multiple variants */}
+            {variants.length > 1 && (
+              <div className="mb-5">
+                <p className="text-slate-500 text-xs uppercase tracking-wider font-duotone-bold mb-2">Choose Option</p>
+                <div className="flex flex-col gap-2">
+                  {variants.map((v, idx) => {
+                    const isActive = idx === activeVariantIdx;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => { setActiveVariantIdx(idx); setPhotoIndex(0); }}
+                        className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${
+                          isActive
+                            ? 'border-[#00a8c4] bg-cyan-500/[0.07] shadow-sm'
+                            : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-sm font-duotone-bold ${isActive ? 'text-[#007a8f]' : 'text-slate-700'}`}>
+                            {v.name}
+                          </span>
+                          <span className={`text-sm font-duotone-bold-extended shrink-0 ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                            {formatPrice(Number(v.price) || 0)}
+                          </span>
+                        </div>
+                        {(v.totalHours > 0 || v.accommodationNights > 0 || v.rentalDays > 0) && (
+                          <p className="text-slate-400 text-xs mt-1 font-duotone-regular">
+                            {[
+                              v.totalHours > 0 && `${Math.round(Number(v.totalHours))}h lessons`,
+                              v.accommodationNights > 0 && `${v.accommodationNights} nights`,
+                              v.rentalDays > 0 && `${v.rentalDays} rental days`,
+                            ].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* What's included breakdown */}
             <div className="space-y-3 mb-6">
-              {pkg.includesLessons !== false && (
+              {activePkg.includesLessons !== false && (
                 <div className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
                   <div className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0 mt-0.5">
                     <CheckOutlined className="text-emerald-600 text-xs" />
@@ -418,7 +466,7 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                   <div>
                     <p className="text-slate-900 text-sm font-duotone-bold">Lessons Included</p>
                     <p className="text-slate-600 text-xs mt-0.5 font-duotone-regular">
-                      {pkg.totalHours ? `${Math.round(Number(pkg.totalHours))} hours of professional instruction` : pkg.lessonServiceName || 'Professional instruction'}
+                      {activePkg.totalHours ? `${Math.round(Number(activePkg.totalHours))} hours of professional instruction` : activePkg.lessonServiceName || 'Professional instruction'}
                     </p>
                   </div>
                 </div>
@@ -431,12 +479,12 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                   <div>
                     <p className="text-slate-900 text-sm font-duotone-bold">Accommodation</p>
                     <p className="text-slate-600 text-xs mt-0.5 font-duotone-regular">
-                      {pkg.accommodationNights ? `${pkg.accommodationNights} night${pkg.accommodationNights !== 1 ? 's' : ''} stay` : pkg.accommodationUnitName || 'Stay included'}
+                      {activePkg.accommodationNights ? `${activePkg.accommodationNights} night${activePkg.accommodationNights !== 1 ? 's' : ''} stay` : activePkg.accommodationUnitName || 'Stay included'}
                     </p>
                   </div>
                 </div>
               )}
-              {!!pkg.includesRental && (
+              {!!activePkg.includesRental && (
                 <div className="flex items-start gap-3 rounded-xl border border-orange-500/25 bg-orange-500/[0.06] p-4">
                   <div className="w-8 h-8 rounded-full bg-orange-500/15 flex items-center justify-center shrink-0 mt-0.5">
                     <CheckOutlined className="text-orange-600 text-xs" />
@@ -444,7 +492,7 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                   <div>
                     <p className="text-slate-900 text-sm font-duotone-bold">Equipment Rental</p>
                     <p className="text-slate-600 text-xs mt-0.5 font-duotone-regular">
-                      {pkg.rentalDays ? `${pkg.rentalDays} rental day${pkg.rentalDays !== 1 ? 's' : ''}` : pkg.rentalServiceName || 'Equipment included'}
+                      {activePkg.rentalDays ? `${activePkg.rentalDays} rental day${activePkg.rentalDays !== 1 ? 's' : ''}` : activePkg.rentalServiceName || 'Equipment included'}
                     </p>
                   </div>
                 </div>
@@ -463,7 +511,7 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                 </div>
                 <div className="text-right">
                   <span className="text-2xl sm:text-3xl font-duotone-bold-extended text-slate-900 tracking-tight">
-                    {formatPrice(Number(pkg.price) || 0)}
+                    {formatPrice(Number(activePkg.price) || 0)}
                   </span>
                 </div>
               </div>
@@ -473,7 +521,7 @@ const ExperienceDetailModal = ({ pkg = null, visible, onClose, onBuy, discipline
                 size="large"
                 type="primary"
                 icon={<RocketOutlined />}
-                onClick={() => onBuy(pkg)}
+                onClick={() => onBuy(activePkg)}
                 className="!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg font-duotone-bold shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99]"
                 style={{
                   backgroundColor: '#4b4f54',

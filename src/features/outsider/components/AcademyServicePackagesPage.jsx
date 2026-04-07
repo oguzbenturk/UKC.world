@@ -1434,6 +1434,21 @@ const AcademyServicePackagesPage = ({
         ? resolvePublicUploadUrl(pkg.image, pkg.imageRevision)
         : '';
 
+      // Check card-level id AND every duration's packageId (the card id is only the first variant)
+      const ownedPkg =
+        ownedByPackageId.get(String(pkg.id)) ||
+        (Array.isArray(pkg.durations) && pkg.durations.reduce((found, d) => found || (d.packageId ? ownedByPackageId.get(String(d.packageId)) : null), null)) ||
+        null;
+      const isOwned = !!ownedPkg;
+      let ownedHint;
+      if (ownedPkg) {
+        const hrs = parseFloat(ownedPkg.remainingHours ?? ownedPkg.remaining_hours) || 0;
+        const days = parseFloat(ownedPkg.remainingRentalDays ?? ownedPkg.remaining_rental_days) || 0;
+        const nights = parseFloat(ownedPkg.remainingAccommodationNights ?? ownedPkg.remaining_accommodation_nights) || 0;
+        const parts = [hrs > 0 && `${hrs}h lessons`, days > 0 && `${days}d rental`, nights > 0 && `${nights}n stay`].filter(Boolean);
+        ownedHint = parts.length ? `${parts.join(' · ')} remaining` : 'Package owned';
+      }
+
       return (
         <AcademyLessonPackageCard
           key={pkg.id}
@@ -1444,11 +1459,13 @@ const AcademyServicePackagesPage = ({
           cardTitleHoverClass={cardTitleHoverClass}
           onCardClick={() => handleCardClick(pkg)}
           showCheapestPerHour={!isStayPage && !isRentalPage && LESSON_KEYS.has(normalize(dynamicServiceKey || ''))}
+          isOwned={isOwned}
+          ownedHint={ownedHint}
         />
       );
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayPackages, cardTitleHoverClass, userCurrency, isStayPage, isRentalPage, dynamicServiceKey]);
+  }, [displayPackages, cardTitleHoverClass, userCurrency, isStayPage, isRentalPage, dynamicServiceKey, ownedByPackageId]);
 
   const isLessonNavPage = LESSON_KEYS.has(normalize(dynamicServiceKey || ''));
 

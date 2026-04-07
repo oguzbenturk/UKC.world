@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HomeOutlined, StarFilled } from '@ant-design/icons';
+import { HomeOutlined, StarFilled, CheckCircleFilled } from '@ant-design/icons';
 import { useImageAccent } from '@/features/outsider/hooks/useImageAccent';
 
 function getCheapestDuration(durations) {
@@ -114,6 +114,8 @@ export default function AcademyLessonPackageCard({
   bundleSummaryLabel,
   /** Optional emerald note above title (e.g. owned remaining) */
   ownedHint,
+  /** True when any variant of this service group is already owned by the user */
+  isOwned = false,
 }) {
   const [imageVisible, setImageVisible] = useState(true);
   const hasCover = !!(resolvedImageSrc && String(resolvedImageSrc).trim());
@@ -160,18 +162,19 @@ export default function AcademyLessonPackageCard({
   const tagline = cardTagline(pkg);
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onCardClick();
-        }
-      }}
-      onClick={onCardClick}
-      className={`group relative flex min-h-[360px] flex-col overflow-hidden rounded-3xl border border-[rgba(0,168,196,0.5)] bg-[#1a1f26]/60 shadow-[0_0_10px_rgba(0,168,196,0.3),0_0_25px_rgba(0,168,196,0.15)] backdrop-blur-sm transition-[transform,box-shadow,border-color] duration-300 cursor-pointer hover:-translate-y-1 hover:border-[rgba(0,168,196,0.75)] hover:shadow-[0_0_15px_rgba(0,168,196,0.45),0_0_35px_rgba(0,168,196,0.2)] md:border-[rgba(0,168,196,0.55)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:backdrop-blur-none md:hover:border-[rgba(0,168,196,0.85)] md:hover:shadow-[0_8px_28px_rgba(0,168,196,0.25),0_0_0_1px_rgba(0,168,196,0.35)] ${pkg.shadow || ''} ${pkg.border || ''}`}
-    >
+    <div className="relative">
+      <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onCardClick();
+          }
+        }}
+        onClick={onCardClick}
+        className={`group relative flex min-h-[360px] flex-col overflow-hidden rounded-3xl transition-[transform,box-shadow,border-color] duration-300 cursor-pointer hover:-translate-y-1 md:backdrop-blur-none ${isOwned ? 'border border-emerald-500/70 bg-[#1a1f26]/60 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_28px_rgba(16,185,129,0.2)] hover:border-emerald-500/85 hover:shadow-[0_0_18px_rgba(16,185,129,0.6),0_0_40px_rgba(16,185,129,0.25)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35),0_0_12px_rgba(16,185,129,0.35)] md:hover:shadow-[0_8px_28px_rgba(16,185,129,0.35),0_0_0_1px_rgba(16,185,129,0.4)]' : 'border border-[rgba(0,168,196,0.5)] bg-[#1a1f26]/60 shadow-[0_0_10px_rgba(0,168,196,0.3),0_0_25px_rgba(0,168,196,0.15)] backdrop-blur-sm hover:border-[rgba(0,168,196,0.75)] hover:shadow-[0_0_15px_rgba(0,168,196,0.45),0_0_35px_rgba(0,168,196,0.2)] md:border-[rgba(0,168,196,0.55)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:hover:border-[rgba(0,168,196,0.85)] md:hover:shadow-[0_8px_28px_rgba(0,168,196,0.25),0_0_0_1px_rgba(0,168,196,0.35)]'} ${pkg.shadow || ''} ${pkg.border || ''}`}
+      >
       {/* ~70% image / ~30% copy — flex ratio 7:3 */}
       <div className="relative min-h-[200px] flex-[7] overflow-hidden rounded-t-3xl">
         {hasCover && imageVisible ? (
@@ -203,11 +206,18 @@ export default function AcademyLessonPackageCard({
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(180,220,240,0.06)_0%,transparent_65%)]" />
 
-        {pkg.featured ? (
-          <div className="absolute left-2.5 top-2.5 z-20 flex items-center gap-0.5 rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm md:bg-black/80 md:backdrop-blur-none">
-            <StarFilled className="text-[10px] text-yellow-500" /> POPULAR
-          </div>
-        ) : null}
+        <div className="absolute left-2.5 top-2.5 z-20 flex items-center gap-1.5">
+          {pkg.featured && (
+            <div className="flex items-center gap-0.5 rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm md:bg-black/80 md:backdrop-blur-none">
+              <StarFilled className="text-[10px] text-yellow-500" /> POPULAR
+            </div>
+          )}
+          {isOwned && (
+            <div className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm">
+              <CheckCircleFilled className="text-[10px]" /> OWNED
+            </div>
+          )}
+        </div>
 
         <div className="absolute right-2.5 top-2.5 z-20 max-w-[46%] rounded-lg bg-black/85 px-2 py-1.5 text-right text-white shadow-md backdrop-blur-sm md:bg-slate-950/90">
           <p className="font-duotone-bold-extended text-[9px] uppercase leading-tight tracking-wide text-white/95">
@@ -220,6 +230,11 @@ export default function AcademyLessonPackageCard({
             FROM
           </p>
           <p className="font-duotone-bold-extended text-sm italic leading-none text-white">{priceLabel}</p>
+          {isOwned && (
+            <p className="mt-1 flex items-center justify-end gap-0.5 text-[8px] font-bold uppercase tracking-wide text-emerald-400">
+              <CheckCircleFilled className="text-[9px]" /> Active Package
+            </p>
+          )}
         </div>
       </div>
 
@@ -243,6 +258,8 @@ export default function AcademyLessonPackageCard({
           </p>
         ) : null}
       </div>
+      </div>
+
     </div>
   );
 }

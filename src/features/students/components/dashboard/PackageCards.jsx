@@ -64,12 +64,29 @@ const PackageCards = ({ packages = [] }) => {
   const activePackages = packages.filter((pkg) => pkg.status === 'active');
   if (!activePackages.length) return null;
 
+  const hasBookablePackage = activePackages.some(
+    (pkg) => pkg.includesLessons !== false && (pkg.remainingHours || 0) > 0
+  );
+
+  const handleBookLesson = () => {
+    window.dispatchEvent(new CustomEvent('studentBooking:open', { detail: {} }));
+  };
+
   return (
     <section>
       <h3 className="mb-3 font-duotone-bold text-sm uppercase tracking-[0.12em] text-antrasit">Active packages</h3>
       <div className="flex gap-4 overflow-x-auto scrollbar-none lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:overflow-visible">
         {activePackages.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
       </div>
+      {hasBookablePackage && (
+        <button
+          type="button"
+          onClick={handleBookLesson}
+          className="mt-3 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-gotham-medium text-white shadow-sm hover:bg-sky-700 transition-colors"
+        >
+          Book a Lesson
+        </button>
+      )}
     </section>
   );
 };
