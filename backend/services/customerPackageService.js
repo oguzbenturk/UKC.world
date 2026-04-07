@@ -89,7 +89,7 @@ export async function forceDeleteCustomerPackage({
   }
 
   const packageResult = await client.query(
-    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at FROM customer_packages WHERE id = $1 FOR UPDATE',
+    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at, check_in_date, check_out_date FROM customer_packages WHERE id = $1 FOR UPDATE',
     [packageId]
   );
 
@@ -137,7 +137,8 @@ export async function forceDeleteCustomerPackage({
 
   const cleanup = {
     participantReferencesCleared: 0,
-    bookingReferencesCleared: 0
+    bookingReferencesCleared: 0,
+    accommodationBookingsCancelled: 0,
   };
 
   // Look up the service hourly rate BEFORE clearing references (needed for refund calculation)
@@ -189,6 +190,37 @@ export async function forceDeleteCustomerPackage({
   );
 
   cleanup.bookingReferencesCleared = bookingUpdates.length;
+
+  // Cancel any accommodation booking created for this package.
+  // The booking is identified by the notes field set at purchase time.
+  // Also match by guest_id + date range as a secondary safeguard.
+  const accomNotePattern = `%Customer Package ID: ${packageId}%`;
+  const { rows: accomUpdates } = await client.query(
+    `UPDATE accommodation_bookings
+        SET status = 'cancelled', updated_at = NOW()
+      WHERE guest_id = $1
+        AND status != 'cancelled'
+        AND (
+          notes LIKE $2
+          OR (
+            check_in_date = $3
+            AND check_out_date = $4
+          )
+        )
+      RETURNING id`,
+    [
+      customerPackage.customer_id,
+      accomNotePattern,
+      customerPackage.check_in_date || null,
+      customerPackage.check_out_date || null,
+    ]
+  );
+  cleanup.accommodationBookingsCancelled = accomUpdates.length;
+  if (accomUpdates.length > 0) {
+    logger.info('Cancelled accommodation booking(s) linked to deleted package', {
+      packageId, accommodationBookingIds: accomUpdates.map(r => r.id)
+    });
+  }
 
   const { rows: deletedRows } = await client.query(
     'DELETE FROM customer_packages WHERE id = $1 RETURNING *',

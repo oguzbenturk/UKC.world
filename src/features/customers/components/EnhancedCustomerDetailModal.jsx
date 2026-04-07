@@ -915,14 +915,14 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         _package_name: p.packageName || p.package_name || p.lessonType || '—',
       }));
 
-    // Deduplicate: if a standalone booking already covers the same unit + check_in,
+    // Deduplicate: if a standalone booking already covers the same check_in date,
     // prefer the standalone booking and drop the package row.
-    const standaloneKeys = new Set(
-      (accommodationBookings || []).map(b => `${b.unit_id}|${b.check_in_date}`)
+    const standaloneCheckIns = new Set(
+      (accommodationBookings || []).map(b => b.check_in_date).filter(Boolean)
     );
     const filteredPkgRows = packageAccomRows.filter(r => {
       if (!r.check_in_date) return true; // no date → can't deduplicate, show it
-      return !standaloneKeys.has(`${r.unit_name}|${r.check_in_date}`);
+      return !standaloneCheckIns.has(r.check_in_date);
     });
 
     const allRows = [
