@@ -248,9 +248,11 @@ async function main() {
           }));
           await ssh.execCommand(
             `chmod 640 ${remoteSslDir}/private.key && chown root:101 ${remoteSslDir}/private.key` +
-            ` && chmod 644 ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt`
+            ` && chmod 644 ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt` +
+            ` && cat ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt > ${remoteSslDir}/fullchain.crt` +
+            ` && chmod 644 ${remoteSslDir}/fullchain.crt`
           );
-          console.log('   ✓ SSL certificates uploaded successfully');
+          console.log('   ✓ SSL certificates uploaded + fullchain.crt created');
         }
 
         const script = `set -e
