@@ -42,10 +42,10 @@ const PackageCard = ({ pkg }) => {
           <ProgressRow label="Lesson hours" used={pkg.usedHours} total={pkg.totalHours} remaining={pkg.remainingHours} color="bg-emerald-400" colorText="text-emerald-600" />
         )}
         {includesRental && (
-          <ProgressRow label="Rental days" used={pkg.rentalDaysUsed || 0} total={pkg.rentalDaysTotal} remaining={pkg.rentalDaysRemaining || pkg.rentalDaysTotal} color="bg-orange-400" colorText="text-orange-600" />
+          <ProgressRow label="Rental days" used={pkg.rentalDaysUsed ?? 0} total={pkg.rentalDaysTotal} remaining={pkg.rentalDaysRemaining ?? pkg.rentalDaysTotal} color="bg-orange-400" colorText="text-orange-600" />
         )}
         {includesAccommodation && (
-          <ProgressRow label="Accommodation nights" used={pkg.accommodationNightsUsed || 0} total={pkg.accommodationNightsTotal} remaining={pkg.accommodationNightsRemaining || pkg.accommodationNightsTotal} color="bg-blue-400" colorText="text-blue-600" />
+          <ProgressRow label="Accommodation nights" used={pkg.accommodationNightsUsed ?? 0} total={pkg.accommodationNightsTotal} remaining={pkg.accommodationNightsRemaining ?? pkg.accommodationNightsTotal} color="bg-blue-400" colorText="text-blue-600" />
         )}
       </div>
       {pkg.expiresAt && (
