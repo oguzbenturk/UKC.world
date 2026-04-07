@@ -15,7 +15,7 @@ import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
-import { insertNotification } from '../services/notificationWriter.js';
+import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import socketService from '../services/socketService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 
