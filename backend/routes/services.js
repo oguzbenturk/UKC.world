@@ -13,6 +13,7 @@ import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgrad
 import { setPackagePrices, getPackagePrices, setServicePrices, getServicePrices, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 const router = express.Router();
 
 // Minimal currency defaults to prevent FK errors when currency_settings isn't seeded
@@ -1860,6 +1861,48 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     // Add Iyzico payment URL if credit card payment
     if (iyzicoPaymentPageUrl) {
       response.paymentPageUrl = iyzicoPaymentPageUrl;
+    }
+
+    // Dispatch notifications for package purchase
+    try {
+      // Notify staff (admin/manager/owner) about new package purchase
+      await dispatchToStaff({
+        type: 'package_purchase',
+        title: 'New Package Purchase',
+        message: `${req.user?.name || 'A customer'} purchased package: ${pkg.name}`,
+        data: {
+          packageId: customerPackageId,
+          servicePackageId: packageId,
+          customerUserId: userId,
+          amount: packagePrice,
+          currency: priceCurrency,
+          paymentMethod: normalizedPaymentMethod,
+          cta: { label: 'View Package', href: `/admin/customers/${userId}/packages` }
+        },
+        idempotencyPrefix: `package-purchase:${customerPackageId}`,
+        excludeUserIds: []
+      });
+
+      // Notify student about their package purchase
+      await dispatchNotification({
+        userId,
+        type: 'booking_student',
+        title: 'Package Purchased',
+        message: `Your package "${pkg.name}" has been purchased successfully.`,
+        data: {
+          packageId: customerPackageId,
+          servicePackageId: packageId,
+          amount: packagePrice,
+          currency: priceCurrency,
+          cta: { label: 'View Package', href: '/dashboard/packages' }
+        },
+        idempotencyKey: `package-purchase:${customerPackageId}:student:${userId}`
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to dispatch package purchase notifications', {
+        customerPackageId, userId, error: notifErr.message
+      });
+      // Don't fail the whole purchase if notifications fail
     }
 
     res.status(201).json(response);

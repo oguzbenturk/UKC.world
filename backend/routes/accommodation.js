@@ -7,6 +7,7 @@ import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from '../services/currencyService.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 
 /**
  * Extract extended pricing metadata stored inside the amenities JSONB array.
@@ -707,6 +708,54 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		booking.unit = unitData;
 		booking.nights = nights;
 
+		// Helper function to dispatch accommodation booking notifications
+		const dispatchAccommodationNotifications = async () => {
+			try {
+				// Notify staff about new accommodation booking
+				await dispatchToStaff({
+					type: 'accommodation_booking',
+					title: 'New Accommodation Booking',
+					message: `New accommodation booking for ${unitData.name || 'Unit'} from ${check_in_date} to ${check_out_date}`,
+					data: {
+						bookingId,
+						unitId: unit_id,
+						guestId: guest_id,
+						checkInDate: check_in_date,
+						checkOutDate: check_out_date,
+						totalPrice: total_price,
+						paymentMethod: payment_method,
+						paymentStatus: paymentStatus,
+						cta: { label: 'View Booking', href: `/admin/accommodation/bookings/${bookingId}` }
+					},
+					idempotencyPrefix: `accommodation-booking:${bookingId}`,
+					excludeUserIds: []
+				});
+
+				// Notify guest about their booking confirmation
+				await dispatchNotification({
+					userId: guest_id,
+					type: 'accommodation_booking',
+					title: 'Accommodation Booking Confirmed',
+					message: `Your booking for ${unitData.name || 'Unit'} has been confirmed for ${nights} night(s).`,
+					data: {
+						bookingId,
+						unitId: unit_id,
+						checkInDate: check_in_date,
+						checkOutDate: check_out_date,
+						totalPrice: total_price,
+						nights,
+						cta: { label: 'View Booking', href: `/bookings/accommodation/${bookingId}` }
+					},
+					idempotencyKey: `accommodation-booking:${bookingId}:guest:${guest_id}`
+				});
+			} catch (notifErr) {
+				logger.warn('Failed to dispatch accommodation booking notifications', {
+					bookingId, guestId: guest_id, error: notifErr.message
+				});
+				// Don't fail the booking if notifications fail
+			}
+		};
+
 		// For credit card payments, initiate Iyzico checkout
 		if (payment_method === 'credit_card') {
 			try {
@@ -744,6 +793,10 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 				});
 
 				booking.paymentPageUrl = gatewayResult.paymentPageUrl;
+
+				// Dispatch notifications before returning
+				await dispatchAccommodationNotifications();
+
 				return res.status(201).json(booking);
 			} catch (iyzicoErr) {
 				logger.error('Iyzico initiation failed for accommodation booking', { bookingId, error: iyzicoErr.message });
@@ -751,6 +804,9 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 				return res.status(500).json({ error: 'Failed to initiate card payment. Please try again or use wallet.' });
 			}
 		}
+
+		// Dispatch notifications
+		await dispatchAccommodationNotifications();
 
 		res.status(201).json(booking);
 	} catch (err) {
