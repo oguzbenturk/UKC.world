@@ -1,23 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SendOutlined } from '@ant-design/icons';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MicrophoneIcon, PaperClipIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import ReactMarkdown from 'react-markdown';
 import { useAIChat } from '@/shared/contexts/AIChatContext';
-import { STARTER_PROMPTS } from '@/shared/hooks/useAIAssistant';
 
-const formatTime = (ts) => {
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
+const formatTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const hasVoiceSupport = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
 const TypingIndicator = () => (
-  <div className="flex items-start mb-3">
-    <div className="bg-white rounded-2xl rounded-tl-none px-4 py-2.5 shadow-sm">
-      <div className="flex gap-1 items-center h-5">
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+  <div className="flex items-end gap-2 mb-2">
+    <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0">K</div>
+    <div className="bg-white/90 backdrop-blur-sm rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-100">
+      <div className="flex gap-1.5 items-center">
+        <span className="w-1.5 h-1.5 bg-duotone-blue rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 bg-duotone-blue rounded-full animate-bounce" style={{ animationDelay: '160ms' }} />
+        <span className="w-1.5 h-1.5 bg-duotone-blue rounded-full animate-bounce" style={{ animationDelay: '320ms' }} />
       </div>
     </div>
   </div>
@@ -26,177 +25,263 @@ const TypingIndicator = () => (
 const WhatsAppChatModal = () => {
   const { isChatOpen, closeChat, messages, sending, send } = useAIChat();
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [attachment, setAttachment] = useState(null); // { file, preview, base64 }
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0 || sending) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, sending]);
 
-  // Focus input when chat opens
   useEffect(() => {
-    if (isChatOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
+    if (isChatOpen) setTimeout(() => inputRef.current?.focus(), 350);
   }, [isChatOpen]);
 
-  // Close on Escape
   useEffect(() => {
     if (!isChatOpen) return;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') closeChat();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
+    const onKey = (e) => { if (e.key === 'Escape') closeChat(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [isChatOpen, closeChat]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    send(input);
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5MB max
+    const preview = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload = () => setAttachment({ file, preview, base64: reader.result });
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, []);
+
+  const clearAttachment = useCallback(() => {
+    if (attachment?.preview) URL.revokeObjectURL(attachment.preview);
+    setAttachment(null);
+  }, [attachment]);
+
+  const handleSend = useCallback((text) => {
+    const msg = (text ?? input).trim();
+    if (!msg && !attachment) return;
+    send(msg || 'Analyze this image', attachment?.base64 || null);
     setInput('');
-  };
+    clearAttachment();
+  }, [input, send, attachment, clearAttachment]);
+
+  const startListening = useCallback(() => {
+    if (!hasVoiceSupport || isListening) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.onresult = (e) => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+      setInput(transcript);
+    };
+    rec.onend = () => {
+      setIsListening(false);
+      setInput((prev) => {
+        if (prev.trim()) setTimeout(() => handleSend(prev), 50);
+        return prev;
+      });
+    };
+    rec.onerror = () => setIsListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setIsListening(true);
+  }, [isListening, handleSend]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+  }, []);
 
   const MarkdownLink = ({ href, children }) => {
     if (href?.startsWith('/')) {
       return (
-        <a
-          href={href}
-          className="text-blue-600 underline hover:text-blue-800"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate(href);
-            closeChat();
-          }}
-        >
+        <a href={href} className="underline text-duotone-blue font-medium hover:text-[#008da6]"
+          onClick={(e) => { e.preventDefault(); navigate(href); closeChat(); }}>
           {children}
         </a>
       );
     }
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
-        {children}
-      </a>
-    );
+    return <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-duotone-blue">{children}</a>;
   };
 
   if (!isChatOpen) return null;
 
-  const showStarters = messages.length <= 1;
-
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end sm:items-end justify-start sm:justify-start p-0 sm:p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30" onClick={closeChat} />
+    <div className="fixed inset-0 z-[1000] flex items-end justify-start">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeChat} />
 
-      {/* Chat window */}
-      <div
-        className="relative flex flex-col w-full h-full sm:w-[400px] sm:h-[550px] sm:ml-2 sm:mb-2 rounded-none sm:rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300"
-        style={{ animationFillMode: 'both' }}
-      >
-        {/* Header - WhatsApp green */}
-        <div className="flex items-center px-4 py-3 bg-[#075E54] text-white flex-shrink-0">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
-              </svg>
+      <div className="relative flex flex-col w-full h-full sm:w-[390px] sm:h-[580px] sm:ml-3 sm:mb-3 sm:rounded-2xl overflow-hidden shadow-2xl"
+        style={{ animation: 'chatSlideUp 0.25s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+
+        {/* Header — Duotone brand gradient */}
+        <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, #3b4b50 0%, #435458 50%, #4e5c62 100%)' }}>
+          <div className="relative flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-duotone-blue flex items-center justify-center text-white font-bold text-base shadow-lg">
+              K
             </div>
-            {/* Online dot */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-[#075E54]" />
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-antrasit" />
           </div>
-          <div className="ml-3 flex-1 min-w-0">
-            <div className="font-semibold text-[15px] leading-tight">Plannivo Support</div>
-            <div className="text-[12px] text-green-200 leading-tight mt-0.5">Online</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-semibold text-[15px] leading-tight font-gotham-medium">Kai</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] text-gray-300">UKC Assistant</span>
+            </div>
           </div>
-          <button
-            onClick={closeChat}
-            className="p-1.5 rounded-full hover:bg-white/15 transition-colors"
-          >
+          <button onClick={closeChat}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Messages area - WhatsApp background */}
-        <div
-          className="flex-1 overflow-y-auto px-3 py-3 space-y-1"
-          style={{ backgroundColor: '#ECE5DD' }}
-        >
+        {/* Messages — clean light background */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 bg-slate-50">
+
+          {messages.length > 0 && (
+            <div className="flex justify-center mb-3">
+              <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">Today</span>
+            </div>
+          )}
+
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} mb-1`}>
-              <div
-                className={`relative max-w-[85%] px-3 py-2 text-sm shadow-sm ${
-                  m.role === 'user'
-                    ? 'bg-[#DCF8C6] rounded-2xl rounded-tr-none text-gray-900'
-                    : 'bg-white rounded-2xl rounded-tl-none text-gray-800'
-                }`}
-              >
+            <div key={i} className={`flex items-end gap-2 mb-1.5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              style={{ animation: 'msgFadeIn 0.18s ease both' }}>
+
+              {m.role === 'assistant' && (
+                <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mb-0.5">K</div>
+              )}
+
+              <div className={`relative max-w-[78%] px-3 pt-2 pb-1.5 text-sm ${
+                m.role === 'user'
+                  ? 'bg-duotone-blue text-white rounded-2xl rounded-br-sm shadow-sm'
+                  : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
+              }`}>
                 {m.role === 'assistant' ? (
-                  <ReactMarkdown
-                    components={{
-                      a: MarkdownLink,
-                      p: ({ children }) => <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc pl-4 mb-1">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-1">{children}</ol>,
-                      li: ({ children }) => <li className="mb-0.5">{children}</li>,
-                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                    }}
-                  >
+                  <ReactMarkdown components={{
+                    a: MarkdownLink,
+                    p: ({ children }) => <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                    li: ({ children }) => <li>{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  }}>
                     {m.content}
                   </ReactMarkdown>
                 ) : (
-                  <span className="leading-relaxed">{m.content}</span>
+                  <>
+                    {m.image && (
+                      <img src={m.image} alt="Sent" className="rounded-lg max-w-full mb-1.5" style={{ maxHeight: 180 }} />
+                    )}
+                    {m.content && <span className="leading-relaxed">{m.content}</span>}
+                  </>
                 )}
-                {m.timestamp && (
-                  <div className={`text-[10px] mt-1 text-right ${m.role === 'user' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {formatTime(m.timestamp)}
-                  </div>
-                )}
+                <div className={`flex items-center justify-end gap-1 mt-1 ${m.role === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
+                  <span className="text-[10px]">{m.timestamp ? formatTime(m.timestamp) : ''}</span>
+                  {m.role === 'user' && (
+                    <svg className="w-3.5 h-3 text-white/70" viewBox="0 0 16 11" fill="currentColor">
+                      <path d="M11.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.128-.022l-2.5-3a.75.75 0 0 1 1.156-.964l1.946 2.335 5.918-6.361a.75.75 0 0 1 1.06-.048Z"/>
+                      <path d="M14.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.06.048.75.75 0 0 1-.048-1.06l6.5-7a.75.75 0 0 1 1.06-.048Z"/>
+                    </svg>
+                  )}
+                </div>
               </div>
             </div>
           ))}
-
-          {/* Starter prompts */}
-          {showStarters && (
-            <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
-              {STARTER_PROMPTS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => send(p)}
-                  className="px-3 py-1.5 text-xs bg-white rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
 
           {sending && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input area */}
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-[#F0F0F0] flex-shrink-0">
+        {/* Listening indicator */}
+        {isListening && (
+          <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-red-50 border-t border-red-100 flex-shrink-0">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs text-red-600 font-medium">Listening... release to send</span>
+          </div>
+        )}
+
+        {/* Attachment preview */}
+        {attachment && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border-t border-gray-200 flex-shrink-0">
+            <div className="relative">
+              <img src={attachment.preview} alt="Attachment" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+              <button onClick={clearAttachment}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-600 text-white flex items-center justify-center hover:bg-gray-700">
+                <XCircleIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <span className="text-xs text-gray-500 truncate">{attachment.file.name}</span>
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+
+        {/* Input bar — brand styled */}
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-white border-t border-gray-200 flex-shrink-0">
+          <button onClick={() => fileInputRef.current?.click()}
+            disabled={sending}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-duotone-blue hover:bg-slate-100 transition-colors flex-shrink-0 disabled:opacity-40"
+            title="Attach image">
+            <PaperClipIcon className="w-5 h-5" />
+          </button>
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="Type a message..."
-            disabled={sending}
-            className="flex-1 px-4 py-2.5 bg-white rounded-full text-sm text-gray-800 placeholder-gray-400 outline-none border-none focus:ring-1 focus:ring-[#075E54]/30"
+            placeholder="Message Kai..."
+            disabled={sending || isListening}
+            className="flex-1 px-4 py-2 bg-slate-50 rounded-full text-sm text-gray-800 placeholder-gray-400 outline-none border border-gray-200 focus:border-duotone-blue/40 focus:ring-1 focus:ring-duotone-blue/20 transition-colors"
           />
-          <button
-            onClick={handleSend}
-            disabled={sending || !input.trim()}
-            className="w-10 h-10 rounded-full bg-[#075E54] text-white flex items-center justify-center hover:bg-[#064E46] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            <SendOutlined style={{ fontSize: 16 }} />
-          </button>
+
+          {(input.trim() || attachment) ? (
+            <button onClick={() => handleSend()}
+              disabled={sending}
+              className="w-10 h-10 rounded-full bg-duotone-blue text-white flex items-center justify-center hover:bg-[#008da6] active:scale-90 transition-all disabled:opacity-40 flex-shrink-0 shadow-sm">
+              <PaperAirplaneIcon className="w-4 h-4" />
+            </button>
+          ) : hasVoiceSupport ? (
+            <button
+              onPointerDown={startListening}
+              onPointerUp={stopListening}
+              onPointerCancel={stopListening}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 shadow-sm select-none ${
+                isListening
+                  ? 'bg-red-500 text-white scale-110'
+                  : 'bg-duotone-blue text-white hover:bg-[#008da6] active:scale-90'
+              }`}
+              title="Hold to speak"
+            >
+              <MicrophoneIcon className="w-5 h-5" />
+            </button>
+          ) : null}
         </div>
       </div>
+
+      <style>{`
+        @keyframes chatSlideUp {
+          from { opacity: 0; transform: translateY(20px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)    scale(1); }
+        }
+        @keyframes msgFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };

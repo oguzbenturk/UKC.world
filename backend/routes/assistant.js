@@ -1,7 +1,10 @@
 import express from 'express';
 import axios from 'axios';
+import https from 'https';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const router = express.Router();
 
@@ -30,13 +33,16 @@ const optionalAuth = async (req, res, next) => {
 
 router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
   try {
-    const { message, conversationHistory } = req.body;
+    const { message, conversationHistory, image } = req.body;
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return res.status(400).json({ error: 'Message is required' });
+    if ((!message || typeof message !== 'string' || message.trim().length === 0) && !image) {
+      return res.status(400).json({ error: 'Message or image is required' });
     }
-    if (message.length > 2000) {
+    if (message && message.length > 2000) {
       return res.status(400).json({ error: 'Message too long (max 2000 characters)' });
+    }
+    if (image && image.length > 7 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Image too large (max 5MB)' });
     }
 
     const webhookUrl = process.env.N8N_ASSISTANT_WEBHOOK_URL;
@@ -47,12 +53,13 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
     }
 
     const payload = {
-      message: message.trim(),
+      message: (message || '').trim(),
       userId: req.user?.id || 'guest',
       userRole: req.user?.role || 'outsider',
       userName: req.user?.name || 'Guest',
       conversationHistory: conversationHistory || [],
     };
+    if (image) payload.image = image;
 
     const response = await axios.post(webhookUrl, payload, {
       headers: {
@@ -60,6 +67,7 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
         'X-Plannivo-Secret': webhookSecret || '',
       },
       timeout: 30000,
+      httpsAgent,
     });
 
     res.json({ response: response.data.response || response.data.output || 'No response received.' });

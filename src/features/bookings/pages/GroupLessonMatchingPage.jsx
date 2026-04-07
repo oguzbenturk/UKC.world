@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -8,20 +8,20 @@ import {
   Space,
   Empty,
   Avatar,
-  Spin
+  Spin,
+  Tooltip
 } from 'antd';
 import {
   ArrowPathIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
-import { lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useSearchParams } from 'react-router-dom';
-
-const BookingDetailModal = lazy(() => import('@/features/customers/components/BookingDetailModal'));
+import GroupBookingDetailDrawer from '../components/GroupBookingDetailDrawer';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +29,13 @@ const paymentDot = (status) => {
   const colors = { paid: 'bg-emerald-500', pending: 'bg-amber-400', not_applicable: 'bg-slate-300' };
   return <span className={`inline-block w-1.5 h-1.5 rounded-full ${colors[status] || 'bg-slate-300'} mr-1`} />;
 };
+
+const statusDot = (status) => {
+  const colors = { accepted: 'bg-cyan-400', invited: 'bg-blue-400', declined: 'bg-red-400', paid: 'bg-emerald-500' };
+  return colors[status] ? <span className={`inline-block w-1.5 h-1.5 rounded-full ${colors[status]} ml-1`} /> : null;
+};
+
+const getCurrencySymbol = (c) => ({ EUR: '\u20AC', USD: '$', TRY: '\u20BA', GBP: '\u00A3', CHF: 'CHF' }[c || 'EUR'] || c || '\u20AC');
 
 const GroupLessonMatchingPage = () => {
   usePageSEO({
@@ -40,7 +47,7 @@ const GroupLessonMatchingPage = () => {
 
   const [filters, setFilters] = useState({ status: 'pending', serviceId: null });
   const [searchParams] = useSearchParams();
-  const [selectedBookingId, setSelectedBookingId] = useState(null); // calendar booking id for BookingDetailModal
+  const [selectedGroupBookingId, setSelectedGroupBookingId] = useState(null);
 
   // -- Queries ---------------------------------------------------------
 
@@ -89,7 +96,7 @@ const GroupLessonMatchingPage = () => {
   const columns = [
     {
       title: 'Group Name / Lesson',
-      dataIndex: 'user_name', // for group bookings, it maps organizer name
+      dataIndex: 'user_name',
       render: (_, r) => (
         <div className="leading-tight">
           <span className="text-xs font-bold text-slate-800 block truncate">{r.title || 'Group Booking'}</span>
@@ -101,18 +108,24 @@ const GroupLessonMatchingPage = () => {
     {
       title: 'Participants',
       dataIndex: 'participants',
-      width: 180,
+      width: 200,
       render: (raw) => {
         const participants = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : raw;
         if (!Array.isArray(participants) || participants.length === 0) return <span className="text-[11px] text-slate-400">-</span>;
         return (
           <div className="leading-tight space-y-0.5">
             {participants.map((p, i) => (
-              <div key={i} className="flex items-center gap-0.5 truncate">
+              <div key={i} className="flex items-center gap-0.5">
                 {paymentDot(p.payment_status)}
-                <span className={`text-[11px] truncate ${p.is_organizer ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
-                  {p.name || 'Unknown'}{p.is_organizer ? ' ?' : ''}
+                <span className={`text-[11px] truncate max-w-[120px] ${p.is_organizer ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                  {p.name || 'Unknown'}
                 </span>
+                {p.is_organizer && (
+                  <Tooltip title="Organizer">
+                    <StarIcon className="w-3 h-3 text-amber-500 shrink-0" />
+                  </Tooltip>
+                )}
+                {statusDot(p.status)}
               </div>
             ))}
           </div>
@@ -131,7 +144,7 @@ const GroupLessonMatchingPage = () => {
           <div className="leading-tight">
             <span className="text-xs font-medium text-slate-700 block">{s ? dayjs(s).format('MMM D, YYYY') : '-'}</span>
             <span className="text-[11px] text-slate-500 block">
-              {time ? time.substring(0, 5) : 'any'}{dur ? ` � ${dur}h` : ''}
+              {time ? time.substring(0, 5) : 'any'}{dur ? ` \u00B7 ${dur}h` : ''}
             </span>
           </div>
         );
@@ -145,8 +158,7 @@ const GroupLessonMatchingPage = () => {
       render: (name, r) => {
         const n = name || r.instructorName;
         const p = r.price_per_person || r.pricePerPerson;
-        const c = r.currency || 'EUR';
-        const sym = { EUR: '�', USD: '$', TRY: '?', GBP: '�' }[c] || c;
+        const sym = getCurrencySymbol(r.currency);
         return (
           <div className="leading-tight">
             <span className={`text-xs block truncate ${n ? 'text-slate-700' : 'text-slate-400'}`}>{n || 'Unassigned'}</span>
@@ -223,13 +235,13 @@ const GroupLessonMatchingPage = () => {
           <div className="flex justify-center items-center py-24"><Spin size="large" /></div>
         ) : requests.length === 0 ? (
           <div className="py-24">
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <span className="text-slate-500">
                   No {filters.status ? filters.status : ''} group bookings found
                 </span>
-              } 
+              }
             />
           </div>
         ) : (
@@ -239,36 +251,27 @@ const GroupLessonMatchingPage = () => {
             rowKey="id"
             pagination={{ pageSize: 20, showSizeChanger: true, size: 'small' }}
             size="middle"
+            scroll={{ x: 900 }}
             rowClassName="cursor-pointer hover:bg-slate-50 transition-colors"
             onRow={(record) => ({
               onClick: () => {
-                // calendar_booking_id comes from the backend JOIN with bookings table
-                const bookingId = record.calendar_booking_id || record.calendarBookingId;
-                if (bookingId) setSelectedBookingId(bookingId);
+                if (record.id) setSelectedGroupBookingId(record.id);
               },
             })}
           />
         )}
       </div>
 
-      {/* Booking detail modal — same as the calendar view */}
-      <Suspense fallback={null}>
-        {selectedBookingId && (
-          <BookingDetailModal
-            visible
-            bookingId={selectedBookingId}
-            onClose={() => setSelectedBookingId(null)}
-            onBookingUpdated={() => {
-              queryClient.invalidateQueries({ queryKey: ['admin', 'group-lesson-requests'] });
-              setSelectedBookingId(null);
-            }}
-            onBookingDeleted={() => {
-              queryClient.invalidateQueries({ queryKey: ['admin', 'group-lesson-requests'] });
-              setSelectedBookingId(null);
-            }}
-          />
-        )}
-      </Suspense>
+      {/* Group Booking Detail Drawer */}
+      <GroupBookingDetailDrawer
+        isOpen={!!selectedGroupBookingId}
+        onClose={() => setSelectedGroupBookingId(null)}
+        groupBookingId={selectedGroupBookingId}
+        onUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'group-lesson-requests'] });
+          setSelectedGroupBookingId(null);
+        }}
+      />
     </div>
   );
 };

@@ -1210,6 +1210,7 @@ const AcademyServicePackagesPage = ({
             serviceId: resolvedServiceId,
             durationHours: parsedDurationHours,
             proRataTotalHours: selectedDur?.isCustomProRata ? parsedDurationHours : undefined,
+            initialOwnedPackage: ownedByPackageId.get(String(resolvedPackageId)) || null,
           });
           setQuickBookingOpen(true);
           closePackageDetailsModal();
@@ -1621,6 +1622,7 @@ const AcademyServicePackagesPage = ({
         proRataTotalHours={quickBookingData?.proRataTotalHours}
         servicePrice={quickBookingData?.servicePrice}
         serviceName={quickBookingData?.serviceName}
+        initialOwnedPackage={quickBookingData?.initialOwnedPackage ?? null}
       />
 
       {/* Rental Booking Modal — equipment rentals */}

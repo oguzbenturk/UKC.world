@@ -323,7 +323,7 @@ const StudentGroupBookingsPage = () => {
               const participantPct = Math.round(
                 (b.participantCount / b.maxParticipants) * 100
               );
-              const needsResponse = !b.iAmOrganizer && !['confirmed', 'completed', 'cancelled'].includes(b.status) && b.myStatus !== 'declined';
+              const needsResponse = !b.iAmOrganizer && !['confirmed', 'completed', 'cancelled'].includes(b.status) && ['pending_acceptance', 'invited'].includes(b.myStatus);
               return (
                 <div
                   key={b.id}

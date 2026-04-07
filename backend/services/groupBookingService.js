@@ -393,7 +393,7 @@ export const acceptGroupBookingInvitation = async (userId, groupBookingId) => {
       ),
       updated_at = NOW()
       WHERE user_id = $1
-      AND type = 'group_booking_invitation'
+      AND type = 'booking'
       AND (data->>'groupBookingId')::text = $2::text
     `, [userId, groupBookingId]);
 
@@ -477,7 +477,7 @@ export const declineGroupBookingInvitation = async (userId, groupBookingId, reas
       ),
       updated_at = NOW()
       WHERE user_id = $1
-      AND type = 'group_booking_invitation'
+      AND type = 'booking'
       AND (data->>'groupBookingId')::text = $2::text
     `, [userId, groupBookingId]);
 

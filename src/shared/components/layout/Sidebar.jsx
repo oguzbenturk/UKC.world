@@ -374,9 +374,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   onClick={() => { toggleChat(); if (isOpen) toggleSidebar(); }}
                   className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
                 >
-                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-emerald-400" />
-                  <span>Need help?</span>
-                  <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-duotone-blue" />
+                  <span>Ask Kai</span>
+                  <span className="ml-auto w-2 h-2 rounded-full bg-duotone-blue animate-pulse" />
                 </button>
               </div>
             </nav>
@@ -644,9 +644,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   onClick={() => { toggleChat(); if (isOpen) toggleSidebar(); }}
                   className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
                 >
-                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-emerald-400" />
-                  <span>Need help?</span>
-                  <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-duotone-blue" />
+                  <span>Ask Kai</span>
+                  <span className="ml-auto w-2 h-2 rounded-full bg-duotone-blue animate-pulse" />
                 </button>
               </div>
             </nav>

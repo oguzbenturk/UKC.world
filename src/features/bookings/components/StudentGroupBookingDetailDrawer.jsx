@@ -46,11 +46,14 @@ import {
   cancelGroupBooking,
   removeParticipant,
 } from '../services/groupBookingService';
+import { WalletOutlined, CreditCardOutlined, ShopOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useRealTimeEvents } from '@/shared/hooks/useRealTime';
 import { WalletDepositModal } from '@/features/finances/components/WalletDepositModal';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -107,6 +110,9 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
 
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
 
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -177,18 +183,57 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
     }
   };
 
+  const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
+
+  const handleIyzicoSuccess = useCallback(async () => {
+    setShowIyzicoModal(false);
+    setIyzicoPaymentUrl(null);
+    message.success('Payment confirmed!');
+    try { await refreshToken(); } catch { /* non-blocking */ }
+    refetchWallet(); fetchBooking(); onUpdated?.();
+  }, [refreshToken, refetchWallet, fetchBooking, onUpdated, message]);
+
   const handlePay = async () => {
     const isOrgPays = booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer && !booking?.organizerPaid;
     const accepted = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
     const amountEur = isOrgPays ? accepted * (booking?.pricePerPerson || 0) : booking?.pricePerPerson || 0;
     const amountLocal = convertCurrency ? convertCurrency(amountEur, 'EUR', userCurrency) : amountEur;
 
+    if (paymentMethod === 'credit_card') {
+      try {
+        setPaying(true);
+        const result = isOrgPays
+          ? await payForAllParticipants(bookingId, 'credit_card')
+          : await payForGroupBooking(bookingId, 'credit_card');
+        if (result.paymentPageUrl) {
+          setIyzicoPaymentUrl(result.paymentPageUrl);
+          setShowIyzicoModal(true);
+        } else { message.error('Failed to initiate card payment'); }
+      } catch (err) { message.error(err.response?.data?.error || 'Failed to initiate payment'); }
+      finally { setPaying(false); }
+      return;
+    }
+
+    if (paymentMethod === 'pay_later') {
+      try {
+        setPaying(true);
+        const result = isOrgPays
+          ? await payForAllParticipants(bookingId, 'pay_later')
+          : await payForGroupBooking(bookingId, 'pay_later');
+        message.success('Booking confirmed! Pay at the center.');
+        if (result?.roleUpgrade?.upgraded) await refreshToken();
+        refetchWallet(); fetchBooking(); onUpdated?.();
+      } catch (err) { message.error(err.response?.data?.error || 'Payment failed'); }
+      finally { setPaying(false); }
+      return;
+    }
+
     if (walletBalance >= amountLocal) {
       try {
         setPaying(true);
         if (isOrgPays) {
           const result = await payForAllParticipants(bookingId, 'wallet');
-          message.success(`Paid €${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
+          message.success(`Paid \u20AC${result.totalAmount?.toFixed(2)} for ${result.participantCount} participants.`);
           if (result?.roleUpgrade?.upgraded) { message.success(result.roleUpgrade.message); await refreshToken(); }
         } else {
           const payResult = await payForGroupBooking(bookingId, 'wallet');
@@ -264,9 +309,9 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
           {booking.description && <Paragraph className="!mb-0 text-slate-500 text-sm mt-2">{booking.description}</Paragraph>}
         </div>
 
-        {/* Payment Alert */}
+        {/* Payment Section */}
         {needsPayment && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col gap-3">
+          <div className="bg-white border border-amber-200 rounded-2xl p-4 space-y-3">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                 <CreditCardIcon className="w-4 h-4 text-amber-600" />
@@ -275,13 +320,41 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
                 <Text strong className="text-amber-900 block text-sm">{orgNeedsToPay ? 'Pay for Your Group' : 'Payment Required'}</Text>
                 <Text className="text-amber-700 text-xs">
                   {orgNeedsToPay
-                    ? `Pay for all ${acceptedCount} participant(s). Total: €${totalForOrg.toFixed(2)}`
+                    ? `Pay for all ${acceptedCount} participant(s). Total: \u20AC${totalForOrg.toFixed(2)}`
                     : 'Complete your payment to confirm your spot.'}
                 </Text>
               </div>
             </div>
-            <Button type="primary" loading={paying} icon={<CreditCardIcon className="w-4 h-4" />} onClick={handlePay} className="!rounded-xl !font-bold">
-              {orgNeedsToPay ? `Pay €${totalForOrg.toFixed(2)}` : `Pay €${booking.pricePerPerson?.toFixed(2)}`}
+
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Payment Method</p>
+            <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {[
+                { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: `${walletBalance.toFixed(0)} ${userCurrency}` },
+                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico' },
+                ...(canPayLater ? [{ key: 'pay_later', icon: <ShopOutlined />, label: 'At Center', sub: 'Pay later' }] : []),
+              ].map(({ key, icon, label, sub }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPaymentMethod(key)}
+                  className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl border-2 transition-all cursor-pointer ${
+                    paymentMethod === key
+                      ? 'border-blue-500 bg-blue-50/80 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`text-base ${paymentMethod === key ? 'text-blue-600' : 'text-slate-400'}`}>{icon}</span>
+                  <span className={`text-[11px] font-semibold ${paymentMethod === key ? 'text-blue-700' : 'text-slate-600'}`}>{label}</span>
+                  <span className={`text-[10px] ${paymentMethod === key ? 'text-blue-500' : 'text-slate-400'}`}>{sub}</span>
+                </button>
+              ))}
+            </div>
+
+            <Button type="primary" block loading={paying} onClick={handlePay} className="!rounded-xl !font-bold !h-10"
+              icon={paymentMethod === 'wallet' ? <WalletOutlined /> : paymentMethod === 'credit_card' ? <CreditCardOutlined /> : <ShopOutlined />}>
+              {paymentMethod === 'pay_later'
+                ? 'Confirm \u2014 Pay at Center'
+                : orgNeedsToPay ? `Pay \u20AC${totalForOrg.toFixed(2)}` : `Pay \u20AC${booking.pricePerPerson?.toFixed(2)}`}
             </Button>
           </div>
         )}
@@ -471,6 +544,16 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
           initialCurrency={userCurrency}
         />
       )}
+
+      {/* Iyzico Payment Modal */}
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="booking:payment_confirmed"
+        onSuccess={handleIyzicoSuccess}
+        onClose={() => { setShowIyzicoModal(false); setIyzicoPaymentUrl(null); }}
+        onError={(msg) => { setShowIyzicoModal(false); setIyzicoPaymentUrl(null); message.error(msg || 'Payment failed'); }}
+      />
 
       {/* Cancel Modal */}
       <Modal title="Cancel Group Booking" open={cancelModalVisible} onCancel={() => setCancelModalVisible(false)}

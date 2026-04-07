@@ -76,6 +76,7 @@ backend/                Backend (Express)
 
 ## Workflow Rules
 - **Always run `npm run migrate:up`** after creating or modifying migration files. Do not wait for the user to run it manually.
+- **Never run `npm run build`** to verify changes — it takes too long. Trust the code; only the user runs builds manually.
 
 ## Code Style
 - React functional components with hooks

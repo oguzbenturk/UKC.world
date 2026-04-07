@@ -50,11 +50,14 @@ import {
   cancelGroupBooking,
   removeParticipant
 } from '../services/groupBookingService';
+import { WalletOutlined, CreditCardOutlined, ShopOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useRealTimeEvents } from '@/shared/hooks/useRealTime';
 import { WalletDepositModal } from '@/features/finances/components/WalletDepositModal';
+import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -94,9 +97,12 @@ const GroupBookingDetailPage = () => {
   const [inviteForm] = Form.useForm();
   const [inviting, setInviting] = useState(false);
   
-  // Payment (WalletDeposit) modal
+  // Payment
   const [depositModalVisible, setDepositModalVisible] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+  const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   
   // Cancel modal
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
@@ -188,6 +194,17 @@ const GroupBookingDetailPage = () => {
     }
   };
 
+  const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
+
+  const handleIyzicoSuccess = useCallback(async () => {
+    setShowIyzicoModal(false);
+    setIyzicoPaymentUrl(null);
+    message.success('Payment confirmed!');
+    try { await refreshToken(); } catch { /* non-blocking */ }
+    refetchWallet();
+    fetchBooking();
+  }, [refreshToken, refetchWallet, fetchBooking, message]);
+
   const handlePay = async () => {
     const isOrgPays = booking?.paymentModel === 'organizer_pays' && booking?.isOrganizer && !booking?.organizerPaid;
     const accepted = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
@@ -195,13 +212,53 @@ const GroupBookingDetailPage = () => {
     const amountEur = isOrgPays ? (accepted * unitPrice) : unitPrice;
     const amountInUserCurrency = convertCurrency ? convertCurrency(amountEur, 'EUR', userCurrency) : amountEur;
 
+    // Credit card → Iyzico
+    if (paymentMethod === 'credit_card') {
+      try {
+        setPaying(true);
+        const result = isOrgPays
+          ? await payForAllParticipants(id, 'credit_card')
+          : await payForGroupBooking(id, 'credit_card');
+        if (result.paymentPageUrl) {
+          setIyzicoPaymentUrl(result.paymentPageUrl);
+          setShowIyzicoModal(true);
+        } else {
+          message.error('Failed to initiate card payment');
+        }
+      } catch (err) {
+        message.error(err.response?.data?.error || 'Failed to initiate payment');
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
+
+    // Pay at center → pay_later
+    if (paymentMethod === 'pay_later') {
+      try {
+        setPaying(true);
+        const result = isOrgPays
+          ? await payForAllParticipants(id, 'pay_later')
+          : await payForGroupBooking(id, 'pay_later');
+        message.success('Booking confirmed! Pay at the center.');
+        if (result?.roleUpgrade?.upgraded) await refreshToken();
+        refetchWallet();
+        fetchBooking();
+      } catch (err) {
+        message.error(err.response?.data?.error || 'Payment failed');
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
+
+    // Wallet flow
     if (walletBalance >= amountInUserCurrency) {
-      // Sufficient balance — pay directly from wallet
       try {
         setPaying(true);
         if (isOrgPays) {
           const result = await payForAllParticipants(id, 'wallet');
-          const paidAmount = convertCurrency && formatCurrency ? formatCurrency(convertCurrency(result.totalAmount || 0, 'EUR', userCurrency), userCurrency) : `€${result.totalAmount?.toFixed(2)}`;
+          const paidAmount = convertCurrency && formatCurrency ? formatCurrency(convertCurrency(result.totalAmount || 0, 'EUR', userCurrency), userCurrency) : `\u20AC${result.totalAmount?.toFixed(2)}`;
           message.success(`Payment successful! Paid ${paidAmount} for ${result.participantCount} participants.`);
           if (result?.roleUpgrade?.upgraded) {
             message.success(result.roleUpgrade.message);
@@ -224,7 +281,6 @@ const GroupBookingDetailPage = () => {
         setPaying(false);
       }
     } else {
-      // Insufficient balance — open deposit modal to top up first
       setDepositModalVisible(true);
     }
   };
@@ -368,10 +424,10 @@ const GroupBookingDetailPage = () => {
           )}
         </div>
 
-        {/* ── Payment Alert ── */}
+        {/* ── Payment Section ── */}
         {needsPayment && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-5 mb-4">
+            <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
                 <CreditCardIcon className="w-5 h-5 text-amber-600" />
               </div>
@@ -386,17 +442,54 @@ const GroupBookingDetailPage = () => {
                 </Text>
               </div>
             </div>
+
+            {/* Payment method selector */}
+            <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              Payment Method
+            </p>
+            <div className={`grid gap-2 mb-4 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {[
+                { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: formatCurrency ? formatCurrency(walletBalance, userCurrency) : `${walletBalance.toFixed(2)}` },
+                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico' },
+                ...(canPayLater ? [{ key: 'pay_later', icon: <ShopOutlined />, label: 'At Center', sub: 'Pay later' }] : []),
+              ].map(({ key, icon, label, sub }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPaymentMethod(key)}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                    paymentMethod === key
+                      ? 'border-blue-500 bg-blue-50/80 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className={`text-lg ${paymentMethod === key ? 'text-blue-600' : 'text-slate-400'}`}>{icon}</span>
+                  <span className={`text-xs font-semibold ${paymentMethod === key ? 'text-blue-700' : 'text-slate-600'}`}>{label}</span>
+                  <span className={`text-[10px] ${paymentMethod === key ? 'text-blue-500' : 'text-slate-400'}`}>{sub}</span>
+                </button>
+              ))}
+            </div>
+
+            {paymentMethod === 'wallet' && walletBalance < (organizerNeedsToPay ? totalForOrganizer : displayPrice) && (
+              <div className="mb-3 text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                Insufficient wallet balance. You'll be prompted to top up first.
+              </div>
+            )}
+
             <Button
               type="primary"
               size="large"
+              block
               loading={paying}
-              icon={<CreditCardIcon className="w-4 h-4" />}
               onClick={handlePay}
-              className="!rounded-xl !font-bold !h-11 shrink-0"
+              className="!h-12 !rounded-xl !font-bold"
+              icon={paymentMethod === 'wallet' ? <WalletOutlined /> : paymentMethod === 'credit_card' ? <CreditCardOutlined /> : <ShopOutlined />}
             >
-              {organizerNeedsToPay
-                ? `Pay ${formattedTotalForOrganizer}`
-                : `Pay ${formattedDisplayPrice}`}
+              {paymentMethod === 'pay_later'
+                ? 'Confirm — Pay at Center'
+                : paymentMethod === 'credit_card'
+                  ? `Pay ${organizerNeedsToPay ? formattedTotalForOrganizer : formattedDisplayPrice} with Card`
+                  : `Pay ${organizerNeedsToPay ? formattedTotalForOrganizer : formattedDisplayPrice}`}
             </Button>
           </div>
         )}
@@ -773,6 +866,16 @@ const GroupBookingDetailPage = () => {
           organizerNeedsToPay ? totalForOrganizer : displayPrice
         }
         initialCurrency={userCurrency}
+      />
+
+      {/* Iyzico Payment Modal */}
+      <IyzicoPaymentModal
+        visible={showIyzicoModal}
+        paymentPageUrl={iyzicoPaymentUrl}
+        socketEventName="booking:payment_confirmed"
+        onSuccess={handleIyzicoSuccess}
+        onClose={() => { setShowIyzicoModal(false); setIyzicoPaymentUrl(null); }}
+        onError={(msg) => { setShowIyzicoModal(false); setIyzicoPaymentUrl(null); message.error(msg || 'Payment failed'); }}
       />
       
       {/* Cancel Modal */}

@@ -1001,7 +1001,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
 // ── Main Component ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
-const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours, servicePrice, serviceName, proRataTotalHours = null }) => {
+const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours, servicePrice, serviceName, proRataTotalHours = null, initialOwnedPackage = null }) => {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1076,6 +1076,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     }) || null;
   }, [packageData?.id, ownedPackages]);
 
+  // Tracks whether package-ownership detection has already run for this modal open
+  const hasDetectedRef = useRef(false);
+
   // Reset all state when modal opens
   useEffect(() => {
     if (open) {
@@ -1100,16 +1103,24 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       const isGroup = tag === 'group' || tag === 'semi-private'
         || name.includes('group') || name.includes('semi-private') || name.includes('semi private');
       setGroupPartnerMode(isGroup);
-      // Initial step detection happens in the effect below once ownedPackages load
-      setStep(0);
-      setPurchasedPackage(null);
-      setIsExistingPackage(false);
+
+      if (initialOwnedPackage) {
+        // Student already owns this package — skip payment step immediately (no loading delay)
+        setPurchasedPackage(initialOwnedPackage);
+        setIsExistingPackage(true);
+        hasDetectedRef.current = true;
+        setStep(isGroup ? 0 : 1);
+      } else {
+        // No known owned package yet — start at payment step; async detection effect may update
+        setStep(0);
+        setPurchasedPackage(null);
+        setIsExistingPackage(false);
+      }
     }
   }, [open]);
 
   // Once owned packages are loaded, check for an existing matching package
   // For standalone services, skip step 0 (no package to buy)
-  const hasDetectedRef = useRef(false);
   useEffect(() => {
     if (!open) {
       hasDetectedRef.current = false;
