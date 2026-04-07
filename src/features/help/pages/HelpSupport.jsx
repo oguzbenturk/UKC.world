@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Collapse, Input, List, Button, Typography, Anchor, Space } from 'antd';
 import { SearchOutlined, PhoneOutlined, MailOutlined, ToolOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
+import AIAssistantPanel from '../components/AIAssistantPanel';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -147,6 +148,7 @@ const HelpSupport = () => {
 
           {/* Right column */}
           <div className="lg:col-span-4 space-y-4">
+            <AIAssistantPanel />
             <Card title="Release Notes" size="small" className="shadow">
               <List
                 size="small"

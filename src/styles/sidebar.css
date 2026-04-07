@@ -38,39 +38,48 @@
     transform: translateX(0);
   }
   
-  /* Ensure nav takes full available height and scrolls properly */
+  /* Ensure nav takes full available height */
   .sidebar nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 100%;
+  }
+
+  /* Scrollable nav content area (items scroll, pinned button stays) */
+  .sidebar .sidebar-nav-scroll {
     flex: 1;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     scrollbar-width: auto; /* Firefox - show scrollbar */
-  scrollbar-color: #475569 #1e293b; /* Firefox - thumb and track colors */
-    max-height: 100%; /* Use full available container height */
+    scrollbar-color: #475569 #1e293b; /* Firefox - thumb and track colors */
+    max-height: 100%;
   }
-  
+
   /* Webkit scrollbar styling for mobile - make it more visible */
-  .sidebar nav::-webkit-scrollbar {
+  .sidebar .sidebar-nav-scroll::-webkit-scrollbar {
     width: 8px;
     background-color: #1e293b;
   }
-  
-  .sidebar nav::-webkit-scrollbar-track {
+
+  .sidebar .sidebar-nav-scroll::-webkit-scrollbar-track {
     background: #1e293b;
     border-radius: 4px;
   }
-  
-  .sidebar nav::-webkit-scrollbar-thumb {
+
+  .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb {
     background-color: #475569;
     border-radius: 4px;
     border: 1px solid #334155;
   }
-  
-  .sidebar nav::-webkit-scrollbar-thumb:hover {
+
+  .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
     background-color: #64748b;
   }
-  
-  .sidebar nav::-webkit-scrollbar-thumb:active {
+
+  .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb:active {
     background-color: #94a3b8;
   }
 }
@@ -100,6 +109,13 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* AI Chat FAB - mobile only (hidden when sidebar is visible on desktop) */
+@media (min-width: 1200px) {
+  .ai-chat-fab-mobile {
+    display: none;
+  }
 }
 
 /* Navbar toggle icon animation */

@@ -93,3 +93,4 @@ backend/.env.server.production
 # Scraped product data / bulk import images
 downloads-ion-duotone/
 DuotoneFonts/downloads/
+backend/.env.production

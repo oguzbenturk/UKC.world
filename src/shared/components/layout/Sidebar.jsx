@@ -4,6 +4,7 @@ import { Modal, Badge } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
+import { useAIChat } from '../../contexts/AIChatContext';
 import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig';
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
 import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
@@ -51,6 +52,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const navRef = useRef(null);
   const { logout, isAuthenticated, isGuest } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const { toggleChat } = useAIChat();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -364,11 +366,24 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <aside ref={sidebarRef} className={`sidebar ${isOpen ? 'open' : ''}`}>
           {isShopMode && isUKCRole ? (
             <nav className="flex flex-col h-full overflow-hidden">
-              {renderShopSidebar()}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                {renderShopSidebar()}
+              </div>
+              <div className="flex-shrink-0 border-t border-white/10 px-3 py-3">
+                <button
+                  onClick={() => { toggleChat(); if (isOpen) toggleSidebar(); }}
+                  className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
+                >
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-emerald-400" />
+                  <span>Need help?</span>
+                  <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                </button>
+              </div>
             </nav>
           ) : (
-            <nav ref={navRef} className="flex-grow flex flex-col overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
-              
+            <nav ref={navRef} className="flex-grow flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-2 pb-4 space-y-5 scrollbar scrollbar-track-transparent scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500 sidebar-nav-scroll">
+
               <div>
                 <ul className="mt-1 space-y-1">
                   {dynamicNavItems.filter(item => item.label !== 'Contact').map((item) => (
@@ -622,6 +637,17 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </button>
                   </li>
                 </ul>
+              </div>
+              </div>
+              <div className="flex-shrink-0 border-t border-white/10 px-3 py-3">
+                <button
+                  onClick={() => { toggleChat(); if (isOpen) toggleSidebar(); }}
+                  className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
+                >
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-emerald-400" />
+                  <span>Need help?</span>
+                  <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                </button>
               </div>
             </nav>
           )}

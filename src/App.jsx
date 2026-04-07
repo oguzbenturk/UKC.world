@@ -31,6 +31,9 @@ import InstructorMyProfileDrawer from './features/instructor/components/Instruct
 import RescheduleConfirmationModal from './features/notifications/components/RescheduleConfirmationModal';
 import PartnerInviteModal from './features/notifications/components/PartnerInviteModal';
 import GlobalFAB from './shared/components/ui/GlobalFAB';
+import { AIChatProvider } from './shared/contexts/AIChatContext';
+import WhatsAppChatModal from './shared/components/chat/WhatsAppChatModal';
+import AIChatFAB from './shared/components/ui/AIChatFAB';
 import { UkcBrandDot } from './shared/components/ui/UkcBrandDot';
 import GlobalPackageDetailsModal from '@/features/outsider/components/GlobalPackageDetailsModal';
 
@@ -263,6 +266,7 @@ const AppLayoutWithAuth = () => {
   }
 
   return (
+    <AIChatProvider>
     <div className="flex flex-col h-dvh">
       {consentModal}
   <Navbar toggleSidebar={toggleSidebar} />
@@ -272,20 +276,23 @@ const AppLayoutWithAuth = () => {
   <RescheduleConfirmationModal />
   <PartnerInviteModal />
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          toggleSidebar={toggleSidebar} 
-        />        
+        <Sidebar
+          isOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
+        />
         <main className="content-container flex-1 safe-pb">
           <AppRoutes />
           <GlobalPackageDetailsModal />
         </main>
       </div>
-      
+
       {/* Popup Manager - shows popups based on conditions */}
       <PopupManagerWrapper user={user} />
       <GlobalFAB />
+      <WhatsAppChatModal />
+      <AIChatFAB />
     </div>
+    </AIChatProvider>
   );
 };
 
