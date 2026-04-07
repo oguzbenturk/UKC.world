@@ -2,7 +2,7 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import notificationDispatcher from './notificationDispatcher.js';
 import notificationMetrics from './metrics/notificationMetrics.js';
-import { insertNotification } from './notificationWriter.js';
+import { dispatchNotification, dispatchToStaff } from './notificationDispatcherUnified.js';
 
 const RATE_LESSON_INTENT = 'rate_lesson';
 const VIEW_RATING_INTENT = 'view_lesson_rating';
@@ -619,7 +619,7 @@ class BookingNotificationService {
             packageName
           });
 
-          return insertNotification({
+          return dispatchNotification({
             client,
             userId: student.id,
             title: `Lesson booked: ${serviceName}`,
@@ -631,48 +631,44 @@ class BookingNotificationService {
         })
       );
 
-      // Notify the instructor (if assigned and has new_booking_alerts enabled)
+      // Notify the instructor (if assigned; preference check handled by dispatchNotification)
       if (instructor && students.length) {
-        const instructorHasAlerts = await this._checkUserBookingAlerts(client, instructor.id);
-        
-        if (instructorHasAlerts) {
-          const instructorData = {
-            bookingId: booking.id,
-            role: 'instructor',
-            date: isoDate,
-            startTime: timeLabel,
-            durationHours,
-            durationMinutes,
-            serviceName,
-            packageName,
-            instructor,
-            students,
-            status: 'pending',
-            cta: {
-              label: serviceType === 'rental' ? 'View rental requests' : 'View in daily program',
-              href: serviceType === 'rental'
-                ? '/calendars/rentals?tab=requests'
-                : (isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily')
-            }
-          };
+        const instructorData = {
+          bookingId: booking.id,
+          role: 'instructor',
+          date: isoDate,
+          startTime: timeLabel,
+          durationHours,
+          durationMinutes,
+          serviceName,
+          packageName,
+          instructor,
+          students,
+          status: 'pending',
+          cta: {
+            label: serviceType === 'rental' ? 'View rental requests' : 'View in daily program',
+            href: serviceType === 'rental'
+              ? '/calendars/rentals?tab=requests'
+              : (isoDate ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${bookingId}` : '/bookings/calendar?view=daily')
+          }
+        };
 
-          const instructorMessage = buildInstructorMessage({
-            serviceName,
-            studentNames,
-            dateLabel,
-            timeLabel
-          });
+        const instructorMessage = buildInstructorMessage({
+          serviceName,
+          studentNames,
+          dateLabel,
+          timeLabel
+        });
 
-          await insertNotification({
-            client,
-            userId: instructor.id,
-            title: serviceType === 'rental' ? `New rental request: ${serviceName}` : `New lesson: ${serviceName}`,
-            message: instructorMessage,
-            type: 'booking_instructor',
-            data: instructorData,
-            idempotencyKey: `booking-created:${booking.id}:instructor:${instructor.id}`
-          });
-        }
+        await dispatchNotification({
+          client,
+          userId: instructor.id,
+          title: serviceType === 'rental' ? `New rental request: ${serviceName}` : `New lesson: ${serviceName}`,
+          message: instructorMessage,
+          type: 'booking_instructor',
+          data: instructorData,
+          idempotencyKey: `booking-created:${booking.id}:instructor:${instructor.id}`
+        });
       }
 
       // Notify managers and admins (if they have new_booking_alerts enabled)
