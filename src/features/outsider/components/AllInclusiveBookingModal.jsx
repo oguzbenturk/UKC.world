@@ -1209,6 +1209,16 @@ const AllInclusiveBookingModal = ({
               />
             )}
 
+            {currentStepKey === 'payment' && includesLessons && !selectedPackage?.lessonServiceId && (
+              <Alert
+                type="warning"
+                showIcon
+                className="mb-4 !rounded-xl"
+                message="Lesson service not configured"
+                description="This package does not have a lesson service linked. Your lesson schedule will be saved but lesson bookings may not be created automatically. Please contact staff to confirm your lessons."
+              />
+            )}
+
             {currentStepKey === 'payment' && (
               <PaymentStep
                 selectedPackage={selectedPackage}

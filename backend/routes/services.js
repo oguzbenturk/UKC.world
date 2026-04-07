@@ -1369,14 +1369,33 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     }
 
     // === Create individual lesson bookings if provided ===
-    if (Array.isArray(lessonBookings) && lessonBookings.length > 0 && pkg.lesson_service_id) {
+    // Resolve lesson_service_id: use the one on the package, or look it up by name as fallback
+    let resolvedLessonServiceId = pkg.lesson_service_id || null;
+    if (!resolvedLessonServiceId && Array.isArray(lessonBookings) && lessonBookings.length > 0) {
+      const lessonSvcName = pkg.lesson_service_name || pkg.name;
+      if (lessonSvcName) {
+        const svcLookup = await client.query(
+          `SELECT id FROM services WHERE LOWER(name) = LOWER($1) AND type = 'lesson' LIMIT 1`,
+          [lessonSvcName]
+        );
+        resolvedLessonServiceId = svcLookup.rows[0]?.id || null;
+      }
+      if (!resolvedLessonServiceId) {
+        logger.warn('Package has no lesson_service_id — lesson bookings cannot be created', {
+          packageId, packageName: pkg.name, customerPackageId
+        });
+      }
+    }
+
+    if (Array.isArray(lessonBookings) && lessonBookings.length > 0 && resolvedLessonServiceId) {
       for (const lesson of lessonBookings) {
         try {
           if (!lesson.date || !lesson.instructorId || !lesson.startTime) continue;
           await client.query('SAVEPOINT lesson_booking');
           const bookingId = uuidv4();
           const lessonDuration = parseFloat(lesson.duration) || 1;
-          const startHour = parseFloat(lesson.startTime);
+          const [sh, sm] = String(lesson.startTime).split(':').map(Number);
+          const startHour = sh + (sm || 0) / 60;
           const endHour = startHour + lessonDuration;
 
           await client.query(
@@ -1390,7 +1409,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'package', 'package', 0, 0, $9, $10, $11, NOW(), NOW())`,
             [
               bookingId,
-              pkg.lesson_service_id,
+              resolvedLessonServiceId,
               userId,
               lesson.instructorId,
               lesson.date,
