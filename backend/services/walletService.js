@@ -3204,7 +3204,7 @@ export async function listDepositRequests({
   params.push(safeOffset);
 
   const selectFields = includeUserDetails
-    ? `dr.*, u.name AS user_name, u.email AS user_email, u.role_id`
+    ? `dr.*, COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) AS user_name, u.email AS user_email, u.role_id`
     : 'dr.*';
 
   const joinClause = includeUserDetails ? 'LEFT JOIN users u ON dr.user_id = u.id' : '';

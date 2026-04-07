@@ -1,5 +1,6 @@
 import express from 'express';
 import { getConsentStatus, updateUserConsent, LATEST_TERMS_VERSION } from '../services/userConsentService.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ router.get('/me', async (req, res) => {
     const status = await getConsentStatus(req.user.id);
     res.json(status);
   } catch (error) {
-    console.error('Failed to load consent status', error);
+    logger.error('Failed to load consent status', error);
     res.status(500).json({ error: 'Failed to load consent status' });
   }
 });
@@ -28,7 +29,7 @@ router.post('/me', async (req, res) => {
     });
     res.json(status);
   } catch (error) {
-    console.error('Failed to update consent', error);
+    logger.error('Failed to update consent', error);
 
     if (error.code === 'CONSENT_TERMS_REQUIRED') {
       return res.status(409).json({

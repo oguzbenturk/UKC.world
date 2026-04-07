@@ -59,10 +59,15 @@ const LessonsCalendar = () => {
   });
 
   const { data: pendingPaymentsCount = 0 } = useQuery({
-    queryKey: ['pending-membership-payments-count'],
+    queryKey: ['pending-payments-combined-count'],
     queryFn: async () => {
-      const res = await apiClient.get('/member-offerings/admin/pending-payments?status=pending');
-      return res.data?.results?.length || res.data?.pagination?.total || 0;
+      const [memberRes, depositsRes] = await Promise.all([
+        apiClient.get('/member-offerings/admin/pending-payments?status=pending'),
+        apiClient.get('/wallet/admin/deposits?status=pending&method=bank_transfer&limit=1'),
+      ]);
+      const memberCount = memberRes.data?.results?.length || memberRes.data?.pagination?.total || 0;
+      const depositsCount = depositsRes.data?.results?.length || depositsRes.data?.pagination?.total || 0;
+      return memberCount + depositsCount;
     },
     refetchInterval: 60000,
     enabled: !isInstructor,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInstructorStudentProfile } from '../hooks/useInstructorStudentProfile';
+import apiClient from '@/shared/services/apiClient';
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -16,13 +17,18 @@ const formatDateTime = (value) => {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+const getInitials = (name) => {
+  if (!name) return '??';
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+};
+
 const StudentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const {
     profile, loading, error,
     updateProfile, addProgress, removeProgress, saving, progressSaving,
-    addGoal, editGoal, removeGoal, goalSaving
+    addRecommendation, removeRecommendation, recSaving
   } = useInstructorStudentProfile(id);
 
   const student = profile?.student;
@@ -38,13 +44,6 @@ const StudentDetail = () => {
   const [progressError, setProgressError] = useState(null);
   const [progressFeedback, setProgressFeedback] = useState(null);
 
-  const [goalFeedback, setGoalFeedback] = useState(null);
-  const [goalError, setGoalError] = useState(null);
-  const [showGoalForm, setShowGoalForm] = useState(false);
-  const [goalTitle, setGoalTitle] = useState('');
-  const [goalDescription, setGoalDescription] = useState('');
-  const [goalTargetDate, setGoalTargetDate] = useState('');
-  const [goalNotes, setGoalNotes] = useState('');
 
   useEffect(() => {
     if (!student) return;
@@ -82,124 +81,84 @@ const StudentDetail = () => {
     setProfileFeedback(null);
     setProfileError(null);
     try {
-      await updateProfile({
-        level: levelValue || null,
-        notes: notesValue || null
-      });
+      await updateProfile({ level: levelValue || null, notes: notesValue || null });
       setProfileFeedback('Student details updated');
     } catch (err) {
-      const message = err.response?.data?.error || err.message || 'Failed to update student';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to update student';
       setProfileError(message);
     }
   };
 
   const handleProgressAdd = async (event) => {
     event.preventDefault();
-    if (!progressSkillId) {
-      setProgressError('Select a skill to record progress');
-      return;
-    }
+    if (!progressSkillId) { setProgressError('Select a skill to record progress'); return; }
     setProgressFeedback(null);
     setProgressError(null);
     try {
-      await addProgress({
-        skillId: progressSkillId,
-        dateAchieved: progressDate,
-        notes: progressNotes || null
-      });
+      await addProgress({ skillId: progressSkillId, dateAchieved: progressDate, notes: progressNotes || null });
       setProgressFeedback('Progress recorded');
       setProgressNotes('');
     } catch (err) {
-      const message = err.response?.data?.error || err.message || 'Failed to save progress';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to save progress';
       setProgressError(message);
-    }
-  };
-
-  const handleGoalAdd = async (event) => {
-    event.preventDefault();
-    if (!goalTitle.trim()) { setGoalError('Goal title is required'); return; }
-    setGoalFeedback(null); setGoalError(null);
-    try {
-      await addGoal({
-        title: goalTitle.trim(),
-        description: goalDescription || null,
-        targetDate: goalTargetDate || null,
-        notes: goalNotes || null
-      });
-      setGoalFeedback('Goal added');
-      setGoalTitle(''); setGoalDescription(''); setGoalTargetDate(''); setGoalNotes('');
-      setShowGoalForm(false);
-    } catch (err) {
-      setGoalError(err.response?.data?.error || err.message || 'Failed to add goal');
-    }
-  };
-
-  const handleGoalAchieve = async (goalId) => {
-    setGoalError(null); setGoalFeedback(null);
-    try {
-      await editGoal(goalId, { status: 'achieved' });
-      setGoalFeedback('Goal marked as achieved');
-    } catch (err) {
-      setGoalError(err.response?.data?.error || err.message || 'Failed to update goal');
-    }
-  };
-
-  const handleGoalDelete = async (goalId) => {
-    if (!window.confirm('Delete this goal?')) return;
-    setGoalError(null); setGoalFeedback(null);
-    try {
-      await removeGoal(goalId);
-      setGoalFeedback('Goal deleted');
-    } catch (err) {
-      setGoalError(err.response?.data?.error || err.message || 'Failed to delete goal');
     }
   };
 
   const handleProgressDelete = async (progressId) => {
     if (!progressId) return;
     if (!window.confirm('Remove this progress entry?')) return;
-    setProgressError(null);
-    setProgressFeedback(null);
+    setProgressError(null); setProgressFeedback(null);
     try {
       await removeProgress(progressId);
       setProgressFeedback('Progress entry removed');
     } catch (err) {
-      const message = err.response?.data?.error || err.message || 'Failed to remove progress';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to remove progress';
       setProgressError(message);
     }
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="text-sm text-slate-600 hover:text-slate-900"
+          className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
           ← Back
         </button>
-        <div className="text-xs text-slate-500 italic">Student management</div>
+        <span className="text-slate-300 text-sm">/</span>
+        <span className="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-600 border border-sky-100">
+          Student Profile
+        </span>
       </div>
 
-      {loading && (
-        <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-slate-500">
-          Loading student profile...
-        </div>
-      )}
+      {loading && <LoadingSkeleton />}
 
       {error && !loading && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       {!loading && !error && profile && (
-        <div className="space-y-8">
-          <StudentHeader student={student} progressPercent={profile.progressPercent} />
+        <div className="space-y-6">
+          <StudentHeader
+            student={student}
+            progressPercent={profile.progressPercent}
+            goalHours={profile.goalHours}
+            remainingHours={profile.remainingHours}
+          />
           <StatsGrid stats={profile.stats} />
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RecommendationsSection
+            recommendations={profile.recommendations || []}
+            onAdd={addRecommendation}
+            onRemove={removeRecommendation}
+            saving={recSaving}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ProfileForm
               levelValue={levelValue}
               setLevelValue={setLevelValue}
@@ -211,7 +170,6 @@ const StudentDetail = () => {
               feedback={profileFeedback}
               error={profileError}
             />
-
             <ProgressForm
               skillOptions={skillOptions}
               selectedLevel={selectedSkillLevelName}
@@ -226,396 +184,508 @@ const StudentDetail = () => {
               feedback={progressFeedback}
               error={progressError}
             />
-          </section>
+          </div>
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ProgressHistory progress={profile.progress} onDelete={handleProgressDelete} />
             <RecentLessons lessons={profile.recentLessons} />
-          </section>
-
-          <GoalsSection
-            goals={profile.goals || []}
-            showForm={showGoalForm}
-            onToggleForm={() => { setShowGoalForm(v => !v); setGoalError(null); }}
-            goalTitle={goalTitle} setGoalTitle={setGoalTitle}
-            goalDescription={goalDescription} setGoalDescription={setGoalDescription}
-            goalTargetDate={goalTargetDate} setGoalTargetDate={setGoalTargetDate}
-            goalNotes={goalNotes} setGoalNotes={setGoalNotes}
-            onSubmit={handleGoalAdd}
-            saving={goalSaving}
-            feedback={goalFeedback}
-            error={goalError}
-            onAchieve={handleGoalAchieve}
-            onDelete={handleGoalDelete}
-          />
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-const StudentHeader = ({ student, progressPercent }) => (
-  <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-md">
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <h1 className="text-3xl font-semibold text-slate-900">{student.name}</h1>
-        <p className="text-sm text-slate-500">{student.email}</p>
-        <p className="text-sm text-slate-500">{student.phone || 'Phone not specified'}</p>
-      </div>
-      <div className="w-full md:w-64">
-        <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Progress towards 20h goal</div>
-        <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500 mt-1">
-          <span>{progressPercent}%</span>
-          <span>20h Goal</span>
-        </div>
-      </div>
+const LoadingSkeleton = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="rounded-2xl bg-slate-100 h-28" />
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => <div key={i} className="rounded-xl bg-slate-100 h-20" />)}
     </div>
-  </header>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="rounded-2xl bg-slate-100 h-56" />
+      <div className="rounded-2xl bg-slate-100 h-56" />
+    </div>
+  </div>
 );
 
+const StudentHeader = ({ student, progressPercent, goalHours, remainingHours }) => {
+  const initials = getInitials(student.name);
+  const hasPackage = goalHours > 0;
+  return (
+    <header className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center gap-5">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center shrink-0 shadow-sm">
+            <span className="text-lg font-bold text-white tracking-wide">{initials}</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 leading-tight">{student.name}</h1>
+            <p className="text-sm text-slate-500 mt-0.5">{student.email}</p>
+            {student.phone && <p className="text-sm text-slate-500">{student.phone}</p>}
+          </div>
+        </div>
+
+        <div className="md:ml-auto flex flex-col items-start md:items-end gap-2.5 w-full md:w-64">
+          {student.level && (
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
+              {student.level}
+            </span>
+          )}
+          {hasPackage ? (
+            <div className="w-full">
+              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                <span>Package hours</span>
+                <span className="font-semibold text-slate-700">
+                  {remainingHours}h left of {goalHours}h
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-500 transition-all duration-700"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <p className="text-right text-xs text-slate-400 mt-1">{progressPercent}% used</p>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400">No active package</span>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+const STAT_TONES = {
+  sky: { border: 'border-l-sky-500', text: 'text-sky-700' },
+  emerald: { border: 'border-l-emerald-500', text: 'text-emerald-700' },
+  slate: { border: 'border-l-slate-400', text: 'text-slate-700' },
+  amber: { border: 'border-l-amber-500', text: 'text-amber-700' },
+};
+
+const StatCard = ({ title, value, tone = 'sky' }) => {
+  const t = STAT_TONES[tone] || STAT_TONES.sky;
+  return (
+    <div className={`rounded-xl bg-white border border-slate-200 border-l-4 ${t.border} p-4 shadow-sm`}>
+      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</p>
+      <p className={`mt-2 text-xl font-bold ${t.text} leading-tight`}>{value}</p>
+    </div>
+  );
+};
+
 const StatsGrid = ({ stats }) => (
-  <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-    <StatCard title="Total Lessons" value={stats.totalLessons} tone="blue" />
+  <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <StatCard title="Total Lessons" value={stats.totalLessons} tone="sky" />
     <StatCard title="Total Hours" value={stats.totalHours} tone="emerald" />
-    <StatCard title="Last Lesson" value={formatDateTime(stats.lastLessonAt)} tone="violet" />
+    <StatCard title="Last Lesson" value={formatDateTime(stats.lastLessonAt)} tone="slate" />
     <StatCard title="Next Lesson" value={formatDateTime(stats.nextLessonAt)} tone="amber" />
   </section>
 );
 
-const ProfileForm = ({
-  levelValue,
-  setLevelValue,
-  levelOptions,
-  notesValue,
-  setNotesValue,
-  onSubmit,
-  saving,
-  feedback,
-  error
-}) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow">
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-xl font-semibold text-slate-900">Skill & Notes</h2>
-      {feedback && <span className="text-xs text-emerald-600">{feedback}</span>}
+const SectionCard = ({ title, feedback, headerRight, children }) => (
+  <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h2>
+      <div className="flex items-center gap-3">
+        {feedback && (
+          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            {feedback}
+          </span>
+        )}
+        {headerRight}
+      </div>
     </div>
-    {error && (
-      <div className="mb-3 rounded border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700">{error}</div>
-    )}
+    <div className="p-6">{children}</div>
+  </div>
+);
+
+const fieldClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:bg-white focus:outline-none transition-colors';
+const labelClass = 'block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5';
+
+const ProfileForm = ({ levelValue, setLevelValue, levelOptions, notesValue, setNotesValue, onSubmit, saving, feedback, error }) => (
+  <SectionCard title="Skill & Notes" feedback={feedback}>
+    {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
     <form className="space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Skill Level</label>
+        <label className={labelClass}>Skill Level</label>
         <select
           value={levelValue || ''}
           onChange={(e) => setLevelValue(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+          className={fieldClass}
         >
           <option value="">Not specified</option>
           {levelOptions.map((lvl) => (
-            <option key={lvl.id} value={lvl.name}>
-              {lvl.name}
-            </option>
+            <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+        <label className={labelClass}>Notes</label>
         <textarea
           value={notesValue || ''}
           onChange={(e) => setNotesValue(e.target.value)}
           rows={4}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+          className={fieldClass}
         />
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-1">
         <button
           type="submit"
           disabled={saving}
-          className="px-4 py-2 bg-sky-600 text-white text-sm rounded-md shadow hover:bg-sky-500 disabled:opacity-50"
+          className="px-5 py-2 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 text-white text-sm font-medium shadow-sm hover:from-slate-600 hover:to-slate-700 disabled:opacity-50 transition-all"
         >
-          {saving ? 'Saving...' : 'Save changes'}
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
     </form>
-  </div>
+  </SectionCard>
 );
 
-const ProgressForm = ({
-  skillOptions,
-  selectedLevel,
-  progressSkillId,
-  setProgressSkillId,
-  progressDate,
-  setProgressDate,
-  progressNotes,
-  setProgressNotes,
-  onSubmit,
-  saving,
-  feedback,
-  error
-}) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow">
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-xl font-semibold text-slate-900">Record Progress</h2>
-      {feedback && <span className="text-xs text-emerald-600">{feedback}</span>}
-    </div>
-    {error && (
-      <div className="mb-3 rounded border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700">{error}</div>
-    )}
+const ProgressForm = ({ skillOptions, selectedLevel, progressSkillId, setProgressSkillId, progressDate, setProgressDate, progressNotes, setProgressNotes, onSubmit, saving, feedback, error }) => (
+  <SectionCard title="Record Progress" feedback={feedback}>
+    {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
     <form className="space-y-4" onSubmit={onSubmit}>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Skill</label>
+        <label className={labelClass}>Skill</label>
         <select
           value={progressSkillId}
           onChange={(e) => setProgressSkillId(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+          className={fieldClass}
         >
           {skillOptions.map((skill) => (
-            <option key={skill.id} value={skill.id}>
-              {skill.name}
-            </option>
+            <option key={skill.id} value={skill.id}>{skill.name}</option>
           ))}
         </select>
-        {selectedLevel && <p className="text-xs text-slate-500 mt-1">Level: {selectedLevel}</p>}
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
-          <input
-            type="date"
-            value={progressDate}
-            onChange={(e) => setProgressDate(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-          />
-        </div>
+        {selectedLevel && (
+          <p className="text-xs text-slate-500 mt-1.5">
+            Level: <span className="font-medium text-slate-700">{selectedLevel}</span>
+          </p>
+        )}
       </div>
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+        <label className={labelClass}>Date achieved</label>
+        <input
+          type="date"
+          value={progressDate}
+          onChange={(e) => setProgressDate(e.target.value)}
+          className={fieldClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Notes (optional)</label>
         <textarea
           value={progressNotes}
           onChange={(e) => setProgressNotes(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
+          className={fieldClass}
         />
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-1">
         <button
           type="submit"
           disabled={saving}
-          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md shadow hover:bg-emerald-500 disabled:opacity-50"
+          className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-sm font-medium shadow-sm hover:from-emerald-500 hover:to-emerald-600 disabled:opacity-50 transition-all"
         >
-          {saving ? 'Saving...' : 'Add progress'}
+          {saving ? 'Saving…' : 'Add progress'}
         </button>
       </div>
     </form>
-  </div>
+  </SectionCard>
 );
 
 const ProgressHistory = ({ progress, onDelete }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow space-y-4">
-    <div className="flex items-center justify-between">
-      <h2 className="text-xl font-semibold text-slate-900">Progress History</h2>
-      <span className="text-xs text-slate-500">{progress.length} entries</span>
-    </div>
-    {progress.length === 0 && <p className="text-sm text-slate-500">No progress entries recorded yet.</p>}
-    <ul className="space-y-3">
-      {progress.map((entry) => (
-        <li key={entry.id} className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+  <SectionCard
+    title="Progress History"
+    headerRight={<span className="text-xs text-slate-400 font-normal">{progress.length} entries</span>}
+  >
+    {progress.length === 0 && (
+      <p className="text-sm text-slate-400 text-center py-6">No progress entries recorded yet.</p>
+    )}
+    <ul className="space-y-0">
+      {progress.map((entry, idx) => (
+        <li key={entry.id} className={`flex items-start gap-4 py-3.5 ${idx < progress.length - 1 ? 'border-b border-slate-100' : ''}`}>
+          <div className="mt-1 w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold text-slate-900">{entry.skillName}</p>
-              <p className="text-xs text-slate-500">{entry.skillLevelName || 'General skill'}</p>
-              <p className="text-xs text-slate-500 mt-1">{formatDate(entry.dateAchieved)}</p>
-              {entry.notes && (
-                <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{entry.notes}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDelete(entry.id)}
-              className="text-xs text-rose-600 hover:text-rose-500"
-            >
-              Remove
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
-const RecentLessons = ({ lessons }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow space-y-4">
-    <div className="flex items-center justify-between">
-      <h2 className="text-xl font-semibold text-slate-900">Recent Lessons</h2>
-      <span className="text-xs text-slate-500">Last {lessons.length}</span>
-    </div>
-    {lessons.length === 0 && <p className="text-sm text-slate-500">No lessons yet for this student.</p>}
-    <ul className="space-y-3">
-      {lessons.map((lesson) => (
-        <li
-          key={lesson.id}
-          className="rounded-lg border border-slate-200 bg-white p-4 flex justify-between items-center"
-        >
-          <div>
-            <p className="text-sm font-medium text-slate-900">{formatDateTime(lesson.startTime)}</p>
-            <p className="text-xs text-slate-500">Status: {lesson.status}</p>
-          </div>
-          <span className="text-sm text-slate-600">{lesson.durationHours}h</span>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
-const STATUS_STYLES = {
-  pending: 'bg-amber-100 text-amber-700',
-  achieved: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-slate-100 text-slate-500',
-};
-
-const GoalsSection = ({
-  goals, showForm, onToggleForm,
-  goalTitle, setGoalTitle, goalDescription, setGoalDescription,
-  goalTargetDate, setGoalTargetDate, goalNotes, setGoalNotes,
-  onSubmit, saving, feedback, error, onAchieve, onDelete
-}) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow space-y-4">
-    <div className="flex items-center justify-between">
-      <h2 className="text-xl font-semibold text-slate-900">Goals</h2>
-      <div className="flex items-center gap-3">
-        {feedback && <span className="text-xs text-emerald-600">{feedback}</span>}
-        <button
-          type="button"
-          onClick={onToggleForm}
-          className="px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-500 transition"
-        >
-          {showForm ? 'Cancel' : '+ Add Goal'}
-        </button>
-      </div>
-    </div>
-
-    {error && (
-      <div className="rounded border border-rose-200 bg-rose-50 p-2 text-sm text-rose-700">{error}</div>
-    )}
-
-    {showForm && (
-      <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Goal Title <span className="text-rose-500">*</span></label>
-          <input
-            value={goalTitle}
-            onChange={e => setGoalTitle(e.target.value)}
-            placeholder="e.g. Achieve Water Start"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-          <textarea
-            value={goalDescription}
-            onChange={e => setGoalDescription(e.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Target Date</label>
-            <input
-              type="date"
-              value={goalTargetDate}
-              onChange={e => setGoalTargetDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-            <input
-              value={goalNotes}
-              onChange={e => setGoalNotes(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 bg-sky-600 text-white text-sm rounded-md shadow hover:bg-sky-500 disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Add Goal'}
-          </button>
-        </div>
-      </form>
-    )}
-
-    {goals.length === 0 && !showForm && (
-      <p className="text-sm text-slate-500">No goals set yet. Add a goal to track progress with this student.</p>
-    )}
-
-    <ul className="space-y-3">
-      {goals.map(goal => (
-        <li key={goal.id} className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-slate-900">{goal.title}</p>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[goal.status] || STATUS_STYLES.pending}`}>
-                  {goal.status}
-                </span>
-              </div>
-              {goal.description && <p className="text-xs text-slate-600 mt-1">{goal.description}</p>}
-              {goal.targetDate && (
-                <p className="text-xs text-slate-500 mt-1">Target: {formatDate(goal.targetDate)}</p>
-              )}
-              {goal.notes && <p className="text-xs text-slate-500 mt-1 italic">{goal.notes}</p>}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {goal.status === 'pending' && (
-                <button
-                  type="button"
-                  onClick={() => onAchieve(goal.id)}
-                  className="text-xs text-emerald-600 hover:text-emerald-500 font-medium"
-                >
-                  ✓ Achieved
-                </button>
-              )}
               <button
                 type="button"
-                onClick={() => onDelete(goal.id)}
-                className="text-xs text-rose-600 hover:text-rose-500"
+                onClick={() => onDelete(entry.id)}
+                className="text-xs text-rose-500 hover:text-rose-700 transition-colors shrink-0"
               >
-                Delete
+                Remove
               </button>
             </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {entry.skillLevelName && (
+                <span className="text-xs text-slate-500">{entry.skillLevelName}</span>
+              )}
+              <span className="text-xs text-slate-400">{formatDate(entry.dateAchieved)}</span>
+            </div>
+            {entry.notes && <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-line">{entry.notes}</p>}
           </div>
         </li>
       ))}
     </ul>
-  </div>
+  </SectionCard>
 );
 
-const toneStyles = {
-  blue: 'from-sky-400 to-indigo-500 text-sky-900',
-  emerald: 'from-emerald-400 to-teal-500 text-emerald-900',
-  violet: 'from-violet-400 to-fuchsia-500 text-violet-900',
-  amber: 'from-amber-400 to-orange-500 text-amber-900'
+const LESSON_STATUS_STYLES = {
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  scheduled: 'bg-sky-50 text-sky-700 border-sky-100',
+  cancelled: 'bg-rose-50 text-rose-600 border-rose-100',
+  pending: 'bg-amber-50 text-amber-700 border-amber-100',
 };
 
-const StatCard = ({ title, value, tone = 'blue' }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-    <div className={`p-4 bg-gradient-to-r ${toneStyles[tone] || toneStyles.blue} bg-opacity-10`}> 
-      <div className="text-xs uppercase tracking-wide text-slate-600/80">{title}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
-    </div>
-  </div>
+const RecentLessons = ({ lessons }) => (
+  <SectionCard
+    title="Recent Lessons"
+    headerRight={<span className="text-xs text-slate-400 font-normal">Last {lessons.length}</span>}
+  >
+    {lessons.length === 0 && (
+      <p className="text-sm text-slate-400 text-center py-6">No lessons yet for this student.</p>
+    )}
+    <ul className="space-y-0">
+      {lessons.map((lesson, idx) => (
+        <li key={lesson.id} className={`flex items-center justify-between py-3.5 ${idx < lessons.length - 1 ? 'border-b border-slate-100' : ''}`}>
+          <div>
+            <p className="text-sm font-medium text-slate-900">{formatDateTime(lesson.startTime)}</p>
+            <span className={`inline-flex items-center mt-1 rounded-full border px-2 py-0.5 text-xs font-medium ${LESSON_STATUS_STYLES[lesson.status] || LESSON_STATUS_STYLES.pending}`}>
+              {lesson.status}
+            </span>
+          </div>
+          <span className="text-sm font-semibold text-slate-600">{lesson.durationHours}h</span>
+        </li>
+      ))}
+    </ul>
+  </SectionCard>
 );
+
+const REC_TYPE_CONFIG = {
+  product:       { label: 'Product',       badge: 'bg-sky-50 text-sky-700 border-sky-200' },
+  service:       { label: 'Lesson',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  rental:        { label: 'Rental',        badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  accommodation: { label: 'Room',          badge: 'bg-violet-50 text-violet-700 border-violet-200' },
+  custom:        { label: 'Custom',        badge: 'bg-slate-100 text-slate-600 border-slate-200' },
+};
+
+const REC_ENDPOINTS = {
+  product:       '/products/?limit=200',
+  service:       '/services/?limit=200',
+  rental:        '/services/?serviceType=rental&limit=200',
+  accommodation: '/accommodation/units?limit=200',
+};
+
+const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) => {
+  const [showForm, setShowForm] = useState(false);
+  const [recType, setRecType] = useState('product');
+  const [items, setItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [customPrice, setCustomPrice] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    if (!showForm || recType === 'custom') { setItems([]); setSelectedItemId(''); return; }
+    setItemsLoading(true);
+    setSelectedItemId('');
+    apiClient.get(REC_ENDPOINTS[recType])
+      .then(r => {
+        const d = r.data;
+        const arr = Array.isArray(d) ? d : (d.items || d.services || d.units || d.data || []);
+        setItems(Array.isArray(arr) ? arr : []);
+      })
+      .catch(() => setItems([]))
+      .finally(() => setItemsLoading(false));
+  }, [recType, showForm]);
+
+  const selectedItem = items.find(i => String(i.id) === selectedItemId);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setError(null); setFeedback(null);
+    const itemName = recType === 'custom' ? customName.trim() : (selectedItem?.name || '');
+    if (!itemName) { setError(recType === 'custom' ? 'Enter an item name' : 'Select an item'); return; }
+    const itemPrice = recType === 'custom'
+      ? (customPrice ? Number(customPrice) : null)
+      : (recType === 'accommodation'
+          ? (selectedItem?.nightly_price || selectedItem?.base_price || null)
+          : (selectedItem?.price || null));
+    const itemImage = selectedItem
+      ? (selectedItem.image_url || selectedItem.imageUrl || selectedItem.thumbnail || null)
+      : null;
+    try {
+      await onAdd({
+        itemType: recType,
+        itemId: recType !== 'custom' ? (selectedItemId || null) : null,
+        itemName,
+        itemPrice: itemPrice || null,
+        itemImage: itemImage || null,
+        notes: notes.trim() || null,
+      });
+      setFeedback('Recommendation added');
+      setSelectedItemId(''); setCustomName(''); setCustomPrice(''); setNotes('');
+      setShowForm(false);
+    } catch (err) {
+      setError((typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to add recommendation');
+    }
+  };
+
+  const handleDelete = async (recId) => {
+    if (!window.confirm('Remove this recommendation?')) return;
+    setError(null); setFeedback(null);
+    try {
+      await onRemove(recId);
+      setFeedback('Recommendation removed');
+    } catch (err) {
+      setError(err.message || 'Failed to remove');
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Recommendations"
+      feedback={feedback}
+      headerRight={
+        <button
+          type="button"
+          onClick={() => { setShowForm(v => !v); setError(null); }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${showForm ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-sky-600 text-white hover:bg-sky-500'}`}
+        >
+          {showForm ? 'Cancel' : '+ Add'}
+        </button>
+      }
+    >
+      {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+
+      {showForm && (
+        <form onSubmit={handleAdd} className="mb-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Category</label>
+              <select
+                value={recType}
+                onChange={e => { setRecType(e.target.value); setSelectedItemId(''); setCustomName(''); }}
+                className={fieldClass}
+              >
+                <option value="product">Product</option>
+                <option value="service">Lesson Service</option>
+                <option value="rental">Rental</option>
+                <option value="accommodation">Accommodation</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              {recType === 'custom' ? (
+                <>
+                  <label className={labelClass}>Item Name <span className="text-rose-500 normal-case tracking-normal font-normal">*</span></label>
+                  <input
+                    value={customName}
+                    onChange={e => setCustomName(e.target.value)}
+                    placeholder="e.g. Kite Board Pro"
+                    className={fieldClass}
+                  />
+                </>
+              ) : (
+                <>
+                  <label className={labelClass}>
+                    Item {itemsLoading && <span className="text-slate-400 font-normal normal-case">loading…</span>}
+                  </label>
+                  <select
+                    value={selectedItemId}
+                    onChange={e => setSelectedItemId(e.target.value)}
+                    className={fieldClass}
+                    disabled={itemsLoading}
+                  >
+                    <option value="">Select an item…</option>
+                    {items.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                        {item.price ? ` — €${item.price}` : item.nightly_price ? ` — €${item.nightly_price}/night` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          </div>
+          {recType === 'custom' && (
+            <div>
+              <label className={labelClass}>Price (optional)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={customPrice}
+                onChange={e => setCustomPrice(e.target.value)}
+                placeholder="0.00"
+                className={fieldClass}
+              />
+            </div>
+          )}
+          <div>
+            <label className={labelClass}>Note to student (optional)</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              placeholder="e.g. Perfect for your current level"
+              className={fieldClass}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 rounded-lg bg-gradient-to-r from-sky-600 to-sky-700 text-white text-sm font-medium shadow-sm hover:from-sky-500 hover:to-sky-600 disabled:opacity-50 transition-all"
+            >
+              {saving ? 'Saving…' : 'Add Recommendation'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {recommendations.length === 0 && !showForm && (
+        <p className="text-sm text-slate-400 text-center py-6">No recommendations yet. Suggest products or services to this student.</p>
+      )}
+
+      <ul className="space-y-3">
+        {recommendations.map((rec) => {
+          const typeConf = REC_TYPE_CONFIG[rec.itemType] || REC_TYPE_CONFIG.custom;
+          return (
+            <li key={rec.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${typeConf.badge}`}>
+                      {typeConf.label}
+                    </span>
+                    <p className="text-sm font-semibold text-slate-900">{rec.itemName}</p>
+                    {rec.itemPrice != null && (
+                      <span className="text-xs font-semibold text-slate-500">€{rec.itemPrice}</span>
+                    )}
+                  </div>
+                  {rec.notes && <p className="text-xs text-slate-500 mt-1.5 italic">{rec.notes}</p>}
+                  <p className="text-xs text-slate-400 mt-1">{formatDate(rec.createdAt)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(rec.id)}
+                  className="text-xs text-rose-500 hover:text-rose-700 transition-colors shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </SectionCard>
+  );
+};
 
 export default StudentDetail;

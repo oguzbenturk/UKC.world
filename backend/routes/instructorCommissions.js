@@ -3,6 +3,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -18,12 +19,9 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
     );
     
     if (instructorCheck.rows.length === 0) {
-      console.log(`Instructor ${instructorId} not found`);
       return res.status(404).json({ error: 'Instructor not found' });
     }
-    
-    console.log(`Fetching commissions for instructor ${instructorId}`);
-    
+
     // Get default commission for the instructor
     const defaultCommissionResult = await pool.query(
       `SELECT commission_type, commission_value 
@@ -32,7 +30,6 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
       [instructorId]
     );
     
-    // Log the SQL query for debugging
     const commissionQuery = `
       SELECT isc.service_id, isc.commission_type, isc.commission_value,
               s.name as service_name, s.category, s.level
@@ -41,12 +38,9 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
        WHERE isc.instructor_id = $1
        ORDER BY s.name
     `;
-    console.log('Commission query:', commissionQuery);
-    
+
     // Get service-specific commissions
     const commissionResult = await pool.query(commissionQuery, [instructorId]);
-    
-    console.log(`Found ${commissionResult.rows.length} service commissions`);
     
     // Format the response
     const response = {
@@ -72,7 +66,7 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
     
     res.json(response);
   } catch (err) {
-    console.error('Error fetching instructor commissions:', err);
+    logger.error('Error fetching instructor commissions:', err);
     res.status(500).json({ error: 'Failed to fetch commissions', details: err.message });
   }
 });
@@ -117,7 +111,7 @@ router.put('/instructors/:instructorId/default-commission', authenticateJWT, aut
     
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error updating default commission:', err);
+    logger.error('Error updating default commission:', err);
     res.status(500).json({ error: 'Failed to update default commission' });
   }
 });
@@ -185,7 +179,7 @@ router.put('/instructors/:instructorId/commissions/:serviceId', authenticateJWT,
     
     res.json(commission);
   } catch (err) {
-    console.error('Error updating service commission:', err);
+    logger.error('Error updating service commission:', err);
     res.status(500).json({ error: 'Failed to update service commission' });
   }
 });
@@ -238,7 +232,7 @@ router.post('/instructors/:instructorId/commissions', authenticateJWT, authorize
     
     res.status(201).json(commission);
   } catch (err) {
-    console.error('Error adding service commission:', err);
+    logger.error('Error adding service commission:', err);
     res.status(500).json({ error: 'Failed to add service commission' });
   }
 });
@@ -259,7 +253,7 @@ router.delete('/instructors/:instructorId/commissions/:serviceId', authenticateJ
     
     res.status(200).json({ message: 'Commission deleted successfully' });
   } catch (err) {
-    console.error('Error deleting service commission:', err);
+    logger.error('Error deleting service commission:', err);
     res.status(500).json({ error: 'Failed to delete service commission' });
   }
 });
@@ -281,7 +275,7 @@ router.get('/instructors/:instructorId/category-rates', authenticateJWT, authori
 
     res.json({ categoryRates: rows });
   } catch (err) {
-    console.error('Error fetching category rates:', err);
+    logger.error('Error fetching category rates:', err);
     res.status(500).json({ error: 'Failed to fetch category rates' });
   }
 });
@@ -335,7 +329,7 @@ router.put('/instructors/:instructorId/category-rates', authenticateJWT, authori
     res.json({ categoryRates: results });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error upserting category rates:', err);
+    logger.error('Error upserting category rates:', err);
     res.status(500).json({ error: 'Failed to save category rates' });
   } finally {
     client.release();
@@ -358,7 +352,7 @@ router.delete('/instructors/:instructorId/category-rates/:category', authenticat
 
     res.json({ message: 'Category rate deleted successfully' });
   } catch (err) {
-    console.error('Error deleting category rate:', err);
+    logger.error('Error deleting category rate:', err);
     res.status(500).json({ error: 'Failed to delete category rate' });
   }
 });

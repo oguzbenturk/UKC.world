@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { createPortal } from 'react-dom';
 import { getAvailableSlots } from '../../api/calendarApi';
 import apiClient from '@/shared/services/apiClient';
+import { fetchUnavailableInstructors } from '@/features/instructor/services/instructorAvailabilityApi';
 
 /**
  * Step 2: Time and Instructor Selection with Dropdown Menus
@@ -25,6 +26,7 @@ const TimeInstructorStep = ({ formData, updateFormData, instructors, onNext, onP
   const [bookingDefaults, setBookingDefaults] = useState(null);
   const [conflictInfo, setConflictInfo] = useState(null);
   const [showConflictWarning, setShowConflictWarning] = useState(false);
+  const [unavailableInstructorIds, setUnavailableInstructorIds] = useState(new Set());
   const inputRef = useRef(null);
   
   // Load booking defaults from settings
@@ -325,6 +327,28 @@ const TimeInstructorStep = ({ formData, updateFormData, instructors, onNext, onP
     }
   }, [formData.date, formData.instructorId, formData.slotRefreshKey]);
 
+  // Fetch unavailable instructors for the selected date
+  useEffect(() => {
+    if (!formData.date) {
+      setUnavailableInstructorIds(new Set());
+      return;
+    }
+    fetchUnavailableInstructors(formData.date, formData.date)
+      .then((map) => {
+        const ids = new Set(
+          Object.entries(map)
+            .filter(([, dates]) => dates.includes(formData.date))
+            .map(([id]) => id)
+        );
+        setUnavailableInstructorIds(ids);
+        // If selected instructor became unavailable, clear selection
+        if (formData.instructorId && ids.has(formData.instructorId)) {
+          updateFormData({ instructorId: '', instructorName: '' });
+        }
+      })
+      .catch(() => setUnavailableInstructorIds(new Set()));
+  }, [formData.date]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When slot data, duration, or selected time changes, revalidate selection
   useEffect(() => {
     if (!formData.startTime || !selectedDuration || !availableSlots) {
@@ -400,8 +424,9 @@ const TimeInstructorStep = ({ formData, updateFormData, instructors, onNext, onP
     setConflictInfo(null);
   };
 
-  // Filter instructors based on search term
+  // Filter instructors based on search term, excluding unavailable ones for the selected date
   const filteredInstructors = instructors.filter(instructor =>
+    !unavailableInstructorIds.has(instructor.id) &&
     instructor.name.toLowerCase().includes(instructorSearchTerm.toLowerCase())
   );
 

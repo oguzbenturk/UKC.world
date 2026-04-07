@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 import { syncVendorProducts } from '../services/vendorProductSyncService.js';
 import {
   upsertProductRecommendation,
@@ -185,7 +186,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching products:', error);
+    logger.error('Error fetching products:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch products' });
   }
 });
@@ -278,7 +279,7 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
     res.json(responsePayload);
 
   } catch (error) {
-    console.error('Error fetching products by category:', error);
+    logger.error('Error fetching products by category:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch products by category' });
   }
 });
@@ -329,7 +330,7 @@ router.get('/subcategories', publicApiLimiter, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching subcategories:', error);
+    logger.error('Error fetching subcategories:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch subcategories' });
   }
 });
@@ -372,7 +373,7 @@ router.post('/subcategories', authenticateJWT, authorizeRoles(['admin', 'manager
     });
 
   } catch (error) {
-    console.error('Error creating subcategory:', error);
+    logger.error('Error creating subcategory:', error);
     res.status(500).json({ error: true, message: 'Failed to create subcategory' });
   }
 });
@@ -391,7 +392,7 @@ router.delete('/subcategories/:category/:subcategory', authenticateJWT, authoriz
     res.json({ success: true });
 
   } catch (error) {
-    console.error('Error deactivating subcategory:', error);
+    logger.error('Error deactivating subcategory:', error);
     res.status(500).json({ error: true, message: 'Failed to deactivate subcategory' });
   }
 });
@@ -411,7 +412,7 @@ router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager'
       ...result
     });
   } catch (error) {
-    console.error('Error syncing vendor catalogs:', error);
+    logger.error('Error syncing vendor catalogs:', error);
     res.status(500).json({ error: true, message: 'Failed to sync vendor catalogs' });
   }
 });
@@ -446,7 +447,7 @@ router.get('/:id', publicApiLimiter, async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    logger.error('Error fetching product:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch product' });
   }
 });
@@ -546,10 +547,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
     res.status(201).json(result.rows[0]);
 
   } catch (error) {
-    console.error('Error creating product:', error);
-    console.error('Error code:', error.code);
-    console.error('Error detail:', error.detail);
-    console.error('Error message:', error.message);
+    logger.error('Error creating product:', error);
     
     if (error.code === '23505') { // Unique constraint violation
       return res.status(400).json({ 
@@ -681,7 +679,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
     res.json(result.rows[0]);
 
   } catch (error) {
-    console.error('Error updating product:', error);
+    logger.error('Error updating product:', error);
     
     if (error.code === '23505') { // Unique constraint violation
       return res.status(400).json({ 
@@ -709,7 +707,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
     clearShopCache();
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    logger.error('Error deleting product:', error);
     res.status(500).json({ error: true, message: 'Failed to delete product' });
   }
 });
@@ -744,7 +742,7 @@ router.patch('/:id/stock', authenticateJWT, authorizeRoles(['admin', 'manager'])
     res.json(result.rows[0]);
 
   } catch (error) {
-    console.error('Error updating stock:', error);
+    logger.error('Error updating stock:', error);
     res.status(500).json({ error: true, message: 'Failed to update stock' });
   }
 });
@@ -768,7 +766,7 @@ router.get('/categories/list', publicApiLimiter, async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching product categories:', error);
+    logger.error('Error fetching product categories:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch categories' });
   }
 });
@@ -787,7 +785,7 @@ router.get('/inventory/low-stock', authenticateJWT, async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching low stock products:', error);
+    logger.error('Error fetching low stock products:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch low stock products' });
   }
 });
@@ -797,7 +795,7 @@ router.get('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'man
     const metadata = await getRecommendationMetadata(req.params.id, req.query.role || 'student');
     res.json({ metadata });
   } catch (error) {
-    console.error('Error fetching product recommendation metadata:', error);
+    logger.error('Error fetching product recommendation metadata:', error);
     res.status(500).json({ error: true, message: 'Failed to fetch recommendation metadata' });
   }
 });
@@ -818,7 +816,7 @@ router.post('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'ma
 
     res.status(201).json(recommendation);
   } catch (error) {
-    console.error('Error saving product recommendation:', error);
+    logger.error('Error saving product recommendation:', error);
     res.status(500).json({ error: true, message: 'Failed to update recommendation state' });
   }
 });
@@ -828,7 +826,7 @@ router.delete('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', '
     await removeProductRecommendation(req.params.id, req.query.role || 'student');
     res.status(204).send();
   } catch (error) {
-    console.error('Error removing product recommendation:', error);
+    logger.error('Error removing product recommendation:', error);
     res.status(500).json({ error: true, message: 'Failed to remove recommendation' });
   }
 });

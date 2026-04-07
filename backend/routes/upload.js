@@ -5,6 +5,7 @@ import fs from 'fs';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { formSubmissionRateLimit } from '../middlewares/security.js';
+import { logger } from '../middlewares/errorHandler.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
@@ -187,10 +188,9 @@ router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager
     }
     
     const relativePath = `/uploads/service-images/${req.file.filename}`;
-    console.log('Service image uploaded:', relativePath);
     res.json({ imageUrl: relativePath });
   } catch (error) {
-    console.error('Error uploading service image:', error);
+    logger.error('Error uploading service image:', error);
     res.status(500).json({ error: 'Failed to upload service image' });
   }
 });
@@ -203,10 +203,9 @@ router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manag
     }
     
     const relativePath = `/uploads/form-backgrounds/${req.file.filename}`;
-    console.log('Form background uploaded:', relativePath);
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
-    console.error('Error uploading form background:', error);
+    logger.error('Error uploading form background:', error);
     res.status(500).json({ error: 'Failed to upload form background' });
   }
 });
@@ -219,10 +218,9 @@ router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']),
     }
     
     const relativePath = `/uploads/form-logos/${req.file.filename}`;
-    console.log('Form logo uploaded:', relativePath);
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
-    console.error('Error uploading form logo:', error);
+    logger.error('Error uploading form logo:', error);
     res.status(500).json({ error: 'Failed to upload form logo' });
   }
 });
@@ -235,10 +233,9 @@ router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), ima
     }
     
     const relativePath = `/uploads/images/${req.file.filename}`;
-    console.log('Image uploaded:', relativePath);
     res.json({ url: relativePath });
   } catch (error) {
-    console.error('Error uploading image:', error);
+    logger.error('Error uploading image:', error);
     res.status(500).json({ error: 'Failed to upload image' });
   }
 });
@@ -257,13 +254,12 @@ router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager']), im
       size: file.size
     }));
     
-    console.log(`Multiple images uploaded: ${uploadedImages.length} files`);
-    res.json({ 
+    res.json({
       images: uploadedImages,
-      count: uploadedImages.length 
+      count: uploadedImages.length
     });
   } catch (error) {
-    console.error('Error uploading multiple images:', error);
+    logger.error('Error uploading multiple images:', error);
     res.status(500).json({ error: 'Failed to upload images' });
   }
 });
@@ -276,10 +272,9 @@ router.post('/repair-image', authenticateJWT, imageUpload.single('image'), (req,
     }
     
     const relativePath = `/uploads/images/${req.file.filename}`;
-    console.log('Repair image uploaded:', relativePath);
     res.json({ url: relativePath });
   } catch (error) {
-    console.error('Error uploading repair image:', error);
+    logger.error('Error uploading repair image:', error);
     res.status(500).json({ error: 'Failed to upload repair image' });
   }
 });
@@ -330,7 +325,6 @@ router.post('/wallet-deposit', authenticateJWT, (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     const relativePath = `/uploads/receipts/${req.file.filename}`;
-    console.log('Bank transfer receipt uploaded:', relativePath);
     res.json({ url: relativePath });
   });
 });
@@ -374,14 +368,13 @@ router.post('/chat-image', authenticateJWT, chatImageUpload.single('file'), (req
     }
     
     const relativePath = `chat-images/${req.file.filename}`;
-    console.log('Chat image uploaded:', relativePath);
-    res.json({ 
+    res.json({
       url: relativePath,
       filename: req.file.originalname,
       size: req.file.size
     });
   } catch (error) {
-    console.error('Error uploading chat image:', error);
+    logger.error('Error uploading chat image:', error);
     res.status(500).json({ error: 'Failed to upload chat image' });
   }
 });
@@ -421,14 +414,13 @@ router.post('/chat-file', authenticateJWT, chatFileUpload.single('file'), (req, 
     }
     
     const relativePath = `chat-files/${req.file.filename}`;
-    console.log('Chat file uploaded:', relativePath);
-    res.json({ 
+    res.json({
       url: relativePath,
       filename: req.file.originalname,
       size: req.file.size
     });
   } catch (error) {
-    console.error('Error uploading chat file:', error);
+    logger.error('Error uploading chat file:', error);
     res.status(500).json({ error: 'Failed to upload chat file' });
   }
 });
@@ -472,15 +464,14 @@ router.post('/voice-message', authenticateJWT, voiceMessageUpload.single('file')
     }
     
     const relativePath = `voice-messages/${req.file.filename}`;
-    console.log('Voice message uploaded:', relativePath);
-    res.json({ 
+    res.json({
       url: relativePath,
       filename: req.file.originalname,
       size: req.file.size,
       duration: duration || null
     });
   } catch (error) {
-    console.error('Error uploading voice message:', error);
+    logger.error('Error uploading voice message:', error);
     res.status(500).json({ error: 'Failed to upload voice message' });
   }
 });
@@ -493,10 +484,9 @@ router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manag
     }
     
     const relativePath = `/uploads/images/${req.file.filename}`;
-    console.log('Equipment image uploaded:', relativePath);
     res.json({ url: relativePath });
   } catch (error) {
-    console.error('Error uploading equipment image:', error);
+    logger.error('Error uploading equipment image:', error);
     res.status(500).json({ error: 'Failed to upload equipment image' });
   }
 });
@@ -545,16 +535,15 @@ router.post('/form-submission', formSubmissionRateLimit, requirePublicUploadToke
     }
     
     const relativePath = `/uploads/form-submissions/${req.file.filename}`;
-    console.log('Form submission file uploaded:', relativePath);
-    
-    res.json({ 
+
+    res.json({
       url: relativePath,
       filename: req.file.originalname,
       size: req.file.size,
       mimetype: req.file.mimetype
     });
   } catch (error) {
-    console.error('Error uploading form submission file:', error);
+    logger.error('Error uploading form submission file:', error);
     res.status(500).json({ error: 'Failed to upload file' });
   }
 });
@@ -576,13 +565,12 @@ router.post('/form-submission-multiple', formSubmissionRateLimit, requirePublicU
       mimetype: file.mimetype
     }));
     
-    console.log(`Form submission files uploaded: ${uploadedFiles.length} files`);
-    res.json({ 
+    res.json({
       files: uploadedFiles,
-      count: uploadedFiles.length 
+      count: uploadedFiles.length
     });
   } catch (error) {
-    console.error('Error uploading form submission files:', error);
+    logger.error('Error uploading form submission files:', error);
     res.status(500).json({ error: 'Failed to upload files' });
   }
 });

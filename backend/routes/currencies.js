@@ -14,7 +14,7 @@ router.post('/update-rates', authenticateJWT, authorizeRoles(['admin']), async (
     await ExchangeRateService.updateRates();
     res.json({ message: 'Exchange rates updated successfully' });
   } catch (error) {
-    console.error('Error updating exchange rates:', error);
+    logger.error('Error updating exchange rates:', error);
     res.status(500).json({ error: 'Failed to update exchange rates' });
   }
 });
@@ -25,7 +25,7 @@ router.get('/active', async (req, res) => {
     const currencies = await CurrencyService.getActiveCurrencies();
     res.json(currencies);
   } catch (error) {
-    console.error('Error fetching active currencies:', error);
+    logger.error('Error fetching active currencies:', error);
     res.status(500).json({ error: 'Failed to fetch currencies' });
   }
 });
@@ -50,7 +50,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) => 
     }));
     res.json(mappedCurrencies);
   } catch (error) {
-    console.error('Error fetching currencies:', error);
+    logger.error('Error fetching currencies:', error);
     res.status(500).json({ error: 'Failed to fetch currencies' });
   }
 });
@@ -61,7 +61,7 @@ router.get('/base', async (req, res) => {
     const baseCurrency = await CurrencyService.getBaseCurrency();
     res.json(baseCurrency);
   } catch (error) {
-    console.error('Error fetching base currency:', error);
+    logger.error('Error fetching base currency:', error);
     res.status(500).json({ error: 'Failed to fetch base currency' });
   }
 });
@@ -83,7 +83,7 @@ router.post('/convert', async (req, res) => {
       toCurrency
     });
   } catch (error) {
-    console.error('Error converting currency:', error);
+    logger.error('Error converting currency:', error);
     res.status(500).json({ error: 'Failed to convert currency' });
   }
 });
@@ -95,7 +95,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) =>
     const newCurrency = await CurrencyService.addCurrency(currencyData);
     res.status(201).json(newCurrency);
   } catch (error) {
-    console.error('Error adding currency:', error);
+    logger.error('Error adding currency:', error);
     if (error.code === '23505') { // Unique violation
       res.status(400).json({ error: 'Currency code already exists' });
     } else {
@@ -117,7 +117,7 @@ router.put('/:currencyCode/rate', authenticateJWT, authorizeRoles(['admin']), as
     const updatedCurrency = await CurrencyService.updateExchangeRate(currencyCode, exchangeRate);
     res.json(updatedCurrency);
   } catch (error) {
-    console.error('Error updating exchange rate:', error);
+    logger.error('Error updating exchange rate:', error);
     res.status(500).json({ error: 'Failed to update exchange rate' });
   }
 });
@@ -131,7 +131,7 @@ router.put('/:currencyCode/toggle', authenticateJWT, authorizeRoles(['admin']), 
     const updatedCurrency = await CurrencyService.toggleCurrencyStatus(currencyCode, isActive);
     res.json(updatedCurrency);
   } catch (error) {
-    console.error('Error toggling currency status:', error);
+    logger.error('Error toggling currency status:', error);
     res.status(500).json({ error: 'Failed to toggle currency status' });
   }
 });
@@ -143,7 +143,7 @@ router.put('/base/:currencyCode', authenticateJWT, authorizeRoles(['admin']), as
     const baseCurrency = await CurrencyService.setBaseCurrency(currencyCode);
     res.json(baseCurrency);
   } catch (error) {
-    console.error('Error setting base currency:', error);
+    logger.error('Error setting base currency:', error);
     res.status(500).json({ error: 'Failed to set base currency' });
   }
 });

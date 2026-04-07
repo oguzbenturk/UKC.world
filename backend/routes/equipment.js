@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -44,7 +45,7 @@ router.get('/', async (req, res) => {
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching equipment:', err);
+    logger.error('Error fetching equipment:', err);
     res.status(500).json({ error: 'Failed to fetch equipment' });
   }
 });
@@ -81,7 +82,7 @@ router.get('/:id', async (req, res) => {
     
     res.json(equipment);
   } catch (err) {
-    console.error('Error fetching equipment:', err);
+    logger.error('Error fetching equipment:', err);
     res.status(500).json({ error: 'Failed to fetch equipment' });
   }
 });
@@ -132,13 +133,13 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
         req.socketService.emitToChannel('general', 'equipment:created', rows[0]);
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'equipment', action: 'created' });
       } catch (socketError) {
-        console.warn('Failed to emit socket event:', socketError);
+        logger.warn('Failed to emit socket event:', socketError);
       }
     }
-    
+
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error('Error creating equipment:', err);
+    logger.error('Error creating equipment:', err);
     res.status(500).json({ error: 'Failed to create equipment' });
   }
 });
@@ -207,13 +208,13 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
         req.socketService.emitToChannel('general', 'equipment:updated', rows[0]);
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'equipment', action: 'updated' });
       } catch (socketError) {
-        console.warn('Failed to emit socket event:', socketError);
+        logger.warn('Failed to emit socket event:', socketError);
       }
     }
-    
+
     res.json(rows[0]);
   } catch (err) {
-    console.error('Error updating equipment:', err);
+    logger.error('Error updating equipment:', err);
     res.status(500).json({ error: 'Failed to update equipment' });
   }
 });
@@ -258,7 +259,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
     res.json({ message: 'Equipment deleted successfully' });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error deleting equipment:', err);
+    logger.error('Error deleting equipment:', err);
     res.status(500).json({ error: 'Failed to delete equipment' });
   } finally {
     client.release();

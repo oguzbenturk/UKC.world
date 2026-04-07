@@ -253,50 +253,18 @@ const isProduction = process.env.NODE_ENV?.trim() === 'production';
 
 export const requestLogger = (req, res, next) => {
   const start = Date.now();
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    
-    // In production, only log errors and slow requests to avoid disk I/O on every request
-    if (isProduction) {
-      if (res.statusCode >= 400) {
-        logger.warn('Request error', {
-          method: req.method,
-          url: req.originalUrl,
-          status: res.statusCode,
-          duration: `${duration}ms`,
-          ip: req.ip,
-        });
-      } else if (duration > 2000) {
-        logger.warn('Slow request', {
-          method: req.method,
-          url: req.originalUrl,
-          status: res.statusCode,
-          duration: `${duration}ms`,
-        });
-      }
-      return;
-    }
 
-    // Development: log everything
-    const logData = {
-      method: req.method,
-      url: req.originalUrl,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-      userId: req.user?.id,
-      timestamp: new Date().toISOString()
-    };
-    
-    if (res.statusCode >= 400) {
-      logger.warn('Request completed with error', logData);
-    } else {
-      logger.info('Request completed', logData);
-    }
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const status = res.statusCode;
+    const line = `${req.method} ${req.originalUrl} ${status} ${ms}ms`;
+
+    if (status >= 500) logger.error(line);
+    else if (status >= 400) logger.warn(line);
+    else if (ms > 2000) logger.warn(`SLOW ${line}`);
+    else if (!isProduction) logger.info(line);
   });
-  
+
   next();
 };
 

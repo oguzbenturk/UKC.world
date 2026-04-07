@@ -7,6 +7,7 @@ import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { AcademyBrandLockup } from '@/features/outsider/components/AcademyBrandLockup';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
+import { usePageSEO } from '@/shared/utils/seo';
 
 const sections = [
   {
@@ -48,6 +49,11 @@ const sections = [
 ];
 
 const ExperienceLandingPage = () => {
+  usePageSEO({
+    title: 'Experiences | UKC. Duotone Pro Center Urla',
+    description: 'Multi-day kite and wing packages, downwinder trips, and watersports camps at Duotone Pro Center Urla, Turkey.',
+    path: '/experience',
+  });
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('kite-packages');
 

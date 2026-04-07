@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import bcrypt from 'bcrypt';
+import { logger } from '../middlewares/errorHandler.js';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start without it.');
@@ -62,7 +63,7 @@ export const authorizeRoles = (...allowedRoles) => {
 
       next();
     } catch (error) {
-      console.error('Authorization error:', error);
+      logger.error('Authorization error:', error);
       return res.status(500).json({ error: 'Internal server error during authorization' });
     }
   };
@@ -103,7 +104,7 @@ export const ensureSensitiveDataEncrypted = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    console.error('Error encrypting sensitive data:', error);
+    logger.error('Error encrypting sensitive data:', error);
     return res.status(500).json({ error: 'Internal server error during data encryption' });
   }
 };

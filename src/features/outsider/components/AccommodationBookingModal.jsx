@@ -36,6 +36,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import apiClient from '@/shared/services/apiClient';
+import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
@@ -66,6 +67,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
   const studentId = user?.userId || user?.id;
@@ -82,6 +84,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       setPaymentMethod('wallet');
       setShowIyzicoModal(false);
       setIyzicoPaymentUrl(null);
+      setAppliedVoucher(null);
     }
   }, [open, unit?.id]);
 
@@ -320,6 +323,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       guests_count: guestsCount,
       notes: notes || undefined,
       payment_method: paymentMethod,
+      ...(appliedVoucher?.id ? { voucher_id: appliedVoucher.id } : {}),
     });
   };
 
@@ -583,6 +587,24 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 description={`You need ${formatPrice(totalPrice)} but have ${formatCurrency(walletInUserCurrency, userCurrency)}. ${canPayLater ? 'Switch to Pay Later or top up your wallet.' : 'Please top up your wallet first.'}`}
               />
             )}
+          </div>
+
+          {/* ── Promo Code ── */}
+          <div className="px-6 pb-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
+              Promo Code
+            </p>
+            <PromoCodeInput
+              context="accommodation"
+              amount={totalPrice}
+              currency="EUR"
+              serviceId={unit?.id}
+              appliedVoucher={appliedVoucher}
+              onValidCode={(voucherData) => setAppliedVoucher(voucherData)}
+              onClear={() => setAppliedVoucher(null)}
+              disabled={bookMutation.isPending}
+              variant="dark"
+            />
           </div>
 
           {/* ── Summary + Submit ── */}

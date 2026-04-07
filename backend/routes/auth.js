@@ -186,7 +186,7 @@ router.post('/login', authRateLimit, async (req, res) => {
     await completeLogin(user, req, res);
 
   } catch (err) {
-    console.error('Login failed:', err);
+    logger.error('Login failed', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -199,33 +199,14 @@ export const authenticateJWT = async (req, res, next) => {
   const cookieToken = cookies[AUTH_COOKIE_NAME];
   const token = bearerToken || cookieToken;
   
-  // SEC-009 FIX: Debug logging only in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔐 JWT Auth Debug:');
-    console.log('   URL:', req.method, req.originalUrl);
-    console.log('   Auth Header:', authHeader ? 'Present' : 'Missing');
-    console.log('   Token:', token ? 'Present' : 'Missing');
-  }
-  
   if (!token) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('❌ Auth failed: No token provided');
-    }
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
   
   try {
     const verified = jwt.verify(token, JWT_SECRET);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Token verified successfully');
-      console.log('   User ID:', verified.id);
-      console.log('   User Role:', verified.role);
-    }
-    
+
     if (!verified || !verified.id) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('❌ Auth failed: Invalid token format');
-      }
       return res.status(401).json({ error: 'Invalid token format' });
     }
 
@@ -238,9 +219,6 @@ export const authenticateJWT = async (req, res, next) => {
     if (verified.jti) {
       const isBlacklisted = await cacheService.exists(`blacklist:${verified.jti}`);
       if (isBlacklisted) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('❌ Auth failed: Token has been revoked');
-        }
         return res.status(401).json({ error: 'Token has been revoked. Please log in again.' });
       }
     }
@@ -267,9 +245,6 @@ export const authenticateJWT = async (req, res, next) => {
 
     next();
   } catch (err) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('❌ Auth failed:', err.name, err.message);
-    }
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token has expired. Please log in again.' });
     } else if (err.name === 'JsonWebTokenError') {
@@ -283,16 +258,8 @@ export const authenticateJWT = async (req, res, next) => {
 // Get current user endpoint
 router.get('/me', authenticateJWT, async (req, res) => {
   try {
-    // SEC-009 FIX: Only log in development, and only user ID (not full data)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('GET /auth/me - User ID from token:', req.user?.id);
-    }
-    
     // Safety check for missing user ID
     if (!req.user || !req.user.id) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('GET /auth/me - Missing user ID in token');
-      }
       return res.status(401).json({ error: 'Invalid authentication token' });
     }
     
@@ -319,19 +286,14 @@ router.get('/me', authenticateJWT, async (req, res) => {
         WHERE u.id = $1 AND u.deleted_at IS NULL
       `;
       
-      console.log('Executing query with user ID:', req.user.id);
-      console.log('DB Pool status:', pool ? 'Available' : 'Not available');
-      
       // Check if pool is available before querying
       if (!pool) {
         throw new Error('Database connection pool is not available');
       }
       
       const result = await pool.query(query, [req.user.id]);
-      console.log('Query executed, rows returned:', result.rows.length);
-      
+
       if (result.rows.length === 0) {
-        console.error(`GET /auth/me - User not found: ${req.user.id}`);
         return res.status(404).json({ error: 'User not found' });
       }
       
@@ -360,13 +322,9 @@ router.get('/me', authenticateJWT, async (req, res) => {
         user.name = user.email.split('@')[0];
       }
       
-      // SEC-009 FIX: Don't log full user object in production (contains permissions, roles, etc.)
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`GET /auth/me - Successfully retrieved user ID:`, user.id);
-      }
       return res.json(user);
     } catch (dbErr) {
-      console.error('Database error in /auth/me:', dbErr);
+      logger.error('Database error in /auth/me', dbErr);
       
       // SEC-010 FIX: Don't trust token data during DB outage
       // If DB is unreachable, user's actual status (role, active, etc.) cannot be verified
@@ -383,7 +341,7 @@ router.get('/me', authenticateJWT, async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('Error getting current user:', err);
+    logger.error('Error getting current user', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -466,7 +424,7 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
       message: 'Token refreshed successfully'
     });
   } catch (err) {
-    console.error('Error refreshing token:', err);
+    logger.error('Error refreshing token', err);
     res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
@@ -486,10 +444,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
         logoutAt: new Date().toISOString()
       }, ttl);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🚫 Token blacklisted: ${req.user.jti} (TTL: ${ttl}s)`);
       }
-    }
     
     // Log logout event
     await logSecurityEvent(req.user.id, 'logout', req);
@@ -504,7 +459,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
     
     res.json({ message: 'Logout successful' });
   } catch (err) {
-    console.error('Logout error:', err);
+    logger.error('Logout error', err);
     res.status(500).json({ error: 'Logout failed' });
   }
 });
@@ -816,7 +771,7 @@ async function completeLogin(user, req, res) {
       message: 'Login successful'
     });
   } catch (error) {
-    console.error('Error completing login:', error);
+    logger.error('Error completing login', error);
     res.status(500).json({ error: 'Login completion failed' });
   }
 }
@@ -837,9 +792,58 @@ async function logSecurityEvent(userId, action, req, details = {}) {
       JSON.stringify(details)
     ]);
   } catch (error) {
-    console.error('Failed to log security event:', error);
+    logger.error('Failed to log security event', error);
   }
 }
+
+// =============================================
+// CHANGE PASSWORD ENDPOINT (authenticated)
+// =============================================
+
+/**
+ * Change password for the currently authenticated user
+ * POST /api/auth/change-password
+ */
+const PASSWORD_STRENGTH_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+router.post('/change-password', authenticateJWT, passwordResetRateLimit, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+
+  if (!PASSWORD_STRENGTH_REGEX.test(newPassword)) {
+    return res.status(400).json({
+      error: 'New password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (@$!%*?&)'
+    });
+  }
+
+  try {
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, rows[0].password_hash);
+    if (!isMatch) {
+      await logSecurityEvent(req.user.id, 'password_change_failed_wrong_current', req);
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [newHash, req.user.id]
+    );
+
+    await logSecurityEvent(req.user.id, 'password_changed', req);
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    logger.error('Password change error:', { error: error.message });
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
 
 // =============================================
 // PASSWORD RESET ENDPOINTS

@@ -173,7 +173,7 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
           .map((id) => ({ id, name: `Instructor ${id}`, email: null }));
         instructorsResult.rows = [...r.rows, ...stubs];
       } catch (e) {
-        console.error('Error fetching instructors by IDs:', e);
+        logger.error('Failed to fetch instructors by IDs', e);
         // If query by IDs fails, at least provide stubs so calendar works
         instructorsResult.rows = instructorIdList.map((id) => ({ id, name: `Instructor ${id}`, email: null }));
       }
@@ -189,7 +189,7 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
         const r = await pool.query(instructorsQuery);
         instructorsResult.rows = r.rows;
       } catch (instructorError) {
-        console.error('Error fetching instructors by role:', instructorError);
+        logger.error('Failed to fetch instructors by role', instructorError);
         instructorsResult.rows = [];
       }
     }
@@ -260,7 +260,32 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
       const bookingsResult = await pool.query(bookingsQuery, params);
       allBookings = bookingsResult.rows;
     } catch (bookingError) {
-      console.error('Error fetching bookings for date range:', bookingError);
+      logger.error('Failed to fetch bookings for date range', bookingError);
+    }
+
+    // Fetch approved availability blocks for the date range
+    const unavailableByInstructor = new Map(); // instructorId → Set<dateString>
+    try {
+      const availResult = await pool.query(
+        `SELECT instructor_id::text, start_date::text, end_date::text
+         FROM instructor_availability
+         WHERE status = 'approved' AND start_date <= $2::date AND end_date >= $1::date`,
+        [startDate, endDate]
+      );
+      for (const row of availResult.rows) {
+        if (!unavailableByInstructor.has(row.instructor_id)) {
+          unavailableByInstructor.set(row.instructor_id, new Set());
+        }
+        // Expand date range
+        const cursor = new Date(`${row.start_date}T00:00:00Z`);
+        const last = new Date(`${row.end_date}T00:00:00Z`);
+        while (cursor <= last) {
+          unavailableByInstructor.get(row.instructor_id).add(cursor.toISOString().slice(0, 10));
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+      }
+    } catch (availError) {
+      logger.error('Failed to fetch instructor availability for slots', availError);
     }
 
     // Index bookings by date → instructor → booked time slots
@@ -299,10 +324,19 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
       
       for (const instructor of (noInstructors ? [] : instructorsResult.rows)) {
         const instructorBookedSlots = dayMap.get(instructor.id) || new Set();
-        
+        const isInstructorUnavailable = unavailableByInstructor.has(instructor.id) &&
+          unavailableByInstructor.get(instructor.id).has(dateStr);
+
         for (const time of standardHours) {
-          const status = instructorBookedSlots.has(time) ? 'booked' : 'available';
-          
+          let status;
+          if (isInstructorUnavailable) {
+            status = 'unavailable';
+          } else if (instructorBookedSlots.has(time)) {
+            status = 'booked';
+          } else {
+            status = 'available';
+          }
+
           daySlots.push({
             time,
             status,
@@ -323,7 +357,7 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
   res.json(result);
     
   } catch (error) {
-    console.error('Error in available-slots endpoint:', error.message);
+    logger.error('Failed to fetch available slots', error);
     
     res.status(500).json({
       error: 'Failed to fetch available slots',
@@ -539,7 +573,7 @@ router.get('/',
         
         // Add safety check for valid start hour
         if (isNaN(startHourFloat) || startHourFloat < 0 || startHourFloat > 24) {
-          console.warn('Invalid start_hour detected:', booking.start_hour, 'for booking ID:', booking.id);
+          logger.warn('Invalid start_hour detected', { booking_id: booking.id, start_hour: booking.start_hour });
           return {
             ...booking,
             date: booking.formatted_date || booking.date,
@@ -548,13 +582,13 @@ router.get('/',
             time: null
           };
         }
-        
+
         const hours = Math.floor(startHourFloat);
         const minutes = Math.round((startHourFloat - hours) * 60);
-        
+
         // Additional safety check for calculated values
         if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-          console.warn('Invalid calculated time values:', { hours, minutes }, 'from start_hour:', startHourFloat);
+          logger.warn('Invalid calculated time values', { hours, minutes, start_hour: startHourFloat });
           return {
             ...booking,
             date: booking.formatted_date || booking.date,
@@ -577,7 +611,7 @@ router.get('/',
         
         // Safety check for end time calculation
         if (isNaN(endHours) || isNaN(endMinutes)) {
-          console.warn('Invalid end time calculation:', { endHours, endMinutes });
+          logger.warn('Invalid end time calculation', { endHours, endMinutes });
           endTime = null;
         } else {
           endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
@@ -617,7 +651,7 @@ router.get('/',
     
     res.json(normalizedBookings);
   } catch (err) {
-    console.error('Error fetching bookings:', err);
+    logger.error('Failed to fetch bookings', err);
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });
@@ -713,7 +747,7 @@ router.get('/calendar', authenticateJWT, async (req, res) => {
     
     res.json(calendarBookings);
   } catch (err) {
-    console.error('Error fetching calendar bookings:', err);
+    logger.error('Failed to fetch calendar bookings', err);
     res.status(500).json({ error: 'Failed to fetch calendar bookings' });
   }
 });
@@ -1228,7 +1262,7 @@ router.get('/:id', async (req, res) => {
       
       // Add safety check for valid start hour
       if (isNaN(startHourFloat) || startHourFloat < 0 || startHourFloat > 24) {
-        console.warn('Invalid start_hour detected in single booking:', booking.start_hour, 'for booking ID:', booking.id);
+        logger.warn('Invalid start_hour detected in single booking', { booking_id: booking.id, start_hour: booking.start_hour });
         booking.startTime = null;
         booking.endTime = null;
         booking.time = null;
@@ -1238,7 +1272,7 @@ router.get('/:id', async (req, res) => {
         
         // Additional safety check for calculated values
         if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-          console.warn('Invalid calculated time values for single booking:', { hours, minutes }, 'from start_hour:', startHourFloat);
+          logger.warn('Invalid calculated time values for single booking', { hours, minutes, start_hour: startHourFloat });
           booking.startTime = null;
           booking.endTime = null;
           booking.time = null;
@@ -1256,7 +1290,7 @@ router.get('/:id', async (req, res) => {
           
           // Safety check for end time calculation
           if (isNaN(endHours) || isNaN(endMinutes)) {
-            console.warn('Invalid end time calculation for single booking:', { endHours, endMinutes });
+            logger.warn('Invalid end time calculation for single booking', { endHours, endMinutes });
             booking.endTime = null;
           } else {
             booking.endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
@@ -1269,7 +1303,7 @@ router.get('/:id', async (req, res) => {
     
     res.json(booking);
   } catch (err) {
-    console.error('Error fetching booking:', err);
+    logger.error('Failed to fetch booking', err);
     res.status(500).json({ error: 'Failed to fetch booking' });
   }
 });
@@ -1311,14 +1345,6 @@ router.post('/',
     // preferred_currency is for display/price-lookup only, not for wallet storage.
     const walletTransactionCurrency = DEFAULT_CURRENCY;
     
-    // Debug: Log duration received in backend
-    console.log('🔍 BACKEND BOOKING CREATE - Received duration:', {
-      duration,
-      type: typeof duration,
-      parsed: parseFloat(duration),
-      fallback: parseFloat(duration) || 1
-    });
-    
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
@@ -1334,6 +1360,21 @@ router.post('/',
     // Validate required fields
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
+    }
+
+    // Guard: check instructor availability
+    if (instructor_user_id) {
+      const availCheck = await client.query(
+        `SELECT id FROM instructor_availability
+         WHERE instructor_id = $1 AND status = 'approved'
+           AND start_date <= $2::date AND end_date >= $2::date
+         LIMIT 1`,
+        [instructor_user_id, date]
+      );
+      if (availCheck.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Instructor is unavailable on the selected date' });
+      }
     }
     
     const bookingDuration = parseFloat(duration) || 1;
@@ -2285,7 +2326,7 @@ router.post('/group',
   const client = await pool.connect();
   
   try {
-  logger.info('🔧 [Backend] Group booking request received', { body: req.body });
+  logger.info('Group booking request received', { body: req.body });
     
   await client.query('BEGIN');
   const actorId = resolveActorId(req);
@@ -2307,14 +2348,6 @@ router.post('/group',
     const shouldAutoConfirm = staffRolesForAutoConfirm.includes(req.user?.role);
     const finalStatus = shouldAutoConfirm ? 'confirmed' : (status || 'pending');
 
-    // Debug: Log duration received in group booking backend
-    console.log('🔍 BACKEND GROUP BOOKING - Received duration:', {
-      duration,
-      type: typeof duration,
-      parsed: parseFloat(duration),
-      fallback: parseFloat(duration) || 1
-    });
-
     // Normalize participants to accept older client field names and sanitize boolean fields
     const normalizedParticipants = Array.isArray(participants) ? participants.map(p => ({
       ...p,
@@ -2325,7 +2358,7 @@ router.post('/group',
       manualCashPreference: p.manualCashPreference === true || p.manualCashPreference === 'true'
     })) : [];
     
-    logger.info('🔧 [Backend] Parsed values', {
+    logger.info('Group booking parsed values', {
       date, start_hour, duration, instructor_user_id, status, location, service_id,
   participantCount: normalizedParticipants?.length
     });
@@ -2354,7 +2387,7 @@ router.post('/group',
       if (!participant.userId) {
         return res.status(400).json({ error: `Participant ${i + 1} is missing userId` });
       }
-      logger.info(`🔧 [Backend] Participant ${i + 1}` , {
+      logger.info(`Group booking participant ${i + 1}`, {
         userId: participant.userId,
         userName: participant.userName,
         usePackage: participant.usePackage,
@@ -3070,14 +3103,6 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
 
-    // Debug: Log duration received in calendar booking backend
-    console.log('🔍 BACKEND CALENDAR BOOKING - Received duration:', {
-      duration,
-      type: typeof duration,
-      parsed: parseFloat(duration),
-      fallback: parseFloat(duration) || 1
-    });
-    
     if (!date || !time || !instructorId || !serviceId || !user) {
       return res.status(400).json({ error: 'Missing required booking information' });
     }
@@ -3343,14 +3368,6 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     const serverCalculatedAmount = serviceDurationHours > 0
       ? parseFloat(((servicePrice / serviceDurationHours) * dur).toFixed(2))
       : servicePrice;
-    console.log('💰 CALENDAR BOOKING PRICE RECALC:', {
-      frontendAmount: parseFloat(finalAmount || amount || 0),
-      serverCalculatedAmount,
-      servicePrice,
-      serviceDurationHours,
-      bookingDuration: dur,
-      walletCurrency: walletTransactionCurrency
-    });
     finalFinalAmount = serverCalculatedAmount;
   }
       
@@ -3617,7 +3634,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
           });
           req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         } catch (socketError) {
-          console.warn('Failed to emit socket event:', socketError);
+          logger.warn('Failed to emit socket event', socketError);
         }
       }
 
@@ -3642,7 +3659,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error creating booking:', error);
+    logger.error('Failed to create booking', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -3777,9 +3794,6 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       // Package hours should ONLY be deducted during booking creation, NOT on completion
       // This prevents double deduction which was causing package hour inconsistencies
       if (booking.student_user_id) {
-        console.log('📦 PACKAGE CONSOLIDATION: Skipping package deduction on completion - already handled at creation');
-        console.log('🔧 FIX: This prevents double deduction that was causing: "3.5h used but only 1h remaining" issue');
-        
         // Only update last_used_date if this was a package booking to track usage
         if (booking.payment_status === 'package' && booking.customer_package_id) {
           try {
@@ -3787,9 +3801,8 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
               'UPDATE customer_packages SET last_used_date = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
               [booking.date, booking.customer_package_id]
             );
-            console.log('📦 Updated last_used_date for package tracking (no hour deduction)');
           } catch (e) {
-            console.warn('Failed to update package last_used_date:', e.message);
+            logger.warn('Failed to update package last_used_date', { error: e.message });
           }
         }
       }
@@ -3798,9 +3811,6 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       // Similar to single bookings, package hours should only be deducted at creation, not completion
       // This prevents double deduction for group booking participants
       try {
-        console.log('📦 GROUP PACKAGE CONSOLIDATION: Skipping participant package deduction on completion');
-        console.log('🔧 FIX: Group booking package hours already deducted at creation - preventing double deduction');
-        
         // Only update last_used_date for participants who used packages (for tracking purposes)
         const participantsRes = await client.query(
           'SELECT user_id, customer_package_id, payment_status FROM booking_participants WHERE booking_id = $1',
@@ -3820,7 +3830,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
                   [booking.date, participant.customer_package_id]
                 );
               } catch (e) {
-                console.warn(`Failed to update last_used_date for participant package ${participant.customer_package_id}:`, e.message);
+                logger.warn('Failed to update last_used_date for participant package', { packageId: participant.customer_package_id, error: e.message });
               }
             }
           }
@@ -3836,9 +3846,8 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
           );
         }
         
-        console.log('📦 Updated last_used_date for group participants who used packages (no hour deduction)');
       } catch (e) {
-        console.warn('Group booking package last_used_date update failed (non-blocking):', e.message);
+        logger.warn('Group booking package last_used_date update failed', { error: e.message });
       }
     }
     
@@ -3964,10 +3973,10 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         req.socketService.emitToChannel('general', 'booking:updated', updatedBooking);
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'updated' });
       } catch (socketError) {
-        console.warn('Failed to emit socket event:', socketError);
+        logger.warn('Failed to emit socket event', socketError);
       }
     }
-    
+
   // Send immediate response to client for fast UI feedback
   res.status(200).json(updatedBooking);
 
@@ -4186,7 +4195,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
           await BookingUpdateCascadeService.cascadeBookingUpdate(updatedBooking, changes);
         } catch (cascadeError) {
           // Log but don't fail the request - data will eventually be consistent
-          console.error('🔄 Cascade update failed (will retry):', cascadeError.message);
+          logger.error('Cascade update failed (will retry)', { error: cascadeError.message });
         }
       });
     }
@@ -4195,7 +4204,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error updating booking:', error);
+    logger.error('Failed to update booking', error);
     res.status(500).json({ message: 'Server error' });
   } finally {
     client.release();
@@ -5470,7 +5479,7 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin']), async (r
                     req.socketService.emitToChannel('general', 'booking:restored', { id: bookingId });
                     req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'restored' });
                 } catch (socketError) {
-                    console.warn('Failed to emit socket event:', socketError);
+                    logger.warn('Failed to emit socket event', socketError);
                 }
             }
             
@@ -5486,7 +5495,7 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin']), async (r
             });
         }
     } catch (error) {
-        console.error('Error restoring booking:', error);
+        logger.error('Failed to restore booking', error);
         res.status(500).json({
             error: true,
             message: 'Failed to restore booking'

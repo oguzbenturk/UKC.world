@@ -15,6 +15,7 @@ import { body, param, query } from 'express-validator';
 import * as waiverService from '../services/waiverService.js';
 import { validateInput } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
+import { logger } from '../middlewares/errorHandler.js';
 import {
   logWaiverView
 } from '../services/auditLogService.js';
@@ -216,7 +217,7 @@ router.get(
           latestVersion: status.latestVersion || status.currentVersion || 'latest',
           message: reminderMessage
         }).catch((reminderError) => {
-          console.warn('Failed to enqueue waiver pending reminder', reminderError?.message || reminderError);
+          logger.warn('Failed to enqueue waiver pending reminder', reminderError);
         });
       }
 
@@ -235,7 +236,7 @@ router.get(
             userAgent: req.headers['user-agent'] || 'Unknown'
           });
         } catch (auditError) {
-          console.warn('Failed to log waiver status view audit event', auditError.message);
+          logger.warn('Failed to log waiver status view audit event', auditError);
         }
       }
 
@@ -395,7 +396,7 @@ router.get(
             userAgent: req.headers['user-agent'] || 'Unknown'
           });
         } catch (auditError) {
-          console.warn('Failed to log waiver history view audit event', auditError.message);
+          logger.warn('Failed to log waiver history view audit event', auditError);
         }
       }
 

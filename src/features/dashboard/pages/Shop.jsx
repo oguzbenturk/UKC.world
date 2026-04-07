@@ -36,6 +36,7 @@ const { Option } = Select;
 
 // Note: SORT_OPTIONS and CATEGORY_LABELS are imported from ShopFiltersContext
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
+import { usePageSEO } from '@/shared/utils/seo';
 
 // Normalize category/subcategory on freshly fetched products (mutates in place)
 const normalizeProducts = (prods) => {
@@ -94,6 +95,11 @@ const renderLoadingSkeletons = () => (
     </Row>
 );
 const ShopPage = () => {
+    usePageSEO({
+      title: 'Browse Products | UKC. Shop',
+      description: 'Browse and shop watersports gear, kites, boards, wetsuits, harnesses, and accessories from Duotone and other top brands.',
+      path: '/shop/browse',
+    });
 
     // Ref for the horizontal category navbar
     const categoryNavRef = useRef(null);

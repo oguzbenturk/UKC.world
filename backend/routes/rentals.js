@@ -5,7 +5,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { requireWaiver, checkFamilyMemberWaiver } from '../middlewares/waiverCheck.js';
 import { resolveActorId } from '../utils/auditUtils.js';
-import { recordLegacyTransaction, createDepositRequest } from '../services/walletService.js';
+import { recordLegacyTransaction, createDepositRequest, getAllBalances } from '../services/walletService.js';
 import { forceDeleteRental } from '../services/rentalCleanupService.js';
 import CurrencyService from '../services/currencyService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
@@ -52,7 +52,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching all rentals:', error);
+    logger.error('Error fetching all rentals', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -94,7 +94,7 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
     const { rows } = await pool.query(query, [limit]);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching recent rentals:', error);
+    logger.error('Error fetching recent rentals', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -135,7 +135,7 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching active rentals:', error);
+    logger.error('Error fetching active rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -176,7 +176,7 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching upcoming rentals:', error);
+    logger.error('Error fetching upcoming rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -217,7 +217,7 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching overdue rentals:', error);
+    logger.error('Error fetching overdue rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -258,7 +258,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching completed rentals:', error);
+    logger.error('Error fetching completed rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -299,7 +299,7 @@ router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching pending rentals:', error);
+    logger.error('Error fetching pending rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -348,7 +348,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
     
     res.json(rows[0]);
   } catch (error) {
-    console.error('Error fetching rental:', error);
+    logger.error('Error fetching rental:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -393,7 +393,6 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     const storageCurrency = 'EUR';
     const inputCurrency = requestedCurrency || 'EUR';
     
-    console.log('Creating rental with data:', req.body);
     
     // Validate required fields
     if (!user_id) {
@@ -534,11 +533,6 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
         });
       }
       
-      console.log('Package rental days deducted:', {
-        packageId: customer_package_id,
-        daysUsed: daysToUse,
-        newRemaining: newRemainingDays
-      });
       
       usedPackageId = customer_package_id;
       finalPaymentStatus = 'package';
@@ -590,16 +584,49 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
       const description = `Rental charge: ${equipmentNames} (${rentalDateFormatted})`;
       let walletChargeSucceeded = false;
 
+      // Resolve which wallet currency to debit from (user may have TRY, EUR, etc.)
+      let chargeCurrency = storageCurrency;
+      let chargeAmount = calculatedTotalPrice;
+
+      const allBalances = await getAllBalances(user_id);
+      const eurBalance = allBalances.find(b => b.currency === 'EUR');
+      const eurAvailable = eurBalance?.available || 0;
+
+      if (eurAvailable < calculatedTotalPrice && !allowNegativeBalance) {
+        // EUR balance insufficient — find another currency the user can afford
+        const sorted = allBalances
+          .filter(b => b.available > 0 && b.currency !== 'EUR')
+          .sort((a, b) => b.available - a.available);
+
+        for (const bal of sorted) {
+          try {
+            const priceInWalletCurrency = await CurrencyService.convertCurrency(
+              calculatedTotalPrice, storageCurrency, bal.currency
+            );
+            if (priceInWalletCurrency > 0 && bal.available >= priceInWalletCurrency) {
+              chargeCurrency = bal.currency;
+              chargeAmount = Math.round(priceInWalletCurrency * 100) / 100;
+              break;
+            }
+          } catch (convErr) {
+            logger.warn('Failed to convert rental price to wallet currency', {
+              rentalId: rental.id, fromCurrency: storageCurrency,
+              toWalletCurrency: bal.currency, error: convErr.message
+            });
+          }
+        }
+      }
+
       try {
         await recordLegacyTransaction({
           client,
           userId: user_id,
-          amount: -Math.abs(calculatedTotalPrice),
+          amount: -Math.abs(chargeAmount),
           transactionType: 'rental_charge',
           status: 'completed',
           direction: 'debit',
           description,
-          currency: storageCurrency, // Always store in EUR
+          currency: chargeCurrency,
           metadata:
             {
               equipmentIds: equipment_ids,
@@ -629,10 +656,10 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
             message: 'Your wallet balance is too low. Please top up your wallet or choose a different payment method.'
           });
         } else {
-          console.error('Failed to record rental charge in wallet ledger', {
+          logger.error('Failed to record rental charge in wallet ledger', {
             rentalId: rental.id,
             userId: user_id,
-            amount: calculatedTotalPrice,
+            amount: chargeAmount,
             error: walletError?.message
           });
           throw walletError;
@@ -700,7 +727,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
       try {
         req.socketService.emitToChannel('general', 'rental:created', completeRental);
       } catch (socketError) {
-        console.error('Error broadcasting rental creation:', socketError);
+        logger.error('Error broadcasting rental creation:', socketError);
       }
     }
 
@@ -708,7 +735,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     try {
       await bookingNotificationService.sendRentalCreated({ rentalId: rental.id });
     } catch (notifError) {
-      console.warn('Failed to dispatch rental notifications', {
+      logger.warn('Failed to dispatch rental notifications', {
         rentalId: rental.id,
         error: notifError?.message
       });
@@ -732,7 +759,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
           try {
             chargeAmount = await CurrencyService.convertCurrency(calculatedTotalPrice, storageCurrency, userCurrency);
           } catch (convErr) {
-            console.warn('Currency conversion failed, falling back to EUR', { error: convErr.message });
+            logger.warn('Currency conversion failed, falling back to EUR', { error: convErr.message });
             // Fall back to EUR if conversion fails
           }
         }
@@ -752,14 +779,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
         response.depositId = depositResult.deposit?.id;
         response.paymentPageUrl = depositResult.gatewaySession?.paymentPageUrl;
 
-        console.log('Iyzico checkout initiated for rental', {
-          rentalId: rental.id,
-          depositId: depositResult.deposit?.id,
-          amount: chargeAmount,
-          currency: userCurrency,
-        });
       } catch (iyzicoErr) {
-        console.error('Failed to initiate Iyzico checkout for rental', {
+        logger.error('Failed to initiate Iyzico checkout for rental', {
           rentalId: rental.id,
           error: iyzicoErr.message,
         });
@@ -778,7 +799,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     res.status(201).json(response);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error creating rental:', error);
+    logger.error('Error creating rental:', error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -805,7 +826,6 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
       participant_type 
     } = req.body;
 
-    console.log(`[PUT /rentals/${id}] Received payload:`, req.body);
 
     // Get current rental to preserve original start time if no new date is provided
     const currentRentalResult = await client.query(
@@ -907,14 +927,14 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
       try {
         req.socketService.emitToChannel('general', 'rental:updated', completeRental);
       } catch (socketError) {
-        console.error('Error broadcasting rental update:', socketError);
+        logger.error('Error broadcasting rental update:', socketError);
       }
     }
 
     res.json(completeRental);
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error updating rental:', error);
+    logger.error('Error updating rental:', error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -978,7 +998,7 @@ router.get('/active', authenticateJWT, authorizeRoles(['admin', 'manager', 'inst
     const { rows } = await pool.query("SELECT * FROM rentals WHERE status = 'active'");
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching active rentals:', error);
+    logger.error('Error fetching active rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -992,7 +1012,7 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(['admin', 'manager', 'in
     const { rows } = await pool.query("SELECT * FROM rentals WHERE status = 'upcoming'");
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching upcoming rentals:', error);
+    logger.error('Error fetching upcoming rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1006,7 +1026,7 @@ router.get('/overdue', authenticateJWT, authorizeRoles(['admin', 'manager', 'ins
     const { rows } = await pool.query("SELECT * FROM rentals WHERE status = 'overdue'");
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching overdue rentals:', error);
+    logger.error('Error fetching overdue rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1020,7 +1040,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(['admin', 'manager', 'i
     const { rows } = await pool.query("SELECT * FROM rentals WHERE status = 'completed'");
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching completed rentals:', error);
+    logger.error('Error fetching completed rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1048,7 +1068,7 @@ router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
       try {
         req.socketService.emitToChannel('general', 'rental:activated', rental);
       } catch (socketError) {
-        console.error('Error broadcasting rental activation:', socketError);
+        logger.error('Error broadcasting rental activation:', socketError);
       }
     }
     
@@ -1089,7 +1109,7 @@ router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
     
     res.json(rental);
   } catch (error) {
-    console.error('Error activating rental:', error);
+    logger.error('Error activating rental:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1115,7 +1135,7 @@ router.patch('/:id/complete', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
       try {
         req.socketService.emitToChannel('general', 'rental:completed', result.rows[0]);
       } catch (socketError) {
-        console.error('Error broadcasting rental completion:', socketError);
+        logger.error('Error broadcasting rental completion:', socketError);
       }
     }
     
@@ -1131,15 +1151,15 @@ router.patch('/:id/complete', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
     try {
       const { recordRentalCommission } = await import('../services/managerCommissionService.js');
       recordRentalCommission(completed).catch((err) => {
-        console.error('Manager commission calculation failed (non-blocking):', err.message);
+        logger.error('Manager commission calculation failed (non-blocking):', err.message);
       });
     } catch (commissionErr) {
-      console.error('Failed to import manager commission service:', commissionErr.message);
+      logger.error('Failed to import manager commission service:', commissionErr.message);
     }
 
     res.json(completed);
   } catch (error) {
-    console.error('Error completing rental:', error);
+    logger.error('Error completing rental:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1223,7 +1243,7 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
       try {
         req.socketService.emitToChannel('general', 'rental:cancelled', cancelledRental);
       } catch (socketError) {
-        console.error('Error broadcasting rental cancellation:', socketError);
+        logger.error('Error broadcasting rental cancellation:', socketError);
       }
     }
     
@@ -1269,16 +1289,16 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
     try {
       const { cancelCommission } = await import('../services/managerCommissionService.js');
       cancelCommission('rental', id, 'Rental cancelled').catch((err) => {
-        console.error('Manager commission cancellation failed (non-blocking):', err.message);
+        logger.error('Manager commission cancellation failed (non-blocking):', err.message);
       });
     } catch (commissionErr) {
-      console.error('Failed to import manager commission service:', commissionErr.message);
+      logger.error('Failed to import manager commission service:', commissionErr.message);
     }
     
     res.json(cancelledRental);
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
-    console.error('Error cancelling rental:', error);
+    logger.error('Error cancelling rental:', error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -1303,7 +1323,7 @@ router.patch('/:id/deposit-returned', authenticateJWT, authorizeRoles(['admin', 
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error marking deposit as returned:', error);
+    logger.error('Error marking deposit as returned:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1358,7 +1378,7 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
     const { rows } = await pool.query(query, [userId]);
     res.json(rows);
   } catch (error) {
-    console.error('Error fetching user rentals:', error);
+    logger.error('Error fetching user rentals:', error);
     res.status(500).json({ error: error.message });
   }
 });

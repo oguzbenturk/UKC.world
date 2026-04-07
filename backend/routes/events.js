@@ -404,6 +404,87 @@ router.get('/:eventId/registrations', authenticateJWT, authorizeRoles(ALLOWED_RO
   }
 });
 
+// Admin register a user for an event
+router.post('/:eventId/registrations', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    // Check if event exists and is not deleted
+    const eventQuery = `
+      SELECT
+        e.id,
+        e.capacity,
+        COALESCE(
+          (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status = 'registered'),
+          0
+        ) as current_registrations
+      FROM events e
+      WHERE e.id = $1 AND e.deleted_at IS NULL
+    `;
+
+    const { rows: eventRows } = await pool.query(eventQuery, [eventId]);
+
+    if (eventRows.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const event = eventRows[0];
+
+    // Check capacity if set
+    if (event.capacity && event.current_registrations >= event.capacity) {
+      return res.status(400).json({ error: 'Event is full' });
+    }
+
+    // Upsert registration
+    const registerQuery = `
+      INSERT INTO event_registrations (event_id, user_id, status)
+      VALUES ($1, $2, 'registered')
+      ON CONFLICT (event_id, user_id)
+      DO UPDATE SET status = 'registered', registered_at = NOW()
+      RETURNING *
+    `;
+
+    const { rows } = await pool.query(registerQuery, [eventId, user_id]);
+
+    logger.info('Admin registered user for event', { userId: user_id, eventId, adminId: req.user?.id });
+    return res.status(201).json(rows[0]);
+  } catch (error) {
+    logger.error('Error admin registering user for event:', error);
+    return res.status(500).json({ error: 'Failed to register user for event' });
+  }
+});
+
+// Admin unregister a user from an event
+router.delete('/:eventId/registrations/:userId', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res) => {
+  try {
+    const { eventId, userId } = req.params;
+
+    const query = `
+      UPDATE event_registrations
+      SET status = 'cancelled'
+      WHERE event_id = $1 AND user_id = $2 AND status = 'registered'
+      RETURNING *
+    `;
+
+    const { rows } = await pool.query(query, [eventId, userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    logger.info('Admin cancelled user event registration', { userId, eventId, adminId: req.user?.id });
+    return res.json(rows[0]);
+  } catch (error) {
+    logger.error('Error admin cancelling registration:', error);
+    return res.status(500).json({ error: 'Failed to cancel registration' });
+  }
+});
+
 // Check if current user is registered
 router.get('/:eventId/my-registration', authenticateJWT, async (req, res) => {
   try {

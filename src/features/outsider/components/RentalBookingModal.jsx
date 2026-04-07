@@ -35,6 +35,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import { IyzicoCheckout } from '@/features/finances';
+import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 const { RangePicker } = DatePicker;
 
@@ -150,6 +151,10 @@ const PayStep = ({
   submitting,
   onConfirm,
   canPayLater,
+  appliedVoucher,
+  onVoucherApplied,
+  onVoucherRemoved,
+  serviceId,
 }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Booking summary */}
@@ -263,6 +268,24 @@ const PayStep = ({
           description="Switch to Credit Card or top up your wallet first."
         />
       )}
+    </div>
+
+    {/* Promo Code */}
+    <div>
+      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+        Promo Code
+      </p>
+      <PromoCodeInput
+        context="rentals"
+        amount={totalPrice}
+        currency={priceCurrency}
+        serviceId={serviceId}
+        appliedVoucher={appliedVoucher}
+        onValidCode={onVoucherApplied}
+        onClear={onVoucherRemoved}
+        disabled={submitting}
+        variant="light"
+      />
     </div>
 
     <Button
@@ -379,6 +402,7 @@ const RentalBookingModal = ({
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [iyzicoDepositId, setIyzicoDepositId] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   const studentId = user?.userId || user?.id;
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
@@ -405,11 +429,23 @@ const RentalBookingModal = ({
 
   // ── Wallet ────────────────────────────────────────────────────────────────
   const { data: walletSummary } = useWalletSummary({
-    userId: studentId,
+    currency: userCurrency,
     enabled: open && !!studentId,
   });
-  const walletBalance = normalizeNumeric(walletSummary?.available, 0);
-  const walletCurrency = walletSummary?.currency || 'EUR';
+  // Aggregate ALL wallet currency rows (EUR + TRY etc.) into a single display amount
+  const walletBalance = useMemo(() => {
+    const allBalances = walletSummary?.balances;
+    if (Array.isArray(allBalances) && allBalances.length > 0) {
+      return allBalances.reduce((sum, row) => {
+        const amt = Number(row.available) || 0;
+        if (amt === 0) return sum;
+        if (row.currency === userCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, userCurrency);
+      }, 0);
+    }
+    return normalizeNumeric(walletSummary?.available, 0);
+  }, [walletSummary, convertCurrency, userCurrency]);
+  const walletCurrency = userCurrency || 'EUR';
   const walletInsufficient = paymentMethod === 'wallet' && totalPrice > walletBalance;
 
   // ── Reset state when modal opens ──────────────────────────────────────────
@@ -422,6 +458,7 @@ const RentalBookingModal = ({
       setIyzicoPaymentUrl(null);
       setIyzicoDepositId(null);
       setShowIyzicoModal(false);
+      setAppliedVoucher(null);
     }
   }, [open]);
 
@@ -475,6 +512,7 @@ const RentalBookingModal = ({
               notes: `Equipment rental: ${serviceName || 'Rental'} — ${day.format('ddd, MMM D')}`,
               currency: serviceCurrency || 'EUR',
               payment_method: paymentMethod,
+              ...(appliedVoucher?.id ? { voucher_id: appliedVoucher.id } : {}),
             });
             lastRes = res;
           }
@@ -596,6 +634,10 @@ const RentalBookingModal = ({
           submitting={submitting}
           onConfirm={handleConfirmPayment}
           canPayLater={canPayLater}
+          appliedVoucher={appliedVoucher}
+          onVoucherApplied={(voucherData) => setAppliedVoucher(voucherData)}
+          onVoucherRemoved={() => setAppliedVoucher(null)}
+          serviceId={serviceId}
         />
       )}
       {step === 2 && (

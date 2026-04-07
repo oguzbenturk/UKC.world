@@ -30,7 +30,7 @@ class CurrencyService {
       );
       return rows;
     } catch (error) {
-      console.error('Error fetching active currencies:', error);
+      logger.error('Error fetching active currencies', error);
       throw error;
     }
   }
@@ -45,7 +45,7 @@ class CurrencyService {
       );
       return rows;
     } catch (error) {
-      console.error('Error fetching all currencies:', error);
+      logger.error('Error fetching all currencies', error);
       throw error;
     }
   }
@@ -60,7 +60,7 @@ class CurrencyService {
       );
       return rows[0] || null;
     } catch (error) {
-      console.error('Error fetching base currency:', error);
+      logger.error('Error fetching base currency', error);
       throw error;
     }
   }
@@ -94,7 +94,7 @@ class CurrencyService {
 
       return convertedAmount.toDecimalPlaces(2).toNumber();
     } catch (error) {
-      console.error('Error converting currency:', error);
+      logger.error('Error converting currency', error);
       throw error;
     }
   }
@@ -210,7 +210,7 @@ class CurrencyService {
       );
       return rows[0];
     } catch (error) {
-      console.error('Error updating exchange rate:', error);
+      logger.error('Error updating exchange rate', error);
       throw error;
     }
   }
@@ -230,7 +230,7 @@ class CurrencyService {
       
       return rows[0];
     } catch (error) {
-      console.error('Error adding currency:', error);
+      logger.error('Error adding currency', error);
       throw error;
     }
   }
@@ -246,7 +246,7 @@ class CurrencyService {
       );
       return rows[0];
     } catch (error) {
-      console.error('Error toggling currency status:', error);
+      logger.error('Error toggling currency status', error);
       throw error;
     }
   }
@@ -272,7 +272,7 @@ class CurrencyService {
       return rows[0];
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error setting base currency:', error);
+      logger.error('Error setting base currency', error);
       throw error;
     } finally {
       client.release();

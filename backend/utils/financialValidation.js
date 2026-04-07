@@ -1,5 +1,7 @@
 // Production-ready financial validation utility
 
+import { logger } from '../middlewares/errorHandler.js';
+
 /**
  * Validates and corrects user financial data for production
  * This function ensures financial data integrity by recalculating
@@ -7,7 +9,6 @@
  */
 export async function validateAndCorrectFinancialData(pool, userId) {
   try {
-    console.log(`Validating financial data for user: ${userId}`);
     
     // Get all transactions for this user
     const transactionsResult = await pool.query(
@@ -40,7 +41,7 @@ export async function validateAndCorrectFinancialData(pool, userId) {
           // Refunds don't count as spending
           break;
         default:
-          console.warn(`Unknown transaction type: ${transaction.type}`);
+          logger.warn(`Unknown transaction type: ${transaction.type}`);
       }
     }
     
@@ -62,9 +63,7 @@ export async function validateAndCorrectFinancialData(pool, userId) {
     const totalSpentDiscrepancy = Math.abs(currentTotalSpent - correctTotalSpent) > 0.01;
     
     if (balanceDiscrepancy || totalSpentDiscrepancy) {
-      console.warn(`Financial discrepancy detected for user ${userId}:`);
-      console.warn(`Current balance: ${currentBalance}, Correct: ${correctCashBalance}`);
-      console.warn(`Current total_spent: ${currentTotalSpent}, Correct: ${correctTotalSpent}`);
+      logger.warn(`Financial discrepancy detected for user ${userId}: balance ${currentBalance} -> ${correctCashBalance}, total_spent ${currentTotalSpent} -> ${correctTotalSpent}`);
       
       // Auto-correct the database
       await pool.query(
@@ -74,7 +73,6 @@ export async function validateAndCorrectFinancialData(pool, userId) {
         [correctCashBalance, correctTotalSpent, userId]
       );
       
-      console.log(`✅ Financial data corrected for user ${userId}`);
       return {
         corrected: true,
         oldBalance: currentBalance,
@@ -84,7 +82,6 @@ export async function validateAndCorrectFinancialData(pool, userId) {
       };
     }
     
-    console.log(`✅ Financial data is correct for user ${userId}`);
     return {
       corrected: false,
       balance: correctCashBalance,
@@ -92,7 +89,7 @@ export async function validateAndCorrectFinancialData(pool, userId) {
     };
     
   } catch (error) {
-    console.error(`Error validating financial data for user ${userId}:`, error);
+    logger.error(`Error validating financial data for user ${userId}:`, error);
     throw error;
   }
 }

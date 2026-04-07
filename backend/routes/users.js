@@ -51,14 +51,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
     return res.status(400).json({ error: 'Password and role_id are required' });
   }
 
-  console.log(`Backend: Received create user request:`, JSON.stringify({
-    ...req.body,
-    password: '****REDACTED****' // Don't log the actual password
-  }, null, 2));
-
   try {
     const roleRes = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
-    console.log(`Backend: Query result for role_id '${role_id}':`, JSON.stringify(roleRes.rows, null, 2));
 
     if (!roleRes.rows.length) return res.status(400).json({ error: 'Invalid role_id' });
 
@@ -115,18 +109,14 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
       VALUES (${paramList.join(', ')}, NOW(), NOW())
       RETURNING *`;
 
-    console.log('Executing SQL:', query);
-    console.log('With values:', values.map(v => typeof v === 'string' && v.length > 50 ? v.substring(0, 50) + '...' : v));
-
     const { rows } = await pool.query(query, values);
 
     // Don't return the password_hash in the response
     const { password_hash, ...userWithoutPassword } = rows[0];
     res.status(201).json(userWithoutPassword);
   } catch (err) {
-    console.error('User creation failed:', err.message);
-    console.error('Error details:', err);
-    
+    logger.error('User creation failed', err);
+
     if (err.code === '23505' && err.constraint === 'users_email_key') {
       res.status(409).json({ error: 'Email already exists' });
     } else {
@@ -158,7 +148,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (re
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    logger.error('Failed to fetch users', err);
     res.status(500).json({ error: 'Query failed' });
   }
 });
@@ -200,7 +190,7 @@ router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), asyn
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error('❌ Error fetching customer users:', err);
+    logger.error('Failed to fetch customer users', err);
     res.status(500).json({ error: 'Failed to fetch customer users', details: err.message });
   }
 });
@@ -244,7 +234,7 @@ router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), a
     const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching users for booking:', err);
+    logger.error('Failed to fetch users for booking', err);
     res.status(500).json({ error: 'Failed to fetch users for booking' });
   }
 });
@@ -501,7 +491,7 @@ router.get('/instructors', authenticateJWT, authorizeRoles(['admin', 'manager', 
     const { rows } = await pool.query(query);
     res.json({ instructors: rows });
   } catch (err) {
-    console.error('Error fetching instructors:', err);
+    logger.error('Failed to fetch instructors', err);
     res.status(500).json({ error: 'Failed to fetch instructors' });
   }
 });
@@ -530,7 +520,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error('Failed to fetch user', err);
     res.status(500).json({ error: 'Query failed' });
   }
 });
@@ -567,7 +557,6 @@ router.put('/:id', authenticateJWT, async (req, res) => {
         return res.status(400).json({ error: 'Invalid new role_id provided' });
       }
       roleNameToUseForFields = newRoleRes.rows[0].name;
-      console.log(`Admin is changing role. Using fields for new role: ${roleNameToUseForFields}`);
     }
 
     const allowedFields = getAllowedFieldsByRole(roleNameToUseForFields);
@@ -635,13 +624,13 @@ router.put('/:id', authenticateJWT, async (req, res) => {
           });
         }
       } catch (socketError) {
-        console.error('Error broadcasting user update:', socketError);
+        logger.error('Error broadcasting user update', socketError);
       }
     }
 
     res.json(updatedUser);
   } catch (err) {
-    console.error('Update failed:', err);
+    logger.error('User update failed', err);
     res.status(500).json({ error: 'Update failed' });
   }
 });
@@ -1188,7 +1177,7 @@ router.post('/upload-avatar', authenticateJWT, upload.single('avatar'), async (r
       durationMs
     });
   } catch (err) {
-    console.error('Avatar upload failed:', err);
+    logger.error('Avatar upload failed', err);
     res.status(500).json({ error: 'Avatar upload failed' });
   }
 });
@@ -1276,7 +1265,7 @@ router.get('/:id/student-details', authenticateJWT, authorizeRoles(['admin', 'ma
     
     res.json(user);
   } catch (err) {
-    console.error('Error fetching user with student role details:', err);
+    logger.error('Failed to fetch user details', err);
     res.status(500).json({ error: 'Failed to fetch user details' });
   }
 });
@@ -1314,7 +1303,7 @@ router.post('/import-students', authenticateJWT, async (req, res) => {
     }
     res.json({ importedCount: inserted.length, users: inserted });
   } catch (err) {
-    console.error('Error importing users with student role:', err);
+    logger.error('Failed to import students', err);
     res.status(500).json({ error: 'Failed to import users' });
   }
 });
@@ -1328,7 +1317,7 @@ router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 
     );
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching lessons for user:', err);
+    logger.error('Failed to fetch lessons for user', err);
     res.status(500).json({ error: 'Failed to fetch lessons' });
   }
 });
@@ -1396,10 +1385,10 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
           req.socketService.emitInstructorUpdated(updatedUser);
         }
       } catch (socketError) {
-        console.error('Error broadcasting role change:', socketError);
+        logger.error('Error broadcasting role change', socketError);
       }
     }
-    
+
     res.json({
       message: `User role successfully changed to ${newRoleName}`,
       user: updatedUser,
@@ -1408,7 +1397,7 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
     });
     
   } catch (err) {
-    console.error('Role promotion failed:', err);
+    logger.error('Role promotion failed', err);
     res.status(500).json({ error: 'Role promotion failed', details: err.message });
   }
 });
@@ -1525,7 +1514,7 @@ router.get('/:id/packages', authenticateJWT, authorizeRoles(['admin', 'manager',
     res.json(result.rows);
     
   } catch (err) {
-    console.error('Error fetching user packages:', err);
+    logger.error('Failed to fetch user packages', err);
     res.status(500).json({ error: 'Failed to fetch user packages', details: err.message });
   }
 });

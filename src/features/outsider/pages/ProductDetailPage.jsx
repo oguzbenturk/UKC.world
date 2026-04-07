@@ -18,6 +18,7 @@ import RelatedProducts from '@/features/outsider/components/RelatedProducts';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import ProductAddOns from '@/features/outsider/components/ProductAddOns';
 import ShoppingCart from '@/features/students/components/ShoppingCart';
+import { usePageSEO } from '@/shared/utils/seo';
 
 const { Title } = Typography;
 
@@ -40,6 +41,13 @@ const ProductDetailPage = () => {
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // SEO is updated dynamically once product loads (see useEffect below)
+    usePageSEO({
+      title: product ? `${product.name} | UKC. Shop` : 'Product | UKC. Shop',
+      description: product?.description?.slice(0, 160) || 'View product details, specifications, and pricing at UKC. Duotone Pro Center shop.',
+      path: `/shop/product/${id}`,
+    });
     const [error, setError] = useState(null);
     const [cartVisible, setCartVisible] = useState(false);
 

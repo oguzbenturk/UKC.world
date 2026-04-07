@@ -4,6 +4,7 @@ import { body, param } from 'express-validator';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles, validateInput } from '../middlewares/authorize.js';
 import familyService from '../services/familyService.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -131,7 +132,7 @@ router.get(
         data: familyMembers
       });
     } catch (error) {
-      console.error('Error fetching family members:', error);
+      logger.error('Error fetching family members:', error);
       res.status(500).json({ 
         success: false,
         error: 'Failed to fetch family members',
@@ -156,7 +157,7 @@ router.get(
       res.setHeader('Content-Disposition', `attachment; filename="family-members-${timestamp}.csv"`);
       res.send(csv);
     } catch (error) {
-      console.error('Error exporting family members CSV:', error);
+      logger.error('Error exporting family members CSV:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to export family members',
@@ -188,7 +189,7 @@ router.get(
         data: member
       });
     } catch (error) {
-      console.error('Error fetching family member:', error);
+      logger.error('Error fetching family member:', error);
       res.status(500).json({ 
         success: false,
         error: 'Failed to fetch family member',
@@ -228,7 +229,7 @@ router.get(
         });
       }
 
-      console.error('Error fetching family member activity:', error);
+      logger.error('Error fetching family member activity:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to fetch family member activity',
@@ -261,7 +262,7 @@ router.post(
       }
       res.status(201).json(response);
     } catch (error) {
-      console.error('Error creating family member:', error);
+      logger.error('Error creating family member:', error);
       
       if (error.message.includes('under 18')) {
         return res.status(400).json({ 
@@ -312,7 +313,7 @@ router.put(
         data: updatedMember
       });
     } catch (error) {
-      console.error('Error updating family member:', error);
+      logger.error('Error updating family member:', error);
       
       if (error.message.includes('under 18') || error.message.includes('not found')) {
         return res.status(400).json({ 
@@ -353,7 +354,7 @@ router.delete(
         message: 'Family member deleted successfully'
       });
     } catch (error) {
-      console.error('Error deleting family member:', error);
+      logger.error('Error deleting family member:', error);
       res.status(500).json({ 
         success: false,
         error: 'Failed to delete family member',

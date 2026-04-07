@@ -1,9 +1,17 @@
 # robots.txt
 User-agent: *
 Allow: /
-
-# Disallow private app endpoints if any
 Disallow: /api/
+Disallow: /admin/
+Disallow: /settings
 
-# Sitemap location
+# AI crawlers — welcome to public content
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: Claude-Web
+User-agent: PerplexityBot
+User-agent: Bytespider
+Allow: /
+
+# Sitemap & LLM discovery
 Sitemap: https://plannivo.com/sitemap.xml

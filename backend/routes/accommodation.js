@@ -547,9 +547,9 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 						[id]
 					);
 					booking.payment_status = 'refunded';
-					console.log(`[ACCOMMODATION] Refunded €${refundAmount.toFixed(2)} to guest ${booking.guest_id} for booking ${id}`);
+					logger.info(`[ACCOMMODATION] Refunded EUR ${refundAmount.toFixed(2)} to guest ${booking.guest_id} for booking ${id}`);
 				} catch (refundErr) {
-					console.error('[ACCOMMODATION] Refund failed:', refundErr.message);
+					logger.error('[ACCOMMODATION] Refund failed:', refundErr);
 					// Still cancel the booking, but log the refund failure
 				}
 			}
@@ -678,7 +678,7 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 				paymentStatus = 'paid';
 			} catch (walletErr) {
 				await client.query('ROLLBACK');
-				console.error('[ACCOMMODATION] Wallet deduction failed:', walletErr.message);
+				logger.error('[ACCOMMODATION] Wallet deduction failed:', walletErr);
 				if (walletErr.message?.includes('Insufficient')) {
 					return res.status(400).json({ error: walletErr.message });
 				}
@@ -856,7 +856,6 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
 router.delete('/bookings/:id', authenticateJWT, async (req, res) => {
 	try {
 		const { id } = req.params;
-		console.log('[ACCOMMODATION DELETE] user:', req.user?.id, 'role:', req.user?.role || req.user?.user_role);
 		// Normalize role and determine staff
 		const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
 		const isStaff = (
@@ -869,13 +868,11 @@ router.delete('/bookings/:id', authenticateJWT, async (req, res) => {
 			[id, isStaff, req.user.id]
 		);
 		if (rows.length === 0) {
-			console.log('[ACCOMMODATION DELETE] not found or unauthorized', { id, isStaff, user: req.user.id });
 			return res.status(404).json({ error: 'Booking not found or not authorized to delete' });
 		}
-		console.log('[ACCOMMODATION DELETE] deleted booking', rows[0].id);
 		res.json({ success: true, deleted: rows[0] });
 	} catch (err) {
-		console.error('[ACCOMMODATION DELETE] error', err);
+		logger.error('[ACCOMMODATION DELETE] error', err);
 		res.status(500).json({ error: 'Failed to delete booking' });
 	}
 });

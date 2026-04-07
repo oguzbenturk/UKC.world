@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 import { resolveSettings, pickPaymentFee as pickFee } from './financialSettingsService.js';
 
 async function getTotalInstructorEarnings(client, { dateStart, dateEnd, serviceType }) {
@@ -26,7 +27,7 @@ async function getTotalInstructorEarnings(client, { dateStart, dateEnd, serviceT
       unique_instructors: uniqueInstructors
     };
   } catch (error) {
-    console.error('Error fetching total instructor earnings:', error);
+    logger.error('Error fetching total instructor earnings', error);
     return {
       total: 0,
       method: 'error_fallback',
@@ -190,7 +191,7 @@ async function getDefaultCommissionRate(client) {
       };
     }
   } catch (error) {
-    console.error('Error fetching weighted commission rate:', error);
+    logger.error('Error fetching weighted commission rate', error);
     return {
       rate: 0.5,
       isConfigured: false,
@@ -304,7 +305,7 @@ async function buildCommissionsMap(client, bookingIds) {
       return acc;
     }, {});
   } catch (error) {
-    console.error('Error building commissions map:', error);
+    logger.error('Error building commissions map', error);
     return {};
   }
 }

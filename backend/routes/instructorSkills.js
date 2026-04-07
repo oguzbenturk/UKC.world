@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get(
 
       res.json(rows);
     } catch (err) {
-      console.error('Error fetching instructor skills:', err);
+      logger.error('Error fetching instructor skills:', err);
       res.status(500).json({ error: 'Failed to fetch instructor skills' });
     }
   }
@@ -99,7 +100,7 @@ router.put(
       res.json(rows);
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
-      console.error('Error saving instructor skills:', err);
+      logger.error('Error saving instructor skills:', err);
       res.status(500).json({ error: 'Failed to save instructor skills' });
     } finally {
       client.release();
@@ -214,7 +215,7 @@ router.get(
 
       res.json(result);
     } catch (err) {
-      console.error('Error fetching qualified instructors:', err);
+      logger.error('Error fetching qualified instructors:', err);
       res.status(500).json({ error: 'Failed to fetch qualified instructors' });
     }
   }

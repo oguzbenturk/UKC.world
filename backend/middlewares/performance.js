@@ -65,7 +65,7 @@ export const apiCache = (duration = 300) => {
 export const clearCache = (pattern) => {
   // Implementation would depend on caching strategy
   // For now, just a placeholder
-  console.log(`Cache cleared for pattern: ${pattern}`);
+  logger.info(`Cache cleared for pattern: ${pattern}`);
 };
 
 // Performance monitoring middleware
@@ -149,11 +149,7 @@ export const optimizeDbPool = (pool) => {
     const { totalCount, idleCount, waitingCount } = pool;
     
     if (waitingCount > 5) {
-      console.warn('Database pool congestion:', {
-        total: totalCount,
-        idle: idleCount,
-        waiting: waitingCount
-      });
+      logger.warn('Database pool congestion', { total: totalCount, idle: idleCount, waiting: waitingCount });
     }
   }, 60000); // Check every minute
 };

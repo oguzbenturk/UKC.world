@@ -10,6 +10,7 @@ import AccommodationBookingModal from './AccommodationBookingModal';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import QuickBookingModal from './QuickBookingModal';
 import RentalBookingModal from './RentalBookingModal';
+import AcademyCrossSellBanner from './AcademyCrossSellBanner';
 import {
   RocketOutlined,
   HomeOutlined,
@@ -37,6 +38,14 @@ const LESSON_NAV_ITEMS = [
   { id: 'premium', label: 'PREMIUM',        shortLabel: 'VIP',    path: '/academy/premium-lessons' },
 ];
 const LESSON_KEYS = new Set(['kite', 'wing', 'foil', 'efoil', 'premium']);
+
+const RENTAL_NAV_ITEMS = [
+  { id: 'rental_standard', label: 'STANDARD',  path: '/rental/standard' },
+  { id: 'rental_sls',      label: 'SLS',       path: '/rental/sls' },
+  { id: 'rental_dlab',     label: 'D-LAB',     path: '/rental/dlab' },
+  { id: 'rental_efoil',    label: 'E-FOIL',    path: '/rental/efoil' },
+  { id: 'rental_premium',  label: 'PREMIUM',   path: '/rental/premium' },
+];
 
 const AcademyServicePackagesPage = ({
   seoTitle,
@@ -116,6 +125,7 @@ const AcademyServicePackagesPage = ({
   const normalize = (v) => String(v || '').toLowerCase();
   const isStayPage = normalize(dynamicServiceKey || '').startsWith('stay');
   const isRentalPage = normalize(dynamicServiceKey || '').startsWith('rental_');
+  const isLessonPage = LESSON_KEYS.has(normalize(dynamicServiceKey || ''));
 
   const DISCIPLINE_META = {
     kite:     { label: 'Kitesurfing',  color: 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30',    active: 'bg-sky-500/40 border-sky-400 text-sky-100' },
@@ -1458,6 +1468,18 @@ const AcademyServicePackagesPage = ({
         />
       )}
 
+      {/* Rental category sticky nav — shown on all individual rental pages */}
+      {isRentalPage && (
+        <StickyNavBar
+          items={RENTAL_NAV_ITEMS}
+          activeItem={normalize(dynamicServiceKey)}
+          onItemClick={(id) => {
+            const item = RENTAL_NAV_ITEMS.find(n => n.id === id);
+            if (item) navigate(item.path);
+          }}
+        />
+      )}
+
       <div className="relative z-10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8">
           <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-slate-900 mb-4 uppercase">
@@ -1539,6 +1561,9 @@ const AcademyServicePackagesPage = ({
       )}
 
       {promoBanner}
+
+      {/* Cross-sell: Shop · Rental · Stay */}
+      {isLessonPage && <AcademyCrossSellBanner />}
 
       {/* Contact Us Section */}
       <div className={`py-16 sm:py-20 ${pageBackgroundClass} border-t border-slate-200`}>

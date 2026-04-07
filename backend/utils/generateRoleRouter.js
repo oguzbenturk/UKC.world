@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { ROLE_IDS } from '../constants/roles.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 export function generateRoleRouter(roleName) {
   const roleId = ROLE_IDS[roleName];
@@ -18,7 +19,7 @@ export function generateRoleRouter(roleName) {
       );
       res.status(201).json(rows[0]);
     } catch (err) {
-      console.error('Insert failed:', err);
+      logger.error('Insert failed:', err);
       res.status(500).json({ error: 'Insert failed' });
     }
   });
@@ -35,7 +36,7 @@ export function generateRoleRouter(roleName) {
       `, [roleId]);
       res.json(rows);
     } catch (err) {
-      console.error('Query failed:', err);
+      logger.error('Query failed:', err);
       res.status(500).json({ error: 'Query failed' });
     }
   });
@@ -53,7 +54,7 @@ export function generateRoleRouter(roleName) {
       if (!rows.length) return res.status(404).json({ error: 'Not found' });
       res.json(rows[0]);
     } catch (err) {
-      console.error('Query failed:', err);
+      logger.error('Query failed:', err);
       res.status(500).json({ error: 'Query failed' });
     }
   });
@@ -79,7 +80,7 @@ export function generateRoleRouter(roleName) {
       if (!rows.length) return res.status(404).json({ error: 'Not found' });
       res.json(rows[0]);
     } catch (err) {
-      console.error('Update failed:', err);
+      logger.error('Update failed:', err);
       res.status(500).json({ error: 'Update failed' });
     }
   });
@@ -95,7 +96,7 @@ export function generateRoleRouter(roleName) {
       if (result.rowCount === 0) return res.status(404).json({ error: 'Not found' });
       res.status(204).send();
     } catch (err) {
-      console.error('Delete failed:', err);
+      logger.error('Delete failed:', err);
       res.status(500).json({ error: 'Delete failed' });
     }
   });

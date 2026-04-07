@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import xss from 'xss'; // SEC-046 FIX: Use robust XSS library
 import crypto from 'crypto';
+import { logger } from './errorHandler.js';
 
 /**
  * Security Middleware Configuration
@@ -25,7 +26,7 @@ const isProduction = process.env.NODE_ENV?.trim() === 'production';
 const isDevelopment = process.env.NODE_ENV?.trim() === 'development' && !isProduction;
 
 if (!isProduction && !isDevelopment) {
-  console.warn('⚠️  NODE_ENV is not set to "production" or "development". Defaulting to production-level security.');
+  logger.warn('NODE_ENV is not set to "production" or "development". Defaulting to production-level security.');
 }
 
 // Security Headers with Helmet
@@ -268,7 +269,7 @@ export const sanitizeInput = () => {
       
       next();
     } catch (error) {
-      console.error('Error in sanitizeInput middleware:', error);
+      logger.error('Error in sanitizeInput middleware', error);
       next();
     }
   };
@@ -319,7 +320,7 @@ export const configureCORS = () => {
       } else {
         // Log rejected origins in development for debugging
         if (isDevelopment) {
-          console.warn(`⚠️  CORS rejected origin: ${origin}. Add it to allowedOrigins if needed.`);
+          logger.warn(`CORS rejected origin: ${origin}. Add it to allowedOrigins if needed.`);
         }
         callback(new Error(`Not allowed by CORS: ${origin}`));
       }
@@ -356,7 +357,7 @@ export const logSecurityEvent = async (pool, userId, action, req, details = {}) 
       JSON.stringify(details)
     ]);
   } catch (error) {
-    console.error('Failed to log security event:', error);
+    logger.error('Failed to log security event', error);
   }
 };
 

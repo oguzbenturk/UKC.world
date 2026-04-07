@@ -5,7 +5,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { getBalance, recordTransaction } from '../services/walletService.js';
+import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import CurrencyService from '../services/currencyService.js';
 
@@ -179,31 +179,52 @@ router.post(
       // Handle wallet payment
       let paymentStatus = 'completed';
       if (paymentMethod === 'wallet') {
-        // Use wallet service to ensure compatibility with wallet_balances table
-        // Assume default currency is EUR for now
-        const currency = 'EUR';
         const price = parseFloat(offering.price);
+        const offeringCurrency = offering.currency || 'EUR';
 
-        const walletBalance = await getBalance(userId, currency);
-        
+        // Find a wallet balance that can cover the price
+        // First try the offering currency, then try any other currency with sufficient converted balance
+        let payCurrency = offeringCurrency;
+        let payAmount = price;
+        let walletBalance = await getBalance(userId, offeringCurrency);
+
         if (walletBalance.available < price) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ 
-            error: 'Insufficient wallet balance',
-            required: price,
-            available: walletBalance.available
-          });
+          // Try other currencies
+          const allBalances = await getAllBalances(userId);
+          let found = false;
+          for (const bal of allBalances) {
+            if (bal.currency === offeringCurrency || bal.available <= 0) continue;
+            try {
+              const convertedPrice = await CurrencyService.convertCurrency(price, offeringCurrency, bal.currency);
+              if (bal.available >= convertedPrice) {
+                payCurrency = bal.currency;
+                payAmount = convertedPrice;
+                walletBalance = bal;
+                found = true;
+                break;
+              }
+            } catch { /* skip if conversion unavailable */ }
+          }
+          if (!found) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: 'Insufficient wallet balance',
+              required: price,
+              currency: offeringCurrency,
+              available: walletBalance.available
+            });
+          }
         }
 
         // Deduct from wallet using service
         await recordTransaction({
           client, // Pass the existing transaction client
           userId,
-          amount: price,
-          currency,
+          amount: payAmount,
+          currency: payCurrency,
           transactionType: 'payment',
           direction: 'debit',
-          availableDelta: -price, // Explicitly reduce availability
+          availableDelta: -payAmount, // Explicitly reduce availability
           description: `Purchase: ${offering.name}`,
           metadata: {
             offeringId,

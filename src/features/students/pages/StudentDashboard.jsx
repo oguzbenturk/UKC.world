@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { App } from 'antd';
 import { analyticsService } from '@/shared/services/analyticsService';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -12,6 +12,114 @@ import RatingPrompt from '../components/dashboard/RatingPrompt';
 import PackageCards from '../components/dashboard/PackageCards';
 import InstructorNotesFeed from '../components/dashboard/InstructorNotesFeed';
 import QuickLinks from '../components/dashboard/QuickLinks';
+import { studentPortalApi } from '../services/studentPortalApi';
+
+/* ── Type badge config (mirrors instructor side) ── */
+const REC_TYPE_CONFIG = {
+  product:       { label: 'Product',  cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  service:       { label: 'Lesson',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  rental:        { label: 'Rental',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  accommodation: { label: 'Room',     cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  custom:        { label: 'Custom',   cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+};
+
+const REC_LINK = {
+  product:       (rec) => rec.itemId ? `/shop/product/${rec.itemId}` : '/shop/browse',
+  service:       ()    => '/academy/book-service',
+  rental:        ()    => '/rental/book-equipment',
+  accommodation: ()    => '/stay/book-accommodation',
+  custom:        ()    => null,
+};
+
+const REC_PLACEHOLDER_CLS = {
+  product:       'bg-sky-100 text-sky-500',
+  service:       'bg-emerald-100 text-emerald-500',
+  rental:        'bg-amber-100 text-amber-500',
+  accommodation: 'bg-violet-100 text-violet-500',
+  custom:        'bg-slate-100 text-slate-400',
+};
+
+const InstructorRecommendations = () => {
+  const navigate = useNavigate();
+  const [recs, setRecs] = useState(null);
+
+  useEffect(() => {
+    studentPortalApi.fetchRecommendations()
+      .then(data => setRecs(Array.isArray(data) ? data.filter(r => r.source === 'instructor') : []))
+      .catch(() => setRecs([]));
+  }, []);
+
+  if (!recs || recs.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100">
+        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Recommended for You</h2>
+        <p className="text-xs text-slate-500 mt-0.5">Suggestions from your instructor</p>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {recs.map(rec => {
+          const typeConf = REC_TYPE_CONFIG[rec.itemType] || REC_TYPE_CONFIG.custom;
+          const link = (REC_LINK[rec.itemType] || REC_LINK.custom)(rec);
+          const placeholderCls = REC_PLACEHOLDER_CLS[rec.itemType] || REC_PLACEHOLDER_CLS.custom;
+          return (
+            <li key={rec.id} className="px-6 py-4">
+              <div className="flex items-start gap-4">
+                {/* Thumbnail */}
+                {rec.itemImage ? (
+                  <button
+                    type="button"
+                    onClick={() => link && navigate(link)}
+                    className={`shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-slate-100 shadow-sm ${link ? 'cursor-pointer hover:opacity-90 transition-opacity' : 'cursor-default'}`}
+                  >
+                    <img src={rec.itemImage} alt={rec.itemName} className="w-full h-full object-cover" />
+                  </button>
+                ) : (
+                  <div className={`shrink-0 w-16 h-16 rounded-xl flex items-center justify-center text-lg font-bold ${placeholderCls}`}>
+                    {rec.itemName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium ${typeConf.cls}`}>
+                      {typeConf.label}
+                    </span>
+                    {link ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(link)}
+                        className="text-sm font-semibold text-sky-700 hover:underline text-left"
+                      >
+                        {rec.itemName}
+                      </button>
+                    ) : (
+                      <p className="text-sm font-semibold text-slate-900">{rec.itemName}</p>
+                    )}
+                    {rec.itemPrice != null && (
+                      <span className="text-xs font-semibold text-slate-500">€{rec.itemPrice}</span>
+                    )}
+                  </div>
+                  {rec.notes && <p className="text-xs text-slate-500 mt-1 italic">{rec.notes}</p>}
+                  {link && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(link)}
+                      className="mt-1.5 text-xs font-medium text-sky-600 hover:text-sky-800 transition-colors"
+                    >
+                      View →
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
 
 /* ── Rating modal helpers (unchanged logic) ── */
 
@@ -215,6 +323,8 @@ const StudentDashboard = () => {
       <PackageCards packages={overview.packages} />
 
       <InstructorNotesFeed notes={overview.instructorNotes} />
+
+      <InstructorRecommendations />
 
       <QuickLinks />
 

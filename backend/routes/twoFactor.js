@@ -8,6 +8,7 @@ import permissionService from '../services/permissionService.js';
 import { authenticateJWT } from './auth.js';
 import { authRateLimit, twoFactorRateLimit, setCsrfCookie } from '../middlewares/security.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -89,7 +90,7 @@ router.post('/setup-2fa', authenticateJWT, authRateLimit, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('2FA setup error:', error);
+    logger.error('2FA setup error:', error);
     res.status(500).json({ error: 'Failed to setup two-factor authentication' });
   }
 });
@@ -151,7 +152,7 @@ router.post('/enable-2fa', authenticateJWT, twoFactorRateLimit, async (req, res)
     });
 
   } catch (error) {
-    console.error('2FA enable error:', error);
+    logger.error('2FA enable error:', error);
     res.status(500).json({ error: 'Failed to enable two-factor authentication' });
   }
 });
@@ -222,7 +223,7 @@ router.post('/disable-2fa', authenticateJWT, authRateLimit, async (req, res) => 
     });
 
   } catch (error) {
-    console.error('2FA disable error:', error);
+    logger.error('2FA disable error:', error);
     res.status(500).json({ error: 'Failed to disable two-factor authentication' });
   }
 });
@@ -348,7 +349,7 @@ router.post('/verify-2fa', twoFactorRateLimit, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('2FA verification error:', error);
+    logger.error('2FA verification error:', error);
     res.status(500).json({ error: 'Two-factor authentication verification failed' });
   }
 });
@@ -365,7 +366,7 @@ router.get('/backup-codes/count', authenticateJWT, async (req, res) => {
     const codes = rows[0]?.two_factor_backup_codes || [];
     res.json({ remaining: codes.length });
   } catch (error) {
-    console.error('Backup code count error:', error);
+    logger.error('Backup code count error:', error);
     res.status(500).json({ error: 'Failed to get backup code count' });
   }
 });
@@ -419,7 +420,7 @@ router.post('/backup-codes/regenerate', authenticateJWT, twoFactorRateLimit, asy
       backupCodes: plainCodes,
     });
   } catch (error) {
-    console.error('Backup code regeneration error:', error);
+    logger.error('Backup code regeneration error:', error);
     res.status(500).json({ error: 'Failed to regenerate backup codes' });
   }
 });
@@ -437,7 +438,7 @@ router.get('/2fa-status', authenticateJWT, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('2FA status error:', error);
+    logger.error('2FA status error:', error);
     res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 });
@@ -458,7 +459,7 @@ async function logSecurityEvent(userId, action, req, details = {}) {
       JSON.stringify(details)
     ]);
   } catch (error) {
-    console.error('Failed to log security event:', error);
+    logger.error('Failed to log security event:', error);
   }
 }
 

@@ -9,6 +9,7 @@ import { serviceApi } from "@/shared/services/serviceApi";
 import moment from "moment";
 import { STANDARD_SLOTS as TIMELINE_SLOTS } from "@/shared/utils/timelineUtils";
 import { filterServicesByCapacity } from "@/shared/utils/serviceCapacityFilter";
+import { fetchUnavailableInstructors } from '@/features/instructor/services/instructorAvailabilityApi';
 
 // Convert standard slots from timelineUtils to format needed by form
 const STANDARD_SLOTS = TIMELINE_SLOTS.map(slot => ({
@@ -28,6 +29,7 @@ const BookingForm = ({ booking, onClose, onSave, students, instructors }) => {
   const [servicesLoading, setServicesLoading] = useState(true);
   const [participantCount] = useState(1); // Track number of participants for filtering
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [unavailableInstructorIds, setUnavailableInstructorIds] = useState(new Set());
   const [participantType, setParticipantType] = useState('self');
   const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState(null);
   
@@ -322,11 +324,13 @@ const BookingForm = ({ booking, onClose, onSave, students, instructors }) => {
             className="custom-select"
             popupClassName="custom-dropdown"
           >
-            {instructors.map(instructor => (
-              <Select.Option key={instructor.id} value={instructor.id}>
-                {instructor.name}
-              </Select.Option>
-            ))}
+            {instructors
+              .filter(instructor => !unavailableInstructorIds.has(instructor.id))
+              .map(instructor => (
+                <Select.Option key={instructor.id} value={instructor.id}>
+                  {instructor.name}
+                </Select.Option>
+              ))}
           </Select>
         </Form.Item>
         
@@ -384,7 +388,23 @@ const BookingForm = ({ booking, onClose, onSave, students, instructors }) => {
           label={<span className="text-slate-300">Date</span>}
           rules={[{ required: true, message: "Please select a date" }]}
         >
-          <DatePicker className="w-full custom-datepicker" />
+          <DatePicker
+            className="w-full custom-datepicker"
+            onChange={(date) => {
+              if (!date) { setUnavailableInstructorIds(new Set()); return; }
+              const dateStr = date.format('YYYY-MM-DD');
+              fetchUnavailableInstructors(dateStr, dateStr)
+                .then((map) => {
+                  const ids = new Set(
+                    Object.entries(map)
+                      .filter(([, dates]) => dates.includes(dateStr))
+                      .map(([id]) => id)
+                  );
+                  setUnavailableInstructorIds(ids);
+                })
+                .catch(() => setUnavailableInstructorIds(new Set()));
+            }}
+          />
         </Form.Item>
       </div>
       

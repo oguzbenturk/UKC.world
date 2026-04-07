@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Drawer, Tag, Spin, Avatar, Typography, Switch, Tooltip } from 'antd';
+import { Drawer, Tag, Spin, Avatar, Typography, Switch, Tooltip, Form, DatePicker, Select, Button, Empty, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined, MailOutlined, PhoneOutlined,
   CalendarOutlined, TrophyOutlined, EnvironmentOutlined,
   DollarOutlined, WalletOutlined, IdcardOutlined,
-  BarChartOutlined, CloseOutlined, ThunderboltOutlined
+  BarChartOutlined, CloseOutlined, ThunderboltOutlined,
+  PlusOutlined, CheckOutlined, StopOutlined, DeleteOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import {
+  fetchInstructorAvailability,
+  createInstructorAvailabilityBlock,
+  updateAvailabilityStatus,
+  deleteInstructorAvailabilityEntry,
+} from '@/features/instructor/services/instructorAvailabilityApi';
 import InstructorServiceCommission from './InstructorServiceCommission';
 import InstructorSkillsManager from './InstructorSkillsManager';
 import InstructorPayments from './InstructorPayments';
@@ -19,29 +27,246 @@ import { formatCurrency } from '@/shared/utils/formatters';
 const { Text } = Typography;
 
 const NAV_ITEMS = [
-  { key: 'info', icon: <UserOutlined />, label: 'Profile' },
-  { key: 'skills', icon: <ThunderboltOutlined />, label: 'Skills' },
-  { key: 'commissions', icon: <DollarOutlined />, label: 'Commissions' },
-  { key: 'dashboard', icon: <BarChartOutlined />, label: 'Earnings' },
-  { key: 'payments', icon: <WalletOutlined />, label: 'Payroll' },
+  { key: 'info',         icon: <UserOutlined />,         label: 'Profile'     },
+  { key: 'skills',       icon: <ThunderboltOutlined />,   label: 'Skills'      },
+  { key: 'commissions',  icon: <DollarOutlined />,        label: 'Commissions' },
+  { key: 'dashboard',    icon: <BarChartOutlined />,      label: 'Earnings'    },
+  { key: 'payments',     icon: <WalletOutlined />,        label: 'Payroll'     },
+  { key: 'availability', icon: <CalendarOutlined />,      label: 'Availability'},
 ];
 
 const SECTION_DESCRIPTIONS = {
-  info: 'Personal information and details',
-  skills: 'Manage instructor skills and certifications',
-  commissions: 'Manage commission rates and category overrides',
-  dashboard: 'Earnings overview and analytics',
-  payments: 'Payment history and payroll management',
+  info:         'Personal information and details',
+  skills:       'Manage instructor skills and certifications',
+  commissions:  'Manage commission rates and category overrides',
+  dashboard:    'Earnings overview and analytics',
+  payments:     'Payment history and payroll management',
+  availability: 'Manage instructor availability and approve time-off requests',
 };
+
+// ── Constants shared with the admin availability UI ───────────────────────
+const TYPE_LABELS = {
+  off_day:    'Off Day',
+  vacation:   'Vacation',
+  sick_leave: 'Sick Leave',
+  custom:     'Custom',
+};
+const TYPE_COLORS = {
+  off_day:    'orange',
+  vacation:   'blue',
+  sick_leave: 'red',
+  custom:     'purple',
+};
+const STATUS_COLORS = {
+  pending:   'warning',
+  approved:  'success',
+  rejected:  'error',
+  cancelled: 'default',
+};
+
+// ── Admin availability panel ──────────────────────────────────────────────
+function AdminAvailabilityPanel({ instructorId }) {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [actionId, setActionId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchInstructorAvailability(instructorId, { from: dayjs().subtract(30, 'day').format('YYYY-MM-DD') });
+      setEntries(data);
+    } catch (err) {
+      message.error('Failed to load availability');
+    } finally {
+      setLoading(false);
+    }
+  }, [instructorId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+      const [start, end] = values.dateRange;
+      const entry = await createInstructorAvailabilityBlock(instructorId, {
+        start_date: start.format('YYYY-MM-DD'),
+        end_date: end.format('YYYY-MM-DD'),
+        type: values.type,
+        reason: values.reason || undefined,
+      });
+      setEntries((prev) => [entry, ...prev]);
+      message.success('Availability block created (auto-approved)');
+      form.resetFields();
+      setShowForm(false);
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err?.response?.data?.error || 'Failed to create block');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStatusChange = async (entryId, status) => {
+    setActionId(entryId);
+    try {
+      const updated = await updateAvailabilityStatus(instructorId, entryId, status);
+      setEntries((prev) => prev.map((e) => (e.id === entryId ? updated : e)));
+      message.success(`Request ${status}`);
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Failed to update status');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleDelete = (entryId) => {
+    Modal.confirm({
+      title: 'Delete this availability entry?',
+      icon: <ExclamationCircleOutlined />,
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: async () => {
+        setActionId(entryId);
+        try {
+          await deleteInstructorAvailabilityEntry(instructorId, entryId);
+          setEntries((prev) => prev.filter((e) => e.id !== entryId));
+          message.success('Entry deleted');
+        } catch (err) {
+          message.error(err?.response?.data?.error || 'Failed to delete entry');
+        } finally {
+          setActionId(null);
+        }
+      },
+    });
+  };
+
+  const pending = entries.filter((e) => e.status === 'pending');
+  const rest = entries.filter((e) => e.status !== 'pending');
+
+  return (
+    <div className="space-y-4">
+      {/* Create new block */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+            <CalendarOutlined /> Create Availability Block
+          </p>
+          <Button
+            size="small"
+            type={showForm ? 'default' : 'primary'}
+            icon={showForm ? <CloseOutlined /> : <PlusOutlined />}
+            onClick={() => setShowForm((v) => !v)}
+            className={showForm ? '' : '!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700'}
+          >
+            {showForm ? 'Cancel' : 'New Block'}
+          </Button>
+        </div>
+
+        {showForm && (
+          <Form form={form} layout="vertical" size="middle">
+            <Form.Item name="dateRange" label="Date Range" rules={[{ required: true, message: 'Select a date range' }]} className="!mb-3">
+              <DatePicker.RangePicker className="w-full" format="DD MMM YYYY" />
+            </Form.Item>
+            <Form.Item name="type" label="Type" initialValue="off_day" rules={[{ required: true }]} className="!mb-3">
+              <Select options={Object.entries(TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
+            </Form.Item>
+            <Form.Item name="reason" label="Reason (optional)" className="!mb-4">
+              <Form.Item name="reason" noStyle>
+                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Optional reason" maxLength={300} />
+              </Form.Item>
+            </Form.Item>
+            <Button type="primary" loading={submitting} onClick={handleCreate} className="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 w-full">
+              Create Block (Auto-Approved)
+            </Button>
+          </Form>
+        )}
+      </div>
+
+      {/* Pending requests */}
+      {pending.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600 flex items-center gap-1.5">
+            Pending Requests ({pending.length})
+          </p>
+          {pending.map((entry) => (
+            <div key={entry.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <Tag color={TYPE_COLORS[entry.type] || 'default'} className="!text-xs !m-0">{TYPE_LABELS[entry.type] || entry.type}</Tag>
+                  <Tag color="warning" className="!text-xs !m-0">Pending</Tag>
+                </div>
+                <p className="text-sm font-medium text-slate-700">
+                  {dayjs(entry.start_date).format('D MMM YYYY')}
+                  {entry.start_date !== entry.end_date && <> &mdash; {dayjs(entry.end_date).format('D MMM YYYY')}</>}
+                </p>
+                {entry.reason && <p className="text-xs text-slate-400 mt-0.5 truncate">{entry.reason}</p>}
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <Button size="small" type="primary" icon={<CheckOutlined />} loading={actionId === entry.id}
+                  onClick={() => handleStatusChange(entry.id, 'approved')}
+                  className="!bg-green-600 !border-green-600 hover:!bg-green-700">
+                  Approve
+                </Button>
+                <Button size="small" danger icon={<StopOutlined />} loading={actionId === entry.id}
+                  onClick={() => handleStatusChange(entry.id, 'rejected')}>
+                  Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* All entries */}
+      {loading ? (
+        <div className="flex justify-center py-8"><Spin /></div>
+      ) : rest.length === 0 && pending.length === 0 ? (
+        <Empty description="No availability entries" className="py-8" />
+      ) : rest.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1">All Entries</p>
+          {rest.map((entry) => (
+            <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <Tag color={TYPE_COLORS[entry.type] || 'default'} className="!text-xs !m-0">{TYPE_LABELS[entry.type] || entry.type}</Tag>
+                  <Tag color={STATUS_COLORS[entry.status] || 'default'} className="!text-xs !m-0">
+                    {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                  </Tag>
+                </div>
+                <p className="text-sm font-medium text-slate-700">
+                  {dayjs(entry.start_date).format('D MMM YYYY')}
+                  {entry.start_date !== entry.end_date && <> &mdash; {dayjs(entry.end_date).format('D MMM YYYY')}</>}
+                </p>
+                {entry.reason && <p className="text-xs text-slate-400 mt-0.5 truncate">{entry.reason}</p>}
+                {entry.reviewed_by_name && (
+                  <p className="text-[10px] text-slate-400 mt-0.5">Reviewed by {entry.reviewed_by_name}</p>
+                )}
+              </div>
+              <Button size="small" danger icon={<DeleteOutlined />} loading={actionId === entry.id}
+                onClick={() => handleDelete(entry.id)}>
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const EnhancedInstructorDetailModal = ({
   instructor,
   isOpen,
   onClose,
-  onUpdate = () => {}
+  onUpdate = () => {},
+  initialTab = 'info',
 }) => {
   const { businessCurrency } = useCurrency();
-  const [activeSection, setActiveSection] = useState('info');
+  const [activeSection, setActiveSection] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [instructorServices, setInstructorServices] = useState([]);
   const [recentLessons, setRecentLessons] = useState([]);
@@ -103,6 +328,11 @@ const EnhancedInstructorDetailModal = ({
       hasFetchedRef.current = false;
     }
   }, [isOpen, instructor?.id, fetchInstructorData]);
+
+  // Sync active section when drawer opens with a specific initialTab
+  useEffect(() => {
+    if (isOpen) setActiveSection(initialTab || 'info');
+  }, [isOpen, initialTab]);
 
   const refreshActiveSection = useCallback(async () => {
     await fetchInstructorData();
@@ -358,6 +588,8 @@ const EnhancedInstructorDetailModal = ({
             onPaymentSuccess={refreshActiveSection}
           />
         );
+      case 'availability':
+        return <AdminAvailabilityPanel instructorId={instructor.id} />;
       default:
         return null;
     }

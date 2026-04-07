@@ -15,8 +15,14 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
+import { usePageSEO } from '@/shared/utils/seo';
 
 const GuestLandingPage = () => {
+  usePageSEO({
+    title: 'Welcome | UKC. Duotone Pro Center Urla',
+    description: 'Explore lessons, rentals, gear shop, experiences, accommodation, and more at UKC. Duotone Pro Center in Urla, Turkey.',
+    path: '/guest',
+  });
   const navigate = useNavigate();
 
   // Add alpha transparency to a hex color

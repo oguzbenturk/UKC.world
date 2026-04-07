@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 import { toNumber } from '../utils/instructorEarnings.js';
 import { cacheService } from './cacheService.js';
 import {
@@ -18,7 +19,7 @@ const invalidateInstructorDashboardCache = async (instructorId) => {
   try {
     await cacheService.del(dashboardCacheKey(instructorId));
   } catch (error) {
-    console.warn('Failed to invalidate instructor dashboard cache', { instructorId, error: error?.message });
+    logger.warn('Failed to invalidate instructor dashboard cache', { instructorId, error: error?.message });
   }
 };
 
@@ -80,7 +81,7 @@ export async function getInstructorStudents(instructorId) {
   try {
     const query = `
       WITH lesson_data AS (
-        SELECT 
+        SELECT
           b.student_user_id AS student_id,
           COUNT(b.id) FILTER (WHERE b.status NOT IN ('cancelled')) AS total_lessons,
           COALESCE(SUM(b.duration),0) AS total_hours,
@@ -96,8 +97,18 @@ export async function getInstructorStudents(instructorId) {
         FROM student_progress
         WHERE instructor_id = $1
         GROUP BY student_id
+      ), package_data AS (
+        SELECT cp.customer_id AS student_id,
+               SUM(cp.total_hours)     AS pkg_total_hours,
+               SUM(cp.used_hours)      AS pkg_used_hours,
+               SUM(cp.remaining_hours) AS pkg_remaining_hours
+          FROM customer_packages cp
+         WHERE cp.includes_lessons = true
+           AND cp.status = 'active'
+           AND cp.total_hours > 0
+         GROUP BY cp.customer_id
       )
-      SELECT 
+      SELECT
         u.id AS student_id,
         COALESCE(u.name, CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) AS name,
         u.level AS skill_level,
@@ -105,27 +116,36 @@ export async function getInstructorStudents(instructorId) {
         ld.total_hours,
         ld.last_lesson_ts,
         ld.upcoming_lesson_ts,
-        COALESCE(pc.progress_events,0) AS progress_events
+        COALESCE(pc.progress_events,0) AS progress_events,
+        pd.pkg_total_hours,
+        pd.pkg_used_hours,
+        pd.pkg_remaining_hours
       FROM lesson_data ld
       JOIN users u ON u.id = ld.student_id
       LEFT JOIN progress_counts pc ON pc.student_id = ld.student_id
+      LEFT JOIN package_data pd ON pd.student_id = ld.student_id
       ORDER BY ld.upcoming_lesson_ts NULLS LAST, ld.last_lesson_ts DESC NULLS LAST
       LIMIT 200;
     `;
     const { rows } = await client.query(query, [instructorId]);
 
-    // Derive progress percent (basic heuristic: assume 20hr milestone)
-    return rows.map(r => ({
-      studentId: r.student_id,
-      name: r.name?.trim() || 'Unnamed',
-      skillLevel: r.skill_level || null,
-      totalLessonCount: Number(r.total_lessons) || 0,
-      totalHours: Number(r.total_hours) || 0,
-      lastLessonAt: r.last_lesson_ts ? r.last_lesson_ts.toISOString() : null,
-      upcomingLessonAt: r.upcoming_lesson_ts ? r.upcoming_lesson_ts.toISOString() : null,
-      progressPercent: Math.min(100, Math.round(((Number(r.total_hours) || 0) / 20) * 100)),
-      progressEvents: Number(r.progress_events) || 0
-    }));
+    return rows.map(r => {
+      const pkgTotal = Number(r.pkg_total_hours || 0);
+      const pkgUsed = Number(r.pkg_used_hours || 0);
+      const pkgRemaining = Number(r.pkg_remaining_hours || 0);
+      return {
+        studentId: r.student_id,
+        name: r.name?.trim() || 'Unnamed',
+        skillLevel: r.skill_level || null,
+        totalLessonCount: Number(r.total_lessons) || 0,
+        totalHours: Number(r.total_hours) || 0,
+        lastLessonAt: r.last_lesson_ts ? r.last_lesson_ts.toISOString() : null,
+        upcomingLessonAt: r.upcoming_lesson_ts ? r.upcoming_lesson_ts.toISOString() : null,
+        progressPercent: pkgTotal > 0 ? Math.min(100, Math.round((pkgUsed / pkgTotal) * 100)) : 0,
+        progressEvents: Number(r.progress_events) || 0,
+        packageHours: { totalHours: pkgTotal, usedHours: pkgUsed, remainingHours: pkgRemaining }
+      };
+    });
   } finally {
     client.release();
   }
@@ -136,7 +156,7 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
   try {
     const studentRow = await ensureStudentAccess(client, instructorId, studentId);
 
-    const [statsRes, progressRes, levelsRes, skillsRes, lessonsRes, goalsRes] = await Promise.all([
+    const [statsRes, progressRes, levelsRes, skillsRes, lessonsRes, recsRes, pkgRes] = await Promise.all([
       client.query(
         `SELECT COUNT(*) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled') AS total_lessons,
                 COALESCE(SUM(b.duration), 0) AS total_hours,
@@ -189,12 +209,24 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         [instructorId, studentId]
       ),
       client.query(
-        `SELECT id, title, description, target_date, status, notes, created_at, updated_at
-           FROM student_goals
+        `SELECT id, item_type, item_id, item_name, item_description,
+                item_price, currency, notes, status, created_at
+           FROM student_recommendations
           WHERE student_id = $2 AND instructor_id = $1
-          ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'achieved' THEN 1 ELSE 2 END,
-                   target_date NULLS LAST, created_at DESC`,
+          ORDER BY created_at DESC`,
         [instructorId, studentId]
+      ),
+      client.query(
+        `SELECT COALESCE(SUM(cp.total_hours), 0)    AS pkg_total_hours,
+                COALESCE(SUM(cp.used_hours), 0)      AS pkg_used_hours,
+                COALESCE(SUM(cp.remaining_hours), 0) AS pkg_remaining_hours,
+                COUNT(*)::int                         AS pkg_count
+           FROM customer_packages cp
+          WHERE cp.customer_id = $1
+            AND cp.status = 'active'
+            AND cp.includes_lessons = true
+            AND cp.total_hours > 0`,
+        [studentId]
       )
     ]);
 
@@ -224,7 +256,7 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         skillId: row.skill_id,
         skillName: row.skill_name || 'Skill removed',
         skillLevelName: row.skill_level_name || null,
-        dateAchieved: row.date_achieved ? row.date_achieved.toISOString().split('T')[0] : null,
+        dateAchieved: row.date_achieved ? (row.date_achieved instanceof Date ? row.date_achieved.toISOString().split('T')[0] : String(row.date_achieved).split('T')[0]) : null,
         notes: row.notes,
         createdAt: row.created_at ? row.created_at.toISOString() : null
       })),
@@ -247,12 +279,18 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         durationHours: Number(row.duration || 0),
         status: row.status || 'pending'
       })),
-      goals: goalsRes.rows.map(r => ({
-        id: r.id, title: r.title, description: r.description,
-        targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
-        status: r.status, notes: r.notes,
-        createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
-      }))
+      recommendations: recsRes.rows.map(r => ({
+        id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,
+        itemDescription: r.item_description, itemPrice: r.item_price ? Number(r.item_price) : null,
+        currency: r.currency, notes: r.notes, status: r.status,
+        createdAt: r.created_at.toISOString()
+      })),
+      packageHours: {
+        totalHours: Number(pkgRes.rows[0]?.pkg_total_hours || 0),
+        usedHours: Number(pkgRes.rows[0]?.pkg_used_hours || 0),
+        remainingHours: Number(pkgRes.rows[0]?.pkg_remaining_hours || 0),
+        packageCount: Number(pkgRes.rows[0]?.pkg_count || 0)
+      }
     };
 
     return profile;
@@ -367,7 +405,7 @@ export async function addInstructorStudentProgress(instructorId, studentId, payl
       skillId,
       skillName: skillRes.rows[0].name,
       skillLevelName: skillRes.rows[0].level_name || null,
-      dateAchieved: row.date_achieved ? row.date_achieved.toISOString().split('T')[0] : null,
+      dateAchieved: row.date_achieved ? (row.date_achieved instanceof Date ? row.date_achieved.toISOString().split('T')[0] : String(row.date_achieved).split('T')[0]) : null,
       notes: row.notes,
       createdAt: row.created_at ? row.created_at.toISOString() : null
     };
@@ -512,6 +550,59 @@ export async function removeStudentGoal(instructorId, studentId, goalId) {
   }
 }
 
+export async function createStudentRecommendation(instructorId, studentId, payload) {
+  const { itemType, itemId, itemName, itemDescription, itemPrice, itemImage, notes } = payload || {};
+  const VALID_TYPES = ['product', 'service', 'rental', 'accommodation', 'custom'];
+  if (!itemType || !VALID_TYPES.includes(itemType)) {
+    const err = new Error(`itemType must be one of ${VALID_TYPES.join(', ')}`); err.status = 400; throw err;
+  }
+  if (!itemName || !String(itemName).trim()) {
+    const err = new Error('itemName is required'); err.status = 400; throw err;
+  }
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const { rows } = await client.query(
+      `INSERT INTO student_recommendations
+         (student_id, instructor_id, item_type, item_id, item_name, item_description, item_price, item_image, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, item_type, item_id, item_name, item_description, item_price, item_image, currency, notes, status, created_at`,
+      [studentId, instructorId,
+       itemType,
+       itemId || null,
+       String(itemName).trim(),
+       itemDescription ? String(itemDescription).trim() : null,
+       itemPrice ? Number(itemPrice) : null,
+       itemImage ? String(itemImage).trim() : null,
+       notes ? String(notes).trim() : null]
+    );
+    const r = rows[0];
+    return {
+      id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,
+      itemDescription: r.item_description, itemPrice: r.item_price ? Number(r.item_price) : null,
+      itemImage: r.item_image || null,
+      currency: r.currency, notes: r.notes, status: r.status,
+      createdAt: r.created_at.toISOString()
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteStudentRecommendation(instructorId, studentId, recId) {
+  const client = await pool.connect();
+  try {
+    await ensureStudentAccess(client, instructorId, studentId);
+    const { rowCount } = await client.query(
+      `DELETE FROM student_recommendations WHERE id = $1 AND student_id = $2 AND instructor_id = $3`,
+      [recId, studentId, instructorId]
+    );
+    if (!rowCount) { const err = new Error('Recommendation not found'); err.status = 404; throw err; }
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Dashboard aggregation for instructor: finance summary + upcoming lessons + student stats.
  */
@@ -523,7 +614,7 @@ export async function getInstructorDashboard(instructorId) {
       return cached;
     }
   } catch (error) {
-    console.warn('Failed to read instructor dashboard cache', { instructorId, error: error?.message });
+    logger.warn('Failed to read instructor dashboard cache', { instructorId, error: error?.message });
   }
 
   const client = await pool.connect();
@@ -750,7 +841,7 @@ export async function getInstructorDashboard(instructorId) {
     try {
       await cacheService.set(cacheKey, result, DASHBOARD_CACHE_TTL_SECONDS);
     } catch (error) {
-      console.warn('Failed to write instructor dashboard cache', { instructorId, error: error?.message });
+      logger.warn('Failed to write instructor dashboard cache', { instructorId, error: error?.message });
     }
     return result;
   } finally {

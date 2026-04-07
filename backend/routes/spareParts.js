@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ router.get('/', authenticateJWT, async (req, res) => {
     );
     res.json(rows.map(mapRow));
   } catch (err) {
-    console.error('SpareParts GET error:', err.message);
+    logger.error('SpareParts GET error:', err);
     res.status(500).json({ error: 'Failed to fetch orders', message: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 });
@@ -60,7 +61,7 @@ router.post('/', authenticateJWT, async (req, res) => {
     );
     res.status(201).json(mapRow(rows[0]));
   } catch (err) {
-    console.error('SpareParts POST error:', err.message);
+    logger.error('SpareParts POST error:', err);
     res.status(500).json({ error: 'Failed to create order', message: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 });
@@ -93,7 +94,7 @@ router.patch('/:id', authenticateJWT, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(mapRow(rows[0]));
   } catch (err) {
-    console.error('SpareParts PATCH error:', err.message);
+    logger.error('SpareParts PATCH error:', err);
     res.status(500).json({ error: 'Failed to update order', message: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 });
@@ -107,7 +108,7 @@ router.delete('/:id', authenticateJWT, async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
   } catch (err) {
-    console.error('SpareParts DELETE error:', err.message);
+    logger.error('SpareParts DELETE error:', err);
     res.status(500).json({ error: 'Failed to delete order', message: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 });

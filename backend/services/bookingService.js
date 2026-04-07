@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
 import { appendCreatedBy } from '../utils/auditUtils.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 /**
  * Optimized Booking Service with Caching Layer
@@ -22,11 +23,8 @@ class BookingService {
         // Try cache first
         const bookings = await cacheService.get(cacheKey);
         if (bookings) {
-            console.log(`🎯 Cache HIT for bookings query: ${cacheKey}`);
             return bookings;
         }
-
-        console.log(`❌ Cache MISS for bookings query: ${cacheKey}`);
 
         // Build optimized query with proper indexing
         let query = `
@@ -82,11 +80,10 @@ class BookingService {
             
             // Cache for 5 minutes (300 seconds)
             await cacheService.set(cacheKey, rows, 300);
-            console.log(`💾 Cached bookings query result: ${cacheKey}`);
-            
+
             return rows;
         } catch (error) {
-            console.error('Error fetching bookings by date range:', error);
+            logger.error('Error fetching bookings by date range', error);
             throw error;
         }
     }
@@ -142,7 +139,7 @@ class BookingService {
             
             return availableSlots;
         } catch (error) {
-            console.error('Error fetching instructor availability:', error);
+            logger.error('Error fetching instructor availability', error);
             throw error;
         }
     }
@@ -215,10 +212,10 @@ class BookingService {
             // Invalidate relevant caches
             await this.invalidateBookingCaches(date, instructor_user_id, student_user_id);
 
-            console.log(`✅ Created new booking: ${rows[0].id}`);
+            logger.info(`Created new booking: ${rows[0].id}`);
             return rows[0];
         } catch (error) {
-            console.error('Error creating booking:', error);
+            logger.error('Error creating booking', error);
             throw error;
         }
     }
@@ -254,10 +251,10 @@ class BookingService {
                 existingBooking.student_user_id
             );
 
-            console.log(`✅ Updated booking ${bookingId} status to: ${status}`);
+            logger.info(`Updated booking ${bookingId} status to: ${status}`);
             return rows[0];
         } catch (error) {
-            console.error('Error updating booking status:', error);
+            logger.error('Error updating booking status', error);
             throw error;
         }
     }
@@ -302,7 +299,7 @@ class BookingService {
 
             return booking;
         } catch (error) {
-            console.error('Error fetching booking by ID:', error);
+            logger.error('Error fetching booking by ID', error);
             throw error;
         }
     }
@@ -351,7 +348,7 @@ class BookingService {
 
             return rows;
         } catch (error) {
-            console.error('Error fetching user bookings:', error);
+            logger.error('Error fetching user bookings', error);
             throw error;
         }
     }
@@ -374,8 +371,6 @@ class BookingService {
         for (const pattern of patterns) {
             await cacheService.del(pattern);
         }
-
-        console.log(`🧹 Invalidated booking caches for date: ${date}`);
     }
 
     /**
@@ -413,7 +408,7 @@ class BookingService {
 
             return stats;
         } catch (error) {
-            console.error('Error fetching booking statistics:', error);
+            logger.error('Error fetching booking statistics', error);
             throw error;
         }
     }

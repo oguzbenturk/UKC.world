@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Collapse, Input, List, Button, Typography, Anchor, Space } from 'antd';
 import { SearchOutlined, PhoneOutlined, MailOutlined, ToolOutlined } from '@ant-design/icons';
+import { usePageSEO } from '@/shared/utils/seo';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -48,6 +49,11 @@ const faqItems = [
 ];
 
 const HelpSupport = () => {
+  usePageSEO({
+    title: 'Help & Support | UKC. Duotone Pro Center Urla',
+    description: 'Help center, FAQs, and support resources for booking lessons, rentals, and using the UKC. platform.',
+    path: '/help',
+  });
   const [search, setSearch] = useState('');
   // Reserved for future: load help articles dynamically
 

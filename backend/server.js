@@ -31,6 +31,7 @@ import bookingsRouter from './routes/bookings.js';
 import equipmentRouter from './routes/equipment.js';
 import instructorsRouter from './routes/instructors.js';
 import instructorFeatureRouter from './routes/instructor.js';
+import instructorAvailabilityRouter from './routes/instructorAvailability.js';
 import studentsRouter from './routes/students.js';
 import studentPortalRouter from './routes/studentPortal.js';
 import financesRouter from './routes/finances.js';
@@ -420,6 +421,9 @@ app.use('/api/gdpr', gdprRouter);
 app.use('/api/users', authenticateJWT, usersRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/equipment', authenticateJWT, equipmentRouter);
+// Instructor availability MUST be mounted before instructorsRouter to prevent
+// the generic /:id route from swallowing /me/availability and /unavailable paths.
+app.use('/api/instructors', instructorAvailabilityRouter);
 app.use('/api/instructors', authenticateJWT, instructorsRouter);
 // Feature-specific instructor self-service endpoints
 app.use('/api/instructors', authenticateJWT, instructorFeatureRouter);

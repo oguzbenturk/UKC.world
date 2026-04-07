@@ -39,6 +39,7 @@ import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import { usePageSEO } from '@/shared/utils/seo';
 
 const fetchMemberOfferings = async () => {
   const { data } = await apiClient.get('/member-offerings');
@@ -306,6 +307,11 @@ const PURCHASE_MODAL_CLOSED = { visible: false, offering: null, group: null, sel
 const VARIANT_ROW_BASE = 'relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200';
 
 const MemberOfferings = () => {
+  usePageSEO({
+    title: 'Membership Packages | UKC. Duotone Pro Center Urla',
+    description: 'Exclusive membership offerings with seasonal packages, VIP benefits, and member-only pricing at UKC. Duotone Pro Center.',
+    path: '/members/offerings',
+  });
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();

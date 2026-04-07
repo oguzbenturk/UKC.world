@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
 import { formatCurrency } from '@/shared/utils/formatters';
 import realTimeService from '@/shared/services/realTimeService';
+import PendingDepositsTab from '@/features/finances/components/PendingDepositsTab';
 
 export default function PendingMemberPaymentsTab() {
   const queryClient = useQueryClient();
@@ -238,6 +239,10 @@ export default function PendingMemberPaymentsTab() {
             : <Image src={selectedReceiptUrl} alt="Receipt" style={{ width: '100%' }} />
         )}
       </Modal>
+
+      <div className="border-t border-slate-200 mt-6">
+        <PendingDepositsTab />
+      </div>
     </div>
   );
 }

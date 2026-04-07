@@ -6,6 +6,7 @@
 
 import Decimal from 'decimal.js';
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
 import { deriveLessonAmount } from '../utils/instructorEarnings.js';
 
@@ -44,7 +45,7 @@ class BookingUpdateCascadeService {
       );
 
       if (!rows.length) {
-        console.warn('[computeLessonAmount] Package not found:', booking.customer_package_id);
+        logger.warn('[computeLessonAmount] Package not found: ' + booking.customer_package_id);
         return baseAmount.toNumber();
       }
 
@@ -118,7 +119,7 @@ class BookingUpdateCascadeService {
 
       return lessonAmount;
     } catch (error) {
-      console.warn('computeLessonAmount fallback due to error', error?.message);
+      logger.warn('computeLessonAmount fallback due to error: ' + error?.message);
       return baseAmount.toNumber();
     }
   }
@@ -183,8 +184,7 @@ class BookingUpdateCascadeService {
       
     } catch (error) {
       await client.query('ROLLBACK');
-  // eslint-disable-next-line no-console
-  console.error('Cascade update failed:', error);
+  logger.error('Cascade update failed', error);
       throw error;
     } finally {
       client.release();

@@ -21,8 +21,8 @@ class MetricsService {
         fs.mkdirSync(LOGS_DIR, { recursive: true });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('MetricsService: Unable to create logs directory:', error.message);
+      // Fallback: logger may not be available yet during bootstrap
+      process.stderr.write('MetricsService: Unable to create logs directory: ' + error.message + '\n');
     }
 
     const transports = [];
@@ -35,8 +35,7 @@ class MetricsService {
         })
       );
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('MetricsService: falling back to console transport:', error.message);
+      process.stderr.write('MetricsService: falling back to console transport: ' + error.message + '\n');
     }
 
     transports.push(
@@ -68,8 +67,7 @@ class MetricsService {
       try {
         this.flush();
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('MetricsService flush error:', error.message);
+        this.logger.error('MetricsService flush error: ' + error.message);
       }
     }, this.windowMs);
 

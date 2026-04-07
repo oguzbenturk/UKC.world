@@ -4,9 +4,8 @@ import {
   updateInstructorStudentProfile,
   createInstructorStudentProgress,
   deleteInstructorStudentProgress,
-  createStudentGoal,
-  updateStudentGoal as updateStudentGoalApi,
-  deleteStudentGoal
+  createStudentRecommendation,
+  deleteStudentRecommendation
 } from '../services/instructorApi';
 
 export function useInstructorStudentProfile(studentId) {
@@ -15,7 +14,7 @@ export function useInstructorStudentProfile(studentId) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [progressSaving, setProgressSaving] = useState(false);
-  const [goalSaving, setGoalSaving] = useState(false);
+  const [recSaving, setRecSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!studentId) return;
@@ -25,7 +24,8 @@ export function useInstructorStudentProfile(studentId) {
       setProfile(data);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to load student');
+      const rawErr = err.response?.data?.error;
+      setError(typeof rawErr === 'string' ? rawErr : err.response?.data?.message || err.message || 'Failed to load student');
     } finally {
       setLoading(false);
     }
@@ -90,50 +90,43 @@ export function useInstructorStudentProfile(studentId) {
     }
   }, [studentId]);
 
-  const addGoal = useCallback(async (payload) => {
+  const addRecommendation = useCallback(async (payload) => {
     if (!studentId) return null;
-    setGoalSaving(true);
+    setRecSaving(true);
     try {
-      const created = await createStudentGoal(studentId, payload);
-      setProfile(prev => prev ? { ...prev, goals: [created, ...(prev.goals || [])] } : prev);
+      const created = await createStudentRecommendation(studentId, payload);
+      setProfile(prev => prev ? { ...prev, recommendations: [created, ...(prev.recommendations || [])] } : prev);
       return created;
     } catch (err) { throw err; }
-    finally { setGoalSaving(false); }
+    finally { setRecSaving(false); }
   }, [studentId]);
 
-  const editGoal = useCallback(async (goalId, payload) => {
-    if (!studentId) return null;
-    setGoalSaving(true);
-    try {
-      const updated = await updateStudentGoalApi(studentId, goalId, payload);
-      setProfile(prev => prev ? {
-        ...prev,
-        goals: (prev.goals || []).map(g => g.id === goalId ? updated : g)
-      } : prev);
-      return updated;
-    } catch (err) { throw err; }
-    finally { setGoalSaving(false); }
-  }, [studentId]);
-
-  const removeGoal = useCallback(async (goalId) => {
+  const removeRecommendation = useCallback(async (recId) => {
     if (!studentId) return;
-    setGoalSaving(true);
+    setRecSaving(true);
     try {
-      await deleteStudentGoal(studentId, goalId);
+      await deleteStudentRecommendation(studentId, recId);
       setProfile(prev => prev ? {
         ...prev,
-        goals: (prev.goals || []).filter(g => g.id !== goalId)
+        recommendations: (prev.recommendations || []).filter(r => r.id !== recId)
       } : prev);
     } catch (err) { throw err; }
-    finally { setGoalSaving(false); }
+    finally { setRecSaving(false); }
   }, [studentId]);
 
   const derived = useMemo(() => {
     if (!profile) return null;
-    const totalHours = profile.stats?.totalHours || 0;
-    const progressPercent = Math.min(100, Math.round((totalHours / 20) * 100));
+    const pkg = profile.packageHours;
+    const goalHours = Number(pkg?.totalHours || 0);
+    const usedHours = Number(pkg?.usedHours || 0);
+    const remainingHours = Number(pkg?.remainingHours || 0);
+    const progressPercent = goalHours > 0
+      ? Math.min(100, Math.round((usedHours / goalHours) * 100))
+      : 0;
     return {
       ...profile,
+      goalHours,
+      remainingHours,
       progressPercent
     };
   }, [profile]);
@@ -148,9 +141,8 @@ export function useInstructorStudentProfile(studentId) {
     removeProgress,
     saving,
     progressSaving,
-    addGoal,
-    editGoal,
-    removeGoal,
-    goalSaving
+    addRecommendation,
+    removeRecommendation,
+    recSaving
   };
 }

@@ -2,6 +2,7 @@ import express from 'express';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { getDailyOperations } from '../services/dailyOperationsService.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin','manager']), async (req
     const data = await getDailyOperations({ date, rentalsScope });
     res.json(data);
   } catch (err) {
-    console.error('Daily operations error', err);
+    logger.error('Daily operations error', err);
     res.status(500).json({ error: 'Failed to load daily operations' });
   }
 });

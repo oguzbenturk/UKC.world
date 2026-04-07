@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 /**
  * Enhanced Permission Service
@@ -77,7 +78,7 @@ class PermissionService {
 
       return hasPermission;
     } catch (error) {
-      console.error('Error checking permission:', error);
+      logger.error('Error checking permission', error);
       return false;
     }
   }
@@ -129,7 +130,7 @@ class PermissionService {
 
       return result.rows[0];
     } catch (error) {
-      console.error('Error getting user permissions:', error);
+      logger.error('Error getting user permissions', error);
       return null;
     }
   }
@@ -182,7 +183,7 @@ class PermissionService {
 
         next();
       } catch (error) {
-        console.error('Permission middleware error:', error);
+        logger.error('Permission middleware error', error);
         res.status(500).json({ 
           error: 'Permission check failed',
           code: 'PERMISSION_ERROR'
@@ -226,7 +227,7 @@ class PermissionService {
       // Always require 2FA for admin operations if user has 2FA enabled
       return user.two_factor_enabled === true;
     } catch (error) {
-      console.error('Error checking 2FA requirement:', error);
+      logger.error('Error checking 2FA requirement', error);
       return true; // Fail safe - require 2FA on error
     }
   }

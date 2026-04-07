@@ -53,6 +53,7 @@ import { getAvailableSlots } from '@/features/bookings/components/api/calendarAp
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import calendarConfig from '@/config/calendarConfig';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import PromoCodeInput from '@/shared/components/PromoCodeInput';
 import PartnerStep from './PartnerStep';
 
 const HALF_HOUR_MINUTES = 30;
@@ -258,6 +259,7 @@ const PayStep = ({
   bankAccounts = [], selectedBankAccountId, setSelectedBankAccountId, selectedAccount,
   fileList = [], setFileList,
   isStandalone = false, servicePrice = 0, onProceedToSchedule, proRataTotalHours = null,
+  appliedVoucher = null, onVoucherApplied, onVoucherRemoved, serviceId: payStepServiceId,
 }) => {
   const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
     || (packageData?.name || '').toLowerCase().includes('group')
@@ -501,6 +503,24 @@ const PayStep = ({
               )}
             </div>
           )}
+        </div>
+
+        {/* Promo Code */}
+        <div>
+          <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            Promo Code
+          </p>
+          <PromoCodeInput
+            context="lessons"
+            amount={eurPrice}
+            currency="EUR"
+            serviceId={payStepServiceId}
+            appliedVoucher={appliedVoucher}
+            onValidCode={onVoucherApplied}
+            onClear={onVoucherRemoved}
+            disabled={purchasing}
+            variant="light"
+          />
         </div>
 
         <Button
@@ -1002,6 +1022,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   const pendingCardPackageRef = useRef(null);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
   const [fileList, setFileList] = useState([]);
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
 
   const [selectedInstructorId, setSelectedInstructorId] = useState(null);
   const [skipSchedule, setSkipSchedule] = useState(false);
@@ -1067,6 +1088,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       setShowIyzicoModal(false);
       setPendingCustomerPackageId(null);
       setSelectedBankAccountId(null);
+      setAppliedVoucher(null);
       preferredAppliedRef.current = false;
       setSessions([{ id: 1, date: null, time: null }]);
       sessionIdRef.current = 1;
@@ -1423,6 +1445,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           ...(proRataTotalHours != null && proRataTotalHours !== ''
             ? { proRataTotalHours: parseFloat(proRataTotalHours) }
             : {}),
+          ...(appliedVoucher?.id ? { voucherId: appliedVoucher.id } : {}),
         });
       },
     });
@@ -1715,6 +1738,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           servicePrice={servicePrice}
           onProceedToSchedule={handleProceedToSchedule}
           proRataTotalHours={proRataTotalHours}
+          appliedVoucher={appliedVoucher}
+          onVoucherApplied={(voucherData) => setAppliedVoucher(voucherData)}
+          onVoucherRemoved={() => setAppliedVoucher(null)}
+          serviceId={serviceId}
         />
       )}
       {step === 1 && (

@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { metricsService } from './metricsService.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 /**
  * Cache Service for Redis Operations
@@ -13,7 +14,7 @@ class CacheService {
         this.isDisabled = process.env.DISABLE_REDIS === 'true';
         
         if (this.isDisabled) {
-            console.log('🚫 Redis is disabled via DISABLE_REDIS=true');
+            logger.info('Redis disabled via DISABLE_REDIS=true');
             return;
         }
         
@@ -29,30 +30,30 @@ class CacheService {
         // Add password if configured (SEC-004: Redis Authentication)
         if (process.env.REDIS_PASSWORD) {
             redisConfig.password = process.env.REDIS_PASSWORD;
-            console.log('🔐 Redis authentication enabled');
+            logger.info('Redis authentication enabled');
         } else {
-            console.warn('⚠️  Redis password not set - running without authentication (SEC-004)');
+            logger.warn('Redis password not set - running without authentication (SEC-004)');
         }
         
         this.redis = new Redis(redisConfig);
 
         // Handle Redis connection events
         this.redis.on('connect', () => {
-            console.log('✅ Redis connected successfully');
+            logger.info('Redis connected');
             this.isConnected = true;
         });
 
         this.redis.on('error', (err) => {
-            console.error('❌ Redis connection error:', err.message);
-            // Check if it's a read-only error
             if (err.message.includes('READONLY')) {
                 this.isReadOnly = true;
-                console.log('📖 Redis is in read-only mode - write operations will be skipped');
+                logger.warn('Redis is in read-only mode - write operations will be skipped');
+            } else {
+                logger.error('Redis connection error', { message: err.message });
             }
         });
 
         this.redis.on('close', () => {
-            console.log('🔌 Redis connection closed');
+            logger.info('Redis connection closed');
             this.isConnected = false;
         });
     }
@@ -73,7 +74,7 @@ class CacheService {
             metricsService.recordCacheResult({ hit: Boolean(result) });
             return value;
         } catch (error) {
-            console.error('Cache get error:', error);
+            logger.error('Cache get error', error);
             metricsService.recordCacheResult({ bypassed: true });
             return null;
         }
@@ -93,7 +94,6 @@ class CacheService {
         try {
             // Skip write operations if Redis is read-only
             if (this.isReadOnly) {
-                console.log(`📖 Skipping cache SET for ${key} (Redis is read-only)`);
                 metricsService.recordCacheResult({ bypassed: true });
                 return;
             }
@@ -103,9 +103,9 @@ class CacheService {
             // Check if this is a read-only error
             if (error.message.includes('READONLY')) {
                 this.isReadOnly = true;
-                console.log('📖 Redis detected as read-only - future write operations will be skipped');
+                logger.warn('Redis detected as read-only - future writes will be skipped');
             } else {
-                console.error('Cache set error:', error);
+                logger.error('Cache set error', error);
             }
             metricsService.recordCacheResult({ bypassed: true });
         }
@@ -122,7 +122,6 @@ class CacheService {
         try {
             // Skip write operations if Redis is read-only
             if (this.isReadOnly) {
-                console.log(`📖 Skipping cache DEL for ${pattern} (Redis is read-only)`);
                 return;
             }
             
@@ -134,9 +133,8 @@ class CacheService {
             // Check if this is a read-only error
             if (error.message.includes('READONLY')) {
                 this.isReadOnly = true;
-                console.log('📖 Redis detected as read-only - future write operations will be skipped');
             } else {
-                console.error('Cache delete error:', error);
+                logger.error('Cache delete error', error);
             }
             metricsService.recordCacheResult({ bypassed: true });
         }
@@ -156,7 +154,6 @@ class CacheService {
         try {
             // Skip write operations if Redis is read-only
             if (this.isReadOnly) {
-                console.log(`📖 Skipping cache INCR for ${key} (Redis is read-only)`);
                 return 0;
             }
             
@@ -170,10 +167,9 @@ class CacheService {
             // Check if this is a read-only error
             if (error.message.includes('READONLY')) {
                 this.isReadOnly = true;
-                console.log('📖 Redis detected as read-only - future write operations will be skipped');
                 return 0;
             } else {
-                console.error('Cache increment error:', error);
+                logger.error('Cache increment error', error);
                 return 0;
             }
         }
@@ -194,7 +190,7 @@ class CacheService {
             metricsService.recordCacheResult({ hit: exists });
             return exists;
         } catch (error) {
-            console.error('Cache exists error:', error);
+            logger.error('Cache exists error', error);
             metricsService.recordCacheResult({ bypassed: true });
             return false;
         }
@@ -214,7 +210,7 @@ class CacheService {
                 connected: this.redis.status === 'ready'
             };
         } catch (error) {
-            console.error('Cache stats error:', error);
+            logger.error('Cache stats error', error);
             metricsService.recordCacheResult({ bypassed: true });
             return { connected: false };
         }
@@ -227,19 +223,16 @@ class CacheService {
         try {
             // Skip write operations if Redis is read-only
             if (this.isReadOnly) {
-                console.log('📖 Skipping cache FLUSH (Redis is read-only)');
                 return;
             }
-            
+
             await this.redis.flushall();
-            console.log('🧹 Cache cleared successfully');
+            logger.info('Cache flushed');
         } catch (error) {
-            // Check if this is a read-only error
             if (error.message.includes('READONLY')) {
                 this.isReadOnly = true;
-                console.log('📖 Redis detected as read-only - flush operation skipped');
             } else {
-                console.error('Cache flush error:', error);
+                logger.error('Cache flush error', error);
             }
         }
     }
@@ -254,7 +247,7 @@ class CacheService {
             if (!client || typeof client.quit !== 'function') return;
             await client.quit();
         } catch (error) {
-            console.error('Cache close error:', error);
+            logger.error('Cache close error', error);
             metricsService.recordCacheResult({ bypassed: true });
         }
     }

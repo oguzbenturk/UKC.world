@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
 
     res.json(sanitized);
   } catch (err) {
-    console.error('Error fetching instructors:', err);
+    logger.error('Failed to fetch instructors', err);
     res.status(500).json({ error: 'Failed to fetch instructors' });
   }
 });
@@ -109,7 +110,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     
     res.json(instructor);
   } catch (err) {
-    console.error('Error fetching instructor:', err);
+    logger.error('Failed to fetch instructor', err);
     res.status(500).json({ error: 'Failed to fetch instructor' });  }
 });
 
@@ -121,9 +122,6 @@ router.get('/:id/services', authenticateJWT, authorizeRoles(['admin', 'manager',
       return res.status(403).json({ error: 'Forbidden: You can only access your own services' });
     }
     
-    // Get services assigned to this instructor
-    console.log(`Fetching services for instructor ${req.params.id}`);
-    
     // First check if the instructor/manager exists
     const instructorCheck = await pool.query(
       `SELECT id FROM users WHERE id = $1 AND role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager')) AND deleted_at IS NULL`,
@@ -131,19 +129,15 @@ router.get('/:id/services', authenticateJWT, authorizeRoles(['admin', 'manager',
     );
     
     if (instructorCheck.rows.length === 0) {
-      console.log(`Instructor ${req.params.id} not found`);
       return res.status(404).json({ error: 'Instructor not found' });
     }
-    
-    console.log(`Instructor ${req.params.id} exists, proceeding to fetch services`);
-    
+
     // Check if the instructor_services table exists
     try {
       await pool.query('SELECT 1 FROM instructor_services LIMIT 1');
-      console.log('instructor_services table exists');
     } catch (tableErr) {
-      console.error('Error checking instructor_services table:', tableErr.message);
-      return res.status(500).json({ 
+      logger.error('instructor_services table check failed', { error: tableErr.message });
+      return res.status(500).json({
         error: 'Database schema issue: instructor_services table may not exist',
         details: tableErr.message
       });
@@ -157,24 +151,20 @@ router.get('/:id/services', authenticateJWT, authorizeRoles(['admin', 'manager',
       ORDER BY s.name
     `;
     
-    console.log('SQL query:', query);
-    console.log('Params:', [req.params.id]);
-    
     try {
       const { rows } = await pool.query(query, [req.params.id]);
-      console.log(`Found ${rows.length} services for instructor ${req.params.id}`);
-      
+
       // If no services found, return an empty array instead of a 404
       return res.json(rows);
     } catch (queryErr) {
-      console.error('Error executing services query:', queryErr);
-      return res.status(500).json({ 
+      logger.error('Failed to fetch instructor services query', queryErr);
+      return res.status(500).json({
         error: 'Database query error when fetching instructor services',
         details: queryErr.message
       });
     }
   } catch (err) {
-    console.error('Error fetching instructor services:', err);
+    logger.error('Failed to fetch instructor services', err);
     res.status(500).json({ error: 'Failed to fetch instructor services', details: err.message });
   }
 });
@@ -183,8 +173,7 @@ router.get('/:id/services', authenticateJWT, authorizeRoles(['admin', 'manager',
 router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-    console.log(`Fetching lessons for instructor ${req.params.id}, limit: ${limit}`);
-    
+
     // If user is an instructor, they should only be able to see their own lessons
     if (req.user.role === 'instructor' && req.user.id !== req.params.id) {
       return res.status(403).json({ error: 'Forbidden: You can only access your own lessons' });
@@ -197,11 +186,9 @@ router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 
     );
     
     if (instructorCheck.rows.length === 0) {
-      console.log(`Instructor ${req.params.id} not found`);
       return res.status(404).json({ error: 'Instructor not found' });
     }
-    
-    console.log(`Instructor ${req.params.id} exists, proceeding to fetch lessons`);
+
       // Get recent lessons for this instructor
     const query = `
       SELECT 
@@ -225,22 +212,18 @@ router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 
       LIMIT $2
     `;
     
-    console.log('Lessons SQL query:', query);
-    console.log('Lessons query params:', [req.params.id, limit]);
-    
     try {
       const { rows } = await pool.query(query, [req.params.id, limit]);
-      console.log(`Found ${rows.length} lessons for instructor ${req.params.id}`);
       return res.json(rows);
     } catch (queryErr) {
-      console.error('Error executing lessons query:', queryErr);
-      return res.status(500).json({ 
+      logger.error('Failed to fetch instructor lessons query', queryErr);
+      return res.status(500).json({
         error: 'Database query error when fetching instructor lessons',
         details: queryErr.message
       });
     }
   } catch (err) {
-    console.error('Error fetching instructor lessons:', err);
+    logger.error('Failed to fetch instructor lessons', err);
     res.status(500).json({ error: 'Failed to fetch instructor lessons', details: err.message });
   }
 });

@@ -142,7 +142,7 @@ const RentalsCalendar = lazyWithRetry(() => import('../features/calendars/pages/
 const RentalsCalendarView = lazyWithRetry(() => import('../features/rentals/pages/RentalsCalendarView'));
 const EventsCalendar = lazyWithRetry(() => import('../features/calendars/pages/EventsCalendar'));
 const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPage'));
-const CommunitySettings = lazyWithRetry(() => import('../features/events/pages/CommunitySettings'));
+
 
 // Repairs
 const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
@@ -530,7 +530,7 @@ const AppRoutes = () => {
         <Route path="/services/sales" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/orders" element={<Navigate to="/services/shop" replace />} />
         <Route path="/services/memberships" element={<MembershipSettings />} />
-        <Route path="/services/community" element={<CommunitySettings />} />
+        <Route path="/services/community" element={<Navigate to="/services/events" replace />} />
         <Route path="/services/categories" element={<Navigate to="/settings?tab=services" replace />} />
       </Route>
       {/* Finance routes - require finances:read permission for custom roles */}

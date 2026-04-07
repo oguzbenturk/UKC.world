@@ -29,21 +29,11 @@ export const deleteInstructorStudentProgress = async (studentId, progressId) => 
   await apiClient.delete(`/instructors/me/students/${studentId}/progress/${progressId}`);
 };
 
-export const fetchStudentGoals = async (studentId) => {
-  const { data } = await apiClient.get(`/instructors/me/students/${studentId}/goals`);
-  return data.goals || [];
-};
-
-export const createStudentGoal = async (studentId, payload) => {
-  const { data } = await apiClient.post(`/instructors/me/students/${studentId}/goals`, payload);
+export const createStudentRecommendation = async (studentId, payload) => {
+  const { data } = await apiClient.post(`/instructors/me/students/${studentId}/recommendations`, payload);
   return data;
 };
 
-export const updateStudentGoal = async (studentId, goalId, payload) => {
-  const { data } = await apiClient.patch(`/instructors/me/students/${studentId}/goals/${goalId}`, payload);
-  return data;
-};
-
-export const deleteStudentGoal = async (studentId, goalId) => {
-  await apiClient.delete(`/instructors/me/students/${studentId}/goals/${goalId}`);
+export const deleteStudentRecommendation = async (studentId, recId) => {
+  await apiClient.delete(`/instructors/me/students/${studentId}/recommendations/${recId}`);
 };

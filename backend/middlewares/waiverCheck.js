@@ -9,6 +9,7 @@
  */
 
 import * as waiverService from '../services/waiverService.js';
+import { logger } from './errorHandler.js';
 
 const BYPASS_ROLES = new Set(['admin', 'manager', 'owner']);
 
@@ -26,14 +27,7 @@ export async function requireWaiver(req, res, next) {
     const userRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : rawRole;
 
     if (userRole && BYPASS_ROLES.has(userRole)) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`requireWaiver: bypassing waiver check for role ${userRole}`);
-      }
       return next();
-    }
-
-    if (!userRole && process.env.NODE_ENV !== 'production') {
-      console.warn('requireWaiver: missing role on req.user, continuing with waiver enforcement');
     }
 
     // Check if user needs to sign waiver
@@ -55,7 +49,7 @@ export async function requireWaiver(req, res, next) {
     // Waiver is valid, proceed to next middleware/route
     next();
   } catch (error) {
-    console.error('Error checking waiver requirement:', error);
+    logger.error('Error checking waiver requirement', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to verify waiver status',
@@ -127,7 +121,7 @@ export async function checkFamilyMemberWaiver(req, res, next) {
     // Family member waiver is valid, proceed
     next();
   } catch (error) {
-    console.error('Error checking family member waiver:', error);
+    logger.error('Error checking family member waiver', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to verify family member waiver status',
@@ -161,7 +155,7 @@ export async function warnIfNoWaiver(req, res, next) {
     next();
   } catch (error) {
     // Don't block request on soft check error
-    console.error('Error in soft waiver check:', error);
+    logger.error('Error in soft waiver check', error);
     next();
   }
 }
@@ -237,7 +231,7 @@ export function requireWaiverWithExpiry(expiryDays = 365) {
 
       next();
     } catch (error) {
-      console.error('Error checking waiver with custom expiry:', error);
+      logger.error('Error checking waiver with custom expiry', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to verify waiver status',

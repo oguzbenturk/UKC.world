@@ -25,7 +25,9 @@ import './styles/sidebar.css';
 import NotificationRealtimeBridge from './features/notifications/components/NotificationRealtimeBridge';
 import UserConsentModal from './features/compliance/components/UserConsentModal.jsx';
 import NetworkStatusBanner from './shared/components/system/NetworkStatusBanner.jsx';
+import CookieConsentBanner from './shared/components/CookieConsentBanner';
 import WalletModalManager from './shared/components/wallet/WalletModalManager';
+import InstructorMyProfileDrawer from './features/instructor/components/InstructorMyProfileDrawer';
 import RescheduleConfirmationModal from './features/notifications/components/RescheduleConfirmationModal';
 import PartnerInviteModal from './features/notifications/components/PartnerInviteModal';
 import GlobalFAB from './shared/components/ui/GlobalFAB';
@@ -53,6 +55,7 @@ function App() {
       <AntdApp>
         <AntdStaticHolder />
         <NetworkStatusBanner />
+        <CookieConsentBanner />
         <Router>
           <AuthProvider>
             <AuthModalProvider>
@@ -265,6 +268,7 @@ const AppLayoutWithAuth = () => {
   <Navbar toggleSidebar={toggleSidebar} />
   <NotificationRealtimeBridge />
   <WalletModalManager />
+  <InstructorMyProfileDrawer />
   <RescheduleConfirmationModal />
   <PartnerInviteModal />
       <div className="flex flex-1 min-h-0 overflow-hidden">

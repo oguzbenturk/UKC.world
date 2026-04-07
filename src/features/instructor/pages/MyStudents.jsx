@@ -104,15 +104,22 @@ const MyStudents = () => {
                     <td className="px-4 py-3 text-slate-500">{fmtDate(s.lastLessonAt)}</td>
                     <td className="px-4 py-3 text-slate-500">{fmtTime(s.upcomingLessonAt)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500 transition-all"
-                            style={{ width: `${s.progressPercent}%` }}
-                          />
+                      {s.packageHours?.totalHours > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500 transition-all"
+                              style={{ width: `${s.progressPercent}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500">
+                            <span>{s.progressPercent}%</span>
+                            <span>{s.packageHours.remainingHours}h left of {s.packageHours.totalHours}h</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500"><span>{s.progressPercent}%</span><span>20h Goal</span></div>
-                      </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">No active package</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -121,7 +128,6 @@ const MyStudents = () => {
           </div>
         )}
       </div>
-      <div className="text-[11px] text-slate-500 italic">Progress heuristic: hours / 20. Will refine with real goal data once available.</div>
     </div>
   );
 };

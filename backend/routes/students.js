@@ -3,6 +3,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/', authorizeRoles(['admin', 'manager', 'instructor']), async (req, 
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching students:', err);
+    logger.error('Error fetching students:', err);
     res.status(500).json({ error: 'Failed to fetch students' });
   }
 });
@@ -68,7 +69,7 @@ router.get('/:id', authorizeRoles(['admin', 'manager', 'instructor']), async (re
     
     res.json(student);
   } catch (err) {
-    console.error('Error fetching student:', err);
+    logger.error('Error fetching student:', err);
     res.status(500).json({ error: 'Failed to fetch student' });
   }
 });
@@ -88,7 +89,7 @@ router.get('/:id/shop-history', authenticateJWT, authorizeRoles(['admin', 'manag
     const { rows } = await pool.query(query, [req.params.id]);
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching shop history:', err);
+    logger.error('Error fetching shop history:', err);
     res.status(500).json({ error: 'Failed to fetch shop history' });
   }
 });
@@ -126,7 +127,7 @@ router.post('/import', authenticateJWT, authorizeRoles(['admin', 'manager']), as
     }
     res.json({ importedCount: inserted.length, students: inserted });
   } catch (err) {
-    console.error('Error importing students:', err);
+    logger.error('Error importing students:', err);
     res.status(500).json({ error: 'Failed to import students' });
   }
 });
@@ -140,7 +141,7 @@ router.get('/:id/lessons', authenticateJWT, async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    console.error('Error fetching lessons for student:', err);
+    logger.error('Error fetching lessons for student:', err);
     res.status(500).json({ error: 'Failed to fetch lessons' });
   }
 });

@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get('/registration-currencies', async (req, res) => {
     // Default to EUR, USD, TRY if not configured
     res.json({ currencies: ['EUR', 'USD', 'TRY'] });
   } catch (error) {
-    console.error('Error fetching registration currencies:', error);
+    logger.error('Error fetching registration currencies:', error);
     // Fallback to defaults on error
     res.json({ currencies: ['EUR', 'USD', 'TRY'] });
   }
@@ -97,8 +98,7 @@ router.get('/', authenticateJWT, async (req, res) => {
     
     res.json(settings);
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error fetching settings:', error);
+    logger.error('Error fetching settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -141,8 +141,7 @@ router.put('/:key', authenticateJWT, async (req, res) => {
       }
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error updating setting:', error);
+    logger.error('Error updating setting:', error);
     res.status(500).json({ error: error.message });
   }
 });

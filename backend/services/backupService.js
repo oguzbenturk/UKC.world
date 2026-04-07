@@ -7,6 +7,7 @@ import path from 'path';
 import cron from 'node-cron';
 import { pool } from '../db.js';
 import { fileURLToPath } from 'url';
+import { logger } from '../middlewares/errorHandler.js';
 // use path.dirname via imported path
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,18 +50,18 @@ class BackupService {
     // Ensure backup directory exists
     await this.ensureBackupDirectory();
     if (!this.enabled) {
-      console.log('⏸️  Backup service disabled by env (BACKUPS_ENABLED=false)');
+      logger.info('Backup service disabled (BACKUPS_ENABLED=false)');
       return;
     }
     if (!this.canBackup()) {
-      console.warn('⚠️  Backup tools not available (no pg_dump and Docker not running). Disabling scheduled backups.');
+      logger.warn('Backup tools not available (no pg_dump and Docker not running). Disabling scheduled backups.');
       this.enabled = false;
       return;
     }
     // Schedule automatic backups
     this.scheduleBackups();
     
-    console.log('🔄 Backup service initialized');
+    logger.info('Backup service initialized');
   }
   
   /**
@@ -71,7 +72,7 @@ class BackupService {
       await fs.access(this.backupDir);
     } catch (error) {
       await fs.mkdir(this.backupDir, { recursive: true });
-      console.log(`📁 Created backup directory: ${this.backupDir}`);
+      logger.info(`Created backup directory: ${this.backupDir}`);
     }
   }
   
@@ -80,16 +81,16 @@ class BackupService {
    */
   scheduleBackups() {
     if (!this.enabled) {
-      console.log('⏭️  Backups disabled; schedules not registered');
+      logger.info('Backups disabled; schedules not registered');
       return;
     }
     // Daily full backup at 2 AM
     cron.schedule('0 2 * * *', async () => {
       try {
         await this.createFullBackup();
-        console.log('✅ Daily full backup completed');
+        logger.info('Daily full backup completed');
       } catch (error) {
-        console.error('❌ Daily backup failed:', error);
+        logger.error('Daily backup failed', error);
       }
     });
     
@@ -97,9 +98,9 @@ class BackupService {
     cron.schedule('0 3 * * 0', async () => {
       try {
         await this.cleanupOldBackups();
-        console.log('✅ Weekly backup cleanup completed');
+        logger.info('Weekly backup cleanup completed');
       } catch (error) {
-        console.error('❌ Backup cleanup failed:', error);
+        logger.error('Backup cleanup failed', error);
       }
     });
     
@@ -107,16 +108,13 @@ class BackupService {
     cron.schedule('0 4 1 * *', async () => {
       try {
         await this.performScheduledHardDeletes();
-        console.log('✅ Monthly hard delete completed');
+        logger.info('Monthly hard delete completed');
       } catch (error) {
-        console.error('❌ Hard delete failed:', error);
+        logger.error('Hard delete failed', error);
       }
     });
     
-    console.log('⏰ Backup schedules configured:');
-    console.log('  - Daily full backup: 2:00 AM');
-    console.log('  - Weekly cleanup: 3:00 AM Sunday');
-    console.log('  - Monthly hard delete: 4:00 AM 1st of month');
+    logger.info('Backup schedules configured (daily 2AM, weekly cleanup Sun 3AM, monthly hard-delete 1st 4AM)');
   }
 
   canBackup() {
@@ -240,10 +238,10 @@ class BackupService {
     const filepath = path.join(this.backupDir, filename);
     try {
       await this.runPgDump(filepath);
-      console.log(`✅ Full backup created: ${filename}`);
+      logger.info(`Full backup created: ${filename}`);
       return filepath;
     } catch (error) {
-      console.error('❌ Backup failed:', error);
+      logger.error('Backup failed', error);
       throw error;
     }
   }
@@ -258,10 +256,10 @@ class BackupService {
     try {
       const tableArgs = tables.flatMap(t => ['-t', t]);
       await this.runPgDump(filepath, tableArgs);
-      console.log(`✅ Incremental backup created: ${filename}`);
+      logger.info(`Incremental backup created: ${filename}`);
       return filepath;
     } catch (error) {
-      console.error('❌ Incremental backup failed:', error);
+      logger.error('Incremental backup failed', error);
       throw error;
     }
   }
@@ -282,12 +280,12 @@ class BackupService {
           
           if (now - stats.mtime.getTime() > retentionMs) {
             await fs.unlink(filepath);
-            console.log(`🗑️ Deleted old backup: ${file}`);
+            logger.info(`Deleted old backup: ${file}`);
           }
         }
       }
     } catch (error) {
-      console.error('❌ Cleanup failed:', error);
+      logger.error('Cleanup failed', error);
       throw error;
     }
   }
@@ -310,7 +308,7 @@ class BackupService {
         LIMIT 100
       `);
       
-      console.log(`🗑️ Found ${result.rows.length} records for hard deletion`);
+      logger.info(`Found ${result.rows.length} records for hard deletion`);
       
       // Create final backup before hard delete
       if (result.rows.length > 0) {
@@ -324,7 +322,7 @@ class BackupService {
         const backupPath = path.join(this.backupDir, backupFilename);
         
         await fs.writeFile(backupPath, JSON.stringify(finalBackupData, null, 2));
-        console.log(`📁 Created final backup: ${backupFilename}`);
+        logger.info(`Created final backup before hard delete: ${backupFilename}`);
       }
       
       // Mark as hard deleted (don't actually delete for safety)
@@ -346,19 +344,19 @@ class BackupService {
       
       await client.query('COMMIT');
       
-      console.log(`✅ Hard deleted ${result.rows.length} records`);
+      logger.info(`Hard deleted ${result.rows.length} records`);
       
       return result.rows.length;
       
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('❌ Hard delete failed:', error);
+      logger.error('Hard delete failed', error);
       throw error;
     } finally {
       client.release();
     }
   }
-  
+
   /**
    * Get backup status and statistics
    */
@@ -404,7 +402,7 @@ class BackupService {
       }
       
     } catch (error) {
-      console.error('❌ Failed to get backup status:', error);
+      logger.error('Failed to get backup status', error);
       throw error;
     }
   }

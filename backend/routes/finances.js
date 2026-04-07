@@ -3165,7 +3165,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), a
       }))
     });
   } catch (err) {
-    console.error('GET /finances/overview error:', err);
+    logger.error('GET /finances/overview error:', err);
     res.status(500).json({ error: 'Failed to fetch financial overview' });
   }
 });

@@ -6,6 +6,7 @@ import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { logPaymentEvent, sendPaymentAlert } from '../services/alertService.js'; // Phase 3: Monitoring
+import { insertNotification } from '../services/notificationWriter.js';
 import {
   getBalance,
   getAllBalances,
@@ -356,14 +357,45 @@ router.post('/deposit', authenticateJWT, depositLimiter, [
       idempotencyKey
     });
 
-    // Notify admins/managers of new bank transfer deposit via Socket.IO
-    if ((method || '').toLowerCase() === 'bank_transfer' && req.socketService) {
-      const depositNotification = {
-        deposit: result.deposit,
-        userName: req.user?.name || req.user?.email,
-      };
-      req.socketService.emitToRole('admin', 'wallet:deposit_created', depositNotification);
-      req.socketService.emitToRole('manager', 'wallet:deposit_created', depositNotification);
+    // Notify admins/managers of new bank transfer deposit
+    if ((method || '').toLowerCase() === 'bank_transfer') {
+      const userName = req.user?.name || [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ') || req.user?.email || 'A customer';
+      const depositAmount = `${amount} ${currency || 'EUR'}`;
+
+      // Socket.IO real-time push
+      if (req.socketService) {
+        const depositNotification = {
+          deposit: result.deposit,
+          userName,
+        };
+        req.socketService.emitToRole('admin', 'wallet:deposit_created', depositNotification);
+        req.socketService.emitToRole('manager', 'wallet:deposit_created', depositNotification);
+      }
+
+      // Persistent in-app notifications
+      try {
+        const { rows: admins } = await pool.query(
+          `SELECT id FROM users WHERE role IN ('admin', 'manager') AND deleted_at IS NULL AND id != $1 LIMIT 20`,
+          [userId]
+        );
+        await Promise.all(admins.map(admin =>
+          insertNotification({
+            userId: admin.id,
+            title: 'New Bank Transfer Deposit',
+            message: `${userName} submitted a bank transfer deposit of ${depositAmount}`,
+            type: 'bank_transfer_deposit',
+            data: {
+              depositId: result.deposit?.id,
+              amount: parseFloat(amount),
+              currency: currency || 'EUR',
+              cta: { label: 'Review deposit', href: '/calendars/lessons?tab=pending-payments' },
+            },
+            idempotencyKey: `bank-deposit:${result.deposit?.id}:admin:${admin.id}`,
+          })
+        ));
+      } catch (notifErr) {
+        logger.warn('Failed to send deposit notifications:', notifErr.message);
+      }
     }
 
     res.status(201).json(result);

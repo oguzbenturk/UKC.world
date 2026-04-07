@@ -2,6 +2,7 @@ import rateLimit from 'express-rate-limit';
 import xss from 'xss';
 import { body as _body, validationResult } from 'express-validator';
 import { pool } from '../db.js';
+import { logger } from './errorHandler.js';
 
 // Cache for role permissions (avoid DB query on every request)
 const rolePermissionsCache = new Map();
@@ -33,7 +34,7 @@ async function getRolePermissions(roleName) {
     rolePermissionsCache.set(roleName, permissions);
     return permissions;
   } catch (error) {
-    console.error('Error fetching role permissions:', error);
+    logger.error('Error fetching role permissions', error);
     return {};
   }
 }
@@ -185,7 +186,7 @@ export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
           return next();
         }
       } catch (error) {
-        console.error('Permission check error:', error);
+        logger.error('Permission check error', error);
         return res.status(500).json({ error: 'Permission check failed' });
       }
     }

@@ -2285,6 +2285,52 @@ RETURNING weather_alerts,
 }
 
 export async function getStudentRecommendations(studentId) {
+  // First: return instructor-curated recommendations for this student
+  try {
+    const { rows: instructorRecs } = await pool.query(
+      `SELECT sr.id, sr.item_type, sr.item_id, sr.item_name, sr.item_description,
+              sr.item_price, sr.currency, sr.notes, sr.status, sr.created_at,
+              COALESCE(p.image_url, sp.image_url, au.image_url, sr.item_image) AS item_image,
+              COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) AS instructor_name
+         FROM student_recommendations sr
+         JOIN users u ON u.id = sr.instructor_id
+         LEFT JOIN products p
+           ON p.id = sr.item_id AND sr.item_type = 'product'
+         LEFT JOIN service_packages sp
+           ON sp.id = sr.item_id AND sr.item_type IN ('service', 'rental')
+         LEFT JOIN accommodation_units au
+           ON au.id = sr.item_id AND sr.item_type = 'accommodation'
+        WHERE sr.student_id = $1
+        ORDER BY sr.created_at DESC`,
+      [studentId]
+    );
+    if (instructorRecs.length > 0) {
+      // Mark pending ones as viewed
+      await pool.query(
+        `UPDATE student_recommendations SET status = 'viewed', updated_at = NOW()
+          WHERE student_id = $1 AND status = 'pending'`,
+        [studentId]
+      );
+      return instructorRecs.map(r => ({
+        id: r.id,
+        itemType: r.item_type,
+        itemId: r.item_id || null,
+        itemName: r.item_name,
+        itemDescription: r.item_description,
+        itemPrice: r.item_price ? Number(r.item_price) : null,
+        itemImage: r.item_image || null,
+        currency: r.currency,
+        notes: r.notes,
+        status: r.status,
+        instructorName: r.instructor_name,
+        createdAt: r.created_at.toISOString(),
+        source: 'instructor'
+      }));
+    }
+  } catch (error) {
+    logger.warn('Unable to load instructor recommendations', { studentId, error: error.message });
+  }
+
   try {
     const { rows: recommendationTableRows } = await pool.query(
       `SELECT to_regclass('recommended_products') AS recommended_products`

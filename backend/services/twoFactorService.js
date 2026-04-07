@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 /**
  * Two-Factor Authentication Service
@@ -108,7 +109,7 @@ class TwoFactorAuthService {
       
       return true;
     } catch (error) {
-      console.error('Error enabling 2FA:', error);
+      logger.error('Error enabling 2FA', error);
       return false;
     }
   }
@@ -130,7 +131,7 @@ class TwoFactorAuthService {
       
       return true;
     } catch (error) {
-      console.error('Error disabling 2FA:', error);
+      logger.error('Error disabling 2FA', error);
       return false;
     }
   }
@@ -154,7 +155,7 @@ class TwoFactorAuthService {
       
       return result.rows[0];
     } catch (error) {
-      console.error('Error getting user 2FA data:', error);
+      logger.error('Error getting user 2FA data', error);
       return null;
     }
   }

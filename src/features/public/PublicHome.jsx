@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import dpcLogo from '../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import { UkcBrandDot, UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
+import { usePageSEO } from '@/shared/utils/seo';
 import bgVideo from '../../../DuotoneFonts/backgroundvideo.mp4';
 
 const formatVideoTime = (seconds) => {
@@ -19,6 +20,11 @@ const formatVideoTime = (seconds) => {
 };
 
 const PublicHome = () => {
+  usePageSEO({
+    title: 'UKC. | Duotone Pro Center Urla — Kitesurfing, Wing Foiling & Rentals',
+    description: 'Premium kitesurfing, wing foiling, foil and e-foil lessons, equipment rentals, and watersports gear at Duotone Pro Center Urla, Turkey.',
+    path: '/',
+  });
   const navigate = useNavigate();
   const [isMuted, setIsMuted] = React.useState(true);
   const [isPlaying, setIsPlaying] = React.useState(true);

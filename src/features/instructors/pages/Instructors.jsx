@@ -6,7 +6,7 @@ import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined, 
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useData } from '@/shared/hooks/useData';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import moment from 'moment';
@@ -154,8 +154,10 @@ function Instructors() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSpecialization, setFilterSpecialization] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedInstructor, setSelectedInstructor] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [initialTab, setInitialTab] = useState('info');
   const [balances, setBalances] = useState({});
   const [payModal, setPayModal] = useState({ open: false, instructor: null });
   const [paySubmitting, setPaySubmitting] = useState(false);
@@ -184,6 +186,21 @@ function Instructors() {
     [...new Set(instructors.flatMap(i => getDisciplines(i)))].sort(),
     [instructors]
   );
+
+  // Auto-open modal when navigated via notification link (?open=<id>&tab=<section>)
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    const tab = searchParams.get('tab') || 'info';
+    if (!openId || instructors.length === 0) return;
+    const target = instructors.find((i) => i.id === openId);
+    if (target) {
+      setInitialTab(tab);
+      setSelectedInstructor(target);
+      setIsDetailOpen(true);
+      // Clean up params so refreshing doesn't re-open
+      setSearchParams((prev) => { prev.delete('open'); prev.delete('tab'); return prev; }, { replace: true });
+    }
+  }, [instructors, searchParams, setSearchParams]);
 
   const activeCount = instructors.filter(i => i.status === 'active' || !i.status).length;
   const inactiveCount = instructors.length - activeCount;
@@ -461,7 +478,8 @@ function Instructors() {
         <EnhancedInstructorDetailModal
           instructor={selectedInstructor}
           isOpen={isDetailOpen}
-          onClose={() => setIsDetailOpen(false)}
+          initialTab={initialTab}
+          onClose={() => { setIsDetailOpen(false); setInitialTab('info'); }}
           onUpdate={() => { fetchBalances(); }}
         />
       )}

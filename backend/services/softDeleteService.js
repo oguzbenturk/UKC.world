@@ -3,6 +3,7 @@
 // Fixed syntax error - restart trigger
 
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 class SoftDeleteService {
   /**
@@ -81,7 +82,7 @@ class SoftDeleteService {
       
       await client.query('COMMIT');
       
-      console.log(`✅ Soft deleted booking ${bookingId} with backup`);
+      logger.info('Soft deleted booking ' + bookingId + ' with backup');
       
       return {
         success: true,
@@ -93,7 +94,7 @@ class SoftDeleteService {
       
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('❌ Soft delete failed:', error);
+      logger.error('Soft delete failed', error);
       throw error;
     } finally {
       client.release();
@@ -130,7 +131,7 @@ class SoftDeleteService {
           backedUpData.push({ table: tableName, id: row.id });
         }
       } catch (error) {
-        console.warn(`⚠️ Could not backup ${tableName}:`, error.message);
+        logger.warn('Could not backup ' + tableName + ': ' + error.message);
       }
     }
     
@@ -167,7 +168,7 @@ class SoftDeleteService {
         `, [bookingId, deletedBy, reason]);
         
       } catch (error) {
-        console.warn(`⚠️ Could not soft delete ${tableName}:`, error.message);
+        logger.warn('Could not soft delete ' + tableName + ': ' + error.message);
       }
     }
   }
@@ -219,13 +220,13 @@ class SoftDeleteService {
       
       await client.query('COMMIT');
       
-      console.log(`✅ Restored booking ${bookingId}`);
+      logger.info('Restored booking ' + bookingId);
       
       return { success: true, bookingId, restoredAt: new Date() };
       
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('❌ Restore failed:', error);
+      logger.error('Restore failed', error);
       throw error;
     } finally {
       client.release();
@@ -252,7 +253,7 @@ class SoftDeleteService {
           WHERE booking_id = $1
         `, [bookingId]);
       } catch (error) {
-        console.warn(`⚠️ Could not restore ${tableName}:`, error.message);
+        logger.warn('Could not restore ' + tableName + ': ' + error.message);
       }
     }
   }

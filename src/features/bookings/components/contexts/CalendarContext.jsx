@@ -11,6 +11,7 @@ import { logger } from '@/shared/utils/logger';
 import eventBus from '@/shared/utils/eventBus';
 import { realTimeService } from '@/shared/services/realTimeService';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { fetchUnavailableInstructors } from '@/features/instructor/services/instructorAvailabilityApi';
 
 // Enhanced in-memory cache for performance optimization
 const dataCache = {
@@ -267,6 +268,8 @@ function CalendarProvider({ children }) {
   // ==========================================
   const [slots, _setSlots] = useState([]);
   const [instructors, setInstructors] = useState([]);
+  // instructorAvailability: { [instructorId]: ['YYYY-MM-DD', ...] }
+  const [instructorAvailability, setInstructorAvailability] = useState({});
   const [services, setServices] = useState([]);
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -1309,7 +1312,8 @@ function CalendarProvider({ children }) {
       logger.info('Loading calendar data...');
       
       // Load all data in parallel
-      const [bookingsData, usersData, instructorsData, servicesData] = await Promise.all([
+      const { startDate: rangeStart, endDate: rangeEnd } = getDateRangeForView();
+      const [bookingsData, usersData, instructorsData, servicesData, availabilityData] = await Promise.all([
         DataService.getBookings().catch(err => {
           logger.warn('Failed to load bookings', { error: err });
           return getCachedData('bookings') || [];
@@ -1325,7 +1329,11 @@ function CalendarProvider({ children }) {
         DataService.getServices().catch(err => {
           logger.warn('Failed to load services', { error: err });
           return getCachedData('services') || [];
-        })
+        }),
+        fetchUnavailableInstructors(rangeStart, rangeEnd).catch(err => {
+          logger.warn('Failed to load instructor availability', { error: err });
+          return {};
+        }),
       ]);
       
       // Process bookings data - simplified approach
@@ -1375,7 +1383,12 @@ function CalendarProvider({ children }) {
         setServices(servicesData);
         setCachedData('services', servicesData);
       }
-      
+
+      // Update instructor availability
+      if (availabilityData && typeof availabilityData === 'object') {
+        setInstructorAvailability(availabilityData);
+      }
+
       localStorage.setItem('bookings_cache_timestamp', Date.now().toString());
     logger.info('Calendar data loaded successfully');
       
@@ -1383,7 +1396,7 @@ function CalendarProvider({ children }) {
     logger.error('Failed to load calendar data', { error });
       handleApiError(error);
     }
-  }, []);
+  }, [getDateRangeForView]);
 
   // Debounced refresh function to prevent excessive API calls
   const debouncedRefreshData = useMemo(
@@ -1577,6 +1590,7 @@ function CalendarProvider({ children }) {
     getPreScheduledSlotsForDate,
     formatDate,
   getDateRangeForView,
+    instructorAvailability,
   };
     return (
     <CalendarContext.Provider value={value}>

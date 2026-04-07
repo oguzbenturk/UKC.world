@@ -373,7 +373,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/services/memberships', label: 'Member', dotColor: '#93c47d' },
           { to: '/services/accommodation', label: 'Stay', dotColor: '#3b82f6' },
           { to: '/services/packages', label: 'Experience', dotColor: '#eab308' },
-          { to: '/services/community', label: 'Community', dotColor: '#0ea5e9' }
+          { to: '/services/events', label: 'Events', dotColor: '#0ea5e9' }
         ]
       }),
       // Finance - Emerald

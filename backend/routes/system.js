@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import metricsService from '../services/metricsService.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get('/database-status', async (req, res) => {
     
     res.json({ needsInitialization });
   } catch (error) {
-    console.error('Error checking database status:', error);
+    logger.error('Error checking database status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -97,7 +98,7 @@ router.post('/initialize-database', authorizeRoles(['admin']), async (req, res) 
       client.release();
     }
   } catch (error) {
-    console.error('Error initializing database:', error);
+    logger.error('Error initializing database:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -130,7 +131,7 @@ router.post('/:entityType/:id/update-references', async (req, res) => {
     
     res.json({ success: true, message: 'References updated successfully' });
   } catch (error) {
-    console.error('Error updating references:', error);
+    logger.error('Error updating references:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

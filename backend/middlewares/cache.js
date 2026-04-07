@@ -1,4 +1,5 @@
 import { cacheService } from '../services/cacheService.js';
+import { logger } from './errorHandler.js';
 
 /**
  * Cache middleware for Express routes
@@ -30,8 +31,8 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
             res.json = function(data) {
                 // Cache the response before sending (don't await, run async)
                 if (res.statusCode === 200) {
-                    cacheService.set(key, data, ttl).catch(err => 
-                        console.warn('Cache set failed:', err)
+                    cacheService.set(key, data, ttl).catch(err =>
+                        logger.warn('Cache set failed', err)
                     );
                 }
                 // Call original method with proper context
@@ -40,7 +41,7 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
 
             next();
         } catch (error) {
-            console.error('Cache middleware error:', error);
+            logger.error('Cache middleware error', error);
             next();
         }
     };
@@ -62,7 +63,7 @@ export const cacheInvalidationMiddleware = (patterns) => {
                 for (const pattern of patterns) {
                     const cachePattern = typeof pattern === 'function' ? pattern(req) : pattern;
                     await cacheService.del(cachePattern);
-                    console.log(`🧹 Invalidated cache pattern: ${cachePattern}`);
+                    logger.info(`Invalidated cache pattern: ${cachePattern}`);
                 }
             }
         };
@@ -157,7 +158,7 @@ export const rateLimitMiddleware = (maxRequests = 100, windowSeconds = 3600) => 
 
             next();
         } catch (error) {
-            console.error('Rate limit middleware error:', error);
+            logger.error('Rate limit middleware error', error);
             next();
         }
     };

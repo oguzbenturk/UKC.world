@@ -2,6 +2,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 // SEC-017 FIX: Get JWT_SECRET securely from environment
 if (!process.env.JWT_SECRET) {
@@ -57,7 +58,7 @@ class SocketService {
             if (allowedOrigins.indexOf(origin) !== -1) {
               callback(null, true);
             } else {
-              console.warn(`⚠️ WebSocket connection rejected from unauthorized origin: ${origin}`);
+              logger.warn(`WebSocket connection rejected from unauthorized origin: ${origin}`);
               callback(new Error('Not allowed by CORS'));
             }
           },
@@ -71,10 +72,10 @@ class SocketService {
       });
 
       this.setupEventHandlers();
-      console.log('✅ Socket.IO server initialized successfully');
+      logger.info('Socket.IO server initialized');
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize Socket.IO server:', error);
+      logger.error('Failed to initialize Socket.IO server', error);
       return false;
     }
   }
@@ -84,7 +85,6 @@ class SocketService {
    */
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      console.log(`🔗 Client connected: ${socket.id}`);
 
       // SEC-017 FIX: Handle user authentication with JWT token verification
       socket.on('authenticate', (data) => {
@@ -137,7 +137,7 @@ class SocketService {
       const token = data?.token;
       
       if (!token) {
-        console.warn(`⚠️ Authentication failed for socket ${socket.id}: No token provided`);
+        logger.warn(`Socket auth failed (${socket.id}): no token`);
         socket.emit('auth_error', { error: 'Authentication token required' });
         return;
       }
@@ -147,7 +147,8 @@ class SocketService {
       try {
         verified = jwt.verify(token, JWT_SECRET);
       } catch (jwtError) {
-        console.warn(`⚠️ JWT verification failed for socket ${socket.id}:`, jwtError.message);        socket.emit('auth_error', { 
+        logger.warn(`Socket JWT verification failed (${socket.id}): ${jwtError.message}`);
+        socket.emit('auth_error', {
           error: jwtError.name === 'TokenExpiredError' 
             ? 'Token expired. Please log in again.' 
             : 'Invalid authentication token' 
@@ -157,13 +158,13 @@ class SocketService {
 
       // SEC-017 FIX: Extract user data from VERIFIED token, not from client
       if (!verified || !verified.id) {
-        console.warn(`⚠️ Invalid token format for socket ${socket.id}`);
+        logger.warn(`Socket auth failed (${socket.id}): invalid token format`);
         socket.emit('auth_error', { error: 'Invalid token format' });
         return;
       }
 
       if (isAuthCreationDisabled()) {
-        console.warn(`⚠️ Socket auth rejected: DISABLE_LOGIN (${socket.id})`);
+        logger.warn(`Socket auth rejected: login disabled (${socket.id})`);
         socket.emit('auth_error', {
           error: 'Sign-in is temporarily disabled.',
           code: 'LOGIN_DISABLED',
@@ -191,7 +192,7 @@ class SocketService {
       socket.join(`user:${userId}`);
       socket.join('general');
 
-      console.log(`👤 User authenticated via JWT: ${userId} (${userRole})`);
+      logger.info(`User authenticated: ${userId} (${userRole})`);
       
       socket.emit('authenticated', { 
         success: true, 
@@ -200,7 +201,7 @@ class SocketService {
         timestamp: Date.now() 
       });
     } catch (error) {
-      console.error('Authentication error:', error);
+      logger.error('Socket authentication error', error);
       socket.emit('auth_error', { error: 'Authentication failed' });
     }
   }
@@ -211,10 +212,9 @@ class SocketService {
   handleDisconnection(socket) {
     const user = this.connectedUsers.get(socket.id);
     if (user) {
-      console.log(`👤 User disconnected: ${user.userId}`);
+      logger.info(`User disconnected: ${user.userId} (${socket.id})`);
       this.connectedUsers.delete(socket.id);
     }
-    console.log(`🔌 Client disconnected: ${socket.id}`);
   }
 
   /**
@@ -228,7 +228,7 @@ class SocketService {
 
     // SEC-018 FIX: Require authentication before subscribing to channels
     if (!socket.userId || !socket.userRole) {
-      console.warn(`⚠️ Unauthenticated socket ${socket.id} attempted to subscribe to channels`);
+      logger.warn(`Unauthenticated socket ${socket.id} attempted channel subscription`);
       socket.emit('subscription_error', { error: 'Authentication required for channel subscription' });
       return;
     }
@@ -245,16 +245,15 @@ class SocketService {
         allowedChannels.push(channel);
       } else {
         deniedChannels.push(channel);
-        console.warn(`⚠️ User ${userId} (${userRole}) denied access to channel: ${channel}`);
       }
     });
     
     if (allowedChannels.length > 0) {
       this.userChannels.set(socket.id, allowedChannels);
-      console.log(`📡 User ${userId} subscribed to channels:`, allowedChannels);
     }
 
     if (deniedChannels.length > 0) {
+      logger.warn(`User ${userId} denied access to channels: ${deniedChannels.join(', ')}`);
       socket.emit('subscription_error', { 
         error: 'Access denied to some channels',
         deniedChannels 
@@ -318,7 +317,6 @@ class SocketService {
     }
 
     // Deny unknown channel patterns
-    console.warn(`⚠️ Unknown channel pattern: ${channel}`);
     return false;
   }
 
@@ -417,8 +415,7 @@ class SocketService {
     try {
       const roomName = `conversation:${conversationId}`;
       socket.join(roomName);
-      console.log(`👥 User ${socket.userId} joined conversation ${conversationId}`);
-      
+
       // Notify others in conversation
       socket.to(roomName).emit('chat:user_joined', {
         userId: socket.userId,
@@ -426,7 +423,7 @@ class SocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error joining conversation:', error);
+      logger.error('Error joining conversation', error);
     }
   }
 
@@ -434,8 +431,7 @@ class SocketService {
     try {
       const roomName = `conversation:${conversationId}`;
       socket.leave(roomName);
-      console.log(`👥 User ${socket.userId} left conversation ${conversationId}`);
-      
+
       // Notify others in conversation
       socket.to(roomName).emit('chat:user_left', {
         userId: socket.userId,
@@ -443,7 +439,7 @@ class SocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error leaving conversation:', error);
+      logger.error('Error leaving conversation', error);
     }
   }
 
@@ -458,7 +454,7 @@ class SocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error handling typing indicator:', error);
+      logger.error('Error handling typing indicator', error);
     }
   }
 
@@ -472,7 +468,7 @@ class SocketService {
         timestamp: Date.now()
       });
     } catch (error) {
-      console.error('Error handling stop typing:', error);
+      logger.error('Error handling stop typing', error);
     }
   }
 

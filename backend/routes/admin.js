@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
 
@@ -34,7 +35,7 @@ router.get('/legal-documents', authenticateJWT, async (req, res) => {
 
     res.json(documents);
   } catch (error) {
-    console.error('Error fetching legal documents:', error);
+    logger.error('Error fetching legal documents:', error);
     res.status(500).json({ error: 'Failed to fetch legal documents' });
   }
 });
@@ -68,7 +69,7 @@ router.post('/legal-documents', authenticateJWT, requireAdmin, async (req, res) 
 
     res.json({ message: 'Legal document saved successfully' });
   } catch (error) {
-    console.error('Error saving legal document:', error);
+    logger.error('Error saving legal document:', error);
     res.status(500).json({ error: 'Failed to save legal document' });
   }
 });

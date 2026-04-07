@@ -341,6 +341,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     updateBooking,
     checkBookingConflicts,
     swapBookings,
+    instructorAvailability = {},
   } = useCalendar();
 
   // If a displayDate is provided (e.g., WeekView overlay), use it for rendering and fetching.
@@ -1228,14 +1229,21 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                     return 'min-w-[112px] max-w-[140px] sm:min-w-[180px] sm:max-w-[220px]';
                   };
 
+                  const dateStr = format(effectiveDate, 'yyyy-MM-dd');
+                  const isUnavailable = Array.isArray(instructorAvailability[instructor.id]) &&
+                    instructorAvailability[instructor.id].includes(dateStr);
+
                   return (
                     <div
                       key={instructor.id}
-                      className={`${getInstructorColumnWidth()} daily-view-instructor-column border-r border-gray-200 flex-shrink-0`}
+                      className={`${getInstructorColumnWidth()} daily-view-instructor-column border-r border-gray-200 flex-shrink-0${isUnavailable ? ' instructor-column-unavailable' : ''}`}
                     >
                       {/* Sticky Column Header with Full Name */}
-                      <div className="instructor-column-header h-12 sm:h-16 px-2 sm:px-3 py-1.5 sm:py-2 text-center border-b border-gray-200 bg-gray-50 flex items-center justify-center sticky top-0 z-10">
+                      <div className={`instructor-column-header h-12 sm:h-16 px-2 sm:px-3 py-1.5 sm:py-2 text-center border-b border-gray-200 flex flex-col items-center justify-center sticky top-0 z-10${isUnavailable ? ' bg-slate-100' : ' bg-gray-50'}`}>
                         <div className="text-xs sm:text-sm font-semibold text-gray-800 truncate">{instructor.name}</div>
+                        {isUnavailable && (
+                          <span className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-300 text-slate-600 tracking-wide">OFF</span>
+                        )}
                       </div>
 
                       {/* Time Slots + DnD Container */}

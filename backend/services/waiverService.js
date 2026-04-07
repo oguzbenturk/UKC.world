@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 import {
   logWaiverModification
 } from './auditLogService.js';
@@ -77,7 +78,7 @@ async function backupSignatureFile(filename, buffer) {
   try {
     await fs.writeFile(backupPath, buffer);
   } catch (error) {
-    console.warn('Failed to create signature backup', backupPath, error.message);
+    logger.warn('Failed to create signature backup ' + backupPath + ': ' + error.message);
   }
 }
 
@@ -118,7 +119,7 @@ async function deleteSignatureImage(storedPath) {
     await fs.unlink(absolutePath);
   } catch (error) {
     if (error?.code !== 'ENOENT') {
-      console.warn('Failed to delete signature image', absolutePath, error.message);
+      logger.warn('Failed to delete signature image ' + absolutePath + ': ' + error.message);
     }
   }
 
@@ -129,7 +130,7 @@ async function deleteSignatureImage(storedPath) {
       await fs.unlink(backupPath);
     } catch (error) {
       if (error?.code !== 'ENOENT') {
-        console.warn('Failed to delete signature backup', backupPath, error.message);
+        logger.warn('Failed to delete signature backup ' + backupPath + ': ' + error.message);
       }
     }
   }
@@ -409,7 +410,7 @@ export async function submitWaiver(waiverData) {
         userAgent: user_agent
       });
     } catch (auditError) {
-      console.warn('Failed to log waiver submission audit event (service)', auditError.message);
+      logger.warn('Failed to log waiver submission audit event: ' + auditError.message);
     }
 
     dispatchWaiverSigned({
@@ -421,7 +422,7 @@ export async function submitWaiver(waiverData) {
       targetUserId: user_id || null,
       familyMemberId: family_member_id || null
     }).catch((notificationError) => {
-      console.warn('Failed to dispatch waiver signed notifications', notificationError?.message || notificationError);
+      logger.warn('Failed to dispatch waiver signed notifications: ' + (notificationError?.message || notificationError));
     });
 
     return {
@@ -429,7 +430,7 @@ export async function submitWaiver(waiverData) {
       signature_public_url: getSignaturePublicUrl(savedWaiver.signature_image_url),
     };
   } catch (error) {
-    console.error('Error submitting waiver:', error);
+    logger.error('Error submitting waiver', error);
     throw error;
   }
 }
@@ -478,7 +479,7 @@ export async function needsToSignWaiver(id, type = 'user') {
 
     return false; // Valid waiver exists
   } catch (error) {
-    console.error('Error checking waiver status:', error);
+    logger.error('Error checking waiver status', error);
     throw error;
   }
 }
@@ -565,7 +566,7 @@ export async function checkWaiverStatus(id, type = 'user') {
       currentWaiverId: waiver.id
     };
   } catch (error) {
-    console.error('Error checking waiver status:', error);
+    logger.error('Error checking waiver status', error);
     throw error;
   }
 }
@@ -601,7 +602,7 @@ export async function getWaiverHistory(id, type = 'user') {
       signature_public_url: getSignaturePublicUrl(row.signature_image_url),
     }));
   } catch (error) {
-    console.error('Error fetching waiver history:', error);
+    logger.error('Error fetching waiver history', error);
     throw error;
   }
 }
@@ -629,7 +630,7 @@ export async function getWaiverVersion(versionId) {
 
     return result.rows[0] || null;
   } catch (error) {
-    console.error('Error fetching waiver version:', error);
+    logger.error('Error fetching waiver version', error);
     throw error;
   }
 }
@@ -659,7 +660,7 @@ export async function getLatestActiveVersion(languageCode = 'en') {
 
     return result.rows[0] || null;
   } catch (error) {
-    console.error('Error fetching latest waiver version:', error);
+    logger.error('Error fetching latest waiver version', error);
     throw error;
   }
 }
@@ -697,7 +698,7 @@ export async function createWaiverVersion(versionData) {
 
     return result.rows[0];
   } catch (error) {
-    console.error('Error creating waiver version:', error);
+    logger.error('Error creating waiver version', error);
     throw error;
   }
 }
@@ -719,7 +720,7 @@ async function deleteWaiversBy(column, value) {
       try {
         await deleteSignatureImage(row.signature_image_url);
       } catch (error) {
-        console.warn('Failed to cleanup signature image for waiver', row.id, error.message);
+        logger.warn('Failed to cleanup signature image for waiver ' + row.id + ': ' + error.message);
       }
     })
   );
@@ -765,7 +766,7 @@ export async function getSignerDetails(signerId) {
 
     return result.rows[0] || null;
   } catch (error) {
-    console.error('Error fetching signer details:', error);
+    logger.error('Error fetching signer details', error);
     throw error;
   }
 }

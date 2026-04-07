@@ -1,5 +1,6 @@
 // backend/services/familyService.js
 import { pool } from '../db.js';
+import { logger } from '../middlewares/errorHandler.js';
 import crypto from 'crypto';
 import { checkWaiverStatus, deleteWaiversForFamilyMember } from './waiverService.js';
 import {
@@ -42,7 +43,7 @@ const getFamilyActivityCapabilities = async (client) => {
         };
       })
       .catch((error) => {
-        console.warn('Failed to inspect family activity capabilities', error.message);
+        logger.warn('Failed to inspect family activity capabilities: ' + error.message);
         return { ...defaultActivityCapabilities };
       });
   }
@@ -147,7 +148,7 @@ export const encryptMedicalNotes = (text) => {
     // Return IV + encrypted data (we need IV for decryption)
     return `${iv.toString('hex')}:${encrypted}`;
   } catch (error) {
-    console.error('Encryption error:', error);
+    logger.error('Encryption error', error);
     throw new Error('Failed to encrypt medical notes');
   }
 };
@@ -175,7 +176,7 @@ export const decryptMedicalNotes = (encryptedText) => {
     
     return decrypted;
   } catch (error) {
-    console.error('Decryption error:', error);
+    logger.error('Decryption error', error);
     return '[Unable to decrypt medical notes]';
   }
 };
@@ -253,7 +254,7 @@ export const getFamilyMembers = async (parentUserId) => {
           waiver_message: status?.message || null
         };
       } catch (error) {
-        console.error('Failed to resolve waiver status for family member', member.id, error);
+        logger.error('Failed to resolve waiver status for family member ' + member.id, error);
         return {
           ...member,
           waiver_status: 'unknown',
@@ -326,7 +327,7 @@ export const getFamilyMemberById = async (memberId, parentUserId) => {
       waiver_message: status?.message || null
     };
   } catch (error) {
-    console.error('Failed to resolve waiver status for family member', member.id, error);
+    logger.error('Failed to resolve waiver status for family member ' + member.id, error);
     return {
       ...member,
       waiver_status: 'unknown',
@@ -453,7 +454,7 @@ export const createFamilyMember = async (memberData, parentUserId, actorUserId =
       }
     });
   } catch (auditError) {
-    console.warn('Failed to log family member creation audit event', auditError.message);
+    logger.warn('Failed to log family member creation audit event: ' + auditError.message);
   }
   
   return {
@@ -633,7 +634,7 @@ export const updateFamilyMember = async (memberId, updates, parentUserId, actorU
       metadata: updates
     });
   } catch (auditError) {
-    console.warn('Failed to log family member update audit event', auditError.message);
+    logger.warn('Failed to log family member update audit event: ' + auditError.message);
   }
 
   try {
@@ -653,7 +654,7 @@ export const updateFamilyMember = async (memberId, updates, parentUserId, actorU
       waiver_message: status?.message || null
     };
   } catch (error) {
-    console.error('Failed to resolve waiver status for family member', normalized.id, error);
+    logger.error('Failed to resolve waiver status for family member ' + normalized.id, error);
     return {
       ...normalized,
       waiver_status: 'unknown',
@@ -948,7 +949,7 @@ export const deleteFamilyMember = async (memberId, parentUserId, actorUserId = p
     try {
       await deleteWaiversForFamilyMember(memberId);
     } catch (error) {
-      console.error('Failed to cleanup waivers for deleted family member', memberId, error);
+      logger.error('Failed to cleanup waivers for deleted family member ' + memberId, error);
     }
 
     try {
@@ -960,7 +961,7 @@ export const deleteFamilyMember = async (memberId, parentUserId, actorUserId = p
         description: `Family member ${memberId} deleted`
       });
     } catch (auditError) {
-      console.warn('Failed to log family member deletion audit event', auditError.message);
+      logger.warn('Failed to log family member deletion audit event: ' + auditError.message);
     }
     return true;
   }
