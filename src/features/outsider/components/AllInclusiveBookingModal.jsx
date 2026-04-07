@@ -449,6 +449,7 @@ const LessonStep = ({
   const [loadingInstructors, setLoadingInstructors] = useState(true);
   const [slotsCache, setSlotsCache] = useState({}); // { 'YYYY-MM-DD_instructorId': availableStarts[] }
   const [loadingSlots, setLoadingSlots] = useState({});
+  const [globalInstructorId, setGlobalInstructorId] = useState(null);
 
   // Build array of dates between check-in and check-out (inclusive)
   // Students can take lessons on arrival day, full days, AND departure day
@@ -537,28 +538,47 @@ const LessonStep = ({
     }
   }, [slotsCache]);
 
-  const handleInstructorChange = (blockIdx, instructorId) => {
-    const updated = [...lessonSchedule];
-    updated[blockIdx] = { ...updated[blockIdx], instructorId, time: null };
+  const handleGlobalInstructorChange = (instructorId) => {
+    setGlobalInstructorId(instructorId || null);
+    const updated = lessonSchedule.map((b) => ({ ...b, instructorId: instructorId || null, time: null }));
     onLessonScheduleChange(updated);
-
     if (instructorId) {
-      fetchSlots(updated[blockIdx].date, instructorId);
+      const uniqueDates = [...new Set(updated.map((b) => b.date))];
+      uniqueDates.forEach((dateStr) => fetchSlots(dateStr, instructorId));
+    }
+  };
+
+  const handleInstructorChange = (blockIdx, instructorId) => {
+    // Propagate to all blocks that don't yet have an instructor
+    const updated = lessonSchedule.map((block, i) => {
+      if (i === blockIdx) return { ...block, instructorId, time: null };
+      if (!block.instructorId) return { ...block, instructorId: instructorId || null, time: null };
+      return block;
+    });
+    onLessonScheduleChange(updated);
+    if (instructorId) {
+      setGlobalInstructorId(instructorId);
+      const uniqueDates = [...new Set(updated.filter((b) => b.instructorId === instructorId).map((b) => b.date))];
+      uniqueDates.forEach((dateStr) => fetchSlots(dateStr, instructorId));
     }
   };
 
   const handleTimeChange = (blockIdx, time) => {
-    const updated = [...lessonSchedule];
-    updated[blockIdx] = { ...updated[blockIdx], time };
+    // Propagate the selected time to all other blocks that have no time yet
+    const updated = lessonSchedule.map((block, i) => {
+      if (i === blockIdx) return { ...block, time };
+      if (!block.time) return { ...block, time };
+      return block;
+    });
     onLessonScheduleChange(updated);
   };
 
   const addBlock = (dateStr) => {
-    if (scheduledBlocks + lessonSchedule.filter((s) => !s.instructorId || !s.time).length >= totalBlocks + 5) {
-      // safety limit
-      return;
+    const newBlock = { date: dateStr, instructorId: globalInstructorId || null, time: null };
+    onLessonScheduleChange([...lessonSchedule, newBlock]);
+    if (globalInstructorId) {
+      fetchSlots(dateStr, globalInstructorId);
     }
-    onLessonScheduleChange([...lessonSchedule, { date: dateStr, instructorId: null, time: null }]);
   };
 
   const removeBlock = (blockIdx) => {
@@ -607,6 +627,27 @@ const LessonStep = ({
         </div>
       </div>
 
+      {/* Global instructor selector */}
+      {instructors.length > 0 && (
+        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <p className="text-xs font-gotham-medium text-slate-500 mb-1.5">Instructor for all lessons</p>
+          <Select
+            placeholder="Select one instructor — applies to all lessons"
+            value={globalInstructorId || undefined}
+            onChange={handleGlobalInstructorChange}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            className="w-full [&_.ant-select-selector]:!bg-white [&_.ant-select-selector]:!border-slate-200 [&_.ant-select-selection-item]:!text-slate-900 [&_.ant-select-selection-placeholder]:!text-slate-400"
+            suffixIcon={<UserOutlined className="text-slate-400" />}
+            options={instructors.map((inst) => ({
+              value: inst.id,
+              label: inst.name || inst.fullName || `${inst.firstName || ''} ${inst.lastName || ''}`.trim() || 'Instructor',
+            }))}
+          />
+        </div>
+      )}
+
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {accommodationDates.map((date) => {
           const dateStr = date.format('YYYY-MM-DD');
@@ -623,7 +664,6 @@ const LessonStep = ({
                   type="dashed"
                   onClick={() => addBlock(dateStr)}
                   className="!border-slate-300 !text-slate-600 hover:!text-slate-900 hover:!border-duotone-blue"
-                  disabled={lessonSchedule.length >= totalBlocks}
                 >
                   + Add Lesson
                 </Button>
