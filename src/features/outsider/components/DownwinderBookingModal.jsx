@@ -463,9 +463,12 @@ const DownwinderBookingModal = ({
                   </div>
                   <div className="[&_.ant-input]:!bg-white/5 [&_.ant-input]:!border-white/15 [&_.ant-input]:!text-white [&_.ant-input::placeholder]:!text-gray-500 [&_.ant-btn-primary]:!bg-amber-500 [&_.ant-btn-primary]:!border-amber-500 [&_.ant-btn-primary]:hover:!bg-amber-400 [&_.ant-btn-primary]:!text-black [&_.ant-btn-primary]:!font-semibold [&_.ant-input-prefix]:!text-gray-400">
                     <PromoCodeInput
-                      onVoucherApplied={setAppliedVoucher}
-                      onVoucherRemoved={() => setAppliedVoucher(null)}
-                      packageId={pkg?.id}
+                      context="packages"
+                      amount={pkg?.price || 0}
+                      currency={userCurrency || 'EUR'}
+                      serviceId={pkg?.id}
+                      onValidCode={(voucher) => setAppliedVoucher(voucher)}
+                      onClear={() => setAppliedVoucher(null)}
                     />
                   </div>
                 </div>

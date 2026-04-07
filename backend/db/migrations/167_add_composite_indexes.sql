@@ -99,8 +99,8 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_instructor_default_commissions_instr
 -- CUSTOMER PACKAGES  (booking creation, package deduction)
 -- ============================================================
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_packages_user
-  ON customer_packages (user_id)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_packages_customer_active
+  ON customer_packages (customer_id)
   WHERE status = 'active';
 
 -- ============================================================

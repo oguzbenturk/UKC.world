@@ -169,9 +169,13 @@ const PackagePurchaseModal = ({
           <div className="mb-4">
             <Title level={5}>Promo Code</Title>
             <PromoCodeInput
-              onVoucherApplied={setAppliedVoucher}
-              onVoucherRemoved={() => setAppliedVoucher(null)}
-              packageId={selectedPackage.id}
+              context="packages"
+              amount={selectedPackage.price || 0}
+              currency={userCurrency || 'EUR'}
+              serviceId={selectedPackage.id}
+              onValidCode={(voucher) => setAppliedVoucher(voucher)}
+              onClear={() => setAppliedVoucher(null)}
+              disabled={isPurchasing}
             />
           </div>
 

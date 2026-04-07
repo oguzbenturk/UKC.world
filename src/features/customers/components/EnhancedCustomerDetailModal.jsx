@@ -928,7 +928,9 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     const allRows = [
       ...(accommodationBookings || []).map(b => ({ ...b, _source: 'booking' })),
       ...filteredPkgRows,
-    ].sort((a, b) => new Date(b.check_in_date || 0) - new Date(a.check_in_date || 0));
+    ]
+      .filter(r => r.status !== 'cancelled')
+      .sort((a, b) => new Date(b.check_in_date || 0) - new Date(a.check_in_date || 0));
 
     const accomColumns = [
       {

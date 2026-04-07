@@ -485,7 +485,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                             window.dispatchEvent(new CustomEvent('instructorProfile:open'));
                           }}
                         >
-                          My Profile
+                          {displayName}
                         </button>
                       ) : (
                         <NavLink
@@ -498,7 +498,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                             navigate('/student/profile');
                           }}
                         >
-                          My Profile
+                          {displayName}
                         </NavLink>
                       )}
                       {isAuthenticated && (

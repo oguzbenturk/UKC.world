@@ -884,7 +884,7 @@ export const processParticipantPayment = async ({
 
       // Check package balance
       const pkgResult = await client.query(
-        'SELECT remaining_hours FROM customer_packages WHERE id = $1 AND user_id = $2',
+        'SELECT remaining_hours FROM customer_packages WHERE id = $1 AND customer_id = $2',
         [customerPackageId, userId]
       );
 

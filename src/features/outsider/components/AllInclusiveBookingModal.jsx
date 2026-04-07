@@ -9,7 +9,7 @@
  *   4. Payment method (wallet / external / pay later for trusted customers)
  */
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Modal, Button, Tag, Steps, Spin, Input, Select, Tooltip, Alert, App } from 'antd';
 import {
   CalendarOutlined,
@@ -57,6 +57,18 @@ const timeStringToMinutes = (time) => {
   if (!time) return null;
   const [h, m] = time.split(':').map(Number);
   return h * 60 + (m || 0);
+};
+
+const findClosestTime = (targetTime, slots) => {
+  if (!slots || slots.length === 0) return null;
+  const targetMin = timeStringToMinutes(targetTime);
+  let closest = slots[0].value;
+  let closestDiff = Math.abs(timeStringToMinutes(slots[0].value) - targetMin);
+  for (let i = 1; i < slots.length; i++) {
+    const diff = Math.abs(timeStringToMinutes(slots[i].value) - targetMin);
+    if (diff < closestDiff) { closest = slots[i].value; closestDiff = diff; }
+  }
+  return closest;
 };
 
 const minutesToTimeString = (mins) => {
@@ -448,6 +460,8 @@ const LessonStep = ({
   const [instructors, setInstructors] = useState([]);
   const [loadingInstructors, setLoadingInstructors] = useState(true);
   const [slotsCache, setSlotsCache] = useState({}); // { 'YYYY-MM-DD_instructorId': availableStarts[] }
+  const slotsCacheRef = useRef(slotsCache);
+  slotsCacheRef.current = slotsCache;
   const [loadingSlots, setLoadingSlots] = useState({});
   const [globalInstructorId, setGlobalInstructorId] = useState(null);
 
@@ -520,7 +534,7 @@ const LessonStep = ({
   // Fetch available slots for a given day + instructor
   const fetchSlots = useCallback(async (dateStr, instructorId) => {
     const key = `${dateStr}_${instructorId}`;
-    if (slotsCache[key]) return;
+    if (slotsCacheRef.current[key]) return; // ref avoids stale closure & unstable callback identity
 
     setLoadingSlots((prev) => ({ ...prev, [key]: true }));
     try {
@@ -536,7 +550,34 @@ const LessonStep = ({
     } finally {
       setLoadingSlots((prev) => ({ ...prev, [key]: false }));
     }
-  }, [slotsCache]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- dedup check uses slotsCacheRef to avoid re-creating callback on every cache update
+
+  // Auto-fill time for blocks when their slots load after a time was already picked on another block
+  useEffect(() => {
+    const hasPendingBlock = lessonSchedule.some((b) => !b.time && b.instructorId);
+    if (!hasPendingBlock) return;
+
+    const pickedTime = lessonSchedule.find((b) => b.time)?.time;
+    if (!pickedTime) return;
+
+    let changed = false;
+    const updated = lessonSchedule.map((block) => {
+      if (block.time || !block.instructorId) return block;
+      const key = `${block.date}_${block.instructorId}`;
+      const slots = slotsCache[key];
+      if (!slots || slots.length === 0) return block;
+
+      if (slots.some((s) => s.value === pickedTime)) {
+        changed = true;
+        return { ...block, time: pickedTime };
+      }
+      const closest = findClosestTime(pickedTime, slots);
+      if (!closest) return block;
+      changed = true;
+      return { ...block, time: closest };
+    });
+    if (changed) onLessonScheduleChange(updated);
+  }, [slotsCache]); // eslint-disable-line react-hooks/exhaustive-deps -- only trigger on new slots arriving; lessonSchedule/onLessonScheduleChange are stable or would cause loops
 
   const handleGlobalInstructorChange = (instructorId) => {
     setGlobalInstructorId(instructorId || null);
@@ -564,10 +605,16 @@ const LessonStep = ({
   };
 
   const handleTimeChange = (blockIdx, time) => {
-    // Propagate the selected time to all other blocks that have no time yet
     const updated = lessonSchedule.map((block, i) => {
       if (i === blockIdx) return { ...block, time };
-      if (!block.time) return { ...block, time };
+      if (!block.time && block.instructorId) {
+        const key = `${block.date}_${block.instructorId}`;
+        const slots = slotsCache[key];
+        if (!slots) return block; // slots not loaded yet — leave null
+        if (slots.some((s) => s.value === time)) return { ...block, time };
+        const closest = findClosestTime(time, slots);
+        return closest ? { ...block, time: closest } : block;
+      }
       return block;
     });
     onLessonScheduleChange(updated);
@@ -626,27 +673,6 @@ const LessonStep = ({
           )}
         </div>
       </div>
-
-      {/* Global instructor selector */}
-      {instructors.length > 0 && (
-        <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-          <p className="text-xs font-gotham-medium text-slate-500 mb-1.5">Instructor for all lessons</p>
-          <Select
-            placeholder="Select one instructor — applies to all lessons"
-            value={globalInstructorId || undefined}
-            onChange={handleGlobalInstructorChange}
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            className="w-full [&_.ant-select-selector]:!bg-white [&_.ant-select-selector]:!border-slate-200 [&_.ant-select-selection-item]:!text-slate-900 [&_.ant-select-selection-placeholder]:!text-slate-400"
-            suffixIcon={<UserOutlined className="text-slate-400" />}
-            options={instructors.map((inst) => ({
-              value: inst.id,
-              label: inst.name || inst.fullName || `${inst.firstName || ''} ${inst.lastName || ''}`.trim() || 'Instructor',
-            }))}
-          />
-        </div>
-      )}
 
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {accommodationDates.map((date) => {

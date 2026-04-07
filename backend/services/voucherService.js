@@ -104,14 +104,14 @@ export async function getUserRedemptionCount(voucherId, userId) {
 export async function isFirstTimePurchaser(userId) {
   // Check bookings
   const bookings = await pool.query(
-    `SELECT 1 FROM bookings WHERE user_id = $1 AND status != 'cancelled' LIMIT 1`,
+    `SELECT 1 FROM bookings WHERE customer_user_id = $1 AND status != 'cancelled' LIMIT 1`,
     [userId]
   );
   if (bookings.rows.length > 0) return false;
   
   // Check customer packages
   const packages = await pool.query(
-    `SELECT 1 FROM customer_packages WHERE user_id = $1 AND status = 'active' LIMIT 1`,
+    `SELECT 1 FROM customer_packages WHERE customer_id = $1 AND status = 'active' LIMIT 1`,
     [userId]
   );
   if (packages.rows.length > 0) return false;
@@ -235,23 +235,23 @@ export async function validateVoucher({ code, userId, userRole, context, amount,
       return { valid: false, error: 'ROLE_NOT_ALLOWED', message: 'This voucher is not available for your account type' };
     }
     
+    // Check application scope (before DB-heavy checks to fail fast on obvious mismatches)
+    // Wallet credit vouchers can be used from any context since they just add funds
+    const isWalletCredit = voucher.voucher_type === VOUCHER_TYPES.WALLET_CREDIT;
+    if (!isWalletCredit && voucher.applies_to !== 'all' && voucher.applies_to !== context) {
+      return {
+        valid: false,
+        error: 'WRONG_CONTEXT',
+        message: `This voucher can only be used for ${voucher.applies_to}`
+      };
+    }
+
     // Check first purchase requirement
     if (voucher.requires_first_purchase) {
       const isFirst = await isFirstTimePurchaser(userId);
       if (!isFirst) {
         return { valid: false, error: 'NOT_FIRST_PURCHASE', message: 'This voucher is only valid for first-time purchases' };
       }
-    }
-    
-    // Check application scope
-    // Wallet credit vouchers can be used from any context since they just add funds
-    const isWalletCredit = voucher.voucher_type === VOUCHER_TYPES.WALLET_CREDIT;
-    if (!isWalletCredit && voucher.applies_to !== 'all' && voucher.applies_to !== context) {
-      return { 
-        valid: false, 
-        error: 'WRONG_CONTEXT', 
-        message: `This voucher can only be used for ${voucher.applies_to}` 
-      };
     }
     
     // Check specific service ID for targeted vouchers
@@ -307,7 +307,13 @@ export async function validateVoucher({ code, userId, userRole, context, amount,
     };
     
   } catch (error) {
-    logger.error('Error validating voucher', { code, userId, error: error.message });
+    logger.error('Error validating voucher', {
+      code, userId,
+      error: error.message,
+      stack: error.stack,
+      pgErrorCode: error.code,
+      pgWhere: error.where
+    });
     return { valid: false, error: 'SYSTEM_ERROR', message: 'Unable to validate voucher at this time' };
   }
 }
