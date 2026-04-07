@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 
@@ -32,12 +33,45 @@ const StatPill = ({ label, value, accentKey }) => (
   </div>
 );
 
+const CollapsibleStatGroup = ({ icon, label, items, isExpanded, onToggle }) => (
+  <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+    <button
+      onClick={onToggle}
+      className="w-full px-4 py-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-xl">{icon}</span>
+        <h3 className="font-duotone-bold text-sm text-slate-900 uppercase tracking-wide">{label}</h3>
+      </div>
+      <ChevronDownIcon className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+    </button>
+
+    {isExpanded && (
+      <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/30 overflow-x-auto">
+        <div className="flex gap-3 scrollbar-none">
+          {items.map((item) => (
+            <StatPill key={item.accentKey} label={item.label} value={item.value} accentKey={item.accentKey} />
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 const StatsStrip = ({ stats, businessCurrency }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary } = useWalletSummary({ enabled: true, currency: storageCurrency });
 
-  const items = useMemo(() => {
+  const [expandedSections, setExpandedSections] = useState({
+    lessons: true,
+    rentals: false,
+    accommodations: false,
+    shop: false,
+    wallet: false
+  });
+
+  const statGroups = useMemo(() => {
     // Lessons
     const completedLessons = stats?.completedSessions ?? 0;
     const upcomingLessons = stats?.upcomingSessions ?? 0;
@@ -76,34 +110,73 @@ const StatsStrip = ({ stats, businessCurrency }) => {
       totalBalance = (singleCur === userCurrency || !convertCurrency) ? singleAmt : convertCurrency(singleAmt, singleCur, userCurrency);
     }
 
-    return [
-      // Lessons
-      { label: 'Completed', value: completedLessons, accentKey: 'completed' },
-      { label: 'Upcoming',  value: upcomingLessons,  accentKey: 'upcoming'  },
-      { label: 'Total hours', value: totalHours,     accentKey: 'hours'     },
-      // Rentals
-      { label: 'Rentals Done', value: completedRentals, accentKey: 'rentals_completed' },
-      { label: 'Rentals Upcoming', value: upcomingRentals, accentKey: 'rentals_upcoming' },
-      { label: 'Rental Days', value: totalRentalDays, accentKey: 'rentals_days' },
-      { label: 'Spent (Rentals)', value: formatCurrency(totalRentalSpent, userCurrency), accentKey: 'rentals_spent' },
-      // Accommodations
-      { label: 'Stays Done', value: completedAccommodations, accentKey: 'accommodations_completed' },
-      { label: 'Stays Upcoming', value: upcomingAccommodations, accentKey: 'accommodations_upcoming' },
-      { label: 'Nights', value: totalAccommodationNights, accentKey: 'accommodations_nights' },
-      { label: 'Spent (Stays)', value: formatCurrency(totalAccommodationSpent, userCurrency), accentKey: 'accommodations_spent' },
-      // Shop
-      { label: 'Orders Done', value: completedOrders, accentKey: 'orders_completed' },
-      { label: 'Orders Pending', value: pendingOrders, accentKey: 'orders_pending' },
-      { label: 'Spent (Shop)', value: formatCurrency(totalOrdersSpent, userCurrency), accentKey: 'orders_spent' },
-      // Wallet
-      { label: 'Balance', value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
-    ];
+    return {
+      lessons: {
+        icon: '📚',
+        label: 'Lessons',
+        items: [
+          { label: 'Completed', value: completedLessons, accentKey: 'completed' },
+          { label: 'Upcoming',  value: upcomingLessons,  accentKey: 'upcoming'  },
+          { label: 'Total hours', value: totalHours,     accentKey: 'hours'     },
+        ]
+      },
+      rentals: {
+        icon: '🎒',
+        label: 'Rentals',
+        items: [
+          { label: 'Completed', value: completedRentals, accentKey: 'rentals_completed' },
+          { label: 'Upcoming', value: upcomingRentals, accentKey: 'rentals_upcoming' },
+          { label: 'Days', value: totalRentalDays, accentKey: 'rentals_days' },
+          { label: 'Spent', value: formatCurrency(totalRentalSpent, userCurrency), accentKey: 'rentals_spent' },
+        ]
+      },
+      accommodations: {
+        icon: '🏨',
+        label: 'Accommodations',
+        items: [
+          { label: 'Completed', value: completedAccommodations, accentKey: 'accommodations_completed' },
+          { label: 'Upcoming', value: upcomingAccommodations, accentKey: 'accommodations_upcoming' },
+          { label: 'Nights', value: totalAccommodationNights, accentKey: 'accommodations_nights' },
+          { label: 'Spent', value: formatCurrency(totalAccommodationSpent, userCurrency), accentKey: 'accommodations_spent' },
+        ]
+      },
+      shop: {
+        icon: '🛍️',
+        label: 'Shop',
+        items: [
+          { label: 'Completed', value: completedOrders, accentKey: 'orders_completed' },
+          { label: 'Pending', value: pendingOrders, accentKey: 'orders_pending' },
+          { label: 'Spent', value: formatCurrency(totalOrdersSpent, userCurrency), accentKey: 'orders_spent' },
+        ]
+      },
+      wallet: {
+        icon: '💰',
+        label: 'Wallet',
+        items: [
+          { label: 'Balance', value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
+        ]
+      }
+    };
   }, [stats, walletSummary, formatCurrency, convertCurrency, userCurrency]);
 
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   return (
-    <div className="flex gap-3 overflow-x-auto scrollbar-none lg:grid lg:grid-cols-4 lg:overflow-visible">
-      {items.map((item) => (
-        <StatPill key={item.accentKey} label={item.label} value={item.value} accentKey={item.accentKey} />
+    <div className="space-y-3">
+      {Object.entries(statGroups).map(([key, group]) => (
+        <CollapsibleStatGroup
+          key={key}
+          icon={group.icon}
+          label={group.label}
+          items={group.items}
+          isExpanded={expandedSections[key]}
+          onToggle={() => toggleSection(key)}
+        />
       ))}
     </div>
   );
