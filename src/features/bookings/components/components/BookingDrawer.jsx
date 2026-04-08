@@ -348,7 +348,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       return { ...base, date: selectedSlot.date || '', startTime: selectedSlot.startTime || '', endTime: selectedSlot.endTime || '', instructorId: selectedSlot.instructorId || base.instructorId, instructorName: selectedSlot.instructorName || base.instructorName };
     }
     if (prefilledDate) return { ...base, date: prefilledDate };
-    return base;
+    // Default to today's date
+    return { ...base, date: dayjs().format('YYYY-MM-DD') };
   }, [prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, selectedSlot]);
 
   const { formData, updateFormData, resetFormData, validateStep, hasUnsavedChanges } = useBookingForm(initialFormData);

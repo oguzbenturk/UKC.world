@@ -6,6 +6,7 @@ import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { AcademyBrandLockup } from '@/features/outsider/components/AcademyBrandLockup';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import { usePageSEO } from '@/shared/utils/seo';
 
@@ -215,6 +216,8 @@ const ExperienceLandingPage = () => {
           <ContactOptionsBanner />
         </div>
       </div>
+
+      <GoogleReviewsStrip />
 
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center py-12" style={{ background: '#0d1511' }}>

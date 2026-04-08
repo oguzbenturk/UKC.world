@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import { usePageSEO } from '@/shared/utils/seo';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const GuestLandingPage = () => {
   usePageSEO({
@@ -261,6 +262,8 @@ const GuestLandingPage = () => {
           </div>
         </div>
       </div>
+
+      <GoogleReviewsStrip />
 
     </div>
   );

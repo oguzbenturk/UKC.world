@@ -21,6 +21,7 @@ import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { AcademyBrandLockup } from '@/features/outsider/components/AcademyBrandLockup';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const ACADEMY_NAV_ITEMS = [
   { id: 'kite-section', label: 'KITE' },
@@ -378,6 +379,9 @@ const AcademyLandingPage = () => {
            scrollbar-width: none;
          }
        `}</style>
+
+      <GoogleReviewsStrip />
+
       <div className="flex w-full flex-col items-center justify-center px-4 pt-12 pb-24 sm:px-6 sm:pt-16 sm:pb-32 lg:px-8">
         <AcademyBrandLockup />
       </div>

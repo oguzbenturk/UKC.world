@@ -17,6 +17,7 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const EQUIPMENT_TYPES = [
   { value: 'kite', label: 'Kite' },
@@ -541,6 +542,8 @@ const CareLandingPage = () => {
           )}
         </div>
       )}
+
+      <GoogleReviewsStrip />
 
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>

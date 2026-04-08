@@ -7,6 +7,7 @@ import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { AcademyBrandLockup } from '@/features/outsider/components/AcademyBrandLockup';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import standardRentalHeroBg from '../../../../DuotoneFonts/DPSLOGOS/Website-DSC07450.jpg';
 
@@ -300,6 +301,8 @@ const RentalLandingPage = () => {
           <ContactOptionsBanner />
         </div>
       </div>
+
+      <GoogleReviewsStrip />
 
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '16px 0 16px 0' }}>

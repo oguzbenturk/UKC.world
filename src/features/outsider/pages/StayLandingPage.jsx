@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import { Button } from 'antd';
 import {
   HomeOutlined,
@@ -11,48 +12,19 @@ import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
-import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
+import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
-
-const STAY_NAV_ITEMS = [
-  { id: 'hotel-section', label: 'HOTEL' },
-  { id: 'home-section', label: 'HOME' },
-];
 
 const StayLandingPage = () => {
   const navigate = useNavigate();
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
-  const [activeSection, setActiveSection] = useState('hotel-section');
 
   usePageSEO({
     title: 'Stay | UKC Accommodation',
     description: 'Find your perfect stay. Choose from our comfortable Burlahan Hotel or cozy Home Accommodations.'
   });
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = ['hotel-section', 'home-section'];
-      
-      const scrollPosition = window.scrollY + window.innerHeight / 3;
-
-      for (const sectionId of sections) {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          const { offsetTop, offsetHeight } = element;
-          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-            setActiveSection(sectionId);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Check on mount
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const handleBookService = (category = 'accommodation') => {
     setBookingInitialData({ serviceCategory: category });
@@ -64,43 +36,54 @@ const StayLandingPage = () => {
     setBookingInitialData({});
   };
 
-  // Helper to scroll to specific sections
-  const scrollToSection = (sectionId) => {
-    const target = document.getElementById(sectionId);
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setActiveSection(sectionId);
-  };
-
   return (
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-blue-400/30 relative z-0">
-      
-      {/* Duotone Pro Center Urla Logo */}
-      <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
-        <img
-          src={dpsLogo}
-          alt="Duotone Pro Center Urla Logo"
-          className="w-full"
-          style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
-        />
+
+      {/* ── White brand banner ── */}
+      <div className="relative z-10 flex min-h-[28dvh] flex-col bg-white">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pt-10 pb-6 sm:px-6 sm:pt-12 sm:pb-8 lg:px-8">
+          <div className="flex flex-col items-center relative z-[1]">
+            <div className="flex items-baseline">
+              <span
+                className="font-gotham-bold antialiased text-[#1a1a1a]"
+                style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', letterSpacing: '0.1em', textRendering: 'geometricPrecision' }}
+              >
+                UKC
+              </span>
+              <UkcBrandDot style={{ width: '0.13em', height: '0.13em', top: '-0.04em', fontSize: 'clamp(3rem, 8vw, 6rem)', marginLeft: '0.04em', marginRight: '0.18em' }} />
+              <span
+                className="font-gotham-bold antialiased bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent"
+                style={{ letterSpacing: '0.02em', fontSize: 'clamp(2.5rem, 6.5vw, 5rem)', textRendering: 'geometricPrecision' }}
+              >
+                Stay
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex w-full justify-center px-4 pb-3 pt-2 sm:px-6 sm:pb-5 sm:pt-3 lg:px-8">
+          <FuturisticScrollCue
+            ariaLabel="Scroll to accommodation options"
+            onActivate={() => document.getElementById('hotel-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          />
+        </div>
       </div>
-      
-      {/* Top Category Nav - Sticky */}
-      <StickyNavBar
-        className="sticky top-0 z-50"
-        bgColor="bg-[#0d1511]"
-        items={STAY_NAV_ITEMS}
-        activeItem={activeSection}
-        onItemClick={(id) => scrollToSection(id)}
-      />
 
       {/* Hotel Section */}
-      <div id="hotel-section" className="relative min-h-[500px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
-        {/* Background Image - Placeholder until real image provided */}
-        <div 
+      <div id="hotel-section" className="relative min-h-[500px] flex flex-col group">
+        {/* White dissolve from banner seam into photo */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-32 sm:h-40 md:h-48"
+          style={{
+            background: 'linear-gradient(to bottom, #ffffff 0%, rgba(255,255,255,0.92) 10%, rgba(255,255,255,0.55) 32%, rgba(255,255,255,0.2) 58%, rgba(255,255,255,0.06) 78%, rgba(255,255,255,0) 100%)',
+          }}
+          aria-hidden
+        />
+        {/* Background Image */}
+        <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
-          style={{ 
-             backgroundImage: "url('/Images/ukc/evo-rent-dacrpm.jpg')", // Cleaner placeholder
+          style={{
+             backgroundImage: "url('/Images/ukc/burlahan-hotel.jpg')",
              backgroundPosition: 'center center'
           }}
         >
@@ -133,11 +116,11 @@ const StayLandingPage = () => {
 
       {/* Home Section */}
       <div id="home-section" className="relative min-h-[500px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
-        {/* Background Image - Placeholder until real image provided */}
-        <div 
+        {/* Background Image */}
+        <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
-          style={{ 
-             backgroundImage: "url('/Images/ukc/evo-sls-header.jpg')", // Cleaner placeholder
+          style={{
+             backgroundImage: "url('/Images/ukc/stay-home.jpeg')",
              backgroundPosition: 'center center'
           }}
         >
@@ -194,6 +177,8 @@ const StayLandingPage = () => {
           <ContactOptionsBanner />
         </div>
       </div>
+
+      <GoogleReviewsStrip />
 
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>

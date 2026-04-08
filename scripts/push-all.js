@@ -248,17 +248,18 @@ async function main() {
         await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
         console.log('   ✓ backend/.env.production uploaded');
 
-        // Upload pre-built frontend dist to /tmp (survives git clean in deploy script)
+        // Upload pre-built frontend dist directly to repo dir
+        // (git reset --hard preserves gitignored/untracked files, so no /tmp staging needed)
         console.log('📤 Uploading frontend dist to server...');
         const localDistDir = path.join(cwd, 'dist');
-        const remoteDistTmp = `/tmp/plannivo-dist`;
-        await ssh.execCommand(`rm -rf ${remoteDistTmp} && mkdir -p ${remoteDistTmp}`);
-        await ssh.putDirectory(localDistDir, remoteDistTmp, {
+        const remoteDistDir = `${remotePath}/dist`;
+        await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
+        await ssh.putDirectory(localDistDir, remoteDistDir, {
           recursive: true,
           concurrency: 5,
           validate: () => true,
         });
-        console.log('   ✓ Frontend dist uploaded to /tmp/plannivo-dist');
+        console.log('   ✓ Frontend dist uploaded');
 
         // Upload SSL certificates (gitignored, must be transferred each deploy)
         const localSslDir = path.join(cwd, 'SSL');
@@ -285,126 +286,72 @@ async function main() {
 
         const script = `set -e
 cd ${remotePath}
-git clean -fd
-git checkout .
+
+echo "=== Plannivo Deploy ==="
+
+# 1. Update code (git reset --hard preserves gitignored: dist/, SSL/, backend/.env.production)
+echo "Pulling latest code..."
 git fetch --all
 git reset --hard origin/${remoteBranch}
-# Restore pre-built dist (uploaded to /tmp before git clean wiped it)
-echo "Restoring pre-built frontend dist..."
-cp -r /tmp/plannivo-dist ${remotePath}/dist
-echo "  dist restored ($(ls ${remotePath}/dist | wc -l) files)"
-# Free up port 80/443 if something else is using them
-echo "Checking for existing services on ports 80 and 443..."
-if command -v systemctl >/dev/null 2>&1; then
-  systemctl stop nginx 2>/dev/null || true
-fi
-if command -v service >/dev/null 2>&1; then
-  service nginx stop 2>/dev/null || true
-fi
-DOCKER_80_CONTAINERS=$(docker ps --format '{{.ID}} {{.Ports}}' | awk '/:80->/ {print $1}')
-DOCKER_443_CONTAINERS=$(docker ps --format '{{.ID}} {{.Ports}}' | awk '/:443->/ {print $1}')
-if [ -n "$DOCKER_80_CONTAINERS$DOCKER_443_CONTAINERS" ]; then
-  echo "Stopping containers publishing :80/:443: $DOCKER_80_CONTAINERS $DOCKER_443_CONTAINERS"
-  docker rm -f $DOCKER_80_CONTAINERS $DOCKER_443_CONTAINERS 2>/dev/null || true
-fi
-if [ ! -f docker-compose.production.yml ]; then
-  echo "ERROR: docker-compose.production.yml not found on server. Aborting."
-  exit 1
-fi
-# Build images sequentially to avoid OOM on memory-constrained servers
-echo "Building backend image..."
-docker build -t plannivo_backend -f backend/Dockerfile.production backend/
-echo "Building frontend image (using pre-built dist uploaded from local machine)..."
-docker build -t plannivo_frontend -f infrastructure/Dockerfile.deploy .
 
-echo "Stopping old containers..."
-docker stop frontend backend 2>/dev/null || true
-docker rm frontend backend 2>/dev/null || true
+# 2. Verify prerequisites
+echo "Checking prerequisites..."
+for f in dist/index.html backend/.env.production SSL/fullchain.crt; do
+  if [ ! -f "$f" ]; then echo "ERROR: Missing required file: $f"; exit 1; fi
+done
+echo "  All prerequisites present."
 
-docker network create plannivo_app-network 2>/dev/null || true
-
-echo "Ensuring db and redis are running..."
-ENV_FILE="${remotePath}/backend/.env.production"
-COMPOSE_FILE="docker-compose.production.yml"
+# 3. Load env vars for compose interpolation (REDIS_PASSWORD, POSTGRES_PASSWORD, etc.)
+set -a
+. ./backend/.env.production || true
+set +a
 export COMPOSE_PROJECT_NAME=plannivo
-if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE" || true
-  set +a
-fi
-DC_OK=0
-if docker compose version >/dev/null 2>&1; then
-  if docker compose --project-name plannivo -f "$COMPOSE_FILE" up -d db redis; then DC_OK=1; fi
-fi
-if [ "$DC_OK" != "1" ] && command -v docker-compose >/dev/null 2>&1; then
-  if docker-compose --project-name plannivo -f "$COMPOSE_FILE" up -d --no-recreate db redis; then DC_OK=1; fi
-fi
-if [ "$DC_OK" != "1" ] && command -v docker-compose >/dev/null 2>&1; then
-  docker-compose --project-name plannivo -f "$COMPOSE_FILE" up -d db redis || true
-fi
-if [ "$DC_OK" != "1" ]; then
-  echo "Compose up not used or failed; starting existing db/redis containers by name..."
-  for id in $(docker ps -aqf name=plannivo_db_1) $(docker ps -aqf name=plannivo_redis_1); do
-    [ -n "$id" ] && docker start "$id" 2>/dev/null || true
-  done
-fi
-sleep 3
-# Ensure db/redis are reachable by hostname on the app network (workaround for compose v1 alias gaps)
-echo "Ensuring db/redis aliases on plannivo_app-network..."
-for id in $(docker ps -q -f name=plannivo_db_1); do
-  docker network disconnect plannivo_app-network "$id" 2>/dev/null || true
-  docker network connect --alias db plannivo_app-network "$id" 2>/dev/null || true
-done
-for id in $(docker ps -q -f name=plannivo_redis_1); do
-  docker network disconnect plannivo_app-network "$id" 2>/dev/null || true
-  docker network connect --alias redis plannivo_app-network "$id" 2>/dev/null || true
-done
 
-echo "Starting backend..."
-docker run -d --name backend \\
-  --network plannivo_app-network \\
-  --env-file ${remotePath}/backend/.env.production \\
-  -v plannivo_uploads_data:/app/uploads \\
-  --restart unless-stopped \\
-  plannivo_backend
+# 4. Build backend image (only service that needs building)
+echo "Building backend..."
+docker-compose --project-name plannivo -f docker-compose.production.yml build backend
 
+# 5. Start all services (compose handles recreate/restart automatically)
+echo "Starting all services..."
+docker-compose --project-name plannivo -f docker-compose.production.yml up -d
+
+# 6. Wait for backend health
 echo "Waiting for backend..."
-sleep 5
-
-echo "Running database migrations..."
-docker exec backend node migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
-
-echo "Starting frontend..."
-# Kill any container holding ports 8080/8443 (e.g. old compose-managed plannivo_frontend_1)
-for cid in $(docker ps -q --filter publish=8080 --filter publish=8443 2>/dev/null); do
-  echo "Removing container $cid (holding ports 8080/8443)..."
-  docker rm -f "$cid" 2>/dev/null || true
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend \\
+    node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" 2>/dev/null; then
+    echo "  Backend healthy."
+    break
+  fi
+  echo "  Waiting ($i/10)..."
+  sleep 3
 done
-# Also remove by name (handles Created-but-not-started containers from failed deploys)
-docker rm -f frontend 2>/dev/null || true
-docker run -d --name frontend \\
-  --network plannivo_app-network \\
-  -p 127.0.0.1:8080:8080 -p 127.0.0.1:8443:8443 \\
-  -v /root/acme-webroot:/var/www/acme:ro \\
-  -v ${remotePath}/SSL:/etc/ssl/plannivo:ro \\
-  -v plannivo_uploads_data:/var/www/uploads:ro \\
-  --restart unless-stopped \\
-  plannivo_frontend
 
-docker ps
-echo "Checking backend health..."
+# 7. Run database migrations
+echo "Running migrations..."
+docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend node migrate.js up \\
+  && echo "  Migrations: OK" \\
+  || echo "  Migrations: FAILED (check logs above)"
+
+# 8. Health checks
+echo ""
+echo "Checking frontend..."
 for i in 1 2 3 4 5; do
-  if docker exec backend node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" >/dev/null 2>&1; then
-    echo "Backend Health: OK"; break; fi; echo "waiting backend ($i)..."; sleep 4; done
-if ! docker exec backend node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" >/dev/null 2>&1; then
-  echo "Backend Health: FAIL"; docker logs backend --tail=200 || true; fi
-echo "Checking frontend health..."
-for i in 1 2 3 4 5; do
-  if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
-    echo "Frontend Health: OK"; break; fi; echo "waiting frontend ($i)..."; sleep 4; done
-if ! curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
-  echo "Frontend Health: FAIL"; docker logs frontend --tail=200 || true; fi`;
+  if curl -fsS http://localhost:8080/health >/dev/null 2>&1; then
+    echo "  Frontend healthy."
+    break
+  fi
+  echo "  Waiting ($i/5)..."
+  sleep 3
+done
+
+# 9. Final status
+echo ""
+echo "=== Container Status ==="
+docker-compose --project-name plannivo -f docker-compose.production.yml ps
+echo ""
+echo "=== Deploy Complete ==="
+`;
 
         console.log('🔧 Running remote deploy script...');
         const res = await ssh.execCommand(script, { cwd: remotePath });

@@ -16,6 +16,7 @@ import PackagePurchaseModal from './PackagePurchaseModal';
 import AllInclusiveBookingModal from './AllInclusiveBookingModal';
 import DownwinderBookingModal from './DownwinderBookingModal';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const normalize = (v) => String(v || '').toLowerCase();
 
@@ -714,6 +715,8 @@ const ExperiencePackagesPage = ({
           notification.error({ message: 'Payment Failed', description: msg || 'Payment could not be completed.' });
         }}
       />
+
+      <GoogleReviewsStrip />
     </div>
   );
 };
