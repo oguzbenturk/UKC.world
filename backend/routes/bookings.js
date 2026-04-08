@@ -848,11 +848,12 @@ router.get('/pending-transfers', authenticateJWT, authorizeRoles(['admin', 'mana
       LEFT JOIN wallet_bank_accounts ba ON r.bank_account_id = ba.id
       LEFT JOIN shop_orders so ON r.shop_order_id = so.id
       WHERE r.status = $1
+        AND r.accommodation_booking_id IS NULL
       ORDER BY r.created_at DESC
       LIMIT $2 OFFSET $3
     `;
-    
-    const countQuery = `SELECT COUNT(*) FROM bank_transfer_receipts WHERE status = $1`;
+
+    const countQuery = `SELECT COUNT(*) FROM bank_transfer_receipts WHERE status = $1 AND accommodation_booking_id IS NULL`;
     
     const [result, countResult] = await Promise.all([
       pool.query(query, [status, limit, offset]),

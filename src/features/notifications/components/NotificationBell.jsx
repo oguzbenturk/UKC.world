@@ -235,6 +235,11 @@ const NotificationBell = () => {
       const href = notification.data?.cta?.href || notification.data?.link;
       if (href) {
         setOpen(false);
+        // Accommodation booking notifications → Pending Payments tab
+        if (notification.type === 'accommodation_booking' || notification.data?.bookingType === 'accommodation') {
+          navigate('/calendars/lessons?tab=pending-payments');
+          return;
+        }
         // Redirect rental booking notifications to the Rental Requests tab
         const sType = notification.data?.serviceType;
         const sName = (notification.data?.serviceName || '').toLowerCase();

@@ -638,12 +638,15 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			return res.status(400).json({ error: `Unit capacity is ${unitData.capacity} guests` });
 		}
 
-		// Check for overlapping bookings (exclude unpaid credit card bookings)
+		// Check for overlapping bookings.
+		// Exclude: cancelled, failed payments, and credit_card pending_payment (abandoned Iyzico sessions).
+		// Bank transfer deposits with pending_payment MUST block the slot while awaiting admin approval.
 		const overlap = await client.query(
-			`SELECT id FROM accommodation_bookings 
-			 WHERE unit_id = $1 
+			`SELECT id FROM accommodation_bookings
+			 WHERE unit_id = $1
 			 AND status NOT IN ('cancelled')
-			 AND COALESCE(payment_status, '') NOT IN ('pending_payment', 'failed')
+			 AND COALESCE(payment_status, '') != 'failed'
+			 AND NOT (payment_method = 'credit_card' AND COALESCE(payment_status, '') = 'pending_payment')
 			 AND (check_in_date, check_out_date) OVERLAPS ($2::date, $3::date)`,
 			[unit_id, check_in_date, check_out_date]
 		);
@@ -759,7 +762,8 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 						totalPrice: total_price,
 						paymentMethod: payment_method,
 						paymentStatus: paymentStatus,
-						cta: { label: 'View Booking', href: `/admin/accommodation/bookings/${bookingId}` }
+						cta: { label: 'View Payment', href: `/calendars/lessons?tab=pending-payments` },
+					bookingType: 'accommodation'
 					},
 					idempotencyPrefix: `accommodation-booking:${bookingId}`,
 					excludeUserIds: []
