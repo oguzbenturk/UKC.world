@@ -84,11 +84,12 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
 
   // ─── Amenities ────────────────────────────────────────────────────────────
   const amenities = (() => {
-    if (Array.isArray(unit.amenities)) return unit.amenities;
-    if (typeof unit.amenities === 'string') {
-      try { return JSON.parse(unit.amenities); } catch { return []; }
+    let list = [];
+    if (Array.isArray(unit.amenities)) list = unit.amenities;
+    else if (typeof unit.amenities === 'string') {
+      try { list = JSON.parse(unit.amenities); } catch { return []; }
     }
-    return [];
+    return list.filter((a) => typeof a === 'string' && a.trim() && !a.startsWith('__meta_'));
   })();
 
   // ─── Price helpers ────────────────────────────────────────────────────────
