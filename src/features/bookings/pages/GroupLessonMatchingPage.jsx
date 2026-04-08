@@ -49,6 +49,14 @@ const GroupLessonMatchingPage = () => {
   const [searchParams] = useSearchParams();
   const [selectedGroupBookingId, setSelectedGroupBookingId] = useState(null);
 
+  // Auto-open drawer when groupBookingId is present in URL (e.g. from notification click)
+  useEffect(() => {
+    const idFromUrl = searchParams.get('groupBookingId');
+    if (idFromUrl) {
+      setSelectedGroupBookingId(idFromUrl);
+    }
+  }, [searchParams]);
+
   // -- Queries ---------------------------------------------------------
 
   const { data: requests = [], isLoading, refetch } = useQuery({

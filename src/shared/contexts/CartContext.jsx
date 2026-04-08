@@ -103,6 +103,13 @@ export const CartProvider = ({ children }) => {
     message.info('Cart cleared');
   };
 
+  // Listen for cross-component cart clear (e.g. after successful Iyzico payment redirect)
+  useEffect(() => {
+    const handler = () => setCart([]);
+    window.addEventListener('shop:cartClear', handler);
+    return () => window.removeEventListener('shop:cartClear', handler);
+  }, []);
+
   const addToWishlist = (product) => {
     setWishlist(prevWishlist => {
       if (prevWishlist.find(item => item.id === product.id)) {

@@ -314,7 +314,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       });
 
       if (response.data.paymentPageUrl) {
-        clearCart();
+        // Do NOT clear cart here — payment hasn't happened yet.
+        // Cart will be cleared by PaymentCallback on confirmed success.
         window.location.href = response.data.paymentPageUrl;
         return;
       }

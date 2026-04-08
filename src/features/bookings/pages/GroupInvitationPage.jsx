@@ -1,12 +1,12 @@
 /**
  * Group Booking Invitation Page
- * 
+ *
  * Flow for unauthenticated users:
  *   1. Show lesson details (public, no auth)
  *   2. Show inline registration form
  *   3. Auto-login after registration
  *   4. Auto-accept invitation after login
- * 
+ *
  * Flow for authenticated users:
  *   1. Show lesson details
  *   2. Accept or Decline
@@ -15,35 +15,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Card,
-  Typography,
   Button,
-  Space,
   Spin,
-  Result,
-  Descriptions,
   Modal,
   Input,
   Form,
   Alert,
   Tag,
-  Divider,
-  Avatar,
-  Progress,
   Select,
-  message
+  Progress,
 } from 'antd';
 import {
   UserGroupIcon,
-  CalendarIcon,
+  CalendarDaysIcon,
   ClockIcon,
   CurrencyEuroIcon,
   CheckCircleIcon,
   XCircleIcon,
   UserIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
+  CheckCircleFilled,
   UserOutlined,
   MailOutlined,
   LockOutlined,
@@ -59,8 +53,8 @@ import {
 } from '@/shared/services/auth/authService';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { message } from '@/shared/utils/antdStatic';
 
-const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -76,12 +70,24 @@ const fallbackCurrencies = [
 
 const currencySymbols = { EUR: '€', USD: '$', TRY: '₺', GBP: '£', CHF: 'CHF' };
 
+const InfoTile = ({ icon: Icon, iconBg, iconColor, label, children }) => (
+  <div className="flex items-start gap-3">
+    <div className={`p-2.5 rounded-xl shrink-0 ${iconBg}`}>
+      <Icon className={`w-5 h-5 ${iconColor}`} />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+      {children}
+    </div>
+  </div>
+);
+
 const GroupInvitationPage = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, login, refreshToken } = useAuth();
   const { userCurrency, convertCurrency, formatCurrency } = useCurrency();
-  
+
   const [loading, setLoading] = useState(true);
   const [invitation, setInvitation] = useState(null);
   const [error, setError] = useState(null);
@@ -91,29 +97,20 @@ const GroupInvitationPage = () => {
   const [declineReason, setDeclineReason] = useState('');
 
   // Registration / login inline state
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [activeForm, setActiveForm] = useState(null); // 'register' | 'login' | null
   const [registering, setRegistering] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [registerForm] = Form.useForm();
   const [loginForm] = Form.useForm();
   const pendingAcceptRef = useRef(false);
   const [allowedCurrencies, setAllowedCurrencies] = useState([]);
-  
-  useEffect(() => {
-    fetchInvitation();
-  }, [token]);
+
+  useEffect(() => { fetchInvitation(); }, [token]);
 
   useEffect(() => {
-    const fetchCurrencies = async () => {
-      try {
-        const response = await apiClient.get('/settings/registration-currencies');
-        setAllowedCurrencies(response.data.currencies || ['EUR', 'USD', 'TRY']);
-      } catch {
-        setAllowedCurrencies(['EUR', 'USD', 'TRY']);
-      }
-    };
-    fetchCurrencies();
+    apiClient.get('/settings/registration-currencies')
+      .then(r => setAllowedCurrencies(r.data.currencies || ['EUR', 'USD', 'TRY']))
+      .catch(() => setAllowedCurrencies(['EUR', 'USD', 'TRY']));
   }, []);
 
   const currencyOptions = allowedCurrencies.length > 0
@@ -127,7 +124,7 @@ const GroupInvitationPage = () => {
       doAccept();
     }
   }, [isAuthenticated, invitation]);
-  
+
   const fetchInvitation = async () => {
     try {
       setLoading(true);
@@ -135,8 +132,7 @@ const GroupInvitationPage = () => {
       const response = await getInvitationDetails(token);
       setInvitation(response.invitation);
     } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to load invitation';
-      setError(errorMessage);
+      setError(err.response?.data?.error || 'Failed to load invitation');
     } finally {
       setLoading(false);
     }
@@ -146,11 +142,9 @@ const GroupInvitationPage = () => {
     try {
       setAccepting(true);
       const response = await acceptInvitation(token);
-      
       if (response.roleUpgrade?.upgraded && refreshToken) {
         await refreshToken();
       }
-      
       message.success('Invitation accepted! You are now part of this group lesson.');
       navigate(`/student/group-bookings/${response.groupBookingId}`);
     } catch (err) {
@@ -159,12 +153,10 @@ const GroupInvitationPage = () => {
       setAccepting(false);
     }
   };
-  
-  const handleAccept = async () => {
+
+  const handleAccept = () => {
     if (!isAuthenticated) {
-      // Show inline registration form
-      setShowRegisterForm(true);
-      setShowLoginForm(false);
+      setActiveForm('register');
       return;
     }
     doAccept();
@@ -174,7 +166,6 @@ const GroupInvitationPage = () => {
     try {
       const values = await registerForm.validateFields();
       setRegistering(true);
-
       await apiClient.post('/auth/register', {
         first_name: values.first_name,
         last_name: values.last_name,
@@ -182,19 +173,13 @@ const GroupInvitationPage = () => {
         password: values.password,
         preferred_currency: values.preferred_currency,
       });
-
-      // Flag that we want to auto-accept after login
       pendingAcceptRef.current = true;
-
-      // Auto-login
       const loggedIn = await login(values.email.toLowerCase(), values.password);
       if (loggedIn) {
         message.success(`Welcome, ${values.first_name}! Accepting your invitation...`);
-        // The useEffect above will trigger doAccept when isAuthenticated flips
       } else {
-        message.error('Account created but auto-login failed. Please log in manually.');
-        setShowRegisterForm(false);
-        setShowLoginForm(true);
+        message.error('Account created but auto-login failed. Please log in.');
+        setActiveForm('login');
       }
     } catch (err) {
       if (err.response?.data?.code === 'LOGIN_DISABLED') {
@@ -202,10 +187,8 @@ const GroupInvitationPage = () => {
       } else if (err.message === SIGN_IN_DISABLED_USER_MESSAGE) {
         message.info(SIGN_IN_DISABLED_USER_MESSAGE);
       } else {
-        const errorMessage = err.response?.data?.error || err.message || 'Registration failed';
-        if (errorMessage !== 'Validation failed') {
-          message.error(errorMessage);
-        }
+        const msg = err.response?.data?.error || err.message || 'Registration failed';
+        if (msg !== 'Validation failed') message.error(msg);
       }
     } finally {
       setRegistering(false);
@@ -216,9 +199,7 @@ const GroupInvitationPage = () => {
     try {
       const values = await loginForm.validateFields();
       setLoggingIn(true);
-
       pendingAcceptRef.current = true;
-
       const loggedIn = await login(values.email.toLowerCase(), values.password);
       if (loggedIn) {
         message.success('Logged in! Accepting your invitation...');
@@ -227,7 +208,7 @@ const GroupInvitationPage = () => {
         pendingAcceptRef.current = false;
       }
     } catch (err) {
-      if (err.errorFields) return; // form validation
+      if (err.errorFields) return;
       if (err.message === SIGN_IN_DISABLED_USER_MESSAGE) {
         message.info(SIGN_IN_DISABLED_USER_MESSAGE);
       } else {
@@ -238,7 +219,7 @@ const GroupInvitationPage = () => {
       setLoggingIn(false);
     }
   };
-  
+
   const handleDecline = async () => {
     try {
       setDeclining(true);
@@ -253,344 +234,245 @@ const GroupInvitationPage = () => {
     }
   };
 
-  // Password strength indicator
+  // Password strength
   const passwordValue = Form.useWatch('password', registerForm) || '';
-  const getPasswordStrength = (pw) => {
-    if (!pw) return { pct: 0, label: '', color: '#d9d9d9' };
-    let score = 0;
-    if (pw.length >= 8) score++;
-    if (/[a-z]/.test(pw)) score++;
-    if (/[A-Z]/.test(pw)) score++;
-    if (/\d/.test(pw)) score++;
-    if (/[@$!%*?&]/.test(pw)) score++;
-    if (score <= 2) return { pct: 30, label: 'Weak', color: '#ff4d4f' };
-    if (score <= 3) return { pct: 55, label: 'Fair', color: '#faad14' };
-    if (score <= 4) return { pct: 80, label: 'Good', color: '#1890ff' };
-    return { pct: 100, label: 'Strong', color: '#52c41a' };
-  };
-  const pwStrength = getPasswordStrength(passwordValue);
+  const pwStrength = (() => {
+    if (!passwordValue) return { pct: 0, label: '', color: '#e5e7eb' };
+    let s = 0;
+    if (passwordValue.length >= 8) s++;
+    if (/[a-z]/.test(passwordValue)) s++;
+    if (/[A-Z]/.test(passwordValue)) s++;
+    if (/\d/.test(passwordValue)) s++;
+    if (/[@$!%*?&]/.test(passwordValue)) s++;
+    if (s <= 2) return { pct: 30, label: 'Weak', color: '#ef4444' };
+    if (s <= 3) return { pct: 55, label: 'Fair', color: '#f59e0b' };
+    if (s <= 4) return { pct: 80, label: 'Good', color: '#3b82f6' };
+    return { pct: 100, label: 'Strong', color: '#10b981' };
+  })();
 
   const lessonDate = invitation?.scheduledDate ? dayjs(invitation.scheduledDate) : null;
-  const now = dayjs();
-  const diffDays = lessonDate ? lessonDate.startOf('day').diff(now.startOf('day'), 'day') : null;
-  const dateChip = diffDays === null
-    ? null
-    : diffDays === 0
-      ? { color: 'red', label: 'Today' }
-      : diffDays === 1
-        ? { color: 'orange', label: 'Tomorrow' }
-        : diffDays > 1
-          ? { color: 'blue', label: `In ${diffDays} days` }
-          : { color: 'default', label: `${Math.abs(diffDays)} days ago` };
+  const diffDays = lessonDate ? lessonDate.startOf('day').diff(dayjs().startOf('day'), 'day') : null;
+  const dateChip =
+    diffDays === null ? null
+    : diffDays === 0 ? { color: 'red', label: 'Today' }
+    : diffDays === 1 ? { color: 'orange', label: 'Tomorrow' }
+    : diffDays > 1 ? { color: 'blue', label: `In ${diffDays} days` }
+    : { color: 'default', label: `${Math.abs(diffDays)} days ago` };
 
   const priceMeta = (() => {
-    if (!invitation) {
-      return { amount: 0, currency: 'EUR', label: 'per person', formatted: '€0.00' };
-    }
-
+    if (!invitation) return { formatted: '€0.00', label: 'per person' };
     if (isAuthenticated && convertCurrency) {
       const isPackage = !!invitation.packageId;
-      const basePrice = isPackage ? (invitation.packagePrice || 0) : (invitation.pricePerPerson || 0);
-      const converted = convertCurrency(basePrice, invitation.currency, userCurrency);
+      const base = isPackage ? (invitation.packagePrice || 0) : (invitation.pricePerPerson || 0);
+      const conv = convertCurrency(base, invitation.currency, userCurrency);
       return {
-        amount: converted,
-        currency: userCurrency,
+        formatted: formatCurrency ? formatCurrency(conv, userCurrency) : `${userCurrency} ${conv.toFixed(2)}`,
         label: isPackage ? 'package price' : 'per person',
-        formatted: formatCurrency ? formatCurrency(converted, userCurrency) : `${userCurrency} ${converted.toFixed(2)}`,
       };
     }
-
     const amount = invitation.displayPrice || invitation.pricePerPerson || 0;
     const currency = invitation.displayCurrency || invitation.currency || 'EUR';
-    const symbol = currencySymbols[currency] || currency;
     return {
-      amount,
-      currency,
+      formatted: `${currencySymbols[currency] || currency}${Number(amount).toFixed(2)}`,
       label: invitation.isPackageBooking ? 'package price' : 'per person',
-      formatted: `${symbol}${amount.toFixed(2)}`,
     };
   })();
-  
+
+  const spotsLeft = invitation?.spotsRemaining ?? 0;
+  const isFull = spotsLeft <= 0;
+  const spotsPercent = invitation
+    ? Math.round((invitation.currentParticipants / invitation.maxParticipants) * 100)
+    : 0;
+
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Spin size="large" />
+      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <Spin size="large" />
+          <p className="mt-4 text-sm text-slate-500">Loading your invitation...</p>
+        </div>
       </div>
     );
   }
-  
+
+  // ── Error ────────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Result
-          status="error"
-          title="Invitation Not Found"
-          subTitle={error}
-          extra={[
-            <Button key="home" type="primary" onClick={() => navigate('/')}>
-              Go to Homepage
-            </Button>
-          ]}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <ExclamationCircleIcon className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Invitation Not Found</h2>
+          <p className="text-sm text-slate-500 mb-6">{error}</p>
+          <Button type="primary" size="large" onClick={() => navigate('/')} className="!rounded-xl !px-8">
+            Go to Homepage
+          </Button>
+        </div>
       </div>
     );
   }
-  
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Avatar
-            size={64}
-            className="bg-blue-600"
-            icon={<UserGroupIcon className="w-8 h-8" />}
-          />
-          <Title level={2} className="mt-4 text-gray-800">
-            Group Lesson Invitation
-          </Title>
-          <Text type="secondary">
-            {invitation.organizerName} has invited you to join a group lesson
-          </Text>
-        </div>
 
-        <Card className="shadow-lg rounded-xl">
-          {/* Invitation Header */}
-          <div className="text-center border-b pb-6 mb-6">
-            <Tag color="blue" className="mb-4 text-base px-4 py-1">
-              {invitation.serviceName}
-            </Tag>
-            <Title level={3} className="mb-2">{invitation.groupTitle}</Title>
+  // ── Main page ────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-indigo-50">
+      {/* Hero banner */}
+      <div className="bg-gradient-to-r from-sky-600 to-indigo-600 text-white px-4 py-10 text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm mb-4">
+          <UserGroupIcon className="w-7 h-7 text-white" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-1">Group Lesson Invitation</h1>
+        <p className="text-sky-100 text-sm">
+          <span className="font-semibold text-white">{invitation.organizerName}</span> has invited you to join a group lesson
+        </p>
+        {invitation.invitationExpiresAt && (
+          <p className="text-sky-200 text-xs mt-2">
+            Expires {dayjs(invitation.invitationExpiresAt).fromNow()}
+          </p>
+        )}
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+
+        {/* Main card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+
+          {/* Lesson header */}
+          <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <Tag color="blue" className="!text-xs !font-semibold !px-2 !py-0.5 !m-0">
+                {invitation.serviceName}
+              </Tag>
+              {isFull && <Tag color="red" className="!text-xs !font-semibold !px-2 !py-0.5 !m-0">Full</Tag>}
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 leading-snug">{invitation.groupTitle}</h2>
             {invitation.groupDescription && (
-              <Paragraph type="secondary" className="mb-0">
-                {invitation.groupDescription}
-              </Paragraph>
+              <p className="text-sm text-slate-500 mt-1">{invitation.groupDescription}</p>
             )}
           </div>
 
-          {/* Greeting */}
-          {invitation.isGenericLink ? (
-            <Alert
-              type="info"
-              showIcon
-              icon={<UserGroupIcon className="w-5 h-5" />}
-              message={<span><strong>{invitation.organizerName}</strong> invited you to join a group lesson!</span>}
-              description={invitation.invitationExpiresAt && (
-                <span className="text-xs text-slate-500">This invitation expires {dayjs(invitation.invitationExpiresAt).fromNow()}</span>
-              )}
-              className="mb-6"
-            />
-          ) : (
-            <Alert
-              type="info"
-              showIcon
-              icon={<UserIcon className="w-5 h-5" />}
-              message={<span>Hello <strong>{invitation.fullName || invitation.email}</strong>!</span>}
-              description={
-                <span>
-                  <strong>{invitation.organizerName}</strong> has invited you to join this group lesson.
-                  {invitation.invitationExpiresAt && (
-                    <span className="block mt-1 text-xs text-slate-500">This invitation expires {dayjs(invitation.invitationExpiresAt).fromNow()}</span>
+          {/* Details grid */}
+          <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-5 border-b border-slate-100">
+            {invitation.scheduledDate && (
+              <InfoTile icon={CalendarDaysIcon} iconBg="bg-sky-50" iconColor="text-sky-600" label="Date">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-sm font-semibold text-slate-800">
+                    {dayjs(invitation.scheduledDate).format('ddd, MMM D, YYYY')}
+                  </span>
+                  {dateChip && (
+                    <Tag color={dateChip.color} bordered={false} className="!text-[10px] !m-0 !font-medium !px-1.5 !py-0.5">
+                      {dateChip.label}
+                    </Tag>
                   )}
+                </div>
+              </InfoTile>
+            )}
+
+            {invitation.startTime && (
+              <InfoTile icon={ClockIcon} iconBg="bg-amber-50" iconColor="text-amber-500" label="Time">
+                <span className="text-sm font-semibold text-slate-800">
+                  {invitation.startTime}
+                  {invitation.endTime && ` – ${invitation.endTime}`}
                 </span>
-              }
-              className="mb-6"
-            />
-          )}
+                {invitation.durationHours > 0 && (
+                  <span className="text-xs text-slate-400 ml-1">({invitation.durationHours}h)</span>
+                )}
+              </InfoTile>
+            )}
 
-          {/* Event Details */}
-          <div className="bg-slate-50/80 rounded-2xl p-5 mb-8 border border-slate-100 flex flex-col gap-4">
-            {/* Row 1: Date & Time */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {invitation.scheduledDate && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg shrink-0">
-                    <CalendarIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Date</Text>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Text strong className="text-sm text-slate-800">{dayjs(invitation.scheduledDate).format('dddd, MMMM D, YYYY')}</Text>
-                      {dateChip && <Tag color={dateChip.color} bordered={false} className="m-0 font-medium text-xs">{dateChip.label}</Tag>}
-                    </div>
-                  </div>
-                </div>
-              )}
+            <InfoTile icon={CurrencyEuroIcon} iconBg="bg-emerald-50" iconColor="text-emerald-600" label="Investment">
+              <span className="text-base font-bold text-emerald-600">{priceMeta.formatted}</span>
+              <span className="text-xs text-slate-400 block">{priceMeta.label}</span>
+            </InfoTile>
 
-              {invitation.startTime && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-amber-100 text-amber-600 rounded-lg shrink-0">
-                    <ClockIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Time</Text>
-                    <Text strong className="text-sm text-slate-800">
-                      {invitation.startTime}
-                      {invitation.endTime && ` - ${invitation.endTime}`}
-                      {invitation.durationHours > 0 && (
-                        <Text type="secondary" className="font-normal ml-1 text-xs">({invitation.durationHours}h)</Text>
-                      )}
-                    </Text>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="h-px bg-slate-200/60 w-full" />
-
-            {/* Row 2: Availability, Investment, Instructor */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg shrink-0">
-                  <UserGroupIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Availability</Text>
-                  <div className="flex flex-col gap-1 mt-0.5">
-                    <Text strong className="text-sm text-slate-700 leading-none">{invitation.currentParticipants} / {invitation.maxParticipants} Joined</Text>
-                    {invitation.spotsRemaining > 0 ? (
-                      <Tag color="success" bordered={false} className="m-0 text-[10px] w-fit leading-tight py-0.5 px-1.5">
-                        {invitation.spotsRemaining} spot{invitation.spotsRemaining !== 1 && 's'} left
-                      </Tag>
-                    ) : (
-                      <Tag color="error" bordered={false} className="m-0 text-[10px] w-fit leading-tight py-0.5 px-1.5">Full</Tag>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg shrink-0">
-                  <CurrencyEuroIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Investment</Text>
-                  <div className="flex flex-col">
-                    <Text strong className="text-base text-emerald-600 leading-tight">{priceMeta.formatted}</Text>
-                    <Text type="secondary" className="text-[11px] mt-0.5">{priceMeta.label}</Text>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg shrink-0">
-                  <AcademicCapIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <Text type="secondary" className="block text-[11px] font-semibold uppercase tracking-wider mb-0.5">Instructor</Text>
-                  <Text strong className="text-sm text-slate-800 leading-tight block mt-0.5">{invitation.instructorName || 'To be assigned'}</Text>
-                </div>
-              </div>
-            </div>
+            <InfoTile icon={AcademicCapIcon} iconBg="bg-indigo-50" iconColor="text-indigo-600" label="Instructor">
+              <span className="text-sm font-semibold text-slate-800">
+                {invitation.instructorName || 'To be assigned'}
+              </span>
+            </InfoTile>
           </div>
 
-          {/* Registration Notice — for unauthenticated users */}
-          {!isAuthenticated && !showRegisterForm && !showLoginForm && (
-            <Alert
-              type="info"
-              showIcon
-              message="Join this group lesson"
-              description="Click Accept to create your account and join. Your chosen currency will be used for all payments."
-              className="mb-6"
-            />
-          )}
-
-          {/* Already logged in notice */}
-          {isAuthenticated && (
-            <Alert
-              type="success"
-              showIcon
-              icon={<CheckCircleIcon className="w-5 h-5" />}
-              message={`Logged in as ${user?.full_name || user?.email}`}
-              description="Click 'Accept Invitation' to join this group lesson."
-              className="mb-6"
-            />
-          )}
-
-          <Divider />
-
-          {/* ── Inline Registration Form ── */}
-          {!isAuthenticated && showRegisterForm && (
-            <div className="mb-6">
-              <div className="text-center mb-4">
-                <Title level={4} className="!mb-1">Create Your Account</Title>
-                <Text type="secondary">Quick sign up to join this lesson</Text>
+          {/* Spots bar */}
+          <div className="px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <UserGroupIcon className="w-4 h-4 text-purple-500" />
+                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Availability</span>
               </div>
+              <span className="text-xs font-bold text-slate-700">
+                {invitation.currentParticipants} / {invitation.maxParticipants} joined
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${isFull ? 'bg-red-400' : 'bg-emerald-400'}`}
+                style={{ width: `${Math.min(spotsPercent, 100)}%` }}
+              />
+            </div>
+            <p className={`text-xs mt-1.5 font-medium ${isFull ? 'text-red-500' : 'text-emerald-600'}`}>
+              {isFull ? 'No spots available' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} remaining`}
+            </p>
+          </div>
+
+          {/* Auth status / notice */}
+          <div className="px-6 py-4">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3">
+                <CheckCircleFilled className="text-emerald-500 text-lg shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-emerald-800">
+                    Signed in as {user?.full_name || user?.email}
+                  </p>
+                  <p className="text-xs text-emerald-600">Click Accept to join this group lesson.</p>
+                </div>
+              </div>
+            ) : activeForm === null ? (
+              <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm text-sky-700">
+                <span className="font-semibold">Join this lesson</span> — accept to create your free account or log in.
+              </div>
+            ) : null}
+          </div>
+
+          {/* ── Inline Register form ── */}
+          {!isAuthenticated && activeForm === 'register' && (
+            <div className="px-6 pb-6 border-t border-slate-100 pt-5">
+              <h3 className="text-base font-bold text-slate-800 mb-0.5">Create Your Account</h3>
+              <p className="text-xs text-slate-500 mb-4">Takes 30 seconds — free, no credit card needed.</p>
+
               <Form form={registerForm} layout="vertical" requiredMark={false} onFinish={handleRegister}>
                 <div className="grid grid-cols-2 gap-3">
-                  <Form.Item
-                    name="first_name"
-                    label="First Name"
-                    rules={[{ required: true, message: 'Required' }]}
-                  >
-                    <Input prefix={<UserOutlined className="text-slate-400" />} placeholder="John" size="large" autoComplete="given-name" />
+                  <Form.Item name="first_name" label={<span className="text-xs font-medium text-slate-600">First Name</span>} rules={[{ required: true, message: 'Required' }]} className="!mb-3">
+                    <Input prefix={<UserOutlined className="text-slate-300" />} placeholder="John" size="large" autoComplete="given-name" className="!rounded-lg" />
                   </Form.Item>
-                  <Form.Item
-                    name="last_name"
-                    label="Last Name"
-                    rules={[{ required: true, message: 'Required' }]}
-                  >
-                    <Input prefix={<UserOutlined className="text-slate-400" />} placeholder="Doe" size="large" autoComplete="family-name" />
+                  <Form.Item name="last_name" label={<span className="text-xs font-medium text-slate-600">Last Name</span>} rules={[{ required: true, message: 'Required' }]} className="!mb-3">
+                    <Input prefix={<UserOutlined className="text-slate-300" />} placeholder="Doe" size="large" autoComplete="family-name" className="!rounded-lg" />
                   </Form.Item>
                 </div>
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[
-                    { required: true, message: 'Required' },
-                    { type: 'email', message: 'Enter a valid email' },
-                  ]}
-                >
-                  <Input prefix={<MailOutlined className="text-slate-400" />} placeholder="you@email.com" size="large" autoComplete="email" />
+                <Form.Item name="email" label={<span className="text-xs font-medium text-slate-600">Email</span>} rules={[{ required: true, message: 'Required' }, { type: 'email', message: 'Enter a valid email' }]} className="!mb-3">
+                  <Input prefix={<MailOutlined className="text-slate-300" />} placeholder="you@email.com" size="large" autoComplete="email" className="!rounded-lg" />
                 </Form.Item>
                 <Form.Item
                   name="password"
-                  label="Password"
+                  label={<span className="text-xs font-medium text-slate-600">Password</span>}
                   rules={[
                     { required: true, message: 'Required' },
                     { min: 8, message: 'Min 8 characters' },
-                    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, message: 'Must include uppercase, lowercase, number & special char' },
+                    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, message: 'Needs uppercase, lowercase, number & special char' },
                   ]}
+                  className="!mb-1"
                 >
-                  <Input.Password prefix={<LockOutlined className="text-slate-400" />} placeholder="Create password" size="large" autoComplete="new-password" />
+                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Create a secure password" size="large" autoComplete="new-password" className="!rounded-lg" />
                 </Form.Item>
                 {passwordValue && (
-                  <div className="mb-4 -mt-2">
-                    <Progress percent={pwStrength.pct} showInfo={false} strokeColor={pwStrength.color} size="small" />
-                    <Text style={{ color: pwStrength.color, fontSize: 12 }}>{pwStrength.label}</Text>
+                  <div className="mb-3">
+                    <Progress percent={pwStrength.pct} showInfo={false} strokeColor={pwStrength.color} size="small" className="!mb-0.5" />
+                    <span style={{ color: pwStrength.color }} className="text-[11px] font-medium">{pwStrength.label}</span>
                   </div>
                 )}
                 <Form.Item
-                  name="preferred_currency"
-                  label="Preferred Currency"
-                  rules={[{ required: true, message: 'Required' }]}
-                  extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>All prices and payments will be processed in this currency</span>}
-                >
-                  <Select
-                    placeholder="Select currency"
-                    suffixIcon={<DollarOutlined className="text-slate-400" />}
-                    showSearch
-                    size="large"
-                    className="[&_.ant-select-selector]:!rounded-lg"
-                    filterOption={(input, option) =>
-                      option.label.toLowerCase().includes(input.toLowerCase())
-                    }
-                  >
-                    {currencyOptions.map((c) => (
-                      <Option key={c.value} value={c.value} label={c.label}>
-                        <span className="flex items-center gap-2">
-                          <span>{c.symbol}</span>
-                          <span>{c.name}</span>
-                          <span className="text-slate-400">({c.value})</span>
-                        </span>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-
-                <Form.Item
                   name="confirm_password"
-                  label="Confirm Password"
+                  label={<span className="text-xs font-medium text-slate-600">Confirm Password</span>}
                   dependencies={['password']}
                   rules={[
                     { required: true, message: 'Required' },
@@ -601,8 +483,29 @@ const GroupInvitationPage = () => {
                       },
                     }),
                   ]}
+                  className="!mb-3"
                 >
-                  <Input.Password prefix={<LockOutlined className="text-slate-400" />} placeholder="Confirm password" size="large" autoComplete="new-password" />
+                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Repeat password" size="large" autoComplete="new-password" className="!rounded-lg" />
+                </Form.Item>
+                <Form.Item
+                  name="preferred_currency"
+                  label={<span className="text-xs font-medium text-slate-600">Preferred Currency</span>}
+                  rules={[{ required: true, message: 'Required' }]}
+                  className="!mb-4"
+                >
+                  <Select placeholder="Select currency" suffixIcon={<DollarOutlined className="text-slate-300" />} showSearch size="large" className="[&_.ant-select-selector]:!rounded-lg"
+                    filterOption={(input, option) => option.label.toLowerCase().includes(input.toLowerCase())}
+                  >
+                    {currencyOptions.map(c => (
+                      <Option key={c.value} value={c.value} label={c.label}>
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium">{c.symbol}</span>
+                          <span>{c.name}</span>
+                          <span className="text-slate-400 text-xs">({c.value})</span>
+                        </span>
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
 
                 <Button
@@ -611,41 +514,31 @@ const GroupInvitationPage = () => {
                   block
                   htmlType="submit"
                   loading={registering || accepting}
-                  className="!h-12 !rounded-xl !font-bold"
+                  className="!h-11 !rounded-xl !font-semibold !bg-sky-600 hover:!bg-sky-700 !border-sky-600"
                 >
-                  {registering ? 'Creating Account...' : accepting ? 'Accepting Invitation...' : 'Create Account & Join'}
+                  {registering ? 'Creating Account…' : accepting ? 'Accepting Invitation…' : 'Create Account & Join'}
                 </Button>
               </Form>
-              <div className="text-center mt-3">
-                <Text type="secondary">Already have an account? </Text>
-                <Button type="link" className="!p-0" onClick={() => { setShowRegisterForm(false); setShowLoginForm(true); }}>
-                  Log in
-                </Button>
-              </div>
+
+              <p className="text-center text-xs text-slate-400 mt-3">
+                Already have an account?{' '}
+                <button className="text-sky-600 font-medium hover:underline" onClick={() => setActiveForm('login')}>Sign in</button>
+              </p>
             </div>
           )}
 
-          {/* ── Inline Login Form ── */}
-          {!isAuthenticated && showLoginForm && (
-            <div className="mb-6">
-              <div className="text-center mb-4">
-                <Title level={4} className="!mb-1">Log In</Title>
-                <Text type="secondary">Sign in to accept this invitation</Text>
-              </div>
+          {/* ── Inline Login form ── */}
+          {!isAuthenticated && activeForm === 'login' && (
+            <div className="px-6 pb-6 border-t border-slate-100 pt-5">
+              <h3 className="text-base font-bold text-slate-800 mb-0.5">Sign In</h3>
+              <p className="text-xs text-slate-500 mb-4">Sign in to accept this invitation.</p>
+
               <Form form={loginForm} layout="vertical" requiredMark={false} onFinish={handleLogin}>
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[{ required: true, message: 'Required' }, { type: 'email', message: 'Enter a valid email' }]}
-                >
-                  <Input prefix={<MailOutlined className="text-slate-400" />} placeholder="you@email.com" size="large" autoComplete="email" />
+                <Form.Item name="email" label={<span className="text-xs font-medium text-slate-600">Email</span>} rules={[{ required: true, message: 'Required' }, { type: 'email', message: 'Enter a valid email' }]} className="!mb-3">
+                  <Input prefix={<MailOutlined className="text-slate-300" />} placeholder="you@email.com" size="large" autoComplete="email" className="!rounded-lg" />
                 </Form.Item>
-                <Form.Item
-                  name="password"
-                  label="Password"
-                  rules={[{ required: true, message: 'Required' }]}
-                >
-                  <Input.Password prefix={<LockOutlined className="text-slate-400" />} placeholder="Your password" size="large" autoComplete="current-password" />
+                <Form.Item name="password" label={<span className="text-xs font-medium text-slate-600">Password</span>} rules={[{ required: true, message: 'Required' }]} className="!mb-4">
+                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Your password" size="large" autoComplete="current-password" className="!rounded-lg" />
                 </Form.Item>
                 <Button
                   type="primary"
@@ -653,31 +546,31 @@ const GroupInvitationPage = () => {
                   block
                   htmlType="submit"
                   loading={loggingIn || accepting}
-                  className="!h-12 !rounded-xl !font-bold"
+                  className="!h-11 !rounded-xl !font-semibold !bg-sky-600 hover:!bg-sky-700 !border-sky-600"
                 >
-                  {loggingIn ? 'Logging in...' : accepting ? 'Accepting Invitation...' : 'Log In & Join'}
+                  {loggingIn ? 'Signing in…' : accepting ? 'Accepting Invitation…' : 'Sign In & Join'}
                 </Button>
               </Form>
-              <div className="text-center mt-3">
-                <Text type="secondary">Don't have an account? </Text>
-                <Button type="link" className="!p-0" onClick={() => { setShowLoginForm(false); setShowRegisterForm(true); }}>
-                  Create one
-                </Button>
-              </div>
+
+              <p className="text-center text-xs text-slate-400 mt-3">
+                No account?{' '}
+                <button className="text-sky-600 font-medium hover:underline" onClick={() => setActiveForm('register')}>Create one free</button>
+              </p>
             </div>
           )}
 
-          {/* Action Buttons — show when no form is visible */}
-          {(!showRegisterForm && !showLoginForm) && (
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          {/* ── Action buttons ── */}
+          {activeForm === null && (
+            <div className="px-6 pb-6 space-y-3">
               <Button
                 type="primary"
                 size="large"
+                block
                 icon={<CheckCircleIcon className="w-5 h-5" />}
                 onClick={handleAccept}
                 loading={accepting}
-                disabled={invitation.spotsRemaining <= 0}
-                className="min-w-[200px]"
+                disabled={isFull}
+                className="!h-12 !rounded-xl !font-semibold !bg-sky-600 hover:!bg-sky-700 !border-sky-600 !text-base flex items-center justify-center gap-2"
               >
                 {isAuthenticated ? 'Accept Invitation' : 'Accept & Join'}
               </Button>
@@ -685,69 +578,67 @@ const GroupInvitationPage = () => {
               {!isAuthenticated && (
                 <Button
                   size="large"
-                  type="default"
+                  block
                   icon={<UserIcon className="w-5 h-5" />}
-                  onClick={() => { setShowLoginForm(true); setShowRegisterForm(false); }}
-                  className="min-w-[200px]"
+                  onClick={() => setActiveForm('login')}
+                  className="!h-11 !rounded-xl !font-medium flex items-center justify-center gap-2"
                 >
-                  I have an account
+                  I already have an account
                 </Button>
               )}
 
-              <Button
-                size="large"
-                danger
-                icon={<XCircleIcon className="w-5 h-5" />}
+              <button
                 onClick={() => setDeclineModalVisible(true)}
-                className="min-w-[200px]"
+                className="w-full text-center text-sm text-slate-400 hover:text-red-500 transition-colors py-1 underline underline-offset-2"
               >
-                Decline
-              </Button>
+                Decline invitation
+              </button>
             </div>
           )}
-          
-          {/* Footer Links */}
-          <div className="mt-8 pt-6 border-t text-center">
-            <Text type="secondary">
-              Need help? <Link to="/contact" className="text-blue-600">Contact us</Link>
-            </Text>
-          </div>
-        </Card>
-        
-        {/* Powered by */}
-        <div className="text-center mt-6">
-          <Text type="secondary" className="text-sm">
-            Powered by Plannivo
-          </Text>
+
+          {/* Back button when form is open */}
+          {activeForm !== null && (
+            <div className="px-6 pb-4">
+              <button
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={() => setActiveForm(null)}
+              >
+                ← Back
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-400 pb-4">
+          Powered by{' '}
+          <Link to="/" className="text-slate-500 hover:text-sky-600 font-medium transition-colors">
+            Plannivo
+          </Link>
+          {' '}· Need help?{' '}
+          <Link to="/contact" className="text-slate-500 hover:text-sky-600 transition-colors">
+            Contact us
+          </Link>
+        </p>
       </div>
-      
-      {/* Decline Modal */}
+
+      {/* Decline modal */}
       <Modal
         title="Decline Invitation"
         open={declineModalVisible}
         onCancel={() => setDeclineModalVisible(false)}
         footer={[
-          <Button key="cancel" onClick={() => setDeclineModalVisible(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="decline"
-            danger
-            loading={declining}
-            onClick={handleDecline}
-          >
-            Confirm Decline
-          </Button>
+          <Button key="cancel" onClick={() => setDeclineModalVisible(false)}>Cancel</Button>,
+          <Button key="confirm" danger loading={declining} onClick={handleDecline}>Confirm Decline</Button>,
         ]}
       >
-        <p>Are you sure you want to decline this invitation?</p>
+        <p className="text-sm text-slate-600 mb-3">Are you sure you want to decline this invitation?</p>
         <TextArea
-          placeholder="(Optional) Let the organizer know why you can't attend..."
+          placeholder="(Optional) Let the organizer know why you can't attend…"
           value={declineReason}
           onChange={e => setDeclineReason(e.target.value)}
           rows={3}
-          className="mt-4"
+          className="!rounded-lg"
         />
       </Modal>
     </div>

@@ -5,19 +5,12 @@ export function useAIAssistant() {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
 
-  const greet = async () => {
-    setSending(true);
-    try {
-      const { data } = await apiClient.post('/assistant', {
-        message: 'hello',
-        conversationHistory: [],
-      });
-      setMessages([{ role: 'assistant', content: data.response, timestamp: Date.now() }]);
-    } catch {
-      // silent fail — chat stays empty
-    } finally {
-      setSending(false);
-    }
+  const greet = () => {
+    setMessages([{
+      role: 'assistant',
+      content: "Hi! I'm Kai, your UKC assistant. How can I help you today?",
+      timestamp: Date.now(),
+    }]);
   };
 
   const send = async (text, imageBase64 = null) => {

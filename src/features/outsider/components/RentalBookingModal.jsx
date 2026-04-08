@@ -15,7 +15,6 @@ import {
   Alert,
   App,
   Button,
-  DatePicker,
   Modal,
   Tag,
 } from 'antd';
@@ -24,6 +23,8 @@ import {
   CheckCircleFilled,
   CheckOutlined,
   CreditCardOutlined,
+  LeftOutlined,
+  RightOutlined,
   ToolOutlined,
   ShoppingOutlined,
   WalletOutlined,
@@ -37,13 +38,25 @@ import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import { IyzicoCheckout } from '@/features/finances';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
-const { RangePicker } = DatePicker;
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const normalizeNumeric = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const WEEKDAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+const buildCalendarCells = (monthStart) => {
+  const start = monthStart.startOf('month');
+  const daysInMonth = start.daysInMonth();
+  // dayjs: 0=Sun, 1=Mon … convert to Mon-first (Mon=0, Sun=6)
+  const rawDay = start.day();
+  const firstOffset = rawDay === 0 ? 6 : rawDay - 1;
+  const cells = Array(firstOffset).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(start.date(d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
 };
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -54,82 +67,200 @@ const DateStep = ({
   dailyPrice,
   priceCurrency,
   formatCurrency,
-  dateRange,
-  setDateRange,
+  selectedDays,
+  toggleDay,
+  onClearDays,
   numberOfDays,
+  maxDays,
   totalPrice,
   onContinue,
-}) => (
-  <div className="space-y-4 sm:space-y-5">
-    {/* Rental summary card */}
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-orange-50/30 p-4 sm:p-5">
-      <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-orange-500/[0.04]" />
-      <div className="relative">
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{serviceName}</h3>
-        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-          <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">Rental</Tag>
-          <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
-            {formatCurrency(dailyPrice, priceCurrency)} / day
-          </Tag>
-        </div>
-        {description && (
-          <p className="text-xs sm:text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
-        )}
-      </div>
-    </div>
+}) => {
+  const [currentMonth, setCurrentMonth] = useState(() => dayjs().startOf('month'));
+  const today = dayjs().startOf('day');
+  const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
+  const atMax = maxDays !== null && numberOfDays >= maxDays;
 
-    {/* Date range picker */}
-    <div>
-      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        <CalendarOutlined className="mr-1" /> Select Rental Dates
-      </p>
-      <RangePicker
-        className="w-full"
+  const selectWeekdays = () => {
+    // Add all non-past weekdays (Mon–Fri) in the currently visible month, up to cap
+    const start = currentMonth.startOf('month');
+    const end = currentMonth.endOf('month');
+    for (let d = start; !d.isAfter(end); d = d.add(1, 'day')) {
+      const dow = d.day(); // 0=Sun, 6=Sat
+      if (dow !== 0 && dow !== 6 && !d.isBefore(today)) {
+        toggleDay(d.format('YYYY-MM-DD'));
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-5">
+      {/* Rental summary card */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-orange-50/30 p-4 sm:p-5">
+        <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-orange-500/[0.04]" />
+        <div className="relative">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{serviceName}</h3>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">Rental</Tag>
+            <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
+              {formatCurrency(dailyPrice, priceCurrency)} / day
+            </Tag>
+          </div>
+          {description && (
+            <p className="text-xs sm:text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Calendar */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-4">
+        {/* Month navigation */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            type="button"
+            onClick={() => setCurrentMonth(m => m.subtract(1, 'month'))}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          >
+            <LeftOutlined className="text-xs" />
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-800">
+              {currentMonth.format('MMMM YYYY')}
+            </span>
+            <button
+              type="button"
+              onClick={selectWeekdays}
+              className="text-[10px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-md px-1.5 py-0.5 transition-colors"
+            >
+              Weekdays
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCurrentMonth(m => m.add(1, 'month'))}
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+          >
+            <RightOutlined className="text-xs" />
+          </button>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 mb-1">
+          {WEEKDAY_LABELS.map(d => (
+            <div key={d} className="text-center text-[10px] font-semibold text-slate-400 py-1">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7 gap-0.5">
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e-${i}`} className="aspect-square" />;
+            const dayStr = day.format('YYYY-MM-DD');
+            const isPast = day.isBefore(today);
+            const isSelected = selectedDays.has(dayStr);
+            const isToday = day.isSame(today);
+            const isWeekend = day.day() === 0 || day.day() === 6;
+            const isDisabled = isPast || (atMax && !isSelected);
+
+            return (
+              <div key={dayStr} className="aspect-square p-0.5">
+                <button
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => toggleDay(dayStr)}
+                  className={[
+                    'w-full h-full rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center',
+                    isPast
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : isSelected
+                        ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/20 scale-95'
+                        : atMax
+                          ? 'text-slate-300 cursor-not-allowed'
+                          : isToday
+                            ? 'ring-2 ring-orange-400 ring-offset-1 text-orange-600 font-bold hover:bg-orange-50'
+                            : isWeekend
+                              ? 'text-slate-400 hover:bg-slate-100'
+                              : 'text-slate-700 hover:bg-orange-50 hover:text-orange-600',
+                  ].join(' ')}
+                >
+                  {day.date()}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Selection counter */}
+        <div className="mt-2 flex items-center justify-center gap-1.5">
+          {maxDays ? (
+            <>
+              <div className="flex gap-0.5">
+                {Array.from({ length: maxDays }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-1 w-4 rounded-full transition-all ${
+                      idx < numberOfDays ? 'bg-orange-500' : 'bg-slate-200'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className={`text-[10px] font-semibold ${atMax ? 'text-orange-600' : 'text-slate-400'}`}>
+                {numberOfDays}/{maxDays} days
+              </span>
+            </>
+          ) : (
+            <p className="text-[10px] text-slate-400">
+              {numberOfDays === 0
+                ? 'Tap days to select — tap again to deselect'
+                : `${numberOfDays} day${numberOfDays !== 1 ? 's' : ''} selected`}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Price breakdown — shows when dates selected */}
+      {numberOfDays > 0 && (
+        <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
+          <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-2">
+            <span>Daily rate</span>
+            <span>{formatCurrency(dailyPrice, priceCurrency)}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
+            <span>Duration</span>
+            <span>{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="border-t border-slate-200/60 pt-3 flex justify-between items-end">
+            <button
+              type="button"
+              onClick={onClearDays}
+              className="text-[10px] text-slate-400 hover:text-red-500 transition-colors"
+            >
+              Clear all
+            </button>
+            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
+              {formatCurrency(totalPrice, priceCurrency)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <Button
+        type="primary"
         size="large"
-        value={dateRange}
-        onChange={setDateRange}
-        disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
-        format="ddd, MMM D"
-        inputReadOnly
-        placeholder={['Start date', 'End date']}
-      />
+        block
+        disabled={numberOfDays === 0}
+        onClick={onContinue}
+        className="!h-12 sm:!h-14 !rounded-xl !text-sm sm:!text-base !font-bold"
+        icon={<CalendarOutlined />}
+      >
+        {numberOfDays > 0
+          ? `Continue — ${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}`
+          : 'Select dates to continue'}
+      </Button>
     </div>
-
-    {/* Price breakdown — shows when dates selected */}
-    {numberOfDays > 0 && (
-      <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
-        <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-2">
-          <span>Daily rate</span>
-          <span>{formatCurrency(dailyPrice, priceCurrency)}</span>
-        </div>
-        <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
-          <span>Duration</span>
-          <span>{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
-        </div>
-        <div className="border-t border-slate-200/60 pt-3 flex justify-between items-end">
-          <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">Total</span>
-          <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-            {formatCurrency(totalPrice, priceCurrency)}
-          </span>
-        </div>
-      </div>
-    )}
-
-    <Button
-      type="primary"
-      size="large"
-      block
-      disabled={numberOfDays === 0}
-      onClick={onContinue}
-      className="!h-12 sm:!h-14 !rounded-xl !text-sm sm:!text-base !font-bold"
-      icon={<CalendarOutlined />}
-    >
-      {numberOfDays > 0
-        ? `Continue — ${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}`
-        : 'Select dates to continue'}
-    </Button>
-  </div>
-);
+  );
+};
 
 // eslint-disable-next-line complexity
 const PayStep = ({
@@ -398,7 +529,7 @@ const RentalBookingModal = ({
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [submitting, setSubmitting] = useState(false);
 
-  const [dateRange, setDateRange] = useState(null);
+  const [selectedDays, setSelectedDays] = useState(() => new Set());
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [iyzicoDepositId, setIyzicoDepositId] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
@@ -407,12 +538,30 @@ const RentalBookingModal = ({
   const studentId = user?.userId || user?.id;
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
 
-  // ── Date range → day count ────────────────────────────────────────────────
-  const startDate = dateRange?.[0] || null;
-  const endDate = dateRange?.[1] || null;
-  const numberOfDays = (startDate && endDate) ? endDate.diff(startDate, 'day') + 1 : 0;
+  // ── Selected days → derived values ───────────────────────────────────────
+  const numberOfDays = selectedDays.size;
+  const sortedDays = useMemo(() => Array.from(selectedDays).sort(), [selectedDays]);
+  const startDate = sortedDays.length > 0 ? dayjs(sortedDays[0]) : null;
+  const endDate = sortedDays.length > 0 ? dayjs(sortedDays[sortedDays.length - 1]) : null;
   const startDateLabel = startDate ? startDate.format('MMM D') : '';
   const endDateLabel = endDate ? endDate.format('MMM D') : '';
+
+  // Max selectable days derived from service duration (e.g. 168h → 7 days)
+  const maxDays = durationHours >= 24 ? Math.round(durationHours / 24) : null;
+
+  const toggleDay = useCallback((dayStr) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayStr)) {
+        next.delete(dayStr);
+      } else if (!maxDays || next.size < maxDays) {
+        next.add(dayStr);
+      }
+      return next;
+    });
+  }, [maxDays]);
+
+  const clearDays = useCallback(() => setSelectedDays(new Set()), []);
 
   // ── Price resolution ──────────────────────────────────────────────────────
   const dailyPrice = useMemo(() => {
@@ -454,7 +603,7 @@ const RentalBookingModal = ({
       setStep(0);
       setPaymentMethod('wallet');
       setSubmitting(false);
-      setDateRange(null);
+      setSelectedDays(new Set());
       setIyzicoPaymentUrl(null);
       setIyzicoDepositId(null);
       setShowIyzicoModal(false);
@@ -495,11 +644,10 @@ const RentalBookingModal = ({
       onOk: async () => {
         setSubmitting(true);
         try {
-          // Create one rental per day so each can be managed individually
+          // Create one rental per selected day so each can be managed individually
           let lastRes = null;
-          for (let i = 0; i < numberOfDays; i++) {
-            const day = startDate.add(i, 'day');
-            const dayStr = day.format('YYYY-MM-DD');
+          for (const dayStr of sortedDays) {
+            const day = dayjs(dayStr);
             const res = await apiClient.post('/rentals', {
               user_id: studentId,
               equipment_ids: [serviceId],
@@ -540,7 +688,7 @@ const RentalBookingModal = ({
         }
       },
     });
-  }, [studentId, serviceId, numberOfDays, servicePrice, startDate, endDate, serviceName, totalPrice, priceCurrency, formatCurrency, paymentMethod, serviceCurrency, message, queryClient, refreshToken]);
+  }, [studentId, serviceId, numberOfDays, sortedDays, servicePrice, startDate, endDate, serviceName, totalPrice, priceCurrency, formatCurrency, paymentMethod, serviceCurrency, appliedVoucher, message, queryClient, refreshToken]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 
@@ -607,9 +755,11 @@ const RentalBookingModal = ({
           dailyPrice={dailyPrice}
           priceCurrency={priceCurrency}
           formatCurrency={formatCurrency}
-          dateRange={dateRange}
-          setDateRange={setDateRange}
+          selectedDays={selectedDays}
+          toggleDay={toggleDay}
+          onClearDays={clearDays}
           numberOfDays={numberOfDays}
+          maxDays={maxDays}
           totalPrice={totalPrice}
           onContinue={handleContinueToPayment}
         />

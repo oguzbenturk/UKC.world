@@ -366,7 +366,12 @@ const CSRF_COOKIE = 'csrf_token';
 const CSRF_HEADER = 'x-csrf-token';
 const CSRF_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // Paths that are exempt: server-to-server callbacks have no browser cookies
-const CSRF_EXEMPT_PREFIXES = ['/api/finances/callback/', '/api/webhooks/'];
+const CSRF_EXEMPT_PREFIXES = [
+  '/api/finances/callback/',
+  '/api/webhooks/',
+  '/api/auth/register',   // Public unauthenticated — no session cookie to steal
+  '/api/auth/login',      // Public unauthenticated — no session cookie to steal
+];
 
 /**
  * Set a new CSRF token cookie. Call this after every login / token refresh

@@ -221,10 +221,11 @@ const NotificationBell = () => {
   }, []);
 
   const handleNotificationClick = useCallback(
-    async (notification) => {
+    (notification) => {
       if (!notification) return;
+      // Fire mark-as-read in background — never block navigation on a network call
       if (!notification.readAt) {
-        await handleMarkRead(notification.id);
+        handleMarkRead(notification.id).catch(() => {});
       }
 
       if (notification.data?.intent === 'rate_lesson' && notification.data?.ratingContext) {

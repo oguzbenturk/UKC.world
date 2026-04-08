@@ -46,9 +46,10 @@ export function PaymentCallback() {
     }
   }, [isShopOrder, isBooking, isGroupBooking, isMembership]);
 
-  // For shop orders: clear cart from localStorage on successful payment
+  // For shop orders: clear cart on successful payment (both React state + localStorage)
   useEffect(() => {
     if (isShopOrder && isSuccess) {
+      window.dispatchEvent(new CustomEvent('shop:cartClear'));
       try {
         localStorage.removeItem('plannivo_cart');
       } catch { /* noop */ }

@@ -70,7 +70,10 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
       httpsAgent,
     });
 
-    res.json({ response: response.data.response || response.data.output || 'No response received.' });
+    const result = response.data;
+    console.log('n8n response:', JSON.stringify(result).slice(0, 500));
+    const answer = result?.response || result?.output || result?.text || (typeof result === 'string' ? result : null) || 'No response received.';
+    res.json({ response: answer });
   } catch (error) {
     console.error('Assistant proxy error:', error.message);
     if (error.code === 'ECONNABORTED') {

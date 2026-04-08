@@ -465,10 +465,10 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                 extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For safety guidelines</span>}
               >
                 <DatePicker
-                  placeholder="Select date"
+                  placeholder="DD/MM/YYYY"
                   className="w-full !rounded-lg"
                   size="large"
-                  format="DD/MM/YYYY"
+                  format={['DD/MM/YYYY', 'DD.MM.YYYY', 'D/M/YYYY', 'D.M.YYYY', 'DDMMYYYY']}
                   disabledDate={(current) => current && current.valueOf() > Date.now()}
                 />
               </Form.Item>
