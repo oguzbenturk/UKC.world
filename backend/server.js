@@ -89,6 +89,8 @@ import formSubmissionsRouter from './routes/formSubmissions.js';
 import publicFormsRouter from './routes/publicForms.js';
 import adminRouter from './routes/admin.js';
 import assistantRouter from './routes/assistant.js';
+import agentRouter from './routes/agent.js';
+import { authenticateAgentRequest } from './middlewares/authenticateAgent.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import './services/alerts/notificationAlertService.js';
 import {
@@ -1374,6 +1376,7 @@ app.use('/api/admin/support-tickets', authenticateJWT, adminSupportTicketsRouter
 app.use('/api/admin/financial-reconciliation', authenticateJWT, adminReconciliationRouter);
 app.use('/api/admin', authenticateJWT, adminRouter);
 app.use('/api/assistant', assistantRouter);
+app.use('/api/agent', authenticateAgentRequest, agentRouter);
 app.use('/api/vouchers', authenticateJWT, vouchersRouter);
 app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars

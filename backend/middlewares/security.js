@@ -327,7 +327,7 @@ export const configureCORS = () => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token', 'X-Kai-Agent-Secret', 'X-Requesting-User-Id', 'X-Requesting-User-Role'],
     exposedHeaders: ['X-Total-Count', 'X-RateLimit-Limit', 'X-RateLimit-Remaining']
   };
 };
@@ -371,6 +371,8 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/webhooks/',
   '/api/auth/register',   // Public unauthenticated — no session cookie to steal
   '/api/auth/login',      // Public unauthenticated — no session cookie to steal
+  '/api/agent/',          // Server-to-server from n8n; protected by X-Kai-Agent-Secret header
+  '/api/assistant',       // Public AI chat widget — no session cookie to steal
 ];
 
 /**
