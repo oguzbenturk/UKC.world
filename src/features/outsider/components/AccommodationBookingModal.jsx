@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Modal, InputNumber, Input, Spin, Alert, App } from 'antd';
+import { Modal, InputNumber, Input, Spin, Alert, App, Select, Upload, Tag } from 'antd';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -24,6 +24,9 @@ import {
   ClockCircleOutlined,
   CheckOutlined,
   CreditCardOutlined,
+  SafetyCertificateOutlined,
+  BankOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 import dayjs from 'dayjs';
@@ -35,7 +38,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
-import apiClient from '@/shared/services/apiClient';
+import apiClient, { resolveApiBaseUrl, getAccessToken } from '@/shared/services/apiClient';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 
 dayjs.extend(isBetween);
@@ -43,6 +46,39 @@ dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function BankDetailsCard({ account }) {
+  if (!account) return null;
+  const fields = [
+    { label: 'Bank', value: account.bankName },
+    { label: 'Account Holder', value: account.accountHolder },
+    { label: 'IBAN', value: account.iban },
+    ...(account.swiftCode ? [{ label: 'SWIFT / BIC', value: account.swiftCode }] : []),
+    ...(account.accountNumber ? [{ label: 'Account No.', value: account.accountNumber }] : []),
+  ];
+  return (
+    <div className="mt-2 rounded-xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-violet-500/10">
+        <BankOutlined className="text-violet-400 text-xs" />
+        <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Transfer To</span>
+        {account.currency && <Tag color="purple" className="!m-0 !text-[10px] !font-bold ml-auto">{account.currency}</Tag>}
+      </div>
+      <div className="px-3 py-1 divide-y divide-violet-500/10">
+        {fields.map(({ label, value }) => (
+          <div key={label} className="py-2">
+            <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{label}</p>
+            <p className="text-xs text-white/80 font-mono break-all">{value}</p>
+          </div>
+        ))}
+      </div>
+      {account.instructions && (
+        <div className="px-3 py-2 bg-amber-500/5 border-t border-amber-500/10">
+          <p className="text-[10px] text-amber-400/80 leading-snug">{account.instructions}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const normalizeNumeric = (v, fallback = 0) => {
   const n = Number(v);
@@ -65,6 +101,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const [calendarMonth, setCalendarMonth] = useState(dayjs().startOf('month'));
   const [selectingCheckOut, setSelectingCheckOut] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [depositMethod, setDepositMethod] = useState('credit_card');
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
+  const [fileList, setFileList] = useState([]);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [appliedVoucher, setAppliedVoucher] = useState(null);

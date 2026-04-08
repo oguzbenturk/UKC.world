@@ -681,10 +681,11 @@ const AcademyServicePackagesPage = ({
       const primaryImage = imageUrl || (images.length > 0 ? images[0] : null);
       
       // Build amenities/highlights
-      const amenities = Array.isArray(unit.amenities) 
-        ? unit.amenities 
-        : (typeof unit.amenities === 'string' ? JSON.parse(unit.amenities) : []);
-      
+      const rawAmenities = Array.isArray(unit.amenities)
+        ? unit.amenities
+        : (typeof unit.amenities === 'string' ? (() => { try { return JSON.parse(unit.amenities); } catch { return []; } })() : []);
+      const amenities = rawAmenities.filter((a) => typeof a === 'string' && a.trim() && !a.startsWith('__meta_'));
+
       const highlights = [
         `Capacity: ${unit.capacity} guest${unit.capacity > 1 ? 's' : ''}`,
         ...(amenities.length > 0 ? amenities.slice(0, 3) : ['Comfortable accommodation']),
