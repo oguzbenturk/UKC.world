@@ -189,9 +189,9 @@ const ShopLandingPage = () => {
     <div className="bg-[#0d1511] min-h-screen text-white font-sans pb-20 selection:bg-emerald-400/30">
 
       {/* ── White brand banner ── */}
-      <div className="relative z-10 flex min-h-[50dvh] flex-col bg-white">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pt-16 pb-12 sm:px-6 sm:pt-20 sm:pb-16 lg:px-8">
-          <div className="flex flex-col items-center gap-8 sm:gap-12 relative z-[1]">
+      <div className="relative z-10 flex min-h-[28dvh] flex-col bg-white">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pt-10 pb-6 sm:px-6 sm:pt-12 sm:pb-8 lg:px-8">
+          <div className="flex flex-col items-center relative z-[1]">
             <div className="flex items-baseline">
               <span
                 className="font-gotham-bold antialiased text-[#1a1a1a]"
@@ -207,16 +207,9 @@ const ShopLandingPage = () => {
                 Shop
               </span>
             </div>
-            <p className="flex flex-wrap items-baseline justify-center gap-x-2 text-center font-gotham-bold tracking-normal leading-tight text-[#4b4f54] text-lg sm:text-xl md:text-2xl mt-3 sm:mt-5">
-              <span>Powered By</span>
-              <span className="inline-flex items-baseline whitespace-nowrap font-gotham-bold text-[#4b4f54]">
-                <span style={{ letterSpacing: '0.1em' }}>UKC</span>
-                <UkcBrandDot className="ml-[0.03em]" style={{ top: '-0.02em' }} />
-              </span>
-            </p>
           </div>
         </div>
-        <div className="flex w-full justify-center px-4 pb-4 pt-4 sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
+        <div className="flex w-full justify-center px-4 pb-3 pt-2 sm:px-6 sm:pb-5 sm:pt-3 lg:px-8">
           <FuturisticScrollCue
             ariaLabel="Scroll to shop products"
             onActivate={scrollToFirstHero}

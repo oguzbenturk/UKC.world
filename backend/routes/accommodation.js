@@ -578,8 +578,14 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			guests_count = 1,
 			guest_id: requestedGuestId,
 			notes,
-			payment_method = 'wallet' // 'wallet' | 'pay_later' | 'credit_card'
+			payment_method = 'wallet', // 'wallet' | 'pay_later' | 'credit_card' | 'bank_transfer'
+			deposit_percent,
+			deposit_amount,
+			receipt_url,
+			bank_account_id,
+			voucher_id,
 		} = req.body;
+		const isDeposit = !!(deposit_percent && deposit_amount);
 
 		// Staff (admin, manager, front_desk) can book for any user
 		// Regular users can only book for themselves
