@@ -121,6 +121,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       setCalendarMonth(dayjs().startOf('month'));
       setSelectingCheckOut(false);
       setPaymentMethod('wallet');
+      setDepositMethod('credit_card');
+      setSelectedBankAccountId(null);
+      setFileList([]);
       setShowIyzicoModal(false);
       setIyzicoPaymentUrl(null);
       setAppliedVoucher(null);
@@ -256,6 +259,38 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const walletInUserCurrency = convertCurrency(walletBalance, walletCurrency, userCurrency);
   const walletInsufficient = paymentMethod === 'wallet' && totalPrice > 0 && totalPrice > walletBalance;
 
+  const DEPOSIT_PERCENT = 20;
+  const depositAmount = parseFloat((totalPrice * DEPOSIT_PERCENT / 100).toFixed(2));
+  const remainingAmount = parseFloat((totalPrice - depositAmount).toFixed(2));
+  const isDeposit = paymentMethod === 'deposit';
+
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['accommodation-booking', 'bank-accounts'],
+    queryFn: async () => {
+      const res = await apiClient.get('/wallet/bank-accounts');
+      return res.data?.results || [];
+    },
+    enabled: open && !!studentId,
+    staleTime: 300_000,
+  });
+  const selectedAccount = useMemo(() => bankAccounts.find(a => a.id === selectedBankAccountId), [bankAccounts, selectedBankAccountId]);
+
+  const uploadReceipt = (file) => new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const token = getAccessToken() || localStorage.getItem('token');
+    const base = resolveApiBaseUrl();
+    const xhr = new XMLHttpRequest();
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) resolve(JSON.parse(xhr.responseText).url);
+      else reject(new Error(JSON.parse(xhr.responseText || '{}').error || 'Upload failed'));
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.open('POST', `${base}/api/upload/wallet-deposit`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(formData);
+  });
+
   // ── Calendar grid ──────────────────────────────────────────────────────
   const calendarDays = useMemo(() => {
     const firstDay = calendarMonth.startOf('month');
@@ -346,7 +381,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!checkIn || !checkOut) {
       msg.warning('Please select check-in and check-out dates.');
       return;
@@ -355,13 +390,28 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       msg.warning('Check-out must be at least 1 day after check-in.');
       return;
     }
+    if (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)) {
+      msg.error('Please select a bank account and upload your deposit receipt.');
+      return;
+    }
+    let receiptUrl = null;
+    if (isDeposit && depositMethod === 'bank_transfer' && fileList.length > 0) {
+      try {
+        receiptUrl = await uploadReceipt(fileList[0]);
+      } catch (err) {
+        msg.error(err.message || 'Failed to upload receipt');
+        return;
+      }
+    }
     bookMutation.mutate({
       unit_id: unit.id,
       check_in_date: checkIn.format('YYYY-MM-DD'),
       check_out_date: checkOut.format('YYYY-MM-DD'),
       guests_count: guestsCount,
       notes: notes || undefined,
-      payment_method: paymentMethod,
+      payment_method: isDeposit ? depositMethod : paymentMethod,
+      ...(isDeposit ? { deposit_percent: DEPOSIT_PERCENT, deposit_amount: depositAmount } : {}),
+      ...(isDeposit && depositMethod === 'bank_transfer' && receiptUrl ? { receipt_url: receiptUrl, bank_account_id: selectedBankAccountId } : {}),
       ...(appliedVoucher?.id ? { voucher_id: appliedVoucher.id } : {}),
     });
   };
@@ -541,81 +591,128 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
               Payment Method
             </p>
-            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
-              {/* Wallet */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('wallet')}
-                className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-all text-center ${
-                  paymentMethod === 'wallet'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-sm shadow-blue-500/10'
-                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
-                }`}
-              >
-                {paymentMethod === 'wallet' && (
-                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                    <CheckOutlined className="text-white text-[8px]" />
-                  </div>
-                )}
-                <WalletOutlined className={`text-xl ${paymentMethod === 'wallet' ? 'text-blue-400' : 'text-white/40'}`} />
-                <span className={`text-sm font-semibold ${paymentMethod === 'wallet' ? 'text-blue-400' : 'text-white/60'}`}>
-                  Wallet
-                </span>
-                <span className={`text-xs ${paymentMethod === 'wallet' ? 'text-blue-400/70' : 'text-white/30'}`}>
-                  {formatCurrency(walletInUserCurrency, userCurrency)}
-                </span>
-              </button>
-
-              {/* Credit Card */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('credit_card')}
-                className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-all text-center ${
-                  paymentMethod === 'credit_card'
-                    ? 'border-emerald-500 bg-emerald-500/10 shadow-sm shadow-emerald-500/10'
-                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
-                }`}
-              >
-                {paymentMethod === 'credit_card' && (
-                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <CheckOutlined className="text-white text-[8px]" />
-                  </div>
-                )}
-                <CreditCardOutlined className={`text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-400' : 'text-white/40'}`} />
-                <span className={`text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-400' : 'text-white/60'}`}>
-                  Credit Card
-                </span>
-                <span className={`text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-400/70' : 'text-white/30'}`}>
-                  Pay with Iyzico
-                </span>
-              </button>
-
-              {/* Pay Later — trusted customers only */}
-              {canPayLater && (
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('pay_later')}
-                  className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border transition-all text-center ${
-                    paymentMethod === 'pay_later'
-                      ? 'border-sky-500 bg-sky-500/10 shadow-sm shadow-sky-500/10'
-                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
-                  }`}
-                >
-                  {paymentMethod === 'pay_later' && (
-                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-sky-500 flex items-center justify-center">
-                      <CheckOutlined className="text-white text-[8px]" />
-                    </div>
-                  )}
-                  <ClockCircleOutlined className={`text-xl ${paymentMethod === 'pay_later' ? 'text-sky-400' : 'text-white/40'}`} />
-                  <span className={`text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-sky-400' : 'text-white/60'}`}>
-                    Pay Later
-                  </span>
-                  <span className={`text-xs ${paymentMethod === 'pay_later' ? 'text-sky-400/70' : 'text-white/30'}`}>
-                    At the center
-                  </span>
-                </button>
-              )}
+            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              {[
+                { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: formatCurrency(walletInUserCurrency, userCurrency), color: 'blue-500', textColor: 'text-blue-400' },
+                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico', color: 'emerald-500', textColor: 'text-emerald-400' },
+                { key: 'deposit', icon: <SafetyCertificateOutlined />, label: `Deposit ${DEPOSIT_PERCENT}%`, sub: nights > 0 ? formatPrice(depositAmount) : '20% now', color: 'violet-500', textColor: 'text-violet-400' },
+                ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: 'Pay Later', sub: 'At center', color: 'sky-500', textColor: 'text-sky-400' }] : []),
+              ].map(({ key, icon, label, sub, color, textColor }) => {
+                const isActive = paymentMethod === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPaymentMethod(key)}
+                    className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center ${
+                      isActive
+                        ? `border-${color} bg-${color}/10 shadow-sm`
+                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
+                    }`}
+                  >
+                    {isActive && (
+                      <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-${color} flex items-center justify-center`}>
+                        <CheckOutlined className="text-white text-[8px]" />
+                      </div>
+                    )}
+                    <span className={`text-lg ${isActive ? textColor : 'text-white/40'}`}>{icon}</span>
+                    <span className={`text-xs font-semibold leading-tight ${isActive ? textColor : 'text-white/60'}`}>{label}</span>
+                    <span className={`text-[10px] leading-tight ${isActive ? `${textColor}/70` : 'text-white/30'}`}>{sub}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Deposit breakdown */}
+            {isDeposit && nights > 0 && (
+              <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 space-y-3">
+                <div className="rounded-lg bg-violet-500/10 border border-violet-500/15 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-violet-300 font-semibold">Deposit Now</span>
+                    <span className="text-sm font-bold text-violet-200">{formatPrice(depositAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-violet-300 font-semibold">Pay on Arrival</span>
+                    <span className="text-sm font-bold text-violet-200">{formatPrice(remainingAmount)}</span>
+                  </div>
+                  <p className="text-[10px] text-violet-400/70 leading-tight pt-1">
+                    Pay {DEPOSIT_PERCENT}% now to reserve your stay. The remaining {100 - DEPOSIT_PERCENT}% is due on arrival.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">Pay deposit via</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card' },
+                      { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer' },
+                    ].map(({ key, icon, label }) => {
+                      const active = depositMethod === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setDepositMethod(key)}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 transition-all ${
+                            active ? 'border-violet-500 bg-violet-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          <span className={`text-sm ${active ? 'text-violet-400' : 'text-white/30'}`}>{icon}</span>
+                          <span className={`text-xs font-semibold ${active ? 'text-violet-300' : 'text-white/50'}`}>{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {depositMethod === 'bank_transfer' && (
+                  <>
+                    <Select
+                      placeholder="Choose bank account to transfer to…"
+                      className="w-full"
+                      size="large"
+                      value={selectedBankAccountId}
+                      onChange={setSelectedBankAccountId}
+                      options={bankAccounts.map(acc => ({
+                        value: acc.id,
+                        label: `${acc.bankName} (${acc.currency})${acc.iban ? ` — …${acc.iban.slice(-6)}` : ''}`,
+                      }))}
+                    />
+                    {selectedAccount && <BankDetailsCard account={selectedAccount} />}
+                    {selectedAccount && (
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">Upload Receipt</p>
+                        <Upload
+                          onRemove={(file) => setFileList(prev => prev.filter(f => f.uid !== file.uid))}
+                          beforeUpload={(file) => {
+                            const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+                            if (!allowed.includes(file.type)) {
+                              msg.error('Only JPEG, PNG, or PDF files are accepted.');
+                              return Upload.LIST_IGNORE;
+                            }
+                            setFileList([file]);
+                            return false;
+                          }}
+                          fileList={fileList}
+                          maxCount={1}
+                          accept=".jpg,.jpeg,.png,.pdf"
+                        >
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-violet-500/30 bg-violet-500/5 text-violet-400 text-xs hover:bg-violet-500/10 transition-colors"
+                          >
+                            <UploadOutlined /> Select Receipt (JPEG, PNG or PDF)
+                          </button>
+                        </Upload>
+                        <p className="text-[10px] mt-1.5 text-violet-400/60 leading-tight">
+                          Upload your deposit receipt for {formatPrice(depositAmount)} — JPEG, PNG, or PDF accepted.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             {walletInsufficient && paymentMethod === 'wallet' && (
               <Alert
@@ -700,18 +797,24 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               </div>
 
               <button
-                disabled={!checkIn || !checkOut || nights < 1 || bookMutation.isPending || (paymentMethod === 'wallet' && walletInsufficient)}
+                disabled={
+                  !checkIn || !checkOut || nights < 1 || bookMutation.isPending ||
+                  (paymentMethod === 'wallet' && walletInsufficient) ||
+                  (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0))
+                }
                 onClick={handleSubmit}
                 className={`
                   w-full h-12 rounded-xl text-base font-bold border-none transition-all duration-200
                   flex items-center justify-center gap-2
-                  ${(!checkIn || !checkOut || nights < 1 || (paymentMethod === 'wallet' && walletInsufficient))
+                  ${(!checkIn || !checkOut || nights < 1 || (paymentMethod === 'wallet' && walletInsufficient) || (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))
                     ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                    : paymentMethod === 'pay_later'
-                      ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-sky-500 active:scale-[0.98]'
-                      : paymentMethod === 'credit_card'
-                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.98]'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98]'
+                    : isDeposit
+                      ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/20 hover:from-violet-400 hover:to-violet-500 active:scale-[0.98]'
+                      : paymentMethod === 'pay_later'
+                        ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-sky-500 active:scale-[0.98]'
+                        : paymentMethod === 'credit_card'
+                          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.98]'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98]'
                   }
                 `}
               >
@@ -720,26 +823,30 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 ) : (
                   <>
                     <RocketOutlined />
-                    {paymentMethod === 'pay_later'
-                      ? 'Confirm — Pay Later'
-                      : paymentMethod === 'credit_card'
-                        ? `Pay ${nights > 0 ? formatPrice(totalPrice) : ''} with Card`
-                        : isHotel
-                          ? 'Request Booking'
-                          : `Pay ${nights > 0 ? formatPrice(totalPrice) : ''}`}
+                    {isDeposit
+                      ? `Pay Deposit ${nights > 0 ? formatPrice(depositAmount) : ''}`
+                      : paymentMethod === 'pay_later'
+                        ? 'Confirm — Pay Later'
+                        : paymentMethod === 'credit_card'
+                          ? `Pay ${nights > 0 ? formatPrice(totalPrice) : ''} with Card`
+                          : isHotel
+                            ? 'Request Booking'
+                            : `Pay ${nights > 0 ? formatPrice(totalPrice) : ''}`}
                   </>
                 )}
               </button>
 
               <p className="text-center text-white/30 text-[10px] mt-3 flex items-center justify-center gap-1 m-0">
                 <InfoCircleOutlined />
-                {paymentMethod === 'pay_later'
-                  ? 'Balance will be collected at the center upon check-in.'
-                  : paymentMethod === 'credit_card'
-                    ? 'You\'ll be redirected to a secure payment page.'
-                    : isHotel
-                      ? 'Request — we\'ll check hotel availability and confirm.'
-                      : 'Funds will be reserved from your wallet.'}
+                {isDeposit
+                  ? `Pay ${DEPOSIT_PERCENT}% now, remaining ${100 - DEPOSIT_PERCENT}% on arrival.`
+                  : paymentMethod === 'pay_later'
+                    ? 'Balance will be collected at the center upon check-in.'
+                    : paymentMethod === 'credit_card'
+                      ? 'You\'ll be redirected to a secure payment page.'
+                      : isHotel
+                        ? 'Request — we\'ll check hotel availability and confirm.'
+                        : 'Funds will be reserved from your wallet.'}
               </p>
             </div>
           </div>

@@ -242,17 +242,17 @@ async function main() {
         await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
         console.log('   ✓ backend/.env.production uploaded');
 
-        // Upload pre-built frontend dist (built locally to avoid server OOM)
+        // Upload pre-built frontend dist to /tmp (survives git clean in deploy script)
         console.log('📤 Uploading frontend dist to server...');
         const localDistDir = path.join(cwd, 'dist');
-        const remoteDistDir = `${remotePath}/dist`;
-        await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
-        await ssh.putDirectory(localDistDir, remoteDistDir, {
+        const remoteDistTmp = `/tmp/plannivo-dist`;
+        await ssh.execCommand(`rm -rf ${remoteDistTmp} && mkdir -p ${remoteDistTmp}`);
+        await ssh.putDirectory(localDistDir, remoteDistTmp, {
           recursive: true,
           concurrency: 5,
           validate: () => true,
         });
-        console.log('   ✓ Frontend dist uploaded');
+        console.log('   ✓ Frontend dist uploaded to /tmp/plannivo-dist');
 
         // Upload SSL certificates (gitignored, must be transferred each deploy)
         const localSslDir = path.join(cwd, 'SSL');
@@ -283,6 +283,10 @@ git clean -fd
 git checkout .
 git fetch --all
 git reset --hard origin/${remoteBranch}
+# Restore pre-built dist (uploaded to /tmp before git clean wiped it)
+echo "Restoring pre-built frontend dist..."
+cp -r /tmp/plannivo-dist ${remotePath}/dist
+echo "  dist restored ($(ls ${remotePath}/dist | wc -l) files)"
 # Free up port 80/443 if something else is using them
 echo "Checking for existing services on ports 80 and 443..."
 if command -v systemctl >/dev/null 2>&1; then
