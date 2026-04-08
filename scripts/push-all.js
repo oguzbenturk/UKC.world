@@ -376,6 +376,8 @@ echo "Running database migrations..."
 docker exec backend node migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
 
 echo "Starting frontend..."
+# Force-remove any lingering frontend container (handles stale names from failed deploys)
+docker rm -f frontend 2>/dev/null || true
 docker run -d --name frontend \\
   --network plannivo_app-network \\
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:8443:8443 \\
@@ -394,9 +396,9 @@ if ! docker exec backend node -e "require('http').get('http://localhost:4000/api
   echo "Backend Health: FAIL"; docker logs backend --tail=200 || true; fi
 echo "Checking frontend health..."
 for i in 1 2 3 4 5; do
-  if curl -fsS http://localhost:80/ >/dev/null 2>&1; then
+  if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
     echo "Frontend Health: OK"; break; fi; echo "waiting frontend ($i)..."; sleep 4; done
-if ! curl -fsS http://localhost:80/ >/dev/null 2>&1; then
+if ! curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
   echo "Frontend Health: FAIL"; docker logs frontend --tail=200 || true; fi`;
 
         console.log('🔧 Running remote deploy script...');

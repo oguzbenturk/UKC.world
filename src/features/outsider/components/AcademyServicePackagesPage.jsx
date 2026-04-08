@@ -29,6 +29,7 @@ import {
   refreshOpenPackageDetailsModal,
 } from '@/features/outsider/stores/packageDetailsModalStore';
 import { packageDetailsModalDepsRef } from '@/features/outsider/stores/packageDetailsModalDepsRef';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const LESSON_NAV_ITEMS = [
   { id: 'kite',    label: 'KITE LESSONS',   shortLabel: 'KITE',   path: '/academy/kite-lessons' },
@@ -1583,6 +1584,9 @@ const AcademyServicePackagesPage = ({
 
       {/* Cross-sell: Shop · Rental · Stay */}
       {isLessonPage && <AcademyCrossSellBanner />}
+
+      {/* Google Reviews */}
+      <GoogleReviewsStrip />
 
       {/* Contact Us Section */}
       <div className={`py-16 sm:py-20 ${pageBackgroundClass} border-t border-slate-200`}>

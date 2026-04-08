@@ -16,6 +16,7 @@ import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
+import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const KiteLessonsPage = () => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
@@ -552,6 +553,8 @@ const KiteLessonsPage = () => {
           </div>
         </div>
       </div>
+
+      <GoogleReviewsStrip />
 
       <style>{`
         .deluxe-modal .ant-modal-content {
