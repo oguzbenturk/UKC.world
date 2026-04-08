@@ -376,7 +376,12 @@ echo "Running database migrations..."
 docker exec backend node migrate.js up && echo "Migrations: OK" || echo "Migrations: FAILED (check logs above)"
 
 echo "Starting frontend..."
-# Force-remove any lingering frontend container (handles stale names from failed deploys)
+# Kill any container holding ports 8080/8443 (e.g. old compose-managed plannivo_frontend_1)
+for cid in $(docker ps -q --filter publish=8080 --filter publish=8443 2>/dev/null); do
+  echo "Removing container $cid (holding ports 8080/8443)..."
+  docker rm -f "$cid" 2>/dev/null || true
+done
+# Also remove by name (handles Created-but-not-started containers from failed deploys)
 docker rm -f frontend 2>/dev/null || true
 docker run -d --name frontend \\
   --network plannivo_app-network \\
