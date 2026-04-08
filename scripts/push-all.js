@@ -232,6 +232,11 @@ async function main() {
           readyTimeout: 20000,
         });
 
+        // Upload backend/.env.production (gitignored, must be transferred each deploy)
+        console.log('🔑 Uploading backend/.env.production to server...');
+        await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
+        console.log('   ✓ backend/.env.production uploaded');
+
         // Upload SSL certificates (gitignored, must be transferred each deploy)
         const localSslDir = path.join(cwd, 'SSL');
         const remoteSslDir = `${remotePath}/SSL`;
@@ -348,7 +353,7 @@ docker exec backend node migrate.js up && echo "Migrations: OK" || echo "Migrati
 echo "Starting frontend..."
 docker run -d --name frontend \\
   --network plannivo_app-network \\
-  -p 80:8080 -p 443:8443 \\
+  -p 127.0.0.1:8080:8080 -p 127.0.0.1:8443:8443 \\
   -v /root/acme-webroot:/var/www/acme:ro \\
   -v ${remotePath}/SSL:/etc/ssl/plannivo:ro \\
   -v plannivo_uploads_data:/var/www/uploads:ro \\

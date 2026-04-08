@@ -33,7 +33,7 @@ const optionalAuth = async (req, res, next) => {
 
 router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
   try {
-    const { message, conversationHistory, image } = req.body;
+    const { message, conversationHistory, image, userName: clientUserName } = req.body;
 
     if ((!message || typeof message !== 'string' || message.trim().length === 0) && !image) {
       return res.status(400).json({ error: 'Message or image is required' });
@@ -52,11 +52,17 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
       return res.status(503).json({ error: 'Assistant service not configured' });
     }
 
+    // Normalize DB role names to n8n workflow role keys
+    const normalizeRole = (role) => {
+      const roleMap = { customer: 'student', super_admin: 'admin' };
+      return roleMap[role] || role || 'outsider';
+    };
+
     const payload = {
       message: (message || '').trim(),
       userId: req.user?.id || 'guest',
-      userRole: req.user?.role || 'outsider',
-      userName: req.user?.name || 'Guest',
+      userRole: normalizeRole(req.user?.role),
+      userName: clientUserName || req.user?.email || 'Guest',
       conversationHistory: conversationHistory || [],
     };
     if (image) payload.image = image;

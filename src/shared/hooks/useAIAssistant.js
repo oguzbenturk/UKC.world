@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import apiClient from '@/shared/services/apiClient';
+import { useAuth } from './useAuth';
 
 export function useAIAssistant() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
 
@@ -22,6 +24,7 @@ export function useAIAssistant() {
       const payload = {
         message: text?.trim() || 'Analyze this image',
         conversationHistory: messages,
+        userName: user?.name || user?.email || null,
       };
       if (imageBase64) payload.image = imageBase64;
       const { data } = await apiClient.post('/assistant', payload);
