@@ -66,6 +66,18 @@ INSERT INTO skill_levels (name, description, order_index) VALUES
   ('Expert',       'High performance and freestyle skills',   4)
 ON CONFLICT (name) DO NOTHING;
 
+-- Ensure unique constraint exists on skills.name (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'skills'::regclass AND contype = 'u'
+    AND conname = 'skills_name_key'
+  ) THEN
+    ALTER TABLE skills ADD CONSTRAINT skills_name_key UNIQUE (name);
+  END IF;
+END $$;
+
 -- Seed skills (referenced by level name for readability)
 INSERT INTO skills (name, description, skill_level_id)
 SELECT s.name, s.description, sl.id

@@ -161,6 +161,11 @@ async function main() {
     if (!commitTitle) commitTitle = `Deploy: Production build ${nowStamp()}`;
   }
 
+  // 1.6) Build frontend locally (avoids OOM on memory-constrained server)
+  console.log('🏗️  Building frontend locally (production env)...');
+  sh('npm run build');
+  console.log('   ✓ Frontend built successfully');
+
   // 2) Commit & push, then 3) restore envs
   console.log('🚀 Step 2/5: Committing and pushing to Git...');
   const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd }).toString().trim();
@@ -237,6 +242,18 @@ async function main() {
         await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
         console.log('   ✓ backend/.env.production uploaded');
 
+        // Upload pre-built frontend dist (built locally to avoid server OOM)
+        console.log('📤 Uploading frontend dist to server...');
+        const localDistDir = path.join(cwd, 'dist');
+        const remoteDistDir = `${remotePath}/dist`;
+        await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
+        await ssh.putDirectory(localDistDir, remoteDistDir, {
+          recursive: true,
+          concurrency: 5,
+          validate: () => true,
+        });
+        console.log('   ✓ Frontend dist uploaded');
+
         // Upload SSL certificates (gitignored, must be transferred each deploy)
         const localSslDir = path.join(cwd, 'SSL');
         const remoteSslDir = `${remotePath}/SSL`;
@@ -287,8 +304,8 @@ fi
 # Build images sequentially to avoid OOM on memory-constrained servers
 echo "Building backend image..."
 docker build -t plannivo_backend -f backend/Dockerfile.production backend/
-echo "Building frontend image..."
-docker build -t plannivo_frontend -f infrastructure/Dockerfile .
+echo "Building frontend image (using pre-built dist uploaded from local machine)..."
+docker build -t plannivo_frontend -f infrastructure/Dockerfile.deploy .
 
 echo "Stopping old containers..."
 docker stop frontend backend 2>/dev/null || true
