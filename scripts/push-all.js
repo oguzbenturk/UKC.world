@@ -284,13 +284,11 @@ if [ ! -f docker-compose.production.yml ]; then
   echo "ERROR: docker-compose.production.yml not found on server. Aborting."
   exit 1
 fi
-# Build images in parallel (~30-50% faster than sequential)
-echo "Building Docker images..."
-docker build -t plannivo_backend -f backend/Dockerfile.production backend/ &
-BACKEND_BUILD_PID=$!
-docker build -t plannivo_frontend -f infrastructure/Dockerfile . &
-FRONTEND_BUILD_PID=$!
-wait $BACKEND_BUILD_PID $FRONTEND_BUILD_PID
+# Build images sequentially to avoid OOM on memory-constrained servers
+echo "Building backend image..."
+docker build -t plannivo_backend -f backend/Dockerfile.production backend/
+echo "Building frontend image..."
+docker build -t plannivo_frontend -f infrastructure/Dockerfile .
 
 echo "Stopping old containers..."
 docker stop frontend backend 2>/dev/null || true
