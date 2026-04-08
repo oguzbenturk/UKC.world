@@ -1234,7 +1234,7 @@ router.get('/session/:sessionId', async (req, res) => {
 router.post('/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { userId, userRole } = req.agent;
+    const { userId, role: userRole } = req.agent;
     const { messages, summary } = req.body;
 
     if (!Array.isArray(messages)) {

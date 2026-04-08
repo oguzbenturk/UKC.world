@@ -31,6 +31,7 @@
     "migrate:status": "node backend/migrate.js status",
     "deploy:production": "bash deploy-production.sh",
     "push-all": "node scripts/push-all.js",
+    "sync:n8n": "node scripts/sync-n8n-workflow.js",
     "push:sync": "node scripts/push-sync.js",
     "push-sync": "node scripts/push-sync.js",
     "docker:build": "docker-compose build",
