@@ -1199,7 +1199,7 @@ router.get('/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { rows } = await pool.query(
-      `SELECT session_id, user_id, user_role, messages, summary, updated_at
+      `SELECT session_id, user_id, user_role, messages, summary, kb_snapshot, kb_fetched_at, updated_at
        FROM kai_sessions
        WHERE session_id = $1`,
       [sessionId],
@@ -1211,6 +1211,8 @@ router.get('/session/:sessionId', async (req, res) => {
         exists: false,
         messages: [],
         summary: null,
+        kbSnapshot: null,
+        kbFetchedAt: null,
       });
     }
 
@@ -1222,6 +1224,8 @@ router.get('/session/:sessionId', async (req, res) => {
       userRole: s.user_role,
       messages: s.messages,
       summary: s.summary,
+      kbSnapshot: s.kb_snapshot,
+      kbFetchedAt: s.kb_fetched_at,
       updatedAt: s.updated_at,
     });
   } catch (err) {
@@ -1235,7 +1239,7 @@ router.post('/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { userId, role: userRole } = req.agent;
-    const { messages, summary } = req.body;
+    const { messages, summary, kbSnapshot, kbFetchedAt } = req.body;
 
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: 'messages must be an array' });
@@ -1245,19 +1249,23 @@ router.post('/session/:sessionId', async (req, res) => {
     const trimmed = messages.slice(-50);
 
     await pool.query(
-      `INSERT INTO kai_sessions (session_id, user_id, user_role, messages, summary, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO kai_sessions (session_id, user_id, user_role, messages, summary, kb_snapshot, kb_fetched_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        ON CONFLICT (session_id) DO UPDATE
-         SET messages   = EXCLUDED.messages,
-             summary    = COALESCE(EXCLUDED.summary, kai_sessions.summary),
-             user_role  = EXCLUDED.user_role,
-             updated_at = NOW()`,
+         SET messages     = EXCLUDED.messages,
+             summary      = COALESCE(EXCLUDED.summary, kai_sessions.summary),
+             user_role    = EXCLUDED.user_role,
+             kb_snapshot  = COALESCE(EXCLUDED.kb_snapshot, kai_sessions.kb_snapshot),
+             kb_fetched_at = COALESCE(EXCLUDED.kb_fetched_at, kai_sessions.kb_fetched_at),
+             updated_at   = NOW()`,
       [
         sessionId,
         (!userId || userId === 'guest') ? null : userId,
         userRole,
         JSON.stringify(trimmed),
         summary || null,
+        kbSnapshot || null,
+        kbFetchedAt || null,
       ],
     );
 
@@ -1576,6 +1584,24 @@ router.get('/member-offerings/mine', async (req, res) => {
   } catch (err) {
     logger.error('Agent GET /member-offerings/mine error', err);
     res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+});
+
+// ── GET /knowledge-base — KB entries filtered by role (for system prompt) ─────
+router.get('/knowledge-base', async (req, res) => {
+  try {
+    const role = req.query.role || 'outsider';
+    const { rows } = await pool.query(
+      `SELECT category, title, content
+       FROM kai_knowledge_base
+       WHERE is_active = true AND $1 = ANY(applicable_roles)
+       ORDER BY category, sort_order, title`,
+      [role],
+    );
+    res.json({ entries: rows });
+  } catch (err) {
+    logger.error('Agent GET /knowledge-base error', err);
+    res.status(500).json({ error: 'Failed to fetch knowledge base' });
   }
 });
 

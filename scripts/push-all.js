@@ -243,44 +243,48 @@ async function main() {
           readyTimeout: 20000,
         });
 
-        // Upload backend/.env.production
-        console.log('🔑 Uploading backend/.env.production to server...');
-        await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
-        console.log('   ✓ backend/.env.production uploaded');
-
-        // Upload pre-built frontend dist
-        console.log('📤 Uploading frontend dist to server...');
-        const localDistDir = path.join(cwd, 'dist');
-        const remoteDistDir = `${remotePath}/dist`;
-        await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
-        await ssh.putDirectory(localDistDir, remoteDistDir, {
-          recursive: true,
-          concurrency: 5,
-          validate: () => true,
-        });
-        console.log('   ✓ Frontend dist uploaded');
-
-        // Upload SSL certificates
-        const localSslDir = path.join(cwd, 'SSL');
-        const remoteSslDir = `${remotePath}/SSL`;
-        const sslFiles = ['certificate.crt', 'private.key', 'ca_bundle.crt'];
-        const missingSsl = sslFiles.filter(f => !fs.existsSync(path.join(localSslDir, f)));
-        if (missingSsl.length > 0) {
-          console.warn(`⚠️  Missing SSL files locally: ${missingSsl.join(', ')} — nginx may fail!`);
+        if (retry) {
+          console.log('♻️  --retry mode: skipping file uploads (using files already on server).');
         } else {
-          console.log('🔐 Uploading SSL certificates to server...');
-          await ssh.execCommand(`mkdir -p ${remoteSslDir}`);
-          await Promise.all(sslFiles.map(async (file) => {
-            await ssh.putFile(path.join(localSslDir, file), `${remoteSslDir}/${file}`);
-            console.log(`   ✓ Uploaded ${file}`);
-          }));
-          await ssh.execCommand(
-            `chmod 640 ${remoteSslDir}/private.key && chown root:101 ${remoteSslDir}/private.key` +
-            ` && chmod 644 ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt` +
-            ` && cat ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt > ${remoteSslDir}/fullchain.crt` +
-            ` && chmod 644 ${remoteSslDir}/fullchain.crt`
-          );
-          console.log('   ✓ SSL certificates uploaded + fullchain.crt created');
+          // Upload backend/.env.production
+          console.log('🔑 Uploading backend/.env.production to server...');
+          await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
+          console.log('   ✓ backend/.env.production uploaded');
+
+          // Upload pre-built frontend dist
+          console.log('📤 Uploading frontend dist to server...');
+          const localDistDir = path.join(cwd, 'dist');
+          const remoteDistDir = `${remotePath}/dist`;
+          await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
+          await ssh.putDirectory(localDistDir, remoteDistDir, {
+            recursive: true,
+            concurrency: 5,
+            validate: () => true,
+          });
+          console.log('   ✓ Frontend dist uploaded');
+
+          // Upload SSL certificates
+          const localSslDir = path.join(cwd, 'SSL');
+          const remoteSslDir = `${remotePath}/SSL`;
+          const sslFiles = ['certificate.crt', 'private.key', 'ca_bundle.crt'];
+          const missingSsl = sslFiles.filter(f => !fs.existsSync(path.join(localSslDir, f)));
+          if (missingSsl.length > 0) {
+            console.warn(`⚠️  Missing SSL files locally: ${missingSsl.join(', ')} — nginx may fail!`);
+          } else {
+            console.log('🔐 Uploading SSL certificates to server...');
+            await ssh.execCommand(`mkdir -p ${remoteSslDir}`);
+            await Promise.all(sslFiles.map(async (file) => {
+              await ssh.putFile(path.join(localSslDir, file), `${remoteSslDir}/${file}`);
+              console.log(`   ✓ Uploaded ${file}`);
+            }));
+            await ssh.execCommand(
+              `chmod 640 ${remoteSslDir}/private.key && chown root:101 ${remoteSslDir}/private.key` +
+              ` && chmod 644 ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt` +
+              ` && cat ${remoteSslDir}/certificate.crt ${remoteSslDir}/ca_bundle.crt > ${remoteSslDir}/fullchain.crt` +
+              ` && chmod 644 ${remoteSslDir}/fullchain.crt`
+            );
+            console.log('   ✓ SSL certificates uploaded + fullchain.crt created');
+          }
         }
 
         const COMPOSE = `docker-compose --project-name plannivo -f docker-compose.production.yml`;
