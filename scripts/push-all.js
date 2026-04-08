@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-// push-all.js — Swap .env to production, commit and push, restore .env to dev, SSH to pull and restart services.
+// push-all.js — Build, commit, push, SSH deploy.
+//
+// Usage:
+//   npm run push-all                 # full deploy (version bump + build + git + SSH)
+//   npm run push-all -- --retry      # SSH deploy only (skip version/build/git — for failed deploys)
+//   npm run push-all -- --no-version # skip version bump
+//   npm run push-all -- --skip-build # skip frontend build (use existing dist/)
+//   npm run push-all -- "My message" # custom commit message
 
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -8,56 +15,6 @@ import path from 'path';
 import { NodeSSH } from 'node-ssh';
 
 const cwd = process.cwd();
-
-/**
- * Bump the app version (patch by default).
- * Updates src/shared/constants/version.js and index.html meta tag.
- */
-function bumpVersion(type = 'patch') {
-  const versionFilePath = path.join(cwd, 'src', 'shared', 'constants', 'version.js');
-
-  if (!fs.existsSync(versionFilePath)) {
-    console.warn('⚠️  Version file not found, skipping version bump');
-    return null;
-  }
-
-  let content = fs.readFileSync(versionFilePath, 'utf-8');
-  const versionMatch = content.match(/export const APP_VERSION = ['"](\d+)\.(\d+)\.(\d+)['"]/);
-  if (!versionMatch) {
-    console.warn('⚠️  Could not parse version from version.js, skipping version bump');
-    return null;
-  }
-
-  let major = parseInt(versionMatch[1], 10);
-  let minor = parseInt(versionMatch[2], 10);
-  let patch = parseInt(versionMatch[3], 10);
-
-  switch (type) {
-    case 'major': major++; minor = 0; patch = 0; break;
-    case 'minor': minor++; patch = 0; break;
-    default: patch++; break;
-  }
-
-  const newVersion = `${major}.${minor}.${patch}`;
-
-  content = content.replace(
-    /export const APP_VERSION = ['"][^'"]+['"]/,
-    `export const APP_VERSION = '${newVersion}'`
-  );
-  fs.writeFileSync(versionFilePath, content, 'utf-8');
-
-  const indexHtmlPath = path.join(cwd, 'index.html');
-  if (fs.existsSync(indexHtmlPath)) {
-    let htmlContent = fs.readFileSync(indexHtmlPath, 'utf-8');
-    htmlContent = htmlContent.replace(
-      /<meta name="app-version" content="[^"]*"/,
-      `<meta name="app-version" content="${newVersion}"`
-    );
-    fs.writeFileSync(indexHtmlPath, htmlContent, 'utf-8');
-  }
-
-  return newVersion;
-}
 
 function sh(cmd, opts = {}) {
   execSync(cmd, { stdio: 'inherit', cwd, ...opts });
@@ -76,8 +33,15 @@ function nowStamp() {
 }
 
 function parseArgs() {
-  const args = process.argv.slice(2).filter(a => !a.startsWith('-'));
-  return { title: args[0] || '' };
+  const args = process.argv.slice(2);
+  const flags = new Set(args.filter(a => a.startsWith('--')));
+  const title = args.filter(a => !a.startsWith('--'))[0] || '';
+  return {
+    title,
+    retry: flags.has('--retry'),
+    noVersion: flags.has('--no-version'),
+    skipBuild: flags.has('--skip-build'),
+  };
 }
 
 function parseSimpleEnv(filePath) {
@@ -101,8 +65,46 @@ function parseSimpleEnv(filePath) {
   }
 }
 
+function bumpVersion(type = 'patch') {
+  const versionFilePath = path.join(cwd, 'src', 'shared', 'constants', 'version.js');
+  if (!fs.existsSync(versionFilePath)) {
+    console.warn('⚠️  Version file not found, skipping version bump');
+    return null;
+  }
+  let content = fs.readFileSync(versionFilePath, 'utf-8');
+  const versionMatch = content.match(/export const APP_VERSION = ['"](\d+)\.(\d+)\.(\d+)['"]/);
+  if (!versionMatch) {
+    console.warn('⚠️  Could not parse version from version.js, skipping version bump');
+    return null;
+  }
+  let major = parseInt(versionMatch[1], 10);
+  let minor = parseInt(versionMatch[2], 10);
+  let patch = parseInt(versionMatch[3], 10);
+  switch (type) {
+    case 'major': major++; minor = 0; patch = 0; break;
+    case 'minor': minor++; patch = 0; break;
+    default: patch++; break;
+  }
+  const newVersion = `${major}.${minor}.${patch}`;
+  content = content.replace(
+    /export const APP_VERSION = ['"][^'"]+['"]/,
+    `export const APP_VERSION = '${newVersion}'`
+  );
+  fs.writeFileSync(versionFilePath, content, 'utf-8');
+  const indexHtmlPath = path.join(cwd, 'index.html');
+  if (fs.existsSync(indexHtmlPath)) {
+    let htmlContent = fs.readFileSync(indexHtmlPath, 'utf-8');
+    htmlContent = htmlContent.replace(
+      /<meta name="app-version" content="[^"]*"/,
+      `<meta name="app-version" content="${newVersion}"`
+    );
+    fs.writeFileSync(indexHtmlPath, htmlContent, 'utf-8');
+  }
+  return newVersion;
+}
+
 async function main() {
-  const { title } = parseArgs();
+  const { title, retry, noVersion, skipBuild } = parseArgs();
 
   // Load secrets
   const secretsPath = path.join(cwd, '.deploy.secrets.json');
@@ -112,20 +114,18 @@ async function main() {
   }
   const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf-8'));
 
-  // Paths
+  const backendDir = path.join(cwd, 'backend');
+  const beEnvProd = path.join(backendDir, '.env.production');
+  const beEnv = path.join(backendDir, '.env');
+  const beEnvDev = path.join(backendDir, '.env.development');
+  const beEnvBackup = path.join(backendDir, '.env.backup');
   const rootEnv = path.join(cwd, '.env');
   const rootEnvProd = path.join(cwd, '.env.production.template');
   const rootEnvBackup = path.join(cwd, '.env.backup');
 
-  const backendDir = path.join(cwd, 'backend');
-  const beEnv = path.join(backendDir, '.env');
-  const beEnvProd = path.join(backendDir, '.env.production');
-  const beEnvDev = path.join(backendDir, '.env.development');
-  const beEnvBackup = path.join(backendDir, '.env.backup');
-
   const deploy = process.env.DEPLOY !== 'false';
 
-  // 0) Pre-flight
+  // ── Pre-flight ───────────────────────────────────────────────────────────────
   console.log('🔍 Pre-flight checks...');
   if (!fs.existsSync(beEnvProd)) {
     console.error('❌ FATAL: backend/.env.production is missing!');
@@ -142,81 +142,83 @@ async function main() {
   }
   console.log('   ✓ backend/.env.production validated');
 
-  // 1) Swap to production envs
-  console.log('📦 Step 1/5: Switching .env files to production...');
-  if (fs.existsSync(rootEnv)) fs.copyFileSync(rootEnv, rootEnvBackup);
-  if (fs.existsSync(beEnv)) fs.copyFileSync(beEnv, beEnvBackup);
-
-  if (!copyFileSafe(rootEnvProd, rootEnv)) console.warn('⚠️  Root production env not found, skipping root .env swap.');
-  if (!copyFileSafe(beEnvProd, beEnv)) console.warn('⚠️  backend/.env.production not found, skipping backend .env swap.');
-
-  // 1.5) Bump version
-  console.log('📦 Bumping app version...');
-  const newVersion = bumpVersion('patch');
-  let commitTitle = title;
-  if (newVersion) {
-    console.log(`   ✓ Version bumped to v${newVersion}`);
-    if (!commitTitle) commitTitle = `Deploy: v${newVersion} - ${nowStamp()}`;
-  } else {
-    if (!commitTitle) commitTitle = `Deploy: Production build ${nowStamp()}`;
+  if (retry) {
+    console.log('♻️  --retry mode: skipping version bump, build, and git — going straight to SSH deploy.');
   }
 
-  // 1.6) Build frontend locally if dist/ doesn't exist (avoids OOM on server)
-  // User can run `npm run build` manually before push-all to skip this step.
-  const distDir = path.join(cwd, 'dist');
-  if (fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0) {
-    console.log('📦 Using existing dist/ (run `npm run build` manually to rebuild).');
-  } else {
-    console.log('🏗️  Building frontend locally (no dist/ found)...');
-    sh('npm run build');
-    console.log('   ✓ Frontend built successfully');
+  // ── Step 1: Version bump + frontend build + commit + push ───────────────────
+  if (!retry) {
+    // Version bump (unless --no-version)
+    let commitTitle = title;
+    if (!noVersion) {
+      console.log('📦 Bumping app version...');
+      const newVersion = bumpVersion('patch');
+      if (newVersion) {
+        console.log(`   ✓ Version bumped to v${newVersion}`);
+        if (!commitTitle) commitTitle = `Deploy: v${newVersion} - ${nowStamp()}`;
+      } else {
+        if (!commitTitle) commitTitle = `Deploy: Production build ${nowStamp()}`;
+      }
+    } else {
+      if (!commitTitle) commitTitle = `Deploy: ${nowStamp()}`;
+    }
+
+    // Frontend build
+    if (!skipBuild) {
+      const distDir = path.join(cwd, 'dist');
+      if (fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0) {
+        console.log('📦 Using existing dist/ — run `npm run build` manually to rebuild.');
+      } else {
+        console.log('🏗️  Building frontend locally (no dist/ found)...');
+        sh('npm run build');
+        console.log('   ✓ Frontend built successfully');
+      }
+    }
+
+    // Swap to prod envs, commit, push, restore
+    console.log('🚀 Step 2/5: Committing and pushing to Git...');
+    if (fs.existsSync(rootEnv)) fs.copyFileSync(rootEnv, rootEnvBackup);
+    if (fs.existsSync(beEnv)) fs.copyFileSync(beEnv, beEnvBackup);
+    if (!copyFileSafe(rootEnvProd, rootEnv)) console.warn('⚠️  Root production env not found, skipping root .env swap.');
+    if (!copyFileSafe(beEnvProd, beEnv)) console.warn('⚠️  backend/.env.production not found, skipping backend .env swap.');
+
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd }).toString().trim();
+    try {
+      sh('git add -A');
+      const diffExit = execSync('git diff --cached --quiet || echo changed').toString().trim();
+      if (diffExit === 'changed') {
+        sh(`git commit -m ${JSON.stringify(commitTitle)}`);
+      } else {
+        console.log('ℹ️  No staged changes to commit.');
+      }
+      try { sh('git config http.postBuffer 2097152000'); } catch {}
+      try { sh('git config http.lowSpeedLimit 0'); } catch {}
+      try { sh('git config http.lowSpeedTime 999999'); } catch {}
+      sh(`git push origin ${currentBranch}`);
+    } finally {
+      // Always restore dev envs
+      console.log('♻️  Step 3/5: Restoring local development .env files...');
+      if (fs.existsSync(rootEnvBackup)) {
+        fs.copyFileSync(rootEnvBackup, rootEnv);
+        console.log('   ✓ Restored root .env');
+      } else {
+        console.warn('   ⚠️  No root .env backup found!');
+      }
+      if (fs.existsSync(beEnvDev)) {
+        fs.copyFileSync(beEnvDev, beEnv);
+        console.log('   ✓ Restored backend/.env from .env.development');
+      } else if (fs.existsSync(beEnvBackup)) {
+        fs.copyFileSync(beEnvBackup, beEnv);
+        console.log('   ✓ Restored backend/.env from backup');
+      } else {
+        console.warn('   ⚠️  No backend .env.development or backup found!');
+      }
+      try { if (fs.existsSync(rootEnvBackup)) fs.rmSync(rootEnvBackup); } catch {}
+      try { if (fs.existsSync(beEnvBackup)) fs.rmSync(beEnvBackup); } catch {}
+    }
   }
 
-  // 2) Commit & push, then 3) restore envs
-  console.log('🚀 Step 2/5: Committing and pushing to Git...');
-  const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd }).toString().trim();
-
-  try {
-    sh('git add -A');
-    const diffExit = execSync('git diff --cached --quiet || echo changed').toString().trim();
-    if (diffExit === 'changed') {
-      sh(`git commit -m ${JSON.stringify(commitTitle)}`);
-    } else {
-      console.log('ℹ️  No staged changes to commit.');
-    }
-
-    // Raise buffer for large pushes
-    try { sh('git config http.postBuffer 2097152000'); } catch {}
-    try { sh('git config http.lowSpeedLimit 0'); } catch {}
-    try { sh('git config http.lowSpeedTime 999999'); } catch {}
-
-    sh(`git push origin ${currentBranch}`);
-  } finally {
-    // 3) Always restore local dev envs
-    console.log('♻️  Step 3/5: Restoring local development .env files...');
-
-    if (fs.existsSync(rootEnvBackup)) {
-      fs.copyFileSync(rootEnvBackup, rootEnv);
-      console.log('   ✓ Restored root .env from backup');
-    } else {
-      console.warn('   ⚠️  No root .env backup found - .env may still be in production mode!');
-    }
-
-    if (fs.existsSync(beEnvDev)) {
-      fs.copyFileSync(beEnvDev, beEnv);
-      console.log('   ✓ Restored backend/.env from .env.development');
-    } else if (fs.existsSync(beEnvBackup)) {
-      fs.copyFileSync(beEnvBackup, beEnv);
-      console.log('   ✓ Restored backend/.env from backup');
-    } else {
-      console.warn('   ⚠️  No backend .env.development or backup found!');
-    }
-
-    try { if (fs.existsSync(rootEnvBackup)) fs.rmSync(rootEnvBackup); } catch {}
-    try { if (fs.existsSync(beEnvBackup)) fs.rmSync(beEnvBackup); } catch {}
-  }
-
-  // 4) SSH deploy
+  // ── Step 4: SSH deploy ───────────────────────────────────────────────────────
   console.log('🖥️  Step 4/5: Connecting to remote host to deploy...');
   if (!deploy) {
     console.log('DEPLOY=false set. Skipping remote deployment.');
@@ -227,8 +229,6 @@ async function main() {
     const privateKeyPath = process.env.DEPLOY_KEY_PATH || secrets.keyPath;
     const remotePath = process.env.DEPLOY_PATH || secrets.path || '/root/plannivo';
     const remoteBranch = process.env.DEPLOY_BRANCH || secrets.branch || 'main';
-
-    console.log(`   📌 Remote: git reset --hard origin/${remoteBranch} in ${remotePath}`);
 
     if (!host || !username || (!password && !privateKeyPath)) {
       console.warn('⚠️  Missing SSH credentials. Skipping remote deploy.');
@@ -243,13 +243,12 @@ async function main() {
           readyTimeout: 20000,
         });
 
-        // Upload backend/.env.production (gitignored, must be transferred each deploy)
+        // Upload backend/.env.production
         console.log('🔑 Uploading backend/.env.production to server...');
         await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
         console.log('   ✓ backend/.env.production uploaded');
 
-        // Upload pre-built frontend dist directly to repo dir
-        // (git reset --hard preserves gitignored/untracked files, so no /tmp staging needed)
+        // Upload pre-built frontend dist
         console.log('📤 Uploading frontend dist to server...');
         const localDistDir = path.join(cwd, 'dist');
         const remoteDistDir = `${remotePath}/dist`;
@@ -261,13 +260,13 @@ async function main() {
         });
         console.log('   ✓ Frontend dist uploaded');
 
-        // Upload SSL certificates (gitignored, must be transferred each deploy)
+        // Upload SSL certificates
         const localSslDir = path.join(cwd, 'SSL');
         const remoteSslDir = `${remotePath}/SSL`;
         const sslFiles = ['certificate.crt', 'private.key', 'ca_bundle.crt'];
         const missingSsl = sslFiles.filter(f => !fs.existsSync(path.join(localSslDir, f)));
         if (missingSsl.length > 0) {
-          console.warn(`⚠️  Missing SSL files locally: ${missingSsl.join(', ')} — nginx may fail to start!`);
+          console.warn(`⚠️  Missing SSL files locally: ${missingSsl.join(', ')} — nginx may fail!`);
         } else {
           console.log('🔐 Uploading SSL certificates to server...');
           await ssh.execCommand(`mkdir -p ${remoteSslDir}`);
@@ -284,55 +283,78 @@ async function main() {
           console.log('   ✓ SSL certificates uploaded + fullchain.crt created');
         }
 
-        const script = `set -e
+        const COMPOSE = `docker-compose --project-name plannivo -f docker-compose.production.yml`;
+
+        // Remote deploy script — no set -e so one failure doesn't kill everything
+        const script = `
 cd ${remotePath}
 
 echo "=== Plannivo Deploy ==="
 
-# 1. Update code (git reset --hard preserves gitignored: dist/, SSL/, backend/.env.production)
+# 1. Update code
 echo "Pulling latest code..."
 git fetch --all
 git reset --hard origin/${remoteBranch}
 
 # 2. Verify prerequisites
 echo "Checking prerequisites..."
+MISSING=0
 for f in dist/index.html backend/.env.production SSL/fullchain.crt; do
-  if [ ! -f "$f" ]; then echo "ERROR: Missing required file: $f"; exit 1; fi
+  if [ ! -f "$f" ]; then echo "  ERROR: Missing required file: $f"; MISSING=1; fi
 done
+if [ "$MISSING" = "1" ]; then echo "Aborting: missing prerequisites."; exit 1; fi
 echo "  All prerequisites present."
 
-# 3. Load env vars for compose interpolation (REDIS_PASSWORD, POSTGRES_PASSWORD, etc.)
+# 3. Load env vars
 set -a
 . ./backend/.env.production || true
 set +a
 export COMPOSE_PROJECT_NAME=plannivo
 
-# 4. Build backend image (only service that needs building)
+# 4. Build backend image
 echo "Building backend..."
-docker-compose --project-name plannivo -f docker-compose.production.yml build backend
+if ! ${COMPOSE} build backend; then
+  echo "ERROR: Backend build failed."
+  exit 1
+fi
 
-# 5. Start all services — remove old backend container first to avoid compose 1.29 ContainerConfig bug
+# 5. Stop + remove all containers cleanly (avoids compose 1.29 ContainerConfig bug on any service)
+echo "Stopping existing containers..."
+${COMPOSE} down --remove-orphans 2>/dev/null || true
+
+# 6. Start all services fresh
 echo "Starting all services..."
-docker-compose --project-name plannivo -f docker-compose.production.yml rm -f -s backend 2>/dev/null || true
-docker-compose --project-name plannivo -f docker-compose.production.yml up -d
+if ! ${COMPOSE} up -d; then
+  echo "ERROR: Failed to start services."
+  ${COMPOSE} logs --tail=50
+  exit 1
+fi
 
-# 6. Wait for backend health
-echo "Waiting for backend..."
-sleep 10
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  HEALTH=\$(docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend wget -qO- http://localhost:4000/api/health 2>/dev/null || echo fail)
-  if [ "\$HEALTH" != "fail" ]; then echo "  Backend healthy."; break; fi
-  echo "  Waiting (\$i/10)..."
+# 7. Wait for backend health
+echo "Waiting for backend to be healthy..."
+HEALTHY=0
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  HEALTH=\$(${COMPOSE} exec -T backend wget -qO- http://localhost:4000/api/health 2>/dev/null || echo fail)
+  if [ "\$HEALTH" != "fail" ]; then
+    echo "  Backend healthy after \${i}x3s."
+    HEALTHY=1
+    break
+  fi
+  echo "  Waiting (\$i/15)..."
   sleep 3
 done
+if [ "\$HEALTHY" = "0" ]; then
+  echo "WARNING: Backend did not become healthy in time — check logs:"
+  ${COMPOSE} logs --tail=30 backend
+fi
 
-# 7. Run database migrations
+# 8. Run database migrations
 echo "Running migrations..."
-docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend node migrate.js up \\
-  && echo "  Migrations: OK" \\
-  || echo "  Migrations: FAILED (check logs above)"
+${COMPOSE} exec -T backend node migrate.js up \
+  && echo "  Migrations: OK" \
+  || echo "  Migrations: FAILED (non-fatal — check logs)"
 
-# 8. Health checks
+# 9. Health check frontend
 echo ""
 echo "Checking frontend..."
 for i in 1 2 3 4 5; do
@@ -340,14 +362,14 @@ for i in 1 2 3 4 5; do
     echo "  Frontend healthy."
     break
   fi
-  echo "  Waiting ($i/5)..."
+  echo "  Waiting (\$i/5)..."
   sleep 3
 done
 
-# 9. Final status
+# 10. Final status
 echo ""
 echo "=== Container Status ==="
-docker-compose --project-name plannivo -f docker-compose.production.yml ps
+${COMPOSE} ps
 echo ""
 echo "=== Deploy Complete ==="
 `;
