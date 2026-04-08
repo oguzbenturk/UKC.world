@@ -13,9 +13,6 @@ backend/node_modules
 .gitattributes
 .github
 
-# Previous build output (rebuilt in container)
-dist
-
 # Backend data directories
 backend/uploads
 backend/logs

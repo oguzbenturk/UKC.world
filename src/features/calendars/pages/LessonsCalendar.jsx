@@ -61,13 +61,15 @@ const LessonsCalendar = () => {
   const { data: pendingPaymentsCount = 0 } = useQuery({
     queryKey: ['pending-payments-combined-count'],
     queryFn: async () => {
-      const [memberRes, depositsRes] = await Promise.all([
+      const [memberRes, depositsRes, accomRes] = await Promise.all([
         apiClient.get('/member-offerings/admin/pending-payments?status=pending'),
         apiClient.get('/wallet/admin/deposits?status=pending&method=bank_transfer&limit=1'),
+        apiClient.get('/accommodation/admin/pending-deposits?status=pending&limit=1'),
       ]);
       const memberCount = memberRes.data?.results?.length || memberRes.data?.pagination?.total || 0;
       const depositsCount = depositsRes.data?.results?.length || depositsRes.data?.pagination?.total || 0;
-      return memberCount + depositsCount;
+      const accomCount = accomRes.data?.pagination?.total || accomRes.data?.results?.length || 0;
+      return memberCount + depositsCount + accomCount;
     },
     refetchInterval: 60000,
     enabled: !isInstructor,

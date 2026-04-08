@@ -161,10 +161,16 @@ async function main() {
     if (!commitTitle) commitTitle = `Deploy: Production build ${nowStamp()}`;
   }
 
-  // 1.6) Build frontend locally (avoids OOM on memory-constrained server)
-  console.log('🏗️  Building frontend locally (production env)...');
-  sh('npm run build');
-  console.log('   ✓ Frontend built successfully');
+  // 1.6) Build frontend locally if dist/ doesn't exist (avoids OOM on server)
+  // User can run `npm run build` manually before push-all to skip this step.
+  const distDir = path.join(cwd, 'dist');
+  if (fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0) {
+    console.log('📦 Using existing dist/ (run `npm run build` manually to rebuild).');
+  } else {
+    console.log('🏗️  Building frontend locally (no dist/ found)...');
+    sh('npm run build');
+    console.log('   ✓ Frontend built successfully');
+  }
 
   // 2) Commit & push, then 3) restore envs
   console.log('🚀 Step 2/5: Committing and pushing to Git...');

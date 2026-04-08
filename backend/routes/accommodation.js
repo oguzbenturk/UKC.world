@@ -696,16 +696,44 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 		if (payment_method === 'credit_card') {
 			paymentStatus = 'pending_payment';
 		}
+		// bank_transfer deposit: receipt already uploaded by frontend, awaiting admin approval
+		if (payment_method === 'bank_transfer') {
+			if (!isDeposit || !receipt_url || !bank_account_id) {
+				await client.query('ROLLBACK');
+				return res.status(400).json({ error: 'Bank transfer deposits require deposit_percent, deposit_amount, receipt_url, and bank_account_id.' });
+			}
+			paymentStatus = 'pending_payment';
+		}
 		// pay_later: no wallet deduction, payment_status stays 'pending'
 
 		// Create booking
 		const { rows } = await client.query(
-			`INSERT INTO accommodation_bookings 
+			`INSERT INTO accommodation_bookings
 			(id, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by, payment_status, payment_method, wallet_transaction_id, payment_amount, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, $12, $7, NOW(), NOW())
 			RETURNING *`,
 			[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, paymentStatus, payment_method, walletTxId]
 		);
+
+		// Insert bank_transfer_receipts record so it appears in pending payments
+		if (payment_method === 'bank_transfer' && isDeposit) {
+			const depositAmt = parseFloat(deposit_amount);
+			const depositPct = parseInt(deposit_percent, 10);
+			const remaining = parseFloat((total_price - depositAmt).toFixed(2));
+			await client.query(
+				`INSERT INTO bank_transfer_receipts
+				(id, user_id, accommodation_booking_id, bank_account_id, receipt_url, amount, currency, status, admin_notes, created_at, updated_at)
+				VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'EUR', 'pending', $6, NOW(), NOW())`,
+				[
+					guest_id,
+					bookingId,
+					bank_account_id,
+					receipt_url,
+					depositAmt,
+					`DEPOSIT ${depositPct}% — Paid: €${depositAmt.toFixed(2)}, Remaining: €${remaining.toFixed(2)} due on arrival`,
+				]
+			);
+		}
 
 		await client.query('COMMIT');
 
@@ -762,17 +790,28 @@ router.post('/bookings', authenticateJWT, async (req, res) => {
 			}
 		};
 
+		// Emit socket event for bank_transfer deposits so pending payments tab updates in real-time
+		if (payment_method === 'bank_transfer' && isDeposit) {
+			req.socketService?.emitToChannel('dashboard', 'pending-accommodation-deposit:new', {
+				bookingId,
+				unitId: unit_id,
+				guestId: guest_id,
+			});
+		}
+
 		// For credit card payments, initiate Iyzico checkout
 		if (payment_method === 'credit_card') {
 			try {
+				// Use deposit_amount for Iyzico when this is a deposit payment
+				const chargeAmount = isDeposit ? parseFloat(deposit_amount) : total_price;
 				// Convert to user's preferred currency so Iyzico shows the right amount
-				let iyzicoAmount = total_price;
+				let iyzicoAmount = chargeAmount;
 				let iyzicoCurrency = 'EUR';
 				try {
 					const userRow = await pool.query('SELECT preferred_currency FROM users WHERE id = $1', [guest_id]);
 					const userCurrency = userRow.rows[0]?.preferred_currency;
 					if (userCurrency && userCurrency !== 'EUR') {
-						const converted = await CurrencyService.convertCurrency(total_price, 'EUR', userCurrency);
+						const converted = await CurrencyService.convertCurrency(chargeAmount, 'EUR', userCurrency);
 						if (converted > 0) {
 							iyzicoAmount = converted;
 							iyzicoCurrency = userCurrency;
@@ -936,6 +975,169 @@ router.delete('/bookings/:id', authenticateJWT, async (req, res) => {
 	} catch (err) {
 		logger.error('[ACCOMMODATION DELETE] error', err);
 		res.status(500).json({ error: 'Failed to delete booking' });
+	}
+});
+
+// ── Admin: Pending Accommodation Deposits ────────────────────────────────────
+
+router.get('/admin/pending-deposits', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), async (req, res) => {
+	try {
+		const status = req.query.status || 'pending';
+		const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+		const offset = parseInt(req.query.offset, 10) || 0;
+
+		const { rows } = await pool.query(
+			`SELECT
+				r.id, r.accommodation_booking_id, r.bank_account_id, r.receipt_url,
+				r.amount, r.currency, r.status, r.admin_notes, r.created_at, r.reviewed_at,
+				u.first_name, u.last_name, u.email,
+				ab.check_in_date, ab.check_out_date, ab.guests_count, ab.total_price,
+				ab.payment_method, ab.payment_status, ab.notes as booking_notes,
+				au.name as unit_name, au.type as unit_type,
+				ba.bank_name, ba.iban
+			 FROM bank_transfer_receipts r
+			 JOIN users u ON r.user_id = u.id
+			 JOIN accommodation_bookings ab ON r.accommodation_booking_id = ab.id
+			 JOIN accommodation_units au ON ab.unit_id = au.id
+			 LEFT JOIN wallet_bank_accounts ba ON r.bank_account_id = ba.id
+			 WHERE r.accommodation_booking_id IS NOT NULL AND r.status = $1
+			 ORDER BY r.created_at DESC
+			 LIMIT $2 OFFSET $3`,
+			[status, limit, offset]
+		);
+
+		const countRes = await pool.query(
+			`SELECT COUNT(*) FROM bank_transfer_receipts WHERE accommodation_booking_id IS NOT NULL AND status = $1`,
+			[status]
+		);
+
+		res.json({ results: rows, pagination: { total: parseInt(countRes.rows[0].count, 10), limit, offset } });
+	} catch (err) {
+		logger.error('[ACCOMMODATION] pending deposits fetch error', err);
+		res.status(500).json({ error: 'Failed to fetch pending accommodation deposits' });
+	}
+});
+
+router.patch('/admin/pending-deposits/:id/action', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), async (req, res) => {
+	const client = await pool.connect();
+	try {
+		const { id } = req.params;
+		const { action, reviewerNotes } = req.body;
+
+		if (!['approve', 'reject'].includes(action)) {
+			return res.status(400).json({ error: 'Action must be approve or reject' });
+		}
+
+		await client.query('BEGIN');
+
+		const receiptRes = await client.query(
+			'SELECT * FROM bank_transfer_receipts WHERE id = $1 FOR UPDATE',
+			[id]
+		);
+
+		if (receiptRes.rows.length === 0) {
+			await client.query('ROLLBACK');
+			return res.status(404).json({ error: 'Receipt not found' });
+		}
+
+		const receipt = receiptRes.rows[0];
+
+		if (receipt.status !== 'pending') {
+			await client.query('ROLLBACK');
+			return res.status(400).json({ error: `Receipt already ${receipt.status}` });
+		}
+
+		if (!receipt.accommodation_booking_id) {
+			await client.query('ROLLBACK');
+			return res.status(400).json({ error: 'This receipt is not linked to an accommodation booking' });
+		}
+
+		const newStatus = action === 'approve' ? 'approved' : 'rejected';
+
+		await client.query(
+			`UPDATE bank_transfer_receipts
+			 SET status = $1, reviewed_by = $2, reviewed_at = NOW(),
+			     admin_notes = CASE WHEN admin_notes IS NULL THEN $3 ELSE admin_notes || ' | ' || $3 END,
+			     updated_at = NOW()
+			 WHERE id = $4`,
+			[newStatus, req.user.id, reviewerNotes || `${action}d by admin`, id]
+		);
+
+		if (action === 'approve') {
+			await client.query(
+				`UPDATE accommodation_bookings
+				 SET payment_status = 'paid', status = 'confirmed', updated_at = NOW()
+				 WHERE id = $1`,
+				[receipt.accommodation_booking_id]
+			);
+
+			// Send approval notification to guest
+			try {
+				const bookingRes = await client.query(
+					`SELECT ab.*, au.name as unit_name, u.id as guest_id
+					 FROM accommodation_bookings ab
+					 JOIN accommodation_units au ON ab.unit_id = au.id
+					 JOIN users u ON ab.guest_id = u.id
+					 WHERE ab.id = $1`,
+					[receipt.accommodation_booking_id]
+				);
+				const booking = bookingRes.rows[0];
+				if (booking) {
+					await dispatchNotification({
+						userId: booking.guest_id,
+						type: 'payment',
+						title: 'Deposit Approved — Booking Confirmed!',
+						message: `Your deposit for ${booking.unit_name} has been approved. Your booking is confirmed.`,
+						data: { bookingId: receipt.accommodation_booking_id },
+						client,
+					});
+				}
+			} catch { /* ignore notification errors */ }
+		} else {
+			await client.query(
+				`UPDATE accommodation_bookings
+				 SET payment_status = 'failed', status = 'cancelled', updated_at = NOW()
+				 WHERE id = $1`,
+				[receipt.accommodation_booking_id]
+			);
+
+			try {
+				const bookingRes = await client.query(
+					`SELECT ab.guest_id, au.name as unit_name
+					 FROM accommodation_bookings ab
+					 JOIN accommodation_units au ON ab.unit_id = au.id
+					 WHERE ab.id = $1`,
+					[receipt.accommodation_booking_id]
+				);
+				const booking = bookingRes.rows[0];
+				if (booking) {
+					await dispatchNotification({
+						userId: booking.guest_id,
+						type: 'payment',
+						title: 'Deposit Rejected',
+						message: `Your deposit receipt for ${booking.unit_name} was rejected. Please contact us for assistance.`,
+						data: { bookingId: receipt.accommodation_booking_id },
+						client,
+					});
+				}
+			} catch { /* ignore notification errors */ }
+		}
+
+		await client.query('COMMIT');
+
+		req.socketService?.emitToChannel('dashboard', 'pending-accommodation-deposit:updated', {
+			receiptId: id,
+			action: newStatus,
+			bookingId: receipt.accommodation_booking_id,
+		});
+
+		res.json({ success: true, message: `Accommodation deposit ${newStatus} successfully` });
+	} catch (err) {
+		await client.query('ROLLBACK');
+		logger.error('[ACCOMMODATION] pending deposit action error', err);
+		res.status(500).json({ error: 'Failed to process action' });
+	} finally {
+		client.release();
 	}
 });
 

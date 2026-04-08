@@ -54,6 +54,7 @@ import currenciesRouter from './routes/currencies.js';
 import popupsRouter from './routes/popups.js';
 import sparePartsRouter from './routes/spareParts.js';
 import weatherRouter from './routes/weather.js';
+import googleReviewsRouter from './routes/googleReviews.js';
 import adminReconciliationRouter from './routes/admin-reconciliation.js';
 import dashboardRouter from './routes/dashboard.js';
 import notificationRealtimeService from './services/notificationRealtimeService.js';
@@ -1381,6 +1382,8 @@ app.use('/api/vouchers', authenticateJWT, vouchersRouter);
 app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars
 app.use('/api/weather', weatherRouter);
+// Public Google Reviews route (no auth) - cached 1h, no key exposed to frontend
+app.use('/api/google-reviews', googleReviewsRouter);
 app.use('/api/feedback', authenticateJWT, feedbackRouter);
 app.use('/api/chat', authenticateJWT, chatRouter);
 
