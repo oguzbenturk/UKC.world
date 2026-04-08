@@ -311,8 +311,9 @@ export COMPOSE_PROJECT_NAME=plannivo
 echo "Building backend..."
 docker-compose --project-name plannivo -f docker-compose.production.yml build backend
 
-# 5. Start all services (compose handles recreate/restart automatically)
+# 5. Start all services — remove old backend container first to avoid compose 1.29 ContainerConfig bug
 echo "Starting all services..."
+docker-compose --project-name plannivo -f docker-compose.production.yml rm -f -s backend 2>/dev/null || true
 docker-compose --project-name plannivo -f docker-compose.production.yml up -d
 
 # 6. Wait for backend health
