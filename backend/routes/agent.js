@@ -34,6 +34,16 @@ const agentRateLimit = rateLimit({
 
 router.use(agentRateLimit);
 
+// n8n 2.15 toolHttpRequest requires model-filled params in the URL (not body).
+// This middleware merges query params into req.body for POST requests so route
+// handlers can keep reading from req.body as before.
+router.use((req, _res, next) => {
+  if (req.method === 'POST' && req.query && Object.keys(req.query).length > 0) {
+    req.body = { ...(req.body || {}), ...req.query };
+  }
+  next();
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const toNum = (v) => (v == null ? null : parseFloat(v));
@@ -1258,4 +1268,316 @@ router.post('/session/:sessionId', async (req, res) => {
   }
 });
 
+// ── GET /services — List lesson services + pricing (all roles) ───────────────
+router.get('/services', async (req, res) => {
+  try {
+    const { category, level } = req.query;
+    const params = [];
+    const conditions = [];
+
+    if (category) {
+      params.push(category);
+      conditions.push(`s.category = $${params.length}`);
+    }
+    if (level) {
+      params.push(level);
+      conditions.push(`s.level = $${params.length}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const { rows } = await pool.query(
+      `SELECT s.id, s.name, s.description, s.category, s.level, s.service_type,
+              s.duration, s.price, s.currency, s.max_participants,
+              s.includes, s.lesson_category_tag
+       FROM services s
+       ${where}
+       ORDER BY s.category, s.price`,
+      params,
+    );
+
+    res.json({ services: rows.map((s) => ({ ...s, price: toNum(s.price), duration: toNum(s.duration) })) });
+  } catch (err) {
+    logger.error('Agent GET /services error', err);
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+// ── GET /accommodation/units — List accommodation units (all roles) ───────────
+router.get('/accommodation/units', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const params = [];
+    let extra = '';
+
+    if (type) {
+      params.push(type);
+      extra = `AND LOWER(au.type) = LOWER($${params.length})`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT au.id, au.name, au.type, au.status, au.capacity,
+              au.price_per_night, au.description, au.amenities
+       FROM accommodation_units au
+       WHERE LOWER(au.status) = 'available' ${extra}
+       ORDER BY au.price_per_night`,
+      params,
+    );
+
+    res.json({ units: rows.map((u) => ({ ...u, pricePerNight: toNum(u.price_per_night), price_per_night: undefined })) });
+  } catch (err) {
+    logger.error('Agent GET /accommodation/units error', err);
+    res.status(500).json({ error: 'Failed to fetch accommodation units' });
+  }
+});
+
+// ── GET /accommodation/bookings/mine — My accommodation bookings ─────────────
+router.get('/accommodation/bookings/mine', async (req, res) => {
+  try {
+    const { userId, role } = req.agent;
+    const isAdmin = ['admin', 'manager', 'owner'].includes(role);
+    const params = isAdmin ? [] : [userId];
+
+    const { rows } = await pool.query(
+      `SELECT ab.id, ab.unit_id, au.name AS unit_name, au.type AS unit_type,
+              ab.check_in_date, ab.check_out_date, ab.guests_count,
+              ab.total_price, ab.status, ab.notes,
+              u.name AS guest_name
+       FROM accommodation_bookings ab
+       JOIN accommodation_units au ON ab.unit_id = au.id
+       JOIN users u ON ab.guest_id = u.id
+       WHERE ab.status != 'cancelled' ${isAdmin ? '' : 'AND ab.guest_id = $1'}
+       ORDER BY ab.check_in_date DESC
+       LIMIT 20`,
+      params,
+    );
+
+    res.json({ bookings: rows.map((b) => ({ ...b, totalPrice: toNum(b.total_price), total_price: undefined })) });
+  } catch (err) {
+    logger.error('Agent GET /accommodation/bookings/mine error', err);
+    res.status(500).json({ error: 'Failed to fetch accommodation bookings' });
+  }
+});
+
+// ── POST /accommodation/bookings — Create accommodation booking ───────────────
+router.post('/accommodation/bookings', verifyAgentIdentity, async (req, res) => {
+  try {
+    const { userId, role } = req.agent;
+    const { unitId, checkInDate, checkOutDate, guestsCount, notes, guestId } = req.body;
+    const isAdmin = ['admin', 'manager', 'owner'].includes(role);
+    const targetGuestId = isAdmin && guestId ? guestId : userId;
+
+    if (!unitId || !checkInDate || !checkOutDate) {
+      return res.status(400).json({ error: 'unitId, checkInDate, checkOutDate are required' });
+    }
+
+    const unitRes = await pool.query(
+      `SELECT id, name, price_per_night, status FROM accommodation_units WHERE id = $1`,
+      [unitId],
+    );
+    if (!unitRes.rows.length) return res.status(404).json({ error: 'Accommodation unit not found' });
+    const unit = unitRes.rows[0];
+    if (unit.status.toLowerCase() !== 'available') {
+      return res.status(400).json({ error: `Unit is currently ${unit.status}` });
+    }
+
+    const nights = Math.max(
+      1,
+      Math.ceil((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24)),
+    );
+    const totalPrice = toNum(unit.price_per_night) * nights;
+
+    const { rows } = await pool.query(
+      `INSERT INTO accommodation_bookings
+         (unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, status, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', $7, $8)
+       RETURNING id, status`,
+      [unitId, targetGuestId, checkInDate, checkOutDate, guestsCount || 1, totalPrice, notes || null, userId],
+    );
+
+    res.json({
+      bookingId: rows[0].id,
+      unitName: unit.name,
+      checkInDate,
+      checkOutDate,
+      nights,
+      totalPrice,
+      status: rows[0].status,
+      message: `Accommodation booked for ${nights} night(s). Total: ${totalPrice}.`,
+    });
+  } catch (err) {
+    logger.error('Agent POST /accommodation/bookings error', err);
+    res.status(500).json({ error: 'Failed to create accommodation booking' });
+  }
+});
+
+// ── POST /bookings/:id/cancel — Cancel a lesson booking ──────────────────────
+router.post(
+  '/bookings/:id/cancel',
+  requireRole(['admin', 'manager', 'instructor', 'owner']),
+  verifyAgentIdentity,
+  async (req, res) => {
+    try {
+      const { userId, role } = req.agent;
+      const { id } = req.params;
+      const reason = req.query.reason || req.body?.reason;
+
+      const bookingRes = await pool.query(
+        `SELECT b.id, b.status, b.instructor_user_id,
+                s.name AS student_name
+         FROM bookings b
+         LEFT JOIN users s ON s.id = b.student_user_id
+         WHERE b.id = $1 AND b.deleted_at IS NULL`,
+        [id],
+      );
+      if (!bookingRes.rows.length) return res.status(404).json({ error: 'Booking not found' });
+      const booking = bookingRes.rows[0];
+      if (booking.status === 'cancelled') {
+        return res.status(400).json({ error: 'Booking is already cancelled' });
+      }
+      if (role === 'instructor' && booking.instructor_user_id !== userId) {
+        return res.status(403).json({ error: 'You can only cancel your own bookings' });
+      }
+
+      const cancellationNote = reason ? `Cancelled by ${role}: ${reason}` : `Cancelled by ${role}`;
+      await pool.query(
+        `UPDATE bookings
+         SET status = 'cancelled',
+             cancellation_reason = $2,
+             canceled_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [id, cancellationNote],
+      );
+
+      res.json({
+        success: true,
+        bookingId: id,
+        studentName: booking.student_name,
+        message: 'Booking cancelled successfully.',
+      });
+    } catch (err) {
+      logger.error('Agent POST /bookings/:id/cancel error', err);
+      res.status(500).json({ error: 'Failed to cancel booking' });
+    }
+  },
+);
+
+// ── GET /weather — Wind/weather forecast for a date (Urla, Izmir) ────────────
+router.get('/weather', async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const lat = 38.3222;
+    const lon = 26.7636;
+
+    const url =
+      `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${lat}&longitude=${lon}` +
+      `&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m` +
+      `&start_date=${targetDate}&end_date=${targetDate}` +
+      `&timezone=Europe%2FIstanbul&wind_speed_unit=knots`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Weather API unavailable');
+    const data = await response.json();
+
+    const times = data.hourly?.time || [];
+    const dirToCardinal = (deg) => {
+      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return dirs[Math.round(deg / 45) % 8];
+    };
+
+    const keyHours = [9, 12, 15, 18];
+    const forecast = keyHours
+      .map((h) => {
+        const idx = times.findIndex((t) => t.includes(`T${String(h).padStart(2, '0')}:00`));
+        if (idx === -1) return null;
+        return {
+          time: `${h}:00`,
+          windKnots: Math.round(data.hourly.wind_speed_10m[idx]),
+          gustsKnots: Math.round(data.hourly.wind_gusts_10m[idx]),
+          windDirection: dirToCardinal(data.hourly.wind_direction_10m[idx]),
+          tempC: Math.round(data.hourly.temperature_2m[idx]),
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ date: targetDate, location: 'Urla, Izmir', forecast });
+  } catch (err) {
+    logger.error('Agent GET /weather error', err);
+    res.status(500).json({ error: 'Failed to fetch weather data' });
+  }
+});
+
+// ── GET /equipment — List available rental equipment (all roles) ──────────────
+router.get('/equipment', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const params = [];
+    let extra = '';
+
+    if (type) {
+      params.push(type);
+      extra = `AND LOWER(e.type) = LOWER($${params.length})`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT e.id, e.name, e.type, e.size, e.brand, e.model,
+              e.condition, e.availability, e.notes, e.location
+       FROM equipment e
+       WHERE LOWER(e.availability) = 'available' ${extra}
+       ORDER BY e.type, e.name`,
+      params,
+    );
+
+    res.json({ equipment: rows });
+  } catch (err) {
+    logger.error('Agent GET /equipment error', err);
+    res.status(500).json({ error: 'Failed to fetch equipment' });
+  }
+});
+
+// ── GET /member-offerings — List VIP memberships + passes (all roles) ────────
+router.get('/member-offerings', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, description, price, period, features, badge,
+              badge_color, duration_days, category
+       FROM member_offerings
+       WHERE is_active = true
+       ORDER BY sort_order, id`,
+    );
+
+    res.json({ offerings: rows.map((o) => ({ ...o, price: toNum(o.price) })) });
+  } catch (err) {
+    logger.error('Agent GET /member-offerings error', err);
+    res.status(500).json({ error: 'Failed to fetch member offerings' });
+  }
+});
+
+// ── GET /member-offerings/mine — My active subscriptions ─────────────────────
+router.get('/member-offerings/mine', async (req, res) => {
+  try {
+    const { userId: agentUserId, role } = req.agent;
+    const isAdmin = ['admin', 'manager', 'owner'].includes(role);
+    const targetUserId = isAdmin && req.query.userId ? req.query.userId : agentUserId;
+
+    const { rows } = await pool.query(
+      `SELECT mp.id, mp.offering_name, mp.offering_price, mp.offering_currency,
+              mp.purchased_at, mp.expires_at, mp.status, mp.payment_method
+       FROM member_purchases mp
+       WHERE mp.user_id = $1 AND mp.status = 'active'
+       ORDER BY mp.purchased_at DESC`,
+      [targetUserId],
+    );
+
+    res.json({ subscriptions: rows.map((s) => ({ ...s, offeringPrice: toNum(s.offering_price), offering_price: undefined })) });
+  } catch (err) {
+    logger.error('Agent GET /member-offerings/mine error', err);
+    res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+});
+
 export default router;
+

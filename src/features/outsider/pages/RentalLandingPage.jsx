@@ -126,7 +126,7 @@ const RentalLandingPage = () => {
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
             <div className="mb-4">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
-                    STANDARD EQUIPMENT RENTAL
+                    STANDARD RENTAL
                 </h1>
                 <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
                     Reliable, high-quality gear for every level.

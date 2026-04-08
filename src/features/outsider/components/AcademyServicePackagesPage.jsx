@@ -290,13 +290,17 @@ const AcademyServicePackagesPage = ({
         const sportTag = DISCIPLINE_META[canonD]?.label || '';
         const withSport = (text) => (sportTag ? `${sportTag} — ${text}` : text);
         if (hoursNumeric < 24) {
-          const core = `${hoursNumeric}h Session`;
+          let friendlyLabel;
+          if (hoursNumeric === 1) friendlyLabel = 'Quick Session';
+          else if (hoursNumeric === 4) friendlyLabel = 'Half Day';
+          else if (hoursNumeric === 8) friendlyLabel = 'Full Day';
+          else friendlyLabel = withSport(`${hoursNumeric}h Session`);
           return {
             hours: `${hoursNumeric}h`,
             hoursNumeric,
             price: parseFloat(s.price) || 0,
-            label: withSport(core),
-            sessions: `${hoursNumeric} hour rental`,
+            label: friendlyLabel,
+            sessions: hoursNumeric === 1 ? '' : `${hoursNumeric} hour rental`,
             serviceId: s.id || null,
             tag: sportTag || undefined,
           };
@@ -309,8 +313,8 @@ const AcademyServicePackagesPage = ({
             hours: wkLabel,
             hoursNumeric,
             price: parseFloat(s.price) || 0,
-            label: withSport(wkLabel),
-            sessions: w === 1 ? '1 week rental' : `${w} weeks rental`,
+            label: w === 1 ? 'All inc one week rental' : withSport(`${w} weeks`),
+            sessions: w === 1 ? '' : `${w} weeks rental`,
             serviceId: s.id || null,
             tag: sportTag || undefined,
           };

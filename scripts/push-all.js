@@ -317,13 +317,11 @@ docker-compose --project-name plannivo -f docker-compose.production.yml up -d
 
 # 6. Wait for backend health
 echo "Waiting for backend..."
+sleep 10
 for i in 1 2 3 4 5 6 7 8 9 10; do
-  if docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend \\
-    node -e "require('http').get('http://localhost:4000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})" 2>/dev/null; then
-    echo "  Backend healthy."
-    break
-  fi
-  echo "  Waiting ($i/10)..."
+  HEALTH=\$(docker-compose --project-name plannivo -f docker-compose.production.yml exec -T backend wget -qO- http://localhost:4000/api/health 2>/dev/null || echo fail)
+  if [ "\$HEALTH" != "fail" ]; then echo "  Backend healthy."; break; fi
+  echo "  Waiting (\$i/10)..."
   sleep 3
 done
 
