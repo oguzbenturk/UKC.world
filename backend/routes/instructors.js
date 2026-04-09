@@ -73,8 +73,6 @@ router.get('/', publicApiLimiter, async (req, res) => {
       name: row.name,
       first_name: row.first_name,
       last_name: row.last_name,
-      email: row.email,
-      phone: row.phone,
       profile_image_url: row.profile_image_url,
       avatar_url: row.avatar_url,
       bio: visibleFields.includes('bio') ? (row.team_custom_bio || row.bio) : null,

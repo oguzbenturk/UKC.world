@@ -4,11 +4,10 @@ import { logger } from '../middlewares/errorHandler.js';
 export async function getTeamSettings() {
   const membersQuery = `
     SELECT
-      tms.id,
-      tms.instructor_id,
-      tms.visible,
-      tms.display_order,
-      tms.featured,
+      u.id AS instructor_id,
+      COALESCE(tms.visible, true) AS visible,
+      COALESCE(tms.display_order, 0) AS display_order,
+      COALESCE(tms.featured, false) AS featured,
       tms.custom_bio,
       u.name,
       u.first_name,
@@ -16,10 +15,11 @@ export async function getTeamSettings() {
       u.profile_image_url,
       u.avatar_url,
       u.email
-    FROM team_member_settings tms
-    JOIN users u ON u.id = tms.instructor_id
-    WHERE u.deleted_at IS NULL
-    ORDER BY tms.display_order ASC
+    FROM users u
+    JOIN roles r ON r.id = u.role_id
+    LEFT JOIN team_member_settings tms ON tms.instructor_id = u.id
+    WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
+    ORDER BY COALESCE(tms.display_order, 999), u.name
   `;
 
   const globalQuery = `

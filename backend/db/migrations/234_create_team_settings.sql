@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS team_global_settings (
 
 -- Seed one default global settings row
 INSERT INTO team_global_settings (visible_fields, booking_link_enabled)
-VALUES ('["bio","specializations","languages","experience"]'::jsonb, true)
-ON CONFLICT DO NOTHING;
+SELECT '["bio","specializations","languages","experience"]'::jsonb, true
+WHERE NOT EXISTS (SELECT 1 FROM team_global_settings);
 
 CREATE INDEX idx_team_member_settings_instructor ON team_member_settings(instructor_id);

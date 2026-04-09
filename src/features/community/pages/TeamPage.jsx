@@ -12,7 +12,6 @@ import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.s
 import {
   TeamOutlined,
   GlobalOutlined,
-  MailOutlined,
   StarFilled,
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
@@ -63,7 +62,6 @@ const parseLanguages = (langStr) => {
 const TeamPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [hoveredId, setHoveredId] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
 
   usePageSEO({
@@ -157,14 +155,12 @@ const TeamPage = () => {
                 const avatarUrl = getImageUrl(member.profile_image_url) || getImageUrl(member.avatar_url);
                 const name = getDisplayName(member);
                 const languages = parseLanguages(member.language);
-                const isHovered = hoveredId === member.id;
+
 
                 return (
                   <div
                     key={member.id}
                     className="group relative bg-gradient-to-b from-[#1f2230] to-[#171925] rounded-2xl border border-white/10 hover:border-sky-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/5 overflow-hidden cursor-pointer"
-                    onMouseEnter={() => setHoveredId(member.id)}
-                    onMouseLeave={() => setHoveredId(null)}
                     onClick={() => setSelectedInstructor(member)}
                   >
                     {/* Avatar area */}
@@ -234,13 +230,6 @@ const TeamPage = () => {
                         </div>
                       )}
 
-                      {/* Contact hint on hover (email) */}
-                      {member.email && isHovered && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-sky-400/70 transition-opacity duration-200">
-                          <MailOutlined className="text-[9px]" />
-                          <span className="truncate">{member.email}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Switch, Button, Checkbox, Modal, Input, Spin, message } from 'antd';
 import {
   EyeOutlined,
@@ -9,7 +9,7 @@ import {
   MenuOutlined,
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
-import DataService from '@/shared/services/dataService';
+
 
 const { TextArea } = Input;
 
@@ -46,31 +46,13 @@ const TeamSettingsSection = () => {
   const [editingMember, setEditingMember] = useState(null);
   const [customBioText, setCustomBioText] = useState('');
   const [draggedIdx, setDraggedIdx] = useState(null);
+  const draggedIdxRef = useRef(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await apiClient.get('/team-settings');
-      if (data.members && data.members.length > 0) {
-        setMembers(data.members);
-      } else {
-        // Auto-initialize from instructor list
-        const instructors = await DataService.getInstructors();
-        const initialized = (instructors || []).map((inst, idx) => ({
-          instructor_id: inst.id,
-          name: inst.name,
-          first_name: inst.first_name,
-          last_name: inst.last_name,
-          profile_image_url: inst.profile_image_url,
-          avatar_url: inst.avatar_url,
-          email: inst.email,
-          visible: true,
-          display_order: idx,
-          featured: false,
-          custom_bio: null,
-        }));
-        setMembers(initialized);
-      }
+      setMembers(data.members || []);
       if (data.global) {
         setGlobalSettings(data.global);
       }
@@ -127,22 +109,26 @@ const TeamSettingsSection = () => {
   };
 
   const handleDragStart = (idx) => {
+    draggedIdxRef.current = idx;
     setDraggedIdx(idx);
   };
 
   const handleDragOver = (e, idx) => {
     e.preventDefault();
-    if (draggedIdx === null || draggedIdx === idx) return;
+    if (draggedIdxRef.current === null || draggedIdxRef.current === idx) return;
+    const fromIdx = draggedIdxRef.current;
     setMembers((prev) => {
       const next = [...prev];
-      const [removed] = next.splice(draggedIdx, 1);
+      const [removed] = next.splice(fromIdx, 1);
       next.splice(idx, 0, removed);
       return next;
     });
+    draggedIdxRef.current = idx;
     setDraggedIdx(idx);
   };
 
   const handleDragEnd = () => {
+    draggedIdxRef.current = null;
     setDraggedIdx(null);
   };
 
