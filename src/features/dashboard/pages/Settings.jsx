@@ -12,6 +12,7 @@ import { loadInstructorColors, setInstructorColor } from '@/shared/utils/instruc
 import ForecastSettings from '@/features/forecast/components/ForecastSettings';
 import { useToast } from '@/shared/contexts/ToastContext';
 import CurrencyManagementSection from '../components/CurrencyManagementSection';
+import TeamSettingsSection from '../components/TeamSettingsSection';
 
 const CalendarSettingsSection = memo(function CalendarSettingsSection({ isLoading }) {
   const [instructors, setInstructors] = useState([]);
@@ -507,6 +508,17 @@ const Settings = () => {
           >
             <div className="border-t border-slate-100">
               <CalendarSettingsSection isLoading={isLoading} />
+            </div>
+          </SettingsSection>
+
+          {/* Team Page Settings */}
+          <SettingsSection
+            title="Team"
+            isOpen={openSection === 'team'}
+            onToggle={() => setOpenSection(openSection === 'team' ? null : 'team')}
+          >
+            <div className="px-3 py-4 sm:px-4 sm:py-5 lg:p-6 border-t border-slate-100">
+              <TeamSettingsSection />
             </div>
           </SettingsSection>
 
