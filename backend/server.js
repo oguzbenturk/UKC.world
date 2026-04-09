@@ -429,7 +429,7 @@ app.use('/api/equipment', authenticateJWT, equipmentRouter);
 // Instructor availability MUST be mounted before instructorsRouter to prevent
 // the generic /:id route from swallowing /me/availability and /unavailable paths.
 app.use('/api/instructors', instructorAvailabilityRouter);
-app.use('/api/instructors', authenticateJWT, instructorsRouter);
+app.use('/api/instructors', instructorsRouter); // Auth handled per-route (GET / is public)
 // Feature-specific instructor self-service endpoints
 app.use('/api/instructors', authenticateJWT, instructorFeatureRouter);
 // Instructor skills (teaching qualifications per discipline)
