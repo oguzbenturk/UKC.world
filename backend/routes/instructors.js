@@ -19,8 +19,20 @@ const publicApiLimiter = rateLimit({
 // GET all instructors - Public endpoint for guest browsing
 router.get('/', publicApiLimiter, async (req, res) => {
   try {
+    // Fetch global team settings
+    let globalSettings = {
+      visible_fields: ['bio', 'specializations', 'languages', 'experience'],
+      booking_link_enabled: true,
+    };
+    try {
+      const globalResult = await pool.query('SELECT visible_fields, booking_link_enabled FROM team_global_settings LIMIT 1');
+      if (globalResult.rows.length > 0) globalSettings = globalResult.rows[0];
+    } catch {
+      // Table may not exist yet; use defaults
+    }
+
     const query = `
-      SELECT u.*, r.name as role_name, 
+      SELECT u.*, r.name as role_name,
              COALESCE(idc.commission_value, 0) as commission_rate,
              COALESCE(idc.commission_type, 'percent') as commission_type,
              COALESCE(
@@ -32,20 +44,30 @@ router.get('/', publicApiLimiter, async (req, res) => {
                  )
                ) FILTER (WHERE isk.id IS NOT NULL),
                '[]'::json
-             ) as skills
+             ) as skills,
+             tms.visible AS team_visible,
+             tms.display_order AS team_display_order,
+             tms.featured AS team_featured,
+             tms.custom_bio AS team_custom_bio
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
       LEFT JOIN instructor_skills isk ON isk.instructor_id = u.id
+      LEFT JOIN team_member_settings tms ON tms.instructor_id = u.id
       WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
-      GROUP BY u.id, r.name, idc.commission_value, idc.commission_type
-      ORDER BY u.name
+        AND (tms.visible IS NULL OR tms.visible = true)
+      GROUP BY u.id, r.name, idc.commission_value, idc.commission_type,
+               tms.visible, tms.display_order, tms.featured, tms.custom_bio
+      ORDER BY
+        CASE WHEN tms.featured = true THEN 0 ELSE 1 END,
+        COALESCE(tms.display_order, 999),
+        u.name
     `;
-    
+
     const { rows } = await pool.query(query);
-    
-    // Always return sanitized data (for guests and authenticated users)
-    // Guests don't need sensitive information like commission details
+
+    const visibleFields = Array.isArray(globalSettings.visible_fields) ? globalSettings.visible_fields : ['bio', 'specializations', 'languages', 'experience'];
+
     const sanitized = rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -55,13 +77,16 @@ router.get('/', publicApiLimiter, async (req, res) => {
       phone: row.phone,
       profile_image_url: row.profile_image_url,
       avatar_url: row.avatar_url,
-      bio: row.bio,
-      language: row.language,
+      bio: visibleFields.includes('bio') ? (row.team_custom_bio || row.bio) : null,
+      language: visibleFields.includes('languages') ? row.language : null,
       role_name: row.role_name,
       status: row.status || 'active',
       is_freelance: row.is_freelance || false,
-      skills: row.skills || [],
-      // Hide commission details from guests
+      skills: visibleFields.includes('specializations') ? (row.skills || []) : [],
+      featured: row.team_featured || false,
+      created_at: visibleFields.includes('experience') ? row.created_at : null,
+      booking_link_enabled: globalSettings.booking_link_enabled,
+      visible_fields: visibleFields,
       ...(req.user ? {
         commission_rate: row.commission_rate,
         commission_type: row.commission_type
