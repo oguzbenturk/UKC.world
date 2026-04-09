@@ -369,7 +369,7 @@ router.get('/settings', authorize(['admin', 'manager', 'instructor', 'student', 
 });
 
 // Update notification settings
-router.put('/settings', 
+router.put('/settings',
   authorize(['admin', 'manager', 'instructor', 'student', 'outsider']),
   [
     body('weather_alerts').optional().isBoolean(),
@@ -378,7 +378,23 @@ router.put('/settings',
     body('general_announcements').optional().isBoolean(),
     body('email_notifications').optional().isBoolean(),
     body('push_notifications').optional().isBoolean(),
-    body('new_booking_alerts').optional().isBoolean()
+    body('new_booking_alerts').optional().isBoolean(),
+    body('sms_notifications').optional().isBoolean(),
+    body('rental_alerts').optional().isBoolean(),
+    body('accommodation_alerts').optional().isBoolean(),
+    body('shop_order_alerts').optional().isBoolean(),
+    body('lesson_updates').optional().isBoolean(),
+    body('rating_requests').optional().isBoolean(),
+    body('social_notifications').optional().isBoolean(),
+    body('waiver_reminders').optional().isBoolean(),
+    body('staff_alerts').optional().isBoolean(),
+    body('booking_reminder_24h').optional().isBoolean(),
+    body('booking_reminder_1h').optional().isBoolean(),
+    body('student_checkin_alerts').optional().isBoolean(),
+    body('schedule_change_alerts').optional().isBoolean(),
+    body('daily_schedule_summary').optional().isBoolean(),
+    body('daily_ops_summary').optional().isBoolean(),
+    body('support_ticket_alerts').optional().isBoolean()
   ],
   async (req, res) => {
     try {
@@ -392,19 +408,35 @@ router.put('/settings',
 
       const result = await pool.query(`
         INSERT INTO notification_settings (
-          user_id, 
-          weather_alerts, 
-          booking_updates, 
-          payment_notifications, 
-          general_announcements, 
-          email_notifications, 
+          user_id,
+          weather_alerts,
+          booking_updates,
+          payment_notifications,
+          general_announcements,
+          email_notifications,
           push_notifications,
           new_booking_alerts,
+          sms_notifications,
+          rental_alerts,
+          accommodation_alerts,
+          shop_order_alerts,
+          lesson_updates,
+          rating_requests,
+          social_notifications,
+          waiver_reminders,
+          staff_alerts,
+          booking_reminder_24h,
+          booking_reminder_1h,
+          student_checkin_alerts,
+          schedule_change_alerts,
+          daily_schedule_summary,
+          daily_ops_summary,
+          support_ticket_alerts,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-        ON CONFLICT (user_id) 
-        DO UPDATE SET 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, NOW())
+        ON CONFLICT (user_id)
+        DO UPDATE SET
           weather_alerts = EXCLUDED.weather_alerts,
           booking_updates = EXCLUDED.booking_updates,
           payment_notifications = EXCLUDED.payment_notifications,
@@ -412,6 +444,22 @@ router.put('/settings',
           email_notifications = EXCLUDED.email_notifications,
           push_notifications = EXCLUDED.push_notifications,
           new_booking_alerts = EXCLUDED.new_booking_alerts,
+          sms_notifications = EXCLUDED.sms_notifications,
+          rental_alerts = EXCLUDED.rental_alerts,
+          accommodation_alerts = EXCLUDED.accommodation_alerts,
+          shop_order_alerts = EXCLUDED.shop_order_alerts,
+          lesson_updates = EXCLUDED.lesson_updates,
+          rating_requests = EXCLUDED.rating_requests,
+          social_notifications = EXCLUDED.social_notifications,
+          waiver_reminders = EXCLUDED.waiver_reminders,
+          staff_alerts = EXCLUDED.staff_alerts,
+          booking_reminder_24h = EXCLUDED.booking_reminder_24h,
+          booking_reminder_1h = EXCLUDED.booking_reminder_1h,
+          student_checkin_alerts = EXCLUDED.student_checkin_alerts,
+          schedule_change_alerts = EXCLUDED.schedule_change_alerts,
+          daily_schedule_summary = EXCLUDED.daily_schedule_summary,
+          daily_ops_summary = EXCLUDED.daily_ops_summary,
+          support_ticket_alerts = EXCLUDED.support_ticket_alerts,
           updated_at = NOW()
         RETURNING *
       `, [
@@ -422,7 +470,23 @@ router.put('/settings',
         settings.general_announcements ?? true,
         settings.email_notifications ?? true,
         settings.push_notifications ?? true,
-        settings.new_booking_alerts ?? true
+        settings.new_booking_alerts ?? true,
+        settings.sms_notifications ?? false,
+        settings.rental_alerts ?? true,
+        settings.accommodation_alerts ?? true,
+        settings.shop_order_alerts ?? true,
+        settings.lesson_updates ?? true,
+        settings.rating_requests ?? true,
+        settings.social_notifications ?? false,
+        settings.waiver_reminders ?? true,
+        settings.staff_alerts ?? true,
+        settings.booking_reminder_24h ?? true,
+        settings.booking_reminder_1h ?? true,
+        settings.student_checkin_alerts ?? true,
+        settings.schedule_change_alerts ?? true,
+        settings.daily_schedule_summary ?? false,
+        settings.daily_ops_summary ?? false,
+        settings.support_ticket_alerts ?? true
       ]);
 
       res.json(result.rows[0]);

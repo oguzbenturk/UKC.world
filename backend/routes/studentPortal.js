@@ -1,5 +1,6 @@
 import express from 'express';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { pool } from '../db.js';
 import {
   getStudentOverview,
   getStudentSchedule,
@@ -16,7 +17,7 @@ import {
 
 const router = express.Router();
 
-const requireStudent = authorizeRoles(['student', 'outsider']);
+const requireStudent = authorizeRoles(['student', 'trusted_customer', 'outsider']);
 
 router.get('/dashboard', requireStudent, async (req, res, next) => {
   try {
@@ -119,6 +120,120 @@ router.put('/preferences', requireStudent, async (req, res, next) => {
   try {
     const settings = await updateStudentNotificationSettings(req.user.id, req.body || {});
     res.json(settings);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Student booking preferences (new table: student_preferences)
+router.get('/booking-preferences', requireStudent, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM student_preferences WHERE user_id = $1',
+      [req.user.id]
+    );
+    res.json(result.rows[0] || {});
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/booking-preferences', requireStudent, async (req, res, next) => {
+  try {
+    const {
+      preferred_discipline,
+      preferred_lesson_type,
+      preferred_duration,
+      preferred_time_slot,
+      preferred_instructor_id,
+      preferred_lesson_languages,
+      auto_assign_instructor,
+      pay_at_center_default
+    } = req.body;
+
+    const result = await pool.query(`
+      INSERT INTO student_preferences (
+        user_id, preferred_discipline, preferred_lesson_type, preferred_duration,
+        preferred_time_slot, preferred_instructor_id, preferred_lesson_languages,
+        auto_assign_instructor, pay_at_center_default, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        preferred_discipline = EXCLUDED.preferred_discipline,
+        preferred_lesson_type = EXCLUDED.preferred_lesson_type,
+        preferred_duration = EXCLUDED.preferred_duration,
+        preferred_time_slot = EXCLUDED.preferred_time_slot,
+        preferred_instructor_id = EXCLUDED.preferred_instructor_id,
+        preferred_lesson_languages = EXCLUDED.preferred_lesson_languages,
+        auto_assign_instructor = EXCLUDED.auto_assign_instructor,
+        pay_at_center_default = EXCLUDED.pay_at_center_default,
+        updated_at = NOW()
+      RETURNING *
+    `, [
+      req.user.id,
+      preferred_discipline || null,
+      preferred_lesson_type || null,
+      preferred_duration || null,
+      preferred_time_slot || null,
+      preferred_instructor_id || null,
+      preferred_lesson_languages || [],
+      auto_assign_instructor ?? false,
+      pay_at_center_default ?? false
+    ]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Student safety info (new table: student_safety_info)
+router.get('/safety', requireStudent, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM student_safety_info WHERE user_id = $1',
+      [req.user.id]
+    );
+    res.json(result.rows[0] || {});
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/safety', requireStudent, async (req, res, next) => {
+  try {
+    const {
+      emergency_contact_name,
+      emergency_contact_phone,
+      emergency_contact_relationship,
+      medical_notes,
+      swimming_ability
+    } = req.body;
+
+    const result = await pool.query(`
+      INSERT INTO student_safety_info (
+        user_id, emergency_contact_name, emergency_contact_phone,
+        emergency_contact_relationship, medical_notes, swimming_ability, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        emergency_contact_name = EXCLUDED.emergency_contact_name,
+        emergency_contact_phone = EXCLUDED.emergency_contact_phone,
+        emergency_contact_relationship = EXCLUDED.emergency_contact_relationship,
+        medical_notes = EXCLUDED.medical_notes,
+        swimming_ability = EXCLUDED.swimming_ability,
+        updated_at = NOW()
+      RETURNING *
+    `, [
+      req.user.id,
+      emergency_contact_name || null,
+      emergency_contact_phone || null,
+      emergency_contact_relationship || null,
+      medical_notes || null,
+      swimming_ability || null
+    ]);
+
+    res.json(result.rows[0]);
   } catch (error) {
     next(error);
   }
