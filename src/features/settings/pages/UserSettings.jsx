@@ -427,6 +427,12 @@ const UserSettings = () => {
     return ['admin', 'manager', 'instructor', 'owner'].includes(role);
   }, [user]);
 
+  const userRole = useMemo(() => (user?.role || user?.role_name || '').toLowerCase(), [user]);
+  const isStudent = useMemo(() => ['student', 'trusted_customer'].includes(userRole), [userRole]);
+  const isTrustedCustomer = useMemo(() => userRole === 'trusted_customer', [userRole]);
+  const isInstructor = useMemo(() => userRole === 'instructor', [userRole]);
+  const isManager = useMemo(() => userRole === 'manager', [userRole]);
+
   // Initialize selected currency from user profile
   useEffect(() => {
     if (user?.preferred_currency || user?.preferredCurrency) {
@@ -546,25 +552,36 @@ const UserSettings = () => {
     const tabs = [
       { key: 'general', label: 'General', icon: <UserOutlined />, group: 'Personal' },
     ];
-    if (isAdmin) {
+    // Manager-accessible tabs (subset of admin)
+    if (isAdmin || isManager) {
       tabs.push(
         { key: 'calendar', label: 'Calendar', icon: <CalendarOutlined />, group: 'Business' },
+        { key: 'booking-defaults', label: 'Booking Defaults', icon: <ToolOutlined />, group: 'Business' },
+      );
+    }
+    // Admin-only tabs
+    if (isAdmin) {
+      tabs.push(
         { key: 'forecast', label: 'Forecast', icon: <CloudOutlined />, group: 'Business' },
         { key: 'popups', label: 'Pop-ups', icon: <NotificationOutlined />, group: 'Business' },
         { key: 'finance', label: 'Finance', icon: <DollarOutlined />, group: 'Business' },
         { key: 'currency', label: 'Currency', icon: <DollarOutlined />, group: 'Business' },
-        { key: 'booking-defaults', label: 'Booking Defaults', icon: <ToolOutlined />, group: 'Business' },
         { key: 'services', label: 'Service Creation', icon: <AppstoreOutlined />, group: 'Services' },
         { key: 'roles', label: 'Roles & Permissions', icon: <TeamOutlined />, group: 'Access' },
         { key: 'waivers', label: 'Waivers', icon: <SafetyOutlined />, group: 'Legal' },
         { key: 'legal', label: 'Legal Documents', icon: <FileTextOutlined />, group: 'Legal' },
-        { key: 'deleted-bookings', label: 'Deleted Bookings', icon: <DeleteOutlined />, group: 'Operations' },
         { key: 'refunds', label: 'Payment Refunds', icon: <RollbackOutlined />, group: 'Payments' },
         { key: 'bank-accounts', label: 'Bank Accounts', icon: <BankOutlined />, group: 'Payments' },
       );
     }
+    // Deleted Bookings: manager + admin
+    if (isAdmin || isManager) {
+      tabs.push(
+        { key: 'deleted-bookings', label: 'Deleted Bookings', icon: <DeleteOutlined />, group: 'Operations' },
+      );
+    }
     return tabs;
-  }, [isAdmin]);
+  }, [isAdmin, isManager]);
 
   const groupedTabs = useMemo(() => {
     const groups = [];
@@ -708,7 +725,7 @@ const UserSettings = () => {
         );
 
       case 'calendar':
-        return isAdmin ? <CalendarSettingsSection /> : null;
+        return (isAdmin || isManager) ? <CalendarSettingsSection /> : null;
 
       case 'forecast':
         return isAdmin ? <ForecastSettings onSave={() => message.success('Forecast settings saved!')} /> : null;
@@ -735,7 +752,7 @@ const UserSettings = () => {
         ) : null;
 
       case 'booking-defaults':
-        return isAdmin ? <BookingDefaultsSection businessSettings={businessSettings} /> : null;
+        return (isAdmin || isManager) ? <BookingDefaultsSection businessSettings={businessSettings} /> : null;
 
       case 'services':
         return isAdmin ? <Categories /> : null;
@@ -750,7 +767,7 @@ const UserSettings = () => {
         return isAdmin ? <LegalDocumentsPage /> : null;
 
       case 'deleted-bookings':
-        return isAdmin ? <DeletedBookingsPage /> : null;
+        return (isAdmin || isManager) ? <DeletedBookingsPage /> : null;
 
       case 'refunds':
         return isAdmin ? <PaymentRefunds /> : null;
