@@ -6,16 +6,18 @@
  * Dark-themed to match the outsider/experience pages.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Tag, Spin } from 'antd';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
   TeamOutlined,
   GlobalOutlined,
   MailOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import { usePageSEO } from '@/shared/utils/seo';
+import InstructorDetailDrawer from '../components/InstructorDetailDrawer';
 
 const getImageUrl = (url) => {
   if (!url) return null;
@@ -62,6 +64,7 @@ const TeamPage = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredId, setHoveredId] = useState(null);
+  const [selectedInstructor, setSelectedInstructor] = useState(null);
 
   usePageSEO({
     title: 'Our Team | Community | UKC',
@@ -85,15 +88,8 @@ const TeamPage = () => {
     return () => { cancelled = true; };
   }, []);
 
-  // Sort: members with photos first, then by name
-  const sortedMembers = useMemo(() => {
-    return [...members].sort((a, b) => {
-      const aHasImg = a.profile_image_url || a.avatar_url ? 0 : 1;
-      const bHasImg = b.profile_image_url || b.avatar_url ? 0 : 1;
-      if (aHasImg !== bHasImg) return aHasImg - bHasImg;
-      return getDisplayName(a).localeCompare(getDisplayName(b));
-    });
-  }, [members]);
+  // Server handles ordering (featured first, then display_order, then name)
+  const sortedMembers = members;
 
   return (
     <div className="min-h-screen text-white font-sans relative overflow-x-hidden bg-[#0d1511] selection:bg-[#00a8c4]/30">
@@ -166,9 +162,10 @@ const TeamPage = () => {
                 return (
                   <div
                     key={member.id}
-                    className="group relative bg-gradient-to-b from-[#1f2230] to-[#171925] rounded-2xl border border-white/10 hover:border-sky-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/5 overflow-hidden"
+                    className="group relative bg-gradient-to-b from-[#1f2230] to-[#171925] rounded-2xl border border-white/10 hover:border-sky-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-sky-500/5 overflow-hidden cursor-pointer"
                     onMouseEnter={() => setHoveredId(member.id)}
                     onMouseLeave={() => setHoveredId(null)}
+                    onClick={() => setSelectedInstructor(member)}
                   >
                     {/* Avatar area */}
                     <div className="relative h-56 overflow-hidden bg-gradient-to-br from-sky-900/20 to-cyan-900/10">
@@ -198,6 +195,11 @@ const TeamPage = () => {
                       <Tag className="absolute top-3 left-3 !bg-sky-500/15 !border-sky-500/30 !text-sky-300 !rounded-full !text-[10px] !font-bold backdrop-blur-sm uppercase tracking-wide">
                         Instructor
                       </Tag>
+                      {member.featured && (
+                        <Tag className="absolute top-3 right-3 !bg-amber-500/20 !border-amber-500/40 !text-amber-300 !rounded-full !text-[10px] !font-bold backdrop-blur-sm uppercase tracking-wide">
+                          <StarFilled className="mr-0.5" /> Featured
+                        </Tag>
+                      )}
                     </div>
 
                     {/* Info */}
@@ -247,6 +249,12 @@ const TeamPage = () => {
           </>
         )}
       </div>
+
+      <InstructorDetailDrawer
+        instructor={selectedInstructor}
+        open={!!selectedInstructor}
+        onClose={() => setSelectedInstructor(null)}
+      />
 
       {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center py-12">
