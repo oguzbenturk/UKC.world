@@ -53,6 +53,7 @@ import debugRouter from './routes/debug.js';
 import currenciesRouter from './routes/currencies.js';
 import popupsRouter from './routes/popups.js';
 import sparePartsRouter from './routes/spareParts.js';
+import teamSettingsRouter from './routes/teamSettings.js';
 import weatherRouter from './routes/weather.js';
 import googleReviewsRouter from './routes/googleReviews.js';
 import adminReconciliationRouter from './routes/admin-reconciliation.js';
@@ -859,7 +860,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             // Debit: membership purchase charge
             await recordWalletTx({
               userId: mo.user_id,
-              amount: paidAmount,
+              amount: -paidAmount,
               currency: paidCurrency,
               transactionType: 'payment',
               direction: 'debit',
@@ -1325,6 +1326,7 @@ app.use('/api/system', authenticateJWT, systemRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/finance-settings', authenticateJWT, financeSettingsRouter);
 app.use('/api/roles', authenticateJWT, rolesRouter);
+app.use('/api/team-settings', teamSettingsRouter);
 
 // Public routes (no authentication required)
 app.get('/api/services/categories/list', async (req, res) => {
