@@ -5,30 +5,37 @@ const AIChatContext = createContext(null);
 
 export function AIChatProvider({ children }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { messages, sending, send, greet } = useAIAssistant();
-  const hasGreeted = useRef(false);
+  const { messages, sending, send, greet, loadSession, sessionLoaded, loadingSession } = useAIAssistant();
+  const hasInitialized = useRef(false);
+
+  const initChat = useCallback(async () => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    await loadSession();
+    // Only greet if no previous messages were restored
+    greet();
+  }, [loadSession, greet]);
 
   const openChat = useCallback(() => {
     setIsChatOpen(true);
-    if (!hasGreeted.current) {
-      hasGreeted.current = true;
-      greet();
-    }
-  }, [greet]);
+    initChat();
+  }, [initChat]);
 
   const closeChat = useCallback(() => setIsChatOpen(false), []);
+
   const toggleChat = useCallback(() => {
     setIsChatOpen((v) => {
-      if (!v && !hasGreeted.current) {
-        hasGreeted.current = true;
-        greet();
-      }
+      if (!v) initChat();
       return !v;
     });
-  }, [greet]);
+  }, [initChat]);
 
   return (
-    <AIChatContext.Provider value={{ isChatOpen, openChat, closeChat, toggleChat, messages, sending, send }}>
+    <AIChatContext.Provider value={{
+      isChatOpen, openChat, closeChat, toggleChat,
+      messages, sending, send,
+      sessionLoaded, loadingSession,
+    }}>
       {children}
     </AIChatContext.Provider>
   );

@@ -399,6 +399,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
         customStyle: { textColor: '#f59e0b' }
       }),
+      // Kai Admin - Teal
+      item('/admin/kai', 'Kai Admin', 'ChatBubbleLeftRightIcon', {
+        customStyle: { textColor: '#00a8c4' }
+      }),
       // Shop - Pink (links to /shop - at bottom)
       item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
@@ -518,9 +522,13 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     // Rating Analytics - Amber (requires reports permissions)
     item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
       customStyle: { textColor: '#f59e0b' }
+    }),
+    // Kai Admin - Teal
+    item('/admin/kai', 'Kai Admin', 'ChatBubbleLeftRightIcon', {
+      customStyle: { textColor: '#00a8c4' }
     })
   ];
-  
+
   // If permissions are provided, filter the nav items
   if (userPermissions && typeof userPermissions === 'object') {
     return filterNavByPermissions(allStaffNavItems, userPermissions);

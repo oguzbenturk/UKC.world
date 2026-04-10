@@ -77,6 +77,8 @@ const InstructorRatingsAnalytics = lazyWithRetry(() => import('../features/admin
 const MemberOfferings = lazyWithRetry(() => import('../features/members/pages/MemberOfferings'));
 const VoucherManagement = lazyWithRetry(() => import('../features/admin/pages/VoucherManagement'));
 const SupportTicketsPage = lazyWithRetry(() => import('../features/admin/pages/SupportTicketsPage'));
+const KaiDashboard = lazyWithRetry(() => import('../features/kai-admin/pages/KaiDashboard'));
+const KaiConversationDetail = lazyWithRetry(() => import('../features/kai-admin/pages/KaiConversationDetail'));
 const HelpSupport = lazyWithRetry(() => import('../features/help/pages/HelpSupport'));
 
 const StudentLayout = lazyWithRetry(() => import('../features/students/components/StudentLayout'));
@@ -479,6 +481,8 @@ const AppRoutes = () => {
   <Route path="/admin/legal-documents" element={<Navigate to="/settings?tab=legal" replace />} />
   <Route path="/admin/vouchers" element={<VoucherManagement />} />
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
+  <Route path="/admin/kai" element={<KaiDashboard />} />
+  <Route path="/admin/kai/:sessionId" element={<KaiConversationDetail />} />
         <Route path="/instructors/managers" element={<ManagerCommissionSettings />} />
         <Route path="/admin/manager-commissions" element={<Navigate to="/instructors/managers" replace />} />
         <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />

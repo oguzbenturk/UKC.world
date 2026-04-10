@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+import { pool } from '../db.js';
 
 const router = express.Router();
 
@@ -27,6 +28,36 @@ const optionalAuth = async (req, res, next) => {
   }
   next();
 };
+
+// ── GET /session — Restore previous conversation for the logged-in user ──────
+router.get('/session', optionalAuth, async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.json({ messages: [], summary: null });
+    }
+    const { rows } = await pool.query(
+      `SELECT messages, summary, updated_at
+       FROM kai_sessions
+       WHERE user_id = $1
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [req.user.id],
+    );
+    if (!rows.length) {
+      return res.json({ messages: [], summary: null });
+    }
+    const session = rows[0];
+    const messages = Array.isArray(session.messages) ? session.messages.slice(-30) : [];
+    res.json({
+      messages,
+      summary: session.summary || null,
+      updatedAt: session.updated_at,
+    });
+  } catch (err) {
+    console.error('GET /assistant/session error:', err.message);
+    res.json({ messages: [], summary: null });
+  }
+});
 
 router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
   try {

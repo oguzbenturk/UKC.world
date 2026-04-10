@@ -1759,5 +1759,736 @@ router.get('/knowledge-base', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPER AGENT TOOLS — Rentals, Progress, Family, Shop, Group Lessons,
+//                      Feedback, Waivers, Instructor Skills
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── RENTALS ──────────────────────────────────────────────────────────────────
+
+// GET /rentals/mine — User's rentals (student: own, admin: optional customerId)
+router.get('/rentals/mine', async (req, res) => {
+  try {
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+    const targetId = mgmt.has(role) && req.query.customerId ? req.query.customerId : userId;
+
+    const { rows } = await pool.query(
+      `SELECT r.id, r.start_date, r.end_date, r.status, r.total_price, r.payment_status, r.notes,
+              r.created_at
+       FROM rentals r
+       WHERE r.user_id = $1
+       ORDER BY r.created_at DESC
+       LIMIT 20`,
+      [targetId],
+    );
+
+    res.json(rows.map((r) => ({
+      rentalId: r.id,
+      startDate: r.start_date,
+      endDate: r.end_date,
+      status: r.status,
+      totalPrice: toNum(r.total_price),
+      paymentStatus: r.payment_status,
+      notes: r.notes,
+      createdAt: r.created_at,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /rentals/mine error', err);
+    res.status(500).json({ error: 'Failed to fetch rentals' });
+  }
+});
+
+// GET /rentals/:id — Single rental detail
+router.get('/rentals/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+
+    const { rows } = await pool.query(
+      `SELECT r.id, r.user_id, r.start_date, r.end_date, r.status, r.total_price,
+              r.payment_status, r.notes, r.created_at,
+              u.name AS customer_name
+       FROM rentals r
+       JOIN users u ON u.id = r.user_id
+       WHERE r.id = $1`,
+      [id],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Rental not found' });
+    if (!mgmt.has(role) && rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const r = rows[0];
+    res.json({
+      rentalId: r.id,
+      customerName: r.customer_name,
+      startDate: r.start_date,
+      endDate: r.end_date,
+      status: r.status,
+      totalPrice: toNum(r.total_price),
+      paymentStatus: r.payment_status,
+      notes: r.notes,
+      createdAt: r.created_at,
+    });
+  } catch (err) {
+    logger.error('Agent GET /rentals/:id error', err);
+    res.status(500).json({ error: 'Failed to fetch rental' });
+  }
+});
+
+// ── STUDENT PROGRESS ─────────────────────────────────────────────────────────
+
+// GET /progress/:studentId — Skill data, lesson count, avg rating
+router.get('/progress/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+
+    if (!mgmt.has(role) && role !== 'instructor' && userId !== studentId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if (role === 'instructor') {
+      const { rows: check } = await pool.query(
+        `SELECT 1 FROM bookings WHERE instructor_user_id = $1 AND student_user_id = $2 AND deleted_at IS NULL LIMIT 1`,
+        [userId, studentId],
+      );
+      if (!check.length) return res.status(403).json({ error: 'Not your student' });
+    }
+
+    const [userRes, bookingRes, ratingRes] = await Promise.all([
+      pool.query(`SELECT name, email FROM users WHERE id = $1`, [studentId]),
+      pool.query(
+        `SELECT COUNT(*) AS total_lessons,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed_lessons
+         FROM bookings WHERE student_user_id = $1 AND deleted_at IS NULL`,
+        [studentId],
+      ),
+      pool.query(
+        `SELECT ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS feedback_count
+         FROM feedback WHERE student_id = $1`,
+        [studentId],
+      ),
+    ]);
+
+    const user = userRes.rows[0];
+    const booking = bookingRes.rows[0];
+    const rating = ratingRes.rows[0];
+
+    res.json({
+      studentId,
+      name: user?.name || 'Unknown',
+      totalLessons: parseInt(booking?.total_lessons) || 0,
+      completedLessons: parseInt(booking?.completed_lessons) || 0,
+      averageRating: toNum(rating?.avg_rating),
+      feedbackCount: parseInt(rating?.feedback_count) || 0,
+    });
+  } catch (err) {
+    logger.error('Agent GET /progress/:studentId error', err);
+    res.status(500).json({ error: 'Failed to fetch progress' });
+  }
+});
+
+// GET /feedback/:bookingId — Lesson feedback for a booking
+router.get('/feedback/:bookingId', async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+
+    const { rows } = await pool.query(
+      `SELECT f.rating, f.comment, f.skill_level, f.progress_notes, f.created_at,
+              b.student_user_id, b.instructor_user_id
+       FROM feedback f
+       JOIN bookings b ON b.id = f.booking_id
+       WHERE f.booking_id = $1`,
+      [bookingId],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No feedback for this booking' });
+    const f = rows[0];
+    if (!mgmt.has(role) && userId !== f.student_user_id && userId !== f.instructor_user_id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json({
+      rating: f.rating,
+      comment: f.comment,
+      skillLevel: f.skill_level,
+      progressNotes: f.progress_notes,
+      createdAt: f.created_at,
+    });
+  } catch (err) {
+    logger.error('Agent GET /feedback/:bookingId error', err);
+    res.status(500).json({ error: 'Failed to fetch feedback' });
+  }
+});
+
+// ── FAMILY ───────────────────────────────────────────────────────────────────
+
+// GET /family — User's family members
+router.get('/family', async (req, res) => {
+  try {
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+    const targetId = mgmt.has(role) && req.query.userId ? req.query.userId : userId;
+
+    const { rows } = await pool.query(
+      `SELECT id, full_name, date_of_birth, relationship, gender, medical_notes, emergency_contact, is_active
+       FROM family_members
+       WHERE parent_user_id = $1 AND deleted_at IS NULL
+       ORDER BY created_at`,
+      [targetId],
+    );
+
+    res.json(rows.map((fm) => ({
+      id: fm.id,
+      fullName: fm.full_name,
+      dateOfBirth: fm.date_of_birth,
+      relationship: fm.relationship,
+      gender: fm.gender,
+      medicalNotes: fm.medical_notes,
+      emergencyContact: fm.emergency_contact,
+      isActive: fm.is_active,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /family error', err);
+    res.status(500).json({ error: 'Failed to fetch family members' });
+  }
+});
+
+// POST /family — Add family member
+router.post('/family', verifyAgentIdentity, async (req, res) => {
+  try {
+    const { userId } = req.agent;
+    const { fullName, dateOfBirth, relationship, gender, medicalNotes, emergencyContact } = req.body;
+
+    if (!fullName || !dateOfBirth || !relationship) {
+      return res.status(400).json({ error: 'fullName, dateOfBirth, and relationship are required' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO family_members (parent_user_id, full_name, date_of_birth, relationship, gender, medical_notes, emergency_contact)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, full_name, date_of_birth, relationship`,
+      [userId, fullName.trim(), dateOfBirth, relationship, gender || null, medicalNotes || null, emergencyContact || null],
+    );
+
+    res.status(201).json({
+      id: rows[0].id,
+      fullName: rows[0].full_name,
+      dateOfBirth: rows[0].date_of_birth,
+      relationship: rows[0].relationship,
+      message: `Family member ${fullName} added successfully.`,
+    });
+  } catch (err) {
+    logger.error('Agent POST /family error', err);
+    res.status(500).json({ error: 'Failed to add family member' });
+  }
+});
+
+// ── SHOP / PRODUCTS ──────────────────────────────────────────────────────────
+
+// GET /products — Browse product catalog
+router.get('/products', async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    const params = [];
+    const conditions = [`status = 'active'`];
+
+    if (category) {
+      params.push(category);
+      conditions.push(`category = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, name, description, category, subcategory, brand, price, currency,
+              stock_quantity, image_url, is_featured
+       FROM products
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY is_featured DESC, name
+       LIMIT 30`,
+      params,
+    );
+
+    res.json(rows.map((p) => ({
+      productId: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      subcategory: p.subcategory,
+      brand: p.brand,
+      price: toNum(p.price),
+      currency: p.currency,
+      inStock: (p.stock_quantity || 0) > 0,
+      imageUrl: p.image_url,
+      featured: p.is_featured,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /products error', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// GET /products/:id — Single product detail
+router.get('/products/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, description, description_detailed, category, subcategory, brand,
+              price, original_price, currency, stock_quantity, image_url, images, sizes, colors, variants
+       FROM products WHERE id = $1 AND status = 'active'`,
+      [req.params.id],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Product not found' });
+    const p = rows[0];
+    res.json({
+      productId: p.id,
+      name: p.name,
+      description: p.description,
+      detailedDescription: p.description_detailed,
+      category: p.category,
+      subcategory: p.subcategory,
+      brand: p.brand,
+      price: toNum(p.price),
+      originalPrice: toNum(p.original_price),
+      currency: p.currency,
+      inStock: (p.stock_quantity || 0) > 0,
+      stockQuantity: p.stock_quantity,
+      imageUrl: p.image_url,
+      images: p.images,
+      sizes: p.sizes,
+      colors: p.colors,
+      variants: p.variants,
+    });
+  } catch (err) {
+    logger.error('Agent GET /products/:id error', err);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
+// GET /shop-orders/mine — User's order history
+router.get('/shop-orders/mine', async (req, res) => {
+  try {
+    const { userId, role } = req.agent;
+    const mgmt = new Set(['admin', 'manager', 'owner']);
+    const targetId = mgmt.has(role) && req.query.customerId ? req.query.customerId : userId;
+
+    const { rows } = await pool.query(
+      `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.currency, o.created_at,
+              COALESCE(
+                json_agg(json_build_object(
+                  'name', oi.product_name, 'quantity', oi.quantity, 'unitPrice', oi.unit_price
+                )) FILTER (WHERE oi.id IS NOT NULL), '[]'
+              ) AS items
+       FROM shop_orders o
+       LEFT JOIN shop_order_items oi ON oi.order_id = o.id
+       WHERE o.user_id = $1
+       GROUP BY o.id
+       ORDER BY o.created_at DESC
+       LIMIT 20`,
+      [targetId],
+    );
+
+    res.json(rows.map((o) => ({
+      orderId: o.id,
+      orderNumber: o.order_number,
+      status: o.status,
+      paymentMethod: o.payment_method,
+      paymentStatus: o.payment_status,
+      totalAmount: toNum(o.total_amount),
+      currency: o.currency,
+      items: o.items,
+      createdAt: o.created_at,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /shop-orders/mine error', err);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// POST /shop-orders — Create shop order
+router.post(
+  '/shop-orders',
+  verifyAgentIdentity,
+  async (req, res) => {
+    const { userId, role } = req.agent;
+    const student = new Set(['student', 'trusted_customer']);
+    const { items, notes } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required with at least one item' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let subtotal = 0;
+      const orderItems = [];
+
+      for (const item of items) {
+        const { rows: pRows } = await client.query(
+          `SELECT id, name, price, currency, stock_quantity, image_url FROM products WHERE id = $1 AND status = 'active'`,
+          [item.productId],
+        );
+        if (!pRows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Product ${item.productId} not found` });
+        }
+        const p = pRows[0];
+        const qty = parseInt(item.quantity) || 1;
+        if ((p.stock_quantity || 0) < qty) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `${p.name} is out of stock` });
+        }
+        const lineTotal = toNum(p.price) * qty;
+        subtotal += lineTotal;
+        orderItems.push({ product: p, qty, lineTotal });
+      }
+
+      const { rows: orderRows } = await client.query(
+        `INSERT INTO shop_orders (user_id, status, payment_method, payment_status, subtotal, total_amount, currency, notes)
+         VALUES ($1, 'pending', 'cash', 'pending', $2, $2, 'EUR', $3)
+         RETURNING id, order_number`,
+        [userId, subtotal, notes || null],
+      );
+      const order = orderRows[0];
+
+      for (const oi of orderItems) {
+        await client.query(
+          `INSERT INTO shop_order_items (order_id, product_id, product_name, product_image, brand, quantity, unit_price, total_price)
+           VALUES ($1, $2, $3, $4, NULL, $5, $6, $7)`,
+          [order.id, oi.product.id, oi.product.name, oi.product.image_url, oi.qty, toNum(oi.product.price), oi.lineTotal],
+        );
+        await client.query(
+          `UPDATE products SET stock_quantity = stock_quantity - $1, updated_at = NOW() WHERE id = $2`,
+          [oi.qty, oi.product.id],
+        );
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json({
+        orderId: order.id,
+        orderNumber: order.order_number,
+        totalAmount: subtotal,
+        itemCount: orderItems.length,
+        status: 'pending',
+        message: `Order ${order.order_number} created successfully (${orderItems.length} items, total: EUR ${subtotal}).`,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      logger.error('Agent POST /shop-orders error', err);
+      res.status(500).json({ error: 'Failed to create order' });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+// ── GROUP LESSON REQUESTS ────────────────────────────────────────────────────
+
+// GET /group-lesson-requests/mine — User's requests
+router.get('/group-lesson-requests/mine', async (req, res) => {
+  try {
+    const { userId } = req.agent;
+    const { rows } = await pool.query(
+      `SELECT glr.id, glr.preferred_date_start, glr.preferred_date_end,
+              glr.preferred_time_of_day, glr.preferred_duration_hours,
+              glr.skill_level, glr.status, glr.notes, glr.created_at,
+              s.name AS service_name
+       FROM group_lesson_requests glr
+       JOIN services s ON s.id = glr.service_id
+       WHERE glr.user_id = $1 AND glr.deleted_at IS NULL
+       ORDER BY glr.created_at DESC
+       LIMIT 10`,
+      [userId],
+    );
+
+    res.json(rows.map((r) => ({
+      requestId: r.id,
+      serviceName: r.service_name,
+      dateStart: r.preferred_date_start,
+      dateEnd: r.preferred_date_end,
+      timeOfDay: r.preferred_time_of_day,
+      durationHours: toNum(r.preferred_duration_hours),
+      skillLevel: r.skill_level,
+      status: r.status,
+      notes: r.notes,
+      createdAt: r.created_at,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /group-lesson-requests/mine error', err);
+    res.status(500).json({ error: 'Failed to fetch group lesson requests' });
+  }
+});
+
+// POST /group-lesson-requests — Submit a group lesson request
+router.post('/group-lesson-requests', verifyAgentIdentity, async (req, res) => {
+  try {
+    const { userId } = req.agent;
+    const { serviceId, preferredDateStart, preferredDateEnd, preferredTimeOfDay, skillLevel, notes } = req.body;
+
+    if (!serviceId || !preferredDateStart) {
+      return res.status(400).json({ error: 'serviceId and preferredDateStart are required' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO group_lesson_requests (user_id, service_id, preferred_date_start, preferred_date_end, preferred_time_of_day, skill_level, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, status`,
+      [userId, serviceId, preferredDateStart, preferredDateEnd || null, preferredTimeOfDay || 'any', skillLevel || 'beginner', notes || null],
+    );
+
+    res.status(201).json({
+      requestId: rows[0].id,
+      status: rows[0].status,
+      message: 'Group lesson request submitted. We will match you with other students and notify you!',
+    });
+  } catch (err) {
+    logger.error('Agent POST /group-lesson-requests error', err);
+    res.status(500).json({ error: 'Failed to submit group lesson request' });
+  }
+});
+
+// ── FEEDBACK & RATINGS ───────────────────────────────────────────────────────
+
+// POST /feedback — Submit lesson feedback
+router.post('/feedback', verifyAgentIdentity, async (req, res) => {
+  try {
+    const { userId } = req.agent;
+    const { bookingId, rating, comment } = req.body;
+
+    if (!bookingId || !rating) {
+      return res.status(400).json({ error: 'bookingId and rating (1-5) are required' });
+    }
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    // Verify booking belongs to user
+    const { rows: bRows } = await pool.query(
+      `SELECT id, student_user_id, instructor_user_id FROM bookings WHERE id = $1 AND deleted_at IS NULL`,
+      [bookingId],
+    );
+    if (!bRows.length) return res.status(404).json({ error: 'Booking not found' });
+    if (bRows[0].student_user_id !== userId) {
+      return res.status(403).json({ error: 'You can only leave feedback for your own bookings' });
+    }
+
+    // Check for existing feedback
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM feedback WHERE booking_id = $1`, [bookingId],
+    );
+    if (existing.length) {
+      return res.status(409).json({ error: 'Feedback already submitted for this booking' });
+    }
+
+    await pool.query(
+      `INSERT INTO feedback (booking_id, student_id, instructor_id, rating, comment)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [bookingId, userId, bRows[0].instructor_user_id, parseInt(rating), comment || null],
+    );
+
+    res.status(201).json({ message: `Thank you! Your ${rating}-star feedback has been recorded.` });
+  } catch (err) {
+    logger.error('Agent POST /feedback error', err);
+    res.status(500).json({ error: 'Failed to submit feedback' });
+  }
+});
+
+// GET /instructor-ratings/:id — Instructor rating summary
+router.get('/instructor-ratings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT ROUND(AVG(rating), 1) AS avg_rating,
+              COUNT(*) AS total_reviews,
+              COUNT(*) FILTER (WHERE rating = 5) AS five_star,
+              COUNT(*) FILTER (WHERE rating = 4) AS four_star,
+              COUNT(*) FILTER (WHERE rating = 3) AS three_star,
+              COUNT(*) FILTER (WHERE rating <= 2) AS low_star
+       FROM instructor_ratings
+       WHERE instructor_id = $1`,
+      [id],
+    );
+    const r = rows[0];
+    const { rows: nameRows } = await pool.query(`SELECT name FROM users WHERE id = $1`, [id]);
+
+    res.json({
+      instructorId: id,
+      instructorName: nameRows[0]?.name || 'Unknown',
+      averageRating: toNum(r.avg_rating),
+      totalReviews: parseInt(r.total_reviews) || 0,
+      breakdown: {
+        fiveStar: parseInt(r.five_star) || 0,
+        fourStar: parseInt(r.four_star) || 0,
+        threeStar: parseInt(r.three_star) || 0,
+        lowStar: parseInt(r.low_star) || 0,
+      },
+    });
+  } catch (err) {
+    logger.error('Agent GET /instructor-ratings/:id error', err);
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+// ── WAIVERS ──────────────────────────────────────────────────────────────────
+
+// GET /waivers/status — User's current waiver status
+router.get('/waivers/status', async (req, res) => {
+  try {
+    const { userId } = req.agent;
+
+    const { rows: waiverRows } = await pool.query(
+      `SELECT id, waiver_version, signed_at, photo_consent
+       FROM liability_waivers
+       WHERE user_id = $1
+       ORDER BY signed_at DESC
+       LIMIT 1`,
+      [userId],
+    );
+
+    const { rows: familyRows } = await pool.query(
+      `SELECT fm.id, fm.full_name,
+              (SELECT lw.signed_at FROM liability_waivers lw WHERE lw.family_member_id = fm.id ORDER BY lw.signed_at DESC LIMIT 1) AS waiver_signed_at
+       FROM family_members fm
+       WHERE fm.parent_user_id = $1 AND fm.deleted_at IS NULL AND fm.is_active = true`,
+      [userId],
+    );
+
+    const userWaiver = waiverRows[0];
+    res.json({
+      userWaiverSigned: !!userWaiver,
+      userWaiverDate: userWaiver?.signed_at || null,
+      userWaiverVersion: userWaiver?.waiver_version || null,
+      photoConsent: userWaiver?.photo_consent || false,
+      familyMembers: familyRows.map((fm) => ({
+        id: fm.id,
+        name: fm.full_name,
+        waiverSigned: !!fm.waiver_signed_at,
+        waiverDate: fm.waiver_signed_at,
+      })),
+    });
+  } catch (err) {
+    logger.error('Agent GET /waivers/status error', err);
+    res.status(500).json({ error: 'Failed to fetch waiver status' });
+  }
+});
+
+// ── INSTRUCTOR SKILLS ────────────────────────────────────────────────────────
+
+// GET /instructors/by-skill — Find instructors by discipline and level
+router.get('/instructors/by-skill', async (req, res) => {
+  try {
+    const { discipline, level } = req.query;
+    if (!discipline) {
+      return res.status(400).json({ error: 'discipline is required (kite, wing, kite_foil, efoil, premium)' });
+    }
+
+    const params = [discipline];
+    let levelCondition = '';
+    if (level) {
+      const levelOrder = { beginner: 1, intermediate: 2, advanced: 3 };
+      const requiredLevel = levelOrder[level] || 1;
+      // Instructor's max_level must be >= required level
+      params.push(level);
+      levelCondition = `AND (
+        CASE is2.max_level WHEN 'advanced' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END
+        >= CASE $${params.length} WHEN 'advanced' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END
+      )`;
+    }
+
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name, is2.discipline_tag, is2.lesson_categories, is2.max_level,
+              COALESCE(ROUND(AVG(ir.rating), 1), 0) AS avg_rating,
+              COUNT(ir.id) AS review_count
+       FROM instructor_skills is2
+       JOIN users u ON u.id = is2.instructor_id AND u.deleted_at IS NULL
+       LEFT JOIN instructor_ratings ir ON ir.instructor_id = u.id
+       WHERE is2.discipline_tag = $1 ${levelCondition}
+       GROUP BY u.id, u.name, is2.discipline_tag, is2.lesson_categories, is2.max_level
+       ORDER BY avg_rating DESC, review_count DESC`,
+      params,
+    );
+
+    res.json(rows.map((r) => ({
+      instructorId: r.id,
+      name: r.name,
+      discipline: r.discipline_tag,
+      lessonCategories: r.lesson_categories,
+      maxLevel: r.max_level,
+      avgRating: toNum(r.avg_rating),
+      reviewCount: parseInt(r.review_count) || 0,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /instructors/by-skill error', err);
+    res.status(500).json({ error: 'Failed to fetch instructors' });
+  }
+});
+
+// ── INSTRUCTOR RECOMMENDATION ────────────────────────────────────────────────
+
+// GET /instructors/recommend — Best match for a lesson (category + level + date)
+router.get('/instructors/recommend', async (req, res) => {
+  try {
+    const { discipline, level, date } = req.query;
+    if (!discipline) {
+      return res.status(400).json({ error: 'discipline is required' });
+    }
+
+    const levelOrder = { beginner: 1, intermediate: 2, advanced: 3 };
+    const requiredLevel = levelOrder[level] || 1;
+
+    // Find instructors with matching skills, ordered by rating
+    const { rows: candidates } = await pool.query(
+      `SELECT u.id, u.name, is2.max_level,
+              COALESCE(ROUND(AVG(ir.rating), 1), 0) AS avg_rating,
+              COUNT(ir.id) AS review_count
+       FROM instructor_skills is2
+       JOIN users u ON u.id = is2.instructor_id AND u.deleted_at IS NULL
+       LEFT JOIN instructor_ratings ir ON ir.instructor_id = u.id
+       WHERE is2.discipline_tag = $1
+         AND (CASE is2.max_level WHEN 'advanced' THEN 3 WHEN 'intermediate' THEN 2 ELSE 1 END >= $2)
+       GROUP BY u.id, u.name, is2.max_level
+       ORDER BY avg_rating DESC, review_count DESC
+       LIMIT 5`,
+      [discipline, requiredLevel],
+    );
+
+    // If date provided, check availability
+    let results = candidates;
+    if (date && candidates.length > 0) {
+      const instructorIds = candidates.map((c) => c.id);
+      const { rows: busyRows } = await pool.query(
+        `SELECT DISTINCT instructor_user_id FROM bookings
+         WHERE date = $1 AND instructor_user_id = ANY($2)
+           AND status NOT IN ('cancelled', 'pending_payment') AND deleted_at IS NULL`,
+        [date, instructorIds],
+      );
+      const busySet = new Set(busyRows.map((r) => r.instructor_user_id));
+      results = candidates.map((c) => ({
+        ...c,
+        availableOnDate: !busySet.has(c.id),
+      }));
+    }
+
+    res.json(results.slice(0, 3).map((r) => ({
+      instructorId: r.id,
+      name: r.name,
+      maxLevel: r.max_level,
+      avgRating: toNum(r.avg_rating),
+      reviewCount: parseInt(r.review_count) || 0,
+      availableOnDate: r.availableOnDate ?? null,
+    })));
+  } catch (err) {
+    logger.error('Agent GET /instructors/recommend error', err);
+    res.status(500).json({ error: 'Failed to recommend instructors' });
+  }
+});
+
 export default router;
 

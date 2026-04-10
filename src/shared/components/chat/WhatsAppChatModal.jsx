@@ -32,7 +32,7 @@ const TypingIndicator = () => (
 );
 
 const WhatsAppChatModal = () => {
-  const { isChatOpen, closeChat, messages, sending, send } = useAIChat();
+  const { isChatOpen, closeChat, messages, sending, send, loadingSession } = useAIChat();
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [attachment, setAttachment] = useState(null); // { file, preview, base64 }
@@ -158,9 +158,22 @@ const WhatsAppChatModal = () => {
         {/* Messages — clean light background */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 bg-slate-50">
 
+          {loadingSession && messages.length === 0 && (
+            <div className="flex flex-col gap-3 py-4 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-end gap-2">
+                  <div className="w-7 h-7 rounded-full bg-gray-200" />
+                  <div className="bg-gray-200 rounded-2xl rounded-bl-sm h-10 w-48" />
+                </div>
+              ))}
+            </div>
+          )}
+
           {messages.length > 0 && (
             <div className="flex justify-center mb-3">
-              <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">Today</span>
+              <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">
+                {messages[0]?._restored ? 'Previous conversation' : 'Today'}
+              </span>
             </div>
           )}
 
@@ -171,7 +184,17 @@ const WhatsAppChatModal = () => {
               : { text: m.content, options: null };
             const isLastAssistant = isAssistant && i === messages.length - 1;
 
+            // Show "New messages" separator at the boundary between restored and new messages
+            const prevRestored = i > 0 && messages[i - 1]._restored;
+            const showNewSeparator = prevRestored && !m._restored;
+
             return (
+              <>
+              {showNewSeparator && (
+                <div key="new-sep" className="flex justify-center my-2">
+                  <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">Today</span>
+                </div>
+              )}
               <div key={i} className={`mb-1.5 ${m.role === 'user' ? '' : ''}`}
                 style={{ animation: 'msgFadeIn 0.18s ease both' }}>
 
@@ -231,6 +254,7 @@ const WhatsAppChatModal = () => {
                   </div>
                 )}
               </div>
+              </>
             );
           })}
 
