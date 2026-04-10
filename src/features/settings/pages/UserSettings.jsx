@@ -28,7 +28,9 @@ import {
   RollbackOutlined,
   BankOutlined,
   BookOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  LockOutlined,
+  CameraOutlined
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -63,6 +65,7 @@ const InstructorTeachingPreferences = lazy(() => import('@/features/settings/com
 const InstructorNotificationSettings = lazy(() => import('@/features/settings/components/InstructorNotificationSettings'));
 const ManagerTeamNotifications = lazy(() => import('@/features/settings/components/ManagerTeamNotifications'));
 const ManagerOperationalDefaults = lazy(() => import('@/features/settings/components/ManagerOperationalDefaults'));
+const AccountSettings = lazy(() => import('@/features/settings/components/AccountSettings'));
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -562,6 +565,7 @@ const UserSettings = () => {
   // Tab configuration for sidebar navigation — must be before early returns
   const tabConfig = useMemo(() => {
     const tabs = [
+      { key: 'account', label: 'Account', icon: <UserOutlined />, group: 'Personal' },
       { key: 'general', label: 'General', icon: <UserOutlined />, group: 'Personal' },
     ];
     // Manager-accessible tabs (subset of admin)
@@ -648,6 +652,9 @@ const UserSettings = () => {
   // Render tab content based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'account':
+        return <AccountSettings />;
+
       case 'general':
         return (
           <div className="space-y-6">
@@ -903,6 +910,7 @@ const UserSettings = () => {
             <div className="mb-6">
               <Title level={3} className="!mb-1">{activeTabLabel}</Title>
               <Paragraph className="text-slate-500 !mb-0">
+                {activeTab === 'account' && 'Update your personal information and change your password'}
                 {activeTab === 'general' && (isAdmin
                   ? 'Manage your personal preferences and notification settings'
                   : 'Manage your account preferences and notification settings')}
