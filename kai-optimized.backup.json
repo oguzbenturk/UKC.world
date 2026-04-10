@@ -266,7 +266,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash",
         "options": {
           "temperature": 0.3,
           "maxOutputTokens": 512
@@ -289,7 +289,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash",
         "options": {
           "temperature": 0.3,
           "maxOutputTokens": 512
@@ -312,7 +312,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash",
         "options": {
           "temperature": 0.3,
           "maxOutputTokens": 512
@@ -335,7 +335,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.5-flash",
+        "modelName": "models/gemini-2.0-flash",
         "options": {
           "temperature": 0.3,
           "maxOutputTokens": 512
@@ -386,28 +386,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect agent output from whichever branch executed.\n// Uses try-catch because n8n 2.x throws when referencing unexecuted nodes.\nconst agents = ['AI Agent Admin', 'AI Agent Staff', 'AI Agent Customer', 'AI Agent Public'];\nlet agentOutput = null;\n\nfor (const nodeName of agents) {\n  try {\n    const items = $items(nodeName, 0, 0);\n    if (items && items.length > 0 && items[0].json && items[0].json.output) {\n      agentOutput = items[0].json.output;\n      break;\n    }\n  } catch (e) {\n    // Node not in this execution path — skip\n  }\n}\n\nreturn [{ json: { response: agentOutput || 'Bir sorun oluştu, lütfen tekrar deneyin.' } }];"
-      },
-      "id": "collect-response",
-      "name": "Collect Agent Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1680,
-        380
-      ]
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $input.item.json }}"
+        "responseBody": "={{ { response: ($('AI Agent Public').item?.json?.output || $('AI Agent Customer').item?.json?.output || $('AI Agent Staff').item?.json?.output || $('AI Agent Admin').item?.json?.output) } }}"
       },
       "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1880,
+        1780,
         380
       ]
     },
@@ -418,55 +405,36 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/services",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "category",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"category\", \"kite, foil, or windsurf\", \"string\") }}"
             },
             {
               "name": "level",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "category",
-              "description": "kite, foil, or windsurf",
-              "type": "string"
-            },
-            {
-              "name": "level",
-              "description": "beginner, intermediate, or advanced",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "pub-services",
       "name": "pub_get_services",
@@ -485,46 +453,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/units",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "villa, room, or apartment",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "pub-accommodation",
       "name": "pub_get_accommodation_options",
@@ -543,46 +497,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/weather",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "pub-weather",
       "name": "pub_get_weather",
@@ -601,46 +541,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/equipment",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, or harness\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "kite, board, wetsuit, or harness",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "pub-equipment",
       "name": "pub_get_rental_equipment",
@@ -659,46 +585,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/member-offerings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "pub-memberships",
       "name": "pub_get_member_offerings",
@@ -717,55 +629,36 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/services",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "category",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"category\", \"kite, foil, or windsurf\", \"string\") }}"
             },
             {
               "name": "level",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "category",
-              "description": "kite, foil, or windsurf",
-              "type": "string"
-            },
-            {
-              "name": "level",
-              "description": "beginner, intermediate, or advanced",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-services",
       "name": "cust_get_services",
@@ -782,38 +675,25 @@
         "name": "check_wallet_balance",
         "description": "Get wallet balance. MANDATORY before any wallet payment. Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}/wallet",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Customer UUID\", \"string\") }}/wallet",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Customer UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-wallet",
       "name": "cust_check_wallet_balance",
@@ -830,38 +710,25 @@
         "name": "get_customer_packages",
         "description": "Get lesson packages for a student: name, total/used/remaining hours, status. Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}/packages",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Student UUID\", \"string\") }}/packages",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Student UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-packages",
       "name": "cust_get_customer_packages",
@@ -880,46 +747,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-bookings",
       "name": "cust_get_booking_list",
@@ -938,46 +791,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/schedule/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-schedule",
       "name": "cust_get_my_schedule",
@@ -996,96 +835,56 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "serviceId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"serviceId\", \"Service UUID\", \"string\") }}"
             },
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "startHour",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"startHour\", \"e.g. 10 or 14.5\", \"number\") }}"
             },
             {
               "name": "instructorId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"instructorId\", \"Instructor UUID (optional)\", \"string\") }}"
             },
             {
               "name": "paymentMethod",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"paymentMethod\", \"wallet, cash, or card\", \"string\") }}"
             },
             {
               "name": "notes",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "serviceId",
-              "description": "Service UUID",
-              "type": "string"
-            },
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "startHour",
-              "description": "e.g. 10 or 14.5",
-              "type": "number"
-            },
-            {
-              "name": "instructorId",
-              "description": "Instructor UUID (optional)",
-              "type": "string"
-            },
-            {
-              "name": "paymentMethod",
-              "description": "wallet, cash, or card",
-              "type": "string"
-            },
-            {
-              "name": "notes",
-              "description": "Optional notes",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-create-booking",
       "name": "cust_create_booking",
@@ -1104,46 +903,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/units",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "villa, room, or apartment",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-acc-options",
       "name": "cust_get_accommodation_options",
@@ -1162,87 +947,52 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/bookings",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "unitId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"unitId\", \"Unit UUID\", \"string\") }}"
             },
             {
               "name": "checkInDate",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"checkInDate\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "checkOutDate",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"checkOutDate\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "guestsCount",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"guestsCount\", \"Number of guests\", \"number\") }}"
             },
             {
               "name": "notes",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "unitId",
-              "description": "Unit UUID",
-              "type": "string"
-            },
-            {
-              "name": "checkInDate",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "checkOutDate",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "guestsCount",
-              "description": "Number of guests",
-              "type": "number"
-            },
-            {
-              "name": "notes",
-              "description": "Optional notes",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-create-acc",
       "name": "cust_create_accommodation_booking",
@@ -1261,46 +1011,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/bookings/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-my-acc",
       "name": "cust_get_my_accommodation_bookings",
@@ -1319,46 +1055,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/equipment",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, harness\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "kite, board, wetsuit, harness",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-equipment",
       "name": "cust_get_rental_equipment",
@@ -1377,46 +1099,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/member-offerings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-memberships",
       "name": "cust_get_member_offerings",
@@ -1435,46 +1143,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/member-offerings/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "userId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"userId\", \"Leave empty for own subscriptions\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "userId",
-              "description": "Leave empty for own subscriptions",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-subscriptions",
       "name": "cust_get_my_subscriptions",
@@ -1493,46 +1187,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/weather",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-weather",
       "name": "cust_get_weather",
@@ -1551,46 +1231,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/vouchers/validate",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "code",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"code\", \"Voucher code\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "code",
-              "description": "Voucher code",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "cust-voucher",
       "name": "cust_validate_voucher",
@@ -1609,46 +1275,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-bookings",
       "name": "staff_get_booking_list",
@@ -1667,46 +1319,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/schedule/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-schedule",
       "name": "staff_get_my_schedule",
@@ -1723,38 +1361,25 @@
         "name": "get_student_notes",
         "description": "Get progress notes for one of your students. Required: studentId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{studentId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-notes-get",
       "name": "staff_get_student_notes",
@@ -1771,58 +1396,38 @@
         "name": "add_student_note",
         "description": "Add a progress note for your student. If googleDocExists is false in response, create a Google Doc then call save_student_doc. Required: studentId (UUID), note (string).",
         "method": "POST",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{studentId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "note",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"note\", \"Progress note text\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            },
-            {
-              "name": "note",
-              "description": "Progress note text",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-notes-add",
       "name": "staff_add_student_note",
@@ -1841,69 +1446,44 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/student-docs",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "studentId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}"
             },
             {
               "name": "googleDocId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"googleDocId\", \"Google Doc file ID\", \"string\") }}"
             },
             {
               "name": "googleDocUrl",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"googleDocUrl\", \"Full Google Doc URL\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            },
-            {
-              "name": "googleDocId",
-              "description": "Google Doc file ID",
-              "type": "string"
-            },
-            {
-              "name": "googleDocUrl",
-              "description": "Full Google Doc URL",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-save-doc",
       "name": "staff_save_student_doc",
@@ -1920,58 +1500,38 @@
         "name": "cancel_booking",
         "description": "Cancel your own booking. ALWAYS confirm with user before calling. Required: bookingId (UUID). Optional: reason.",
         "method": "POST",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{bookingId}/cancel",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{{ $fromAI(\"bookingId\", \"Booking UUID\", \"string\") }}/cancel",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "reason",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"reason\", \"Optional cancellation reason\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "bookingId",
-              "description": "Booking UUID",
-              "type": "string"
-            },
-            {
-              "name": "reason",
-              "description": "Optional cancellation reason",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-cancel",
       "name": "staff_cancel_booking",
@@ -1990,46 +1550,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/weather",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "staff-weather",
       "name": "staff_get_weather",
@@ -2048,46 +1594,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/customers/search",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
-              "name": "query",
-              "valueProvider": "modelRequired"
+              "name": "q",
+              "value": "={{ $fromAI(\"query\", \"Name, email, or phone\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "query",
-              "description": "Name, email, or phone",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-search-customers",
       "name": "admin_search_customers",
@@ -2104,38 +1636,25 @@
         "name": "get_customer_profile",
         "description": "Get full profile of a customer. Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Customer UUID\", \"string\") }}",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Customer UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-get-customer",
       "name": "admin_get_customer_profile",
@@ -2152,38 +1671,25 @@
         "name": "check_wallet_balance",
         "description": "Get wallet balance for any customer. Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}/wallet",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Customer UUID\", \"string\") }}/wallet",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Customer UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-wallet",
       "name": "admin_check_wallet_balance",
@@ -2200,38 +1706,25 @@
         "name": "get_customer_packages",
         "description": "Get lesson packages for a student. Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}/packages",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Student UUID\", \"string\") }}/packages",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Student UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-packages",
       "name": "admin_get_customer_packages",
@@ -2250,64 +1743,40 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             },
             {
               "name": "instructorId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"instructorId\", \"Instructor UUID (optional)\", \"string\") }}"
             },
             {
               "name": "customerId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"customerId\", \"Customer UUID (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            },
-            {
-              "name": "instructorId",
-              "description": "Instructor UUID (optional)",
-              "type": "string"
-            },
-            {
-              "name": "customerId",
-              "description": "Customer UUID (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-bookings",
       "name": "admin_get_booking_list",
@@ -2326,105 +1795,60 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "serviceId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"serviceId\", \"Service UUID\", \"string\") }}"
             },
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "startHour",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"startHour\", \"e.g. 10 or 14.5\", \"number\") }}"
             },
             {
               "name": "instructorId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"instructorId\", \"Instructor UUID (optional)\", \"string\") }}"
             },
             {
               "name": "paymentMethod",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"paymentMethod\", \"wallet, cash, or card\", \"string\") }}"
             },
             {
               "name": "notes",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             },
             {
               "name": "customerId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"customerId\", \"Customer UUID (admin/manager only)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "serviceId",
-              "description": "Service UUID",
-              "type": "string"
-            },
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "startHour",
-              "description": "e.g. 10 or 14.5",
-              "type": "number"
-            },
-            {
-              "name": "instructorId",
-              "description": "Instructor UUID (optional)",
-              "type": "string"
-            },
-            {
-              "name": "paymentMethod",
-              "description": "wallet, cash, or card",
-              "type": "string"
-            },
-            {
-              "name": "notes",
-              "description": "Optional notes",
-              "type": "string"
-            },
-            {
-              "name": "customerId",
-              "description": "Customer UUID (admin/manager only)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-create-booking",
       "name": "admin_create_booking",
@@ -2443,46 +1867,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/schedule/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-schedule",
       "name": "admin_get_my_schedule",
@@ -2499,53 +1909,34 @@
         "name": "get_instructor_schedule",
         "description": "Get schedule for a specific instructor. Required: instructorId (UUID). Optional: date (YYYY-MM-DD).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/schedule/instructor/{instructorId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/schedule/instructor/{{ $fromAI(\"instructorId\", \"Instructor UUID\", \"string\") }}",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "instructorId",
-              "description": "Instructor UUID",
-              "type": "string"
-            },
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-instructor-schedule",
       "name": "admin_get_instructor_schedule",
@@ -2564,46 +1955,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/finance/summary",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "period",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"period\", \"today, week, or month\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "period",
-              "description": "today, week, or month",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-finance-summary",
       "name": "admin_get_financial_summary",
@@ -2620,38 +1997,25 @@
         "name": "get_student_notes",
         "description": "Get progress notes for a student. Required: studentId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{studentId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-notes-get",
       "name": "admin_get_student_notes",
@@ -2668,58 +2032,38 @@
         "name": "add_student_note",
         "description": "Add a progress note for a student. If googleDocExists false in response, create a Google Doc then call save_student_doc. Required: studentId (UUID), note (string).",
         "method": "POST",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{studentId}",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/notes/{{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "note",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"note\", \"Progress note text\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            },
-            {
-              "name": "note",
-              "description": "Progress note text",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-notes-add",
       "name": "admin_add_student_note",
@@ -2738,69 +2082,44 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/student-docs",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "studentId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"studentId\", \"Student UUID\", \"string\") }}"
             },
             {
               "name": "googleDocId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"googleDocId\", \"Google Doc file ID\", \"string\") }}"
             },
             {
               "name": "googleDocUrl",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"googleDocUrl\", \"Full Google Doc URL\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "studentId",
-              "description": "Student UUID",
-              "type": "string"
-            },
-            {
-              "name": "googleDocId",
-              "description": "Google Doc file ID",
-              "type": "string"
-            },
-            {
-              "name": "googleDocUrl",
-              "description": "Full Google Doc URL",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-save-doc",
       "name": "admin_save_student_doc",
@@ -2819,46 +2138,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/vouchers/validate",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "code",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"code\", \"Voucher code\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "code",
-              "description": "Voucher code",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-voucher",
       "name": "admin_validate_voucher",
@@ -2877,78 +2182,48 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/notify",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "title",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"title\", \"Notification title\", \"string\") }}"
             },
             {
               "name": "message",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"message\", \"Message body\", \"string\") }}"
             },
             {
               "name": "targetUserId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"targetUserId\", \"Specific user UUID (or use targetRole)\", \"string\") }}"
             },
             {
               "name": "targetRole",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"targetRole\", \"student, instructor, manager, or admin\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "title",
-              "description": "Notification title",
-              "type": "string"
-            },
-            {
-              "name": "message",
-              "description": "Message body",
-              "type": "string"
-            },
-            {
-              "name": "targetUserId",
-              "description": "Specific user UUID (or use targetRole)",
-              "type": "string"
-            },
-            {
-              "name": "targetRole",
-              "description": "student, instructor, manager, or admin",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-notification",
       "name": "admin_send_notification",
@@ -2967,69 +2242,44 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/email",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "to",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"to\", \"Recipient email\", \"string\") }}"
             },
             {
               "name": "subject",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"subject\", \"Email subject\", \"string\") }}"
             },
             {
               "name": "body",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"body\", \"Email body\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "to",
-              "description": "Recipient email",
-              "type": "string"
-            },
-            {
-              "name": "subject",
-              "description": "Email subject",
-              "type": "string"
-            },
-            {
-              "name": "body",
-              "description": "Email body",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-email",
       "name": "admin_send_email",
@@ -3048,55 +2298,36 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/services",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "category",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"category\", \"kite, foil, or windsurf\", \"string\") }}"
             },
             {
               "name": "level",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "category",
-              "description": "kite, foil, or windsurf",
-              "type": "string"
-            },
-            {
-              "name": "level",
-              "description": "beginner, intermediate, or advanced",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-services",
       "name": "admin_get_services",
@@ -3115,46 +2346,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/units",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "villa, room, or apartment",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-acc-options",
       "name": "admin_get_accommodation_options",
@@ -3173,46 +2390,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/bookings/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-my-acc",
       "name": "admin_get_my_accommodation_bookings",
@@ -3231,96 +2434,56 @@
         "method": "POST",
         "url": "={{ $env.PLANNIVO_API_BASE }}/accommodation/bookings",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "unitId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"unitId\", \"Unit UUID\", \"string\") }}"
             },
             {
               "name": "checkInDate",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"checkInDate\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "checkOutDate",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"checkOutDate\", \"YYYY-MM-DD\", \"string\") }}"
             },
             {
               "name": "guestsCount",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"guestsCount\", \"Number of guests\", \"number\") }}"
             },
             {
               "name": "notes",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             },
             {
               "name": "guestId",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"guestId\", \"Customer UUID to book for\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "unitId",
-              "description": "Unit UUID",
-              "type": "string"
-            },
-            {
-              "name": "checkInDate",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "checkOutDate",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            },
-            {
-              "name": "guestsCount",
-              "description": "Number of guests",
-              "type": "number"
-            },
-            {
-              "name": "notes",
-              "description": "Optional notes",
-              "type": "string"
-            },
-            {
-              "name": "guestId",
-              "description": "Customer UUID to book for",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-create-acc",
       "name": "admin_create_accommodation_booking",
@@ -3337,58 +2500,38 @@
         "name": "cancel_booking",
         "description": "Cancel a booking. ALWAYS confirm with summary + YES first. Required: bookingId (UUID). Optional: reason.",
         "method": "POST",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{bookingId}/cancel",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{{ $fromAI(\"bookingId\", \"Booking UUID\", \"string\") }}/cancel",
         "sendHeaders": true,
-        "sendBody": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             },
             {
               "name": "Content-Type",
-              "valueProvider": "fieldValue",
               "value": "application/json"
             }
           ]
         },
-        "specifyBody": "keypair",
-        "parametersBody": {
-          "values": [
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
               "name": "reason",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"reason\", \"Cancellation reason\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "bookingId",
-              "description": "Booking UUID",
-              "type": "string"
-            },
-            {
-              "name": "reason",
-              "description": "Cancellation reason",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-cancel",
       "name": "admin_cancel_booking",
@@ -3407,46 +2550,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/weather",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "date",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "date",
-              "description": "YYYY-MM-DD",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-weather",
       "name": "admin_get_weather",
@@ -3465,46 +2594,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/equipment",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "type",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, harness\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "type",
-              "description": "kite, board, wetsuit, harness",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-equipment",
       "name": "admin_get_rental_equipment",
@@ -3523,46 +2638,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/member-offerings",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-memberships",
       "name": "admin_get_member_offerings",
@@ -3581,46 +2682,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/member-offerings/mine",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "userId",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"userId\", \"UUID to check (optional)\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "userId",
-              "description": "UUID to check (optional)",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-subscriptions",
       "name": "admin_get_my_subscriptions",
@@ -3639,46 +2726,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/finance/expenses",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "period",
-              "valueProvider": "modelRequired"
+              "value": "={{ $fromAI(\"period\", \"month or week\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "period",
-              "description": "month or week",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-expenses",
       "name": "admin_get_financial_expenses",
@@ -3697,46 +2770,32 @@
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/finance/wallet-deposits",
         "sendHeaders": true,
-        "sendQuery": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "specifyQuery": "keypair",
-        "parametersQuery": {
-          "values": [
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
             {
               "name": "filter",
-              "valueProvider": "modelOptional"
+              "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "filter",
-              "description": "Optional filter string. Leave empty if not needed.",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-wallet-deposits",
       "name": "admin_get_wallet_deposits",
@@ -3753,38 +2812,25 @@
         "name": "get_customer_bookings",
         "description": "Get booking history for a specific customer (up to 50). Required: customerId (UUID).",
         "method": "GET",
-        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{customerId}/bookings",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/customers/{{ $fromAI(\"customerId\", \"Customer UUID\", \"string\") }}/bookings",
         "sendHeaders": true,
-        "optimizeResponse": true,
-        "specifyHeaders": "keypair",
-        "parametersHeaders": {
-          "values": [
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-Kai-Agent-Secret",
-              "valueProvider": "fieldValue",
               "value": "={{ $env.KAI_AGENT_SECRET }}"
             },
             {
               "name": "X-Requesting-User-Id",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
             },
             {
               "name": "X-Requesting-User-Role",
-              "valueProvider": "fieldValue",
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
         },
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "customerId",
-              "description": "Customer UUID",
-              "type": "string"
-            }
-          ]
-        }
+        "optimizeResponse": true
       },
       "id": "admin-customer-bookings",
       "name": "admin_get_customer_bookings",
@@ -3926,17 +2972,6 @@
       ]
     },
     "Save Session": {
-      "main": [
-        [
-          {
-            "node": "Collect Agent Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Collect Agent Response": {
       "main": [
         [
           {
