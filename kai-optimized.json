@@ -421,7 +421,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -469,7 +468,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -513,7 +511,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -557,7 +554,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -601,7 +597,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -645,7 +640,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -692,8 +686,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "cust-wallet",
       "name": "cust_check_wallet_balance",
@@ -727,8 +720,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "cust-packages",
       "name": "cust_get_customer_packages",
@@ -763,7 +755,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -807,7 +798,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -855,7 +845,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -919,7 +908,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -967,7 +955,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1027,7 +1014,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1071,7 +1057,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1115,7 +1100,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1159,7 +1143,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1203,7 +1186,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1247,7 +1229,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1291,7 +1272,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1335,7 +1315,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1378,8 +1357,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "staff-notes-get",
       "name": "staff_get_student_notes",
@@ -1418,7 +1396,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1466,7 +1443,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1522,7 +1498,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1566,7 +1541,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1610,7 +1584,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1653,8 +1626,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "admin-get-customer",
       "name": "admin_get_customer_profile",
@@ -1688,8 +1660,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "admin-wallet",
       "name": "admin_check_wallet_balance",
@@ -1723,8 +1694,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "admin-packages",
       "name": "admin_get_customer_packages",
@@ -1759,7 +1729,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1815,7 +1784,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1883,7 +1851,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1927,7 +1894,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1971,7 +1937,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2014,8 +1979,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "admin-notes-get",
       "name": "admin_get_student_notes",
@@ -2054,7 +2018,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2102,7 +2065,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2154,7 +2116,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2202,7 +2163,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2262,7 +2222,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2314,7 +2273,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2362,7 +2320,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2406,7 +2363,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2454,7 +2410,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2522,7 +2477,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -2566,7 +2520,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2610,7 +2563,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2654,7 +2606,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2698,7 +2649,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2742,7 +2692,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2786,7 +2735,6 @@
             }
           ]
         },
-        "optimizeResponse": true,
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -2829,8 +2777,7 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        },
-        "optimizeResponse": true
+        }
       },
       "id": "admin-customer-bookings",
       "name": "admin_get_customer_bookings",
