@@ -8,9 +8,9 @@
 import { useState, useEffect, useCallback, memo, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, Switch, Select, Button, Typography, Divider, Alert, Spin, App } from 'antd';
-import { 
-  BellOutlined, 
-  GlobalOutlined, 
+import {
+  BellOutlined,
+  GlobalOutlined,
   EyeOutlined,
   SaveOutlined,
   SettingOutlined,
@@ -26,7 +26,9 @@ import {
   FileTextOutlined,
   DeleteOutlined,
   RollbackOutlined,
-  BankOutlined
+  BankOutlined,
+  BookOutlined,
+  MedicineBoxOutlined
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -51,6 +53,16 @@ const LegalDocumentsPage = lazy(() => import('./LegalDocumentsPage'));
 const DeletedBookingsPage = lazy(() => import('@/components/admin/DeletedBookingsPage'));
 const PaymentRefunds = lazy(() => import('@/features/finances/pages/PaymentRefunds'));
 const BankAccountsAdmin = lazy(() => import('@/features/finances/pages/BankAccountsAdmin'));
+
+// Lazy-loaded role-specific setting components
+const StudentBookingPreferences = lazy(() => import('@/features/settings/components/StudentBookingPreferences'));
+const StudentInstructorPreferences = lazy(() => import('@/features/settings/components/StudentInstructorPreferences'));
+const StudentSafetySettings = lazy(() => import('@/features/settings/components/StudentSafetySettings'));
+const InstructorAvailabilitySettings = lazy(() => import('@/features/settings/components/InstructorAvailabilitySettings'));
+const InstructorTeachingPreferences = lazy(() => import('@/features/settings/components/InstructorTeachingPreferences'));
+const InstructorNotificationSettings = lazy(() => import('@/features/settings/components/InstructorNotificationSettings'));
+const ManagerTeamNotifications = lazy(() => import('@/features/settings/components/ManagerTeamNotifications'));
+const ManagerOperationalDefaults = lazy(() => import('@/features/settings/components/ManagerOperationalDefaults'));
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -580,8 +592,31 @@ const UserSettings = () => {
         { key: 'deleted-bookings', label: 'Deleted Bookings', icon: <DeleteOutlined />, group: 'Operations' },
       );
     }
+    // Student tabs
+    if (isStudent) {
+      tabs.push(
+        { key: 'booking-prefs', label: 'Booking Preferences', icon: <CalendarOutlined />, group: 'Bookings' },
+        { key: 'instructor-prefs', label: 'Instructor Preferences', icon: <TeamOutlined />, group: 'Bookings' },
+        { key: 'safety', label: 'Safety & Medical', icon: <MedicineBoxOutlined />, group: 'Personal' },
+      );
+    }
+    // Instructor tabs
+    if (isInstructor) {
+      tabs.push(
+        { key: 'availability', label: 'Availability', icon: <CalendarOutlined />, group: 'Schedule' },
+        { key: 'teaching-prefs', label: 'Teaching Preferences', icon: <BookOutlined />, group: 'Teaching' },
+        { key: 'instructor-notifications', label: 'Notifications', icon: <BellOutlined />, group: 'Personal' },
+      );
+    }
+    // Manager-specific tabs
+    if (isManager) {
+      tabs.push(
+        { key: 'team-notifications', label: 'Team Notifications', icon: <TeamOutlined />, group: 'Operations' },
+        { key: 'operational-defaults', label: 'Operational Defaults', icon: <ToolOutlined />, group: 'Operations' },
+      );
+    }
     return tabs;
-  }, [isAdmin, isManager]);
+  }, [isAdmin, isManager, isStudent, isInstructor]);
 
   const groupedTabs = useMemo(() => {
     const groups = [];
@@ -775,6 +810,28 @@ const UserSettings = () => {
       case 'bank-accounts':
         return isAdmin ? <BankAccountsAdmin /> : null;
 
+      // Student settings
+      case 'booking-prefs':
+        return isStudent ? <StudentBookingPreferences isTrustedCustomer={isTrustedCustomer} /> : null;
+      case 'instructor-prefs':
+        return isStudent ? <StudentInstructorPreferences /> : null;
+      case 'safety':
+        return isStudent ? <StudentSafetySettings /> : null;
+
+      // Instructor settings
+      case 'availability':
+        return isInstructor ? <InstructorAvailabilitySettings /> : null;
+      case 'teaching-prefs':
+        return isInstructor ? <InstructorTeachingPreferences /> : null;
+      case 'instructor-notifications':
+        return isInstructor ? <InstructorNotificationSettings /> : null;
+
+      // Manager settings
+      case 'team-notifications':
+        return isManager ? <ManagerTeamNotifications /> : null;
+      case 'operational-defaults':
+        return isManager ? <ManagerOperationalDefaults /> : null;
+
       default:
         return null;
     }
@@ -833,6 +890,9 @@ const UserSettings = () => {
           <div className="p-4 border-t border-gray-100 text-xs text-gray-500">
             Logged in as <strong className="text-gray-700">{user?.email}</strong>
             {isAdmin && <span className="ml-1 text-sky-600">(Admin)</span>}
+            {isManager && !isAdmin && <span className="ml-1 text-sky-600">(Manager)</span>}
+            {isInstructor && <span className="ml-1 text-emerald-600">(Instructor)</span>}
+            {isStudent && <span className="ml-1 text-violet-600">(Student)</span>}
           </div>
         </aside>
 
@@ -859,6 +919,14 @@ const UserSettings = () => {
                 {activeTab === 'deleted-bookings' && 'View and manage deleted bookings'}
                 {activeTab === 'refunds' && 'Process and track payment refunds'}
                 {activeTab === 'bank-accounts' && 'Manage bank accounts for payments'}
+                {activeTab === 'booking-prefs' && 'Set your default preferences for booking lessons'}
+                {activeTab === 'instructor-prefs' && 'Choose your preferred instructor and lesson language'}
+                {activeTab === 'safety' && 'Provide emergency contact and medical information for your safety'}
+                {activeTab === 'availability' && 'Manage your weekly working hours and time-off requests'}
+                {activeTab === 'teaching-prefs' && 'Configure your teaching preferences and specializations'}
+                {activeTab === 'instructor-notifications' && 'Choose which notifications you receive as an instructor'}
+                {activeTab === 'team-notifications' && 'Configure team activity and operational notifications'}
+                {activeTab === 'operational-defaults' && 'Set default values for daily booking operations'}
               </Paragraph>
             </div>
 
