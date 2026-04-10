@@ -269,7 +269,7 @@
         "modelName": "models/gemini-2.5-flash",
         "options": {
           "temperature": 0.3,
-          "maxOutputTokens": 512
+          "maxOutputTokens": 1024
         }
       },
       "id": "llm-public",
@@ -292,7 +292,7 @@
         "modelName": "models/gemini-2.5-flash",
         "options": {
           "temperature": 0.3,
-          "maxOutputTokens": 512
+          "maxOutputTokens": 1024
         }
       },
       "id": "llm-customer",
@@ -315,7 +315,7 @@
         "modelName": "models/gemini-2.5-flash",
         "options": {
           "temperature": 0.3,
-          "maxOutputTokens": 512
+          "maxOutputTokens": 1024
         }
       },
       "id": "llm-staff",
@@ -338,7 +338,7 @@
         "modelName": "models/gemini-2.5-flash",
         "options": {
           "temperature": 0.3,
-          "maxOutputTokens": 512
+          "maxOutputTokens": 1024
         }
       },
       "id": "llm-admin",
