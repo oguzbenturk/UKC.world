@@ -9,6 +9,15 @@ const formatTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit'
 
 const hasVoiceSupport = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
+/** Parse <<quickreplies>>opt1|opt2|...<</quickreplies>> from message content */
+const parseQuickReplies = (content) => {
+  const match = content.match(/<<quickreplies>>([\s\S]*?)<<\/quickreplies>>/);
+  if (!match) return { text: content, options: null };
+  const text = content.replace(/<<quickreplies>>[\s\S]*?<<\/quickreplies>>/, '').trim();
+  const options = match[1].split('|').map((o) => o.trim()).filter(Boolean);
+  return { text, options };
+};
+
 const TypingIndicator = () => (
   <div className="flex items-end gap-2 mb-2">
     <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0">K</div>
@@ -155,50 +164,75 @@ const WhatsAppChatModal = () => {
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <div key={i} className={`flex items-end gap-2 mb-1.5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              style={{ animation: 'msgFadeIn 0.18s ease both' }}>
+          {messages.map((m, i) => {
+            const isAssistant = m.role === 'assistant';
+            const { text: msgText, options: quickReplies } = isAssistant
+              ? parseQuickReplies(m.content)
+              : { text: m.content, options: null };
+            const isLastAssistant = isAssistant && i === messages.length - 1;
 
-              {m.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mb-0.5">K</div>
-              )}
+            return (
+              <div key={i} className={`mb-1.5 ${m.role === 'user' ? '' : ''}`}
+                style={{ animation: 'msgFadeIn 0.18s ease both' }}>
 
-              <div className={`relative max-w-[78%] px-3 pt-2 pb-1.5 text-sm ${
-                m.role === 'user'
-                  ? 'bg-duotone-blue text-white rounded-2xl rounded-br-sm shadow-sm'
-                  : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
-              }`}>
-                {m.role === 'assistant' ? (
-                  <ReactMarkdown components={{
-                    a: MarkdownLink,
-                    p: ({ children }) => <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>,
-                    ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
-                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
-                    li: ({ children }) => <li>{children}</li>,
-                    strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                  }}>
-                    {m.content}
-                  </ReactMarkdown>
-                ) : (
-                  <>
-                    {m.image && (
-                      <img src={m.image} alt="Sent" className="rounded-lg max-w-full mb-1.5" style={{ maxHeight: 180 }} />
-                    )}
-                    {m.content && <span className="leading-relaxed">{m.content}</span>}
-                  </>
-                )}
-                <div className={`flex items-center justify-end gap-1 mt-1 ${m.role === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
-                  <span className="text-[10px]">{m.timestamp ? formatTime(m.timestamp) : ''}</span>
-                  {m.role === 'user' && (
-                    <svg className="w-3.5 h-3 text-white/70" viewBox="0 0 16 11" fill="currentColor">
-                      <path d="M11.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.128-.022l-2.5-3a.75.75 0 0 1 1.156-.964l1.946 2.335 5.918-6.361a.75.75 0 0 1 1.06-.048Z"/>
-                      <path d="M14.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.06.048.75.75 0 0 1-.048-1.06l6.5-7a.75.75 0 0 1 1.06-.048Z"/>
-                    </svg>
+                <div className={`flex items-end gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {isAssistant && (
+                    <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mb-0.5">K</div>
                   )}
+
+                  <div className={`relative max-w-[78%] px-3 pt-2 pb-1.5 text-sm ${
+                    m.role === 'user'
+                      ? 'bg-duotone-blue text-white rounded-2xl rounded-br-sm shadow-sm'
+                      : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100'
+                  }`}>
+                    {isAssistant ? (
+                      <ReactMarkdown components={{
+                        a: MarkdownLink,
+                        p: ({ children }) => <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                      }}>
+                        {msgText}
+                      </ReactMarkdown>
+                    ) : (
+                      <>
+                        {m.image && (
+                          <img src={m.image} alt="Sent" className="rounded-lg max-w-full mb-1.5" style={{ maxHeight: 180 }} />
+                        )}
+                        {m.content && <span className="leading-relaxed">{m.content}</span>}
+                      </>
+                    )}
+                    <div className={`flex items-center justify-end gap-1 mt-1 ${m.role === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
+                      <span className="text-[10px]">{m.timestamp ? formatTime(m.timestamp) : ''}</span>
+                      {m.role === 'user' && (
+                        <svg className="w-3.5 h-3 text-white/70" viewBox="0 0 16 11" fill="currentColor">
+                          <path d="M11.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.128-.022l-2.5-3a.75.75 0 0 1 1.156-.964l1.946 2.335 5.918-6.361a.75.75 0 0 1 1.06-.048Z"/>
+                          <path d="M14.071.653a.75.75 0 0 1 .048 1.06l-6.5 7a.75.75 0 0 1-1.06.048.75.75 0 0 1-.048-1.06l6.5-7a.75.75 0 0 1 1.06-.048Z"/>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Quick-reply buttons — only on the last assistant message */}
+                {quickReplies && isLastAssistant && !sending && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 ml-9" style={{ animation: 'msgFadeIn 0.25s ease both' }}>
+                    {quickReplies.map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => handleSend(option)}
+                        className="px-3.5 py-2 text-[13px] font-medium rounded-xl border border-duotone-blue/30 text-duotone-blue bg-white hover:bg-duotone-blue hover:text-white active:scale-95 transition-all shadow-sm"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {sending && <TypingIndicator />}
           <div ref={messagesEndRef} />

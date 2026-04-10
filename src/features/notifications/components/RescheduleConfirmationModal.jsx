@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, Button, Tag } from 'antd';
+import { Modal } from 'antd';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
   UserSwitchOutlined,
-  CheckCircleOutlined,
-  InfoCircleOutlined,
+  CheckOutlined,
+  SwapOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import {
   fetchPendingReschedules,
@@ -31,114 +32,169 @@ const formatDate = (dateStr) => {
   }
 };
 
-/** Change row: icon + label + old → new */
 const ChangeRow = ({ icon, label, oldValue, newValue }) => (
-  <div className="flex items-start gap-3">
-    {icon}
-    <div>
-      <p className="text-xs text-gray-500 mb-0.5 font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-sm text-gray-400 line-through">{oldValue}</p>
-      <p className="text-sm text-gray-900 font-semibold">{newValue}</p>
+  <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+    <div
+      className="flex items-center justify-center shrink-0 mt-0.5"
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: 'rgba(0, 168, 196, 0.08)',
+        color: '#00a8c4',
+        fontSize: 15,
+      }}
+    >
+      {icon}
     </div>
-  </div>
-);
-
-/** Header banner */
-const RescheduleHeader = ({ count, currentIndex }) => (
-  <div className="bg-gradient-to-br from-amber-500 to-orange-600 px-6 py-5 rounded-t-lg">
-    <div className="flex items-center gap-3">
-      <div className="bg-white/20 rounded-full p-2">
-        <InfoCircleOutlined className="text-white text-xl" />
-      </div>
-      <div>
-        <h3 className="text-white text-lg font-bold m-0">Lesson Rescheduled</h3>
-        <p className="text-white/80 text-sm m-0 mt-0.5">
-          {count > 1 ? `${currentIndex + 1} of ${count} updates` : 'Your lesson details have changed'}
-        </p>
+    <div className="flex-1 min-w-0">
+      <p className="text-[11px] text-slate-400 mb-1 font-medium uppercase tracking-wider m-0">{label}</p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-slate-400 line-through">{oldValue}</span>
+        <SwapOutlined className="text-[10px] text-slate-300" />
+        <span className="text-sm text-slate-800 font-semibold">{newValue}</span>
       </div>
     </div>
   </div>
 );
 
-/** Changes detail panel */
-const ChangesPanel = ({ current }) => {
-  const hasDateChange = current.old_date && current.new_date && current.old_date !== current.new_date;
-  const hasTimeChange = current.old_start_hour != null && current.new_start_hour != null &&
-    Number(current.old_start_hour) !== Number(current.new_start_hour);
-  const hasInstructorChange = current.old_instructor_id !== current.new_instructor_id &&
-    (current.old_instructor_name || current.new_instructor_name);
-
-  return (
-    <div className="space-y-3 bg-gray-50 rounded-xl p-4">
-      {hasDateChange && (
-        <ChangeRow
-          icon={<CalendarOutlined className="text-amber-500 text-lg mt-0.5" />}
-          label="Date"
-          oldValue={formatDate(current.old_date)}
-          newValue={formatDate(current.new_date)}
-        />
-      )}
-      {hasTimeChange && (
-        <ChangeRow
-          icon={<ClockCircleOutlined className="text-blue-500 text-lg mt-0.5" />}
-          label="Time"
-          oldValue={formatTime(current.old_start_hour)}
-          newValue={formatTime(current.new_start_hour)}
-        />
-      )}
-      {hasInstructorChange && (
-        <ChangeRow
-          icon={<UserSwitchOutlined className="text-purple-500 text-lg mt-0.5" />}
-          label="Instructor"
-          oldValue={current.old_instructor_name || 'TBD'}
-          newValue={current.new_instructor_name || 'TBD'}
-        />
-      )}
-    </div>
-  );
-};
-
-/** Inner content rendered inside the Modal */
 const RescheduleModalContent = ({ current, notifications, currentIndex, confirming, onConfirm, onConfirmAll }) => (
-  <>
-    <RescheduleHeader count={notifications.length} currentIndex={currentIndex} />
+  <div>
+    {/* Header */}
+    <div className="px-6 pt-6 pb-4">
+      <div className="flex items-center gap-3 mb-1">
+        <div
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: 'rgba(0, 168, 196, 0.1)',
+            border: '1px solid rgba(0, 168, 196, 0.15)',
+          }}
+        >
+          <CalendarOutlined style={{ fontSize: 18, color: '#00a8c4' }} />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-800 m-0">Lesson Rescheduled</h3>
+          <p className="text-xs text-slate-400 m-0 mt-0.5">
+            {notifications.length > 1 ? `${currentIndex + 1} of ${notifications.length} updates` : 'Your lesson details have changed'}
+          </p>
+        </div>
+      </div>
+    </div>
 
-    <div className="px-6 py-5">
-      <div className="flex items-center gap-2 mb-4">
-        <Tag color="blue" className="text-sm font-medium px-3 py-0.5">
+    {/* Divider */}
+    <div style={{ height: 1, background: '#f1f5f9', margin: '0 24px' }} />
+
+    {/* Body */}
+    <div className="px-6 py-4">
+      {/* Lesson name + updater */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span
+          className="text-xs font-medium px-2.5 py-1 rounded-md"
+          style={{
+            background: 'rgba(0, 168, 196, 0.08)',
+            color: '#0891b2',
+            border: '1px solid rgba(0, 168, 196, 0.12)',
+          }}
+        >
           {current.service_name || current.service_name_live || 'Lesson'}
-        </Tag>
+        </span>
         {current.changed_by_name && (
-          <span className="text-xs text-gray-400">Updated by {current.changed_by_name}</span>
+          <span className="text-[11px] text-slate-400">Updated by {current.changed_by_name}</span>
         )}
       </div>
 
-      <ChangesPanel current={current} />
+      {/* Changes */}
+      <div>
+        {current.old_date && current.new_date && current.old_date !== current.new_date && (
+          <ChangeRow
+            icon={<CalendarOutlined />}
+            label="Date"
+            oldValue={formatDate(current.old_date)}
+            newValue={formatDate(current.new_date)}
+          />
+        )}
+        {current.old_start_hour != null && current.new_start_hour != null &&
+          Number(current.old_start_hour) !== Number(current.new_start_hour) && (
+          <ChangeRow
+            icon={<ClockCircleOutlined />}
+            label="Time"
+            oldValue={formatTime(current.old_start_hour)}
+            newValue={formatTime(current.new_start_hour)}
+          />
+        )}
+        {current.old_instructor_id !== current.new_instructor_id &&
+          (current.old_instructor_name || current.new_instructor_name) && (
+          <ChangeRow
+            icon={<UserSwitchOutlined />}
+            label="Instructor"
+            oldValue={current.old_instructor_name || 'TBD'}
+            newValue={current.new_instructor_name || 'TBD'}
+          />
+        )}
+      </div>
 
       {current.message && (
-        <p className="text-sm text-gray-500 mt-4 leading-relaxed">{current.message}</p>
+        <p className="text-sm text-slate-500 mt-3 mb-0 leading-relaxed">{current.message}</p>
       )}
-
-      <div className="mt-5 flex flex-col gap-2">
-        <Button
-          type="primary"
-          size="large"
-          block
-          icon={<CheckCircleOutlined />}
-          loading={confirming}
-          onClick={onConfirm}
-          className="!bg-emerald-600 !border-emerald-600 hover:!bg-emerald-500 !h-11 !font-semibold"
-        >
-          {notifications.length > 1 ? 'Got It — Next' : 'Got It — Confirm'}
-        </Button>
-        {notifications.length > 1 && (
-          <Button size="large" block loading={confirming} onClick={onConfirmAll} className="!h-10">
-            Confirm All ({notifications.length})
-          </Button>
-        )}
-      </div>
     </div>
-  </>
+
+    {/* Footer */}
+    <div className="px-6 pb-6 pt-2 flex flex-col gap-2">
+      <button
+        disabled={confirming}
+        onClick={onConfirm}
+        style={{
+          width: '100%',
+          height: 44,
+          borderRadius: 10,
+          border: 'none',
+          background: '#00a8c4',
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: confirming ? 'not-allowed' : 'pointer',
+          opacity: confirming ? 0.7 : 1,
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+        onMouseOver={(e) => { if (!confirming) e.currentTarget.style.background = '#0097b0'; }}
+        onMouseOut={(e) => { e.currentTarget.style.background = '#00a8c4'; }}
+      >
+        {confirming ? <LoadingOutlined /> : <CheckOutlined />}
+        {notifications.length > 1 ? 'Got It — Next' : 'Got It — Confirm'}
+      </button>
+      {notifications.length > 1 && (
+        <button
+          disabled={confirming}
+          onClick={onConfirmAll}
+          style={{
+            width: '100%',
+            height: 40,
+            borderRadius: 10,
+            border: '1px solid #e2e8f0',
+            background: '#fff',
+            color: '#64748b',
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: confirming ? 'not-allowed' : 'pointer',
+            opacity: confirming ? 0.7 : 1,
+            transition: 'all 0.2s ease',
+          }}
+          onMouseOver={(e) => { if (!confirming) { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; } }}
+          onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+        >
+          {confirming && <LoadingOutlined style={{ marginRight: 6 }} />}
+          Confirm All ({notifications.length})
+        </button>
+      )}
+    </div>
+  </div>
 );
 
 const RescheduleConfirmationModal = () => {
@@ -225,13 +281,14 @@ const RescheduleConfirmationModal = () => {
       maskClosable={false}
       keyboard={false}
       centered
-      width={480}
+      width={420}
       title={null}
       footer={null}
       className="reschedule-confirmation-modal"
       styles={{
         body: { padding: 0 },
-        mask: { background: 'rgba(0,0,0,0.5)' }
+        content: { borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)' },
+        mask: { background: 'rgba(15,23,42,0.3)', backdropFilter: 'blur(4px)' },
       }}
     >
       <RescheduleModalContent

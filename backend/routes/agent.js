@@ -322,9 +322,9 @@ router.get('/customers/:id/packages', async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, package_name, total_hours, used_hours, remaining_hours, status, expires_at
+      `SELECT id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, status, expiry_date
        FROM customer_packages
-       WHERE user_id = $1 AND deleted_at IS NULL
+       WHERE customer_id = $1 AND status IN ('active', 'waiting_payment')
        ORDER BY created_at DESC`,
       [id],
     );
@@ -333,11 +333,12 @@ router.get('/customers/:id/packages', async (req, res) => {
       rows.map((p) => ({
         packageId: p.id,
         packageName: p.package_name,
+        lessonType: p.lesson_service_name,
         totalHours: toNum(p.total_hours),
         usedHours: toNum(p.used_hours),
         remainingHours: toNum(p.remaining_hours),
         status: p.status,
-        expiresAt: p.expires_at,
+        expiresAt: p.expiry_date,
       })),
     );
   } catch (err) {
@@ -396,6 +397,70 @@ router.post(
     }
   },
 );
+
+// ── GET /available-slots — Lesson time blocks available on a date ─────────────
+// Returns the 4 standard 2-hour lesson blocks with availability status.
+router.get('/available-slots', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: 'date (YYYY-MM-DD) is required' });
+
+    // Standard 2-hour lesson blocks (decimal start hours)
+    const blocks = [
+      { label: '09:00 – 11:00', start: 9, end: 11 },
+      { label: '11:30 – 13:30', start: 11.5, end: 13.5 },
+      { label: '14:00 – 16:00', start: 14, end: 16 },
+      { label: '16:30 – 18:30', start: 16.5, end: 18.5 },
+    ];
+
+    // Fetch all non-cancelled bookings on the given date
+    const { rows: bookings } = await pool.query(
+      `SELECT start_hour, duration, instructor_user_id
+       FROM bookings
+       WHERE date = $1
+         AND status NOT IN ('cancelled', 'pending_payment')
+         AND deleted_at IS NULL`,
+      [date],
+    );
+
+    // Count active instructors for capacity estimation
+    const { rows: instructorRows } = await pool.query(
+      `SELECT COUNT(DISTINCT u.id) AS cnt
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+       WHERE LOWER(r.name) = 'instructor' AND u.deleted_at IS NULL`,
+    );
+    const totalInstructors = parseInt(instructorRows[0]?.cnt) || 1;
+
+    const slots = blocks.map((block) => {
+      // Count how many bookings overlap with this block
+      const overlapping = bookings.filter((b) => {
+        const bStart = parseFloat(b.start_hour);
+        const bEnd = bStart + (parseFloat(b.duration) || 1);
+        return bStart < block.end && bEnd > block.start;
+      });
+
+      // Count unique instructors booked in this block
+      const bookedInstructors = new Set(
+        overlapping.filter((b) => b.instructor_user_id).map((b) => b.instructor_user_id),
+      );
+
+      const available = bookedInstructors.size < totalInstructors;
+
+      return {
+        label: block.label,
+        startHour: block.start,
+        available,
+        bookingCount: overlapping.length,
+      };
+    });
+
+    res.json({ date, slots });
+  } catch (err) {
+    logger.error('Agent GET /available-slots error', err);
+    res.status(500).json({ error: 'Failed to check availability' });
+  }
+});
 
 // ── GET /bookings — List bookings with filters ────────────────────────────────
 router.get('/bookings', async (req, res) => {
@@ -586,6 +651,7 @@ router.post(
       startHour,
       instructorId,
       paymentMethod = 'cash',
+      customerPackageId,
       notes = '',
     } = req.body;
 
@@ -598,6 +664,8 @@ router.post(
     if (!serviceId || !date || startHour == null) {
       return res.status(400).json({ error: 'serviceId, date, and startHour are required' });
     }
+
+    const isPackagePayment = paymentMethod === 'package' || !!customerPackageId;
 
     const client = await pool.connect();
     try {
@@ -613,7 +681,76 @@ router.post(
         return res.status(400).json({ error: 'Service not found' });
       }
       const service = svcRows[0];
+      const duration = toNum(service.duration) || 1;
       const amount = toNum(service.price) || 0;
+
+      let resolvedPackageId = null;
+
+      // Package-based booking — validate & deduct hours
+      if (isPackagePayment) {
+        // If customerPackageId given, use it; otherwise find the best active package
+        if (customerPackageId) {
+          const { rows: pkgRows } = await client.query(
+            `SELECT id, customer_id, remaining_hours, status, expiry_date
+             FROM customer_packages WHERE id = $1 FOR UPDATE`,
+            [customerPackageId],
+          );
+          if (!pkgRows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Package not found' });
+          }
+          const pkg = pkgRows[0];
+          if (pkg.customer_id !== studentUserId) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: 'This package does not belong to you' });
+          }
+          if (pkg.status !== 'active' && pkg.status !== 'waiting_payment') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `Package is ${pkg.status}, not active` });
+          }
+          if (pkg.expiry_date && new Date(pkg.expiry_date) < new Date(date)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Package expires before the booking date' });
+          }
+          if (toNum(pkg.remaining_hours) < duration) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: `Not enough hours. Remaining: ${toNum(pkg.remaining_hours)}h, Required: ${duration}h`,
+            });
+          }
+          resolvedPackageId = pkg.id;
+        } else {
+          // Auto-select the best active package with enough hours
+          const { rows: pkgRows } = await client.query(
+            `SELECT id, remaining_hours, expiry_date FROM customer_packages
+             WHERE customer_id = $1 AND status = 'active'
+               AND remaining_hours >= $2
+               AND (expiry_date IS NULL OR expiry_date >= $3::date)
+             ORDER BY expiry_date ASC NULLS LAST, remaining_hours ASC
+             LIMIT 1
+             FOR UPDATE`,
+            [studentUserId, duration, date],
+          );
+          if (!pkgRows.length) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No active package with enough remaining hours found' });
+          }
+          resolvedPackageId = pkgRows[0].id;
+        }
+
+        // Deduct hours from the package
+        const newUsed = duration;
+        await client.query(
+          `UPDATE customer_packages
+           SET used_hours = used_hours + $1,
+               remaining_hours = remaining_hours - $1,
+               last_used_date = $2::date,
+               status = CASE WHEN remaining_hours - $1 <= 0 THEN 'used_up' ELSE status END,
+               updated_at = NOW()
+           WHERE id = $3`,
+          [newUsed, date, resolvedPackageId],
+        );
+      }
 
       // Wallet check — MANDATORY when paying by wallet
       if (paymentMethod === 'wallet') {
@@ -632,15 +769,18 @@ router.post(
         }
       }
 
-      const paymentStatus = paymentMethod === 'wallet' ? 'paid' : 'pending';
+      const finalPaymentMethod = isPackagePayment ? 'package' : paymentMethod;
+      const finalAmount = isPackagePayment ? 0 : amount;
+      const paymentStatus = isPackagePayment ? 'package' : (paymentMethod === 'wallet' ? 'paid' : 'pending');
 
       const { rows: bookingRows } = await client.query(
         `INSERT INTO bookings (
            service_id, student_user_id, instructor_user_id,
            date, start_hour, duration,
-           status, payment_status, amount, final_amount,
+           status, payment_method, payment_status, amount, final_amount,
+           customer_package_id,
            notes, location, created_by, updated_by
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'TBD', $12, $12)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'TBD', $14, $14)
          RETURNING id`,
         [
           serviceId,
@@ -648,11 +788,13 @@ router.post(
           instructorId || null,
           date,
           parseFloat(startHour),
-          toNum(service.duration) || 1,
+          duration,
           'confirmed',
+          finalPaymentMethod,
           paymentStatus,
-          amount,
-          amount,
+          finalAmount,
+          finalAmount,
+          resolvedPackageId,
           notes || '',
           userId,
         ],
@@ -679,15 +821,20 @@ router.post(
 
       await client.query('COMMIT');
 
+      const responseMsg = isPackagePayment
+        ? `Booking confirmed for ${service.name} on ${date} at ${startHour}:00 (${duration}h deducted from your package).`
+        : `Booking confirmed for ${service.name} on ${date} at ${startHour}:00.`;
+
       res.status(201).json({
         bookingId,
         serviceName: service.name,
         date,
         startHour: parseFloat(startHour),
-        amount,
-        paymentMethod,
+        amount: finalAmount,
+        paymentMethod: finalPaymentMethod,
+        packageUsed: !!resolvedPackageId,
         status: 'confirmed',
-        message: `Booking confirmed for ${service.name} on ${date} at ${startHour}:00.`,
+        message: responseMsg,
       });
     } catch (err) {
       await client.query('ROLLBACK');
