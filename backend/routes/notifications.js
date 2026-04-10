@@ -342,24 +342,36 @@ router.get('/settings', authorize(['admin', 'manager', 'instructor', 'student', 
       [userId]
     );
 
+    const defaults = {
+      weather_alerts: true,
+      booking_updates: true,
+      payment_notifications: true,
+      general_announcements: true,
+      email_notifications: true,
+      push_notifications: true,
+      new_booking_alerts: true,
+      sms_notifications: false,
+      rental_alerts: true,
+      accommodation_alerts: true,
+      shop_order_alerts: true,
+      lesson_updates: true,
+      rating_requests: true,
+      social_notifications: true,
+      waiver_reminders: true,
+      staff_alerts: true,
+      booking_reminder_24h: true,
+      booking_reminder_1h: true,
+      student_checkin_alerts: true,
+      schedule_change_alerts: true,
+      daily_schedule_summary: false,
+      daily_ops_summary: false,
+      support_ticket_alerts: true
+    };
+
     if (result.rows.length === 0) {
-      // Return default settings
-      res.json({
-        weather_alerts: true,
-        booking_updates: true,
-        payment_notifications: true,
-        general_announcements: true,
-        email_notifications: true,
-        push_notifications: true,
-        new_booking_alerts: true
-      });
+      res.json(defaults);
     } else {
-      const settings = result.rows[0];
-      // Ensure new_booking_alerts defaults to true if not set
-      res.json({
-        ...settings,
-        new_booking_alerts: settings.new_booking_alerts ?? true
-      });
+      res.json({ ...defaults, ...result.rows[0] });
     }
 
   } catch (error) {
