@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import TwoColumnModal from '@/shared/components/ui/TwoColumnModal';
 import MemberUpsellBanner from '@/features/members/components/MemberUpsellBanner';
-import { Spin, Alert, message, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber } from 'antd';
+import { Spin, Alert, message, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber, Modal } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
@@ -253,9 +253,8 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
           ) : durationLabel ? (
             <p className="text-[9px] font-duotone-bold-extended text-white uppercase tracking-wider leading-none">{durationLabel}</p>
           ) : null}
-          <p className="text-[7px] font-duotone-regular text-white/55 uppercase tracking-widest mt-0.5 leading-none">{isGroup ? 'FROM' : 'PRICE'}</p>
-          <p className="text-sm font-duotone-bold-extended italic text-white leading-tight">{eurFormatted}</p>
-          {showLocal && <p className="text-[8px] text-white/50 font-duotone-regular leading-snug">~{localFormatted}</p>}
+          <p className="text-[7px] font-duotone-regular text-white/55 uppercase tracking-widest mt-0.5 leading-none">FROM</p>
+          <p className="text-sm font-duotone-bold-extended italic text-white leading-tight">{isStorage ? '5.5€' : '4€'}/day</p>
         </div>
 
         {/* Best Value — top left (like POPULAR on lesson cards) */}
@@ -268,7 +267,7 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
         {/* Active badge */}
         {isOwned && (
           <div className={`absolute z-10 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-md left-3 ${isHighlighted ? 'top-11' : 'top-3'}`}>
-            <CheckCircleFilled style={{ fontSize: 9 }} /> {storageUnit ? `Unit #${storageUnit}` : 'Active'}
+            <CheckCircleFilled style={{ fontSize: 9 }} /> {storageUnit ? `Unit #${storageUnit}` : 'Owned'}
           </div>
         )}
 
@@ -318,6 +317,7 @@ const MemberOfferings = () => {
   const { formatCurrency, convertCurrency, userCurrency, businessCurrency } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
   const [purchaseModal, setPurchaseModal] = useState(PURCHASE_MODAL_CLOSED);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
@@ -507,7 +507,6 @@ const MemberOfferings = () => {
       message.warning('No storage slots available at the moment.');
       return;
     }
-    if (isAdminStaff && !selectedCustomer) { message.warning('Select a customer first.'); return; }
     setStartDate(dayjs());
     setPaymentMethod('wallet');
     setDepositMethod('credit_card');
@@ -612,50 +611,6 @@ const MemberOfferings = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
 
-        {/* Staff panel */}
-        {isAdminStaff && (
-          <div
-            className="mb-8 rounded-2xl p-5 bg-white/70 backdrop-blur-xl border border-slate-200"
-          >
-            <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2 text-slate-500">
-              <UserOutlined /> Staff Console — Assign Membership To a Customer
-            </p>
-            <div className="flex flex-col md:flex-row gap-4 items-start">
-              <Select
-                showSearch
-                placeholder="Search customer by name or email..."
-                value={selectedCustomer}
-                onChange={setSelectedCustomer}
-                size="large"
-                allowClear
-                filterOption={false}
-                onSearch={setCustomerSearch}
-                suffixIcon={<SearchOutlined />}
-                className="w-full md:w-96"
-                notFoundContent={<span className="text-sm text-gray-400 p-2">No customers found</span>}
-              >
-                {filteredCustomers.map(c => (
-                  <Select.Option key={c.id} value={c.id}>
-                    <div className="flex items-center gap-2 py-0.5">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'rgba(99,102,241,0.25)', color: '#a5b4fc' }}>
-                        {(c.first_name?.[0] || 'U').toUpperCase()}
-                      </div>
-                      <span className="font-medium">{c.first_name} {c.last_name}</span>
-                      <span className="text-gray-400 text-xs">{c.email}</span>
-                    </div>
-                  </Select.Option>
-                ))}
-              </Select>
-              {selectedCustomerName && (
-                <div
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200"
-                >
-                  <CheckCircleFilled /> Assigning to: {selectedCustomerName}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Guest banner */}
 
@@ -735,7 +690,7 @@ const MemberOfferings = () => {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Memberships</h2>
-                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">{membershipItems.length} plan{membershipItems.length !== 1 ? 's' : ''} to choose from</p>
+                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Check our beach facilities options</p>
                     </div>
                   </div>
                   {renderGrid(membershipItems, hasBoth)}
@@ -747,7 +702,7 @@ const MemberOfferings = () => {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h2 className="text-xl md:text-2xl font-duotone-bold-extended text-slate-900 uppercase">Storage</h2>
-                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secure equipment storage — {storageItems.length} option{storageItems.length !== 1 ? 's' : ''}</p>
+                      <p className="text-xs font-duotone-regular mt-0.5 text-slate-400">Secured equipment storage — individual boxes</p>
                     </div>
                   </div>
                   {renderGrid(storageItems, hasBoth)}
@@ -794,7 +749,7 @@ const MemberOfferings = () => {
         const walletDisplayBalance = convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance;
         const walletFormatted = formatCurrency(walletDisplayBalance, userCurrency);
 
-        return (
+        return (<>
           <TwoColumnModal
             open={purchaseModal.visible}
             onClose={() => setPurchaseModal(PURCHASE_MODAL_CLOSED)}
@@ -1081,28 +1036,102 @@ const MemberOfferings = () => {
                   )}
                 </div>
                 {/* Sticky purchase footer */}
-                <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_24px_rgba(15,23,42,0.06)] sm:px-5 md:px-7 md:py-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_24px_rgba(15,23,42,0.06)] sm:px-5 md:px-6">
+                  <div className="mb-3 flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-duotone-bold uppercase tracking-wider text-slate-500">Total</p>
-                      {durLabel && <p className="text-xs font-duotone-regular text-slate-400">{durLabel}</p>}
+                      <p className="text-[10px] font-duotone-bold uppercase tracking-wider text-slate-400 leading-none">Total</p>
+                      {durLabel && <p className="text-xs font-duotone-regular text-slate-500 mt-0.5">{durLabel}</p>}
                     </div>
-                    <span className="shrink-0 font-duotone-bold-extended text-xl tracking-tight text-slate-900 sm:text-2xl">{dualPrice}</span>
+                    <div className="text-right shrink-0">
+                      <p className="font-duotone-bold-extended text-xl tracking-tight text-slate-900 leading-none">{eurFormatted}</p>
+                      {showLocal && <p className="text-[11px] text-slate-400 mt-0.5 leading-none">~{localFormatted}</p>}
+                    </div>
                   </div>
                   <button
                     type="button"
-                    onClick={executePurchase}
+                    onClick={() => isGuest ? executePurchase() : setConfirmVisible(true)}
                     disabled={!isGuest && (isPending || ownedOfferingIds.has(activeOffering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))}
-                    className="w-full h-12 rounded-xl font-duotone-bold text-base tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-11 rounded-xl font-duotone-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.25)' }}
                   >
-                    {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(activeOffering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${fmtDual(depositAmount)}` : isStorage ? `Reserve Storage — ${dualPrice}` : `Purchase — ${dualPrice}`}
+                    {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(activeOffering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${formatCurrency(depositAmount, 'EUR')}` : isStorage ? `Reserve Storage — ${eurFormatted}` : `Purchase — ${eurFormatted}`}
                   </button>
                 </div>
               </>
             }
           />
-        );
+
+          {/* Purchase confirmation dialog */}
+          <Modal
+            open={confirmVisible}
+            onCancel={() => setConfirmVisible(false)}
+            footer={null}
+            centered
+            width={400}
+            closable={false}
+            zIndex={1200}
+            styles={{ body: { padding: 0 }, content: { borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(0,168,196,0.3)', boxShadow: '0 20px 40px -12px rgba(0,168,196,0.2)' } }}
+          >
+            <div className="px-6 pt-5 pb-5">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-[10px] font-duotone-bold uppercase tracking-widest text-[#00a8c4] mb-1">Confirm Purchase</p>
+                  <p className="text-lg font-duotone-bold text-slate-900 leading-tight">{offering.name}</p>
+                  {durLabel && <p className="text-sm text-slate-500 mt-0.5">{durLabel}</p>}
+                </div>
+                <button onClick={() => setConfirmVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors mt-0.5 ml-3">
+                  <span className="text-lg leading-none">✕</span>
+                </button>
+              </div>
+
+              {/* Summary rows */}
+              <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 mb-4 overflow-hidden">
+                {startDate && (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-white">
+                    <span className="text-xs text-slate-400 font-duotone-regular">Starts</span>
+                    <span className="text-xs text-slate-800 font-duotone-bold">{startDate.format('dddd, MMMM D, YYYY')}</span>
+                  </div>
+                )}
+                {endDate && (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-white">
+                    <span className="text-xs text-slate-400 font-duotone-regular">Valid until</span>
+                    <span className="text-xs text-slate-800 font-duotone-bold">{endDate.format('MMM D, YYYY')}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-white">
+                  <span className="text-xs text-slate-400 font-duotone-regular">Payment</span>
+                  <span className="text-xs text-slate-800 font-duotone-bold">{paymentMethod === 'credit_card' ? 'Card (Iyzico)' : paymentMethod === 'deposit' ? `Deposit 20% — ${formatCurrency(depositAmount, 'EUR')}` : 'Wallet'}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-50">
+                  <span className="text-xs text-slate-500 font-duotone-bold uppercase tracking-wider">Total</span>
+                  <div className="text-right">
+                    <p className="text-base font-duotone-bold text-slate-900 leading-none">{eurFormatted}</p>
+                    {showLocal && <p className="text-[11px] text-slate-400 mt-0.5">~{localFormatted}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmVisible(false)}
+                  className="flex-1 h-10 rounded-xl text-sm font-duotone-bold text-slate-500 hover:text-slate-700 transition-colors border border-slate-200 hover:border-slate-300 bg-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setConfirmVisible(false); executePurchase(); }}
+                  disabled={isPending}
+                  className="flex-1 h-10 rounded-xl text-sm font-duotone-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+                >
+                  {isPending ? 'Processing…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        </>);
       })()}
 
       {/* Iyzico Credit Card Payment Modal */}

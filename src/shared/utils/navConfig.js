@@ -217,11 +217,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       // 4. Member - Pistachio Green
       item('/members/offerings', 'Member', 'SparklesIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }, // fıstık yeşili (pistachio green)
-        isDirectLink: true,
-        subItems: [
-          { to: '/student/memberships', label: 'My Memberships' }
-        ]
+        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
       }),
       // 5. Care - Teal
       item('/repairs', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
@@ -233,8 +229,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         isDirectLink: true,
         subItems: [
           { to: '/stay/home', label: 'Home' },
-          { to: '/stay/hotel', label: 'Hotel' },
-          { to: '/stay/my-accommodation', label: 'My Stay' }
+          { to: '/stay/hotel', label: 'Hotel' }
         ]
       }),
       // 7. Experience - Yellow
@@ -311,7 +306,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         ]
       }),
       // Care - Teal
-      item('/care', 'Care', 'WrenchScrewdriverIcon', {
+      item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
       // Finance - Emerald

@@ -1235,7 +1235,7 @@ export async function recordTransaction({
 
     if (allowNegative && nextAvailable < -0.0001) {
       // Allow the migration guard to accept overdrafts for this transaction within the current session
-      await client.query("SELECT set_config('wallet.allow_negative', 'true', true)");
+      await client.query("SELECT set_config('wallet.allow_negative', 'true', false)");
     }
 
     await client.query(

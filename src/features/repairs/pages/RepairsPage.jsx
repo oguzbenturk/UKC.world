@@ -8,6 +8,7 @@ import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import SparePartsOrders from '@/features/admin/pages/SparePartsOrders';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+import CareLandingPage from '@/features/outsider/pages/CareLandingPage';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -233,7 +234,20 @@ const RepairMobileCard = ({ record, onAction, isAdmin, staffUsers = [] }) => {
  * Admin/manager: repairman workflow view (no New Request button)
  * Other roles: customer view with submit and track
  */
+const ADMIN_REPAIR_ROLES = ['admin', 'manager'];
+
 const RepairsPage = () => {
+  const { user } = useAuth();
+
+  // Non-admin/manager users see the outsider Care landing page
+  if (!ADMIN_REPAIR_ROLES.includes(user?.role)) {
+    return <CareLandingPage />;
+  }
+
+  return <RepairsAdminPage />;
+};
+
+const RepairsAdminPage = () => {
   const { user } = useAuth();
   const { usersWithStudentRole = [] } = useData();
 

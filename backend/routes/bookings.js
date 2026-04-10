@@ -1757,7 +1757,7 @@ router.post('/',
         // Hybrid: deduct what we can from wallet, charge the rest via Iyzico
         try {
           const balResult = await client.query(
-            `SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = $2`,
+            `SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = $2 FOR UPDATE`,
             [student_user_id, walletCurrency || 'EUR']
           );
           const walletAvailable = parseFloat(balResult.rows[0]?.available_amount) || 0;

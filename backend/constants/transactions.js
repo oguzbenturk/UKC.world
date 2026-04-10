@@ -10,7 +10,10 @@ export const PAYMENT_TYPES = [
 
 export const REFUND_TYPES = [
   'refund',
-  'booking_cancelled_refund'
+  'booking_cancelled_refund',
+  'booking_deleted_refund',
+  'rental_cancelled_refund',
+  'package_refund'
 ];
 
 // Types that represent charges/debits we should exclude from revenue sums

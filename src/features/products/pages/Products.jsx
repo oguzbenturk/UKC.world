@@ -705,7 +705,7 @@ const Products = () => {
         />
         <StatBadge
           title="Inv. Value"
-          value={`€${stats.totalValue.toLocaleString()}`}
+          value={formatCurrency(stats.totalValue)}
           icon={<DollarOutlined />}
           iconClass="text-emerald-500"
         />
@@ -725,6 +725,7 @@ const Products = () => {
               placeholder="Search by name, SKU, or brand..."
               prefix={<SearchOutlined className="text-slate-400" />}
               allowClear
+              size="small"
               value={filters.search}
               onChange={(e) => handleFilterChange('search', e.target.value)}
             />
@@ -733,6 +734,7 @@ const Products = () => {
             <Select
               value={filters.category}
               onChange={(value) => handleFilterChange('category', value)}
+              size="small"
               style={{ width: '100%' }}
             >
               {PRODUCT_CATEGORIES.map(category => (
@@ -746,6 +748,7 @@ const Products = () => {
             <Select
               value={filters.status}
               onChange={(value) => handleFilterChange('status', value)}
+              size="small"
               style={{ width: '100%' }}
             >
               <Option value="all">All Status</Option>
@@ -759,6 +762,7 @@ const Products = () => {
               value={filters.createdBy}
               onChange={(value) => handleFilterChange('createdBy', value)}
               placeholder="Created by"
+              size="small"
               style={{ width: '100%' }}
             >
               <Option value="all">All Creators</Option>
@@ -774,6 +778,7 @@ const Products = () => {
               type={filters.low_stock ? 'primary' : 'default'}
               danger={filters.low_stock}
               icon={<WarningOutlined />}
+              size="small"
               onClick={() => handleFilterChange('low_stock', !filters.low_stock)}
               block
             >
@@ -847,9 +852,9 @@ const Products = () => {
         ) : products.length > 0 ? (
           <>
             {viewMode === 'grid' ? (
-              <Row gutter={[16, 16]}>
+              <Row gutter={[12, 12]}>
                 {products.map(product => (
-                  <Col xs={24} sm={12} md={8} lg={6} key={product.id}>
+                  <Col xs={24} sm={12} md={8} lg={6} xl={4} key={product.id}>
                     <ProductCard
                       product={product}
                       onEdit={handleProductEdit}

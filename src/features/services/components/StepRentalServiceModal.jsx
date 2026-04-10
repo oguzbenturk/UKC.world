@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Modal, Steps, Form, Input, InputNumber, Select, Row, Col, Button, App } from 'antd';
-import { ToolOutlined, ClockCircleOutlined, DollarOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Modal, Steps, Form, Input, InputNumber, Select, Row, Col, Button, App, Tooltip } from 'antd';
+import { ToolOutlined, ClockCircleOutlined, DollarOutlined, PlusOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { serviceApi } from '@/shared/services/serviceApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
@@ -60,7 +60,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
   const { businessCurrency, getSupportedCurrencies, getCurrencySymbol } = useCurrency();
 
   // Multi-duration tiers (create mode only)
-  const [tiers, setTiers] = useState([{ duration: 1, price: '', units: 1 }]);
+  const [tiers, setTiers] = useState([{ duration: 1, price: '', units: 1, insuranceRate: null }]);
 
   // Pre-fill form when opening in edit mode; reset for create
   useEffect(() => {
@@ -75,10 +75,11 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
         currency: service.currency || businessCurrency || 'EUR',
         price: service.price ?? undefined,
         description: service.description || '',
+        insuranceRate: service.insuranceRate ?? undefined,
       });
     } else {
       form.resetFields();
-      setTiers([{ duration: 1, price: '', units: 1 }]);
+      setTiers([{ duration: 1, price: '', units: 1, insuranceRate: null }]);
     }
     setCurrent(0);
   }, [open, service?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -104,7 +105,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
     pricing: ['currency', 'price'],
   };
 
-  const buildPayload = (values, duration, price, units) => {
+  const buildPayload = (values, duration, price, units, insuranceRate) => {
     const segment = values.rentalSegment || 'standard';
     const segLabel = SEGMENT_LABELS[segment] || segment.toUpperCase();
     const baseName = (values.name || '').trim() || 'Rental Service';
@@ -125,6 +126,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
       rentalSegment: segment,
       max_participants: parseInt(units, 10) || 1,
       maxParticipants: parseInt(units, 10) || 1,
+      insuranceRate: insuranceRate != null && insuranceRate !== '' ? parseFloat(insuranceRate) : null,
     };
   };
 
@@ -174,7 +176,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
   };
 
   const addTier = () => {
-    setTiers(prev => [...prev, { duration: '', price: '', units: 1 }]);
+    setTiers(prev => [...prev, { duration: '', price: '', units: 1, insuranceRate: null }]);
   };
 
   const removeTier = (index) => {
@@ -184,7 +186,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
 
   const addQuickDuration = (dur) => {
     if (tiers.some(t => parseFloat(t.duration) === dur)) return;
-    setTiers(prev => [...prev, { duration: dur, price: '', units: 1 }]);
+    setTiers(prev => [...prev, { duration: dur, price: '', units: 1, insuranceRate: null }]);
   };
 
   const handleSubmit = async () => {
@@ -195,7 +197,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
       if (isEditMode) {
         // Edit mode: single service update
         await form.validateFields(['name', 'rentalSegment', 'currency', 'price', 'duration', 'availableUnits']);
-        const payload = buildPayload(values, values.duration, values.price, values.availableUnits);
+        const payload = buildPayload(values, values.duration, values.price, values.availableUnits, values.insuranceRate);
         const updated = await serviceApi.updateService(service.id, payload);
         message.success('Rental service updated');
         onUpdated?.(updated);
@@ -210,7 +212,7 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
         // Create one service per duration tier
         let lastCreated = null;
         for (const tier of tiers) {
-          const payload = buildPayload(values, tier.duration, tier.price, tier.units);
+          const payload = buildPayload(values, tier.duration, tier.price, tier.units, tier.insuranceRate);
           lastCreated = await serviceApi.createService(payload);
         }
         message.success(`Created ${tiers.length} rental service${tiers.length > 1 ? 's' : ''}`);
@@ -390,6 +392,23 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
                       style={{ width: '100%' }}
                     />
                   </div>
+                  <div style={{ width: 110 }}>
+                    <Tooltip title="Optional insurance rate offered to customers at checkout (e.g. 10 = 10%). Leave blank to disable.">
+                      <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                        <SafetyCertificateOutlined className="text-emerald-500" /> Insurance %
+                      </div>
+                    </Tooltip>
+                    <InputNumber
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={tier.insuranceRate}
+                      onChange={(v) => updateTier(idx, 'insuranceRate', v)}
+                      style={{ width: '100%' }}
+                      placeholder="e.g. 10"
+                      addonAfter="%"
+                    />
+                  </div>
                   <div className="pt-5">
                     <Button
                       type="text"
@@ -482,6 +501,22 @@ export default function StepRentalServiceModal({ open, onClose, onCreated, servi
 
             <Form.Item name="description" label="Description / Notes">
               <Input.TextArea rows={3} placeholder="Internal notes about this rental item" />
+            </Form.Item>
+
+            <Form.Item
+              name="insuranceRate"
+              label={<span className="flex items-center gap-1"><SafetyCertificateOutlined className="text-emerald-500" /> Insurance rate (%)</span>}
+              extra="Optional. When set, customers are offered equipment insurance at checkout. Leave blank to disable."
+            >
+              <InputNumber
+                min={0}
+                max={100}
+                step={0.5}
+                precision={2}
+                placeholder="e.g. 10"
+                style={{ width: '100%' }}
+                addonAfter="%"
+              />
             </Form.Item>
           </>
         )}

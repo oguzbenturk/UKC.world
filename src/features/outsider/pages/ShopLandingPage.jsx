@@ -20,6 +20,7 @@ import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import ProductCard from '@/features/dashboard/components/ProductCard';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
+import AcademyCrossSellBanner from '@/features/outsider/components/AcademyCrossSellBanner';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const resolveImageUrl = (url) => {
@@ -38,23 +39,23 @@ const CATEGORIES = [
 
 const PROMO_BANNERS = [
   {
-    id: 'kite-promo',
-    image: '/Images/ukc/rebel-dlab-rent.png',
-    eyebrow: 'New In',
-    title: 'Latest Kiteboarding Gear',
-    body: 'Duotone kites, boards, bars, and everything you need to ride.',
-    cta: 'Shop Kiteboarding',
-    to: '/shop/kitesurf',
+    id: 'secondwind-promo',
+    image: '/assets/images/2ndwind.jpeg',
+    eyebrow: 'Pre-Owned & Demo',
+    title: 'Second Wind',
+    body: 'Quality pre-owned and demo gear at unbeatable prices. Ride more, spend less.',
+    cta: 'Shop Secondwind',
+    to: '/shop/secondwind',
     align: 'left',
   },
   {
-    id: 'wing-promo',
-    image: '/Images/ukc/wing-header.png',
-    eyebrow: 'Trending Now',
-    title: 'Wing Foiling Collection',
-    body: 'Complete wing foil setups — wings, foils, and boards in one place.',
-    cta: 'Shop Wing Foiling',
-    to: '/shop/wingfoil',
+    id: 'ion-promo',
+    image: '/assets/images/harness.png',
+    eyebrow: 'Gear Up',
+    title: 'ION Accessories',
+    body: 'Harnesses, wetsuits, impact vests, and protection gear from ION.',
+    cta: 'Shop ION',
+    to: '/shop/ion',
     align: 'right',
   },
 ];
@@ -544,6 +545,9 @@ const ShopLandingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Cross-Sell Banner ── */}
+      <AcademyCrossSellBanner excludeKey="shop" />
 
       {/* ── Why Shop With Us ── */}
       <div className="py-20 bg-[#0d1511]">

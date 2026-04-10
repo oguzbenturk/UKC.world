@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Tag, Divider, Skeleton, Badge, Typography, Button } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -39,8 +40,13 @@ const ProductDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { data: product, isLoading: loading, error: queryError } = useQuery({
+        queryKey: ['product', id],
+        queryFn: () => productApi.getProduct(id),
+    });
+    const error = queryError
+        ? (queryError?.response?.status === 404 ? 'Product not found' : 'Failed to load product')
+        : (!loading && !product ? 'Product not found' : null);
 
     // SEO is updated dynamically once product loads (see useEffect below)
     usePageSEO({
@@ -48,7 +54,6 @@ const ProductDetailPage = () => {
       description: product?.description?.slice(0, 160) || 'View product details, specifications, and pricing at UKC. Duotone Pro Center shop.',
       path: `/shop/product/${id}`,
     });
-    const [error, setError] = useState(null);
     const [cartVisible, setCartVisible] = useState(false);
 
     // Variant state lifted from ProductVariantSelector
@@ -87,25 +92,6 @@ const ProductDetailPage = () => {
         setSelectedAddons([]);
     }, [id]);
 
-    useEffect(() => {
-        let cancelled = false;
-        const fetchProduct = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const data = await productApi.getProduct(id);
-                if (cancelled) return;
-                setProduct(data);
-            } catch (err) {
-                if (cancelled) return;
-                setError(err?.response?.status === 404 ? 'Product not found' : 'Failed to load product');
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        fetchProduct();
-        return () => { cancelled = true; };
-    }, [id]);
 
     const handleAddToCart = useCallback(() => {
         const productWithPrice = {

@@ -7,6 +7,7 @@ import { useAuthModal } from '../../contexts/AuthModalContext';
 import { useAIChat } from '../../contexts/AIChatContext';
 import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig';
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
+import { preloadRoute } from '../../utils/routePreloader';
 import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
 import {
   HomeIcon,
@@ -136,7 +137,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     }
   }, [isOpen, toggleSidebar]);
 
-  const baseLinkClasses = "flex items-center px-3 py-2.5 rounded-md transition-colors duration-75 ease-out text-sm font-medium";
+  const baseLinkClasses = "flex items-center px-3 py-2.5 rounded-md transition-all duration-75 ease-out text-sm font-medium active:scale-[0.98] active:opacity-80";
   const commonLinkClasses = `${baseLinkClasses} text-slate-200 hover:text-white hover:bg-white/10`;
   const activeLinkClasses = "border-l-2 border-[#2d6a3e] pl-[10px] !text-sky-400";
   const groupLabelClasses = "px-3 pb-2 text-xs text-slate-400 font-semibold uppercase tracking-wider";
@@ -393,6 +394,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                           <NavLink
                             to={item.to}
                             className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''} ${item.customStyle?.centered ? 'justify-center' : ''}`}
+                            onMouseEnter={() => preloadRoute(item.to)}
+                            onTouchStart={() => preloadRoute(item.to)}
                             onClick={() => {
                               setIsShopMode(true);
                               if (isOpen) toggleSidebar();
@@ -422,10 +425,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             const props = item.isDirectLink ? {
                               to: item.to,
                               className: ({ isActive }) => `${commonLinkClasses} w-full justify-between ${isActive || isParentActive(item) ? '!text-sky-400' : ''}`,
-                              onClick: () => {
-                                toggleExpanded(item.label);
-                                if (item.isDirectLink && isOpen) toggleSidebar();
-                              }
+                              onClick: () => toggleExpanded(item.label)
                             } : {
                               onClick: () => toggleExpanded(item.label),
                               className: `${commonLinkClasses} w-full justify-between ${isParentActive(item) ? '!text-sky-400' : ''}`
@@ -460,7 +460,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
                                 const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
                                 return (
-                                  <NavLink key={subItem.to} to={subItem.to} end className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses}>
+                                  <NavLink key={subItem.to} to={subItem.to} end onMouseEnter={() => preloadRoute(subItem.to)} onTouchStart={() => preloadRoute(subItem.to)} onClick={() => { if (isOpen) toggleSidebar(); }} className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses}>
                                     <span className="flex items-center">
                                       {SubItemIcon ? (
                                         <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItem.iconColor || parentColor, opacity: 0.75 }} />
@@ -478,7 +478,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                           )}
                         </div>
                       ) : (
-                        <NavLink to={item.to} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`}>
+                        <NavLink to={item.to} onMouseEnter={() => preloadRoute(item.to)} onTouchStart={() => preloadRoute(item.to)} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`}>
                           {item.customStyle ? (
                             <span className="flex items-center text-[15px] font-semibold">
                               {item.customStyle.dotColor ? (
@@ -548,7 +548,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 const parentColor = item.customStyle?.textColor || '#94a3b8';
                                 const SubItemIcon = subItem.icon ? allIconMap[subItem.icon] : null;
                                 return (
-                                  <NavLink key={subItem.to} to={subItem.to} end className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses}>
+                                  <NavLink key={subItem.to} to={subItem.to} end onMouseEnter={() => preloadRoute(subItem.to)} onTouchStart={() => preloadRoute(subItem.to)} onClick={() => { if (isOpen) toggleSidebar(); }} className={({ isActive }) => isActive ? subItemActiveClasses : subItemInactiveClasses}>
                                     <span className="flex items-center">
                                       {SubItemIcon ? (
                                         <SubItemIcon className="h-4 w-4 mr-2" style={{ color: subItem.iconColor || parentColor, opacity: 0.75 }} />
@@ -566,7 +566,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                           )}
                         </div>
                       ) : (
-                        <NavLink to={item.to} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`}>
+                        <NavLink to={item.to} onMouseEnter={() => preloadRoute(item.to)} onTouchStart={() => preloadRoute(item.to)} className={({ isActive }) => `${commonLinkClasses} ${isActive ? activeLinkClasses : ''}`}>
                           {item.customStyle ? (
                             <span className="flex items-center text-[15px] font-semibold">
                               {item.customStyle.dotColor ? (
@@ -609,6 +609,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   return (
                     <NavLink
                       to={contactItem.to}
+                      onMouseEnter={() => preloadRoute(contactItem.to)}
+                      onTouchStart={() => preloadRoute(contactItem.to)}
                       className={({ isActive }) => `${commonLinkClasses} w-full mb-1 ${isActive ? activeLinkClasses : ''}`}
                     >
                       <span className="flex items-center text-[15px] font-semibold">

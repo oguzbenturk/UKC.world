@@ -233,14 +233,6 @@ test.describe('Section 3 — Student Core Flows', () => {
     expect(page.url()).toContain('/rental/my-rentals');
   });
 
-  test('3.13 Student my-accommodation page accessible', async ({ page }) => {
-    await loginAsStudent(page);
-    await page.goto(`${BASE_URL}/stay/my-accommodation`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-    expect(page.url()).toContain('/stay/my-accommodation');
-  });
-
   // ─── Shop Access ─────────────────────────────────────────
   test('3.14 Student can browse shop and view my-orders', async ({ page }) => {
     await loginAsStudent(page);

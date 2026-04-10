@@ -376,12 +376,30 @@ export const acceptGroupBookingInvitation = async (userId, groupBookingId) => {
       throw new Error('You have already declined this invitation');
     }
 
-    // Update participant status
-    await client.query(`
-      UPDATE group_booking_participants
-      SET status = 'accepted', accepted_at = NOW(), updated_at = NOW()
-      WHERE id = $1
-    `, [participant.id]);
+    // Get group booking to check payment model
+    const groupResult = await client.query(
+      'SELECT payment_model, organizer_paid FROM group_bookings WHERE id = $1',
+      [groupBookingId]
+    );
+    const group = groupResult.rows[0];
+    const isOrgPaidAlready = group?.payment_model === 'organizer_pays' && group?.organizer_paid === true;
+
+    // Update participant status — if organizer already paid, go straight to 'paid'
+    if (isOrgPaidAlready) {
+      await client.query(`
+        UPDATE group_booking_participants
+        SET status = 'paid', payment_status = 'covered_by_organizer',
+            accepted_at = NOW(), updated_at = NOW()
+        WHERE id = $1
+      `, [participant.id]);
+      logger.info('Participant accepted and auto-covered by organizer', { groupBookingId, participantId: participant.id });
+    } else {
+      await client.query(`
+        UPDATE group_booking_participants
+        SET status = 'accepted', accepted_at = NOW(), updated_at = NOW()
+        WHERE id = $1
+      `, [participant.id]);
+    }
 
     // Update notification status to 'processed' to hide action buttons
     await client.query(`
@@ -1112,18 +1130,13 @@ export const processOrganizerPayment = async ({
       throw new Error('Already paid');
     }
 
-    // Count accepted participants (including organizer)
-    const participantResult = await client.query(`
-      SELECT COUNT(*) as count FROM group_booking_participants
-      WHERE group_booking_id = $1 AND status IN ('accepted', 'paid')
-    `, [groupBookingId]);
-    const participantCount = parseInt(participantResult.rows[0].count, 10);
-
-    const totalAmount = parseFloat(group.price_per_person) * participantCount;
+    // Charge for max_participants upfront — organizer commits to paying for the full group
+    const participantCount = parseInt(group.max_participants, 10) || 2;
+    const pricePerPerson = parseFloat(group.price_per_person);
+    const totalAmount = pricePerPerson * participantCount;
 
     // Process based on payment method
     if (paymentMethod === 'wallet') {
-      // Deduct from wallet via walletService (handles balance check, ledger, etc.)
       await recordTransaction({
         userId: organizerId,
         amount: -totalAmount,
@@ -1138,7 +1151,7 @@ export const processOrganizerPayment = async ({
       });
     }
 
-    // Update group booking as paid
+    // Update group booking as paid and confirmed
     await client.query(`
       UPDATE group_bookings
       SET organizer_paid = TRUE, organizer_paid_at = NOW(),
@@ -1146,12 +1159,19 @@ export const processOrganizerPayment = async ({
       WHERE id = $2
     `, [totalAmount, groupBookingId]);
 
-    // Update all accepted participants as paid
+    // Mark ALL participants (accepted, invited, pending) as covered — they join pre-paid
     await client.query(`
       UPDATE group_booking_participants
-      SET payment_status = 'covered_by_organizer', status = 'paid',
-          amount_paid = amount_due, paid_at = NOW(), updated_at = NOW()
-      WHERE group_booking_id = $1 AND status IN ('accepted', 'paid')
+      SET payment_status = 'covered_by_organizer',
+          amount_paid = $1, paid_at = NOW(), updated_at = NOW()
+      WHERE group_booking_id = $2 AND status != 'declined' AND status != 'cancelled'
+    `, [pricePerPerson, groupBookingId]);
+
+    // Also mark accepted ones as 'paid' status
+    await client.query(`
+      UPDATE group_booking_participants
+      SET status = 'paid'
+      WHERE group_booking_id = $1 AND status = 'accepted'
     `, [groupBookingId]);
 
     await client.query('COMMIT');

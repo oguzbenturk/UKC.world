@@ -569,28 +569,39 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
                 availableDelta: -wd.amount,
                 description: txDescription,
                 relatedEntityType: 'shop_order',
-                metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: order.wallet_deduction_data.totalDeductedEUR, deductedCurrency: wd.currency, deductedAmount: wd.amount }
+                metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: order.wallet_deduction_data.totalDeductedEUR, deductedCurrency: wd.currency, deductedAmount: wd.amount, gatewayCurrency: payment.currency, gatewayAmount: payment.paidPrice, provider: 'iyzico', paymentId: payment.paymentId }
               });
             }
             logger.info('Wallet deductions executed for shop order', { orderNumber: order.order_number, deductions: order.wallet_deduction_data.plan });
           } catch (walletErr) {
             logger.error('Failed to execute wallet deductions for shop order', { orderNumber: order.order_number, error: walletErr.message });
-            // Don't fail the whole callback — card payment is confirmed, log for manual resolution
+            // Card payment is confirmed — don't fail the callback, but flag the order so admins can see it
+            try {
+              await pool.query(
+                `UPDATE shop_orders SET admin_notes = COALESCE(admin_notes, '') || ' | WALLET_DEDUCTION_FAILED: ' || $2, updated_at = NOW() WHERE id = $1`,
+                [order.id, walletErr.message]
+              );
+            } catch (_) { /* best-effort */ }
           }
         }
 
-        // Update shop order: mark payment as completed/deposit_paid, confirm order, clear deduction data
+        // Update shop order — atomic: only succeeds if still pending_payment (prevents double-processing)
         const isDepositOrder = parseFloat(order.deposit_percent || 0) > 0;
         const newPaymentStatus = isDepositOrder ? 'deposit_paid' : 'completed';
-        await pool.query(`
+        const orderUpdateResult = await pool.query(`
           UPDATE shop_orders
           SET payment_status = $2,
               status = 'confirmed',
               confirmed_at = NOW(),
               updated_at = NOW(),
               wallet_deduction_data = NULL
-          WHERE id = $1
+          WHERE id = $1 AND payment_status = 'pending_payment'
+          RETURNING id
         `, [order.id, newPaymentStatus]);
+        if (orderUpdateResult.rowCount === 0) {
+          logger.warn('Iyzico Callback: Shop order already processed by concurrent request, skipping', { orderId: order.id, token });
+          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
+        }
 
         // Log status change in history
         const systemActorId = resolveSystemActorId() || order.user_id;
@@ -984,7 +995,10 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             const pendingVid = row.pending_voucher_id;
             const pendingMetaRaw = row.pending_voucher_meta;
             if (!pendingVid || !pendingMetaRaw) return;
+            // Run redemption + wallet credit in one transaction so a partial failure rolls back both
+            const vClient = await pool.connect();
             try {
+              await vClient.query('BEGIN');
               const meta =
                 typeof pendingMetaRaw === 'string' ? JSON.parse(pendingMetaRaw) : pendingMetaRaw;
               const orig = new Decimal(meta.originalPrice || 0).toNumber();
@@ -1001,30 +1015,42 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
                 originalAmount: orig,
                 discountAmount: disc,
                 finalAmount: finalP,
-                currency: vCur
+                currency: vCur,
+                client: vClient
               });
               if (meta.voucherType === 'wallet_credit' && meta.discountValue != null) {
                 await voucherService.applyWalletCredit(
                   row.user_id,
                   new Decimal(meta.discountValue || 0).toNumber(),
                   pendingVid,
-                  vCur
+                  vCur,
+                  vClient
                 );
               }
-              await pool.query(
+              await vClient.query(
                 `UPDATE customer_packages SET pending_voucher_id = NULL, pending_voucher_meta = NULL, updated_at = NOW() WHERE id = $1`,
                 [customerPackageId]
               );
+              await vClient.query('COMMIT');
               logger.info('Voucher redeemed after Iyzico package payment', {
                 customerPackageId,
                 voucherId: pendingVid,
                 userId: row.user_id
               });
             } catch (voucherPkgErr) {
-              logger.error('Package voucher redemption after Iyzico failed (non-blocking)', {
+              await vClient.query('ROLLBACK').catch(() => {});
+              logger.error('Package voucher redemption after Iyzico failed — rolled back, voucher still pending', {
                 customerPackageId,
+                voucherId: pendingVid,
                 error: voucherPkgErr.message
               });
+              // Stamp the package so admins can see that manual redemption is needed
+              await pool.query(
+                `UPDATE customer_packages SET notes = COALESCE(notes, '') || ' | VOUCHER_REDEMPTION_FAILED: ' || $2, updated_at = NOW() WHERE id = $1`,
+                [customerPackageId, voucherPkgErr.message]
+              ).catch(() => {});
+            } finally {
+              vClient.release();
             }
           };
 
@@ -1034,15 +1060,20 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             return res.redirect(`${frontendUrl}/payment/callback?status=success&type=package_purchase`);
           }
 
-          // Activate the package
-          await pool.query(
+          // Activate the package — atomic: only succeeds if still pending_payment (prevents double-processing)
+          const activationResult = await pool.query(
             `UPDATE customer_packages
              SET status = 'active',
                  notes = COALESCE(notes, '') || ' | Iyzico payment confirmed',
                  updated_at = NOW()
-             WHERE id = $1`,
+             WHERE id = $1 AND status = 'pending_payment'
+             RETURNING id`,
             [customerPackageId]
           );
+          if (activationResult.rowCount === 0) {
+            logger.warn('Iyzico Callback: Package already processed by concurrent request, skipping', { customerPackageId, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=package_purchase`);
+          }
 
           await tryRedeemPendingPackageVoucher(cp);
 
@@ -1076,6 +1107,8 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
                 provider: 'iyzico',
                 paymentId: payment.paymentId,
                 paidPrice: payment.paidPrice,
+                gatewayCurrency: payment.currency,
+                gatewayAmount: payment.paidPrice,
                 source: 'iyzico:callback:package-purchase'
               },
               entityType: 'customer_package',
@@ -1134,6 +1167,11 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             paymentId: payment.paymentId,
             paidPrice: payment.paidPrice,
             currency: payment.currency,
+            gatewayCurrency: payment.currency,
+            gatewayAmount: payment.paidPrice,
+            exchangeRate: depositRow.currency !== payment.currency && depositRow.amount
+              ? parseFloat((parseFloat(payment.paidPrice) / parseFloat(depositRow.amount)).toFixed(6))
+              : 1,
             token,
             conversationId: payment.raw?.conversationId
           }
@@ -1216,20 +1254,33 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
     });
 
     // If payment verification failed, cancel any pending_payment customer package tied to this token
+    // and cancel the associated pending lesson bookings so they don't block instructor slots.
     const failedToken = req.body?.token;
     if (failedToken && error.message?.includes('Payment not successful')) {
       try {
-        await pool.query(
+        const cancelledPkg = await pool.query(
           `UPDATE customer_packages
            SET status = 'cancelled',
                notes = COALESCE(notes, '') || ' | Cancelled: Iyzico payment failed',
                updated_at = NOW()
-           WHERE gateway_transaction_id = $1 AND status = 'pending_payment'`,
+           WHERE gateway_transaction_id = $1 AND status = 'pending_payment'
+           RETURNING id`,
           [failedToken]
         );
         logger.info('Cancelled pending_payment package after Iyzico payment failure', { token: failedToken });
+
+        if (cancelledPkg.rows.length > 0) {
+          const customerPackageId = cancelledPkg.rows[0].id;
+          await pool.query(
+            `UPDATE bookings
+             SET status = 'cancelled', updated_at = NOW()
+             WHERE customer_package_id = $1 AND status = 'pending' AND payment_method = 'package'`,
+            [customerPackageId]
+          );
+          logger.info('Cancelled pending lesson bookings after Iyzico payment failure', { customerPackageId });
+        }
       } catch (cancelErr) {
-        logger.warn('Failed to cancel pending package after payment failure', { error: cancelErr.message });
+        logger.warn('Failed to cancel pending package/bookings after payment failure', { error: cancelErr.message });
       }
     }
 
@@ -1601,6 +1652,103 @@ if (shouldStartServer) {
       }
     }, STALE_PURCHASE_INTERVAL);
     logger.info(`🧹 Stale purchase cleanup scheduled every ${STALE_PURCHASE_INTERVAL / 60000} min (threshold: ${STALE_PURCHASE_THRESHOLD} min)`);
+
+    // Auto-cancel stale pending_payment customer packages (abandoned Iyzico flows)
+    const STALE_PKG_INTERVAL = 15 * 60 * 1000; // every 15 min
+    const STALE_PKG_THRESHOLD_HOURS = 2; // hours
+    setInterval(async () => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows: stalePkgs } = await client.query(
+          `UPDATE customer_packages
+              SET status = 'cancelled',
+                  notes = COALESCE(notes, '') || ' | Auto-cancelled: payment not completed',
+                  updated_at = NOW()
+            WHERE status = 'pending_payment'
+              AND payment_method = 'credit_card'
+              AND created_at < NOW() - INTERVAL '${STALE_PKG_THRESHOLD_HOURS} hours'
+            RETURNING id`
+        );
+        if (stalePkgs.length > 0) {
+          const packageIds = stalePkgs.map(r => r.id);
+          const { rowCount: cancelledBookings } = await client.query(
+            `UPDATE bookings
+                SET status = 'cancelled', updated_at = NOW()
+              WHERE customer_package_id = ANY($1::uuid[])
+                AND status = 'pending'
+                AND payment_method = 'package'`,
+            [packageIds]
+          );
+          await client.query('COMMIT');
+          logger.info(`Auto-cancelled ${stalePkgs.length} stale pending_payment package(s) and ${cancelledBookings} associated lesson booking(s)`);
+        } else {
+          await client.query('ROLLBACK');
+        }
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        logger.warn('Stale package cleanup error:', err.message);
+      } finally {
+        client.release();
+      }
+    }, STALE_PKG_INTERVAL);
+    logger.info(`🧹 Stale package cleanup scheduled every ${STALE_PKG_INTERVAL / 60000} min (threshold: ${STALE_PKG_THRESHOLD_HOURS}h)`);
+
+    // Auto-reject stale bank_transfer_receipts (no admin review after 7 days)
+    const STALE_BANK_TRANSFER_INTERVAL = 60 * 60 * 1000; // every hour
+    const STALE_BANK_TRANSFER_DAYS = 7;
+    setInterval(async () => {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // Reject stale receipts
+        const { rows: staleReceipts } = await client.query(
+          `UPDATE bank_transfer_receipts
+              SET status = 'rejected',
+                  admin_notes = COALESCE(admin_notes, '') || ' | Auto-rejected: no admin review within 7 days',
+                  updated_at = NOW()
+            WHERE status = 'pending'
+              AND created_at < NOW() - INTERVAL '${STALE_BANK_TRANSFER_DAYS} days'
+            RETURNING id, customer_package_id, shop_order_id, booking_id, member_purchase_id`
+        );
+        if (staleReceipts.length > 0) {
+          const pkgIds = staleReceipts.map(r => r.customer_package_id).filter(Boolean);
+          const orderIds = staleReceipts.map(r => r.shop_order_id).filter(Boolean);
+          const memberPurchaseIds = staleReceipts.map(r => r.member_purchase_id).filter(Boolean);
+          if (pkgIds.length > 0) {
+            await client.query(
+              `UPDATE customer_packages SET status = 'cancelled', notes = COALESCE(notes, '') || ' | Auto-cancelled: bank transfer not verified', updated_at = NOW()
+                WHERE id = ANY($1::uuid[]) AND status = 'waiting_payment'`,
+              [pkgIds]
+            );
+          }
+          if (orderIds.length > 0) {
+            await client.query(
+              `UPDATE shop_orders SET payment_status = 'cancelled', status = 'cancelled', updated_at = NOW()
+                WHERE id = ANY($1::uuid[]) AND payment_status = 'waiting_payment'`,
+              [orderIds]
+            );
+          }
+          if (memberPurchaseIds.length > 0) {
+            await client.query(
+              `UPDATE member_purchases SET status = 'cancelled', payment_status = 'cancelled', updated_at = NOW()
+                WHERE id = ANY($1::uuid[]) AND status = 'waiting_payment'`,
+              [memberPurchaseIds]
+            );
+          }
+          await client.query('COMMIT');
+          logger.info(`Auto-rejected ${staleReceipts.length} stale bank transfer receipt(s) and cancelled associated records`);
+        } else {
+          await client.query('ROLLBACK');
+        }
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        logger.warn('Stale bank transfer cleanup error:', err.message);
+      } finally {
+        client.release();
+      }
+    }, STALE_BANK_TRANSFER_INTERVAL);
+    logger.info(`🧹 Stale bank transfer cleanup scheduled every ${STALE_BANK_TRANSFER_INTERVAL / 60000} min (threshold: ${STALE_BANK_TRANSFER_DAYS} days)`);
   });
 }
 

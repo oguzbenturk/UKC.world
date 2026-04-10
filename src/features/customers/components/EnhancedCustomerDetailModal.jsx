@@ -117,7 +117,7 @@ const SECTION_DESCRIPTIONS = {
   memberships: 'Membership purchases',
 };
 
-const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, onUpdate = () => {} }) => {
+const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, onUpdate = () => {}, readOnly = false }) => {
   const { user: currentUser } = useAuth();
   const { formatCurrency: fmtCurrency, getCurrencySymbol, businessCurrency, convertCurrency } = useCurrency();
   const { modal } = App.useApp();
@@ -669,10 +669,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
         <Button type="link" size="small" onClick={() => handleViewBooking(r)}>View</Button>
-        <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>
+        {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>}
       </Space>
     )}
-  ], [instructors, handleDeleteBooking]);
+  ], [instructors, handleDeleteBooking, readOnly]);
 
   const rentalColumns = useMemo(() => [
     { title: 'Equipment', key: 'equipment', render: (_, r) => {
@@ -698,10 +698,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
         <Button type="link" size="small" onClick={() => handleViewRental(r)}>View</Button>
-        <Button type="link" size="small" danger onClick={() => handleDeleteRental(r)}>Delete</Button>
+        {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteRental(r)}>Delete</Button>}
       </Space>
     )}
-  ], [fmtCurrency, storageCurrency, handleDeleteRental]);
+  ], [fmtCurrency, storageCurrency, handleDeleteRental, readOnly]);
 
   const transactionColumns = useMemo(() => [
     { title: 'Date', dataIndex: 'createdAt', key: 'date', render: d => formatDate(d), sorter: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
@@ -718,10 +718,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
         <Button type="link" size="small" onClick={() => handleViewTransaction(r)}>View</Button>
-        <Button type="link" size="small" danger onClick={() => handleDeleteTransaction(r)}>Delete</Button>
+        {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteTransaction(r)}>Delete</Button>}
       </Space>
     )}
-  ], [walletCurrency, isStaff, storageCurrency, fmtCurrency, convertCurrency, handleDeleteTransaction]);
+  ], [walletCurrency, isStaff, storageCurrency, fmtCurrency, convertCurrency, handleDeleteTransaction, readOnly]);
 
   // ─── Render helpers (info row) ────────────────────────────────
   const renderInfoCell = (icon, label, value) => {
@@ -791,7 +791,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         <div className="rounded-xl border border-gray-100 bg-white p-5">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-gray-700">Upcoming Lessons ({stats.upcomingLessons})</h4>
-            <Button type="primary" size="small" icon={<CalendarOutlined />} onClick={() => setBookingModalVisible(true)}>Schedule</Button>
+            {!readOnly && <Button type="primary" size="small" icon={<CalendarOutlined />} onClick={() => setBookingModalVisible(true)}>Schedule</Button>}
           </div>
           <div className="space-y-2 max-h-52 overflow-y-auto">
             {(() => {
@@ -850,7 +850,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             embedded={true}
             showHeader={false}
             showStats={false}
-            disableActions={false}
+            disableActions={readOnly}
             onPackageAssigned={async () => { await refreshAllData(); message.success('Package assigned'); }}
           />
         )}
@@ -862,7 +862,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Text type="secondary">{bookings?.length || 0} lesson(s)</Text>
-        <Button type="primary" icon={<CalendarOutlined />} size="small" onClick={() => setBookingModalVisible(true)}>Schedule Lesson</Button>
+        {!readOnly && <Button type="primary" icon={<CalendarOutlined />} size="small" onClick={() => setBookingModalVisible(true)}>Schedule Lesson</Button>}
       </div>
       {bookings?.length > 0 ? (
         <UnifiedResponsiveTable title="Lesson History" density="comfortable" columns={bookingColumns} dataSource={bookings} mobileCardRenderer={BookingMobileCard} rowKey="id" pagination={{ pageSize: 10 }} onRowClick={handleViewBooking} breakpoint={1100} />
@@ -883,11 +883,13 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <Text type="secondary">{transactions?.length || 0} transaction(s)</Text>
-        <Space wrap size="small">
-          <Button icon={<PlusCircleOutlined />} size="small" onClick={() => setShowAddFundsModal(true)}>Add Balance</Button>
-          <Button icon={<MinusCircleOutlined />} size="small" danger onClick={() => setShowChargeModal(true)}>Charge</Button>
-          {isAdmin && <Button icon={<DeleteOutlined />} size="small" danger onClick={handleResetWalletBalance}>Reset Wallet</Button>}
-        </Space>
+        {!readOnly && (
+          <Space wrap size="small">
+            <Button icon={<PlusCircleOutlined />} size="small" onClick={() => setShowAddFundsModal(true)}>Add Balance</Button>
+            <Button icon={<MinusCircleOutlined />} size="small" danger onClick={() => setShowChargeModal(true)}>Charge</Button>
+            {isAdmin && <Button icon={<DeleteOutlined />} size="small" danger onClick={handleResetWalletBalance}>Reset Wallet</Button>}
+          </Space>
+        )}
       </div>
       {transactions?.length > 0 ? (
         <UnifiedResponsiveTable title="Financial History" density="comfortable" columns={transactionColumns} dataSource={transactions} mobileCardRenderer={TransactionMobileCard} rowKey="id" pagination={{ pageSize: 10 }} onRowClick={handleViewTransaction} breakpoint={1100} />
@@ -1022,7 +1024,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       case 'accommodation': return renderAccommodation();
       case 'financial': return renderFinancial();
       case 'shop': return <Suspense fallback={<Spin />}><CustomerShopHistory userId={customerId} /></Suspense>;
-      case 'memberships': return <Suspense fallback={<Spin />}><MemberPurchasesSection userId={customerId} isAdminView={true} /></Suspense>;
+      case 'memberships': return <Suspense fallback={<Spin />}><MemberPurchasesSection userId={customerId} isAdminView={!readOnly} /></Suspense>;
       default: return null;
     }
   };
@@ -1094,21 +1096,23 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             </nav>
 
             {/* Icon quick actions */}
-            <div className="p-1 border-t border-gray-200 space-y-0.5">
-              {[
-                { label: 'Book', icon: <CalendarOutlined />, color: 'text-sky-600 hover:bg-sky-50', action: () => setBookingModalVisible(true) },
-                { label: 'Assign Package', icon: <GiftOutlined />, color: 'text-amber-600 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
-                { label: 'Add Balance', icon: <PlusOutlined />, color: 'text-emerald-600 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
-                { label: 'Charge', icon: <CreditCardOutlined />, color: 'text-rose-600 hover:bg-rose-50', action: () => setShowChargeModal(true) },
-                { label: 'Edit Profile', icon: <EditOutlined />, color: 'text-slate-500 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
-              ].map(({ label, icon, color, action }) => (
-                <Tooltip key={label} title={label} placement="right">
-                  <button onClick={action} className={`w-full flex items-center justify-center py-2 rounded-lg ${color} transition-colors cursor-pointer border-0 bg-transparent`}>
-                    <span className="text-base">{icon}</span>
-                  </button>
-                </Tooltip>
-              ))}
-            </div>
+            {!readOnly && (
+              <div className="p-1 border-t border-gray-200 space-y-0.5">
+                {[
+                  { label: 'Book', icon: <CalendarOutlined />, color: 'text-sky-600 hover:bg-sky-50', action: () => setBookingModalVisible(true) },
+                  { label: 'Assign Package', icon: <GiftOutlined />, color: 'text-amber-600 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
+                  { label: 'Add Balance', icon: <PlusOutlined />, color: 'text-emerald-600 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
+                  { label: 'Charge', icon: <CreditCardOutlined />, color: 'text-rose-600 hover:bg-rose-50', action: () => setShowChargeModal(true) },
+                  { label: 'Edit Profile', icon: <EditOutlined />, color: 'text-slate-500 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
+                ].map(({ label, icon, color, action }) => (
+                  <Tooltip key={label} title={label} placement="right">
+                    <button onClick={action} className={`w-full flex items-center justify-center py-2 rounded-lg ${color} transition-colors cursor-pointer border-0 bg-transparent`}>
+                      <span className="text-base">{icon}</span>
+                    </button>
+                  </Tooltip>
+                ))}
+              </div>
+            )}
 
             {/* Close icon */}
             <div className="p-1 border-t border-gray-200">
@@ -1173,19 +1177,21 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             </nav>
 
             {/* Quick actions */}
-            <div className="p-2 border-t border-gray-200 space-y-1">
-              {[
-                { label: 'Book', icon: <CalendarOutlined />, cls: 'text-sky-700 hover:bg-sky-50', action: () => setBookingModalVisible(true) },
-                { label: 'Assign Package', icon: <GiftOutlined />, cls: 'text-amber-700 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
-                { label: 'Add Balance', icon: <PlusOutlined />, cls: 'text-emerald-700 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
-                { label: 'Charge', icon: <CreditCardOutlined />, cls: 'text-rose-700 hover:bg-rose-50', action: () => setShowChargeModal(true) },
-                { label: 'Edit Profile', icon: <EditOutlined />, cls: 'text-slate-600 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
-              ].map(({ label, icon, cls, action }) => (
-                <button key={label} onClick={() => { setSidebarExpanded(false); action(); }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${cls} transition-colors cursor-pointer border-0 bg-transparent text-left`}>
-                  {icon} {label}
-                </button>
-              ))}
-            </div>
+            {!readOnly && (
+              <div className="p-2 border-t border-gray-200 space-y-1">
+                {[
+                  { label: 'Book', icon: <CalendarOutlined />, cls: 'text-sky-700 hover:bg-sky-50', action: () => setBookingModalVisible(true) },
+                  { label: 'Assign Package', icon: <GiftOutlined />, cls: 'text-amber-700 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
+                  { label: 'Add Balance', icon: <PlusOutlined />, cls: 'text-emerald-700 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
+                  { label: 'Charge', icon: <CreditCardOutlined />, cls: 'text-rose-700 hover:bg-rose-50', action: () => setShowChargeModal(true) },
+                  { label: 'Edit Profile', icon: <EditOutlined />, cls: 'text-slate-600 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
+                ].map(({ label, icon, cls, action }) => (
+                  <button key={label} onClick={() => { setSidebarExpanded(false); action(); }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${cls} transition-colors cursor-pointer border-0 bg-transparent text-left`}>
+                    {icon} {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Close */}
             <div className="p-3 border-t border-gray-200">

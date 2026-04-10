@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
-import PropTypes from 'prop-types';
-import { Avatar, Card, Empty, List, Progress, Rate, Space, Tag, Typography } from 'antd';
-import { StarFilled, UserOutlined, TrophyFilled, MessageOutlined } from '@ant-design/icons';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useInstructorRatings } from '../hooks/useInstructorRatings';
-
-const { Text, Paragraph } = Typography;
 
 const formatTimestamp = (isoString) => {
   if (!isoString) return 'Recently';
@@ -16,218 +11,117 @@ const formatTimestamp = (isoString) => {
   }
 };
 
-const ratingColors = {
-  5: '#52c41a',
-  4: '#73d13d',
-  3: '#fadb14',
-  2: '#fa8c16',
-  1: '#f5222d'
-};
+const StarIcon = ({ filled = false, className = 'h-4 w-4' }) => (
+  <svg className={`${className} ${filled ? 'text-amber-400' : 'text-slate-200'}`} viewBox="0 0 20 20" fill="currentColor">
+    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+  </svg>
+);
 
-const RatingItem = ({ rating }) => {
-  const studentName = rating.isAnonymous ? 'Anonymous Student' : (rating.studentName || 'Student');
-  
-  return (
-    <List.Item className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="w-full">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Avatar 
-              size={40} 
-              icon={<UserOutlined />} 
-              className="bg-gradient-to-br from-sky-400 to-indigo-500"
-            >
-              {!rating.isAnonymous && studentName[0]?.toUpperCase()}
-            </Avatar>
-            <div>
-              <Text strong className="text-slate-800">{studentName}</Text>
-              <div className="flex items-center gap-2">
-                <Rate disabled value={rating.rating} className="text-sm" />
-                <Tag 
-                  color={rating.rating >= 4 ? 'green' : rating.rating >= 3 ? 'gold' : 'orange'}
-                  className="ml-1"
-                >
-                  {rating.serviceType || 'Lesson'}
-                </Tag>
-              </div>
-            </div>
-          </div>
-          <Text type="secondary" className="text-xs whitespace-nowrap">
-            {formatTimestamp(rating.createdAt)}
-          </Text>
-        </div>
-        
-        {rating.feedbackText && (
-          <div className="mt-3 rounded-lg bg-slate-50 p-3">
-            <div className="flex items-start gap-2">
-              <MessageOutlined className="mt-1 text-slate-400" />
-              <Paragraph className="!mb-0 text-slate-600">
-                "{rating.feedbackText}"
-              </Paragraph>
-            </div>
-          </div>
-        )}
-      </div>
-    </List.Item>
-  );
-};
+const MiniStars = ({ value = 0 }) => (
+  <div className="flex gap-px">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <StarIcon key={i} filled={i <= Math.round(value)} className="h-3 w-3" />
+    ))}
+  </div>
+);
 
-RatingItem.propTypes = {
-  rating: PropTypes.shape({
-    id: PropTypes.string,
-    rating: PropTypes.number.isRequired,
-    feedbackText: PropTypes.string,
-    studentName: PropTypes.string,
-    isAnonymous: PropTypes.bool,
-    serviceType: PropTypes.string,
-    createdAt: PropTypes.string
-  }).isRequired
-};
-
-const StatsOverview = ({ summary, stats }) => {
-  const averageRating = summary?.averageRating || 0;
-  const totalRatings = summary?.totalRatings || 0;
-  
-  const distribution = useMemo(() => {
-    if (!stats?.distribution) return [];
-    return [5, 4, 3, 2, 1].map((star) => ({
-      star,
-      count: stats.distribution[star] || 0,
-      percent: totalRatings > 0 ? ((stats.distribution[star] || 0) / totalRatings) * 100 : 0
-    }));
-  }, [stats?.distribution, totalRatings]);
-
-  const fiveStarPercent = totalRatings > 0 
-    ? ((stats?.distribution?.[5] || 0) / totalRatings) * 100 
-    : 0;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      {/* Average Rating Card */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-amber-50 to-orange-50 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Text type="secondary" className="text-xs uppercase tracking-wide">Your Rating</Text>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-amber-600">
-                {averageRating.toFixed(1)}
-              </span>
-              <StarFilled className="text-2xl text-amber-500" />
-            </div>
-            <Rate disabled value={Math.round(averageRating)} className="mt-2" />
-            <Text type="secondary" className="mt-2 block text-sm">
-              Based on {totalRatings} rating{totalRatings !== 1 ? 's' : ''}
-            </Text>
-          </div>
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 shadow-lg">
-            <TrophyFilled className="text-4xl text-amber-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Distribution Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        <Text type="secondary" className="text-xs uppercase tracking-wide">Rating Distribution</Text>
-        <div className="mt-4 space-y-2">
-          {distribution.map(({ star, count, percent }) => (
-            <div key={star} className="flex items-center gap-3">
-              <div className="flex w-12 items-center gap-1">
-                <span className="text-sm font-medium text-slate-600">{star}</span>
-                <StarFilled className="text-amber-400 text-xs" />
-              </div>
-              <Progress 
-                percent={percent} 
-                showInfo={false}
-                strokeColor={ratingColors[star]}
-                trailColor="#e2e8f0"
-                className="flex-1"
-              />
-              <span className="w-8 text-right text-sm text-slate-500">{count}</span>
-            </div>
-          ))}
-        </div>
-        {fiveStarPercent > 0 && (
-          <div className="mt-4 rounded-lg bg-emerald-50 px-3 py-2">
-            <Text className="text-sm text-emerald-700">
-              🌟 {fiveStarPercent.toFixed(0)}% of your ratings are 5 stars!
-            </Text>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-StatsOverview.propTypes = {
-  summary: PropTypes.shape({
-    averageRating: PropTypes.number,
-    totalRatings: PropTypes.number
-  }),
-  stats: PropTypes.shape({
-    distribution: PropTypes.object
-  })
-};
+const barColors = { 5: 'bg-emerald-500', 4: 'bg-emerald-400', 3: 'bg-amber-400', 2: 'bg-orange-400', 1: 'bg-rose-400' };
 
 const InstructorRatingsCard = ({ limit = 5 }) => {
   const { ratings, summary, stats, isLoading, error } = useInstructorRatings({ limit });
-
   const recentRatings = useMemo(() => ratings.slice(0, limit), [ratings, limit]);
-  const hasRatings = recentRatings.length > 0;
+
+  const averageRating = summary?.averageRating || 0;
+  const distribution = useMemo(() => {
+    if (!stats?.distribution) return [];
+    return [5, 4, 3, 2, 1].map((s) => ({ star: s, count: stats.distribution[s] || 0 }));
+  }, [stats?.distribution]);
+  const totalRatings = distribution.reduce((s, d) => s + d.count, 0) || summary?.totalRatings || 0;
+  const maxCount = Math.max(...distribution.map((d) => d.count), 1);
+
+  if (isLoading) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 animate-pulse space-y-3">
+        <div className="h-4 w-32 bg-slate-100 rounded" />
+        <div className="h-16 bg-slate-100 rounded-xl" />
+        <div className="h-12 bg-slate-100 rounded-xl" />
+      </section>
+    );
+  }
 
   return (
-    <Card 
-      className="rounded-2xl border border-slate-200 shadow-sm"
-      title={
-        <Space>
-          <StarFilled className="text-amber-500" />
-          <span>Your Ratings & Feedback</span>
-        </Space>
-      }
-      loading={isLoading}
-    >
-      {error && (
-        <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
-          {error.message || 'Failed to load ratings'}
+    <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* Compact score header */}
+      <div className="bg-gradient-to-r from-sky-50 via-white to-sky-50 px-3 sm:px-5 py-3 sm:py-4 border-b border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">{averageRating.toFixed(1)}</span>
+            <StarIcon filled className="h-4 w-4 sm:h-5 sm:w-5 -mt-1" />
+          </div>
+          <div>
+            <MiniStars value={averageRating} />
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">{totalRatings} rating{totalRatings !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Inline distribution bars */}
+      {distribution.length > 0 && (
+        <div className="px-3 sm:px-5 py-2 sm:py-3 border-b border-slate-50 space-y-1">
+          {distribution.map(({ star, count }) => {
+            const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            return (
+              <div key={star} className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 w-3 text-right tabular-nums">{star}</span>
+                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${barColors[star]}`}
+                    style={{ width: `${pct}%`, minWidth: count > 0 ? '6px' : '0' }}
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 w-4 text-right tabular-nums">{count}</span>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {!isLoading && !error && (
-        <>
-          <StatsOverview summary={summary} stats={stats} />
-          
-          {!hasRatings ? (
-            <Empty 
-              description={
-                <Space direction="vertical" size={4}>
-                  <Text>No ratings yet</Text>
-                  <Text type="secondary" className="text-sm">
-                    Your student feedback will appear here after lessons
-                  </Text>
-                </Space>
-              }
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <>
-              <Text strong className="mb-3 block text-slate-700">
-                Recent Feedback
-              </Text>
-              <List
-                dataSource={recentRatings}
-                renderItem={(rating) => <RatingItem key={rating.id} rating={rating} />}
-                split={false}
-                className="space-y-3"
-              />
-            </>
-          )}
-        </>
-      )}
-    </Card>
+      {/* Recent feedback - compact */}
+      <div className="px-3 sm:px-5 py-2.5 sm:py-3">
+        {error && (
+          <p className="text-xs text-rose-500 mb-2">{error.message || 'Failed to load'}</p>
+        )}
+        {!recentRatings.length ? (
+          <p className="text-xs text-slate-400 py-1">Feedback will appear here after lessons.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {recentRatings.map((rating) => {
+              const name = rating.isAnonymous ? 'Anonymous' : (rating.studentName || 'Student');
+              return (
+                <div key={rating.id} className="flex items-start gap-2.5">
+                  <div className="h-7 w-7 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 text-[11px] font-semibold shrink-0 mt-0.5">
+                    {name[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-slate-800 truncate">{name}</span>
+                        <MiniStars value={rating.rating} />
+                      </div>
+                      <span className="text-[10px] text-slate-300 shrink-0">{formatTimestamp(rating.createdAt)}</span>
+                    </div>
+                    {rating.feedbackText && (
+                      <p className="text-xs text-slate-400 leading-relaxed mt-0.5 line-clamp-2">&ldquo;{rating.feedbackText}&rdquo;</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
   );
-};
-
-InstructorRatingsCard.propTypes = {
-  limit: PropTypes.number
 };
 
 export default InstructorRatingsCard;

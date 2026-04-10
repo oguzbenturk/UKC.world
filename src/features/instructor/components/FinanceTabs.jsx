@@ -17,22 +17,26 @@ const FinanceTabs = ({ tabs = [], initialKey, onChange }) => {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-100 pb-2 overflow-x-auto scrollbar-none">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
+            role="tab"
+            aria-selected={tab.key === activeKey}
             onClick={() => handleChange(tab.key)}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            className={`rounded-full px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-sm font-medium transition whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 ${
               tab.key === activeKey
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-sky-500 text-white shadow-sm shadow-sky-500/20'
+                : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 active:bg-slate-200'
             }`}
           >
             <span>{tab.label}</span>
             {tab.badge != null && (
-              <span className="ml-2 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-white/20 px-2 text-xs">
+              <span className={`ml-1 sm:ml-1.5 inline-flex h-4 sm:h-5 min-w-[1rem] sm:min-w-[1.25rem] items-center justify-center rounded-full px-1 sm:px-1.5 text-[9px] sm:text-[11px] font-semibold tabular-nums ${
+                tab.key === activeKey ? 'bg-white/25' : 'bg-slate-200/80 text-slate-500'
+              }`}>
                 {tab.badge}
               </span>
             )}
@@ -41,12 +45,12 @@ const FinanceTabs = ({ tabs = [], initialKey, onChange }) => {
       </div>
 
       {activeTab?.description && (
-        <p className="text-xs uppercase tracking-wide text-slate-500">
+        <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 hidden sm:block">
           {activeTab.description}
         </p>
       )}
 
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 xl:p-6 transition">
+      <div className="transition">
         {activeTab?.content}
       </div>
     </div>

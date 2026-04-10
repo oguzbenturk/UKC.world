@@ -25,6 +25,7 @@ import {
   CreditCardOutlined,
   LeftOutlined,
   RightOutlined,
+  SafetyCertificateOutlined,
   ToolOutlined,
   ShoppingOutlined,
   WalletOutlined,
@@ -74,6 +75,7 @@ const DateStep = ({
   maxDays,
   totalPrice,
   onContinue,
+  isPackage,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => dayjs().startOf('month'));
   const today = dayjs().startOf('day');
@@ -100,10 +102,12 @@ const DateStep = ({
         <div className="relative">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{serviceName}</h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">Rental</Tag>
-            <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
-              {formatCurrency(dailyPrice, priceCurrency)} / day
-            </Tag>
+            <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{isPackage ? 'Package' : 'Rental'}</Tag>
+            {!isPackage && (
+              <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
+                {formatCurrency(dailyPrice, priceCurrency)} / day
+              </Tag>
+            )}
           </div>
           {description && (
             <p className="text-xs sm:text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
@@ -222,14 +226,23 @@ const DateStep = ({
       {/* Price breakdown — shows when dates selected */}
       {numberOfDays > 0 && (
         <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
-          <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-2">
-            <span>Daily rate</span>
-            <span>{formatCurrency(dailyPrice, priceCurrency)}</span>
-          </div>
-          <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
-            <span>Duration</span>
-            <span>{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
-          </div>
+          {isPackage ? (
+            <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
+              <span>Package price ({maxDays} days)</span>
+              <span className="font-semibold text-slate-700">{formatCurrency(totalPrice, priceCurrency)}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-2">
+                <span>Daily rate</span>
+                <span>{formatCurrency(dailyPrice, priceCurrency)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
+                <span>Duration</span>
+                <span>{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+              </div>
+            </>
+          )}
           <div className="border-t border-slate-200/60 pt-3 flex justify-between items-end">
             <button
               type="button"
@@ -268,6 +281,11 @@ const PayStep = ({
   numberOfDays,
   dailyPrice,
   totalPrice,
+  finalTotal,
+  insuranceRate,
+  insuranceAccepted,
+  onInsuranceToggle,
+  insuranceAmount,
   priceCurrency,
   formatCurrency,
   startDateLabel,
@@ -286,6 +304,8 @@ const PayStep = ({
   onVoucherApplied,
   onVoucherRemoved,
   serviceId,
+  isPackage,
+  maxDays,
 }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Booking summary */}
@@ -304,18 +324,67 @@ const PayStep = ({
           {startDateLabel} → {endDateLabel}
         </p>
         <div className="mt-3 pt-3 border-t border-slate-200/60">
-          <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-            <span>{formatCurrency(dailyPrice, priceCurrency)} × {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex items-end justify-between">
+          {isPackage ? (
+            <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
+              <span>Package — {maxDays} days</span>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
+              <span>{formatCurrency(dailyPrice, priceCurrency)} × {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {insuranceAccepted && insuranceAmount > 0 && (
+            <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
+              <span>Insurance ({insuranceRate}%)</span>
+              <span className="text-emerald-600">+{formatCurrency(insuranceAmount, priceCurrency)}</span>
+            </div>
+          )}
+          <div className="flex items-end justify-between mt-1">
             <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">Total</span>
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-              {formatCurrency(totalPrice, priceCurrency)}
+              {formatCurrency(finalTotal, priceCurrency)}
             </span>
           </div>
         </div>
       </div>
     </div>
+
+    {/* Insurance */}
+    {insuranceRate != null && insuranceRate > 0 && (
+      <div>
+        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          Equipment Insurance
+        </p>
+        <button
+          type="button"
+          onClick={onInsuranceToggle}
+          className={`w-full flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 transition-all text-left ${
+            insuranceAccepted
+              ? 'border-emerald-500 bg-emerald-50 shadow-sm shadow-emerald-500/10'
+              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+            insuranceAccepted ? 'bg-emerald-500' : 'bg-slate-100'
+          }`}>
+            <SafetyCertificateOutlined className={`text-base ${insuranceAccepted ? 'text-white' : 'text-slate-400'}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs sm:text-sm font-semibold leading-tight ${insuranceAccepted ? 'text-emerald-700' : 'text-slate-700'}`}>
+              Add equipment insurance
+            </p>
+            <p className={`text-[10px] sm:text-xs mt-0.5 ${insuranceAccepted ? 'text-emerald-500' : 'text-slate-400'}`}>
+              {insuranceRate}% of rental cost — {formatCurrency(insuranceAmount, priceCurrency)} added to your total
+            </p>
+          </div>
+          <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+            insuranceAccepted ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 bg-white'
+          }`}>
+            {insuranceAccepted && <CheckOutlined className="text-white text-[10px]" />}
+          </div>
+        </button>
+      </div>
+    )}
 
     {/* Payment method */}
     <div>
@@ -430,9 +499,9 @@ const PayStep = ({
       icon={<ShoppingOutlined />}
     >
       {paymentMethod === 'wallet'
-        ? `Pay ${formatCurrency(totalPrice, priceCurrency)}`
+        ? `Pay ${formatCurrency(finalTotal, priceCurrency)}`
         : paymentMethod === 'credit_card'
-          ? `Pay ${formatCurrency(totalPrice, priceCurrency)} with Card`
+          ? `Pay ${formatCurrency(finalTotal, priceCurrency)} with Card`
           : 'Confirm — Pay Later'}
     </Button>
   </div>
@@ -518,6 +587,10 @@ const RentalBookingModal = ({
   serviceCurrency,
   durationHours,
   serviceDescription,
+  isPackage = false,
+  packageId,
+  packageName,
+  insuranceRate = null,
 }) => {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -534,6 +607,7 @@ const RentalBookingModal = ({
   const [iyzicoDepositId, setIyzicoDepositId] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [insuranceAccepted, setInsuranceAccepted] = useState(false);
 
   const studentId = user?.userId || user?.id;
   const canPayLater = PAY_AT_CENTER_ALLOWED_ROLES.includes(user?.role);
@@ -564,17 +638,38 @@ const RentalBookingModal = ({
   const clearDays = useCallback(() => setSelectedDays(new Set()), []);
 
   // ── Price resolution ──────────────────────────────────────────────────────
+  const packageTotalDays = isPackage && maxDays ? maxDays : null;
+
   const dailyPrice = useMemo(() => {
     const basePrice = normalizeNumeric(servicePrice, 0);
     const baseCurrency = serviceCurrency || 'EUR';
-    if (convertCurrency && userCurrency && userCurrency !== baseCurrency) {
-      return convertCurrency(basePrice, baseCurrency, userCurrency);
+    const converted = (convertCurrency && userCurrency && userCurrency !== baseCurrency)
+      ? convertCurrency(basePrice, baseCurrency, userCurrency)
+      : basePrice;
+    // For packages the stored price is the total; derive per-day for display
+    if (isPackage && packageTotalDays > 0) return converted / packageTotalDays;
+    return converted;
+  }, [servicePrice, serviceCurrency, userCurrency, convertCurrency, isPackage, packageTotalDays]);
+
+  // For packages: total is always the fixed package price regardless of days selected
+  const packageTotalPrice = useMemo(() => {
+    if (!isPackage) return null;
+    const basePrice = normalizeNumeric(servicePrice, 0);
+    if (convertCurrency && userCurrency && userCurrency !== (serviceCurrency || 'EUR')) {
+      return convertCurrency(basePrice, serviceCurrency || 'EUR', userCurrency);
     }
     return basePrice;
-  }, [servicePrice, serviceCurrency, userCurrency, convertCurrency]);
+  }, [isPackage, servicePrice, serviceCurrency, userCurrency, convertCurrency]);
 
-  const totalPrice = dailyPrice * numberOfDays;
+  const totalPrice = isPackage ? (packageTotalPrice ?? 0) : dailyPrice * numberOfDays;
   const priceCurrency = userCurrency || serviceCurrency || 'EUR';
+
+  // ── Insurance ─────────────────────────────────────────────────────────────
+  const effectiveInsuranceRate = insuranceRate != null && insuranceRate > 0 ? insuranceRate : null;
+  const insuranceAmount = effectiveInsuranceRate && totalPrice > 0
+    ? parseFloat((totalPrice * effectiveInsuranceRate / 100).toFixed(2))
+    : 0;
+  const finalTotal = totalPrice + (insuranceAccepted ? insuranceAmount : 0);
 
   // ── Wallet ────────────────────────────────────────────────────────────────
   const { data: walletSummary } = useWalletSummary({
@@ -595,7 +690,7 @@ const RentalBookingModal = ({
     return normalizeNumeric(walletSummary?.available, 0);
   }, [walletSummary, convertCurrency, userCurrency]);
   const walletCurrency = userCurrency || 'EUR';
-  const walletInsufficient = paymentMethod === 'wallet' && totalPrice > walletBalance;
+  const walletInsufficient = paymentMethod === 'wallet' && finalTotal > walletBalance;
 
   // ── Reset state when modal opens ──────────────────────────────────────────
   useEffect(() => {
@@ -608,6 +703,7 @@ const RentalBookingModal = ({
       setIyzicoDepositId(null);
       setShowIyzicoModal(false);
       setAppliedVoucher(null);
+      setInsuranceAccepted(false);
     }
   }, [open]);
 
@@ -622,19 +718,26 @@ const RentalBookingModal = ({
 
   const handleConfirmPayment = useCallback(() => {
     if (!studentId || !serviceId || numberOfDays === 0) return;
-    const unitPrice = normalizeNumeric(servicePrice, 0);
+    const rawTotal = normalizeNumeric(servicePrice, 0);
+    // For packages: split the fixed total evenly across the booked days
+    const unitPrice = isPackage && numberOfDays > 0
+      ? parseFloat((rawTotal / numberOfDays).toFixed(2))
+      : rawTotal;
 
     Modal.confirm({
       title: 'Confirm Rental',
       icon: <ToolOutlined style={{ color: '#f97316' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
-          <p><strong>{serviceName || 'Equipment Rental'}</strong></p>
+          <p><strong>{isPackage ? (packageName || serviceName || 'Rental Package') : (serviceName || 'Equipment Rental')}</strong></p>
           <p style={{ color: '#555' }}>{startDate.format('ddd, MMM D')} → {endDate.format('ddd, MMM D')} ({numberOfDays} day{numberOfDays !== 1 ? 's' : ''})</p>
           {numberOfDays > 1 && (
             <p style={{ color: '#888', fontSize: 12 }}>{numberOfDays} separate rentals will be created</p>
           )}
-          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(totalPrice, priceCurrency)}</p>
+          {insuranceAccepted && insuranceAmount > 0 && (
+            <p style={{ color: '#059669', fontSize: 12 }}>Insurance ({effectiveInsuranceRate}%): +{formatCurrency(insuranceAmount, priceCurrency)}</p>
+          )}
+          <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, priceCurrency)}</p>
           <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
         </div>
       ),
@@ -645,6 +748,8 @@ const RentalBookingModal = ({
         setSubmitting(true);
         try {
           // Create one rental per selected day so each can be managed individually
+          // Split finalTotal (base + optional insurance) evenly across days
+          const unitTotal = numberOfDays > 0 ? parseFloat((finalTotal / numberOfDays).toFixed(2)) : unitPrice;
           let lastRes = null;
           for (const dayStr of sortedDays) {
             const day = dayjs(dayStr);
@@ -655,12 +760,17 @@ const RentalBookingModal = ({
               start_date: dayStr,
               end_date: dayStr,
               rental_days: 1,
-              total_price: unitPrice,
+              total_price: unitTotal,
               payment_status: 'unpaid',
-              notes: `Equipment rental: ${serviceName || 'Rental'} — ${day.format('ddd, MMM D')}`,
+              notes: `Equipment rental: ${isPackage ? (packageName || serviceName || 'Package') : (serviceName || 'Rental')} — ${day.format('ddd, MMM D')}${insuranceAccepted ? ' (incl. insurance)' : ''}`,
               currency: serviceCurrency || 'EUR',
               payment_method: paymentMethod,
+              ...(isPackage && packageId ? { customer_package_id: packageId } : {}),
               ...(appliedVoucher?.id ? { voucher_id: appliedVoucher.id } : {}),
+              ...(insuranceAccepted && insuranceAmount > 0 ? {
+                insurance_rate: effectiveInsuranceRate,
+                insurance_amount: parseFloat((insuranceAmount / numberOfDays).toFixed(2)),
+              } : {}),
             });
             lastRes = res;
           }
@@ -688,7 +798,7 @@ const RentalBookingModal = ({
         }
       },
     });
-  }, [studentId, serviceId, numberOfDays, sortedDays, servicePrice, startDate, endDate, serviceName, totalPrice, priceCurrency, formatCurrency, paymentMethod, serviceCurrency, appliedVoucher, message, queryClient, refreshToken]);
+  }, [studentId, serviceId, numberOfDays, sortedDays, servicePrice, startDate, endDate, serviceName, packageName, totalPrice, finalTotal, insuranceAccepted, insuranceAmount, effectiveInsuranceRate, priceCurrency, formatCurrency, paymentMethod, serviceCurrency, isPackage, packageId, appliedVoucher, message, queryClient, refreshToken]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 
@@ -762,6 +872,7 @@ const RentalBookingModal = ({
           maxDays={maxDays}
           totalPrice={totalPrice}
           onContinue={handleContinueToPayment}
+          isPackage={isPackage}
         />
       )}
       {step === 1 && (
@@ -770,6 +881,11 @@ const RentalBookingModal = ({
           numberOfDays={numberOfDays}
           dailyPrice={dailyPrice}
           totalPrice={totalPrice}
+          finalTotal={finalTotal}
+          insuranceRate={effectiveInsuranceRate}
+          insuranceAccepted={insuranceAccepted}
+          onInsuranceToggle={() => setInsuranceAccepted(v => !v)}
+          insuranceAmount={insuranceAmount}
           priceCurrency={priceCurrency}
           formatCurrency={formatCurrency}
           startDateLabel={startDateLabel}
@@ -788,6 +904,8 @@ const RentalBookingModal = ({
           onVoucherApplied={(voucherData) => setAppliedVoucher(voucherData)}
           onVoucherRemoved={() => setAppliedVoucher(null)}
           serviceId={serviceId}
+          isPackage={isPackage}
+          maxDays={maxDays}
         />
       )}
       {step === 2 && (

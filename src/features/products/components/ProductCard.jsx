@@ -143,7 +143,7 @@ const ProductCard = ({
       )}
       
       {/* Image Container */}
-      <div className="relative aspect-square overflow-hidden bg-gray-100" style={{ borderRadius: '10px 10px 0 0' }}>
+      <div className="relative h-36 overflow-hidden bg-gray-100" style={{ borderRadius: '10px 10px 0 0' }}>
         {displayImage ? (
           <img
             src={displayImage}
@@ -227,16 +227,17 @@ const ProductCard = ({
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3">
         {/* Category & SKU row */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           {category && (
-            <Tag 
-              style={{ 
-                fontSize: 10, 
-                padding: '1px 6px',
+            <Tag
+              style={{
+                fontSize: 10,
+                padding: '0px 5px',
                 textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+                letterSpacing: '0.5px',
+                lineHeight: '18px'
               }}
             >
               {category}
@@ -251,38 +252,37 @@ const ProductCard = ({
 
         {/* Brand */}
         {brand && (
-          <Text className="text-[11px] uppercase tracking-wider text-gray-400 font-medium">
+          <Text className="text-[10px] uppercase tracking-wider text-gray-400 font-medium block leading-none mb-0.5">
             {brand}
           </Text>
         )}
-        
+
         {/* Name */}
-        <Title 
-          level={5} 
-          className="mb-2 line-clamp-2 transition-colors group-hover:text-blue-600" 
-          style={{ 
-            margin: '4px 0 8px', 
-            fontSize: 14, 
-            fontWeight: 600, 
-            lineHeight: 1.4,
-            minHeight: 40
+        <Title
+          level={5}
+          className="line-clamp-1 transition-colors group-hover:text-blue-600"
+          style={{
+            margin: '2px 0 4px',
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.3
           }}
         >
           {name}
         </Title>
-        
+
         {/* Price */}
-        <div className="flex items-baseline gap-2 mb-2">
-          <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+        <div className="flex items-baseline gap-2 mb-1.5">
+          <Text strong style={{ fontSize: 14, color: '#1890ff' }}>
             {formatCurrency(
-              convertCurrency 
-                ? convertCurrency(price, currency || 'EUR', userCurrency) 
-                : price, 
+              convertCurrency
+                ? convertCurrency(price, currency || 'EUR', userCurrency)
+                : price,
               userCurrency
             )}
           </Text>
           {product.cost_price && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
+            <Text type="secondary" style={{ fontSize: 10 }}>
               Cost: {formatCurrency(product.cost_price, currency || 'EUR')}
             </Text>
           )}
@@ -290,41 +290,26 @@ const ProductCard = ({
 
         {/* Quick Info Tags */}
         {(colors?.length > 0 || sizes?.length > 0 || variants?.length > 0) && (
-          <Space size={4} wrap style={{ marginTop: 4 }}>
+          <Space size={3} wrap style={{ marginBottom: 4 }}>
             {colors?.length > 0 && (
-              <Tag 
-                icon={<BgColorsOutlined />} 
-                style={{ 
-                  fontSize: 10, 
-                  padding: '1px 6px',
-                  border: '1px solid #e8e8e8',
-                  background: '#fafafa'
-                }}
+              <Tag
+                icon={<BgColorsOutlined />}
+                style={{ fontSize: 10, padding: '0px 5px', border: '1px solid #e8e8e8', background: '#fafafa', lineHeight: '18px' }}
               >
                 {colors.length} Colors
               </Tag>
             )}
             {sizes?.length > 0 && (
-              <Tag 
-                style={{ 
-                  fontSize: 10, 
-                  padding: '1px 6px',
-                  border: '1px solid #e8e8e8',
-                  background: '#fafafa'
-                }}
+              <Tag
+                style={{ fontSize: 10, padding: '0px 5px', border: '1px solid #e8e8e8', background: '#fafafa', lineHeight: '18px' }}
               >
                 {sizes.length} Sizes
               </Tag>
             )}
             {variants?.length > 0 && (
-              <Tag 
+              <Tag
                 icon={<AppstoreOutlined />}
-                style={{ 
-                  fontSize: 10, 
-                  padding: '1px 6px',
-                  border: '1px solid #e8e8e8',
-                  background: '#fafafa'
-                }}
+                style={{ fontSize: 10, padding: '0px 5px', border: '1px solid #e8e8e8', background: '#fafafa', lineHeight: '18px' }}
               >
                 {variants.length} Variants
               </Tag>
@@ -334,16 +319,16 @@ const ProductCard = ({
 
         {/* Quick Actions */}
         {showActions && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-            <Button 
-              size="small" 
+          <div className="flex gap-1.5 mt-2 pt-2 border-t border-gray-100">
+            <Button
+              size="small"
               icon={<EditOutlined />}
               onClick={(e) => { e.stopPropagation(); onEdit?.(product); }}
               className="flex-1"
             >
               Edit
             </Button>
-            <Button 
+            <Button
               size="small"
               icon={<EyeOutlined />}
               onClick={(e) => { e.stopPropagation(); onView?.(product); }}
@@ -351,28 +336,13 @@ const ProductCard = ({
               View
             </Button>
             <Tooltip title="Delete">
-              <Button 
+              <Button
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
                 onClick={(e) => { e.stopPropagation(); onDelete?.(product); }}
               />
             </Tooltip>
-          </div>
-        )}
-
-        {/* Audit info */}
-        {product.createdByLabel && (
-          <div className="flex items-center justify-between text-[10px] text-gray-400 mt-3 pt-2 border-t border-gray-100">
-            <span className="flex items-center gap-1">
-              <Avatar size={16} className="bg-gray-200 text-gray-500" style={{ fontSize: 9 }}>
-                {product.createdByLabel.charAt(0).toUpperCase()}
-              </Avatar>
-              <span className="truncate max-w-[100px]">{product.createdByLabel}</span>
-            </span>
-            {product.createdAtFormatted && (
-              <span>{product.createdAtFormatted}</span>
-            )}
           </div>
         )}
       </div>

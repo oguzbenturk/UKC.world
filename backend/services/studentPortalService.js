@@ -81,7 +81,7 @@ const buildLocalTimeIso = (dateValue, hourDecimal, durationHours) => {
 };
 
 const PAYMENT_TYPES = new Set(['payment', 'credit']);
-const REFUND_TYPES = new Set(['package_refund', 'refund', 'booking_deleted_refund']);
+const REFUND_TYPES = new Set(['package_refund', 'refund', 'booking_deleted_refund', 'booking_cancelled_refund', 'rental_cancelled_refund']);
 const CHARGE_TYPES = new Set([
   'package_purchase',
   'booking_charge',

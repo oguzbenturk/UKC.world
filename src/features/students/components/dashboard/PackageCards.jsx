@@ -78,15 +78,6 @@ const PackageCards = ({ packages = [] }) => {
       <div className="flex gap-4 overflow-x-auto scrollbar-none lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:overflow-visible">
         {activePackages.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
       </div>
-      {hasBookablePackage && (
-        <button
-          type="button"
-          onClick={handleBookLesson}
-          className="mt-3 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-gotham-medium text-white shadow-sm hover:bg-sky-700 transition-colors"
-        >
-          Book a Lesson
-        </button>
-      )}
     </section>
   );
 };

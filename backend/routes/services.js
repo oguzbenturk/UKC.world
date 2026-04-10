@@ -106,6 +106,7 @@ router.get('/', async (req, res) => {
         lessonCategoryTag: row.lesson_category_tag || null,
         levelTag: row.level_tag || null,
         rentalSegment: row.rental_segment || null,
+        insuranceRate: row.insurance_rate != null ? parseFloat(row.insurance_rate) : null,
         isPackage: isPackageResult,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -864,7 +865,26 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Package not found' });
     }
-    
+
+    // Duplicate purchase guard: reject if user has active or recent pending_payment package of same type
+    const dupCheck = await client.query(
+      `SELECT id, status, created_at FROM customer_packages
+        WHERE customer_id = $1
+          AND service_package_id = $2
+          AND status IN ('active', 'pending_payment')
+          AND created_at > NOW() - INTERVAL '15 minutes'
+        LIMIT 1`,
+      [userId, packageId]
+    );
+    if (dupCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      const dup = dupCheck.rows[0];
+      if (dup.status === 'active') {
+        return res.status(409).json({ error: 'You already have an active package of this type.' });
+      }
+      return res.status(409).json({ error: 'A purchase for this package is already in progress. Please wait a moment and try again.' });
+    }
+
     const pkg = packageResult.rows[0];
     const defaultPackagePrice = parseFloat(pkg.price);
     const defaultPackageCurrency = pkg.currency || 'EUR';
@@ -1200,6 +1220,11 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       // Mark that this is a pay_later negative-balance deduction
       // The actual recording happens below in the walletDeducted block with allowNegative: true
     }
+
+    // Non-trusted pay_later: record pending debt entry (availableDelta=0 — balance not touched,
+    // but the ledger entry makes the owed amount visible to staff)
+    const isNonTrustedPayLater = normalizedPaymentMethod === 'pay_later' && req.user?.role !== 'trusted_customer' && packagePrice > 0;
+    // Flag is used after package insert to record the debt
     
     // Create the customer package record
     const customerPackageId = uuidv4();
@@ -1370,10 +1395,13 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
     }
 
     // === Create individual lesson bookings if provided ===
-    // Resolve lesson_service_id: use the one on the package, or look it up by name as fallback
+    // lesson_service_id MUST come from the package configuration — do not fall back to
+    // unrelated services, as this would create bookings against the wrong service type
+    // and corrupt hours accounting.
     let resolvedLessonServiceId = pkg.lesson_service_id || null;
     if (!resolvedLessonServiceId && Array.isArray(lessonBookings) && lessonBookings.length > 0) {
-      const lessonSvcName = pkg.lesson_service_name || pkg.name;
+      // Only safe fallback: look up by the service name stored on the package itself
+      const lessonSvcName = pkg.lesson_service_name;
       if (lessonSvcName) {
         const svcLookup = await client.query(
           `SELECT id FROM services WHERE LOWER(name) = LOWER($1) AND type = 'lesson' LIMIT 1`,
@@ -1382,7 +1410,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         resolvedLessonServiceId = svcLookup.rows[0]?.id || null;
       }
       if (!resolvedLessonServiceId) {
-        logger.warn('Package has no lesson_service_id — lesson bookings cannot be created', {
+        logger.warn('Package has no lesson_service_id configured — lesson bookings skipped. Set lesson_service_id on the package in admin.', {
           packageId, packageName: pkg.name, customerPackageId
         });
       }
@@ -1390,51 +1418,41 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     if (Array.isArray(lessonBookings) && lessonBookings.length > 0 && resolvedLessonServiceId) {
       for (const lesson of lessonBookings) {
-        try {
-          if (!lesson.date || !lesson.instructorId || !lesson.startTime) continue;
-          await client.query('SAVEPOINT lesson_booking');
-          const bookingId = uuidv4();
-          const lessonDuration = parseFloat(lesson.duration) || 1;
-          const [sh, sm] = String(lesson.startTime).split(':').map(Number);
-          const startHour = sh + (sm || 0) / 60;
-          const endHour = startHour + lessonDuration;
+        if (!lesson.date || !lesson.instructorId || !lesson.startTime) continue;
+        const bookingId = uuidv4();
+        const lessonDuration = parseFloat(lesson.duration) || 1;
+        const [sh, sm] = String(lesson.startTime).split(':').map(Number);
+        const startHour = sh + (sm || 0) / 60;
+        const endHour = startHour + lessonDuration;
 
-          await client.query(
-            `INSERT INTO bookings (
-              id, service_id, student_user_id, instructor_user_id,
-              date, start_hour, end_hour, duration,
-              status, payment_method, payment_status,
-              amount, final_amount,
-              customer_package_id, package_id,
-              notes, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 'package', 'package', 0, 0, $9, $10, $11, NOW(), NOW())`,
-            [
-              bookingId,
-              resolvedLessonServiceId,
-              userId,
-              lesson.instructorId,
-              lesson.date,
-              startHour,
-              endHour,
-              lessonDuration,
-              customerPackageId,
-              packageId,
-              `Package booking: ${pkg.name}`
-            ]
-          );
+        await client.query(
+          `INSERT INTO bookings (
+            id, service_id, student_user_id, instructor_user_id,
+            date, start_hour, duration,
+            status, payment_method, payment_status,
+            amount, final_amount,
+            customer_package_id,
+            notes, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'package', 'package', 0, 0, $8, $9, NOW(), NOW())`,
+          [
+            bookingId,
+            resolvedLessonServiceId,
+            userId,
+            lesson.instructorId,
+            lesson.date,
+            startHour,
+            lessonDuration,
+            customerPackageId,
+            `Package booking: ${pkg.name}`
+          ]
+        );
 
-          packageBookedLessonHours += lessonDuration;
+        packageBookedLessonHours += lessonDuration;
 
-          logger.info('Lesson booking created for package purchase', {
-            bookingId, customerPackageId, date: lesson.date,
-            instructorId: lesson.instructorId
-          });
-        } catch (lessonBookErr) {
-          await client.query('ROLLBACK TO SAVEPOINT lesson_booking');
-          logger.warn('Failed to create lesson booking for package', {
-            customerPackageId, lesson, error: lessonBookErr.message
-          });
-        }
+        logger.info('Lesson booking created for package purchase', {
+          bookingId, customerPackageId, date: lesson.date,
+          instructorId: lesson.instructorId
+        });
       }
     }
 
@@ -1670,9 +1688,46 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         [userId, priceCurrency]
       );
       
-      newBalance = updatedBalanceResult.rows.length > 0 
-        ? parseFloat(updatedBalanceResult.rows[0].available_amount) 
+      newBalance = updatedBalanceResult.rows.length > 0
+        ? parseFloat(updatedBalanceResult.rows[0].available_amount)
         : 0;
+    }
+
+    // Non-trusted pay_later: record a pending debt entry (no balance deduction) so staff can see the owed amount
+    if (isNonTrustedPayLater) {
+      try {
+        await recordLegacyTransaction({
+          client,
+          userId,
+          amount: -Math.abs(packagePrice),
+          availableDelta: 0, // do NOT touch the actual balance
+          transactionType: 'package_purchase',
+          status: 'pending',
+          direction: 'debit',
+          description: `Package Purchase (Pay Later - Pending): ${pkg.name}`,
+          currency: priceCurrency,
+          paymentMethod: 'pay_later',
+          referenceNumber: customerPackageId,
+          metadata: {
+            packageId: customerPackageId,
+            servicePackageId: packageId,
+            totalHours: parseFloat(pkg.total_hours) || 0,
+            purchasePrice: packagePrice,
+            priceCurrency: priceCurrency,
+            source: 'services:packages:self-purchase',
+            payLater: true,
+            debtRecord: true
+          },
+          entityType: 'customer_package',
+          relatedEntityType: 'customer_package',
+          relatedEntityId: customerPackageId,
+          createdBy: actorId || userId,
+          allowNegative: false
+        });
+      } catch (debtRecordError) {
+        logger.error('Failed to record pay_later debt entry', { userId, customerPackageId, error: debtRecordError?.message });
+        throw debtRecordError;
+      }
     }
 
     await client.query('COMMIT');
@@ -1738,6 +1793,36 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
           userId,
           error: iyzicoErr.message
         });
+        // Package was committed with pending_payment but we have no gateway token → cleanup immediately
+        try {
+          const cancelClient = await pool.connect();
+          try {
+            await cancelClient.query('BEGIN');
+            await cancelClient.query(
+              `UPDATE customer_packages
+                  SET status = 'cancelled',
+                      notes = COALESCE(notes, '') || ' | Cancelled: Iyzico initiation failed',
+                      updated_at = NOW()
+                WHERE id = $1 AND status = 'pending_payment'`,
+              [customerPackageId]
+            );
+            await cancelClient.query(
+              `UPDATE bookings
+                  SET status = 'cancelled', updated_at = NOW()
+                WHERE customer_package_id = $1 AND status = 'pending' AND payment_method = 'package'`,
+              [customerPackageId]
+            );
+            await cancelClient.query('COMMIT');
+            logger.info('Cancelled package and lesson bookings after Iyzico initiation failure', { customerPackageId });
+          } catch (cleanupErr) {
+            await cancelClient.query('ROLLBACK').catch(() => {});
+            logger.warn('Failed to cancel package after Iyzico initiation failure', { customerPackageId, error: cleanupErr.message });
+          } finally {
+            cancelClient.release();
+          }
+        } catch (connectErr) {
+          logger.warn('Could not acquire DB client for post-Iyzico-failure cleanup', { customerPackageId, error: connectErr.message });
+        }
         return res.status(500).json({ error: 'Failed to initiate card payment. Please try again.' });
       }
     }
@@ -2479,9 +2564,11 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       'lesson_category_tag',
       'level_tag',
       'rental_segment',
+      'insurance_rate',
       'created_at',
       'updated_at'
     ];
+    const resolvedInsuranceRate = req.body?.insuranceRate != null ? parseFloat(req.body.insuranceRate) : null;
     const serviceValues = [
       serviceId,
       resolvedName,
@@ -2502,6 +2589,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       lessonCategoryTag || null,
       levelTag || null,
       rentalSegment || null,
+      resolvedInsuranceRate,
       now,
       now
     ];
@@ -2578,6 +2666,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
       lessonCategoryTag: row.lesson_category_tag || null,
       levelTag: row.level_tag || null,
       rentalSegment: row.rental_segment || null,
+      insuranceRate: row.insurance_rate != null ? parseFloat(row.insurance_rate) : null,
       isPackage: isPackageResult,
       ...(isPackageResult && {
         packageName: row.package_name,
@@ -2585,7 +2674,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
         sessionsCount: row.sessions_count
       })
     };
-    
+
     // Broadcast real-time event for service creation
     if (req.socketService) {
       try {
@@ -2714,10 +2803,11 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       package_id = $13, currency = $14,
       discipline_tag = $15, lesson_category_tag = $16, level_tag = $17,
       rental_segment = $18,
+      insurance_rate = $19,
       updated_at = NOW()
-    WHERE id = $19
+    WHERE id = $20
     `;
-    
+
     await client.query(updateServiceQuery, [
       name,
       description,
@@ -2737,6 +2827,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       req.body?.lessonCategoryTag || null,
       req.body?.levelTag || null,
       req.body?.rentalSegment || null,
+      req.body?.insuranceRate != null ? parseFloat(req.body.insuranceRate) : null,
       id
     ]);
     
@@ -2801,6 +2892,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
       lessonCategoryTag: row.lesson_category_tag || null,
       levelTag: row.level_tag || null,
       rentalSegment: row.rental_segment || null,
+      insuranceRate: row.insurance_rate != null ? parseFloat(row.insurance_rate) : null,
       isPackage: isPackageResult,
       ...(isPackageResult && {
         packageName: row.package_name,
@@ -2808,7 +2900,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
         sessionsCount: row.sessions_count
       })
     };
-    
+
     res.json(updatedService);
   } catch (error) {
     await client.query('ROLLBACK');

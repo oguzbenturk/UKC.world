@@ -1,72 +1,123 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Avatar, Form, Input, Modal, Rate, Space, Switch, Typography, Card, Divider, Tag } from 'antd';
-import { StarFilled, HeartFilled, SmileOutlined, MehOutlined, FrownOutlined, CheckCircleFilled } from '@ant-design/icons';
+import { Modal } from 'antd';
 import { useSubmitRating } from '../hooks/useRatings';
 
-const { Paragraph, Text, Title } = Typography;
+/* ── Rating config ── */
+const RATINGS = [
+  { value: 1, label: 'Poor',     emoji: '\u{1F61E}', color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  },
+  { value: 2, label: 'Fair',     emoji: '\u{1F615}', color: '#f97316', bg: 'rgba(249,115,22,0.07)' },
+  { value: 3, label: 'Good',     emoji: '\u{1F60A}', color: '#eab308', bg: 'rgba(234,179,8,0.07)'  },
+  { value: 4, label: 'Great',    emoji: '\u{1F604}', color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  },
+  { value: 5, label: 'Amazing!', emoji: '\u{1F929}', color: '#00a8c4', bg: 'rgba(0,168,196,0.08)'  },
+];
 
-// Custom rating icons with emoji faces
-const ratingDescriptions = {
-  1: { label: 'Poor', emoji: '😞', color: '#f5222d' },
-  2: { label: 'Fair', emoji: '😕', color: '#fa8c16' },
-  3: { label: 'Good', emoji: '😊', color: '#fadb14' },
-  4: { label: 'Great', emoji: '😄', color: '#52c41a' },
-  5: { label: 'Amazing!', emoji: '🤩', color: '#1677ff' }
-};
+/* ── Custom star ── */
+const Star = ({ filled, hovered, index, onClick, onHover, onLeave, color }) => (
+  <button
+    type="button"
+    onClick={() => onClick(index + 1)}
+    onMouseEnter={() => onHover(index + 1)}
+    onMouseLeave={onLeave}
+    className="relative p-0.5 outline-none focus-visible:ring-2 focus-visible:ring-duotone-blue rounded-lg"
+    style={{
+      transform: filled || hovered ? 'scale(1.15)' : 'scale(1)',
+      transition: `transform 220ms cubic-bezier(.34,1.56,.64,1) ${index * 35}ms`,
+    }}
+    aria-label={`Rate ${index + 1} star${index > 0 ? 's' : ''}`}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      className="w-10 h-10 sm:w-11 sm:h-11"
+      style={{
+        fill: filled ? color : 'transparent',
+        stroke: filled ? color : hovered ? `${color}90` : '#cbd5e1',
+        strokeWidth: 1.5,
+        filter: filled ? `drop-shadow(0 2px 6px ${color}40)` : 'none',
+        transition: `all 250ms cubic-bezier(.4,0,.2,1) ${index * 35}ms`,
+      }}
+    >
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  </button>
+);
 
+/* ── Success overlay ── */
+const SuccessState = () => (
+  <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+    <div
+      className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-5"
+      style={{ animation: 'rateSuccessPop 400ms cubic-bezier(.34,1.56,.64,1) forwards' }}
+    >
+      <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5 13l4 4L19 7"
+          style={{
+            strokeDasharray: 24,
+            strokeDashoffset: 24,
+            animation: 'rateCheckDraw 500ms 200ms ease forwards',
+          }}
+        />
+      </svg>
+    </div>
+    <h3 className="font-duotone-bold text-xl text-slate-800 mb-1">Thank you!</h3>
+    <p className="text-slate-500 text-sm font-gotham-medium">Your feedback helps us ride bigger waves.</p>
+  </div>
+);
+
+/* ── Main component ── */
 export const RateInstructorModal = ({ open = false, booking = null, onClose = undefined }) => {
-  const [form] = Form.useForm();
-  const [currentRating, setCurrentRating] = useState(5);
+  const [rating, setRating] = useState(5);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
   const { mutateAsync, isPending } = useSubmitRating({
     onSuccess: () => {
-      form.resetFields();
-      if (onClose) {
-        onClose(true);
-      }
-    }
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        onClose?.(true);
+      }, 1800);
+    },
   });
 
   const shouldShowModal = open && Boolean(booking);
 
   useEffect(() => {
     if (shouldShowModal) {
-      form.setFieldsValue({ rating: 5, isAnonymous: false, feedbackText: '' });
-      setCurrentRating(5);
-    } else {
-      setCurrentRating(5);
+      setRating(5);
+      setHoveredRating(0);
+      setFeedbackText('');
+      setIsAnonymous(false);
+      setSubmitted(false);
     }
-  }, [shouldShowModal, form]);
+  }, [shouldShowModal]);
 
   const instructorName = booking?.instructor?.name ?? 'Instructor';
   const serviceName = booking?.service?.name ?? 'Lesson';
-  const ratingInfo = ratingDescriptions[currentRating] || ratingDescriptions[5];
+  const activeRating = hoveredRating || rating;
+  const info = RATINGS[activeRating - 1] || RATINGS[4];
 
-  const handleSubmit = async () => {
-    if (!booking) {
-      return;
-    }
+  const canSubmit = rating > 0 && (rating >= 5 || feedbackText.trim().length > 0);
 
+  const handleSubmit = useCallback(async () => {
+    if (!booking || !canSubmit) return;
     try {
-      const values = await form.validateFields();
-      const ratingValue = values.rating ?? currentRating ?? 5;
-      
       await mutateAsync({
         bookingId: booking.bookingId,
-        rating: Number(ratingValue),
-        feedbackText: values.feedbackText || undefined,
-        isAnonymous: Boolean(values.isAnonymous),
-        serviceType: booking.service?.type ?? 'lesson'
+        rating: Number(rating),
+        feedbackText: feedbackText.trim() || undefined,
+        isAnonymous: Boolean(isAnonymous),
+        serviceType: booking.service?.type ?? 'lesson',
       });
     } catch {
-      // Antd already surfaces form validation errors; swallow mutation errors to keep modal open
+      // mutation errors surfaced via toast; keep modal open
     }
-  };
-
-  const handleRatingChange = (value) => {
-    setCurrentRating(value);
-    form.setFieldValue('rating', value);
-  };
+  }, [booking, rating, feedbackText, isAnonymous, canSubmit, mutateAsync]);
 
   return (
     <Modal
@@ -75,162 +126,255 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
       destroyOnHidden
       footer={null}
       onCancel={() => onClose?.(false)}
-      width={480}
+      width={440}
       centered
-      className="rating-modal"
+      closable={false}
       styles={{
-        body: { padding: 0 }
+        body: { padding: 0 },
+        content: {
+          borderRadius: 24,
+          overflow: 'hidden',
+          background: '#ffffff',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
+        },
       }}
     >
-      {booking ? (
-        <div className="overflow-hidden rounded-lg">
-          {/* Header with gradient */}
-          <div className="bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 px-6 py-8 text-center text-white">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/30 bg-white/20 shadow-lg backdrop-blur">
-              <Avatar size={64} src={booking.instructor?.avatar} className="ring-2 ring-white/50">
-                {(instructorName || 'I').slice(0, 1).toUpperCase()}
-              </Avatar>
+      {/* Inline keyframes */}
+      <style>{`
+        @keyframes rateSuccessPop  { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes rateCheckDraw   { to { stroke-dashoffset: 0; } }
+        @keyframes rateGlowPulse  { 0%,100% { opacity: .15; } 50% { opacity: .3; } }
+      `}</style>
+
+      {submitted ? (
+        <SuccessState />
+      ) : booking ? (
+        <div className="relative overflow-hidden">
+          {/* ── Close ── */}
+          <button
+            type="button"
+            onClick={() => onClose?.(false)}
+            className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-all duration-150"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* ── Header with soft gradient ── */}
+          <div className="relative px-8 pt-10 pb-5 text-center bg-gradient-to-b from-slate-50/80 to-white">
+            {/* Soft ambient glow behind avatar */}
+            <div
+              className="absolute left-1/2 top-4 -translate-x-1/2 w-44 h-44 rounded-full blur-[70px] pointer-events-none"
+              style={{ background: info.color, animation: 'rateGlowPulse 3s ease-in-out infinite', opacity: 0.15 }}
+            />
+
+            {/* Avatar with subtle ring */}
+            <div className="relative mx-auto mb-5 w-[88px] h-[88px]">
+              <div
+                className="absolute -inset-1 rounded-full transition-all duration-500"
+                style={{
+                  background: `conic-gradient(from 180deg, ${info.color}60, transparent 70%)`,
+                  opacity: 0.6,
+                  filter: 'blur(5px)',
+                }}
+              />
+              {booking.instructor?.avatar ? (
+                <img
+                  src={booking.instructor.avatar}
+                  alt={instructorName}
+                  className="relative w-[88px] h-[88px] rounded-full object-cover ring-[3px] ring-white shadow-lg"
+                />
+              ) : (
+                <div className="relative w-[88px] h-[88px] rounded-full bg-gradient-to-br from-duotone-blue to-cyan-600 flex items-center justify-center ring-[3px] ring-white shadow-lg">
+                  <span className="font-duotone-bold text-3xl text-white">
+                    {(instructorName)[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
-            <Title level={4} className="!mb-1 !text-white">
-              How was your lesson?
-            </Title>
-            <Text className="text-white/80">
-              with <span className="font-semibold">{instructorName}</span>
-            </Text>
-            <div className="mt-2">
-              <Tag className="border-white/30 bg-white/20 text-white">
-                {serviceName} • {booking.date ?? 'Recent lesson'}
-              </Tag>
+
+            <h2 className="font-duotone-bold text-[1.15rem] text-slate-800 leading-tight mb-1.5">
+              How was your session?
+            </h2>
+            <p className="text-slate-500 text-sm">
+              with{' '}
+              <span className="text-duotone-blue font-gotham-medium">{instructorName}</span>
+            </p>
+
+            {/* Lesson tag */}
+            <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-duotone-blue" />
+              <span className="text-[11px] text-slate-500 font-gotham-medium tracking-wide">
+                {serviceName}
+                {booking.date && <> &middot; {booking.date}</>}
+              </span>
             </div>
           </div>
 
-          {/* Rating Section */}
-          <div className="px-6 py-6">
-            <Form layout="vertical" form={form} requiredMark={false} initialValues={{ rating: 5, isAnonymous: false, feedbackText: '' }}>
-              {/* Star Rating with Emoji Feedback */}
-              <div className="mb-6 text-center">
-                <Form.Item
-                  name="rating"
-                  rules={[{ required: true, message: 'Please pick a rating between 1 and 5' }]}
-                  className="!mb-3"
-                >
-                  <Rate 
-                    allowClear={false} 
-                    onChange={handleRatingChange}
-                    className="text-3xl"
-                    character={<StarFilled />}
-                    style={{ fontSize: 36 }}
-                  />
-                </Form.Item>
-                
-                {/* Emoji feedback indicator */}
-                <div 
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 transition-all duration-300"
-                  style={{ backgroundColor: `${ratingInfo.color}15` }}
-                >
-                  <span className="text-2xl">{ratingInfo.emoji}</span>
-                  <Text strong style={{ color: ratingInfo.color }}>
-                    {ratingInfo.label}
-                  </Text>
-                </div>
-              </div>
-
-              <Divider className="my-4" />
-
-              {/* Feedback Text - Required if rating < 5 */}
-              <Form.Item 
-                label={
-                  <Text className="text-slate-600">
-                    {currentRating < 5 ? (
-                      <>How can we earn 5 stars next time? <Text type="danger">*</Text></>
-                    ) : (
-                      <>Share your experience <Text type="secondary">(optional)</Text></>
-                    )}
-                  </Text>
-                } 
-                name="feedbackText"
-                rules={[
-                  {
-                    required: currentRating < 5,
-                    message: 'Please let us know how we can improve'
-                  }
-                ]}
-              >
-                <Input.TextArea 
-                  rows={4} 
-                  maxLength={2000} 
-                  showCount
-                  placeholder={currentRating < 5 
-                    ? "We'd love to do better! What could we improve for next time?" 
-                    : "What did you enjoy? Any suggestions for improvement?"
-                  }
-                  className="rounded-xl"
+          {/* ── Star rating ── */}
+          <div className="px-8 pb-1 text-center">
+            <div className="flex items-center justify-center gap-0.5">
+              {RATINGS.map((_, i) => (
+                <Star
+                  key={i}
+                  index={i}
+                  filled={i < (hoveredRating || rating)}
+                  hovered={hoveredRating > 0 && i < hoveredRating}
+                  color={info.color}
+                  onClick={setRating}
+                  onHover={setHoveredRating}
+                  onLeave={() => setHoveredRating(0)}
                 />
-              </Form.Item>
+              ))}
+            </div>
 
-              {/* Improvement hint for < 5 stars */}
-              {currentRating < 5 && (
-                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-center">
-                  <Text className="text-amber-700">
-                    💡 Your feedback helps our instructors improve!
-                  </Text>
-                </div>
-              )}
-
-              {/* Anonymous Switch */}
-              <Card 
-                size="small" 
-                className="mb-4 rounded-xl border-slate-200 bg-slate-50"
-                styles={{ body: { padding: '12px 16px' } }}
+            {/* Emoji pill */}
+            <div
+              className="inline-flex items-center gap-2 mt-3 px-4 py-1.5 rounded-full transition-all duration-300"
+              style={{ background: info.bg }}
+            >
+              <span
+                className="text-lg leading-none transition-transform duration-300"
+                style={{ transform: hoveredRating ? 'scale(1.25) rotate(-6deg)' : 'scale(1) rotate(0)' }}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Text strong className="text-slate-700">Submit anonymously</Text>
-                    <Paragraph className="!mb-0 text-xs text-slate-500">
-                      Your rating counts, but your name stays private
-                    </Paragraph>
-                  </div>
-                  <Form.Item name="isAnonymous" valuePropName="checked" className="!mb-0">
-                    <Switch />
-                  </Form.Item>
-                </div>
-              </Card>
-
-              {/* Submit Button */}
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isPending}
-                className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:from-sky-600 hover:to-indigo-700 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                {info.emoji}
+              </span>
+              <span
+                className="text-sm font-gotham-medium transition-colors duration-300"
+                style={{ color: info.color }}
               >
-                {isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    Submitting...
-                  </span>
+                {info.label}
+              </span>
+            </div>
+          </div>
+
+          {/* ── Divider ── */}
+          <div className="mx-8 my-4 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+
+          {/* ── Feedback textarea ── */}
+          <div className="px-8 pb-2">
+            <label className="block mb-2">
+              <span className="text-[10px] font-gotham-medium uppercase tracking-[0.12em] text-slate-400">
+                {rating < 5 ? (
+                  <>How can we earn 5 stars? <span className="text-duotone-blue">*</span></>
                 ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    <HeartFilled />
-                    Submit Rating
-                  </span>
+                  'Share your experience'
                 )}
-              </button>
+              </span>
+            </label>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              maxLength={2000}
+              rows={3}
+              placeholder={
+                rating < 5
+                  ? "We'd love to do better \u2014 what could we improve?"
+                  : 'What made this session great?'
+              }
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 resize-none outline-none transition-all duration-200 focus:border-duotone-blue/50 focus:bg-white focus:ring-1 focus:ring-duotone-blue/20"
+            />
+            <div className="flex items-center justify-between mt-1 px-0.5">
+              {rating < 5 && !feedbackText.trim() && (
+                <span className="text-[11px] text-amber-600 font-gotham-medium">
+                  Required for ratings under 5 stars
+                </span>
+              )}
+              <span className="text-[11px] text-slate-400 ml-auto tabular-nums">
+                {feedbackText.length} / 2000
+              </span>
+            </div>
+          </div>
 
-              {/* Cancel link */}
-              <button
-                type="button"
-                onClick={() => onClose?.(false)}
-                disabled={isPending}
-                className="mt-3 w-full rounded-lg px-4 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed"
+          {/* ── Anonymous toggle ── */}
+          <div className="px-8 py-3">
+            <button
+              type="button"
+              onClick={() => setIsAnonymous(!isAnonymous)}
+              className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 ${
+                isAnonymous
+                  ? 'bg-duotone-blue/[0.05] border-duotone-blue/30'
+                  : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-left">
+                <p className={`text-sm font-gotham-medium transition-colors duration-200 ${isAnonymous ? 'text-duotone-blue' : 'text-slate-700'}`}>
+                  Submit anonymously
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Your rating counts, your name stays private
+                </p>
+              </div>
+              <div
+                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
+                  isAnonymous ? 'bg-duotone-blue' : 'bg-slate-300'
+                }`}
               >
-                Maybe later
-              </button>
-            </Form>
+                <div
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    isAnonymous ? 'translate-x-[22px]' : 'translate-x-0.5'
+                  }`}
+                />
+              </div>
+            </button>
+          </div>
+
+          {/* ── Actions ── */}
+          <div className="px-8 pt-1 pb-8">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isPending || !canSubmit}
+              className="group relative w-full h-12 rounded-2xl font-duotone-bold text-sm tracking-wide overflow-hidden transition-all duration-200 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer"
+              style={{
+                background: canSubmit
+                  ? 'linear-gradient(135deg, #00a8c4 0%, #0891b2 100%)'
+                  : '#e2e8f0',
+                color: canSubmit ? '#ffffff' : '#94a3b8',
+                boxShadow: canSubmit ? '0 4px 16px rgba(0,168,196,0.3)' : 'none',
+              }}
+            >
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {isPending ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Submitting&hellip;
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4 transition-transform duration-200 group-hover:scale-110"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Submit Rating
+                  </>
+                )}
+              </span>
+              {/* Hover shimmer */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClose?.(false)}
+              disabled={isPending}
+              className="w-full mt-2 py-2.5 text-sm text-slate-400 hover:text-slate-600 transition-colors duration-150 disabled:cursor-not-allowed font-gotham-medium"
+            >
+              Maybe later
+            </button>
           </div>
         </div>
       ) : (
-        <div className="p-6 text-center">
-          <Paragraph style={{ marginBottom: 0 }}>We couldn&apos;t find details for this lesson.</Paragraph>
+        <div className="py-12 px-8 text-center">
+          <p className="text-slate-500 text-sm">We couldn&apos;t find details for this lesson.</p>
         </div>
       )}
     </Modal>
@@ -245,15 +389,15 @@ RateInstructorModal.propTypes = {
     instructor: PropTypes.shape({
       id: PropTypes.string,
       name: PropTypes.string,
-      avatar: PropTypes.string
+      avatar: PropTypes.string,
     }),
     service: PropTypes.shape({
       id: PropTypes.string,
       name: PropTypes.string,
-      type: PropTypes.string
-    })
+      type: PropTypes.string,
+    }),
   }),
-  onClose: PropTypes.func
+  onClose: PropTypes.func,
 };
 
 export default RateInstructorModal;

@@ -166,9 +166,8 @@ export const CurrencyProvider = ({ children }) => {
     const currency = currencies.find(c => c.currency_code === currencyCode);
     const symbol = currency?.symbol || currencyCode;
     const numAmount = parseFloat(amount) || 0;
-    const decimalPlaces = currency?.decimal_places || 2;
-    
-    return `${symbol}${numAmount.toFixed(decimalPlaces).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+
+    return `${symbol}${Math.round(numAmount).toLocaleString('en-US')}`;
   };
 
   // Get currency symbol

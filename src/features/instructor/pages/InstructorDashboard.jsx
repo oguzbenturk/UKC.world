@@ -14,6 +14,7 @@ import UpcomingLessonsAccordion from '../components/UpcomingLessonsAccordion';
 import StudentCheckInPanel from '../components/StudentCheckInPanel';
 import LessonStatusHeatmap from '../components/LessonStatusHeatmap';
 import FloatingQuickAction from '../components/FloatingQuickAction';
+import InstructorRatingsCard from '../components/InstructorRatingsCard';
 
 const formatNumber = (value) => {
   if (value === undefined || value === null) return '—';
@@ -29,6 +30,18 @@ const formatDateTime = (value) => {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString(undefined, {
     weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const formatDateShort = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -98,7 +111,7 @@ const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, n
         ? {
           primary: {
             label: 'Go to payouts',
-            onClick: () => navigate('/finances'),
+            onClick: () => navigate('/finance'),
           },
         }
         : {},
@@ -109,13 +122,18 @@ const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, n
     slides.push({
       id: 'next-lesson',
       eyebrow: 'Next on your calendar',
-      title: `${nextLesson.studentName} at ${formatDateTime(nextLesson.startTime)}`,
-      body: 'Tap to jump into the booking board for last-minute adjustments and notes.',
+      title: `${nextLesson.studentName} at ${formatDateShort(nextLesson.startTime)}`,
+      body: 'Jump into the booking board for last-minute adjustments and notes.',
       pill: {
         label: "Today's focus",
-        variant: 'bg-emerald-500 text-white',
+        variant: 'bg-emerald-100 text-emerald-700',
       },
-      cta: {},
+      cta: {
+        primary: {
+          label: 'View calendar',
+          onClick: () => navigate('/bookings/calendar'),
+        },
+      },
     });
   }
 
@@ -161,7 +179,7 @@ const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, p
     },
     {
       title: 'Next Lesson',
-      value: nextLesson ? formatDateTime(nextLesson.startTime) : 'None scheduled',
+      value: nextLesson ? formatDateShort(nextLesson.startTime) : 'None scheduled',
       hint: nextLesson?.studentName ? `With ${nextLesson.studentName}` : 'Stay ready for new bookings',
       dotClass: 'bg-violet-500',
       textClass: 'text-violet-600',
@@ -180,12 +198,20 @@ const buildQuickActions = (navigate) => ([
   {
     title: 'Manage Students',
     description: 'Review levels, notes, and progress',
+    icon: '\uD83D\uDC65',
     onClick: () => navigate('/instructor/students'),
   },
   {
     title: 'Lesson Calendar',
     description: 'Adjust availability and reschedule',
+    icon: '\uD83D\uDCC5',
     onClick: () => navigate('/bookings/calendar'),
+  },
+  {
+    title: 'New Booking',
+    description: 'Schedule a lesson for a student',
+    icon: '\u2795',
+    onClick: () => navigate('/bookings'),
   },
 ]);
 
@@ -323,7 +349,7 @@ const InstructorDashboard = () => {
 
   const handleCreateBooking = useCallback(() => {
     analyticsService.track('instructor_dashboard_fab_clicked');
-    navigate('/bookings/new');
+    navigate('/bookings');
   }, [navigate]);
 
   if (showSkeleton) {
@@ -359,6 +385,7 @@ const InstructorDashboard = () => {
       inactiveStudents={inactiveStudents}
       statusBreakdown={statusBreakdown}
       onCreateBooking={handleCreateBooking}
+      onViewStudents={() => navigate('/instructor/students')}
     />
   );
 };
@@ -384,11 +411,12 @@ const InstructorDashboardView = ({
   topStudents,
   studentsLoading,
   onStudentNavigate,
+  onViewStudents,
   inactiveStudents,
   statusBreakdown,
   onCreateBooking,
 }) => (
-  <div className="space-y-6 p-4 md:p-6 pb-24 md:pb-10">
+  <div className="space-y-4 p-4 md:p-5 pb-20 md:pb-8">
     <HeroSection
       name={instructorName}
       nextLesson={nextLesson}
@@ -396,19 +424,20 @@ const InstructorDashboardView = ({
       refreshing={refreshing}
       lastUpdated={lastUpdated}
       slides={heroSlides}
+      quickActions={quickActions}
     />
 
     {error && (
-      <div className="rounded border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+      <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
     )}
     {studentsError && (
-      <div className="rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-700">{studentsError}</div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{studentsError}</div>
     )}
 
     <SummaryMetricStrip cards={summaryCards} loading={loading && !dataAvailable} />
 
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div className="space-y-6 xl:col-span-2">
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="space-y-4 xl:col-span-2">
         <FinanceOverview
           finance={financeSummary}
           loading={loading}
@@ -418,70 +447,90 @@ const InstructorDashboardView = ({
         />
         <UpcomingLessonsAccordion groupedLessons={groupedLessons} loading={loading} />
       </div>
-      <aside className="space-y-6">
-        <QuickActions actions={quickActions} />
+      <aside className="space-y-4">
+        <InstructorRatingsCard limit={3} />
+        <LessonStatusHeatmap breakdown={statusBreakdown} />
       </aside>
     </div>
 
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6" id="instructor-checkin">
-      <div className="space-y-6 xl:col-span-2">
-        <TopStudentsList
-          students={topStudents}
-          loading={studentsLoading}
-          onSelect={onStudentNavigate}
-        />
-        <StudentCheckInPanel
-          students={inactiveStudents}
-          loading={loading}
-          onSelect={onStudentNavigate}
-        />
-      </div>
-      <div className="space-y-6">
-        <LessonStatusHeatmap breakdown={statusBreakdown} />
-      </div>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" id="instructor-checkin">
+      <TopStudentsList
+        students={topStudents}
+        loading={studentsLoading}
+        onSelect={onStudentNavigate}
+        onViewAll={onViewStudents}
+      />
+      <StudentCheckInPanel
+        students={inactiveStudents}
+        loading={loading}
+        onSelect={onStudentNavigate}
+      />
     </div>
 
     <FloatingQuickAction label="Create booking" onClick={onCreateBooking} />
   </div>
 );
 
-const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, slides }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 md:p-8 space-y-6">
-    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-sky-500" />
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Instructor Dashboard</p>
+const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, slides, quickActions = [] }) => (
+  <section className="rounded-xl md:rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/30 to-white shadow-sm p-3 sm:p-5 md:p-6 space-y-2 sm:space-y-3">
+    <div className="flex items-start sm:items-center justify-between gap-2">
+      <div className="space-y-0.5 sm:space-y-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-sky-500 animate-pulse" />
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dashboard</p>
         </div>
-        <h1 className="text-3xl font-semibold text-slate-900">Welcome back, {name}</h1>
-        <p className="text-sm text-slate-600 max-w-xl">
+        <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate">Welcome back, {name}</h1>
+        <p className="text-xs sm:text-sm text-slate-500 line-clamp-2">
           {nextLesson ? (
             <>
-              Your next lesson is with <span className="font-semibold text-slate-900">{nextLesson.studentName}</span> at {formatDateTime(nextLesson.startTime)}.
+              Next: <span className="font-semibold text-slate-800">{nextLesson.studentName}</span> at {formatDateShort(nextLesson.startTime)}
             </>
           ) : (
-            <>You&apos;re all caught up. Use the quick actions to plan what&apos;s next.</>
+            <>All caught up. Use the quick actions below to plan ahead.</>
           )}
         </p>
-        <p className="text-xs text-slate-400">Tip: Pull down from the top on mobile to refresh instantly.</p>
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={onRefresh}
           disabled={refreshing}
-          className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-50 transition disabled:opacity-60 shadow-sm"
         >
-          {refreshing ? 'Refreshing…' : 'Refresh data'}
+          {refreshing ? '\u21BB' : 'Refresh'}
         </button>
         {lastUpdated && (
-          <p className="text-xs text-slate-500">
-            Updated {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <p className="text-[10px] text-slate-400 hidden sm:block">
+            {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </div>
     </div>
-    <HeroCarousel slides={slides} />
+
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-2 sm:gap-3 items-stretch">
+      <HeroCarousel slides={slides} />
+      {quickActions.length > 0 && (
+        <div className="grid grid-cols-3 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:w-44">
+          {quickActions.map((action) => (
+            <button
+              key={action.title}
+              type="button"
+              onClick={action.onClick}
+              className="text-center lg:text-left rounded-lg border border-slate-100 bg-white/80 backdrop-blur-sm px-2 py-2 sm:px-3.5 sm:py-2.5 hover:bg-sky-50 hover:border-sky-200 active:scale-[0.97] transition group"
+            >
+              {action.icon && <span className="text-base lg:hidden block">{action.icon}</span>}
+              <div className="flex items-center gap-2">
+                {action.icon && <span className="text-sm hidden lg:block">{action.icon}</span>}
+                <div>
+                  <p className="text-[11px] sm:text-sm font-medium text-slate-800 group-hover:text-sky-700 transition">{action.title}</p>
+                  <p className="text-[10px] text-slate-400 hidden lg:block">{action.description}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   </section>
 );
 
@@ -489,12 +538,12 @@ const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, p
   const effectivePendingHint = pendingInfo?.meetsThreshold ? 'Eligible to request payout now.' : pendingHint;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <FinanceTile label="Total Earned" value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
         <FinanceTile label="Month to Date" value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
         <FinanceTile label="Pending" value={formatAmount(finance?.pending)} accent="text-amber-600" hint={effectivePendingHint} />
-        <FinanceTile label="Total Paid Out" value={formatAmount(finance?.totalPaid)} accent="text-violet-600" hint={`Net payments ${formatAmount(finance?.netPayments)}`} />
+        <FinanceTile label="Paid Out" value={formatAmount(finance?.totalPaid)} accent="text-violet-600" hint={`Net ${formatAmount(finance?.netPayments)}`} />
       </div>
 
       <EarningsTrendCard
@@ -504,15 +553,15 @@ const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, p
         pendingThreshold={pendingInfo}
       />
 
-      <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-        <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Last Payout</p>
+      <div className="rounded-xl border border-slate-100 p-4 bg-gradient-to-r from-slate-50/50 to-white">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Last Payout</p>
         {finance?.lastPayout ? (
-          <div>
-            <p className="text-lg font-semibold text-slate-900">{formatAmount(finance.lastPayout.amount)}</p>
-            <p className="text-xs text-slate-500 mt-1">Paid {formatDateTime(finance.lastPayout.paymentDate)}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(finance.lastPayout.amount)}</p>
+            <p className="text-xs text-slate-400">Paid {formatDateTime(finance.lastPayout.paymentDate)}</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No payouts recorded yet.</p>
+          <p className="text-sm text-slate-400">No payouts recorded yet.</p>
         )}
       </div>
     </div>
@@ -520,65 +569,105 @@ const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, p
 };
 
 const FinanceEarningsTable = ({ earnings, formatAmount }) => (
-  <div className="overflow-x-auto">
-    <table className="min-w-full text-sm">
-      <thead className="text-xs uppercase tracking-wide text-slate-500">
-        <tr className="text-left">
-          <th className="py-2 pr-4">Date</th>
-          <th className="py-2 pr-4">Student</th>
-          <th className="py-2 pr-4">Hours</th>
-          <th className="py-2 pr-4">Amount</th>
-          <th className="py-2 pr-4">Status</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {earnings?.length ? earnings.map((row) => (
-          <tr key={row.bookingId}>
-            <td className="py-2 pr-4 text-slate-700">{formatDateTime(row.lessonDate)}</td>
-            <td className="py-2 pr-4 text-slate-600">{row.studentName || '—'}</td>
-            <td className="py-2 pr-4 text-slate-600">{formatNumber(row.durationHours)}</td>
-            <td className="py-2 pr-4 font-semibold text-slate-900">{formatAmount(row.amount)}</td>
-            <td className="py-2 pr-4"><span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-600">{row.status}</span></td>
+  <>
+    {/* Desktop table */}
+    <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-50/70">
+          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <th className="py-2.5 px-4">Date</th>
+            <th className="py-2.5 px-4">Student</th>
+            <th className="py-2.5 px-4">Hours</th>
+            <th className="py-2.5 px-4">Amount</th>
+            <th className="py-2.5 px-4">Status</th>
           </tr>
-        )) : (
-          <tr>
-            <td colSpan={5} className="py-4 text-center text-xs text-slate-500">No earnings recorded yet.</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {earnings?.length ? earnings.map((row) => (
+            <tr key={row.bookingId} className="hover:bg-slate-50/50 transition">
+              <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(row.lessonDate)}</td>
+              <td className="py-2.5 px-4 text-slate-800 font-medium">{row.studentName || '\u2014'}</td>
+              <td className="py-2.5 px-4 text-slate-500 tabular-nums">{formatNumber(row.durationHours)}</td>
+              <td className="py-2.5 px-4 font-semibold text-slate-900 tabular-nums">{formatAmount(row.amount)}</td>
+              <td className="py-2.5 px-4"><span className="inline-flex items-center rounded-full bg-sky-50 text-sky-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">{row.status}</span></td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">No earnings recorded yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+    {/* Mobile cards */}
+    <div className="sm:hidden space-y-2">
+      {earnings?.length ? earnings.map((row) => (
+        <div key={row.bookingId} className="rounded-lg border border-slate-100 px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-800">{row.studentName || '\u2014'}</span>
+            <span className="text-xs font-bold text-slate-900 tabular-nums">{formatAmount(row.amount)}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-slate-400">{formatDateTime(row.lessonDate)}</span>
+            <span className="inline-flex items-center rounded-full bg-sky-50 text-sky-700 px-1.5 py-0.5 text-[9px] font-medium uppercase">{row.status}</span>
+          </div>
+        </div>
+      )) : (
+        <p className="text-center text-xs text-slate-400 py-4">No earnings recorded yet.</p>
+      )}
+    </div>
+  </>
 );
 
 const FinancePaymentsTable = ({ payments, formatAmount }) => (
-  <div className="overflow-x-auto">
-    <table className="min-w-full text-sm">
-      <thead className="text-xs uppercase tracking-wide text-slate-500">
-        <tr className="text-left">
-          <th className="py-2 pr-4">Date</th>
-          <th className="py-2 pr-4">Amount</th>
-          <th className="py-2 pr-4">Description</th>
-          <th className="py-2 pr-4">Method</th>
-          <th className="py-2 pr-4">Reference</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {payments?.length ? payments.map((payment) => (
-          <tr key={payment.id}>
-            <td className="py-2 pr-4 text-slate-700">{formatDateTime(payment.paymentDate)}</td>
-            <td className="py-2 pr-4 font-semibold text-emerald-600">{formatAmount(payment.amount)}</td>
-            <td className="py-2 pr-4 text-slate-600">{payment.description || 'Instructor payout'}</td>
-            <td className="py-2 pr-4 text-slate-600">{payment.method || 'balance'}</td>
-            <td className="py-2 pr-4 text-slate-500">{payment.referenceNumber || '—'}</td>
+  <>
+    {/* Desktop table */}
+    <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
+      <table className="min-w-full text-sm">
+        <thead className="bg-slate-50/70">
+          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <th className="py-2.5 px-4">Date</th>
+            <th className="py-2.5 px-4">Amount</th>
+            <th className="py-2.5 px-4">Description</th>
+            <th className="py-2.5 px-4">Method</th>
+            <th className="py-2.5 px-4">Reference</th>
           </tr>
-        )) : (
-          <tr>
-            <td colSpan={5} className="py-4 text-center text-xs text-slate-500">No payout history yet.</td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {payments?.length ? payments.map((payment) => (
+            <tr key={payment.id} className="hover:bg-slate-50/50 transition">
+              <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(payment.paymentDate)}</td>
+              <td className="py-2.5 px-4 font-semibold text-emerald-600 tabular-nums">{formatAmount(payment.amount)}</td>
+              <td className="py-2.5 px-4 text-slate-600">{payment.description || 'Instructor payout'}</td>
+              <td className="py-2.5 px-4 text-slate-500 capitalize">{payment.method || 'balance'}</td>
+              <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{payment.referenceNumber || '\u2014'}</td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">No payout history yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+    {/* Mobile cards */}
+    <div className="sm:hidden space-y-2">
+      {payments?.length ? payments.map((payment) => (
+        <div key={payment.id} className="rounded-lg border border-slate-100 px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-emerald-600 tabular-nums">{formatAmount(payment.amount)}</span>
+            <span className="text-[10px] text-slate-400 capitalize">{payment.method || 'balance'}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[10px] text-slate-400">{formatDateTime(payment.paymentDate)}</span>
+            <span className="text-[10px] text-slate-500">{payment.description || 'Payout'}</span>
+          </div>
+        </div>
+      )) : (
+        <p className="text-center text-xs text-slate-400 py-4">No payout history yet.</p>
+      )}
+    </div>
+  </>
 );
 
 const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTab }) => {
@@ -619,13 +708,13 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
   const hasFinance = Boolean(finance);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-      <header className="flex items-center justify-between mb-4">
+    <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
+      <header className="flex items-center justify-between mb-2 sm:mb-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Earnings Focus</h2>
-          <p className="text-xs text-slate-500">Personal finance summary</p>
+          <h2 className="text-sm sm:text-base font-semibold text-slate-900">Earnings Focus</h2>
+          <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">Personal finance summary</p>
         </div>
-        <span className="text-xs text-slate-500">{lifetimeEarnings} lifetime</span>
+        <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums">{lifetimeEarnings}</span>
       </header>
       {loading && !hasFinance ? (
         <div className="space-y-3">
@@ -648,10 +737,10 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
 };
 
 const FinanceTile = ({ label, value, accent, hint }) => (
-  <div className="rounded-xl border border-slate-200 p-4 bg-white">
-    <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-    <p className={`mt-2 text-xl font-semibold text-slate-900 ${accent}`}>{value}</p>
-    {hint && <p className="mt-2 text-xs text-slate-500">{hint}</p>}
+  <div className="rounded-lg border border-slate-100 px-2.5 py-2 sm:px-3 sm:py-2.5 bg-white hover:bg-slate-50/50 transition">
+    <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+    <p className={`mt-0.5 sm:mt-1 text-sm sm:text-lg font-bold tabular-nums truncate ${accent || 'text-slate-900'}`}>{value}</p>
+    {hint && <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 truncate">{hint}</p>}
   </div>
 );
 
@@ -686,72 +775,83 @@ const DashboardSkeleton = () => (
 );
 
 const QuickActions = ({ actions }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 h-full">
-    <header className="mb-4">
-      <h2 className="text-lg font-semibold text-slate-900">Quick links</h2>
-      <p className="text-xs text-slate-500">Jump straight into common instructor workflows.</p>
-    </header>
-    <div className="space-y-3">
+  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
+    <h2 className="text-sm font-semibold text-slate-900 mb-2">Quick links</h2>
+    <div className="space-y-2">
       {actions.map((action) => (
         <button
           key={action.title}
           type="button"
           onClick={action.onClick}
-          className="w-full text-left rounded-xl border border-slate-200 px-4 py-3 bg-white hover:bg-slate-50 transition"
+          className="w-full text-left rounded-lg border border-slate-100 px-3 py-2 bg-white hover:bg-sky-50/50 hover:border-sky-200 transition group"
         >
-          <p className="text-sm font-semibold text-slate-900">{action.title}</p>
-          <p className="text-xs text-slate-500 mt-1">{action.description}</p>
+          <div className="flex items-center gap-2.5">
+            {action.icon && <span className="text-sm">{action.icon}</span>}
+            <div>
+              <p className="text-sm font-medium text-slate-800 group-hover:text-sky-700 transition">{action.title}</p>
+              <p className="text-[11px] text-slate-400">{action.description}</p>
+            </div>
+          </div>
         </button>
       ))}
     </div>
   </section>
 );
 
-const TopStudentsList = ({ students, loading, onSelect }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-    <header className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-slate-900">Student spotlight</h2>
+const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => (
+  <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
+    <header className="flex items-center justify-between mb-2 sm:mb-3">
+      <h2 className="text-sm sm:text-base font-semibold text-slate-900">Student spotlight</h2>
       <button
         type="button"
-        onClick={() => onSelect && students?.[0]?.studentId && onSelect(students[0].studentId)}
-        className="text-xs text-slate-500 hover:text-slate-600"
+        onClick={onViewAll}
+        className="text-xs text-sky-500 hover:text-sky-600 font-medium"
       >
-        View roster
+        View all &rarr;
       </button>
     </header>
     {loading && !students.length ? (
       <div className="space-y-3">
         {placeholderKeys.map((key) => (
-          <div key={key} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
+          <div key={key} className="h-14 rounded-xl bg-slate-100/70 animate-pulse" />
         ))}
       </div>
     ) : !students.length ? (
-      <p className="text-sm text-slate-500">We&apos;ll highlight students here once lessons are booked.</p>
+      <div className="rounded-xl bg-slate-50 px-4 py-6 text-center">
+        <p className="text-sm text-slate-500">We&apos;ll highlight students here once lessons are booked.</p>
+      </div>
     ) : (
-      <ul className="space-y-3">
+      <ul className="space-y-2">
         {students.map((student) => (
           <li key={student.studentId}>
             <button
               type="button"
               onClick={() => onSelect?.(student.studentId)}
-              className="w-full text-left rounded-xl border border-slate-200 px-4 py-3 bg-white hover:bg-slate-50 transition"
+              className="w-full text-left rounded-lg sm:rounded-xl border border-slate-100 px-3 py-2.5 sm:px-4 sm:py-3 bg-white hover:bg-sky-50/30 hover:border-sky-200 active:scale-[0.98] sm:hover:-translate-y-0.5 transition group"
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{student.name}</p>
-                  <p className="text-xs text-slate-500">{student.skillLevel || 'Skill level TBD'}</p>
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 flex items-center justify-center text-sky-700 text-[11px] sm:text-xs font-semibold shrink-0">
+                    {(student.name || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-sky-700 transition truncate">{student.name}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400">{student.skillLevel || 'Skill level TBD'}</p>
+                  </div>
                 </div>
-                <span className="text-xs text-slate-500">{student.totalHours}h</span>
+                <span className="text-[10px] sm:text-xs font-medium text-slate-500 tabular-nums shrink-0">{student.totalHours}h</span>
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-400 to-sky-500"
-                    style={{ width: `${student.progressPercent}%` }}
-                  />
+              {student.progressPercent > 0 && (
+                <div className="mt-1.5 sm:mt-2 flex items-center gap-2 ml-[38px] sm:ml-11">
+                  <div className="flex-1 h-1 sm:h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-400 to-sky-500 rounded-full"
+                      style={{ width: `${student.progressPercent}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] tabular-nums text-slate-400">{student.progressPercent}%</span>
                 </div>
-                <span className="text-[10px] uppercase tracking-wide text-slate-500">{student.progressPercent}%</span>
-              </div>
+              )}
             </button>
           </li>
         ))}

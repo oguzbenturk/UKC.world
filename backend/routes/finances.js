@@ -26,7 +26,7 @@ import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzi
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
 
-const CREDIT_TRANSACTION_TYPES = new Set(['credit', 'manual_credit', 'wallet_deposit', 'refund', 'booking_deleted_refund', 'package_refund']);
+const CREDIT_TRANSACTION_TYPES = new Set(['credit', 'manual_credit', 'wallet_deposit', 'refund', 'booking_deleted_refund', 'booking_cancelled_refund', 'rental_cancelled_refund', 'package_refund']);
 const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'payment', 'service_payment', 'rental_payment', 'rental_charge', 'booking_charge', 'package_purchase']);
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
@@ -506,7 +506,34 @@ router.get('/transactions/payments', authenticateJWT, authorizeRoles(['admin', '
   }
 });
 
-router.get('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+const authorizeTransactionAccess = async (req, res, next) => {
+  try {
+    const requestedUserId = req.query.user_id;
+    const currentUserId = req.user?.id;
+
+    // Allow if user is fetching their own transactions
+    if (requestedUserId && requestedUserId === currentUserId) {
+      return next();
+    }
+
+    // Otherwise require admin/manager
+    const roleResult = await pool.query(
+      `SELECT r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
+      [currentUserId]
+    );
+    const userRole = roleResult.rows[0]?.role_name;
+    if (userRole && ['admin', 'manager'].includes(userRole)) {
+      return next();
+    }
+
+    return res.status(403).json({ error: 'Access denied. You can only view your own financial data.' });
+  } catch (error) {
+    logger.error('Authorization error:', error);
+    return res.status(500).json({ error: 'Authorization check failed' });
+  }
+};
+
+router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (req, res) => {
   try {
     const {
       user_id,

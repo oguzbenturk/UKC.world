@@ -12,16 +12,16 @@ export function formatCurrency(value, currencyCode = null, currencySymbol = null
   const numValue = parseFloat(value ?? 0) || 0;
   // If a custom symbol is provided, keep legacy behavior
   if (currencySymbol) {
-    return `${currencySymbol}${numValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    return `${currencySymbol}${Math.round(numValue).toLocaleString('en-US')}`;
   }
   const code = (currencyCode
     || (typeof window !== 'undefined' && window.__APP_CURRENCY__ && (window.__APP_CURRENCY__.business || window.__APP_CURRENCY__.user))
     || 'EUR');
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(numValue);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(numValue);
   } catch {
     // Safe fallback
-    return `${code}${numValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    return `${code}${Math.round(numValue).toLocaleString('en-US')}`;
   }
 }
 

@@ -1,494 +1,301 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  Card,
-  Tag,
-  Button,
-  Space,
-  Modal,
-  Select,
-  message,
-  Input,
-  Statistic,
-  Row,
-  Col,
-  Typography,
-  Collapse
-} from 'antd';
+import { useState, useMemo } from 'react';
+import { Segmented, Drawer, Tag, Button, Space, message } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   MessageOutlined,
   SyncOutlined,
-  DownOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
+import SupportDashboardStats from '../components/support/SupportDashboardStats';
+import TicketFilters from '../components/support/TicketFilters';
+import TicketInbox from '../components/support/TicketInbox';
+import TicketConversationPanel from '../components/support/TicketConversationPanel';
+import {
+  useSupportTickets,
+  useSupportStatistics,
+  useUpdateTicketStatus,
+  useAddTicketNote,
+} from '../hooks/useSupportTickets';
 
-const { TextArea } = Input;
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+/* ── helpers shared by table view ── */
 
-const getPriorityColor = (priority) => {
-  const colors = {
-    urgent: 'red',
-    high: 'orange',
-    normal: 'blue',
-    low: 'default'
-  };
-  return colors[priority] || 'default';
-};
+const getPriorityColor = (p) => ({ urgent: 'red', high: 'orange', normal: 'blue', low: 'default' })[p] || 'default';
+const getStatusColor = (s) => ({ open: 'orange', in_progress: 'blue', resolved: 'green', closed: 'default' })[s] || 'default';
+const getStatusIcon = (s) => ({
+  open: <ExclamationCircleOutlined />,
+  in_progress: <SyncOutlined spin />,
+  resolved: <CheckCircleOutlined />,
+  closed: <ClockCircleOutlined />,
+})[s] || null;
 
-const getStatusColor = (status) => {
-  const colors = {
-    open: 'orange',
-    in_progress: 'blue',
-    resolved: 'green',
-    closed: 'default'
-  };
-  return colors[status] || 'default';
-};
+/* ── Mobile card for table view ── */
 
-const getStatusIcon = (status) => {
-  const icons = {
-    open: <ExclamationCircleOutlined />,
-    in_progress: <SyncOutlined spin />,
-    resolved: <CheckCircleOutlined />,
-    closed: <ClockCircleOutlined />
-  };
-  return icons[status] || null;
-};
-
-const SupportTicketMobileCard = ({ record, onUpdateStatus, onAddNote }) => {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Card 
-      size="small" 
-      className="mb-3 border-gray-100 shadow-sm"
-      actions={[
-        record.status === 'open' && (
-          <Button key="start" type="link" size="small" onClick={() => onUpdateStatus(record.id, 'in_progress')}>Start</Button>
-        ),
-        ['open', 'in_progress'].includes(record.status) && (
-          <Button key="resolve" type="link" size="small" className="text-green-600" onClick={() => onUpdateStatus(record.id, 'resolved')}>Resolve</Button>
-        ),
-        record.status === 'resolved' && (
-          <Button key="close" type="link" size="small" onClick={() => onUpdateStatus(record.id, 'closed')}>Close</Button>
-        ),
-        <Button key="note" type="link" size="small" icon={<MessageOutlined />} onClick={() => onAddNote(record)}>Note</Button>
-      ].filter(Boolean)}
-    >
-      <div className="flex justify-between items-start mb-2">
-         <Space direction="vertical" size={0}>
-            <Text strong className="text-lg">{record.student_name}</Text>
-            <Text type="secondary" className="text-xs">{record.student_email}</Text>
-         </Space>
-         <div className="flex flex-col items-end gap-1">
-            <Tag color={getPriorityColor(record.priority)}>{record.priority?.toUpperCase()}</Tag>
-            <Tag icon={getStatusIcon(record.status)} color={getStatusColor(record.status)}>
-              {record.status?.replace('_', ' ').toUpperCase()}
-            </Tag>
-         </div>
+const MobileCard = ({ record, onSelect }) => (
+  <button
+    type="button"
+    onClick={() => onSelect(record)}
+    className="w-full text-left rounded-xl border border-slate-100 bg-white p-3 shadow-sm mb-3"
+  >
+    <div className="flex justify-between items-start mb-2">
+      <div>
+        <p className="font-semibold text-sm text-slate-800">{record.student_name}</p>
+        <p className="text-xs text-slate-500">{record.student_email}</p>
       </div>
-      
-      <div className="mb-2">
-        <Text strong>{record.subject}</Text>
+      <div className="flex flex-col items-end gap-1">
+        <Tag color={getPriorityColor(record.priority)}>{record.priority?.toUpperCase()}</Tag>
+        <Tag icon={getStatusIcon(record.status)} color={getStatusColor(record.status)}>
+          {record.status?.replace('_', ' ').toUpperCase()}
+        </Tag>
       </div>
+    </div>
+    <p className="text-sm text-slate-700 truncate">{record.subject}</p>
+    <div className="flex justify-between items-center mt-2 text-xs text-slate-400">
+      <Tag className="m-0">{record.channel}</Tag>
+      <span>{new Date(record.created_at).toLocaleDateString()}</span>
+    </div>
+  </button>
+);
 
-      <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-         <Tag>{record.channel}</Tag>
-         <span>{new Date(record.created_at).toLocaleString()}</span>
-      </div>
+/* ── Page ── */
 
-       <Button 
-        type="text" 
-        size="small" 
-        block 
-        onClick={() => setExpanded(!expanded)}
-        className="text-gray-500 bg-gray-50 text-xs"
-        icon={<DownOutlined rotate={expanded ? 180 : 0}/>}
-      >
-        {expanded ? 'Hide Details' : 'Show Details'}
-      </Button>
-
-      {expanded && (
-        <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
-          <div className="mb-2">
-            <strong>Message:</strong>
-            <div className="mt-1 p-2 bg-white rounded border border-gray-100">
-               {record.message}
-            </div>
-          </div>
-          {record.metadata?.notes && record.metadata.notes.length > 0 && (
-            <div>
-              <strong>Internal Notes:</strong>
-              {record.metadata.notes.map((n, i) => (
-                <div key={i} className="mt-1 p-2 bg-yellow-50 rounded border border-yellow-100 text-xs">
-                   <div className="text-gray-400 mb-1">{new Date(n.timestamp).toLocaleString()}</div>
-                   <div>{n.note}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
-  );
-};
-
-
-/**
- * SupportTicketsPage - Admin/Manager support ticket management
- * View all student support requests with filtering and status management
- */
 const SupportTicketsPage = () => {
-  const [tickets, setTickets] = useState([]);
-  const [statistics, setStatistics] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState('inbox');
+  const [filters, setFilters] = useState({ status: null, priority: null, channel: null });
+  const [search, setSearch] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [filters, setFilters] = useState({
-    status: null,
-    priority: null
-  });
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  const fetchTickets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (filters.status) params.status = filters.status;
-      if (filters.priority) params.priority = filters.priority;
+  const { data: tickets = [], isLoading, refetch } = useSupportTickets(filters);
+  const { data: statistics } = useSupportStatistics();
+  const updateStatus = useUpdateTicketStatus();
+  const addNote = useAddTicketNote();
 
-      const response = await axios.get('/api/admin/support-tickets', { params });
-      setTickets(response.data.data);
-    } catch {
-      message.error('Failed to load support tickets');
-      // Error already handled
-    } finally {
-      setLoading(false);
+  /* client-side filtering for search + channel (backend only filters status/priority) */
+  const filteredTickets = useMemo(() => {
+    let result = tickets;
+    if (filters.channel) {
+      result = result.filter((t) => t.channel === filters.channel);
     }
-  }, [filters]);
-
-  const fetchStatistics = async () => {
-    try {
-      const response = await axios.get('/api/admin/support-tickets/statistics');
-      setStatistics(response.data.data);
-    } catch {
-      // Statistics are optional, fail silently
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.student_name?.toLowerCase().includes(q) ||
+          t.subject?.toLowerCase().includes(q) ||
+          t.student_email?.toLowerCase().includes(q)
+      );
     }
+    return result;
+  }, [tickets, filters.channel, search]);
+
+  const handleSelectTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    if (window.innerWidth < 768) setMobileDrawerOpen(true);
   };
 
-  useEffect(() => {
-    fetchTickets();
-    fetchStatistics();
-  }, [fetchTickets]);
+  /* Keep selectedTicket in sync with latest data */
+  const activeTicket = useMemo(() => {
+    if (!selectedTicket) return null;
+    return filteredTickets.find((t) => t.id === selectedTicket.id) || selectedTicket;
+  }, [selectedTicket, filteredTickets]);
 
-  const updateTicketStatus = async (ticketId, newStatus) => {
-    try {
-      await axios.patch(`/api/admin/support-tickets/${ticketId}/status`, {
-        status: newStatus
-      });
-      message.success(`Ticket marked as ${newStatus}`);
-      fetchTickets();
-      fetchStatistics();
-    } catch {
-      message.error('Failed to update ticket status');
-    }
-  };
-
-  const addNote = async () => {
-    if (!noteText.trim()) {
-      message.warning('Please enter a note');
-      return;
-    }
-
-    try {
-      await axios.post(`/api/admin/support-tickets/${selectedTicket.id}/notes`, {
-        note: noteText
-      });
-      message.success('Note added successfully');
-      setIsNoteModalOpen(false);
-      setNoteText('');
-      fetchTickets();
-    } catch {
-      message.error('Failed to add note');
-    }
-  };
-
+  /* ── table columns ── */
   const columns = [
     {
       title: 'Priority',
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
-      render: (priority) => (
-        <Tag color={getPriorityColor(priority)}>
-          {priority?.toUpperCase()}
-        </Tag>
-      )
+      render: (p) => <Tag color={getPriorityColor(p)}>{p?.toUpperCase()}</Tag>,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status) => (
-        <Tag icon={getStatusIcon(status)} color={getStatusColor(status)}>
-          {status?.replace('_', ' ').toUpperCase()}
+      render: (s) => (
+        <Tag icon={getStatusIcon(s)} color={getStatusColor(s)}>
+          {s?.replace('_', ' ').toUpperCase()}
         </Tag>
-      )
+      ),
     },
     {
       title: 'Student',
       key: 'student',
       width: 200,
-      render: (_, record) => (
+      render: (_, r) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{record.student_name}</div>
-          <div style={{ fontSize: '12px', color: '#888' }}>{record.student_email}</div>
+          <p className="font-medium text-sm">{r.student_name}</p>
+          <p className="text-xs text-slate-400">{r.student_email}</p>
         </div>
-      )
+      ),
     },
-    {
-      title: 'Subject',
-      dataIndex: 'subject',
-      key: 'subject',
-      ellipsis: true
-    },
-    {
-      title: 'Channel',
-      dataIndex: 'channel',
-      key: 'channel',
-      width: 100,
-      render: (channel) => <Tag>{channel}</Tag>
-    },
+    { title: 'Subject', dataIndex: 'subject', key: 'subject', ellipsis: true },
+    { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 100, render: (c) => <Tag>{c}</Tag> },
     {
       title: 'Created',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 180,
-      render: (date) => new Date(date).toLocaleString()
+      width: 160,
+      render: (d) => new Date(d).toLocaleDateString(),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 250,
+      width: 200,
       render: (_, record) => (
         <Space size="small" wrap>
           {record.status === 'open' && (
             <Button
               type="primary"
               size="small"
-              onClick={() => updateTicketStatus(record.id, 'in_progress')}
+              loading={updateStatus.isPending}
+              onClick={() =>
+                updateStatus.mutate(
+                  { ticketId: record.id, status: 'in_progress' },
+                  { onSuccess: () => message.success('Started') }
+                )
+              }
             >
               Start
             </Button>
           )}
           {['open', 'in_progress'].includes(record.status) && (
             <Button
-              type="primary"
               size="small"
-              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-              onClick={() => updateTicketStatus(record.id, 'resolved')}
+              className="border-emerald-300 text-emerald-600"
+              loading={updateStatus.isPending}
+              onClick={() =>
+                updateStatus.mutate(
+                  { ticketId: record.id, status: 'resolved' },
+                  { onSuccess: () => message.success('Resolved') }
+                )
+              }
             >
               Resolve
             </Button>
           )}
-          {record.status === 'resolved' && (
-            <Button
-              size="small"
-              onClick={() => updateTicketStatus(record.id, 'closed')}
-            >
-              Close
-            </Button>
-          )}
-          <Button
-            size="small"
-            icon={<MessageOutlined />}
-            onClick={() => {
-              setSelectedTicket(record);
-              setIsNoteModalOpen(true);
-            }}
-          >
-            Note
+          <Button size="small" icon={<MessageOutlined />} onClick={() => handleSelectTicket(record)}>
+            View
           </Button>
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>Support Tickets</Title>
+    <div className="space-y-5 p-4 md:p-6">
+      {/* Header */}
+      <div>
+        <h2 className="font-duotone-bold text-lg text-slate-900">Support Tickets</h2>
+        <p className="text-sm text-slate-500">Manage support requests across all channels</p>
+      </div>
 
-      {/* Statistics Dashboard */}
-      {statistics && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Total Tickets"
-                value={statistics.total}
-                prefix={<ExclamationCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Open"
-                value={statistics.byStatus.open || 0}
-                valueStyle={{ color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="In Progress"
-                value={statistics.byStatus.in_progress || 0}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Resolved"
-                value={statistics.byStatus.resolved || 0}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-      )}
+      {/* Stats */}
+      <SupportDashboardStats statistics={statistics} />
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space size="large">
-          <div>
-            <span style={{ marginRight: 8 }}>Status:</span>
-            <Select
-              allowClear
-              placeholder="All statuses"
-              style={{ width: 150 }}
-              value={filters.status}
-              onChange={(value) => setFilters({ ...filters, status: value })}
-              options={[
-                { value: 'open', label: 'Open' },
-                { value: 'in_progress', label: 'In Progress' },
-                { value: 'resolved', label: 'Resolved' },
-                { value: 'closed', label: 'Closed' }
-              ]}
-            />
-          </div>
-          <div>
-            <span style={{ marginRight: 8 }}>Priority:</span>
-            <Select
-              allowClear
-              placeholder="All priorities"
-              style={{ width: 150 }}
-              value={filters.priority}
-              onChange={(value) => setFilters({ ...filters, priority: value })}
-              options={[
-                { value: 'urgent', label: 'Urgent' },
-                { value: 'high', label: 'High' },
-                { value: 'normal', label: 'Normal' },
-                { value: 'low', label: 'Low' }
-              ]}
-            />
-          </div>
-          <Button onClick={fetchTickets} icon={<SyncOutlined />}>
-            Refresh
-          </Button>
-        </Space>
-      </Card>
+      <TicketFilters
+        filters={filters}
+        onChange={setFilters}
+        onRefresh={refetch}
+        search={search}
+        onSearchChange={setSearch}
+      />
 
-      {/* Tickets Table */}
-      <Card>
-        <UnifiedResponsiveTable
-          dataSource={tickets}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} tickets`
-          }}
-          expandable={{
-            expandedRowRender: (record) => (
-              <div style={{ padding: '12px 0' }}>
-                <div style={{ marginBottom: 12 }}>
-                  <strong>Message:</strong>
-                  <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
-                    {record.message}
-                  </div>
-                </div>
-                {record.metadata?.notes && record.metadata.notes.length > 0 && (
+      {/* View toggle */}
+      <Segmented
+        value={viewMode}
+        onChange={setViewMode}
+        options={[
+          { value: 'inbox', label: 'Inbox' },
+          { value: 'table', label: 'Table' },
+        ]}
+      />
+
+      {/* Inbox view */}
+      {viewMode === 'inbox' && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-4">
+            <TicketInbox
+              tickets={filteredTickets}
+              selectedId={activeTicket?.id}
+              onSelect={handleSelectTicket}
+              loading={isLoading}
+            />
+          </div>
+          <div className="hidden md:block md:col-span-8">
+            <TicketConversationPanel ticket={activeTicket} />
+          </div>
+        </div>
+      )}
+
+      {/* Table view */}
+      {viewMode === 'table' && (
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+          <UnifiedResponsiveTable
+            dataSource={filteredTickets}
+            columns={columns}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{
+              pageSize: 20,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} tickets`,
+            }}
+            expandable={{
+              expandedRowRender: (record) => (
+                <div className="p-3 space-y-3">
                   <div>
-                    <strong>Internal Notes:</strong>
-                    {record.metadata.notes.map((note) => (
-                      <div
-                        key={`${note.timestamp}-${note.note.slice(0, 20)}`}
-                        style={{
-                          marginTop: 8,
-                          padding: 12,
-                          backgroundColor: '#fffbe6',
-                          borderRadius: 4,
-                          borderLeft: '3px solid #faad14'
-                        }}
-                      >
-                        <div style={{ fontSize: '12px', color: '#888' }}>
-                          {new Date(note.timestamp).toLocaleString()}
-                        </div>
-                        <div>{note.note}</div>
-                      </div>
-                    ))}
+                    <p className="text-xs font-medium text-slate-500 mb-1">Message</p>
+                    <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                      {record.message}
+                    </div>
                   </div>
-                )}
-              </div>
-            )
-          }}
-          mobileCardRenderer={(props) => (
-            <SupportTicketMobileCard 
-              {...props} 
-              onUpdateStatus={updateTicketStatus}
-              onAddNote={(record) => {
-                  setSelectedTicket(record);
-                  setIsNoteModalOpen(true);
-              }}
-            />
-          )}
-        />
-      </Card>
+                  {record.metadata?.notes?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 mb-1">Notes</p>
+                      {record.metadata.notes.map((n, i) => (
+                        <div
+                          key={i}
+                          className={`mt-1 rounded-lg p-3 text-sm ${
+                            n.type === 'reply'
+                              ? 'bg-sky-50 border border-sky-100'
+                              : 'bg-amber-50 border-l-2 border-amber-300'
+                          }`}
+                        >
+                          <p className="text-[10px] text-slate-400 mb-1">
+                            {n.type === 'reply' ? 'Reply' : 'Internal Note'} &middot;{' '}
+                            {new Date(n.timestamp).toLocaleString()}
+                          </p>
+                          <p>{n.note}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ),
+            }}
+            mobileCardRenderer={(props) => (
+              <MobileCard {...props} onSelect={handleSelectTicket} />
+            )}
+          />
+        </div>
+      )}
 
-      {/* Add Note Modal */}
-      <Modal
-        title="Add Internal Note"
-        open={isNoteModalOpen}
-        onCancel={() => {
-          setIsNoteModalOpen(false);
-          setNoteText('');
-        }}
-        onOk={addNote}
-        okText="Add Note"
+      {/* Mobile drawer for conversation */}
+      <Drawer
+        title={activeTicket?.subject || 'Ticket'}
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        width="100%"
+        placement="right"
+        className="md:hidden"
       >
-        {selectedTicket && (
-          <div style={{ marginBottom: 16 }}>
-            <div><strong>Student:</strong> {selectedTicket.student_name}</div>
-            <div><strong>Subject:</strong> {selectedTicket.subject}</div>
-          </div>
-        )}
-        <TextArea
-          rows={4}
-          placeholder="Enter internal note (not visible to student)..."
-          value={noteText}
-          onChange={(e) => setNoteText(e.target.value)}
-        />
-      </Modal>
+        <TicketConversationPanel ticket={activeTicket} />
+      </Drawer>
     </div>
   );
 };

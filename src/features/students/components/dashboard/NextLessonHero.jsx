@@ -57,13 +57,6 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
             <h2 className="font-duotone-bold-extended text-xl text-slate-900">Your kite is waiting</h2>
             <p className="mt-1 font-duotone-regular text-sm text-slate-500">No lessons on the horizon yet — book one to get started.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/academy/book-service')}
-            className="rounded-full bg-[#00a8c4] px-6 py-2.5 font-gotham-medium text-sm text-white shadow-sm transition hover:shadow-md hover:brightness-110"
-          >
-            Book a lesson
-          </button>
         </div>
       </section>
     );

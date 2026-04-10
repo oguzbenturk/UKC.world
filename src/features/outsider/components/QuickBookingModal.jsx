@@ -667,7 +667,7 @@ const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, o
   );
 };
 
-const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions, partnerInfo, includePartner, onTogglePartner }) => (
+const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], maxSessions = Infinity, onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions, partnerInfo, includePartner, onTogglePartner }) => (
   <div className="space-y-4 sm:space-y-5">
     {/* Status banner */}
     <div className={`rounded-2xl border p-3 sm:p-4 flex items-start sm:items-center gap-2.5 sm:gap-3 ${
@@ -826,13 +826,15 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
               />
             );
           })}
-          <button
-            type="button"
-            onClick={onAddSession}
-            className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
-          >
-            + Add another day
-          </button>
+          {sessions.length < maxSessions && (
+            <button
+              type="button"
+              onClick={onAddSession}
+              className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
+            >
+              + Add another day
+            </button>
+          )}
         </div>
       </div>
     )}
@@ -1619,12 +1621,26 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
 
   const handleClose = useCallback(() => onClose(), [onClose]);
   const handleSessionChange = useCallback((id, changes) => {
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+    setSessions(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, ...changes } : s);
+      // When a time is picked, propagate it to sessions that don't have a time yet
+      if (changes.time) {
+        return updated.map(s => s.id === id ? s : (s.time ? s : { ...s, time: changes.time }));
+      }
+      return updated;
+    });
   }, []);
+  const maxSessions = remainingMinutes > 0 && selectedDurationMinutes > 0
+    ? Math.floor(remainingMinutes / selectedDurationMinutes)
+    : Infinity;
+
   const handleAddSession = useCallback(() => {
-    sessionIdRef.current += 1;
-    setSessions(prev => [...prev, { id: sessionIdRef.current, date: null, time: null }]);
-  }, []);
+    setSessions(prev => {
+      if (prev.length >= maxSessions) return prev;
+      sessionIdRef.current += 1;
+      return [...prev, { id: sessionIdRef.current, date: null, time: null }];
+    });
+  }, [maxSessions]);
   const handleRemoveSession = useCallback((id) => {
     setSessions(prev => prev.filter(s => s.id !== id));
   }, []);
@@ -1768,6 +1784,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           selectedInstructorId={selectedInstructorId}
           setSelectedInstructorId={setSelectedInstructorId}
           sessions={sessions}
+          maxSessions={maxSessions}
           onSessionChange={handleSessionChange}
           onAddSession={handleAddSession}
           onRemoveSession={handleRemoveSession}

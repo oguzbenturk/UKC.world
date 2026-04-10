@@ -91,7 +91,7 @@ const StudentPortalUnavailable = lazyWithRetry(() => import('../features/student
 const StudentBookServicePage = lazyWithRetry(() => import('../features/students/pages/StudentBookServicePage'));
 const StudentBookEquipmentPage = lazyWithRetry(() => import('../features/students/pages/StudentBookEquipmentPage'));
 const StudentMyRentalsPage = lazyWithRetry(() => import('../features/students/pages/StudentMyRentalsPage'));
-const StudentMyAccommodationPage = lazyWithRetry(() => import('../features/students/pages/StudentMyAccommodationPage'));
+
 const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
 // OutsiderBookingPage removed - /book now redirects to /guest
@@ -446,7 +446,6 @@ const AppRoutes = () => {
         <Route path="/rental/book-equipment" element={<StudentBookEquipmentPage />} />
         <Route path="/rental/my-rentals" element={<StudentMyRentalsPage />} />
         {/* Student accommodation page */}
-        <Route path="/stay/my-accommodation" element={<StudentMyAccommodationPage />} />
       </Route>
       {/* Customer management routes - instructors and above */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['users:read', 'bookings:read']} />}>

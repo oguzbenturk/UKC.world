@@ -81,6 +81,8 @@ class FinancialReconciliationService {
         case 'package_refund':
         case 'refund':
         case 'booking_deleted_refund':
+        case 'booking_cancelled_refund':
+        case 'rental_cancelled_refund':
           if (amount > 0) {
             updateLastPayment();
           }

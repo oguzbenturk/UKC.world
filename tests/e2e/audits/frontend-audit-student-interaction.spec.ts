@@ -584,18 +584,6 @@ test.describe('22. Stay & Accommodation UI', () => {
     await page.screenshot({ path: 'test-results/screenshots/22.2-stay-booking.png' });
   });
 
-  test('22.3 Student my-accommodation page', async ({ page }) => {
-    await loginAsStudent(page);
-    await page.goto(`${BASE_URL}/stay/my-accommodation`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
-    
-    const hasError = await page.locator('.ant-result-error, .ant-result-500').isVisible().catch(() => false);
-    if (hasError) {
-      finding(test.info(), 'High', 'navigation', 'Student my-accommodation page shows error');
-    }
-    await page.screenshot({ path: 'test-results/screenshots/22.3-my-accommodation.png' });
-  });
 });
 
 // ═══════════════════════════════════════════════════════════

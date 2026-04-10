@@ -11,6 +11,8 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
+import hotelHeroImg from '../../../../DuotoneFonts/Burlahan/burla-han-butik-otel (1).jpg';
+import stayHeroImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
@@ -83,7 +85,7 @@ const StayLandingPage = () => {
         <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
           style={{
-             backgroundImage: "url('/Images/ukc/burlahan-hotel.jpg')",
+             backgroundImage: `url(${hotelHeroImg})`,
              backgroundPosition: 'center center'
           }}
         >
@@ -120,7 +122,7 @@ const StayLandingPage = () => {
         <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
           style={{
-             backgroundImage: "url('/Images/ukc/stay-home.jpeg')",
+             backgroundImage: `url(${stayHeroImg})`,
              backgroundPosition: 'center center'
           }}
         >

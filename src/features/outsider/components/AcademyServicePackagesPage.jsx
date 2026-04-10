@@ -30,6 +30,7 @@ import {
 } from '@/features/outsider/stores/packageDetailsModalStore';
 import { packageDetailsModalDepsRef } from '@/features/outsider/stores/packageDetailsModalDepsRef';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
+import dpsProCenterLogo from '../../../../DuotoneFonts/DPC Logo_230719.ai.svg';
 
 const LESSON_NAV_ITEMS = [
   { id: 'kite',    label: 'KITE LESSONS',   shortLabel: 'KITE',   path: '/academy/kite-lessons' },
@@ -289,19 +290,28 @@ const AcademyServicePackagesPage = ({
         const canonD = canonicalRentalDiscipline(s.disciplineTag || '');
         const sportTag = DISCIPLINE_META[canonD]?.label || '';
         const withSport = (text) => (sportTag ? `${sportTag} — ${text}` : text);
+        // Package rows use the linked real service ID for booking
+        const resolvedServiceId = s.linkedServiceId || s.id || null;
+        const packageId = s.packageId || null;
+        const isPackage = !!s.isPackage;
+        const insuranceRate = s.insuranceRate != null ? parseFloat(s.insuranceRate) : null;
         if (hoursNumeric < 24) {
           let friendlyLabel;
           if (hoursNumeric === 1) friendlyLabel = 'Quick Session';
           else if (hoursNumeric === 4) friendlyLabel = 'Half Day';
           else if (hoursNumeric === 8) friendlyLabel = 'Full Day';
           else friendlyLabel = withSport(`${hoursNumeric}h Session`);
+          if (isPackage) friendlyLabel = s.packageName || friendlyLabel;
           return {
             hours: `${hoursNumeric}h`,
             hoursNumeric,
             price: parseFloat(s.price) || 0,
             label: friendlyLabel,
             sessions: hoursNumeric === 1 ? '' : `${hoursNumeric} hour rental`,
-            serviceId: s.id || null,
+            serviceId: resolvedServiceId,
+            packageId,
+            isPackage,
+            insuranceRate,
             tag: sportTag || undefined,
           };
         }
@@ -309,13 +319,18 @@ const AcademyServicePackagesPage = ({
         if (hoursNumeric >= 168 && nearlyInteger(weeks) && weeks >= 1) {
           const w = Math.round(weeks);
           const wkLabel = w === 1 ? '1 week' : `${w} weeks`;
+          let label = w === 1 ? 'All inc one week rental' : withSport(`${w} weeks`);
+          if (isPackage) label = s.packageName || label;
           return {
             hours: wkLabel,
             hoursNumeric,
             price: parseFloat(s.price) || 0,
-            label: w === 1 ? 'All inc one week rental' : withSport(`${w} weeks`),
+            label,
             sessions: w === 1 ? '' : `${w} weeks rental`,
-            serviceId: s.id || null,
+            serviceId: resolvedServiceId,
+            packageId,
+            isPackage,
+            insuranceRate,
             tag: sportTag || undefined,
           };
         }
@@ -323,25 +338,35 @@ const AcademyServicePackagesPage = ({
         if (nearlyInteger(days) && days >= 1) {
           const d = Math.round(days);
           const core = `${d} Day${d > 1 ? 's' : ''}`;
+          let label = withSport(core);
+          if (isPackage) label = s.packageName || label;
           return {
             hours: `${d}d`,
             hoursNumeric,
             price: parseFloat(s.price) || 0,
-            label: withSport(core),
+            label,
             sessions: `${d} day rental`,
-            serviceId: s.id || null,
+            serviceId: resolvedServiceId,
+            packageId,
+            isPackage,
+            insuranceRate,
             tag: sportTag || undefined,
           };
         }
         const dRounded = Math.round(days * 10) / 10;
         const core = `${dRounded} Day rental`;
+        let label = withSport(core);
+        if (isPackage) label = s.packageName || label;
         return {
           hours: `${dRounded}d`,
           hoursNumeric,
           price: parseFloat(s.price) || 0,
-          label: withSport(core),
+          label,
           sessions: `${dRounded} day rental`,
-          serviceId: s.id || null,
+          serviceId: resolvedServiceId,
+          packageId,
+          isPackage,
+          insuranceRate,
           tag: sportTag || undefined,
         };
       };
@@ -390,6 +415,7 @@ const AcademyServicePackagesPage = ({
           'Daily safety checks',
           'Book directly',
         ],
+        isRentalCard: true,
         durations: durations.length > 0 ? durations : [{ hours: '—', price: 0, label: 'Contact us', sessions: 'Flexible' }],
         badges: [segment.toUpperCase(), ...discLabels],
       };
@@ -1044,10 +1070,40 @@ const AcademyServicePackagesPage = ({
             setDynamicPackages(cards);
           }
         } else if (normalize(dynamicServiceKey).startsWith('rental_')) {
-          // Rental segment page — fetch services and build discipline-filterable cards
-          const servicesRes = await apiClient.get('/services');
+          // Rental segment page — fetch services + packages and build discipline-filterable cards
+          const [servicesRes, packagesRes] = await Promise.all([
+            apiClient.get('/services'),
+            apiClient.get('/services/packages/public').catch(() => ({ data: [] })),
+          ]);
           const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
-          const cards = buildRentalCards(rawServices, dynamicServiceKey);
+          const rawPackages = Array.isArray(packagesRes.data) ? packagesRes.data : [];
+
+          // Inject rental packages as synthetic service rows so they appear as duration options
+          const syntheticServices = rawPackages
+            .filter(p => (p.packageType || p.package_type) === 'rental' && (p.rentalServiceId || p.rental_service_id))
+            .flatMap(pkg => {
+              const svcId = pkg.rentalServiceId || pkg.rental_service_id;
+              const linkedSvc = rawServices.find(s => String(s.id) === String(svcId));
+              if (!linkedSvc) return [];
+              const durationHours = pkg.totalHours || pkg.total_hours ||
+                ((pkg.rentalDays || pkg.rental_days || pkg.sessionsCount || pkg.sessions_count || 1) * 24);
+              return [{
+                id: `pkg-${pkg.id}`,
+                linkedServiceId: linkedSvc.id,
+                name: linkedSvc.name,
+                category: 'rental',
+                rentalSegment: linkedSvc.rentalSegment || linkedSvc.rental_segment,
+                disciplineTag: linkedSvc.disciplineTag || linkedSvc.discipline_tag,
+                duration: durationHours,
+                price: pkg.price,
+                currency: pkg.currency,
+                isPackage: true,
+                packageId: pkg.id,
+                packageName: pkg.name,
+              }];
+            });
+
+          const cards = buildRentalCards([...rawServices, ...syntheticServices], dynamicServiceKey);
           const discs = [
             ...new Set(
               cards.flatMap((c) =>
@@ -1247,6 +1303,10 @@ const AcademyServicePackagesPage = ({
           serviceCurrency: 'EUR',
           durationHours: parsedDurationHours || 1,
           serviceDescription: pkg.description || '',
+          isPackage: selectedDur?.isPackage || false,
+          packageId: selectedDur?.packageId || null,
+          packageName: selectedDur?.packageName || null,
+          insuranceRate: selectedDur?.insuranceRate ?? null,
         });
         setRentalBookingOpen(true);
         closePackageDetailsModal();
@@ -1504,8 +1564,18 @@ const AcademyServicePackagesPage = ({
         />
       )}
 
-      <div className="relative z-10 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8">
+      <div className="relative z-10 pt-6 pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-4">
+          {/* Duotone Pro Center banner */}
+          <div className="mb-4 flex justify-center">
+            <img
+              src={dpsProCenterLogo}
+              alt="Duotone Pro Center"
+              className="h-auto"
+              style={{ width: 'min(420px, 80vw)' }}
+            />
+          </div>
+
           <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-slate-900 mb-4 uppercase">
             {headline} <span className={accentWordClass}>{accentWord}</span>
           </h1>
@@ -1644,6 +1714,10 @@ const AcademyServicePackagesPage = ({
         serviceCurrency={rentalBookingData?.serviceCurrency}
         durationHours={rentalBookingData?.durationHours}
         serviceDescription={rentalBookingData?.serviceDescription}
+        isPackage={rentalBookingData?.isPackage}
+        packageId={rentalBookingData?.packageId}
+        packageName={rentalBookingData?.packageName}
+        insuranceRate={rentalBookingData?.insuranceRate ?? null}
       />
 
       {/* Accommodation Booking Modal — stays */}

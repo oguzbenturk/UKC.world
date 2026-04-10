@@ -221,7 +221,7 @@ router.post(
         await recordTransaction({
           client, // Pass the existing transaction client
           userId,
-          amount: payAmount,
+          amount: -payAmount,
           currency: payCurrency,
           transactionType: 'payment',
           direction: 'debit',
@@ -241,7 +241,7 @@ router.post(
         await recordTransaction({
           client, // Pass the existing transaction client
           userId,
-          amount: price,
+          amount: -price,
           currency,
           transactionType: 'payment',
           direction: 'debit',
@@ -1146,7 +1146,7 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
       await recordTransaction({
         client,
         userId: receipt.user_id,
-        amount: paymentAmount,
+        amount: -paymentAmount,
         currency: paymentCurrency,
         transactionType: 'payment',
         direction: 'debit',

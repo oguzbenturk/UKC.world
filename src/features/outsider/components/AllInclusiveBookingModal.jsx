@@ -674,6 +674,26 @@ const LessonStep = ({
         </div>
       </div>
 
+      {/* Single global instructor selector */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          <UserOutlined className="mr-1" /> Instructor
+        </p>
+        <Select
+          placeholder="Select instructor for all lessons"
+          value={globalInstructorId || undefined}
+          onChange={handleGlobalInstructorChange}
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="label"
+          options={instructors.map((inst) => ({
+            value: inst.id,
+            label: inst.name || inst.fullName || `${inst.firstName || ''} ${inst.lastName || ''}`.trim() || 'Instructor',
+          }))}
+        />
+      </div>
+
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {accommodationDates.map((date) => {
           const dateStr = date.format('YYYY-MM-DD');
@@ -707,43 +727,26 @@ const LessonStep = ({
                     return (
                       <div key={block.idx} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-white rounded-lg p-2 border border-slate-100">
                         <div className="flex-1 min-w-0">
-                          <Select
-                            placeholder="Select instructor"
-                            value={block.instructorId || undefined}
-                            onChange={(val) => handleInstructorChange(block.idx, val)}
-                            className="w-full [&_.ant-select-selector]:!bg-white [&_.ant-select-selector]:!border-slate-200 [&_.ant-select-selection-item]:!text-slate-900 [&_.ant-select-selection-placeholder]:!text-slate-400"
-                            suffixIcon={<UserOutlined className="text-slate-400" />}
-                            showSearch
-                            optionFilterProp="label"
-                            options={instructors.map((inst) => ({
-                              value: inst.id,
-                              label: inst.name || inst.fullName || `${inst.firstName || ''} ${inst.lastName || ''}`.trim() || 'Instructor',
-                            }))}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {block.instructorId ? (
-                            isLoadingSlot ? (
-                              <div className="flex items-center gap-2 text-slate-500 text-xs px-2 font-duotone-regular">
-                                <Spin size="small" /> Loading times...
-                              </div>
-                            ) : slots.length > 0 ? (
-                              <Select
-                                placeholder="Select time"
-                                value={block.time || undefined}
-                                onChange={(val) => handleTimeChange(block.idx, val)}
-                                className="w-full [&_.ant-select-selector]:!bg-white [&_.ant-select-selector]:!border-slate-200 [&_.ant-select-selection-item]:!text-slate-900 [&_.ant-select-selection-placeholder]:!text-slate-400"
-                                suffixIcon={<ClockCircleOutlined className="text-slate-400" />}
-                                options={slots.map((s) => ({
-                                  value: s.value,
-                                  label: s.label,
-                                }))}
-                              />
-                            ) : (
-                              <span className="text-red-600 text-xs px-2 font-duotone-regular">No available slots</span>
-                            )
+                          {!globalInstructorId ? (
+                            <span className="text-slate-400 text-xs px-2 font-duotone-regular">Pick an instructor above first</span>
+                          ) : isLoadingSlot ? (
+                            <div className="flex items-center gap-2 text-slate-500 text-xs px-2 font-duotone-regular">
+                              <Spin size="small" /> Loading times...
+                            </div>
+                          ) : slots.length > 0 ? (
+                            <Select
+                              placeholder="Select time"
+                              value={block.time || undefined}
+                              onChange={(val) => handleTimeChange(block.idx, val)}
+                              className="w-full [&_.ant-select-selector]:!bg-white [&_.ant-select-selector]:!border-slate-200 [&_.ant-select-selection-item]:!text-slate-900 [&_.ant-select-selection-placeholder]:!text-slate-400"
+                              suffixIcon={<ClockCircleOutlined className="text-slate-400" />}
+                              options={slots.map((s) => ({
+                                value: s.value,
+                                label: s.label,
+                              }))}
+                            />
                           ) : (
-                            <span className="text-slate-500 text-xs px-2 font-duotone-regular">Pick an instructor first</span>
+                            <span className="text-red-600 text-xs px-2 font-duotone-regular">No available slots</span>
                           )}
                         </div>
                         <Tooltip title="Remove this lesson block">

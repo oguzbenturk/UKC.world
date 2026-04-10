@@ -318,11 +318,7 @@ const OrderManagement = ({ embedded = false }) => {
           </Button>
         </div>
       ) : (
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title level={4} style={{ margin: 0 }}>
-            <ShoppingCartOutlined style={{ marginRight: 8 }} />
-            Shop Order Calendar
-          </Title>
+        <div className="flex justify-end mb-3">
           <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders}>Refresh</Button>
         </div>
       )}
@@ -406,18 +402,20 @@ const OrderManagement = ({ embedded = false }) => {
       {/* Main Card */}
       <Card>
         {/* Filters */}
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="mb-4 flex flex-wrap gap-2">
           <Input
             placeholder="Search order #, customer..."
-            prefix={<SearchOutlined />}
-            style={{ width: 250 }}
+            prefix={<SearchOutlined className="text-slate-400" />}
+            className="w-56"
+            size="small"
             value={filters.search}
             onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
             onPressEnter={() => fetchOrders()}
           />
           <Select
             placeholder="Payment Status"
-            style={{ width: 150 }}
+            className="w-36"
+            size="small"
             value={filters.payment_status}
             onChange={(value) => setFilters(f => ({ ...f, payment_status: value }))}
             options={[
@@ -429,6 +427,7 @@ const OrderManagement = ({ embedded = false }) => {
             ]}
           />
           <RangePicker
+            size="small"
             onChange={(dates) => {
               setFilters(f => ({
                 ...f,
@@ -437,7 +436,7 @@ const OrderManagement = ({ embedded = false }) => {
               }));
             }}
           />
-          <Button type="primary" onClick={fetchOrders}>
+          <Button type="primary" size="small" onClick={fetchOrders}>
             Search
           </Button>
         </div>

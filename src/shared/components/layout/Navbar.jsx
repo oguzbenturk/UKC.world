@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { useCart } from '@/shared/hooks/useCart';
 import RealTimeStatusIndicator from '../realtime/RealTimeStatusIndicator';
+import EnhancedCustomerDetailModal from '@/features/customers/components/EnhancedCustomerDetailModal';
 import NotificationBell from '@/features/notifications/components/NotificationBell';
 import StudentWalletTriggerButton from '@/features/students/components/StudentWalletTriggerButton';
 import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
@@ -125,6 +126,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
   // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isStudentProfileOpen, setIsStudentProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { logout, user, isAuthenticated } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -488,18 +490,18 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           {displayName}
                         </button>
                       ) : (
-                        <NavLink
-                          to="/student/profile"
-                          className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                           role="menuitem"
-                          onClick={(e) => {
-                            e.preventDefault();
+                          onClick={() => {
                             setIsProfileDropdownOpen(false);
-                            navigate('/student/profile');
+                            setIsStudentProfileOpen(true);
                           }}
                         >
-                          {displayName}
-                        </NavLink>
+                          <span>{displayName}</span>
+                          <span className="ml-2 text-xs text-sky-500 dark:text-sky-400 font-medium">My Profile</span>
+                        </button>
                       )}
                       {isAuthenticated && (
                         <button
@@ -646,6 +648,16 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
         >
           <p>Are you sure you want to logout?</p>
         </Modal>
+
+        {/* Student self-profile drawer (read-only) */}
+        {user?.id && (
+          <EnhancedCustomerDetailModal
+            customer={{ id: user.id }}
+            isOpen={isStudentProfileOpen}
+            onClose={() => setIsStudentProfileOpen(false)}
+            readOnly={true}
+          />
+        )}
     </div>
   );
 };

@@ -11,9 +11,51 @@ const config = {
 };
 
 // Initialize only if keys exist
-const iyzipay = (config.apiKey && config.secretKey) 
-  ? new Iyzipay(config) 
+const iyzipay = (config.apiKey && config.secretKey)
+  ? new Iyzipay(config)
   : null;
+
+// ─── Circuit Breaker ──────────────────────────────────────────────────────────
+// Protects against Iyzico API downtime. States: CLOSED (normal) → OPEN (failing)
+// → HALF_OPEN (probing). All values are in-memory per Node process.
+const CB = {
+  state: 'CLOSED',          // 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+  failures: 0,
+  lastFailureAt: 0,
+  FAILURE_THRESHOLD: 5,     // open after 5 consecutive failures
+  RESET_TIMEOUT_MS: 60_000, // try again after 60s
+};
+
+function cbRecordSuccess() {
+  CB.failures = 0;
+  CB.state = 'CLOSED';
+}
+
+function cbRecordFailure() {
+  CB.failures++;
+  CB.lastFailureAt = Date.now();
+  if (CB.failures >= CB.FAILURE_THRESHOLD) {
+    if (CB.state !== 'OPEN') {
+      logger.error('Iyzico circuit breaker OPENED — too many consecutive failures', { failures: CB.failures });
+    }
+    CB.state = 'OPEN';
+  }
+}
+
+function cbAllowRequest() {
+  if (CB.state === 'CLOSED') return true;
+  if (CB.state === 'OPEN') {
+    if (Date.now() - CB.lastFailureAt >= CB.RESET_TIMEOUT_MS) {
+      CB.state = 'HALF_OPEN';
+      logger.info('Iyzico circuit breaker HALF_OPEN — probing Iyzico availability');
+      return true;
+    }
+    return false; // still cooling down
+  }
+  if (CB.state === 'HALF_OPEN') return true; // one probe allowed
+  return true;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Fetch user details for Iyzico
@@ -45,6 +87,12 @@ export async function initiateDeposit({
   items = []  // New parameter
 }) {
   return new Promise(async (resolve, reject) => {
+    // Circuit breaker check
+    if (!cbAllowRequest()) {
+      const waitSec = Math.ceil((CB.RESET_TIMEOUT_MS - (Date.now() - CB.lastFailureAt)) / 1000);
+      return reject(new Error(`Payment gateway is temporarily unavailable. Please try again in ${waitSec} seconds.`));
+    }
+
     // Check credentials
     if (!iyzipay) {
         // Fallback or Error
@@ -245,14 +293,18 @@ export async function initiateDeposit({
 
     iyzipay.checkoutFormInitialize.create(request, (err, result) => {
       if (err) {
+        cbRecordFailure();
         logger.error('Iyzico Driver Error', err);
         return reject(err);
       }
 
       if (result.status !== 'success') {
+        cbRecordFailure();
         logger.error('Iyzico API Error', result);
         return reject(new Error(result.errorMessage || 'Iyzico initialization failed'));
       }
+
+      cbRecordSuccess();
 
       // DEBUG: Log the full result to see if content is missing
       logger.info('Iyzico Init Result Full', { 
@@ -278,7 +330,7 @@ export async function initiateDeposit({
         displayCurrency: displayCurrency,
         // Gateway currency - what's sent to Iyzico
         gatewayAmount: gatewayAmount,
-        gatewayCurrency: 'TRY',
+        gatewayCurrency: gatewayCurrency,
         // Exchange rate for audit trail
         exchangeRate: exchangeRate,
         metadata: {
@@ -290,10 +342,12 @@ export async function initiateDeposit({
           displayCurrency: displayCurrency,
           // Gateway info (for reconciliation)
           gatewayAmount: gatewayAmount,
-          gatewayCurrency: 'TRY',
+          gatewayCurrency: gatewayCurrency,
           exchangeRate: exchangeRate,
-          conversionNote: `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} TRY`,
-          customerNote: 'Ödeme TRY olarak işlenecektir. Kartınıza bankanızın kuru uygulanarak yansıyacaktır.'
+          conversionNote: gatewayCurrency !== displayCurrency
+            ? `${displayAmount} ${displayCurrency} × ${exchangeRate} = ${gatewayAmount} ${gatewayCurrency}`
+            : `${displayAmount} ${displayCurrency} (no conversion)`,
+          customerNote: gatewayCurrency === 'TRY' ? 'Ödeme TRY olarak işlenecektir. Kartınıza bankanızın kuru uygulanarak yansıyacaktır.' : undefined
         }
       });
     });

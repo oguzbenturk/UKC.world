@@ -203,13 +203,6 @@ test.describe('Sections 4-8 — Module Data & CRUD', () => {
       expect(page.url()).toContain('/calendars/stay');
     });
 
-    test('6.5 Student my-accommodation page', async ({ page }) => {
-      await loginAsStudent(page);
-      await page.goto(`${BASE_URL}/stay/my-accommodation`);
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
-      expect(page.url()).toContain('/stay/my-accommodation');
-    });
   });
 
   // ─── Section 7: Experience Module ────────────────────────

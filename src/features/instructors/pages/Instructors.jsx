@@ -35,7 +35,7 @@ const DISCIPLINE_STYLES = {
 const DisciplineTag = ({ tag }) => {
   const style = DISCIPLINE_STYLES[tag] || { label: tag, bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200/60' };
   return (
-    <span className={`inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium border leading-4 ${style.bg} ${style.text} ${style.border}`}>
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border leading-4 tracking-wide uppercase ${style.bg} ${style.text} ${style.border}`}>
       {style.label}
     </span>
   );
@@ -102,45 +102,47 @@ const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) =
   const bal = balanceData?.[record.id];
   const statusInfo = STATUS_MAP[record.status] || STATUS_MAP.active;
   return (
-    <div className="p-3.5 bg-white rounded-xl border border-slate-200/80 shadow-sm mb-2.5 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-2.5">
+    <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm mb-3 hover:shadow-md transition-all duration-200">
+      <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative">
-            <Avatar icon={<UserOutlined />} size={36} src={record.avatar_url} className="ring-2 ring-white shadow-sm" />
-            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${statusInfo.dot}`} />
+            <Avatar icon={<UserOutlined />} size={44} src={record.avatar_url} className="ring-2 ring-white shadow-md" />
+            <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-white ${statusInfo.dot}`}
+                  style={statusInfo.dot === 'bg-emerald-500' ? { boxShadow: '0 0 6px rgba(52,211,153,0.4)' } : {}} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-sm text-slate-800 truncate">{record.name}</span>
+              <span className="font-semibold text-[15px] text-slate-800 truncate">{record.name}</span>
               {record.role_name === 'manager' && <ManagerTag />}
-              {record.is_freelance && <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-50 text-amber-600 border border-amber-200/60 leading-none">Freelance</span>}
+              {record.is_freelance && <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-amber-50 text-amber-600 border border-amber-200/60 leading-none tracking-wider">FL</span>}
             </div>
-            <div className="text-xs text-slate-400 truncate">{record.email}</div>
+            <div className="text-[11px] text-slate-400 truncate mt-0.5">{record.email}</div>
           </div>
         </div>
       </div>
       {(disciplines.length > 0 || record.role_name === 'manager') && (
-        <div className="flex flex-wrap gap-1.5 mb-2.5">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {disciplines.map(s => <DisciplineTag key={s} tag={s} />)}
           {record.role_name === 'manager' && <ManagerTag />}
         </div>
       )}
       {isAdmin && bal && (
-        <div className="flex items-center justify-between text-xs mb-2.5 px-2 py-1.5 rounded-lg bg-slate-50">
+        <div className="flex items-center justify-between text-xs mb-3 px-3 py-2 rounded-xl bg-slate-50/80 border border-slate-100">
           <span className="text-slate-400">{fmt(bal.totalEarned)} earned · {fmt(bal.totalPaid)} paid</span>
-          <span className={`font-semibold ${bal.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
+          <span className={`font-bold ${bal.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
             {bal.balance > 0 ? fmt(bal.balance) + ' owed' : '✓ Settled'}
           </span>
         </div>
       )}
-      <div className="flex justify-end gap-1.5 pt-2.5 border-t border-slate-100">
+      <div className="flex justify-end gap-1.5 pt-3 border-t border-slate-100">
         {isAdmin && bal && instructorOwedFromBal(bal) > 0 && (
-          <Button size="small" type="primary" icon={<WalletOutlined />} onClick={() => onAction('pay', record)}>Pay</Button>
+          <Button size="small" type="primary" icon={<WalletOutlined />} onClick={() => onAction('pay', record)}
+            className="!rounded-lg" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>Pay</Button>
         )}
-        <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('open', record)}>Open</Button>
-        <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)} />
+        <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('open', record)} className="!rounded-lg">Open</Button>
+        <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)} className="!rounded-lg" />
         {isAdmin && (
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => onAction('delete', record)} />
+          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => onAction('delete', record)} className="!rounded-lg" />
         )}
       </div>
     </div>
@@ -275,121 +277,127 @@ function Instructors() {
   };
 
   return (
-    <div className="min-h-[60vh] p-4 sm:p-8 max-w-[1400px] mx-auto space-y-6">
+    <div className="min-h-[60vh] max-w-[1400px] mx-auto">
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-slate-200/60">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Team & Instructors</h1>
-          <div className="flex items-center gap-4 text-sm text-slate-500">
-            <span className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-md border border-slate-200 font-medium text-slate-700 shadow-sm">
-              <UserOutlined className="text-blue-500" />
-              Total: {instructors.length}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              {activeCount} Active
-            </span>
-            {inactiveCount > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-slate-300" />
-                {inactiveCount} Inactive/Leave
+      <div className="mx-4 mt-4 mb-5 px-5 sm:px-6 py-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center">
+            <UserOutlined className="text-slate-500 text-sm" />
+          </div>
+          <div>
+            <h1 className="text-lg font-duotone-bold-extended text-slate-800 tracking-tight uppercase leading-tight">
+              Team & Instructors
+            </h1>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className="text-[11px] font-medium text-slate-400">{instructors.length} Total</span>
+              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {activeCount} Active
               </span>
-            )}
-            <span className="hidden sm:inline-block w-px h-4 bg-slate-300 mx-1" />
-            <span className="hidden sm:inline text-slate-400">Manage your school's teaching staff, specializations, and payroll</span>
+              {inactiveCount > 0 && (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {inactiveCount} Away
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        
+
         {isAdmin && (
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setAddModalOpen(true)}
-            className="w-full sm:w-auto shrink-0 shadow-sm hover:shadow font-medium bg-blue-600 hover:bg-blue-500 border-0"
+            className="w-full sm:w-auto shrink-0 font-semibold text-[12px] border-0 h-9 px-5 rounded-lg bg-slate-900 hover:bg-slate-800"
           >
-            Add New Instructor
+            Add Instructor
           </Button>
         )}
       </div>
 
       {/* ── Filters ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 py-1">
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search name, email, discipline…"
-          prefix={<SearchOutlined className="text-slate-400" />}
-          allowClear
-          className="sm:max-w-md w-full"
-          size="large"
-        />
-        <Select
-          value={filterStatus}
-          onChange={setFilterStatus}
-          className="sm:w-44 w-full"
-          size="large"
-          options={[
-            { value: 'all', label: 'All Statuses' },
-            { value: 'active', label: '● Active' },
-            { value: 'inactive', label: '● Inactive' },
-            { value: 'on_leave', label: '● On Leave' },
-          ]}
-        />
-        <Select
-          value={filterSpecialization}
-          onChange={setFilterSpecialization}
-          className="sm:w-56 w-full"
-          showSearch
-          size="large"
-          options={[
-            { value: 'all', label: 'All Disciplines' },
-            ...allSpecializations.map(s => {
-              const d = DISCIPLINE_STYLES[s];
-              return { value: s, label: d ? d.label : s };
-            }),
-          ]}
-        />
-        {(searchQuery || filterStatus !== 'all' || filterSpecialization !== 'all') && (
-          <Button
-            type="text"
-            className="text-slate-500 hover:text-slate-800"
-            onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSpecialization('all'); }}
-          >
-            Clear
-          </Button>
-        )}
+      <div className="px-4 sm:px-4 mb-5">
+        <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl px-4 py-3 shadow-sm">
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search name, email, discipline…"
+            prefix={<SearchOutlined className="text-slate-400" />}
+            allowClear
+            className="sm:max-w-sm w-full !rounded-lg"
+            size="large"
+          />
+          <div className="hidden sm:block w-px h-7 bg-slate-200" />
+          <Select
+            value={filterStatus}
+            onChange={setFilterStatus}
+            className="sm:w-40 w-full"
+            size="large"
+            options={[
+              { value: 'all', label: 'All Statuses' },
+              { value: 'active', label: '● Active' },
+              { value: 'inactive', label: '● Inactive' },
+              { value: 'on_leave', label: '● On Leave' },
+            ]}
+          />
+          <Select
+            value={filterSpecialization}
+            onChange={setFilterSpecialization}
+            className="sm:w-48 w-full"
+            showSearch
+            size="large"
+            options={[
+              { value: 'all', label: 'All Disciplines' },
+              ...allSpecializations.map(s => {
+                const d = DISCIPLINE_STYLES[s];
+                return { value: s, label: d ? d.label : s };
+              }),
+            ]}
+          />
+          {(searchQuery || filterStatus !== 'all' || filterSpecialization !== 'all') && (
+            <Button
+              type="text"
+              className="text-slate-500 hover:text-slate-800 font-medium"
+              onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSpecialization('all'); }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Content ────────────────────────────────────────── */}
+      <div className="px-4 sm:px-4">
       {loading ? (
-        <div className="text-center py-16">
-          <div className="inline-block w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
-          <p className="mt-3 text-sm text-slate-400">Loading instructors…</p>
+        <div className="text-center py-20">
+          <div className="inline-block w-8 h-8 border-[3px] border-slate-200 border-t-cyan-500 rounded-full animate-spin" />
+          <p className="mt-4 text-sm text-slate-400 font-duotone-regular">Loading instructors…</p>
         </div>
       ) : error ? (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-5 text-center">
+        <div className="rounded-2xl bg-red-50 border border-red-200 p-6 text-center">
           <p className="text-red-600 text-sm font-medium">{error}</p>
           <button className="text-red-500 underline text-xs mt-2" onClick={() => window.location.reload()}>
             Try again
           </button>
         </div>
       ) : filteredInstructors.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 shadow-sm">
-          <UserOutlined className="text-4xl text-slate-200" />
-          <p className="mt-3 text-base text-slate-500 font-medium">No instructors found</p>
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <UserOutlined className="text-2xl text-slate-300" />
+          </div>
+          <p className="text-base text-slate-600 font-semibold">No instructors found</p>
           <p className="text-sm text-slate-400 mt-1">Try adjusting your search or filters</p>
         </div>
       ) : (
-          <UnifiedResponsiveTable 
+          <UnifiedResponsiveTable
             title={null}
             density="comfortable"
-            className="border-slate-200/80 shadow-sm rounded-xl overflow-hidden"
+            className="border-slate-200/60 shadow-sm rounded-2xl overflow-hidden [&_.ant-table]:!rounded-2xl [&_.ant-table-thead>tr>th]:!bg-slate-50/80 [&_.ant-table-thead>tr>th]:!border-b-slate-200/40 [&_.ant-table-thead>tr>th]:!text-[10px] [&_.ant-table-thead>tr>th]:!uppercase [&_.ant-table-thead>tr>th]:!tracking-widest [&_.ant-table-thead>tr>th]:!font-bold [&_.ant-table-thead>tr>th]:!text-slate-400 [&_.ant-table-thead>tr>th]:!py-3 [&_.ant-table-tbody>tr:hover>td]:!bg-cyan-50/30 [&_.ant-table-tbody>tr>td]:!border-b-slate-100/60 [&_.ant-table-tbody>tr>td]:!py-3.5"
             dataSource={filteredInstructors}
             rowKey="id"
             mobileCardRenderer={(props) => (
-              <InstructorMobileCard 
-                {...props} 
+              <InstructorMobileCard
+                {...props}
                 isAdmin={isAdmin}
                 balanceData={balances}
                 fmt={fmt}
@@ -398,7 +406,7 @@ function Instructors() {
                   else if (action === 'edit') navigate(`/instructors/edit/${record.id}`);
                   else if (action === 'delete') handleDeleteInstructor(record.id);
                   else if (action === 'pay') openPayModal(record);
-                }} 
+                }}
               />
             )}
             columns={[
@@ -408,18 +416,19 @@ function Instructors() {
                 render: (_, record) => {
                   const statusInfo = STATUS_MAP[record.status] || STATUS_MAP.active;
                   return (
-                    <div className="flex items-center gap-2.5 py-0.5">
+                    <div className="flex items-center gap-3 py-0.5">
                       <div className="relative shrink-0">
-                        <Avatar src={record.avatar_url} icon={<UserOutlined />} size={32} className="ring-2 ring-white shadow-sm" />
-                        <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white ${statusInfo.dot}`} />
+                        <Avatar src={record.avatar_url} icon={<UserOutlined />} size={38} className="ring-2 ring-white shadow-md" />
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${statusInfo.dot}`}
+                              style={statusInfo.dot === 'bg-emerald-500' ? { boxShadow: '0 0 4px rgba(52,211,153,0.4)' } : {}} />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-slate-800 truncate text-sm">{record.name}</span>
+                          <span className="font-semibold text-slate-800 truncate text-[13px]">{record.name}</span>
                           {record.role_name === 'manager' && <ManagerTag />}
-                          {record.is_freelance && <span className="shrink-0 px-1 py-0 text-[10px] font-semibold uppercase rounded bg-amber-50 text-amber-600 border border-amber-200/60 leading-4">FL</span>}
+                          {record.is_freelance && <span className="shrink-0 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-md bg-amber-50 text-amber-600 border border-amber-200/60 leading-none tracking-wider">FL</span>}
                         </div>
-                        <div className="text-xs text-slate-400 truncate">{record.email}</div>
+                        <div className="text-[11px] text-slate-400 truncate mt-0.5">{record.email}</div>
                       </div>
                     </div>
                   );
@@ -428,13 +437,13 @@ function Instructors() {
               {
                 title: 'Disciplines',
                 key: 'disciplines',
-                width: 150,
+                width: 180,
                 render: (_, record) => {
                   const disciplines = getDisciplines(record);
                   const showMgr = record.role_name === 'manager';
                   if (disciplines.length === 0 && !showMgr) return <span className="text-slate-300">—</span>;
                   return (
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {disciplines.map(s => <DisciplineTag key={s} tag={s} />)}
                       {showMgr && <ManagerTag key="manager" />}
                     </div>
@@ -447,24 +456,27 @@ function Instructors() {
                 width: 110,
                 render: (_, record) => <BalanceCell bal={balances[record.id]} fmt={fmt} />
               }] : []),
-              { 
+              {
                 title: '',
                 key: 'actions',
-                width: isAdmin ? 150 : 80,
+                width: isAdmin ? 160 : 80,
                 render: (_, instructor) => (
                   <div className="flex items-center justify-end gap-1">
                     {isAdmin && instructorOwedFromBal(balances[instructor.id]) > 0 && (
-                      <Button size="small" type="primary" ghost onClick={() => openPayModal(instructor)} className="border-orange-300 text-orange-500 hover:text-orange-600 hover:border-orange-400">Pay</Button>
+                      <Button size="small" onClick={() => openPayModal(instructor)}
+                        className="!rounded-lg !border-orange-200 !text-orange-500 hover:!text-orange-600 hover:!border-orange-300 hover:!bg-orange-50 !text-[11px] !font-semibold !px-2.5"
+                      >Pay</Button>
                     )}
-                    <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => { setSelectedInstructor(instructor); setIsDetailOpen(true); }} className="text-slate-400 hover:text-blue-500" />
-                    <Button size="small" type="text" icon={<EditOutlined />} onClick={() => navigate(`/instructors/edit/${instructor.id}`)} className="text-slate-400 hover:text-blue-500" />
-                    {isAdmin && <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeleteInstructor(instructor.id)} className="text-slate-300 hover:text-red-500" />}
+                    <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => { setSelectedInstructor(instructor); setIsDetailOpen(true); }} className="!text-slate-400 hover:!text-cyan-600 hover:!bg-cyan-50/60 !rounded-lg" />
+                    <Button size="small" type="text" icon={<EditOutlined />} onClick={() => navigate(`/instructors/edit/${instructor.id}`)} className="!text-slate-400 hover:!text-cyan-600 hover:!bg-cyan-50/60 !rounded-lg" />
+                    {isAdmin && <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => handleDeleteInstructor(instructor.id)} className="!text-slate-300 hover:!text-red-500 hover:!bg-red-50/60 !rounded-lg" />}
                   </div>
                 )
               }
             ]}
           />
       )}
+      </div>
 
       {/* ── Detail Modal ───────────────────────────────────── */}
       {selectedInstructor?.role_name === 'manager' ? (

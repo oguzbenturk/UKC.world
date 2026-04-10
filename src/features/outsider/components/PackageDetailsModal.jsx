@@ -256,9 +256,9 @@ const PackageDetailsModal = ({ depsRef }) => {
                         {dur.tag}
                       </span>
                     ) : null}
-                    {ownedPkg ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                        <GiftOutlined className="text-[10px]" /> Owned
+                    {dur.isPackage ? (
+                      <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-duotone-bold text-amber-700">
+                        Package
                       </span>
                     ) : null}
                   </div>
@@ -269,24 +269,33 @@ const PackageDetailsModal = ({ depsRef }) => {
                   ) : null}
                   <p className="mt-0.5 text-[11px] text-slate-400 font-duotone-regular">{dur.sessions}</p>
                   {ownedPkg ? (
-                    <p className="mt-1 text-[10px] font-semibold text-emerald-600">
-                      {ownedRemaining > 0
-                        ? `${ownedRemaining}h remaining`
-                        : ownedLessonsFullyScheduledPending
-                          ? `${ownedUsed}h of ${ownedTotal}h scheduled (pending confirmation)`
-                          : ownedTotal > 0 ? 'No hours remaining' : ''}
-                    </p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                        <GiftOutlined className="text-[10px]" /> Owned
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-600">
+                        {ownedRemaining > 0
+                          ? `${ownedRemaining}h remaining`
+                          : ownedLessonsFullyScheduledPending
+                            ? `${ownedUsed}h of ${ownedTotal}h scheduled`
+                            : ownedTotal > 0 ? 'No hours remaining' : ''}
+                      </span>
+                    </div>
                   ) : null}
                 </div>
                 <div className="shrink-0 text-right">
-                  <span className="font-duotone-bold-extended text-sm text-slate-900 sm:text-base">{formatPrice(dur.price)}</span>
-                  {dur.perPerson ? <span className="ml-1 text-[10px] font-duotone-regular text-slate-400">/pp</span> : null}
+                  {ownedPkg ? null : (
+                    <>
+                      <span className="font-duotone-bold-extended text-sm text-slate-900 sm:text-base">{formatPrice(dur.price)}</span>
+                      {dur.perPerson ? <span className="ml-1 text-[10px] font-duotone-regular text-slate-400">/pp</span> : null}
+                    </>
+                  )}
                 </div>
               </div>
             );
           })}
 
-          {proRataBase ? (
+          {proRataBase && !selectedPackage?.isRentalCard ? (
             <div
               role="button"
               tabIndex={0}

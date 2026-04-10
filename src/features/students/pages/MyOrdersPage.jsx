@@ -1,11 +1,11 @@
 /**
  * MyOrdersPage
- * 
+ *
  * Full-featured customer order history page with:
  * - Order list with filtering and pagination
  * - Order detail drawer with status timeline
  * - Per-order messaging between customer and staff
- * 
+ *
  * Accessible from profile menu → "My Orders"
  * Route: /shop/my-orders
  */
@@ -33,16 +33,17 @@ dayjs.extend(relativeTime);
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
+
 /* ─── Status config ─── */
 const STATUS_CONFIG = {
-  pending:     { color: 'orange',   icon: <ClockCircleOutlined />,  label: 'Pending',     dotColor: '#fa8c16' },
-  confirmed:   { color: 'blue',     icon: <CheckCircleOutlined />,  label: 'Confirmed',   dotColor: '#1677ff' },
-  processing:  { color: 'geekblue', icon: <InboxOutlined />,        label: 'Processing',  dotColor: '#2f54eb' },
-  shipped:     { color: 'cyan',     icon: <CarOutlined />,          label: 'Shipped',     dotColor: '#13c2c2' },
-  delivered:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Delivered',   dotColor: '#52c41a' },
-  completed:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Completed',   dotColor: '#52c41a' },
-  cancelled:   { color: 'red',      icon: <CloseCircleOutlined />,  label: 'Cancelled',   dotColor: '#ff4d4f' },
-  refunded:    { color: 'volcano',  icon: <DollarOutlined />,       label: 'Refunded',    dotColor: '#fa541c' },
+  pending:     { color: 'orange',   icon: <ClockCircleOutlined />,  label: 'Pending',     dotClass: 'bg-amber-400' },
+  confirmed:   { color: 'blue',     icon: <CheckCircleOutlined />,  label: 'Confirmed',   dotClass: 'bg-sky-400' },
+  processing:  { color: 'geekblue', icon: <InboxOutlined />,        label: 'Processing',  dotClass: 'bg-sky-500' },
+  shipped:     { color: 'cyan',     icon: <CarOutlined />,          label: 'Shipped',     dotClass: 'bg-sky-600' },
+  delivered:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Delivered',   dotClass: 'bg-emerald-500' },
+  completed:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Completed',   dotClass: 'bg-emerald-500' },
+  cancelled:   { color: 'red',      icon: <CloseCircleOutlined />,  label: 'Cancelled',   dotClass: 'bg-rose-400' },
+  refunded:    { color: 'volcano',  icon: <DollarOutlined />,       label: 'Refunded',    dotClass: 'bg-rose-500' },
 };
 
 const PAYMENT_ICONS = {
@@ -197,6 +198,14 @@ function MyOrdersPage() {
 
   const getPaymentLabel = (method) => PAYMENT_LABELS[method] || 'Other';
 
+  /* ─── Summary Metric Strip ─── */
+  const metricCards = [
+    { title: 'Total Orders', value: orders.length, hint: 'Loaded on this page', dotClass: 'bg-sky-400' },
+    { title: 'Active', value: activeOrdersCount, hint: 'Pending or in progress', dotClass: 'bg-amber-400' },
+    { title: 'Completed', value: completedOrdersCount, hint: 'Delivered successfully', dotClass: 'bg-emerald-500' },
+    { title: 'Unread Messages', value: unreadMessageCount, hint: `${unreadThreadCount} thread${unreadThreadCount === 1 ? '' : 's'}`, dotClass: 'bg-violet-500' },
+  ];
+
   /* ─── Order Card ─── */
   const renderOrderCard = (order) => {
     const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
@@ -206,24 +215,23 @@ function MyOrdersPage() {
     const unread = unreadCounts[order.id] || 0;
 
     return (
-      <Card
+      <article
         key={order.id}
-        className="group mb-4 cursor-pointer overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_20px_45px_rgba(14,105,194,0.12)]"
+        className="group cursor-pointer rounded-xl border border-slate-100 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-md"
         onClick={() => openDetail(order)}
-        hoverable
       >
         {/* Header */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 text-white shadow-[0_12px_28px_rgba(37,99,235,0.22)]">
-              <ShoppingOutlined className="text-lg text-white" />
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+              <ShoppingOutlined className="text-base" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <Text strong className="font-mono text-base text-slate-800">{order.order_number}</Text>
+                <span className="text-sm font-semibold text-slate-800">{order.order_number}</span>
                 {unread > 0 && <Badge count={unread} size="small" />}
               </div>
-              <div className="text-xs text-slate-400">Placed {dayjs(order.created_at).fromNow()}</div>
+              <span className="text-[11px] text-slate-400">{dayjs(order.created_at).fromNow()}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -234,64 +242,64 @@ function MyOrdersPage() {
         </div>
 
         {/* Items preview */}
-        <div className="mb-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 shadow-inner shadow-slate-100/40">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+        <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
+          <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-slate-400 font-semibold">
             <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-            <span>•</span>
+            <span className="text-slate-200">|</span>
             <span>{getPaymentLabel(order.payment_method)}</span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
           {items.slice(0, 3).map((item, idx) => (
-            <div key={item.id || `item-${idx}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
+            <div key={item.id || `item-${idx}`} className="flex items-center gap-3 rounded-lg bg-white px-2.5 py-2 border border-slate-50">
               {item.product_image ? (
                 <Image
                   src={getImageUrl(item.product_image)}
                   alt={item.product_name}
-                  width={44} height={44}
+                  width={40} height={40}
                   className="rounded-lg object-cover"
                   preview={false}
                   fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDQiIGhlaWdodD0iNDQiIHZpZXdCb3g9IjAgMCA0NCA0NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDQiIGhlaWdodD0iNDQiIHJ4PSI4IiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+"
                 />
               ) : (
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                  <ShoppingOutlined className="text-gray-400" />
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                  <ShoppingOutlined className="text-slate-400" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <Text className="block truncate text-sm font-medium text-slate-700">{item.product_name}</Text>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="block truncate text-sm font-medium text-slate-700">{item.product_name}</span>
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
                   <span>Qty: {item.quantity}</span>
-                  {item.selected_size && <span>• Size: {item.selected_size}</span>}
-                  {item.selected_color && <span>• {item.selected_color}</span>}
+                  {item.selected_size && <span>· Size: {item.selected_size}</span>}
+                  {item.selected_color && <span>· {item.selected_color}</span>}
                 </div>
               </div>
-              <Text className="text-sm font-semibold text-slate-700">{formatPrice(item.unit_price * item.quantity)}</Text>
+              <span className="text-sm font-semibold text-slate-700">{formatPrice(item.unit_price * item.quantity)}</span>
             </div>
           ))}
           {items.length > 3 && (
-            <Text type="secondary" className="px-1 text-xs">+{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</Text>
+            <p className="px-1 text-[11px] text-slate-400">+{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</p>
           )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+          <div className="flex items-center gap-2.5 text-[11px] text-slate-400">
             <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-            <span>•</span>
+            <span className="text-slate-200">·</span>
             <span>{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</span>
             {unread > 0 && (
               <>
-                <span>•</span>
-                <span className="flex items-center gap-1 text-sky-500">
+                <span className="text-slate-200">·</span>
+                <span className="flex items-center gap-1 text-sky-500 font-medium">
                   <MessageOutlined /> {unread} new
                 </span>
               </>
             )}
           </div>
-          <Text strong className="text-base text-slate-800 transition-colors group-hover:text-sky-700">{formatPrice(order.total_amount)}</Text>
+          <span className="text-base font-bold text-slate-800 transition-colors group-hover:text-sky-600">{formatPrice(order.total_amount)}</span>
         </div>
-      </Card>
+      </article>
     );
   };
 
@@ -303,10 +311,10 @@ function MyOrdersPage() {
 
     if (isCancelled) {
       return (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
-          <div className="flex items-center gap-2 text-red-600">
+        <div className="mb-4 rounded-xl border border-rose-100 bg-rose-50 p-4">
+          <div className="flex items-center gap-2 text-rose-600">
             {order.status === 'cancelled' ? <CloseCircleOutlined /> : <DollarOutlined />}
-            <Text strong className="text-red-600">
+            <Text strong className="text-rose-600">
               Order {order.status === 'cancelled' ? 'Cancelled' : 'Refunded'}
             </Text>
           </div>
@@ -320,10 +328,9 @@ function MyOrdersPage() {
     }
 
     return (
-      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4">
+      <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50/70 p-4">
         <div className="flex items-start justify-between relative">
-          {/* Background line */}
-          <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+          <div className="absolute top-4 left-4 right-4 h-0.5 bg-slate-200" />
           <div
             className="absolute top-4 left-4 h-0.5 bg-sky-400 transition-all"
             style={{ width: currentIdx > 0 ? `${(currentIdx / (STATUS_FLOW.length - 1)) * (100 - 8)}%` : 0 }}
@@ -340,12 +347,12 @@ function MyOrdersPage() {
                       ? 'bg-sky-500 text-white ring-4 ring-sky-100'
                       : isActive
                         ? 'bg-sky-500 text-white'
-                        : 'bg-gray-200 text-gray-400'
+                        : 'bg-slate-200 text-slate-400'
                   }`}
                 >
                   {isActive ? <CheckCircleOutlined /> : idx + 1}
                 </div>
-                <Text className={`text-xs mt-1.5 text-center leading-tight ${isCurrent ? 'font-semibold text-sky-600' : isActive ? 'text-gray-600' : 'text-gray-400'}`}>
+                <Text className={`text-[10px] sm:text-xs mt-1.5 text-center leading-tight ${isCurrent ? 'font-semibold text-sky-600' : isActive ? 'text-slate-600' : 'text-slate-400'}`}>
                   {cfg.label}
                 </Text>
               </div>
@@ -362,13 +369,13 @@ function MyOrdersPage() {
     if (history.length === 0) return null;
 
     return (
-      <div className="mb-4 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+      <div className="mb-4 rounded-xl border border-slate-100 bg-white p-4">
         <Text strong className="mb-3 block text-sm text-slate-700">Status History</Text>
         <Timeline
           items={history.map((h) => {
             const cfg = STATUS_CONFIG[h.new_status] || {};
             return {
-              color: cfg.dotColor || 'gray',
+              color: cfg.dotClass?.includes('emerald') ? 'green' : cfg.dotClass?.includes('sky') ? 'blue' : cfg.dotClass?.includes('amber') ? 'orange' : cfg.dotClass?.includes('rose') ? 'red' : 'gray',
               children: (
                 <div>
                   <div className="flex items-center gap-2">
@@ -377,7 +384,7 @@ function MyOrdersPage() {
                       <Text type="secondary" className="text-xs">from {STATUS_CONFIG[h.previous_status]?.label || h.previous_status}</Text>
                     )}
                   </div>
-                  {h.notes && <Text className="text-xs text-gray-500 block mt-1">{h.notes}</Text>}
+                  {h.notes && <Text className="text-xs text-slate-500 block mt-1">{h.notes}</Text>}
                   <Text type="secondary" className="text-xs block">
                     {dayjs(h.created_at).format('D MMM YYYY, HH:mm')}
                     {h.first_name && ` · by ${h.first_name} ${h.last_name || ''}`}
@@ -393,19 +400,19 @@ function MyOrdersPage() {
 
   /* ─── Messages Panel ─── */
   const renderMessages = () => (
-    <div className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm" style={{ height: 360 }}>
+    <div className="flex flex-col rounded-xl border border-slate-100 bg-white p-4" style={{ height: 360 }}>
       <div className="mb-3 flex items-center gap-2">
         <MessageOutlined className="text-sky-500" />
         <Text strong className="text-sm text-slate-700">Order Messages</Text>
       </div>
 
       {/* Message list */}
-      <div className="mb-3 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-3">
+      <div className="mb-3 flex-1 space-y-3 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/60 p-3">
         {messagesLoading ? (
           <div className="flex justify-center py-8"><Spin size="small" /></div>
         ) : messages.length === 0 ? (
           <div className="text-center py-8">
-            <MessageOutlined className="text-3xl text-gray-300 mb-2 block" />
+            <MessageOutlined className="text-3xl text-slate-300 mb-2 block" />
             <Text type="secondary" className="text-xs">No messages yet. Ask a question about your order!</Text>
           </div>
         ) : (
@@ -418,19 +425,19 @@ function MyOrdersPage() {
                     size={28}
                     src={msg.profile_image_url ? getImageUrl(msg.profile_image_url) : undefined}
                     icon={msg.is_staff ? <CustomerServiceOutlined /> : <UserOutlined />}
-                    className={msg.is_staff ? 'bg-sky-100 text-sky-600' : 'bg-gray-200 text-gray-600'}
+                    className={msg.is_staff ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-500'}
                   />
                 </Tooltip>
-                <div className={`max-w-[75%] rounded-2xl px-3 py-2 ${isMe ? 'bg-sky-500 text-white rounded-br-md' : 'bg-white border border-gray-200 rounded-bl-md'}`}>
+                <div className={`max-w-[75%] rounded-xl px-3 py-2 ${isMe ? 'bg-sky-500 text-white rounded-br-sm' : 'bg-white border border-slate-200 rounded-bl-sm'}`}>
                   {msg.is_staff && !isMe && (
-                    <Text className="text-xs font-semibold block mb-0.5" style={{ color: '#1677ff' }}>
+                    <Text className="text-xs font-semibold block mb-0.5 text-sky-600">
                       {msg.first_name || 'Staff'}
                     </Text>
                   )}
                   <Paragraph className={`!mb-0 text-sm ${isMe ? '!text-white' : ''}`} style={{ whiteSpace: 'pre-wrap' }}>
                     {msg.message}
                   </Paragraph>
-                  <Text className={`text-xs block text-right mt-0.5 ${isMe ? 'text-sky-100' : 'text-gray-400'}`}>
+                  <Text className={`text-[10px] block text-right mt-0.5 ${isMe ? 'text-sky-100' : 'text-slate-400'}`}>
                     {dayjs(msg.created_at).format('HH:mm')}
                   </Text>
                 </div>
@@ -449,7 +456,7 @@ function MyOrdersPage() {
           onPressEnter={(e) => { if (!e.shiftKey) { e.preventDefault(); sendMessage(); } }}
           placeholder="Type your message..."
           autoSize={{ minRows: 1, maxRows: 3 }}
-          className="flex-1 rounded-xl"
+          className="flex-1 !rounded-lg"
           disabled={sending}
         />
         <Button
@@ -458,7 +465,7 @@ function MyOrdersPage() {
           onClick={sendMessage}
           loading={sending}
           disabled={!newMessage.trim()}
-          className="rounded-xl self-end"
+          className="!rounded-lg self-end"
         />
       </div>
     </div>
@@ -466,29 +473,29 @@ function MyOrdersPage() {
 
   /* ─── Order Info Panel ─── */
   const renderOrderInfo = (order) => (
-    <div className="mb-4 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
+    <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <Text type="secondary" className="text-xs block">Status</Text>
+          <Text type="secondary" className="text-[11px] block mb-1">Status</Text>
           <Tag icon={STATUS_CONFIG[order.status]?.icon} color={STATUS_CONFIG[order.status]?.color}>
             {STATUS_CONFIG[order.status]?.label || order.status}
           </Tag>
         </div>
         <div>
-          <Text type="secondary" className="text-xs block">Payment</Text>
+          <Text type="secondary" className="text-[11px] block mb-1">Payment</Text>
           <Tag color={order.payment_status === 'completed' ? 'green' : 'orange'} icon={PAYMENT_ICONS[order.payment_method]}>
             {getPaymentLabel(order.payment_method)} · {order.payment_status}
           </Tag>
         </div>
         {order.voucher_code && (
           <div>
-            <Text type="secondary" className="text-xs block">Voucher</Text>
+            <Text type="secondary" className="text-[11px] block mb-1">Voucher</Text>
             <Tag icon={<GiftOutlined />} color="purple">{order.voucher_code}</Tag>
           </div>
         )}
         {order.shipping_address && (
           <div className="col-span-2">
-            <Text type="secondary" className="text-xs block">Shipping Address</Text>
+            <Text type="secondary" className="text-[11px] block mb-1">Shipping Address</Text>
             <Text className="text-sm">
               {typeof order.shipping_address === 'object'
                 ? [order.shipping_address.street, order.shipping_address.city, order.shipping_address.country].filter(Boolean).join(', ')
@@ -503,34 +510,34 @@ function MyOrdersPage() {
   /* ─── Order Items List ─── */
   const renderOrderItems = (order) => (
     <div className="mb-4">
-      <Text strong className="text-sm block mb-3">Items</Text>
-      <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+      <Text strong className="text-sm block mb-2 text-slate-700">Items</Text>
+      <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
         {(order.items || []).map((item, idx) => (
-          <div key={item.id || idx} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
+          <div key={item.id || idx} className="flex items-center gap-3 rounded-lg bg-white px-3 py-2 border border-slate-50">
             {item.product_image ? (
               <Image
                 src={getImageUrl(item.product_image)}
                 alt={item.product_name}
-                width={52} height={52}
+                width={48} height={48}
                 className="rounded-lg object-cover"
                 preview={false}
                 fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTIiIGhlaWdodD0iNTIiIHZpZXdCb3g9IjAgMCA1MiA1MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTIiIGhlaWdodD0iNTIiIHJ4PSI4IiBmaWxsPSIjZjFmNWY5Ii8+PC9zdmc+"
               />
             ) : (
-              <div className="bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 52, height: 52 }}>
-                <ShoppingOutlined className="text-gray-400" />
+              <div className="bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 48, height: 48 }}>
+                <ShoppingOutlined className="text-slate-400" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <Text className="text-sm font-medium truncate block">{item.product_name}</Text>
-              <div className="flex items-center gap-2 text-xs text-gray-400">
+              <Text className="text-sm font-medium truncate block text-slate-700">{item.product_name}</Text>
+              <div className="flex items-center gap-2 text-[11px] text-slate-400">
                 <span>Qty: {item.quantity}</span>
-                {item.selected_size && <span>• Size: {item.selected_size}</span>}
-                {item.selected_color && <span>• {item.selected_color}</span>}
-                {item.brand && <span>• {item.brand}</span>}
+                {item.selected_size && <span>· Size: {item.selected_size}</span>}
+                {item.selected_color && <span>· {item.selected_color}</span>}
+                {item.brand && <span>· {item.brand}</span>}
               </div>
             </div>
-            <Text className="text-sm font-semibold">{formatPrice(item.unit_price * item.quantity, item.currency)}</Text>
+            <Text className="text-sm font-semibold text-slate-700">{formatPrice(item.unit_price * item.quantity, item.currency)}</Text>
           </div>
         ))}
       </div>
@@ -546,7 +553,7 @@ function MyOrdersPage() {
         {order.discount_amount > 0 && (
           <div className="flex justify-between text-sm">
             <Text type="secondary">Discount</Text>
-            <Text className="text-green-600">-{formatPrice(order.discount_amount)}</Text>
+            <Text className="text-emerald-600">-{formatPrice(order.discount_amount)}</Text>
           </div>
         )}
         <div className="flex justify-between text-base">
@@ -564,11 +571,11 @@ function MyOrdersPage() {
       <Drawer
         title={order ? (
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-600 text-white shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
               <ShoppingOutlined />
             </div>
             <div>
-              <Text strong>{order.order_number}</Text>
+              <Text strong className="text-slate-800">{order.order_number}</Text>
               <Text type="secondary" className="text-xs block">{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</Text>
             </div>
           </div>
@@ -591,7 +598,7 @@ function MyOrdersPage() {
             {renderTimeline(order)}
 
             {order.notes && (
-              <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <ExclamationCircleOutlined className="text-amber-500" />
                   <Text strong className="text-xs text-amber-700">Order Notes</Text>
@@ -610,126 +617,135 @@ function MyOrdersPage() {
 
   /* ─── Main Render ─── */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50/60">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-sky-600 to-indigo-700 p-6 text-white shadow-[0_22px_50px_rgba(30,64,175,0.28)]">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
-            <div className="flex-1 space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/85 shadow-sm">
-                <ShoppingOutlined /> Order Tracking
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <Button
-                    type="text"
-                    icon={<ArrowLeftOutlined />}
-                    onClick={() => navigate(-1)}
-                    className="!mt-0.5 !flex !h-10 !w-10 !items-center !justify-center !rounded-2xl !border !border-white/20 !bg-white/10 !text-white hover:!border-white/35 hover:!bg-white/20 hover:!text-white"
-                  />
-                  <div>
-                    <Title level={2} className="!mb-2 !text-white !font-duotone-bold-extended">My Orders</Title>
-                    <Text className="max-w-2xl text-sm !text-white/75">
-                      Follow your shop purchases, check payment progress, and keep conversations with the team in one place.
-                    </Text>
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-white/20 bg-white/12 p-4 shadow-[0_10px_24px_rgba(24,64,192,0.24)] backdrop-blur">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Visible Orders</p>
-                  <p className="mt-3 text-3xl font-duotone-bold-extended text-white">{orders.length}</p>
-                  <p className="mt-1 text-xs text-white/70">Orders loaded on this page</p>
-                </div>
-                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(13,139,255,0.24)] backdrop-blur">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Active</p>
-                  <p className="mt-3 text-3xl font-duotone-bold-extended text-white">{activeOrdersCount}</p>
-                  <p className="mt-1 text-xs text-white/70">Pending, processing, or shipped</p>
-                </div>
-                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(53,231,138,0.24)] backdrop-blur">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Completed</p>
-                  <p className="mt-3 text-3xl font-duotone-bold-extended text-white">{completedOrdersCount}</p>
-                  <p className="mt-1 text-xs text-white/70">Delivered or fully completed</p>
-                </div>
-                <div className="rounded-2xl border border-white/18 bg-white/10 p-4 shadow-[0_10px_24px_rgba(251,191,36,0.20)] backdrop-blur">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/85">Unread</p>
-                  <p className="mt-3 text-3xl font-duotone-bold-extended text-white">{unreadMessageCount}</p>
-                  <p className="mt-1 text-xs text-white/70">Across {unreadThreadCount} order thread{unreadThreadCount === 1 ? '' : 's'}</p>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-white via-sky-50/40 to-white">
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 md:px-6 lg:px-8">
 
-            <div className="flex w-full max-w-sm flex-col gap-3 rounded-3xl border border-white/18 bg-white/14 p-5 backdrop-blur-xl shadow-[0_16px_36px_rgba(14,58,190,0.32)]">
-              <p className="text-sm text-white/80">
-                {latestOrder
-                  ? `Latest order ${latestOrder.order_number} was placed ${dayjs(latestOrder.created_at).fromNow()}. Open it to see updates or message the team.`
-                  : 'Once you place a shop order, its status, payment progress, and support messages will appear here.'}
-              </p>
-              <Button
-                type="primary"
-                icon={<ShoppingOutlined />}
-                onClick={() => navigate('/shop')}
-                className="h-11 rounded-2xl border-0 bg-white text-sky-600 shadow-[0_10px_25px_rgba(11,78,240,0.35)] transition hover:bg-slate-100"
-              >
-                Browse Shop
-              </Button>
-              <Button
-                ghost
-                icon={<ReloadOutlined />}
-                onClick={() => {
-                  fetchOrders();
-                  fetchUnreadCounts();
-                }}
-                loading={loading}
-                className="h-11 rounded-2xl border-white/45 text-white shadow-[0_8px_22px_rgba(255,255,255,0.22)] hover:bg-white/15"
-              >
-                Refresh Orders
-              </Button>
+        {/* ── Header ── */}
+        <header className="mb-4 sm:mb-5">
+          <div className="flex items-start gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-sky-200 hover:text-sky-600 active:scale-95"
+            >
+              <ArrowLeftOutlined className="text-sm" />
+            </button>
+            <div className="flex-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-lg sm:text-2xl font-bold text-slate-800">My Orders</h1>
+                  <p className="mt-0.5 text-xs sm:text-sm text-slate-400">Track purchases, payments, and conversations</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    icon={<ShoppingOutlined />}
+                    onClick={() => navigate('/shop')}
+                    className="!rounded-xl !border-slate-200 !text-slate-600 !shadow-sm hover:!border-sky-200 hover:!text-sky-600"
+                    size="middle"
+                  >
+                    Browse Shop
+                  </Button>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={() => { fetchOrders(); fetchUnreadCounts(); }}
+                    loading={loading}
+                    className="!rounded-xl !border-slate-200 !text-slate-600 !shadow-sm hover:!border-sky-200 hover:!text-sky-600"
+                    size="middle"
+                  />
+                </div>
+              </div>
             </div>
+          </div>
+        </header>
+
+        {/* ── Summary Metrics ── */}
+        <section className="mb-4 sm:mb-5">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+            {loading && !orders.length ? (
+              Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="h-[80px] sm:h-[90px] rounded-xl border border-slate-100 bg-slate-50/70 animate-pulse" />
+              ))
+            ) : (
+              metricCards.map((card) => (
+                <article
+                  key={card.title}
+                  className="rounded-xl border border-slate-100 bg-white shadow-sm px-3 py-2.5 sm:p-4 transition hover:-translate-y-0.5 hover:shadow-md hover:border-sky-200"
+                >
+                  <header className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${card.dotClass}`} />
+                    <p className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400 truncate">
+                      {card.title}
+                    </p>
+                  </header>
+                  <p className="mt-1 sm:mt-2 text-base sm:text-xl font-bold tabular-nums text-slate-900">
+                    {card.value}
+                  </p>
+                  <p className="mt-0.5 sm:mt-1.5 text-[10px] sm:text-xs text-slate-400 truncate">
+                    {card.hint}
+                  </p>
+                </article>
+              ))
+            )}
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-5">
+        {/* ── Latest order hint ── */}
+        {latestOrder && !loading && (
+          <div className="mb-4 rounded-xl border border-sky-100 bg-sky-50/50 px-4 py-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+              <ShoppingOutlined className="text-sm" />
+            </div>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Latest order <span className="font-semibold text-slate-700">{latestOrder.order_number}</span> was placed {dayjs(latestOrder.created_at).fromNow()}.
+              Tap to see updates or message the team.
+            </p>
+          </div>
+        )}
+
+        {/* ── Orders List ── */}
+        <section className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <Title level={5} className="!mb-1 !text-slate-800">Order history</Title>
-              <Text type="secondary" className="text-sm">Review purchases, watch status changes, and open any order to continue the conversation.</Text>
+              <h2 className="text-sm sm:text-base font-semibold text-slate-800">Order history</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Review purchases, track status, and continue conversations</p>
             </div>
-            <div className="w-full lg:max-w-md">
+            <div className="w-full lg:max-w-sm">
               <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} block />
             </div>
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-20"><Spin size="large" /></div>
+            <div className="flex justify-center py-16"><Spin size="large" /></div>
           ) : orders.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-sky-50/70 px-6 py-16 text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-600 text-2xl text-white shadow-[0_16px_36px_rgba(37,99,235,0.22)]">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-14 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-500 text-xl">
                 <ShoppingOutlined />
               </div>
-              <Title level={4} className="!mb-2 !text-slate-800">
-                {filter === 'all' ? 'No orders yet' : `No ${filter} orders found`}
-              </Title>
-              <Text className="mx-auto block max-w-md text-sm text-slate-500">
+              <h3 className="text-base font-semibold text-slate-700 mb-1">
+                {filter === 'all' ? 'No orders yet' : `No ${filter} orders`}
+              </h3>
+              <p className="mx-auto max-w-sm text-xs sm:text-sm text-slate-400">
                 {filter === 'all'
-                  ? 'Your purchases will show up here with payment details, shipping updates, and direct messaging once you place an order.'
-                  : 'Try another filter or refresh the list to see the latest activity for your orders.'}
-              </Text>
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button type="primary" onClick={() => navigate('/shop')} className="h-11 rounded-2xl border-0 bg-gradient-to-r from-sky-500 to-indigo-600 px-6 shadow-[0_12px_28px_rgba(37,99,235,0.25)]">
+                  ? 'Your purchases will show up here with payment details, shipping updates, and messaging.'
+                  : 'Try another filter or refresh to see the latest.'}
+              </p>
+              <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+                <Button type="primary" onClick={() => navigate('/shop')} className="!h-9 !rounded-xl !px-5">
                   Browse Shop
                 </Button>
-                <Button onClick={() => setFilter('all')} className="h-11 rounded-2xl px-6">
-                  Clear Filter
-                </Button>
+                {filter !== 'all' && (
+                  <Button onClick={() => setFilter('all')} className="!h-9 !rounded-xl !px-5">
+                    Clear Filter
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
             <>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {orders.map(renderOrderCard)}
               </div>
               {total > pageSize && (
-                <div className="mt-6 flex justify-center">
+                <div className="mt-5 flex justify-center">
                   <Pagination current={page} total={total} pageSize={pageSize} onChange={setPage} showSizeChanger={false} />
                 </div>
               )}

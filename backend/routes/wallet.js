@@ -1284,12 +1284,16 @@ router.post(
       // paymentTransactionId varsa direkt kullan, yoksa token ile checkoutForm.retrieve yap
       let iyzicoResult;
       try {
+        // Use the actual gateway currency (TRY if converted) not the user's display currency
+        const gatewayCurrency = originalTx.metadata?.gatewayCallback?.currency
+          || originalTx.metadata?.gatewayCurrency
+          || originalTx.currency;
         iyzicoResult = await iyzicoRefund({
           paymentTransactionId: originalTx.metadata?.paymentTransactionId || null,
           paymentId: paymentId,  // Use the extracted paymentId
           token: originalTx.metadata?.token || null, // Token ile paymentTransactionId bulunabilir
           amount: refundAmount,
-          currency: originalTx.currency
+          currency: gatewayCurrency
         });
       } catch (iyzicoError) {
         logger.error('Iyzico refund failed', { 

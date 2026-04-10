@@ -333,22 +333,6 @@ test.describe('7.10 Student Rentals & Accommodation', () => {
     await expect(bookBtn.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('My Accommodation page loads', async ({ page }) => {
-    await loginAsStudent(page);
-    await navigateTo(page, '/stay/my-accommodation');
-    await expectPageLoaded(page);
-    await page.waitForLoadState('networkidle');
-    const body = page.locator('body');
-    await expect(body).toContainText(/my stay/i);
-  });
-
-  test('My Accommodation has booking options', async ({ page }) => {
-    await loginAsStudent(page);
-    await navigateTo(page, '/stay/my-accommodation');
-    await page.waitForLoadState('networkidle');
-    const body = page.locator('body');
-    await expect(body).toContainText(/book a stay|browse stays|hotel|home/i);
-  });
 });
 
 /* ================================================================
@@ -400,7 +384,6 @@ test.describe('7.12 Route Protection Verification', () => {
     '/student/friends',
     '/student/group-bookings',
     '/rental/my-rentals',
-    '/stay/my-accommodation',
   ];
 
   for (const route of protectedRoutes) {

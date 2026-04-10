@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
+import stayCardImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
 
 const CROSS_SELL_CARDS = [
   {
@@ -23,7 +24,7 @@ const CROSS_SELL_CARDS = [
   },
   {
     key: 'stay',
-    image: '/Images/ukc/evo-rent-dacrpm.jpg',
+    image: stayCardImg,
     eyebrow: 'Accommodation',
     title: 'Stay right at the spot',
     body: 'Wake up meters from the water. Comfortable rooms and homes designed for kiters, with gear storage included.',

@@ -150,6 +150,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         disciplineTag: values.disciplineTag || null,
         lessonCategoryTag: values.lessonCategoryTag || derivedServiceType,
         rentalSegment: values.rentalSegment || null,
+        insuranceRate: values.insuranceRate != null ? parseFloat(values.insuranceRate) : null,
         max_participants: derivedMaxParticipants,
         maxParticipants: derivedMaxParticipants,
       };
@@ -261,6 +262,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         disciplineTag: initialValues.disciplineTag || undefined,
         lessonCategoryTag: initialValues.lessonCategoryTag || undefined,
         rentalSegment: initialValues.rentalSegment || undefined,
+        insuranceRate: initialValues.insuranceRate ?? undefined,
       }}
     >
       <div className="space-y-6">
@@ -322,6 +324,21 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
                     </Option>
                   ))}
                 </Select>
+              </Form.Item>
+              <Form.Item
+                name="insuranceRate"
+                label="Insurance rate (%)"
+                extra="Optional. When set, customers are offered equipment insurance at checkout at this rate. Leave blank to disable insurance for this service."
+              >
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  precision={2}
+                  placeholder="e.g. 10"
+                  style={{ width: '100%' }}
+                  addonAfter="%"
+                />
               </Form.Item>
             </>
           )}
