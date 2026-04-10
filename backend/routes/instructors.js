@@ -4,6 +4,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { sanitizeUser } from '../utils/sanitizeUser.js';
 
 const router = express.Router();
 
@@ -151,9 +152,9 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     
     const bookingsResult = await pool.query(bookingsQuery, [req.params.id]);
     
-    const instructor = userResult.rows[0];
+    const instructor = sanitizeUser(userResult.rows[0]);
     instructor.bookings = bookingsResult.rows;
-    
+
     res.json(instructor);
   } catch (err) {
     logger.error('Failed to fetch instructor', err);

@@ -257,7 +257,7 @@ app.use(responseMetrics);
 // CORS configuration
 // Payment gateway callbacks bypass CORS (iyzico POSTs from sandbox-api.iyzipay.com / api.iyzipay.com)
 const globalCors = cors(configureCORS());
-const callbackCors = cors({ origin: true, methods: ['GET', 'POST', 'OPTIONS'], credentials: false });
+const callbackCors = cors({ origin: ['https://sandbox-api.iyzipay.com', 'https://api.iyzipay.com'], methods: ['GET', 'POST', 'OPTIONS'], credentials: false });
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/finances/callback/')) {
     return callbackCors(req, res, next);
@@ -327,8 +327,8 @@ app.get('/api/health', (req, res) => {
   
   if (token) {
     try {
-      const verified = jwt.verify(token, process.env.JWT_SECRET);
-      
+      const verified = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+
       // Only admin/super_admin get detailed metrics (not while emergency login lock is on)
       if (
         verified &&

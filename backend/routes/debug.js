@@ -69,9 +69,8 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['developer', 'admin']),
     
   } catch (error) {
     console.error('Error in debug endpoint:', error);
-    return res.status(500).json({ 
-      error: error.message,
-      stack: error.stack
+    return res.status(500).json({
+      error: 'Internal debug error'
     });
   }
 });

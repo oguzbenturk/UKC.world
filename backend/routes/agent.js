@@ -21,6 +21,9 @@ import { getDashboardSummary } from '../services/dashboardSummaryService.js';
 
 const router = express.Router();
 
+// Apply verifyAgentIdentity globally (not just write routes) to prevent role spoofing on reads
+router.use(verifyAgentIdentity);
+
 // Rate limiter keyed by userId (not IP) since all n8n calls share one IP
 const agentRateLimit = rateLimit({
   windowMs: 60 * 1000,

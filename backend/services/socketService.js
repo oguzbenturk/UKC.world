@@ -145,7 +145,7 @@ class SocketService {
       // SEC-017 FIX: Verify JWT token server-side
       let verified;
       try {
-        verified = jwt.verify(token, JWT_SECRET);
+        verified = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
       } catch (jwtError) {
         logger.warn(`Socket JWT verification failed (${socket.id}): ${jwtError.message}`);
         socket.emit('auth_error', {

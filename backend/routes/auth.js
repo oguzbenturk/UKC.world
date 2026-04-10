@@ -204,7 +204,7 @@ export const authenticateJWT = async (req, res, next) => {
   }
   
   try {
-    const verified = jwt.verify(token, JWT_SECRET);
+    const verified = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
     if (!verified || !verified.id) {
       return res.status(401).json({ error: 'Invalid token format' });

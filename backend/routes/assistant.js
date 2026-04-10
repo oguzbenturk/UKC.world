@@ -1,10 +1,7 @@
 import express from 'express';
 import axios from 'axios';
-import https from 'https';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const router = express.Router();
 
@@ -24,7 +21,7 @@ const optionalAuth = async (req, res, next) => {
     return next();
   }
   try {
-    req.user = jwt.verify(bearerToken, process.env.JWT_SECRET);
+    req.user = jwt.verify(bearerToken, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     req.user = null;
   }
@@ -73,7 +70,6 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
         'X-Plannivo-Secret': webhookSecret || '',
       },
       timeout: 30000,
-      httpsAgent,
     });
 
     const result = response.data;

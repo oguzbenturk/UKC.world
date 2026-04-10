@@ -8,6 +8,7 @@ import permissionService from '../services/permissionService.js';
 import { authenticateJWT } from './auth.js';
 import { authRateLimit, twoFactorRateLimit, setCsrfCookie } from '../middlewares/security.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
+import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 const router = express.Router();
@@ -265,7 +266,7 @@ router.post('/verify-2fa', twoFactorRateLimit, async (req, res) => {
     // Verify temporary token
     let decoded;
     try {
-      decoded = jwt.verify(tempToken, JWT_SECRET);
+      decoded = jwt.verify(tempToken, JWT_SECRET, { algorithms: ['HS256'] });
       if (!decoded.temp2fa || !decoded.userId) {
         throw new Error('Invalid temporary token');
       }
@@ -333,17 +334,16 @@ router.post('/verify-2fa', twoFactorRateLimit, async (req, res) => {
     );
 
     // Remove sensitive data
-    delete user.password_hash;
-    delete user.two_factor_secret;
-    user.role = user.role_name;
-    delete user.role_name;
+    const safeUser = sanitizeUser(user);
+    safeUser.role = safeUser.role_name;
+    delete safeUser.role_name;
 
     // Log successful 2FA verification
     await logSecurityEvent(user.id, 'successful_2fa_verification', req);
 
     setCsrfCookie(res);
     res.json({
-      user,
+      user: safeUser,
       token: finalToken,
       message: 'Two-factor authentication successful'
     });

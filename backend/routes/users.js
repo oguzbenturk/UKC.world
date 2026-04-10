@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { sanitizeUser } from '../utils/sanitizeUser.js';
 
 const router = express.Router();
 
@@ -518,7 +519,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     `, [requestedUserId]);
 
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json(rows[0]);
+    res.json(sanitizeUser(rows[0]));
   } catch (err) {
     logger.error('Failed to fetch user', err);
     res.status(500).json({ error: 'Query failed' });
@@ -628,7 +629,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
       }
     }
 
-    res.json(updatedUser);
+    res.json(sanitizeUser(updatedUser));
   } catch (err) {
     logger.error('User update failed', err);
     res.status(500).json({ error: 'Update failed' });
@@ -1391,7 +1392,7 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
 
     res.json({
       message: `User role successfully changed to ${newRoleName}`,
-      user: updatedUser,
+      user: sanitizeUser(updatedUser),
       previousRole: currentUser.role_name,
       newRole: newRoleName
     });

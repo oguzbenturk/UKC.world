@@ -5,8 +5,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies as root (for proper permissions)
 COPY package*.json ./
-RUN npm install --omit=dev --silent && \
-    npm audit fix --force || true && \
+RUN npm ci --omit=dev --silent && \
     npm cache verify
 
 # Copy application code

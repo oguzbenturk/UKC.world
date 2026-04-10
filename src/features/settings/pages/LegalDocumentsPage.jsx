@@ -171,14 +171,15 @@ const LegalDocumentsPage = () => {
                 icon={<EyeOutlined />}
                 onClick={() => {
                   const win = window.open('', '_blank');
+                  const { sanitizeHtml } = await import('@/shared/utils/sanitizeHtml');
                   win.document.write(`
                     <html>
                       <head><title>Terms of Service Preview</title></head>
                       <body style="padding: 20px; font-family: sans-serif;">
                         <h1>Terms of Service</h1>
-                        <p><em>Version: ${form.getFieldValue('termsVersion')}</em></p>
+                        <p><em>Version: ${sanitizeHtml(form.getFieldValue('termsVersion') || '')}</em></p>
                         <hr/>
-                        ${form.getFieldValue('termsContent') || '<p>No content</p>'}
+                        ${sanitizeHtml(form.getFieldValue('termsContent') || '<p>No content</p>')}
                       </body>
                     </html>
                   `);
@@ -242,14 +243,15 @@ const LegalDocumentsPage = () => {
                 icon={<EyeOutlined />}
                 onClick={() => {
                   const win = window.open('', '_blank');
+                  const { sanitizeHtml } = await import('@/shared/utils/sanitizeHtml');
                   win.document.write(`
                     <html>
                       <head><title>Privacy Policy Preview</title></head>
                       <body style="padding: 20px; font-family: sans-serif;">
                         <h1>Privacy Policy</h1>
-                        <p><em>Version: ${form.getFieldValue('privacyVersion')}</em></p>
+                        <p><em>Version: ${sanitizeHtml(form.getFieldValue('privacyVersion') || '')}</em></p>
                         <hr/>
-                        ${form.getFieldValue('privacyContent') || '<p>No content</p>'}
+                        ${sanitizeHtml(form.getFieldValue('privacyContent') || '<p>No content</p>')}
                       </body>
                     </html>
                   `);

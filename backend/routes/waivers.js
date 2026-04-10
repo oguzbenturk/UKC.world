@@ -133,6 +133,14 @@ router.post(
         });
       }
 
+      // Prevent IDOR: when signing for themselves, user_id must match authenticated user
+      if (user_id && user_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only submit waivers for yourself or your family members',
+        });
+      }
+
       // Capture IP address and user agent
       const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.ip;
       const userAgent = req.headers['user-agent'] || 'Unknown';

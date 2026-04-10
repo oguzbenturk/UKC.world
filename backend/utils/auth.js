@@ -18,7 +18,7 @@ export const authenticateJWT = (req, res, next) => {
 
   try {
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
     // Reject temporary 2FA tokens — they must not be used as full session tokens
     if (decoded.temp2fa) {

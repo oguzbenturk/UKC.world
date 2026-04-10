@@ -94,3 +94,14 @@ backend/.env.server.production
 downloads-ion-duotone/
 DuotoneFonts/downloads/
 backend/.env.production
+
+# Credential backup (NEVER commit)
+CREDENTIALS_BACKUP.md
+
+# Development/test env files with secrets
+backend/.env.development
+.env.test
+.env.production.template
+
+# Claude Code local settings
+.claude/settings.local.json

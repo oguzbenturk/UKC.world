@@ -14,22 +14,24 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
+const DEV_PASSWORD = process.env.DEV_RESET_PASSWORD || 'dev-default-123';
+
 const ACCOUNTS = [
-  { email: 'admin@plannivo.com',          password: 'admin123' },
-  { email: 'ozibenturk@gmail.com',         password: 'REDACTED_DB_PASSWORD' },
-  { email: 'test123@gmail.com',            password: 'testtest' },
-  { email: 'alikirmizi@plannivo.com',      password: 'alikirmizi' },
-  { email: 'ardasimsek@plannivo.com',      password: 'ardasimsek' },
-  { email: 'berkehorasanli@plannivo.com',  password: 'berkehorasanli' },
-  { email: 'dinceryazgan@plannivo.com',    password: 'dinceryazgan' },
-  { email: 'elifsari@plannivo.com',        password: 'elifsari' },
-  { email: 'kemalfurkan@plannivo.com',     password: 'kemalfurkan' },
-  { email: 'maleklaroussi@plannivo.com',   password: 'maleklaroussi' },
-  { email: 'mertkinali@plannivo.com',      password: 'mertkinali' },
-  { email: 'sashaantonioli@plannivo.com',  password: 'sashaantonioli' },
-  { email: 'siyabendsanli@plannivo.com',   password: 'siyabendsanli' },
-  { email: 'ufukgurbuz@plannivo.com',      password: 'ufukgurbuz' },
-];
+  'admin@plannivo.com',
+  'ozibenturk@gmail.com',
+  'test123@gmail.com',
+  'alikirmizi@plannivo.com',
+  'ardasimsek@plannivo.com',
+  'berkehorasanli@plannivo.com',
+  'dinceryazgan@plannivo.com',
+  'elifsari@plannivo.com',
+  'kemalfurkan@plannivo.com',
+  'maleklaroussi@plannivo.com',
+  'mertkinali@plannivo.com',
+  'sashaantonioli@plannivo.com',
+  'siyabendsanli@plannivo.com',
+  'ufukgurbuz@plannivo.com',
+].map(email => ({ email, password: DEV_PASSWORD }));
 
 console.log('Resetting dev passwords...\n');
 

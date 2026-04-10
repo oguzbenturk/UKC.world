@@ -315,7 +315,7 @@ export const configureCORS = () => {
       // Allow null/undefined origin for:
       // - Payment gateway iframes (iyzico checkout uses srcdoc iframe → Origin: "null" string)
       // - Server-to-server requests (no origin header → undefined)
-      if (!origin || origin === 'null' || allowedOrigins.indexOf(origin) !== -1) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         // Log rejected origins in development for debugging

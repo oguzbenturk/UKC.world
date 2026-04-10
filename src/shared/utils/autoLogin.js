@@ -7,6 +7,7 @@ import { getAccessToken, setAccessToken } from '../services/apiClient.js';
 import { isTokenValid } from './tokenUtils.js';
 
 export const autoLogin = async () => {
+  if (!import.meta.env.DEV) { return false; }
   try {
     // Check if we already have a valid token
     const existingToken = getAccessToken();
@@ -52,6 +53,7 @@ export const autoLogin = async () => {
 };
 
 export const ensureAuthenticationWithAutoLogin = async () => {
+  if (!import.meta.env.DEV) { throw new Error('Auto-login is disabled outside development'); }
   const token = getAccessToken();
   
   if (!token || !isTokenValid(token)) {
@@ -70,6 +72,7 @@ export const ensureAuthenticationWithAutoLogin = async () => {
  * Enhanced auto-login with better error handling and retry logic
  */
 export const autoLoginWithRetry = async (maxRetries = 3) => {
+  if (!import.meta.env.DEV) { return false; }
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
