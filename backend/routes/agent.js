@@ -398,7 +398,7 @@ router.post(
 router.get('/bookings', async (req, res) => {
   try {
     const { userId, role } = req.agent;
-    const { date, instructorId, customerId, limit = 50 } = req.query;
+    const { date, start_date, end_date, instructorId, customerId, limit = 50 } = req.query;
     const mgmt = new Set(['admin', 'manager', 'owner']);
 
     const params = [];
@@ -406,12 +406,16 @@ router.get('/bookings', async (req, res) => {
 
     if (mgmt.has(role)) {
       if (date) { params.push(date); conditions.push(`b.date = $${params.length}`); }
+      if (start_date) { params.push(start_date); conditions.push(`b.date >= $${params.length}`); }
+      if (end_date) { params.push(end_date); conditions.push(`b.date <= $${params.length}`); }
       if (instructorId) { params.push(instructorId); conditions.push(`b.instructor_user_id = $${params.length}`); }
       if (customerId) { params.push(customerId); conditions.push(`b.student_user_id = $${params.length}`); }
     } else if (role === 'instructor') {
       params.push(userId);
       conditions.push(`b.instructor_user_id = $${params.length}`);
       if (date) { params.push(date); conditions.push(`b.date = $${params.length}`); }
+      if (start_date) { params.push(start_date); conditions.push(`b.date >= $${params.length}`); }
+      if (end_date) { params.push(end_date); conditions.push(`b.date <= $${params.length}`); }
     } else {
       // student / trusted_customer: own bookings only
       params.push(userId);

@@ -2246,7 +2246,7 @@
     {
       "parameters": {
         "name": "get_booking_list",
-        "description": "List bookings with filters. Optional: date (YYYY-MM-DD), instructorId, customerId.",
+        "description": "List bookings. Use start_date for upcoming/future queries (e.g. today's date). Use date for a specific day. No filter = all bookings. Optional: date (exact YYYY-MM-DD), start_date (from YYYY-MM-DD), end_date (to YYYY-MM-DD), instructorId, customerId.",
         "method": "GET",
         "url": "={{ $env.PLANNIVO_API_BASE }}/bookings",
         "sendHeaders": true,
@@ -2280,6 +2280,14 @@
               "valueProvider": "modelOptional"
             },
             {
+              "name": "start_date",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "end_date",
+              "valueProvider": "modelOptional"
+            },
+            {
               "name": "instructorId",
               "valueProvider": "modelOptional"
             },
@@ -2293,7 +2301,17 @@
           "values": [
             {
               "name": "date",
-              "description": "YYYY-MM-DD (optional)",
+              "description": "Exact date filter YYYY-MM-DD (optional, use for specific day)",
+              "type": "string"
+            },
+            {
+              "name": "start_date",
+              "description": "From date YYYY-MM-DD inclusive (optional, use for upcoming/future queries)",
+              "type": "string"
+            },
+            {
+              "name": "end_date",
+              "description": "To date YYYY-MM-DD inclusive (optional)",
               "type": "string"
             },
             {
