@@ -3,11 +3,12 @@ import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import stayCardImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
 import rentalBannerImg from '../../../../DuotoneFonts/pictures/shoprentalbanner.jpg';
+import shopBannerImg from '../../../../DuotoneFonts/pictures/shop.jpg';
 
 const CROSS_SELL_CARDS = [
   {
     key: 'shop',
-    image: '/Images/ukc/evo-sls-rent.png',
+    image: shopBannerImg,
     eyebrow: 'Duotone Pro Shop',
     title: 'Gear up for the season',
     body: 'Browse the latest Duotone kites, boards, harnesses and accessories. Pro center pricing, expert advice included.',

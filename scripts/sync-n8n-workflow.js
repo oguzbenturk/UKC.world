@@ -37,26 +37,12 @@ const headers = {
   'X-N8N-API-KEY': API_KEY,
 };
 
-const workflowFile = path.join(root, 'plannivo-assistant-n8n-workflow.json');
-const promptFile = path.join(root, 'kai-system-prompt.md');
+const workflowFile = path.join(root, 'kai-optimized.json');
 
-// Parse the workflow (placeholder stays as-is in the JSON file)
-const workflow = JSON.parse(fs.readFileSync(workflowFile, 'utf8'));
-
-// Inject the static prompt into the Build System Prompt node
-if (fs.existsSync(promptFile)) {
-  const staticPrompt = fs.readFileSync(promptFile, 'utf8').trim();
-  const buildNode = workflow.nodes.find(n => n.id === 'build-prompt');
-  if (buildNode) {
-    // JSON.stringify produces a valid JS string literal — handles all escaping correctly
-    const jsStringLiteral = JSON.stringify(staticPrompt); // e.g. "Hello\nWorld"
-    buildNode.parameters.jsCode = buildNode.parameters.jsCode.replace(
-      /const staticPrompt = '%%KAI_STATIC_PROMPT%%';/,
-      `const staticPrompt = ${jsStringLiteral};`
-    );
-    console.log(`   ✓ Injected kai-system-prompt.md (${staticPrompt.length} chars)`);
-  }
-}
+// Parse the workflow (system prompt is already embedded in the jsCode node)
+// Only include fields accepted by the n8n PUT /workflows/{id} API
+const { name, nodes, connections, settings, staticData } = JSON.parse(fs.readFileSync(workflowFile, 'utf8'));
+const workflow = { name, nodes, connections, settings, ...(staticData !== undefined && { staticData }) };
 
 async function listWorkflows() {
   const res = await fetch(`${N8N_BASE}/workflows`, { headers });
