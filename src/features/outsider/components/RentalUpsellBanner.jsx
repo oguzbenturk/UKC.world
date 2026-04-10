@@ -2,6 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import standardBg from '../../../../DuotoneFonts/DPSLOGOS/Website-DSC07450.jpg';
+import slsBg from '../../../../DuotoneFonts/pictures/Website-Dtk-Duotone-Lazepump-RebelSLS-MatchuLopes-Venezuela-2026-TobyBromwich-0955.jpg';
+import dlabBg from '../../../../DuotoneFonts/pictures/Website-DTK-RebelD-Lab-Rigging-ColleenCarroll-HoodRiver-2026-TobyBromwich-3391.jpg';
+import efoilBg from '../../../../DuotoneFonts/pictures/Website-MelissaTrullier_MidfishAir_FoilAssistCruiseAL_Duotone_DTE_Tahiti_by_Ben_Thouard_54333.jpg';
 
 const ALL_RENTAL_CARDS = [
   {
@@ -15,7 +18,7 @@ const ALL_RENTAL_CARDS = [
   },
   {
     key: 'sls',
-    image: '/Images/ukc/evo-sls-rent.png',
+    image: slsBg,
     eyebrow: 'Strong Light Superior',
     title: 'Want something that feels better?',
     body: 'Lighter, stronger, more responsive. Our SLS range takes your session to the next level with premium carbon construction.',
@@ -24,7 +27,7 @@ const ALL_RENTAL_CARDS = [
   },
   {
     key: 'dlab',
-    image: '/Images/ukc/rebel-dlab-rent.png',
+    image: dlabBg,
     eyebrow: 'Duotone Laboratory',
     title: 'Try something exclusive',
     body: 'The pinnacle of kiteboarding technology. D/LAB is the lightest, most responsive equipment Duotone has ever made.',
@@ -33,7 +36,7 @@ const ALL_RENTAL_CARDS = [
   },
   {
     key: 'efoil',
-    image: '/Images/ukc/e-foil.png',
+    image: efoilBg,
     eyebrow: 'Electric Hydrofoil',
     title: 'Fly above the water',
     body: 'No wind needed. Glide silently above the surface with our premium E-Foil rental — the most unique watersport experience.',
@@ -79,16 +82,16 @@ const RentalUpsellBanner = ({ currentKey }) => {
                 className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                 style={{ backgroundImage: `url('${card.image}')` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
 
               <div className="relative z-10 h-full flex flex-col justify-end p-6 sm:p-8">
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.15em] text-[#00a8c4] mb-2">
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.15em] text-[#00d4f5] mb-2" style={{ textShadow: '0 0 10px rgba(0,212,245,0.7)' }}>
                   {card.eyebrow}
                 </span>
-                <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-white mb-2 leading-tight">
+                <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-white mb-2 leading-tight" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
                   {card.title}
                 </h3>
-                <p className="text-sm font-duotone-regular text-white/80 mb-5 max-w-md leading-relaxed">
+                <p className="text-sm font-duotone-regular text-white mb-5 max-w-md leading-relaxed" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
                   {card.body}
                 </p>
                 <div>

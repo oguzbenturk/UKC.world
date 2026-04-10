@@ -15,6 +15,7 @@ import { useCalendar } from '../contexts/CalendarContext';
 import { getAvailableSlots } from '../api/calendarApi';
 import { useToast } from '@/shared/contexts/ToastContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import { useBookingForm } from '../../hooks/useBookingForm';
 import { computeBookingPrice } from '@/shared/utils/pricing';
 import { filterServicesByCapacity, isGroupService } from '@/shared/utils/serviceCapacityFilter';
@@ -292,8 +293,10 @@ const AssignPackageDropdown = ({ participants, onSelect, allPkgs }) => {
 // eslint-disable-next-line complexity
 const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate }) => {
   const { selectedSlot, services, users, instructors, refreshData, createBooking } = useCalendar();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const { formatCurrency, businessCurrency } = useCurrency();
+  const { user: authUser } = useAuth();
+  const isInstructorBooker = authUser?.role?.toLowerCase?.() === 'instructor';
   const { modal } = App.useApp();
 
   // ── Form state ──────────────────────────────────────────────────
@@ -905,20 +908,24 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
       if (!response?.id && !response?.bookingId) throw new Error('Booking created but no ID returned.');
 
-      // Contextual success message based on service type
-      const selectedSvc = (services || []).find(s => s.id === formData.serviceId);
-      const isGroupLessonSvc = selectedSvc ? isGroupService(selectedSvc) : false;
-      const pLen = formData.participants?.length || 1;
-      if (pLen > 1) {
-        showSuccess(`Group lesson booked with ${pLen} participants!`);
+      // Contextual success message based on service type and role
+      if (isInstructorBooker) {
+        showInfo('Booking submitted — pending approval from a manager or admin.');
       } else {
-        const participant = formData.participants?.[0];
-        const pName = participant?.userName || formData.userName;
-        if (participant?.usePackage && participant?.selectedPackageId) {
-          showSuccess(`Lesson booked for ${pName} using package hours!`);
+        const selectedSvc = (services || []).find(s => s.id === formData.serviceId);
+        const isGroupLessonSvc = selectedSvc ? isGroupService(selectedSvc) : false;
+        const pLen = formData.participants?.length || 1;
+        if (pLen > 1) {
+          showSuccess(`Group lesson booked with ${pLen} participants!`);
         } else {
-          const lessonType = isGroupLessonSvc ? 'Group lesson' : 'Private lesson';
-          showSuccess(`${lessonType} booked for ${pName}!`);
+          const participant = formData.participants?.[0];
+          const pName = participant?.userName || formData.userName;
+          if (participant?.usePackage && participant?.selectedPackageId) {
+            showSuccess(`Lesson booked for ${pName} using package hours!`);
+          } else {
+            const lessonType = isGroupLessonSvc ? 'Group lesson' : 'Private lesson';
+            showSuccess(`${lessonType} booked for ${pName}!`);
+          }
         }
       }
 
@@ -946,7 +953,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, services, userPackages, getBookingDuration, validateStep, createBooking, updateFormData, showSuccess, showError, onBookingCreated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [formData, services, userPackages, getBookingDuration, validateStep, createBooking, updateFormData, showSuccess, showError, showInfo, isInstructorBooker, onBookingCreated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Close handler ───────────────────────────────────────────────
   const handleClose = useCallback((force = false) => {

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useSearchParams } from 'react-router-dom';
 import { CalendarApiErrors } from '../api/calendarApi';
 import { format, startOfDay, endOfWeek, endOfMonth, startOfWeek, endOfDay, startOfMonth } from 'date-fns';
-import calendarConfig from '@/config/calendarConfig';
+import calendarConfig, { applyWorkingHours } from '@/config/calendarConfig';
 import DataService from '@/shared/services/dataService';
 import { getAuthHeaders } from '@/shared/utils/authUtils';
 import { autoLoginWithRetry } from '@/shared/utils/autoLogin';
@@ -262,6 +262,19 @@ function CalendarProvider({ children }) {
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [highlightedBookingId, setHighlightedBookingId] = useState(urlBookingId);
   const [selectedSlot, setSelectedSlot] = useState(null);
+
+  // Load working hours setting once on mount and apply to calendarConfig
+  useEffect(() => {
+    import('@/shared/services/apiClient').then(({ default: apiClient }) => {
+      apiClient.get('/settings').then(res => {
+        const wh = res.data?.calendar_working_hours;
+        if (wh) {
+          const toHHMM = (v) => typeof v === 'number' ? `${String(v).padStart(2, '0')}:00` : v;
+          applyWorkingHours(toHHMM(wh.start), toHHMM(wh.end));
+        }
+      }).catch(() => { /* keep defaults */ });
+    });
+  }, []);
 
   // ==========================================
   // SECTION 2: DATA STATE

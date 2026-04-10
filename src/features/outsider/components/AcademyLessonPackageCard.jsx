@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { HomeOutlined, StarFilled, CheckCircleFilled } from '@ant-design/icons';
+import { HomeOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useImageAccent } from '@/features/outsider/hooks/useImageAccent';
+import slsLogo from '../../../../DuotoneFonts/DPSLOGOS/sls.png';
+import dlabLogo from '../../../../DuotoneFonts/DPSLOGOS/duotone-kiteboarding-d_lab-logo-new-2026.png';
+import standardLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC_Logo_231121.ai.png';
 
 function getCheapestDuration(durations) {
   if (!Array.isArray(durations) || !durations.length) return null;
@@ -206,11 +209,30 @@ export default function AcademyLessonPackageCard({
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(180,220,240,0.06)_0%,transparent_65%)]" />
 
-        <div className="absolute left-2.5 top-2.5 z-20 flex items-center gap-1.5">
-          {pkg.featured && (
-            <div className="flex items-center gap-0.5 rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm md:bg-black/80 md:backdrop-blur-none">
-              <StarFilled className="text-[10px] text-yellow-500" /> POPULAR
-            </div>
+        <div className="absolute left-2.5 top-2.5 z-20 flex flex-col items-start gap-1.5">
+          {pkg.badges?.[0] === 'SLS' && (
+            <img
+              src={slsLogo}
+              alt="SLS"
+              className="h-8 w-auto drop-shadow-md"
+              draggable={false}
+            />
+          )}
+          {pkg.badges?.[0] === 'DLAB' && (
+            <img
+              src={dlabLogo}
+              alt="D/LAB"
+              className="h-8 w-auto drop-shadow-md"
+              draggable={false}
+            />
+          )}
+          {pkg.badges?.[0] === 'STANDARD' && (
+            <img
+              src={standardLogo}
+              alt="Standard"
+              className="h-8 w-auto drop-shadow-md"
+              draggable={false}
+            />
           )}
           {isOwned && (
             <div className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm">

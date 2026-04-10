@@ -655,9 +655,7 @@ export async function getStudentOverview(studentId, options = {}) {
       client.query(
         `SELECT COUNT(*) FILTER (WHERE (b.status IS NULL OR b.status <> 'cancelled') AND (b.date + (b.start_hour * INTERVAL '1 hour')) < LOCALTIMESTAMP) AS completed_count,
                 COUNT(*) FILTER (WHERE (b.date + (b.start_hour * INTERVAL '1 hour')) >= LOCALTIMESTAMP AND b.status NOT IN ('cancelled','archived','pending_partner')) AS upcoming_count,
-                COALESCE(SUM(b.duration) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled'),0) AS total_hours,
-                (SELECT b2.date FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b2.id AND bp.user_id = $1)) AND b2.deleted_at IS NULL AND b2.status NOT IN ('cancelled','archived','pending_partner') AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_date,
-                (SELECT b2.start_hour FROM bookings b2 WHERE (b2.student_user_id = $1 OR b2.customer_user_id = $1 OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b2.id AND bp.user_id = $1)) AND b2.deleted_at IS NULL AND b2.status NOT IN ('cancelled','archived','pending_partner') AND (b2.date + (b2.start_hour * INTERVAL '1 hour')) > LOCALTIMESTAMP ORDER BY (b2.date + (b2.start_hour * INTERVAL '1 hour')) ASC LIMIT 1) AS next_session_hour
+                COALESCE(SUM(b.duration) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled'),0) AS total_hours
            FROM bookings b
           WHERE (b.student_user_id = $1 OR b.customer_user_id = $1
                  OR EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.booking_id = b.id AND bp.user_id = $1))
@@ -1306,7 +1304,7 @@ export async function getStudentOverview(studentId, options = {}) {
         completedSessions: coalesceNumber(statsRow.completed_count),
         upcomingSessions: coalesceNumber(statsRow.upcoming_count),
         totalHours: coalesceNumber(statsRow.total_hours),
-        nextSessionAt: buildLocalTimeIso(statsRow.next_session_date, statsRow.next_session_hour).startIso,
+        nextSessionAt: buildLocalTimeIso(upcomingRes.rows[0]?.date, upcomingRes.rows[0]?.start_hour).startIso,
         completionPercent,
         completedRentals: coalesceNumber(rentalStatsRow.completed_rentals),
         upcomingRentals: coalesceNumber(rentalStatsRow.upcoming_rentals),

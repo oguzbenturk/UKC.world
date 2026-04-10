@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { PRODUCT_CATEGORIES, LEGACY_CATEGORY_MAP, resolveCategory } from '@/shared/constants/productCategories';
+import { PRODUCT_CATEGORIES, resolveCategory } from '@/shared/constants/productCategories';
 
 // Sort options
 export const SORT_OPTIONS = [
@@ -15,37 +15,38 @@ export const CATEGORY_LABELS = Object.fromEntries(
     Object.values(PRODUCT_CATEGORIES).map(cat => [cat.value, cat.label])
 );
 
+export const DEFAULT_PRICE_RANGE = [0, 10000];
+
 const ShopFiltersContext = createContext(null);
 
 export const ShopFiltersProvider = ({ children }) => {
     // Filter state
-    const [selectedCategory, setSelectedCategory] = useState('featured');
+    const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedSubcategory, setSelectedSubcategory] = useState('all');
     const [selectedBrand, setSelectedBrand] = useState('all');
-    const [sortBy, setSortBy] = useState('price-high');
+    const [sortBy, setSortBy] = useState('newest');
     const [showInStockOnly, setShowInStockOnly] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [expandedCategories, setExpandedCategories] = useState({});
-    
+    const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
+
     // All products for stable category counts
     const [allProducts, setAllProducts] = useState([]);
 
     // Active filter count
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (selectedCategory !== 'all' && selectedCategory !== 'featured') count++;
+        if (selectedCategory !== 'all') count++;
         if (selectedSubcategory !== 'all') count++;
         if (selectedBrand !== 'all') count++;
         if (searchText.trim()) count++;
         if (showInStockOnly) count++;
+        if (priceRange[0] > DEFAULT_PRICE_RANGE[0] || priceRange[1] < DEFAULT_PRICE_RANGE[1]) count++;
         return count;
-    }, [selectedCategory, selectedSubcategory, selectedBrand, searchText, showInStockOnly]);
+    }, [selectedCategory, selectedSubcategory, selectedBrand, searchText, showInStockOnly, priceRange]);
 
     // Available categories — always built from PRODUCT_CATEGORIES constant
-    // so sidebar always shows categories even before products are loaded.
-    // Counts come from allProducts when available.
     const availableCategories = useMemo(() => {
-        // Count products per resolved category
         const countMap = {};
         let totalCount = 0;
         allProducts.forEach(p => {
@@ -55,7 +56,6 @@ export const ShopFiltersProvider = ({ children }) => {
             totalCount++;
         });
 
-        // Always include all defined categories from constants
         const categories = Object.values(PRODUCT_CATEGORIES)
             .map(cat => ({
                 value: cat.value,
@@ -63,11 +63,10 @@ export const ShopFiltersProvider = ({ children }) => {
                 count: countMap[cat.value] || 0
             }));
 
-        // Count featured products
         const featuredCount = allProducts.filter(p => p.is_featured).length;
 
         return [
-            { value: 'featured', label: 'Featured Products', count: featuredCount },
+            { value: 'featured', label: 'Featured', count: featuredCount },
             ...categories
         ];
     }, [allProducts]);
@@ -78,8 +77,8 @@ export const ShopFiltersProvider = ({ children }) => {
         if (!keepSubcategory) {
             setSelectedSubcategory('all');
             setSelectedBrand('all');
+            setPriceRange(DEFAULT_PRICE_RANGE);
         }
-        // Ensure view resets when switching categories inside shop page
         if (typeof window !== 'undefined') {
             window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         }
@@ -104,8 +103,9 @@ export const ShopFiltersProvider = ({ children }) => {
         setSelectedBrand('all');
         setSearchText('');
         setShowInStockOnly(false);
-        setSortBy('price-high');
+        setSortBy('newest');
         setExpandedCategories({});
+        setPriceRange(DEFAULT_PRICE_RANGE);
     }, []);
 
     const toggleCategoryExpanded = useCallback((categoryValue) => {
@@ -125,9 +125,10 @@ export const ShopFiltersProvider = ({ children }) => {
         searchText,
         expandedCategories,
         allProducts,
+        priceRange,
         activeFilterCount,
         availableCategories,
-        
+
         // Setters
         setSelectedCategory,
         setSelectedSubcategory,
@@ -137,7 +138,8 @@ export const ShopFiltersProvider = ({ children }) => {
         setSearchText,
         setExpandedCategories,
         setAllProducts,
-        
+        setPriceRange,
+
         // Handlers
         handleCategoryChange,
         handleSubcategoryChange,

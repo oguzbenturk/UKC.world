@@ -2,7 +2,7 @@
 import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import authService, { SIGN_IN_DISABLED_USER_MESSAGE } from '../services/auth/authService';
 import consentService from '../services/consentService.js';
-import { clearAccessToken, setAccessToken } from '../services/apiClient.js';
+import { clearAccessToken, setAccessToken, getAccessToken } from '../services/apiClient.js';
 import { AuthContext } from './authContextInstance.js';
 
 // eslint-disable-next-line
@@ -193,6 +193,15 @@ export function AuthProvider({ children }) {
       authCheckRef.current = true;
       setLoading(true);
       setError(null);
+
+      // Skip the network call entirely if there's no token — user is definitely a guest
+      const hasToken = getAccessToken() || localStorage.getItem('token');
+      if (!hasToken) {
+        resetAuthState();
+        setLoading(false);
+        authCheckRef.current = false;
+        return;
+      }
 
       try {
         try {

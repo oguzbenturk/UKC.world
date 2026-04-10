@@ -423,6 +423,7 @@ const MonthView = ({ onBookingClick }) => {
                         if (booking.checkInStatus === 'checked-in') return 'booking-card-checked-in';
                         switch (booking.status) {
                           case 'confirmed':
+                            return 'booking-card-confirmed';
                           case 'pending':
                             return 'booking-card-pending';
                           case 'completed':
@@ -501,6 +502,7 @@ const MonthView = ({ onBookingClick }) => {
                 if (booking.checkInStatus === 'checked-in') return 'booking-card-checked-in';
                 switch (booking.status) {
                   case 'confirmed':
+                    return 'booking-card-confirmed';
                   case 'pending':
                     return 'booking-card-pending';
                   case 'completed':
@@ -519,12 +521,23 @@ const MonthView = ({ onBookingClick }) => {
                     title={tooltipText}
                   >
                     <div className="relative z-[1] flex-1 whitespace-normal break-words">
-                      <div className="text-[11px] font-semibold tracking-wide leading-tight">{nameText}</div>
+                      {/* Status pill */}
+                      <div className={`booking-status-pill booking-status-pill-${booking.status} mb-1`}>
+                        <span className="booking-status-dot-small" />
+                        {booking.status === 'checked-in' ? 'Checked In'
+                          : booking.status === 'completed' ? 'Completed'
+                          : booking.status === 'cancelled' ? 'Cancelled'
+                          : booking.status === 'pending' ? 'Pending'
+                          : booking.status === 'confirmed' ? 'Confirmed'
+                          : booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
+                          : 'Pending'}
+                      </div>
+                      <div className="text-[11px] font-semibold tracking-wide leading-tight font-duotone-bold">{nameText}</div>
                       {timeText && (
-                        <div className="text-[10px] opacity-80 leading-tight mt-0.5">{timeText}</div>
+                        <div className="text-[10px] opacity-80 leading-tight mt-0.5 font-duotone-bold">{timeText}</div>
                       )}
                       {booking.instructorName && (
-                        <div className="text-[10px] opacity-70 leading-tight">{booking.instructorName}</div>
+                        <div className="text-[10px] opacity-70 leading-tight font-duotone-regular">{booking.instructorName}</div>
                       )}
                     </div>
                   </div>

@@ -183,24 +183,49 @@ const LessonsCalendar = () => {
     : tabItems;
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <style>{`
+        .lessons-calendar-tabs {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+        }
+        .lessons-calendar-tabs .ant-tabs-nav {
+          margin-bottom: 0 !important;
+          padding: 0 16px;
+          background: #fff;
+          border-bottom: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+        .lessons-calendar-tabs .ant-tabs-nav::before {
+          border-bottom: none !important;
+        }
         .lessons-calendar-tabs .ant-tabs-content-holder {
           flex: 1;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
         }
         .lessons-calendar-tabs .ant-tabs-content {
           height: 100%;
+          display: flex;
+          flex-direction: column;
         }
         .lessons-calendar-tabs .ant-tabs-tabpane {
           height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+        .lessons-calendar-tabs .ant-tabs-tabpane > div {
+          flex: 1;
+          overflow: hidden;
         }
       `}</style>
-      <Tabs 
+      <Tabs
         activeKey={activeTab}
         onChange={handleTabChange}
         items={visibleTabItems}
-        className="flex-1 h-full flex flex-col lessons-calendar-tabs"
+        className="lessons-calendar-tabs"
       />
     </div>
   );

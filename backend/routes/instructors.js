@@ -19,6 +19,8 @@ const publicApiLimiter = rateLimit({
 // GET all instructors - Public endpoint for guest browsing
 router.get('/', publicApiLimiter, async (req, res) => {
   try {
+    const { context } = req.query;
+
     // Fetch global team settings
     let globalSettings = {
       visible_fields: ['bio', 'specializations', 'languages', 'experience'],
@@ -29,6 +31,26 @@ router.get('/', publicApiLimiter, async (req, res) => {
       if (globalResult.rows.length > 0) globalSettings = globalResult.rows[0];
     } catch {
       // Table may not exist yet; use defaults
+    }
+
+    // Load per-form instructor visibility if a context was requested
+    let contextAllowedIds = null; // null = no restriction
+    if (context) {
+      try {
+        const visResult = await pool.query("SELECT value FROM settings WHERE key = 'instructor_form_visibility'");
+        if (visResult.rows.length > 0) {
+          const vis = visResult.rows[0].value;
+          const ids = vis?.[context];
+          if (Array.isArray(ids) && ids.length > 0) contextAllowedIds = ids;
+        }
+      } catch { /* use defaults */ }
+    }
+
+    const queryParams = [];
+    let contextFilter = '';
+    if (contextAllowedIds) {
+      queryParams.push(contextAllowedIds);
+      contextFilter = `AND u.id = ANY($1::uuid[])`;
     }
 
     const query = `
@@ -56,6 +78,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
       LEFT JOIN team_member_settings tms ON tms.instructor_id = u.id
       WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
         AND (tms.visible IS NULL OR tms.visible = true)
+        ${contextFilter}
       GROUP BY u.id, r.name, idc.commission_value, idc.commission_type,
                tms.visible, tms.display_order, tms.featured, tms.custom_bio
       ORDER BY
@@ -64,7 +87,7 @@ router.get('/', publicApiLimiter, async (req, res) => {
         u.name
     `;
 
-    const { rows } = await pool.query(query);
+    const { rows } = await pool.query(query, queryParams);
 
     const visibleFields = Array.isArray(globalSettings.visible_fields) ? globalSettings.visible_fields : ['bio', 'specializations', 'languages', 'experience'];
 

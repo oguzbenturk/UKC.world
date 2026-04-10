@@ -11,8 +11,8 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
-import hotelHeroImg from '../../../../DuotoneFonts/Burlahan/burla-han-butik-otel (1).jpg';
-import stayHeroImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
+const hotelHeroImg = '/Images/ukc/burlahan-hotel.jpg';
+const stayHeroImg = '/Images/ukc/stay-home.jpeg';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
@@ -65,91 +65,103 @@ const StayLandingPage = () => {
         <div className="flex w-full justify-center px-4 pb-3 pt-2 sm:px-6 sm:pb-5 sm:pt-3 lg:px-8">
           <FuturisticScrollCue
             ariaLabel="Scroll to accommodation options"
-            onActivate={() => document.getElementById('hotel-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onActivate={() => document.getElementById('home-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             className="focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           />
         </div>
       </div>
 
-      {/* Hotel Section */}
-      <div id="hotel-section" className="relative min-h-[500px] flex flex-col group">
-        {/* White dissolve from banner seam into photo */}
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-32 sm:h-40 md:h-48"
-          style={{
-            background: 'linear-gradient(to bottom, #ffffff 0%, rgba(255,255,255,0.92) 10%, rgba(255,255,255,0.55) 32%, rgba(255,255,255,0.2) 58%, rgba(255,255,255,0.06) 78%, rgba(255,255,255,0) 100%)',
-          }}
-          aria-hidden
-        />
+      {/* Home Accommodation Section — first */}
+      <div id="home-section" className="relative min-h-[500px] flex flex-col group overflow-hidden" style={{ scrollMarginTop: '88px' }}>
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
           style={{
-             backgroundImage: `url(${hotelHeroImg})`,
-             backgroundPosition: 'center center'
+            backgroundImage: `url(${stayHeroImg})`,
+            backgroundPosition: 'center center',
           }}
         >
-          {/* Enhanced Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1118]"></div>
+          <div
+            className="absolute inset-0 z-[1]"
+            style={{
+              background:
+                'linear-gradient(to bottom, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0.22) 22%, rgba(0,0,0,0.38) 55%, #0d1511 100%)',
+              maskImage:
+                'linear-gradient(to bottom, transparent 0%, transparent 6%, black 22%, black 100%)',
+              WebkitMaskImage:
+                'linear-gradient(to bottom, transparent 0%, transparent 6%, black 22%, black 100%)',
+            }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-32 sm:h-40 md:h-48"
+            style={{
+              background:
+                'linear-gradient(to bottom, #ffffff 0%, rgba(255,255,255,0.92) 10%, rgba(255,255,255,0.55) 32%, rgba(255,255,255,0.2) 58%, rgba(255,255,255,0.06) 78%, rgba(255,255,255,0) 100%)',
+            }}
+            aria-hidden
+          />
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-44 pb-20 md:py-32 w-full text-left items-start">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-4 tracking-tight text-white drop-shadow-xl uppercase">
-                HOTEL STAY
-            </h1>
-            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow max-w-2xl leading-relaxed">
-                Stay at the peaceful Burlahan Otel in Urla while learning to kitesurf. Quality accommodation with beachfront access and full amenities.
-            </p>
-            
-            <div className="flex flex-wrap gap-4 justify-start mt-4">
-                <Button 
-                ghost 
-                size="large" 
-                className="!text-[#00a8c4] !border-[#00a8c4]/40 hover:!border-[#00a8c4] hover:!bg-[#00a8c4]/10 !h-14 !px-8 !text-lg font-duotone-bold !rounded-md backdrop-blur-sm"
-                onClick={() => navigate('/stay/hotel')}
-                style={{ boxShadow: '0 0 12px rgba(0,168,196,0.1)' }}
-                >
-                View Details <RightOutlined className="text-xs ml-1" />
-                </Button>
-            </div>
+        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 uppercase">
+            HOME ACCOMMODATION
+          </h1>
+          <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+            A home away from home.
+          </p>
+          <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+            Stay at our cozy home accommodations. Pool studios, farm house options, and staff quarters for a more personal and intimate experience.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Button
+              size="large"
+              className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+              onClick={() => navigate('/stay/home')}
+            >
+              View Details <RightOutlined className="text-xs ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Home Section */}
-      <div id="home-section" className="relative min-h-[500px] flex flex-col group" style={{ scrollMarginTop: '88px' }}>
+      {/* Hotel Stay Section — second */}
+      <div id="hotel-section" className="relative min-h-[500px] flex flex-col group overflow-hidden">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center z-0 transition-transform duration-1000 group-hover:scale-105"
           style={{
-             backgroundImage: `url(${stayHeroImg})`,
-             backgroundPosition: 'center center'
+            backgroundImage: `url(${hotelHeroImg})`,
+            backgroundPosition: 'center center',
           }}
         >
           {/* Enhanced Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1118]"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#0d1511]"></div>
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full text-left items-start">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-4 tracking-tight text-white drop-shadow-xl uppercase">
-                HOME ACCOMMODATION
-            </h1>
-            <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow max-w-2xl leading-relaxed">
-                Stay at our cozy home accommodations. Pool studios, farm house options, and staff quarters for a more personal experience.
-            </p>
-            
-            <div className="flex flex-wrap gap-4 justify-start mt-4">
-                <Button 
-                ghost 
-                size="large" 
-                className="!text-[#00a8c4] !border-[#00a8c4]/40 hover:!border-[#00a8c4] hover:!bg-[#00a8c4]/10 !h-14 !px-8 !text-lg font-duotone-bold !rounded-md backdrop-blur-sm"
-                onClick={() => navigate('/stay/home')}
-                style={{ boxShadow: '0 0 12px rgba(0,168,196,0.1)' }}
-                >
-                View Details <RightOutlined className="text-xs ml-1" />
-                </Button>
-            </div>
+        <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 uppercase">
+            HOTEL STAY
+          </h1>
+          <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
+            Comfort and convenience, steps from the water.
+          </p>
+          <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
+            Stay at the peaceful Burlahan Otel in Urla while learning to kitesurf. Quality accommodation with beachfront access and full amenities.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Button
+              size="large"
+              className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
+              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+              onClick={() => navigate('/stay/hotel')}
+            >
+              View Details <RightOutlined className="text-xs ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
 

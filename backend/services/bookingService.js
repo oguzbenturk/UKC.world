@@ -2,6 +2,7 @@ import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
 import { appendCreatedBy } from '../utils/auditUtils.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
 
 /**
  * Optimized Booking Service with Caching Layer
@@ -115,8 +116,14 @@ class BookingService {
         try {
             const { rows: existingBookings } = await pool.query(query, [instructorId, date]);
             
-            // Generate available slots (assuming 8:00-21:00 working hours)
-            const workingHours = Array.from({length: 13}, (_, i) => i + 8); // 8:00-20:00
+            // Generate available slots using configured working hours
+            const { start: whStart, end: whEnd } = await getWorkingHours(pool);
+            const startMins = parseHHMM(whStart);
+            const endMins = parseHHMM(whEnd);
+            const workingHours = [];
+            for (let mins = startMins; mins < endMins; mins += 60) {
+              workingHours.push(mins / 60); // keep as fractional hour for conflict check
+            }
             const availableSlots = [];
             
             for (const hour of workingHours) {

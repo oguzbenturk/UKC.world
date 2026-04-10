@@ -24,7 +24,7 @@ import DataService from '@/shared/services/dataService';
 import FinancialService from '../../finances/services/financialService';
 import requestThrottle from '@/shared/utils/requestThrottle';
 const CustomerPackageManager = lazy(() => import('../components/CustomerPackageManager'));
-const StepBookingModal = lazy(() => import('../../bookings/components/components/StepBookingModal'));
+const BookingDrawer = lazy(() => import('../../bookings/components/components/BookingDrawer'));
 const BookingDetailModal = lazy(() => import('../components/BookingDetailModal'));
 const RentalDetailModal = lazy(() => import('../components/RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('../components/TransactionDetailModal'));
@@ -3369,7 +3369,7 @@ function CustomerProfilePage() {
       {bookingModalVisible && (
         <CalendarProvider>
           <Suspense fallback={<Spin size="small" />}>
-            <StepBookingModal
+            <BookingDrawer
               isOpen={bookingModalVisible}
               onClose={() => setBookingModalVisible(false)}
               prefilledCustomer={customer}

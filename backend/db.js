@@ -255,7 +255,7 @@ try {
     
     // Optimization settings for better performance
     max: 20, // Maximum pool size — keep moderate to avoid exhausting remote DB limits
-    min: 4,  // Minimum warm connections
+    min: 10, // Minimum warm connections — app fires 8+ concurrent queries on every page load
     idleTimeoutMillis: 30000, // Close idle clients after 30s
     connectionTimeoutMillis: 10000, // Return error after 10s if connection cannot be established
     acquireTimeoutMillis: 15000, // Return error if no connection available after 15s

@@ -896,7 +896,9 @@ function SecuritySection({ user }) {
 const InstructorMyProfileDrawer = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshUser } = useAuth();
-  const { data: dashData, loading: dashLoading } = useInstructorDashboard();
+  const isInstructor = isAuthenticated && ['instructor', 'manager', 'admin', 'developer', 'super_admin']
+    .includes(user?.role?.toLowerCase());
+  const { data: dashData, loading: dashLoading } = useInstructorDashboard(0, { enabled: isInstructor });
   const { businessCurrency, formatCurrency } = useCurrency();
 
   const [open, setOpen] = useState(false);
@@ -905,9 +907,6 @@ const InstructorMyProfileDrawer = () => {
   const [drawerWidth, setDrawerWidth] = useState(() =>
     typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : 960
   );
-
-  const isInstructor = isAuthenticated && ['instructor', 'manager', 'admin', 'developer', 'super_admin']
-    .includes(user?.role?.toLowerCase());
 
   useEffect(() => {
     if (!isInstructor) return undefined;

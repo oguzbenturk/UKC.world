@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import stayCardImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
+import rentalBannerImg from '../../../../DuotoneFonts/pictures/shoprentalbanner.jpg';
 
 const CROSS_SELL_CARDS = [
   {
@@ -15,7 +16,7 @@ const CROSS_SELL_CARDS = [
   },
   {
     key: 'rental',
-    image: '/Images/ukc/rebel-dlab-rent.png',
+    image: rentalBannerImg,
     eyebrow: 'Equipment Rental',
     title: 'Ride premium gear daily',
     body: 'Standard to D/LAB — pick the level that matches your riding. All maintained, all latest models.',

@@ -2,45 +2,59 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useIsFetching } from '@tanstack/react-query';
 
+const MAX_DURATION = 2500; // Force-complete after 2.5s regardless of pending fetches
+
 const GlobalProgressBar = () => {
   const location = useLocation();
   const isFetching = useIsFetching();
   const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef(null);
+  const timersRef = useRef([]);
   const completeRef = useRef(null);
+  const maxTimerRef = useRef(null);
+
+  const clearAll = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    clearTimeout(completeRef.current);
+    clearTimeout(maxTimerRef.current);
+  };
+
+  const complete = () => {
+    clearAll();
+    setProgress(100);
+    completeRef.current = setTimeout(() => {
+      setVisible(false);
+      setProgress(0);
+    }, 250);
+  };
 
   // Start bar on route change
   useEffect(() => {
-    setProgress(15);
+    clearAll();
+    setProgress(20);
     setVisible(true);
 
-    // Ramp to ~85% over time
-    timerRef.current = setTimeout(() => setProgress(45), 100);
-    const t2 = setTimeout(() => setProgress(65), 300);
-    const t3 = setTimeout(() => setProgress(85), 800);
+    timersRef.current = [
+      setTimeout(() => setProgress(50), 150),
+      setTimeout(() => setProgress(75), 400),
+      setTimeout(() => setProgress(88), 900),
+    ];
 
-    return () => {
-      clearTimeout(timerRef.current);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [location.pathname]);
+    // Hard timeout — always complete within MAX_DURATION ms
+    maxTimerRef.current = setTimeout(complete, MAX_DURATION);
 
-  // Complete when no active fetches
+    return clearAll;
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Also complete early when React Query goes idle
   useEffect(() => {
     if (visible && isFetching === 0) {
-      clearTimeout(completeRef.current);
-      completeRef.current = setTimeout(() => {
-        setProgress(100);
-        setTimeout(() => {
-          setVisible(false);
-          setProgress(0);
-        }, 200);
-      }, 150);
+      // Small debounce so a cascade of quick fetches doesn't flicker
+      const t = setTimeout(complete, 120);
+      return () => clearTimeout(t);
     }
-    return () => clearTimeout(completeRef.current);
-  }, [isFetching, visible]);
+  }, [isFetching, visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible && progress === 0) return null;
 
@@ -61,7 +75,12 @@ const GlobalProgressBar = () => {
           height: '100%',
           width: `${progress}%`,
           background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)',
-          transition: progress === 0 ? 'none' : progress === 100 ? 'width 200ms ease-out, opacity 200ms ease-out' : 'width 400ms ease-out',
+          transition:
+            progress === 0
+              ? 'none'
+              : progress === 100
+              ? 'width 200ms ease-out'
+              : 'width 400ms ease-out',
           opacity: progress === 100 ? 0 : 1,
           boxShadow: '0 0 8px rgba(14, 165, 233, 0.4)',
         }}

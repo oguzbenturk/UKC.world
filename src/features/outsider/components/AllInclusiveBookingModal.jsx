@@ -489,7 +489,7 @@ const LessonStep = ({
     (async () => {
       try {
         setLoadingInstructors(true);
-        const data = await getInstructors(true);
+        const data = await getInstructors(true, 'public_booking');
         if (!cancelled) setInstructors(Array.isArray(data) ? data : []);
       } catch {
         if (!cancelled) setInstructors([]);

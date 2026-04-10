@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback, memo } from 'react';
-import { 
-  ArrowPathIcon, 
-  ChevronDownIcon, 
-  ChevronUpIcon, 
-  PencilIcon, 
-  CheckIcon, 
-  XMarkIcon, 
-  ClockIcon, 
-  ExclamationCircleIcon, 
-  CheckCircleIcon 
+import { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import {
+  ArrowPathIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  ClockIcon,
+  ExclamationCircleIcon,
+  CheckCircleIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 import apiClient from '@/shared/services/apiClient';
 import { useToast } from '@/shared/contexts/ToastContext';
@@ -242,6 +243,135 @@ const UpdateLogsModal = memo(function UpdateLogsModal({ isOpen, onClose, currenc
   );
 });
 
+const CustomerRateCard = memo(function CustomerRateCard({ currency, onRefresh, onMarginSave, isLoading }) {
+  const [marginInput, setMarginInput] = useState(String(currency.rate_margin_percent ?? 0));
+  const [saving, setSaving] = useState(false);
+  const { showSuccess, showError } = useToast();
+
+  // Keep local state in sync when currency data refreshes
+  useEffect(() => {
+    setMarginInput(String(currency.rate_margin_percent ?? 0));
+  }, [currency.rate_margin_percent]);
+
+  const rawRate = Number(currency.raw_rate || currency.exchange_rate || 0);
+  const margin = parseFloat(marginInput) || 0;
+  const previewRate = useMemo(
+    () => rawRate > 0 ? (rawRate * (1 + margin / 100)).toFixed(4) : '—',
+    [rawRate, margin]
+  );
+
+  const handleSaveMargin = async () => {
+    const val = parseFloat(marginInput);
+    if (isNaN(val) || val < 0 || val > 20) {
+      showError('Margin must be between 0% and 20%');
+      return;
+    }
+    setSaving(true);
+    try {
+      await onMarginSave(currency.code, val);
+      showSuccess(`Margin updated — customers now see 1 EUR = ${previewRate} TRY`);
+    } catch {
+      showError('Failed to save margin');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSaveMargin();
+    if (e.key === 'Escape') setMarginInput(String(currency.rate_margin_percent ?? 0));
+  };
+
+  const marginChanged = parseFloat(marginInput) !== Number(currency.rate_margin_percent ?? 0);
+  const sourceLabels = { yahoo: 'Yahoo Finance (live)', open_er: 'Open ER (hourly)', fxrates: 'FXRates API', ecb: 'ECB', manual: 'Manual', cached: 'Cached' };
+  const sourceLabel = sourceLabels[currency.last_update_source] || currency.last_update_source || '—';
+
+  return (
+    <div className="rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <BoltIcon className="w-5 h-5 text-sky-500" />
+          <span className="font-semibold text-slate-800 text-base">EUR → TRY — Customer Rate</span>
+          {currency.auto_update_enabled !== false && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Auto-update ON</span>
+          )}
+        </div>
+        <button
+          onClick={() => onRefresh(currency.code)}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg disabled:opacity-50 transition-colors"
+        >
+          <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Fetch live rate
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {/* Live market rate */}
+        <div className="bg-white rounded-lg border border-slate-200 p-3">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Live market rate</p>
+          <p className="text-2xl font-bold text-slate-800 font-mono">
+            {rawRate > 0 ? rawRate.toFixed(4) : '—'}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            {currency.last_updated_at ? `Updated ${formatDate(currency.last_updated_at)}` : 'Never fetched'}
+          </p>
+          <p className="text-xs text-slate-400">Source: {sourceLabel}</p>
+        </div>
+
+        {/* Margin control */}
+        <div className="bg-white rounded-lg border border-slate-200 p-3">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Your margin</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-lg font-semibold text-slate-500">+</span>
+            <input
+              type="number"
+              min="0"
+              max="20"
+              step="0.1"
+              value={marginInput}
+              onChange={(e) => setMarginInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-20 text-xl font-bold font-mono border-b-2 border-slate-300 focus:border-sky-500 outline-none bg-transparent text-slate-800 pb-0.5"
+            />
+            <span className="text-lg font-semibold text-slate-500">%</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Markup added to live rate</p>
+          {marginChanged && (
+            <button
+              onClick={handleSaveMargin}
+              disabled={saving}
+              className="mt-2 w-full py-1 text-xs font-medium bg-sky-500 hover:bg-sky-600 text-white rounded-md disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Saving…' : 'Save margin'}
+            </button>
+          )}
+        </div>
+
+        {/* Customer sees */}
+        <div className="bg-sky-500 rounded-lg p-3 text-white">
+          <p className="text-xs font-medium text-sky-100 uppercase tracking-wide mb-1">Customers see</p>
+          <p className="text-2xl font-bold font-mono">
+            {previewRate}
+          </p>
+          <p className="text-xs text-sky-200 mt-1">1 EUR = {previewRate} TRY</p>
+          <p className="text-xs text-sky-200 mt-1">
+            {marginChanged
+              ? 'Preview — save to apply'
+              : 'Currently stored rate'}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
+        <span>Auto-update: every {currency.update_frequency_hours || 1}h</span>
+        <span>·</span>
+        <StatusBadge status={currency.last_update_status} />
+      </div>
+    </div>
+  );
+});
+
 const CurrencyManagementSection = memo(function CurrencyManagementSection() {
   const [currencies, setCurrencies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -309,6 +439,11 @@ const CurrencyManagementSection = memo(function CurrencyManagementSection() {
     }
   }, [showSuccess, showError, fetchCurrencies]);
 
+  const handleMarginSave = useCallback(async (code, marginPercent) => {
+    await apiClient.put(`/currencies/${code}/margin`, { marginPercent });
+    fetchCurrencies();
+  }, [fetchCurrencies]);
+
   const handleViewLogs = useCallback(async (currencyCode = null) => {
     try {
       const params = currencyCode ? { currencyCode, limit: 50 } : { limit: 50 };
@@ -323,9 +458,19 @@ const CurrencyManagementSection = memo(function CurrencyManagementSection() {
 
   const activeCurrencies = currencies.filter(c => c.is_active);
   const inactiveCurrencies = currencies.filter(c => !c.is_active);
+  const tryCurrency = currencies.find(c => c.code === 'TRY');
 
   return (
     <div className="space-y-6">
+      {tryCurrency && !tryCurrency.base_currency && (
+        <CustomerRateCard
+          currency={tryCurrency}
+          onRefresh={handleRefresh}
+          onMarginSave={handleMarginSave}
+          isLoading={isLoading}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-medium text-slate-900">Exchange Rates Management</h3>

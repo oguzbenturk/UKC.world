@@ -65,6 +65,7 @@ const buildCalendarCells = (monthStart) => {
 const DateStep = ({
   serviceName,
   description,
+  includes,
   dailyPrice,
   priceCurrency,
   formatCurrency,
@@ -111,6 +112,11 @@ const DateStep = ({
           </div>
           {description && (
             <p className="text-xs sm:text-sm text-slate-500 mt-2 line-clamp-2">{description}</p>
+          )}
+          {includes && (
+            <p className="text-xs text-slate-400 mt-1.5">
+              <span className="font-medium text-slate-500">Includes: </span>{includes}
+            </p>
           )}
         </div>
       </div>
@@ -587,6 +593,7 @@ const RentalBookingModal = ({
   serviceCurrency,
   durationHours,
   serviceDescription,
+  serviceIncludes,
   isPackage = false,
   packageId,
   packageName,
@@ -862,6 +869,7 @@ const RentalBookingModal = ({
         <DateStep
           serviceName={serviceName || 'Equipment Rental'}
           description={serviceDescription}
+          includes={serviceIncludes}
           dailyPrice={dailyPrice}
           priceCurrency={priceCurrency}
           formatCurrency={formatCurrency}
@@ -964,6 +972,7 @@ RentalBookingModal.propTypes = {
   serviceCurrency: PropTypes.string,
   durationHours: PropTypes.number,
   serviceDescription: PropTypes.string,
+  serviceIncludes: PropTypes.string,
 };
 
 export default RentalBookingModal;

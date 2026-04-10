@@ -15,9 +15,10 @@ import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
-import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import socketService from '../services/socketService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
+import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
 
 const router = express.Router();
 // Feature flag to optionally create cash transactions for partial package users
@@ -68,7 +69,7 @@ const rateLimitBookingUpdates = (req, res, next) => {
   next();
 };
 
-const COMPLETED_BOOKING_STATUSES = new Set(['completed', 'done', 'checked_out']);
+const COMPLETED_BOOKING_STATUSES = new Set(['completed']);
 
 const resolveServiceType = (serviceRow) => {
   if (!serviceRow) {
@@ -211,18 +212,19 @@ router.get('/available-slots', authenticateJWT, async (req, res) => {
       d.setDate(d.getDate() + days);
       return toYMD(d);
     };
-    const generateHalfHourSlots = () => {
+    const { start: whStart, end: whEnd } = await getWorkingHours(pool);
+    const generateHalfHourSlots = (startStr, endStr) => {
+      const startMins = parseHHMM(startStr);
+      const endMins = parseHHMM(endStr);
       const slots = [];
-      for (let h = 8; h <= 21; h++) {
-        for (let m = 0; m < 60; m += 30) {
-          // stop at 21:30 inclusive
-          if (h === 21 && m > 30) break;
-          slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-        }
+      for (let mins = startMins; mins <= endMins; mins += 30) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
       }
       return slots;
     };
-    const standardHours = generateHalfHourSlots();
+    const standardHours = generateHalfHourSlots(whStart, whEnd);
 
     // Collect all dates in the range
     const allDates = [];
@@ -811,7 +813,7 @@ router.get('/pending-partner-invites', authenticateJWT, async (req, res) => {
       serviceName: row.serviceName || 'Group Lesson',
       date: row.date,
       startTime: row.start_hour != null
-        ? `${Math.floor(Number(row.start_hour))}:${String(Math.round((Number(row.start_hour) % 1) * 60)).padStart(2, '0')}`
+        ? `${String(Math.floor(Number(row.start_hour))).padStart(2, '0')}:${String(Math.round((Number(row.start_hour) % 1) * 60)).padStart(2, '0')}`
         : null,
       duration: parseFloat(row.duration) || 1,
       packageRemainingHours: row.packageRemainingHours != null ? parseFloat(row.packageRemainingHours) : null,
@@ -1216,7 +1218,7 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
 });
 
 // GET a single booking by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateJWT, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT b.*, 
@@ -2121,7 +2123,7 @@ router.post('/',
     const createdByRole = req.user?.role;
     const staffRoles = ['admin', 'manager', 'instructor', 'owner'];
     const isStaffCreated = staffRoles.includes(createdByRole);
-    
+
     if (!isStaffCreated) {
       try {
         await bookingNotificationService.sendBookingCreated({ bookingId: booking.id });
@@ -2130,6 +2132,54 @@ router.post('/',
           bookingId: booking.id,
           error: notificationError?.message
         });
+      }
+    } else if (createdByRole === 'instructor') {
+      // Instructor bookings go as pending — notify admins/managers for approval
+      const instructorName = req.user?.name || req.user?.first_name || 'An instructor';
+      const sessionDate = date;
+      const sessionTime = start_hour != null
+        ? `${Math.floor(parseFloat(start_hour))}:${String(Math.round((parseFloat(start_hour) % 1) * 60)).padStart(2, '0')}`
+        : '';
+      try {
+        await dispatchToStaff({
+          type: 'new_booking_alert',
+          title: 'Instructor Booking — Approval Needed',
+          message: `${instructorName} created a ${bookingDuration}h ${bookingServiceName || 'lesson'} booking on ${sessionDate}${sessionTime ? ` at ${sessionTime}` : ''} — pending your approval.`,
+          data: {
+            bookingId: booking.id,
+            instructorId: instructor_user_id || req.user?.id,
+            instructorName,
+            date: sessionDate,
+            status: 'pending',
+            cta: { label: 'Review Booking', href: `/bookings/calendar` }
+          },
+          excludeUserIds: [req.user?.id],
+          roles: ['admin', 'manager', 'owner']
+        });
+      } catch (notificationError) {
+        logger.warn('Failed to dispatch instructor pending booking notification', {
+          bookingId: booking.id,
+          error: notificationError?.message
+        });
+      }
+      // Real-time push to admin/manager roles
+      if (req.socketService) {
+        try {
+          const pendingPayload = {
+            bookingId: booking.id,
+            instructorName,
+            serviceName: bookingServiceName || 'Lesson',
+            date: sessionDate,
+            startTime: sessionTime,
+            duration: bookingDuration,
+            status: 'pending'
+          };
+          req.socketService.emitToChannel('role:admin', 'booking:pending_approval', pendingPayload);
+          req.socketService.emitToChannel('role:manager', 'booking:pending_approval', pendingPayload);
+          req.socketService.emitToChannel('role:owner', 'booking:pending_approval', pendingPayload);
+        } catch (socketError) {
+          logger.warn('Failed to emit instructor pending booking socket event', { error: socketError?.message });
+        }
       }
     } else {
       logger.info('Skipping booking notifications - created by staff', {
@@ -2535,11 +2585,13 @@ router.post('/group',
     
     // Get service info for calculations and package matching
     let servicePrice = 0;
+    let serviceDurationHours = null;
     let serviceName = null;
     if (service_id) {
-      const serviceQuery = await client.query('SELECT price, name, category, currency FROM services WHERE id = $1', [service_id]);
+      const serviceQuery = await client.query('SELECT price, name, category, currency, duration FROM services WHERE id = $1', [service_id]);
       if (serviceQuery.rows.length > 0) {
         serviceName = serviceQuery.rows[0].name || null;
+        serviceDurationHours = parseFloat(serviceQuery.rows[0].duration) || null;
         // Look up price in user's preferred currency
         const priceResult = await getServicePriceInCurrency(service_id, billingCurrency);
         if (priceResult && priceResult.price > 0) {
@@ -2550,10 +2602,18 @@ router.post('/group',
         }
       }
     }
-    
+
+    // Calculate hourly rate: if the service has a defined duration (total hours), divide the
+    // total price by that to get the per-hour rate, then multiply by the actual booking duration.
+    // This mirrors the single-booking route logic so a 10-hour course priced at €670 correctly
+    // costs €67/h × 2h = €134 for a 2-hour lesson, not €670 flat.
+    const serviceHourlyRate = serviceDurationHours > 0
+      ? parseFloat((servicePrice / serviceDurationHours).toFixed(4))
+      : servicePrice;
+
   // Calculate individual participant amounts
-  // For group bookings, base amount per participant = servicePrice * duration
-  const participantAmount = servicePrice * bookingDuration;
+  // For group bookings, base amount per participant = hourly rate * actual booking duration
+  const participantAmount = parseFloat((serviceHourlyRate * bookingDuration).toFixed(2));
     
     // Process package logic for each participant
   const processedParticipants = [];
@@ -2785,7 +2845,7 @@ router.post('/group',
     
     // Determine main booking payment status and amount
     let mainBookingPaymentStatus = 'paid'; // Pay-and-go: default to paid
-    let mainBookingAmount = servicePrice * bookingDuration * groupSize;
+    let mainBookingAmount = parseFloat((serviceHourlyRate * bookingDuration * groupSize).toFixed(2));
     let mainBookingCustomerPackageId = null;
     
   if (totalPackageUsers === groupSize) {
@@ -3008,7 +3068,7 @@ router.post('/group',
     const createdByRole = req.user?.role;
     const staffRoles = ['admin', 'manager', 'instructor', 'owner'];
     const isStaffCreated = staffRoles.includes(createdByRole);
-    
+
     if (!isStaffCreated) {
       try {
         await bookingNotificationService.sendBookingCreated({ bookingId: booking.id });
@@ -3018,6 +3078,51 @@ router.post('/group',
           error: notificationError?.message
         });
       }
+    } else if (createdByRole === 'instructor') {
+      // Instructor bookings go as pending — notify admins/managers for approval
+      const instructorName = req.user?.name || req.user?.first_name || 'An instructor';
+      const sessionDate = normalizedDate || date;
+      const sessionTime = start_hour != null
+        ? `${Math.floor(parseFloat(start_hour))}:${String(Math.round((parseFloat(start_hour) % 1) * 60)).padStart(2, '0')}`
+        : '';
+      try {
+        await dispatchToStaff({
+          type: 'new_booking_alert',
+          title: 'Instructor Booking — Approval Needed',
+          message: `${instructorName} created a ${bookingDuration}h group ${serviceName || 'lesson'} booking on ${sessionDate}${sessionTime ? ` at ${sessionTime}` : ''} — pending your approval.`,
+          data: {
+            bookingId: booking.id,
+            instructorId: instructor_user_id || req.user?.id,
+            instructorName,
+            date: sessionDate,
+            status: 'pending',
+            cta: { label: 'Review Booking', href: `/bookings/calendar` }
+          },
+          excludeUserIds: [req.user?.id],
+          roles: ['admin', 'manager', 'owner']
+        });
+      } catch (notificationError) {
+        logger.warn('Failed to dispatch instructor pending group booking notification', {
+          bookingId: booking.id,
+          error: notificationError?.message
+        });
+      }
+      // Real-time push to staff
+      if (req.socketService) {
+        try {
+          req.socketService.emitToChannel('staff', 'booking:pending_approval', {
+            bookingId: booking.id,
+            instructorName,
+            serviceName: serviceName || 'Group Lesson',
+            date: sessionDate,
+            startTime: sessionTime,
+            duration: bookingDuration,
+            status: 'pending'
+          });
+        } catch (socketError) {
+          logger.warn('Failed to emit instructor pending group booking socket event', { error: socketError?.message });
+        }
+      }
     } else {
       logger.info('Skipping booking notifications - group booking created by staff', {
         bookingId: booking.id,
@@ -3025,7 +3130,7 @@ router.post('/group',
         role: createdByRole
       });
     }
-    
+
     // Emit real-time event for booking creation
     if (req.socketService) {
       try {
@@ -3092,14 +3197,14 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       allowNegativeBalance: requestedAllowNegative // Allow wallet balance to go negative if explicitly set
     } = req.body;
     
+    const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
+    const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
     // trusted_customer with pay_later: allow negative balance so debt is tracked in wallet
     const isTrustedCustomerPayLater = req.user?.role === 'trusted_customer' && requestedPaymentMethod === 'pay_later';
     const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker || isTrustedCustomerPayLater;
-    const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
-    const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
     
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
@@ -3518,6 +3623,10 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         finalPaymentStatus = 'paid'; // Pay-and-go: even zero amount is considered paid
       }
 
+      // Staff roles automatically confirm bookings (admin, manager, front_desk)
+      const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
+      const calendarBookingStatus = staffRolesForAutoConfirm.includes(req.user?.role) ? 'confirmed' : 'pending';
+
       // Create the booking with comprehensive defaults to minimize NULLs
       const bookingColumns = [
         'student_user_id',
@@ -3553,7 +3662,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         parseFloat(start_hour),
         parseFloat(serviceDuration),
         serviceId,
-        'confirmed',
+        calendarBookingStatus,
         user.notes || '',
         finalPaymentStatus,
         parseFloat(finalFinalAmount) || 0.0,
@@ -3618,6 +3727,53 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       const endMinutes = Math.round(((start_hour + serviceDuration) - endHours) * 60);
       const endTime = `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
       
+      // Notify admins/managers when instructor creates a pending booking
+      const createdByRole = req.user?.role;
+      if (createdByRole === 'instructor') {
+        const instructorName = req.user?.name || req.user?.first_name || 'An instructor';
+        try {
+          await dispatchToStaff({
+            type: 'new_booking_alert',
+            title: 'Instructor Booking — Approval Needed',
+            message: `${instructorName} created a ${serviceDuration}h ${svcName || 'lesson'} booking on ${normalizedDate} at ${startTime} — pending your approval.`,
+            data: {
+              bookingId: booking.rows[0].id,
+              instructorId: instructorId || req.user?.id,
+              instructorName,
+              date: normalizedDate,
+              status: 'pending',
+              cta: { label: 'Review Booking', href: `/bookings/calendar` }
+            },
+            excludeUserIds: [req.user?.id],
+            roles: ['admin', 'manager', 'owner']
+          });
+        } catch (notificationError) {
+          logger.warn('Failed to dispatch instructor pending calendar booking notification', {
+            bookingId: booking.rows[0].id,
+            error: notificationError?.message
+          });
+        }
+        // Real-time push to admin/manager roles
+        if (req.socketService) {
+          try {
+            const pendingPayload = {
+              bookingId: booking.rows[0].id,
+              instructorName,
+              serviceName: svcName || 'Lesson',
+              date: normalizedDate,
+              startTime,
+              duration: serviceDuration,
+              status: 'pending'
+            };
+            req.socketService.emitToChannel('role:admin', 'booking:pending_approval', pendingPayload);
+            req.socketService.emitToChannel('role:manager', 'booking:pending_approval', pendingPayload);
+            req.socketService.emitToChannel('role:owner', 'booking:pending_approval', pendingPayload);
+          } catch (socketError) {
+            logger.warn('Failed to emit instructor pending calendar booking socket event', { error: socketError?.message });
+          }
+        }
+      }
+
       // Emit real-time event for booking creation so other clients refresh
       if (req.socketService) {
         try {
@@ -3631,7 +3787,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
             instructor_user_id: instructorId,
             service_id: serviceId,
             student_user_id: userId,
-            status: 'confirmed'
+            status: calendarBookingStatus
           });
           req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         } catch (socketError) {
@@ -3643,7 +3799,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         success: true,
         id: booking.rows[0].id,
         bookingId: booking.rows[0].id,
-        message: 'Booking confirmed successfully',
+        message: calendarBookingStatus === 'pending' ? 'Booking submitted — pending approval' : 'Booking confirmed successfully',
+        status: calendarBookingStatus,
         date: normalizedDate,
         startTime,
         endTime,
@@ -6197,12 +6354,15 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
  * The booking immediately appears on the calendar as confirmed.
  */
 router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
+    await client.query('BEGIN');
+
     // Verify this booking is pending_partner and the caller is a participant
-    const result = await pool.query(
+    const result = await client.query(
       `SELECT b.id, b.status, b.student_user_id, b.date, b.start_hour, b.duration,
               s.name AS service_name,
               bp.user_id
@@ -6214,17 +6374,21 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found or you are not a participant' });
     }
 
     if (result.rows[0].status !== 'pending_partner') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Booking is not awaiting partner confirmation' });
     }
 
-    await pool.query(
+    await client.query(
       `UPDATE bookings SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
       [id]
     );
+
+    await client.query('COMMIT');
 
     // Notify the organizer that the partner accepted
     const booking = result.rows[0];
@@ -6258,8 +6422,11 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
 
     res.json({ success: true, message: 'Booking confirmed by partner', status: 'confirmed' });
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('Error confirming partner booking', { bookingId: req.params.id, error: error?.message });
     res.status(500).json({ error: 'Failed to confirm booking' });
+  } finally {
+    client.release();
   }
 });
 
@@ -6269,11 +6436,14 @@ router.post('/:id/confirm-partner', authenticateJWT, async (req, res) => {
  * Package hours are refunded to both participants.
  */
 router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    const result = await client.query(
       `SELECT b.id, b.status, b.student_user_id, b.duration, b.date,
               s.name AS service_name,
               bp.user_id, bp.customer_package_id
@@ -6285,10 +6455,12 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found or you are not a participant' });
     }
 
     if (result.rows[0].status !== 'pending_partner') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Booking is not awaiting partner confirmation' });
     }
 
@@ -6296,27 +6468,27 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
     const duration = parseFloat(booking.duration) || 0;
 
     // Refund package hours to ALL participants
-    const allParticipants = await pool.query(
-      `SELECT user_id, customer_package_id, hours_used FROM booking_participants WHERE booking_id = $1`,
+    const allParticipants = await client.query(
+      `SELECT user_id, customer_package_id, package_hours_used FROM booking_participants WHERE booking_id = $1`,
       [id]
     );
 
     for (const p of allParticipants.rows) {
       if (p.customer_package_id && duration > 0) {
-        await pool.query(
-          `UPDATE customer_packages SET remaining_hours = remaining_hours + $1, updated_at = NOW() WHERE id = $2`,
-          [parseFloat(p.hours_used) || duration, p.customer_package_id]
-        );
+        const restoreHours = parseFloat(p.package_hours_used) || duration;
+        await restoreHoursToPackage(client, p.customer_package_id, restoreHours);
       }
     }
 
     // Cancel the booking
-    await pool.query(
+    await client.query(
       `UPDATE bookings SET status = 'cancelled', canceled_at = NOW(), cancellation_reason = 'Partner declined', updated_at = NOW() WHERE id = $1`,
       [id]
     );
 
-    // Notify the organizer
+    await client.query('COMMIT');
+
+    // Notify the organizer (after commit — fire-and-forget)
     const partnerName = req.user?.name || req.user?.first_name || 'Your partner';
     try {
       await dispatchNotification({
@@ -6346,8 +6518,11 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
 
     res.json({ success: true, message: 'Booking declined, hours refunded', status: 'cancelled' });
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('Error declining partner booking', { bookingId: req.params.id, error: error?.message });
     res.status(500).json({ error: 'Failed to decline booking' });
+  } finally {
+    client.release();
   }
 });
 

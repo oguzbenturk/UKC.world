@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import calendarConfig from '@/config/calendarConfig';
 import { useCalendar } from '../../contexts/CalendarContext';
 import LoadingIndicator from '@/shared/components/ui/LoadingIndicator';
 import ErrorIndicator from '@/shared/components/ui/ErrorIndicator';
@@ -64,6 +65,7 @@ const isValidTime = (timeStr) => {
 const getBookingStatusClass = (status) => {
   switch (status) {
     case 'confirmed':
+      return 'booking-card-confirmed';
     case 'pending':
       return 'booking-card-pending';
     case 'checked-in':
@@ -75,17 +77,6 @@ const getBookingStatusClass = (status) => {
     default:
       return 'booking-card-default';
   }
-};
-
-// Add wind helpers
-const _getWindClasses = (kn) => {
-  if (kn == null) return 'bg-slate-100 text-slate-600';
-  if (kn < 8) return 'bg-sky-100 text-sky-700';
-  if (kn < 12) return 'bg-green-100 text-green-700';
-  if (kn < 16) return 'bg-lime-100 text-lime-700';
-  if (kn < 20) return 'bg-yellow-100 text-yellow-800';
-  if (kn < 25) return 'bg-orange-100 text-orange-800';
-  return 'bg-red-100 text-red-800';
 };
 
 // Solid wind colors for Windguru-style display (darker backgrounds for white text)
@@ -147,6 +138,10 @@ const extractDayTemperature = (data) => {
 
 // ---- Swap helpers ----
 const nameOfInstructor = (instructors, id) => instructors.find(i => String(i.id) === String(id))?.name || 'instructor';
+
+// Deterministic color per instructor for avatar circles
+const INSTRUCTOR_COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f97316','#6366f1'];
+const getInstructorColor = (id) => INSTRUCTOR_COLORS[Math.abs(parseInt(String(id), 10) || 0) % INSTRUCTOR_COLORS.length];
 const numToTime = (num) => {
   const h = Math.floor(Number(num) || 0);
   const m = Math.round(((Number(num) || 0) - h) * 60);
@@ -355,9 +350,16 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
 
   // Wind state
   const [windByHour, setWindByHour] = useState({});
-  
+
   // Temperature state
   const [dayTemperature, setDayTemperature] = useState(null);
+
+  // Current time indicator
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Increase slot height slightly to make space for wind badge
   const [slotHeight, setSlotHeight] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 56 : 72));
@@ -400,16 +402,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     return () => controller.abort();
   }, [effectiveDate, forecastSettings?.showForecast]);
 
-  // Responsive slot height (tighter on mobile)
-  // const [slotHeight, setSlotHeight] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 44 : 60));
-  // useEffect(() => {
-  //   const onResize = () => {
-  //     const h = window.innerWidth < 640 ? 44 : 60;
-  //     setSlotHeight((prev) => (prev === h ? prev : h));
-  //   };
-  //   window.addEventListener('resize', onResize);
-  //   return () => window.removeEventListener('resize', onResize);
-  // }, []);
 
   // DnD highlight state
   const [dragOverKey, setDragOverKey] = useState(null); // `slot|{instructorId}|{timeStart}` or `card|{bookingId}`
@@ -417,6 +409,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
   // Local state for filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState([]);
+  const [hideEmpty, setHideEmpty] = useState(false);
 
 
   // Filter functions
@@ -484,10 +477,8 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     return filtered;
   }, [instructors, searchTerm, selectedInstructors, effectiveDate, bookings]);
 
-  // Filter instructors for display in the calendar columns
+  // Filter instructors for display in the calendar columns (hideEmpty applied after dailyBookings is ready)
   const displayedInstructors = useMemo(() => {
-    // If specific instructors are selected via filters, show only those
-    // Otherwise, show the search-filtered list
     if (selectedInstructors.length > 0) {
       return instructors.filter(instructor => selectedInstructors.includes(instructor.id));
     }
@@ -519,40 +510,23 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
       });
     }
     
-    // Fallback to default time slots if no API data
-    return [
-      { start: '08:00', end: '09:00' },
-      { start: '09:00', end: '10:00' },
-      { start: '10:00', end: '11:00' },
-      { start: '11:00', end: '12:00' },
-      { start: '12:00', end: '13:00' },
-      { start: '13:00', end: '14:00' },
-      { start: '14:00', end: '15:00' },
-      { start: '15:00', end: '16:00' },
-      { start: '16:00', end: '17:00' },
-      { start: '17:00', end: '18:00' },
-      { start: '18:00', end: '19:00' },
-      { start: '19:00', end: '20:00' },
-      { start: '20:00', end: '21:00' }
-    ];
+    // Fallback: generate 30-min slots from calendarConfig operating hours
+    const parseHHMM = (t) => {
+      if (typeof t === 'number') return t * 60;
+      const [h, m] = String(t).split(':').map(Number);
+      return h * 60 + (m || 0);
+    };
+    const fmtMins = (m) =>
+      `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    const startMins = parseHHMM(calendarConfig.operatingHours.start);
+    const endMins = parseHHMM(calendarConfig.operatingHours.end);
+    const fallback = [];
+    for (let m = startMins; m < endMins; m += 60) {
+      fallback.push({ start: fmtMins(m), end: fmtMins(m + 60) });
+    }
+    return fallback;
   }, [slots, effectiveDate]);
   
-  // Debug: Log time slots structure
-  // Temporarily disabled to reduce console noise
-  // if (process.env.NODE_ENV === 'development') {
-  //   console.log('Time slots debug:', {
-  //     totalSlots: timeSlots.length,
-  //     firstSlot: timeSlots[0],
-  //     slotAtIndex1: timeSlots[1],
-  //     slotAtIndex2: timeSlots[2],
-  //     slotAtIndex3: timeSlots[3],
-  //     allSlots: timeSlots.map((slot, index) => ({ 
-  //       index, 
-  //       start: slot.start, 
-  //       expectedTopPosition: index * 60  // Updated to match new SLOT_HEIGHT
-  //     }))
-  //   });
-  // }
 
   const dailyBookings = useMemo(() => {
     if (!effectiveDate || !bookings) return [];
@@ -566,6 +540,18 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     });
     return normalized;
   }, [bookings, effectiveDate]);
+
+  // IDs of instructors that have at least one booking today
+  const instructorIdsWithBookings = useMemo(
+    () => new Set(dailyBookings.map(b => String(b.instructorId))),
+    [dailyBookings]
+  );
+
+  // Final list rendered in the grid — respects the hideEmpty toggle
+  const renderedInstructors = useMemo(() => {
+    if (!hideEmpty) return displayedInstructors;
+    return displayedInstructors.filter(i => instructorIdsWithBookings.has(String(i.id)));
+  }, [displayedInstructors, hideEmpty, instructorIdsWithBookings]);
 
   // Track when bookings data changes
   useEffect(() => {
@@ -603,15 +589,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     const PRECISE_PIXEL = 1;  // Adjustment for precise positioning
     const DEFAULT_DURATION = 60; // Default to 1 hour for all bookings
     
-    // Debug: Log the determined start hour
-    // if (process.env.NODE_ENV === 'development') {
-    //   console.log('Dynamic start hour debug:', {
-    //     bookingId: booking.id,
-    //     firstTimeSlot: timeSlots[0]?.start,
-    //     determinedStartHour: DAY_START_HOUR,
-    //     originalAssumption: 8
-    //   });
-    // }
     
     try {
       // STEP 1: Extract and normalize time values
@@ -620,17 +597,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
       // Convert duration from hours to minutes (database stores in hours)
       let duration = booking.duration ? parseFloat(booking.duration) * 60 : DEFAULT_DURATION;
       
-      // Debug: Log duration conversion
-      // if (process.env.NODE_ENV === 'development') {
-      //   console.log('Duration conversion debug:', {
-      //     bookingId: booking.id,
-      //     originalDuration: booking.duration,
-      //     originalDurationType: typeof booking.duration,
-      //     parsedDuration: parseFloat(booking.duration),
-      //     finalDurationInMinutes: duration,
-      //     DEFAULT_DURATION: DEFAULT_DURATION
-      //   });
-      // }
 
       // Handle empty or invalid times
       if (!startTime || typeof startTime !== 'string') {
@@ -648,16 +614,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
       const startTotalMinutes = parseTimeToMinutes(startTime);
       let endTotalMinutes = null;
       
-      // Debug: Log time parsing details
-      // if (process.env.NODE_ENV === 'development') {
-      //   console.log('Time parsing debug:', {
-      //     bookingId: booking.id,
-      //     originalStartTime: startTime,
-      //     parsedStartMinutes: startTotalMinutes,
-      //     expectedMinutesFor9AM: 540,
-      //     expectedMinutesFor11AM: 660
-      //   });
-      // }
       
       if (startTotalMinutes === null) {
   logger.warn('Could not parse start time', { startTime, booking });
@@ -670,17 +626,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
         if (endTotalMinutes) {
           const calculatedDuration = endTotalMinutes - startTotalMinutes;
           
-          // Debug: Log duration recalculation
-          // if (process.env.NODE_ENV === 'development') {
-          //   console.log('Duration recalculation debug:', {
-          //     bookingId: booking.id,
-          //     endTime: endTime,
-          //     endTotalMinutes: endTotalMinutes,
-          //     startTotalMinutes: startTotalMinutes,
-          //     calculatedDuration: calculatedDuration,
-          //     originalDurationInMinutes: duration
-          //   });
-          // }
           
           if (calculatedDuration <= 2) {
             logger.warn('Unrealistic duration detected, defaulting to 60 minutes', { startTime, endTime });
@@ -723,21 +668,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
       const top = minutesFromStart * pixelsPerMinute;
       const height = duration * pixelsPerMinute;
       
-      // Debug: Log position calculation details
-      // if (process.env.NODE_ENV === 'development') {
-      //   console.log('Position calculation debug:', {
-      //     bookingId: booking.id,
-      //     baseStartMinutes: baseStartMinutes,
-      //     startTotalMinutes: startTotalMinutes,
-      //     minutesFromStart: minutesFromStart,
-      //     duration: duration,
-      //     pixelsPerMinute: pixelsPerMinute,
-      //     calculatedTop: top,
-      //     calculatedHeight: height,
-      //     finalTop: Math.max(0, Math.round(top)) + PRECISE_PIXEL,
-      //     finalHeight: Math.max(MIN_HEIGHT, Math.round(height)) - (PRECISE_PIXEL * 2)
-      //   });
-      // }
       
       // STEP 6: Apply visual constraints to ensure visibility
       const result = {
@@ -1038,8 +968,9 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
               </div>
             </div>
           )}
-          <div className="text-[11px] sm:text-sm font-bold text-gray-600 pointer-events-none select-none">
-            <span className="leading-none tabular-nums">{hour12}</span>
+          <div className="flex flex-col items-center pointer-events-none select-none">
+            <span className="text-[13px] sm:text-sm font-bold text-slate-600 tabular-nums leading-none">{hour12}</span>
+            <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">{hour >= 12 ? 'PM' : 'AM'}</span>
           </div>
         </div>
       </div>
@@ -1065,10 +996,46 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
   if (isLoading) return <LoadingIndicator message="Loading daily view..." />;
   if (error) return <ErrorIndicator message={error} onRetry={retry} />;
 
+  // Current time indicator calculations
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const effectiveDateStr = format(effectiveDate, 'yyyy-MM-dd');
+  const isToday = effectiveDateStr === todayStr;
+  const dayStartHour = timeSlots.length > 0 ? parseInt(timeSlots[0].start.split(':')[0], 10) : 8;
+  const dayEndHour = timeSlots.length > 0 ? parseInt(timeSlots[timeSlots.length - 1].end.split(':')[0], 10) : 21;
+  const nowHour = now.getHours();
+  const nowMinute = now.getMinutes();
+  const nowTotalMinutes = nowHour * 60 + nowMinute;
+  const dayStartMinutes = dayStartHour * 60;
+  const dayEndMinutes = dayEndHour * 60;
+  const nowTopPx = ((nowTotalMinutes - dayStartMinutes) / 60) * slotHeight;
+  const showNowLine = isToday && nowTotalMinutes >= dayStartMinutes && nowTotalMinutes <= dayEndMinutes;
+
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Sticky Header with Filters */}      
-  <div className="daily-view-sticky-header sticky top-0 z-20 bg-white border-b border-gray-200">
+    <div className="flex flex-col h-full daily-view-root">
+      {/* Sticky Header with Filters */}
+      <div className="daily-view-sticky-header sticky top-0 z-20 bg-white border-b border-gray-100">
+        {/* Hide Empty Instructors Toggle — only shown when at least one instructor has no bookings today */}
+        {displayedInstructors.some(i => !instructorIdsWithBookings.has(String(i.id))) && (
+          <div className="px-3 sm:px-4 py-1.5 bg-white border-b border-gray-100 flex items-center justify-start">
+            <button
+              onClick={() => setHideEmpty(v => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                hideEmpty
+                  ? 'bg-sky-100 text-sky-700 ring-1 ring-sky-400'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                {hideEmpty
+                  ? <path d="M10 12a2 2 0 100-4 2 2 0 000 4z M2.458 10C3.732 5.943 6.522 3 10 3s6.268 2.943 7.542 7c-1.274 4.057-4.064 7-7.542 7S3.732 14.057 2.458 10z" />
+                  : <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 15.478 3 12 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                }
+              </svg>
+              {hideEmpty ? 'Showing active only' : 'Hide instructors with no lessons'}
+            </button>
+          </div>
+        )}
+
         {/* Filter Controls Bar */}
         {showFilters && (
           <div className="filters-control-bar px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -1192,36 +1159,47 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
 
       {/* Calendar Content - Scrollable */}
       <div className="calendar-content-scrollable flex-1 overflow-y-auto">
-        {/* Add subtle padding around calendar corners */}
-        <div style={{ padding: 5 }}>
         <div className="flex">          {/* Time Column */}
           <div className="daily-view-time-column w-16 sm:w-24 lg:w-28 flex-shrink-0 border-r border-gray-200 sticky left-0 bg-gray-50 z-10">
             {/* Time Column Header - matches instructor header height */}
-            <div className="h-12 sm:h-16 border-b border-gray-200 bg-gray-50 flex flex-col items-center justify-center">
-              <div className="text-[11px] sm:text-xs font-medium text-gray-500">Time</div>
+            <div className="h-16 sm:h-20 border-b border-gray-200 bg-gray-50 flex flex-col items-center justify-center">
+              <div className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">Time</div>
               {dayTemperature && (
-                <div className="text-[10px] sm:text-xs font-bold text-blue-600 mt-1">
+                <div className="text-[11px] sm:text-xs font-bold text-sky-600 mt-1">
                   {Math.round(dayTemperature)}°C
                 </div>
               )}
             </div>
             
             {/* Time Slots */}
-            {timeSlots.map((slot) => (
-              <TimeColumnCell key={slot.start} slot={slot} />
-            ))}
+            <div className="relative" style={{ height: `${timeSlots.length * slotHeight}px` }}>
+              {timeSlots.map((slot, index) => (
+                <div key={slot.start} className="absolute w-full" style={{ top: `${index * slotHeight}px`, height: `${slotHeight}px` }}>
+                  <TimeColumnCell slot={slot} />
+                </div>
+              ))}
+              {/* Current time dot in time column */}
+              {showNowLine && (
+                <div
+                  className="absolute left-0 right-0 z-20 pointer-events-none flex items-center justify-end pr-1"
+                  style={{ top: `${nowTopPx - 4}px` }}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Instructor Columns */}
           <CalendarDndProvider onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <div className="daily-view-instructor-scroll relative flex-1 min-w-0 overflow-x-auto">
               <div className="flex flex-nowrap">
-                {displayedInstructors.map((instructor) => {
+                {renderedInstructors.map((instructor) => {
                   const instructorBookings = getBookingsForInstructor(instructor.id);
 
                   // Responsive width calculation
                   const getInstructorColumnWidth = () => {
-                    const instructorCount = displayedInstructors.length;
+                    const instructorCount = renderedInstructors.length;
                     // Mobile-first: ensure at least 2 columns fit beside the time column (~56px)
                     if (instructorCount <= 2) return 'min-w-[136px] max-w-[164px] sm:min-w-[260px] sm:max-w-[360px]';
                     if (instructorCount <= 4) return 'min-w-[128px] max-w-[156px] sm:min-w-[220px] sm:max-w-[320px]';
@@ -1238,12 +1216,27 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                       key={instructor.id}
                       className={`${getInstructorColumnWidth()} daily-view-instructor-column border-r border-gray-200 flex-shrink-0${isUnavailable ? ' instructor-column-unavailable' : ''}`}
                     >
-                      {/* Sticky Column Header with Full Name */}
-                      <div className={`instructor-column-header h-12 sm:h-16 px-2 sm:px-3 py-1.5 sm:py-2 text-center border-b border-gray-200 flex flex-col items-center justify-center sticky top-0 z-10${isUnavailable ? ' bg-slate-100' : ' bg-gray-50'}`}>
-                        <div className="text-xs sm:text-sm font-semibold text-gray-800 truncate">{instructor.name}</div>
-                        {isUnavailable && (
-                          <span className="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-300 text-slate-600 tracking-wide">OFF</span>
-                        )}
+                      {/* Sticky Column Header — avatar + name + lesson count */}
+                      <div className={`instructor-column-header h-16 sm:h-20 px-2 py-2 text-center border-b border-gray-200 flex flex-col items-center justify-center sticky top-0 z-10 gap-0.5${isUnavailable ? ' bg-slate-50' : ' bg-white'}`}>
+                        {/* Avatar circle */}
+                        <div
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: isUnavailable ? '#94a3b8' : getInstructorColor(instructor.id) }}
+                        >
+                          {getInstructorInitials(instructor.name)}
+                        </div>
+                        {/* Full name */}
+                        <div className="text-[10px] sm:text-[11px] font-semibold text-gray-800 w-full text-center leading-tight px-1 font-duotone-bold" style={{ wordBreak: 'break-word' }}>
+                          {instructor.name}
+                        </div>
+                        {/* Lesson count or OFF badge */}
+                        {isUnavailable ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-500 tracking-wide">OFF</span>
+                        ) : instructorBookings.length > 0 ? (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-sky-100 text-sky-600">
+                            {instructorBookings.length} lesson{instructorBookings.length !== 1 ? 's' : ''}
+                          </span>
+                        ) : null}
                       </div>
 
                       {/* Time Slots + DnD Container */}
@@ -1258,6 +1251,19 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                             instructorBookings={instructorBookings}
                           />
                         ))}
+
+                        {/* Current time indicator */}
+                        {showNowLine && (
+                          <div
+                            className="absolute left-0 right-0 z-20 pointer-events-none"
+                            style={{ top: `${nowTopPx}px` }}
+                          >
+                            <div className="relative flex items-center">
+                              <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 -ml-1" />
+                              <div className="flex-1 h-[2px] bg-red-500 opacity-80" />
+                            </div>
+                          </div>
+                        )}
 
                         {/* Booking Cards */}
                         {instructorBookings.map((booking) => {
@@ -1298,6 +1304,15 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                           // Group badge removed per request
                           const tooltipText = getGroupBookingTooltip(booking);
 
+                          const statusLabel = booking.status === 'checked-in' ? 'Checked In'
+                            : booking.status === 'completed' ? 'Completed'
+                            : booking.status === 'cancelled' ? 'Cancelled'
+                            : booking.status === 'pending' ? 'Pending'
+                            : booking.status === 'confirmed' ? 'Confirmed'
+                            : booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
+                            : 'Pending';
+                          const isCompact = height < 56;
+
                           return (
                             <DraggableBooking
                               key={`${instructor.id}-${booking.id}`}
@@ -1309,28 +1324,35 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                               {dragOverKey === `card|${booking.id}` && (
                                 <div className="absolute inset-0 ring-2 ring-blue-400 ring-offset-0 pointer-events-none rounded-md" />
                               )}
-                              {/* Group indicator removed */}
 
-                              {/* Time in top right - black color, same size as student name */}
-                              <div className="absolute top-1 right-2 text-[11px] sm:text-sm text-gray-900 font-medium">
-                                {timeDisplay}
-                              </div>
-
-                              {/* Main content */}
+                              {/* Card content — click target */}
                               <div
-                                className="booking-card-content pt-3 sm:pt-4 pl-1 pr-1"
+                                className="booking-card-inner"
                                 onClick={() => onBookingClick && onBookingClick(booking)}
                                 title={tooltipText}
                               >
-                                {/* Participant name(s) - bold, slightly below top */}
-                                <div className="text-xs sm:text-sm font-bold text-gray-900 truncate leading-tight">
-                                  {participantDisplay}
+                                {/* Row 1: status pill + time */}
+                                <div className="booking-card-toprow">
+                                  <div className={`booking-status-pill booking-status-pill-${booking.status}`}>
+                                    <span className="booking-status-dot-small" />
+                                    {!isCompact && statusLabel}
+                                  </div>
+                                  <span className="booking-card-time-label">{timeDisplay}</span>
                                 </div>
 
-                                {/* Service name - light, below participant name */}
-                                <div className="text-[11px] sm:text-xs font-normal text-gray-600 truncate leading-tight mt-0.5 sm:mt-1">
-                                  {serviceName}
-                                </div>
+                                {/* Row 2: participant name(s) — wraps for groups */}
+                                {!isCompact && (
+                                  <div className="booking-card-name">
+                                    {participantDisplay}
+                                  </div>
+                                )}
+
+                                {/* Row 3: service (only if enough height) */}
+                                {height >= 80 && (
+                                  <div className="booking-card-service-label">
+                                    {serviceName}
+                                  </div>
+                                )}
                               </div>
                             </DraggableBooking>
                           );
@@ -1342,7 +1364,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
               </div>
             </div>
           </CalendarDndProvider>
-        </div>
         </div>
       </div>
     </div>

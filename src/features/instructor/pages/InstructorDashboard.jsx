@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInstructorDashboard } from '../hooks/useInstructorDashboard';
 import { useInstructorStudents } from '../hooks/useInstructorStudents';
@@ -6,6 +6,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { usePullToRefresh } from '@/shared/hooks/usePullToRefresh';
 import { analyticsService } from '@/shared/services/analyticsService';
+import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 import EarningsTrendCard from '../components/EarningsTrendCard';
 import HeroCarousel from '../components/HeroCarousel';
 import SummaryMetricStrip from '../components/SummaryMetricStrip';
@@ -15,6 +16,8 @@ import StudentCheckInPanel from '../components/StudentCheckInPanel';
 import LessonStatusHeatmap from '../components/LessonStatusHeatmap';
 import FloatingQuickAction from '../components/FloatingQuickAction';
 import InstructorRatingsCard from '../components/InstructorRatingsCard';
+
+const BookingDrawer = lazy(() => import('@/features/bookings/components/components/BookingDrawer'));
 
 const formatNumber = (value) => {
   if (value === undefined || value === null) return '—';
@@ -194,7 +197,7 @@ const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, p
   ];
 };
 
-const buildQuickActions = (navigate) => ([
+const buildQuickActions = (navigate, onNewBooking) => ([
   {
     title: 'Manage Students',
     description: 'Review levels, notes, and progress',
@@ -211,7 +214,7 @@ const buildQuickActions = (navigate) => ([
     title: 'New Booking',
     description: 'Schedule a lesson for a student',
     icon: '\u2795',
-    onClick: () => navigate('/bookings'),
+    onClick: onNewBooking,
   },
 ]);
 
@@ -272,6 +275,7 @@ const InstructorDashboard = () => {
   const { students, loading: studentsLoading, error: studentsError } = useInstructorStudents();
   const { formatCurrency, businessCurrency } = useCurrency();
   const [financeTab, setFinanceTab] = useState('overview');
+  const [bookingDrawerOpen, setBookingDrawerOpen] = useState(false);
   const viewLoggedRef = useRef(false);
 
   const currencyCode = businessCurrency || 'EUR';
@@ -324,7 +328,17 @@ const InstructorDashboard = () => {
 
   const financeSummary = data?.finance || null;
 
-  const quickActions = useMemo(() => buildQuickActions(navigate), [navigate]);
+  const handleStudentNavigate = useCallback((studentId) => {
+    if (!studentId) return;
+    navigate(`/instructor/students/${studentId}`);
+  }, [navigate]);
+
+  const handleCreateBooking = useCallback(() => {
+    analyticsService.track('instructor_dashboard_fab_clicked');
+    setBookingDrawerOpen(true);
+  }, []);
+
+  const quickActions = useMemo(() => buildQuickActions(navigate, handleCreateBooking), [navigate, handleCreateBooking]);
 
   const groupedLessons = useMemo(
     () => groupLessonsByDay(data?.upcomingLessons),
@@ -342,16 +356,6 @@ const InstructorDashboard = () => {
   const isRefreshing = loading && !!data;
   const showSkeleton = loading && !data;
 
-  const handleStudentNavigate = useCallback((studentId) => {
-    if (!studentId) return;
-    navigate(`/instructor/students/${studentId}`);
-  }, [navigate]);
-
-  const handleCreateBooking = useCallback(() => {
-    analyticsService.track('instructor_dashboard_fab_clicked');
-    navigate('/bookings');
-  }, [navigate]);
-
   if (showSkeleton) {
     return (
       <div className="space-y-6 p-4 md:p-6 pb-24 md:pb-10">
@@ -361,32 +365,50 @@ const InstructorDashboard = () => {
   }
 
   return (
-    <InstructorDashboardView
-      instructorName={instructorName}
-      nextLesson={nextLesson}
-      onRefresh={handleRefresh}
-      refreshing={isRefreshing}
-      lastUpdated={lastUpdated}
-      heroSlides={heroSlides}
-      error={error}
-      studentsError={studentsError}
-      summaryCards={summaryCards}
-      loading={loading}
-      dataAvailable={Boolean(data)}
-      financeSummary={financeSummary}
-      financeTab={financeTab}
-      onFinanceTabChange={setFinanceTab}
-      formatAmount={formatAmount}
-      groupedLessons={groupedLessons}
-      quickActions={quickActions}
-      topStudents={topStudents}
-      studentsLoading={studentsLoading}
-      onStudentNavigate={handleStudentNavigate}
-      inactiveStudents={inactiveStudents}
-      statusBreakdown={statusBreakdown}
-      onCreateBooking={handleCreateBooking}
-      onViewStudents={() => navigate('/instructor/students')}
-    />
+    <>
+      <InstructorDashboardView
+        instructorName={instructorName}
+        nextLesson={nextLesson}
+        onRefresh={handleRefresh}
+        refreshing={isRefreshing}
+        lastUpdated={lastUpdated}
+        heroSlides={heroSlides}
+        error={error}
+        studentsError={studentsError}
+        summaryCards={summaryCards}
+        loading={loading}
+        dataAvailable={Boolean(data)}
+        financeSummary={financeSummary}
+        financeTab={financeTab}
+        onFinanceTabChange={setFinanceTab}
+        formatAmount={formatAmount}
+        groupedLessons={groupedLessons}
+        quickActions={quickActions}
+        topStudents={topStudents}
+        studentsLoading={studentsLoading}
+        onStudentNavigate={handleStudentNavigate}
+        inactiveStudents={inactiveStudents}
+        statusBreakdown={statusBreakdown}
+        onCreateBooking={handleCreateBooking}
+        onViewStudents={() => navigate('/instructor/students')}
+      />
+
+      {bookingDrawerOpen && (
+        <Suspense fallback={null}>
+          <CalendarProvider>
+            <BookingDrawer
+              isOpen={bookingDrawerOpen}
+              onClose={() => setBookingDrawerOpen(false)}
+              prefilledInstructor={{ id: user?.id, name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() }}
+              onBookingCreated={() => {
+                setBookingDrawerOpen(false);
+                refetch();
+              }}
+            />
+          </CalendarProvider>
+        </Suspense>
+      )}
+    </>
   );
 };
 

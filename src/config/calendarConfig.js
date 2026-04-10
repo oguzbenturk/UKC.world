@@ -1,4 +1,5 @@
 // Standard configuration for the kitesurfing booking calendar
+// operatingHours can be overridden at runtime via applyWorkingHours()
 const calendarConfig = {
   // Standard booking time slots for kitesurfing lessons
   standardSlots: [
@@ -12,10 +13,10 @@ const calendarConfig = {
     { start: '16:30', end: '18:30' },
   ],
   
-  // Hours of operation
+  // Hours of operation — stored as "HH:MM" strings
   operatingHours: {
-    start: 8,  // 8 AM
-    end: 21,   // 9 PM
+    start: '08:00',
+    end: '21:00',
   },
   
   // Lesson duration in minutes
@@ -27,6 +28,11 @@ const calendarConfig = {
     availableViews: ['day', 'week', 'month'],
     firstDayOfWeek: 1, // Monday
   }
+};
+
+export const applyWorkingHours = (start, end) => {
+  calendarConfig.operatingHours.start = start;
+  calendarConfig.operatingHours.end = end;
 };
 
 export default calendarConfig;

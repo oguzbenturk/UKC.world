@@ -223,30 +223,6 @@ class DataService {
   // === Users & Authentication ===
   
   /**
-   * Login with email and password
-   * @param {string} email - User email
-   * @param {string} password - User password
-   * @returns {Promise<Object>} - User data and token
-   */
-  static async login(email, password) {
-    try {
-      const response = await apiClient.post('/auth/login', { email, password });
-      
-      // Store token in localStorage
-      if (response.data.token) {
-        setAccessToken(response.data.token);
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      
-      return response.data;
-    } catch (error) {
-  dbg('Login failed:', error?.message || error);
-      throw error;
-    }
-  }
-  
-  /**
    * Logout current user
    */
   static logout() {
@@ -367,65 +343,23 @@ class DataService {
       // Get bookings with optional filters
       const response = await apiClient.get('/bookings', { params });
       
-      // Show detailed information about the raw bookings
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        // Raw booking data available
-        
-        // Check if we have date fields
-  const _dateFields = response.data.map(booking => ({ 
-          date: booking.date,
-          formatted_date: booking.formatted_date,
-          raw_date_type: booking.date ? typeof booking.date : 'undefined' 
-        }));
-        // Date fields analyzed
-      }
-      
       // Normalize date format to YYYY-MM-DD
       if (Array.isArray(response.data)) {
         const normalizedData = response.data.map(booking => {
-          // Check if date is available either directly or in formatted_date field from backend
           const dateSource = booking.formatted_date || booking.date;
           let dateStr = null;
-          
           if (dateSource) {
-            // If date is a string with time component, extract just the date part
             if (typeof dateSource === 'string') {
               dateStr = dateSource.includes('T') ? dateSource.split('T')[0] : dateSource;
-              // Converting string date to normalized format
             } else if (dateSource instanceof Date) {
               dateStr = dateSource.toISOString().split('T')[0];
-              // Converting Date object to string
             } else {
               dateStr = String(dateSource);
-              // Converting unknown date type to string
             }
-                
-            const normalizedBooking = { 
-              ...booking, 
-              date: dateStr,
-              // Keep formatted_date as a backup
-              formatted_date: dateStr 
-            };
-
-            return normalizedBooking;
+            return { ...booking, date: dateStr, formatted_date: dateStr };
           }
           return booking;
         });
-        // Normalized ${normalizedData.length} bookings
-        if (normalizedData.length > 0) {
-          /* // Sample booking available - Commenting out problematic block
-            id: normalizedData[0].id,
-            date: normalizedData[0].date,
-            instructor: normalizedData[0].instructor_name,
-            student: normalizedData[0].student_name
-          });
-          */
-          
-          // All normalized dates processed
-          const _allDates = normalizedData.map(b => b.date).filter(Boolean);
-          // ${allDates.length} booking dates available
-        }
-        
         return normalizedData.map((item) => normalizeBooking(item));
       }
       
@@ -528,32 +462,6 @@ class DataService {
     }
   }
 
-  /**
-   * Restore the most recently soft-deleted booking
-   */
-  static async restoreLatestBooking() {
-    try {
-      const response = await apiClient.post('/bookings/restore-latest');
-      return response.data;
-    } catch (error) {
-  dbg('Error restoring latest booking:', error?.message || error);
-      throw error;
-    }
-  }
-
-  /**
-   * Restore a soft-deleted booking by id
-   */
-  static async restoreBookingById(id) {
-    try {
-      const response = await apiClient.post(`/bookings/${id}/restore`);
-      return response.data;
-    } catch (error) {
-  dbg(`Error restoring booking ${id}:`, error?.message || error);
-      throw error;
-    }
-  }
-  
   /**
    * Get lessons for a specific student
    * @param {string} id - Student ID
@@ -660,75 +568,15 @@ class DataService {
     }
   }
   
-  /**
-   * Get equipment by ID
-   * @param {string} id - Equipment ID
-   * @returns {Promise<Object>} - Equipment data
-   */
-  static async getEquipmentById(id) {
-    try {
-      const response = await apiClient.get(`/equipment/${id}`);
-      return response.data;
-    } catch (error) {
-  dbg(`Error getting equipment ${id}:`, error?.message || error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Create new equipment
-   * @param {Object} equipmentData - Equipment data
-   * @returns {Promise<Object>} - Created equipment
-   */
-  static async createEquipment(equipmentData) {
-    try {
-      const response = await apiClient.post('/equipment', equipmentData);
-      return response.data;
-    } catch (error) {
-  dbg('Error creating equipment:', error?.message || error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Update equipment
-   * @param {string} id - Equipment ID
-   * @param {Object} equipmentData - Updated equipment data
-   * @returns {Promise<Object>} - Updated equipment
-   */
-  static async updateEquipment(id, equipmentData) {
-    try {
-      const response = await apiClient.put(`/equipment/${id}`, equipmentData);
-      return response.data;
-    } catch (error) {
-  dbg(`Error updating equipment ${id}:`, error?.message || error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Delete equipment
-   * @param {string} id - Equipment ID
-   * @returns {Promise<Object>} - Response message
-   */
-  static async deleteEquipment(id) {
-    try {
-      const response = await apiClient.delete(`/equipment/${id}`);
-      return response.data;
-    } catch (error) {
-  dbg(`Error deleting equipment ${id}:`, error?.message || error);
-      throw error;
-    }
-  }
-  
   // === Instructors (based on users with instructor role) ===
   
   /**
    * Get all instructors
    * @returns {Promise<Array>} - Array of instructors
-   */  static async getInstructors() {
+   */  static async getInstructors(context) {
     try {
-      const response = await retryApiCall(() => apiClient.get('/instructors'));
+      const params = context ? { context } : {};
+      const response = await retryApiCall(() => apiClient.get('/instructors', { params }));
       return response.data;
     } catch (error) {
   dbg('Error getting instructors:', error?.message || error);
@@ -767,20 +615,6 @@ class DataService {
     }
   }
     // === Users with student role ===
-    /**
-   * Get all users regardless of role
-   * @returns {Promise<Array>} - Array of all users
-   */
-  static async getAllUsers() {
-    try {
-      const response = await retryApiCall(() => apiClient.get('/users/for-booking'));
-      return response.data;
-    } catch (error) {
-  dbg('Error getting all users:', error?.message || error);
-      throw error;
-    }
-  }
-
   /**
    * Get all users with student role
    * @returns {Promise<Array>} - Array of users
@@ -861,46 +695,6 @@ class DataService {
       throw error;
     }
   }
-    /**
-   * Create a new user with student role
-   * @param {Object} userData - User data to create
-   * @returns {Promise<Object>} - Created user data
-   */
-static async createUserWithStudentRole(userData) {
-  try {
-    // Get the student role ID (use the correct UUID from backend constants)
-    const studentRoleId = 'b8073752-02c0-40d6-8cba-24bb7dc95e23'; // Student role ID      // Prepare user data with the role ID
-      const userDataWithRole = {
-        ...userData,
-        role_id: studentRoleId,
-        // Generate a temporary password (should be changed later)
-        password: 'changeme123' 
-      };
-      
-      // Create the user with student role
-      const response = await apiClient.post('/users', userDataWithRole);
-      return response.data;
-    } catch (error) {
-  dbg('Error creating user with student role:', error?.message || error);      throw error;
-    }
-  }
-
-  /**
-   * Update a user by ID
-   * @param {string} id - User ID
-   * @param {Object} userData - Updated user data
-   * @returns {Promise<Object>} - Updated user data
-   */
-  static async updateUserById(id, userData) {
-    try {
-      const response = await apiClient.put(`/users/${id}`, userData);
-      return response.data;
-    } catch (error) {
-  dbg(`Error updating user ${id}:`, error?.message || error);
-      throw error;
-    }
-  }
-  
   // === Individual Record Operations ===
   
   /**
@@ -986,23 +780,6 @@ static async createUserWithStudentRole(userData) {
       return response.data;
     } catch (error) {
       dbg('swapBookings error', error?.response?.status, error?.response?.data || error?.message);
-      throw error;
-    }
-  }
-
-  static async swapBookingsWithParking(aId, bId, aTarget, bTarget, date) {
-    try {
-      const payload = {
-        a_id: aId,
-        b_id: bId,
-        a: aTarget,
-        b: bTarget,
-        ...(date ? { date } : {}),
-      };
-      const response = await apiClient.post('/bookings/swap-with-parking', payload);
-      return response.data;
-    } catch (error) {
-      dbg('swapBookingsWithParking error', error?.response?.status, error?.response?.data || error?.message);
       throw error;
     }
   }

@@ -40,6 +40,8 @@ router.get('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) => 
       name: c.currency_name,
       symbol: c.symbol,
       exchange_rate: c.exchange_rate,
+      raw_rate: c.raw_rate,
+      rate_margin_percent: c.rate_margin_percent,
       base_currency: c.base_currency,
       is_active: c.is_active,
       auto_update_enabled: c.auto_update_enabled,
@@ -254,6 +256,25 @@ router.get('/logs', authenticateJWT, authorizeRoles(['admin']), async (req, res)
   } catch (error) {
     logger.error('Error fetching update logs:', error);
     res.status(500).json({ error: 'Failed to fetch update logs' });
+  }
+});
+
+// Update rate margin for a currency (Admin only)
+router.put('/:currencyCode/margin', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { currencyCode } = req.params;
+    const { marginPercent } = req.body;
+    const userId = req.user?.id;
+
+    if (marginPercent === undefined || marginPercent === null || isNaN(marginPercent) || marginPercent < 0 || marginPercent > 20) {
+      return res.status(400).json({ error: 'marginPercent must be a number between 0 and 20' });
+    }
+
+    const result = await CurrencyService.updateRateMargin(currencyCode, marginPercent, userId);
+    res.json({ message: `Margin updated for ${currencyCode}`, ...result });
+  } catch (error) {
+    logger.error('Error updating rate margin:', error);
+    res.status(500).json({ error: error.message || 'Failed to update rate margin' });
   }
 });
 

@@ -9,7 +9,6 @@ import WeekView from './views/WeekView';
 import MonthView from './views/MonthView';
 
 // Import modals and components
-import StepBookingModal from './StepBookingModal';
 import BookingDrawer from './BookingDrawer';
 import BulkBookingAssistant from './BulkBookingAssistant';
 import BookingDetailModal from './BookingDetailModal';
@@ -379,9 +378,9 @@ const ModernCalendar = () => {
 
   // No-op
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Simple Date Picker Header with View Switcher (app-matched styling) */}
-      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5">
+      <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-2.5">
         <div className="flex items-center justify-between gap-2">
           {/* Left: View Switcher */}
           <div className="flex-1 flex justify-start">

@@ -39,16 +39,6 @@ const CATEGORIES = [
 
 const PROMO_BANNERS = [
   {
-    id: 'secondwind-promo',
-    image: '/assets/images/2ndwind.jpeg',
-    eyebrow: 'Pre-Owned & Demo',
-    title: 'Second Wind',
-    body: 'Quality pre-owned and demo gear at unbeatable prices. Ride more, spend less.',
-    cta: 'Shop Secondwind',
-    to: '/shop/secondwind',
-    align: 'left',
-  },
-  {
     id: 'ion-promo',
     image: '/assets/images/harness.png',
     eyebrow: 'Gear Up',
@@ -57,6 +47,16 @@ const PROMO_BANNERS = [
     cta: 'Shop ION',
     to: '/shop/ion',
     align: 'right',
+  },
+  {
+    id: 'secondwind-promo',
+    image: '/assets/images/2ndwind.jpeg',
+    eyebrow: 'Pre-Owned & Demo',
+    title: 'Second Wind',
+    body: 'Quality pre-owned and demo gear at unbeatable prices. Ride more, spend less.',
+    cta: 'Shop Secondwind',
+    to: '/shop/secondwind',
+    align: 'left',
   },
 ];
 

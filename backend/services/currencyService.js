@@ -4,12 +4,15 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 // Rate source URLs
-const GOOGLE_FINANCE_URL = 'https://www.google.com/finance/quote';
+const YAHOO_FINANCE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
+const OPEN_ER_API_URL = 'https://open.er-api.com/v6/latest';
 const ECB_API_URL = 'https://api.exchangerate-api.com/v4/latest/EUR';
 
 // Rate source priorities
 const RATE_SOURCES = {
-  GOOGLE: 'google',
+  YAHOO: 'yahoo',
+  OPEN_ER: 'open_er',
+  FXRATES: 'fxrates',
   ECB: 'ecb',
   MANUAL: 'manual',
   CACHED: 'cached'
@@ -321,24 +324,40 @@ class CurrencyService {
   static async fetchGoogleRate(currencyCode, baseCurrency = 'EUR') {
     // Optimization: If fetching base currency rate (e.g. EUR -> EUR), always return 1
     if (currencyCode === baseCurrency) {
-      return 1.0;
+      return { rate: 1.0, source: RATE_SOURCES.OPEN_ER };
     }
 
     // Try multiple sources in order of preference
     const sources = [
-      // Frankfurter (ECB-based, very reliable and matches Google closely)
+      // Yahoo Finance — same live forex feed as Google Finance
       {
-        name: 'frankfurter',
+        name: RATE_SOURCES.YAHOO,
         fetch: async () => {
-          const response = await fetch(`https://api.frankfurter.app/latest?from=${baseCurrency}&to=${currencyCode}`);
+          const pair = `${baseCurrency}${currencyCode}=X`;
+          const response = await fetch(`${YAHOO_FINANCE_URL}/${pair}?interval=1m&range=1m`, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+          });
           if (!response.ok) throw new Error(`Status ${response.status}`);
           const data = await response.json();
+          const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+          if (!price) throw new Error('regularMarketPrice not found in response');
+          return price;
+        }
+      },
+      // Open Exchange Rates (hourly updates, free fallback)
+      {
+        name: RATE_SOURCES.OPEN_ER,
+        fetch: async () => {
+          const response = await fetch(`${OPEN_ER_API_URL}/${baseCurrency}`);
+          if (!response.ok) throw new Error(`Status ${response.status}`);
+          const data = await response.json();
+          if (data.result !== 'success') throw new Error('API returned non-success result');
           return data.rates?.[currencyCode];
         }
       },
-      // FXRatesAPI (Commercial accuracy)
+      // FXRatesAPI (fallback)
       {
-        name: 'fxratesapi',
+        name: RATE_SOURCES.FXRATES,
         fetch: async () => {
           const response = await fetch(`https://api.fxratesapi.com/latest?base=${baseCurrency}&currencies=${currencyCode}`);
           if (!response.ok) throw new Error(`Status ${response.status}`);
@@ -346,9 +365,9 @@ class CurrencyService {
           return data.rates?.[currencyCode];
         }
       },
-      // ExchangeRate-API (Fast, reliable)
+      // ExchangeRate-API (last resort)
       {
-        name: 'exchangerate-api',
+        name: RATE_SOURCES.ECB,
         fetch: async () => {
           const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`);
           if (!response.ok) throw new Error(`Status ${response.status}`);
@@ -364,7 +383,7 @@ class CurrencyService {
         const rate = await source.fetch();
         if (rate && !isNaN(rate)) {
           logger.debug(`Successfully fetched ${currencyCode} rate from ${source.name}: ${rate}`);
-          return new Decimal(rate).toNumber();
+          return { rate: new Decimal(rate).toNumber(), source: source.name };
         }
       } catch (error) {
         logger.warn(`${source.name} fetch failed for ${currencyCode}: ${error.message}`);
@@ -408,11 +427,10 @@ class CurrencyService {
     let source = null;
     let error = null;
 
-    // Try Google first
-    rate = await this.fetchGoogleRate(currencyCode, baseCurrency);
-    if (rate) {
-      source = RATE_SOURCES.GOOGLE;
-      return { rate, source, error: null };
+    // Try primary sources via fetchGoogleRate
+    const result = await this.fetchGoogleRate(currencyCode, baseCurrency);
+    if (result) {
+      return { rate: result.rate, source: result.source, error: null };
     }
 
     // Fallback to ECB
@@ -448,7 +466,7 @@ class CurrencyService {
   /**
    * Update exchange rate with full audit logging
    */
-  static async updateExchangeRateWithAudit(currencyCode, newRate, { source = 'manual', triggeredBy = 'api', userId = null } = {}) {
+  static async updateExchangeRateWithAudit(currencyCode, newRate, { source = 'manual', triggeredBy = 'api', userId = null, rawRate = null } = {}) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -461,17 +479,18 @@ class CurrencyService {
       const oldRate = currentRows[0]?.exchange_rate || null;
       const rateChangePercent = oldRate ? ((newRate - oldRate) / oldRate * 100) : null;
 
-      // Update the rate
+      // Update the rate (and raw_rate if provided)
       const { rows: updatedRows } = await client.query(
-        `UPDATE currency_settings 
-         SET exchange_rate = $1, 
-             last_updated_at = NOW(), 
+        `UPDATE currency_settings
+         SET exchange_rate = $1,
+             raw_rate = COALESCE($2, raw_rate),
+             last_updated_at = NOW(),
              last_update_status = 'success',
-             last_update_source = $2,
+             last_update_source = $3,
              updated_at = NOW()
-         WHERE currency_code = $3 
+         WHERE currency_code = $4
          RETURNING *`,
-        [newRate, source, currencyCode]
+        [newRate, rawRate, source, currencyCode]
       );
 
       // Log the update
@@ -626,13 +645,14 @@ class CurrencyService {
       
       return await this.updateExchangeRateWithAudit(currencyCode, finalRate, {
         source,
-        triggeredBy: 'cron'
+        triggeredBy: 'cron',
+        rawRate: rate
       });
     }
 
     // Log failure
     await pool.query(
-      `UPDATE currency_settings 
+      `UPDATE currency_settings
        SET last_update_status = 'failed', last_updated_at = NOW()
        WHERE currency_code = $1`,
       [currencyCode]
@@ -670,11 +690,44 @@ class CurrencyService {
       return await this.updateExchangeRateWithAudit(currencyCode, finalRate, {
         source,
         triggeredBy: 'admin',
-        userId
+        userId,
+        rawRate: rate
       });
     }
 
     throw new Error(`Failed to refresh rate for ${currencyCode}: ${error}`);
+  }
+
+  /**
+   * Update the rate margin for a currency and recompute exchange_rate from raw_rate
+   */
+  static async updateRateMargin(currencyCode, marginPercent, userId = null) {
+    const { rows } = await pool.query(
+      'SELECT raw_rate, exchange_rate FROM currency_settings WHERE currency_code = $1',
+      [currencyCode]
+    );
+    if (!rows[0]) throw new Error(`Currency ${currencyCode} not found`);
+
+    const rawRate = new Decimal(rows[0].raw_rate || rows[0].exchange_rate);
+    const newMargin = new Decimal(marginPercent);
+    const finalRate = rawRate.mul(new Decimal(1).add(newMargin.div(100))).toDecimalPlaces(4).toNumber();
+
+    await pool.query(
+      `UPDATE currency_settings
+       SET rate_margin_percent = $1, exchange_rate = $2, updated_at = NOW()
+       WHERE currency_code = $3`,
+      [newMargin.toNumber(), finalRate, currencyCode]
+    );
+
+    await pool.query(
+      `INSERT INTO currency_update_logs
+       (currency_code, old_rate, new_rate, source, status, triggered_by, triggered_by_user_id)
+       VALUES ($1, $2, $3, 'manual', 'success', 'admin', $4)`,
+      [currencyCode, rows[0].exchange_rate, finalRate, userId]
+    );
+
+    logger.info(`Margin updated for ${currencyCode}: ${newMargin.toNumber()}% → exchange_rate ${finalRate}`);
+    return { currencyCode, rawRate: rawRate.toNumber(), marginPercent: newMargin.toNumber(), exchangeRate: finalRate };
   }
 }
 

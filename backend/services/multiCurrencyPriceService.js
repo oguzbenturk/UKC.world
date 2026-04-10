@@ -123,6 +123,44 @@ export async function upsertPackagePrice(packageId, currencyCode, price) {
 }
 
 /**
+ * Get all prices for multiple services in one query
+ * @param {string[]} serviceIds - Array of service UUIDs
+ * @returns {Map<string, Array>} Map of serviceId -> [{currencyCode, price}]
+ */
+export async function getServicePricesBatch(serviceIds) {
+  const map = new Map();
+  if (!serviceIds || serviceIds.length === 0) return map;
+  const { rows } = await pool.query(
+    'SELECT service_id, currency_code, price FROM service_prices WHERE service_id = ANY($1) ORDER BY service_id, currency_code',
+    [serviceIds]
+  );
+  for (const r of rows) {
+    if (!map.has(r.service_id)) map.set(r.service_id, []);
+    map.get(r.service_id).push({ currencyCode: r.currency_code, price: parseFloat(r.price) });
+  }
+  return map;
+}
+
+/**
+ * Get all prices for multiple packages in one query
+ * @param {string[]} packageIds - Array of package UUIDs
+ * @returns {Map<string, Array>} Map of packageId -> [{currencyCode, price}]
+ */
+export async function getPackagePricesBatch(packageIds) {
+  const map = new Map();
+  if (!packageIds || packageIds.length === 0) return map;
+  const { rows } = await pool.query(
+    'SELECT package_id, currency_code, price FROM package_prices WHERE package_id = ANY($1) ORDER BY package_id, currency_code',
+    [packageIds]
+  );
+  for (const r of rows) {
+    if (!map.has(r.package_id)) map.set(r.package_id, []);
+    map.get(r.package_id).push({ currencyCode: r.currency_code, price: parseFloat(r.price) });
+  }
+  return map;
+}
+
+/**
  * Get price for a service in a specific currency
  * Falls back to the default price from services table if not found
  * @param {string} serviceId - Service UUID  
@@ -242,6 +280,8 @@ export async function syncPackageLegacyPrice(packageId, price, currency) {
 export default {
   getServicePrices,
   getPackagePrices,
+  getServicePricesBatch,
+  getPackagePricesBatch,
   setServicePrices,
   setPackagePrices,
   upsertServicePrice,

@@ -293,6 +293,9 @@ const AcademyServicePackagesPage = ({
         // Package rows use the linked real service ID for booking
         const resolvedServiceId = s.linkedServiceId || s.id || null;
         const packageId = s.packageId || null;
+        // Per-duration rich content (stored on each service row)
+        const durDescription = s.description || '';
+        const durIncludes = s.includes || s.serviceIncludes || '';
         const isPackage = !!s.isPackage;
         const insuranceRate = s.insuranceRate != null ? parseFloat(s.insuranceRate) : null;
         if (hoursNumeric < 24) {
@@ -313,6 +316,8 @@ const AcademyServicePackagesPage = ({
             isPackage,
             insuranceRate,
             tag: sportTag || undefined,
+            description: durDescription,
+            includes: durIncludes,
           };
         }
         const weeks = hoursNumeric / 168;
@@ -332,6 +337,8 @@ const AcademyServicePackagesPage = ({
             isPackage,
             insuranceRate,
             tag: sportTag || undefined,
+            description: durDescription,
+            includes: durIncludes,
           };
         }
         const days = hoursNumeric / 24;
@@ -351,6 +358,8 @@ const AcademyServicePackagesPage = ({
             isPackage,
             insuranceRate,
             tag: sportTag || undefined,
+            description: durDescription,
+            includes: durIncludes,
           };
         }
         const dRounded = Math.round(days * 10) / 10;
@@ -368,6 +377,8 @@ const AcademyServicePackagesPage = ({
           isPackage,
           insuranceRate,
           tag: sportTag || undefined,
+          description: durDescription,
+          includes: durIncludes,
         };
       };
 
@@ -1302,7 +1313,8 @@ const AcademyServicePackagesPage = ({
           servicePrice: selectedDur?.price || 0,
           serviceCurrency: 'EUR',
           durationHours: parsedDurationHours || 1,
-          serviceDescription: pkg.description || '',
+          serviceDescription: selectedDur?.description || pkg.description || '',
+          serviceIncludes: selectedDur?.includes || '',
           isPackage: selectedDur?.isPackage || false,
           packageId: selectedDur?.packageId || null,
           packageName: selectedDur?.packageName || null,
@@ -1714,6 +1726,7 @@ const AcademyServicePackagesPage = ({
         serviceCurrency={rentalBookingData?.serviceCurrency}
         durationHours={rentalBookingData?.durationHours}
         serviceDescription={rentalBookingData?.serviceDescription}
+        serviceIncludes={rentalBookingData?.serviceIncludes}
         isPackage={rentalBookingData?.isPackage}
         packageId={rentalBookingData?.packageId}
         packageName={rentalBookingData?.packageName}

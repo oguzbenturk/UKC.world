@@ -11,7 +11,6 @@ import { Card, Switch, Select, Button, Typography, Divider, Alert, Spin, App } f
 import {
   BellOutlined,
   GlobalOutlined,
-  EyeOutlined,
   SaveOutlined,
   SettingOutlined,
   CalendarOutlined,
@@ -39,11 +38,9 @@ import { studentPortalApi } from '@/features/students/services/studentPortalApi'
 import apiClient from '@/shared/services/apiClient';
 import { usePageSEO } from '@/shared/utils/seo';
 import DataService from '@/shared/services/dataService';
-import { loadInstructorColors, setInstructorColor } from '@/shared/utils/instructorColors';
 
 // Inline admin components
 import FinanceSettingsView from '@/features/finances/components/FinanceSettingsView';
-import PopupSettings from '@/features/popups/components/PopupSettings';
 import ForecastSettings from '@/features/forecast/components/ForecastSettings';
 import CurrencyManagementSection from '@/features/dashboard/components/CurrencyManagementSection';
 
@@ -57,8 +54,6 @@ const PaymentRefunds = lazy(() => import('@/features/finances/pages/PaymentRefun
 const BankAccountsAdmin = lazy(() => import('@/features/finances/pages/BankAccountsAdmin'));
 
 // Lazy-loaded role-specific setting components
-const StudentBookingPreferences = lazy(() => import('@/features/settings/components/StudentBookingPreferences'));
-const StudentInstructorPreferences = lazy(() => import('@/features/settings/components/StudentInstructorPreferences'));
 const StudentSafetySettings = lazy(() => import('@/features/settings/components/StudentSafetySettings'));
 const InstructorAvailabilitySettings = lazy(() => import('@/features/settings/components/InstructorAvailabilitySettings'));
 const InstructorTeachingPreferences = lazy(() => import('@/features/settings/components/InstructorTeachingPreferences'));
@@ -71,12 +66,39 @@ const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 // Calendar Settings Section for Admin
+const HOUR_OPTIONS = (() => {
+  const opts = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const value = `${hh}:${mm}`;
+      const period = h < 12 ? 'AM' : 'PM';
+      const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const label = `${displayH}:${mm} ${period}`;
+      opts.push({ value, label });
+    }
+  }
+  return opts;
+})();
+
+const FORM_CONTEXTS = [
+  { key: 'staff_booking', label: 'Staff Booking Wizard', description: 'Instructor picker when staff create a new booking' },
+  { key: 'customer_modal', label: 'Customer Booking Modal', description: 'Booking from a customer profile page' },
+  { key: 'public_booking', label: 'Public Booking Form', description: 'Outsider / guest booking form' },
+];
+
 const CalendarSettingsSection = memo(function CalendarSettingsSection() {
   const [instructors, setInstructors] = useState([]);
-  const [colorsMap, setColorsMap] = useState({});
-  const [selectedInstructor, setSelectedInstructor] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#3B82F6');
-  const [saving, setSaving] = useState(false);
+
+  // Working hours state — HH:MM strings
+  const [workingHours, setWorkingHours] = useState({ start: '08:00', end: '21:00' });
+  const [savingWH, setSavingWH] = useState(false);
+
+  // Instructor form visibility state
+  const [formVisibility, setFormVisibility] = useState({ staff_booking: [], customer_modal: [], public_booking: [] });
+  const [savingFV, setSavingFV] = useState(false);
+
   const { message } = App.useApp();
 
   useEffect(() => {
@@ -87,96 +109,131 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
       } catch {
         // ignore
       }
-      setColorsMap(loadInstructorColors());
+
+      // Load saved settings
+      try {
+        const res = await apiClient.get('/settings');
+        if (res.data?.calendar_working_hours) {
+          const wh = res.data.calendar_working_hours;
+          // Migrate old integer format (e.g. { start: 8, end: 21 }) to HH:MM strings
+          const toHHMM = (v) => typeof v === 'number'
+            ? `${String(v).padStart(2, '0')}:00`
+            : v;
+          setWorkingHours({ start: toHHMM(wh.start), end: toHHMM(wh.end) });
+        }
+        if (res.data?.instructor_form_visibility) {
+          setFormVisibility(prev => ({ ...prev, ...res.data.instructor_form_visibility }));
+        }
+      } catch {
+        // use defaults
+      }
     })();
   }, []);
 
-  useEffect(() => {
-    if (!selectedInstructor) return;
-    const existing = colorsMap[String(selectedInstructor)];
-    if (existing) setSelectedColor(existing);
-  }, [selectedInstructor, colorsMap]);
-
-  const onSave = async () => {
-    if (!selectedInstructor || !selectedColor) return;
-    setSaving(true);
+  const onSaveWorkingHours = async () => {
+    if (workingHours.end <= workingHours.start) { // string comparison works for HH:MM
+      message.error('Closing time must be after opening time');
+      return;
+    }
+    setSavingWH(true);
     try {
-      const next = setInstructorColor(selectedInstructor, selectedColor, colorsMap);
-      setColorsMap(next);
-      message.success('Instructor color saved');
+      await apiClient.put('/settings/calendar_working_hours', { value: workingHours });
+      // Apply immediately to in-memory config
+      const { applyWorkingHours } = await import('@/config/calendarConfig');
+      applyWorkingHours(workingHours.start, workingHours.end);
+      message.success('Working hours saved');
+    } catch {
+      message.error('Failed to save working hours');
     } finally {
-      setSaving(false);
+      setSavingWH(false);
+    }
+  };
+
+  const onSaveFormVisibility = async () => {
+    setSavingFV(true);
+    try {
+      await apiClient.put('/settings/instructor_form_visibility', { value: formVisibility });
+      message.success('Instructor visibility saved');
+    } catch {
+      message.error('Failed to save instructor visibility');
+    } finally {
+      setSavingFV(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Paragraph className="text-slate-600">
-        Choose a highlight color per instructor for Monthly and 9x9 views.
-      </Paragraph>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-        <div className="sm:col-span-2">
-          <Text strong className="block mb-2">Instructor</Text>
-          <Select
-            value={selectedInstructor || undefined}
-            onChange={setSelectedInstructor}
-            placeholder="Select an instructor…"
-            style={{ width: '100%' }}
-            allowClear
-          >
-            {instructors.map((i) => (
-              <Option key={i.id} value={i.id}>
-                {i.name || i.full_name || `Instructor #${i.id}`}
-              </Option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Text strong className="block mb-2">Color</Text>
-          <input
-            type="color"
-            value={selectedColor}
-            onChange={(e) => setSelectedColor(e.target.value)}
-            className="h-10 w-full p-0 border border-gray-300 rounded-md cursor-pointer"
-          />
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <Button
-          type="primary"
-          onClick={onSave}
-          loading={saving}
-          disabled={!selectedInstructor}
-        >
-          Save Color
-        </Button>
-      </div>
-
-      {/* Preview grid */}
-      {instructors.length > 0 && (
-        <div className="mt-6">
-          <Text strong className="block mb-3">Current Colors</Text>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {instructors.map((i) => {
-              const c = colorsMap[String(i.id)];
-              return (
-                <div key={i.id} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 bg-white">
-                  <div className="min-w-0 mr-3">
-                    <div className="text-sm font-medium text-slate-900 truncate">
-                      {i.name || i.full_name || `Instructor #${i.id}`}
-                    </div>
-                    <div className="text-xs text-slate-500 truncate">{c || 'Default'}</div>
-                  </div>
-                  <div 
-                    className="h-6 w-6 rounded-md border flex-shrink-0" 
-                    style={{ backgroundColor: c || '#E5E7EB' }} 
-                  />
-                </div>
-              );
-            })}
+    <div className="space-y-6">
+      {/* ── Working Hours ── */}
+      <Card
+        title={<span className="flex items-center gap-2"><CalendarOutlined className="text-sky-500" />Working Hours</span>}
+        className="rounded-xl shadow-sm"
+      >
+        <Paragraph className="text-slate-600 mb-4">
+          Set the daily opening and closing times for the booking calendar and available time slots.
+        </Paragraph>
+        <div className="grid grid-cols-2 gap-4 max-w-sm">
+          <div>
+            <Text strong className="block mb-2">Opens at</Text>
+            <Select
+              value={workingHours.start}
+              onChange={v => setWorkingHours(prev => ({ ...prev, start: v }))}
+              style={{ width: '100%' }}
+              options={HOUR_OPTIONS.filter(o => o.value < '23:00')}
+            />
+          </div>
+          <div>
+            <Text strong className="block mb-2">Closes at</Text>
+            <Select
+              value={workingHours.end}
+              onChange={v => setWorkingHours(prev => ({ ...prev, end: v }))}
+              style={{ width: '100%' }}
+              options={HOUR_OPTIONS.filter(o => o.value > '00:00')}
+            />
           </div>
         </div>
-      )}
+        <div className="flex justify-end mt-4">
+          <Button type="primary" onClick={onSaveWorkingHours} loading={savingWH} icon={<SaveOutlined />}>
+            Save Working Hours
+          </Button>
+        </div>
+      </Card>
+
+      {/* ── Instructor Visibility per Form ── */}
+      <Card
+        title={<span className="flex items-center gap-2"><TeamOutlined className="text-sky-500" />Instructor Visibility per Form</span>}
+        className="rounded-xl shadow-sm"
+      >
+        <Paragraph className="text-slate-600 mb-4">
+          Restrict which instructors appear in each booking form. Leave empty to show all instructors.
+        </Paragraph>
+        <div className="space-y-5">
+          {FORM_CONTEXTS.map(({ key, label, description }) => (
+            <div key={key}>
+              <Text strong className="block mb-1">{label}</Text>
+              <Paragraph className="!mb-2 text-sm text-slate-500">{description}</Paragraph>
+              <Select
+                mode="multiple"
+                placeholder="All instructors (no restriction)"
+                value={formVisibility[key] || []}
+                onChange={ids => setFormVisibility(prev => ({ ...prev, [key]: ids }))}
+                style={{ width: '100%' }}
+                allowClear
+                optionFilterProp="label"
+                options={instructors.map(i => ({
+                  value: i.id,
+                  label: i.name || i.full_name || `Instructor #${i.id}`,
+                }))}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end mt-4">
+          <Button type="primary" onClick={onSaveFormVisibility} loading={savingFV} icon={<SaveOutlined />}>
+            Save Visibility
+          </Button>
+        </div>
+      </Card>
+
     </div>
   );
 });
@@ -565,7 +622,6 @@ const UserSettings = () => {
   // Tab configuration for sidebar navigation — must be before early returns
   const tabConfig = useMemo(() => {
     const tabs = [
-      { key: 'account', label: 'Account', icon: <UserOutlined />, group: 'Personal' },
       { key: 'general', label: 'General', icon: <UserOutlined />, group: 'Personal' },
     ];
     // Manager-accessible tabs (subset of admin)
@@ -579,8 +635,7 @@ const UserSettings = () => {
     if (isAdmin) {
       tabs.push(
         { key: 'forecast', label: 'Forecast', icon: <CloudOutlined />, group: 'Business' },
-        { key: 'popups', label: 'Pop-ups', icon: <NotificationOutlined />, group: 'Business' },
-        { key: 'finance', label: 'Finance', icon: <DollarOutlined />, group: 'Business' },
+{ key: 'finance', label: 'Finance', icon: <DollarOutlined />, group: 'Business' },
         { key: 'currency', label: 'Currency', icon: <DollarOutlined />, group: 'Business' },
         { key: 'services', label: 'Service Creation', icon: <AppstoreOutlined />, group: 'Services' },
         { key: 'roles', label: 'Roles & Permissions', icon: <TeamOutlined />, group: 'Access' },
@@ -599,8 +654,6 @@ const UserSettings = () => {
     // Student tabs
     if (isStudent) {
       tabs.push(
-        { key: 'booking-prefs', label: 'Booking Preferences', icon: <CalendarOutlined />, group: 'Bookings' },
-        { key: 'instructor-prefs', label: 'Instructor Preferences', icon: <TeamOutlined />, group: 'Bookings' },
         { key: 'safety', label: 'Safety & Medical', icon: <MedicineBoxOutlined />, group: 'Personal' },
       );
     }
@@ -653,11 +706,11 @@ const UserSettings = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'account':
-        return <AccountSettings />;
-
       case 'general':
         return (
           <div className="space-y-6">
+            <AccountSettings />
+
             <Card
               title={<span className="flex items-center gap-2"><BellOutlined className="text-sky-500" />Notification Preferences</span>}
               className="rounded-xl shadow-sm"
@@ -701,45 +754,6 @@ const UserSettings = () => {
               </div>
             </Card>
 
-            <Card
-              title={<span className="flex items-center gap-2"><EyeOutlined className="text-sky-500" />Display Settings</span>}
-              className="rounded-xl shadow-sm"
-            >
-              <div>
-                <Text strong className="block mb-2">Timezone</Text>
-                <Paragraph className="!mb-3 text-sm text-slate-500">Your timezone for scheduling and notifications</Paragraph>
-                <Select value={settings.timezone} onChange={(value) => updateSetting('timezone', value)} style={{ width: '100%' }} showSearch placeholder="Select timezone">
-                  <Option value="Europe/Istanbul">Europe/Istanbul (GMT+3)</Option>
-                  <Option value="Europe/London">Europe/London (GMT)</Option>
-                  <Option value="Europe/Paris">Europe/Paris (GMT+1)</Option>
-                  <Option value="Europe/Berlin">Europe/Berlin (GMT+1)</Option>
-                  <Option value="America/New_York">America/New York (EST)</Option>
-                  <Option value="America/Los_Angeles">America/Los Angeles (PST)</Option>
-                  <Option value="Asia/Dubai">Asia/Dubai (GMT+4)</Option>
-                  <Option value="UTC">UTC</Option>
-                </Select>
-              </div>
-            </Card>
-
-            {!isStaff && (
-              <Card
-                title={<span className="flex items-center gap-2"><DollarOutlined className="text-sky-500" />Currency Preference</span>}
-                className="rounded-xl shadow-sm"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <Text strong className="block mb-2">Display Currency</Text>
-                    <Paragraph className="!mb-3 text-sm text-slate-500">Choose your preferred currency for viewing prices and balances</Paragraph>
-                    <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} placeholder="Select your preferred currency" style={{ width: '100%' }} />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button type="primary" icon={<SaveOutlined />} onClick={handleCurrencySave} loading={savingCurrency} disabled={selectedCurrency === (user?.preferred_currency || user?.preferredCurrency || userCurrency)} className="rounded-lg">
-                      Save Currency
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )}
 
             <Card
               title={<span className="flex items-center gap-2"><GlobalOutlined className="text-sky-500" />Language & Region</span>}
@@ -772,10 +786,7 @@ const UserSettings = () => {
       case 'forecast':
         return isAdmin ? <ForecastSettings onSave={() => message.success('Forecast settings saved!')} /> : null;
 
-      case 'popups':
-        return isAdmin ? <PopupSettings /> : null;
-
-      case 'finance':
+case 'finance':
         return isAdmin ? <FinanceSettingsView /> : null;
 
       case 'currency':
@@ -818,10 +829,6 @@ const UserSettings = () => {
         return isAdmin ? <BankAccountsAdmin /> : null;
 
       // Student settings
-      case 'booking-prefs':
-        return isStudent ? <StudentBookingPreferences isTrustedCustomer={isTrustedCustomer} /> : null;
-      case 'instructor-prefs':
-        return isStudent ? <StudentInstructorPreferences /> : null;
       case 'safety':
         return isStudent ? <StudentSafetySettings /> : null;
 
@@ -910,14 +917,12 @@ const UserSettings = () => {
             <div className="mb-6">
               <Title level={3} className="!mb-1">{activeTabLabel}</Title>
               <Paragraph className="text-slate-500 !mb-0">
-                {activeTab === 'account' && 'Update your personal information and change your password'}
-                {activeTab === 'general' && (isAdmin
-                  ? 'Manage your personal preferences and notification settings'
-                  : 'Manage your account preferences and notification settings')}
+                {(activeTab === 'account' || activeTab === 'general') && (isAdmin
+                  ? 'Manage your account, personal preferences, and notification settings'
+                  : 'Manage your account details, preferences, and notification settings')}
                 {activeTab === 'calendar' && 'Configure instructor colors for calendar views'}
                 {activeTab === 'forecast' && 'Configure wind forecast settings including units, data sources, and display options'}
-                {activeTab === 'popups' && 'Configure first-login popups and user onboarding experiences'}
-                {activeTab === 'finance' && 'Configure calculation rates and payment fees'}
+{activeTab === 'finance' && 'Configure calculation rates and payment fees'}
                 {activeTab === 'currency' && 'Manage business currency, registration currencies, and exchange rates'}
                 {activeTab === 'booking-defaults' && 'Configure default booking duration and available options'}
                 {activeTab === 'services' && 'Manage service categories and types'}

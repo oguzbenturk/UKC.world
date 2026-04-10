@@ -10,7 +10,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
 import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
-import { setPackagePrices, getPackagePrices, setServicePrices, getServicePrices, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
+import { setPackagePrices, getPackagePrices, getPackagePricesBatch, setServicePrices, getServicePrices, getServicePricesBatch, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
@@ -79,12 +79,12 @@ router.get('/', async (req, res) => {
     query += ` ORDER BY s.name ASC`;
     
     const { rows } = await pool.query(query, queryParams);
-    
-    // Fetch prices for all services in parallel
-    const servicesWithPrices = await Promise.all(rows.map(async row => {
+
+    const priceMap = await getServicePricesBatch(rows.map(r => r.id));
+    const servicesWithPrices = rows.map(row => {
       const isPackageResult = row.package_id !== null;
-      const prices = await getServicePrices(row.id);
-      
+      const prices = priceMap.get(row.id) || [];
+
       return {
         id: row.id,
         name: row.name,
@@ -116,8 +116,8 @@ router.get('/', async (req, res) => {
           sessionsCount: row.sessions_count
         })
       };
-    }));
-    
+    });
+
     res.json(servicesWithPrices);
   } catch (error) {
   logger.error('Error fetching services:', error);
@@ -169,11 +169,11 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
     query += ` ORDER BY p.created_at DESC`;
     
     const { rows } = await pool.query(query, queryParams);
-    
-    // Fetch prices for all packages in parallel
-    const packagesWithPrices = await Promise.all(rows.map(async row => {
-      const prices = await getPackagePrices(row.id);
-      
+
+    const priceMap = await getPackagePricesBatch(rows.map(r => r.id));
+    const packagesWithPrices = rows.map(row => {
+      const prices = priceMap.get(row.id) || [];
+
       // Determine lesson service name from JOIN or fallback to stored name
       const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
       
@@ -239,8 +239,8 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         updatedAt: row.updated_at,
         status: 'active'
       };
-    }));
-    
+    });
+
     res.json(packagesWithPrices);
   } catch (error) {
   logger.error('Error fetching packages:', error);
@@ -301,8 +301,9 @@ router.get('/packages/public', async (req, res) => {
 
     const { rows } = await pool.query(query, queryParams);
 
-    const packagesWithPrices = await Promise.all(rows.map(async (row) => {
-      const prices = await getPackagePrices(row.id);
+    const priceMap = await getPackagePricesBatch(rows.map(r => r.id));
+    const packagesWithPrices = rows.map((row) => {
+      const prices = priceMap.get(row.id) || [];
 
       const lessonServiceName = row.linked_lesson_service_name || row.lesson_service_name || null;
       const rentalServiceName = row.linked_rental_service_name || row.rental_service_name || row.equipment_name || null;
@@ -360,7 +361,7 @@ router.get('/packages/public', async (req, res) => {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
-    }));
+    });
 
     res.json(packagesWithPrices);
   } catch (error) {

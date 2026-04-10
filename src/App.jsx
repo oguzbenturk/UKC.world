@@ -12,14 +12,12 @@ import { ForecastProvider } from './features/forecast/contexts/ForecastContext';
 import AppRoutes from './routes/AppRoutes';
 import { Navbar } from './shared/components/layout/Navbar';
 import Sidebar from './shared/components/layout/Sidebar';
-import PopupManager from './features/popups/components/PopupManager';
 import AuthModal from './shared/components/ui/AuthModal';
 import { useAuth } from './shared/hooks/useAuth';
 import { realTimeService } from './shared/services/realTimeService';
 import ErrorBoundary from './shared/components/error/ErrorBoundary';
 import AppErrorFallback from './shared/components/error/AppErrorFallback';
 import AntdStaticHolder from './shared/components/system/AntdStaticHolder';
-// import { logger } from './shared/utils/logger';
 import { collectWebVitals } from './shared/utils/performance';
 import './styles/sidebar.css';
 import GlobalProgressBar from './shared/components/navigation/GlobalProgressBar';
@@ -35,15 +33,8 @@ import GlobalFAB from './shared/components/ui/GlobalFAB';
 import StudentQuickActions from './features/students/components/StudentQuickActions';
 import { AIChatProvider } from './shared/contexts/AIChatContext';
 import WhatsAppChatModal from './shared/components/chat/WhatsAppChatModal';
-import AIChatFAB from './shared/components/ui/AIChatFAB';
 import { UkcBrandDot } from './shared/components/ui/UkcBrandDot';
 import GlobalPackageDetailsModal from '@/features/outsider/components/GlobalPackageDetailsModal';
-
-// Wrapper component to provide location to PopupManager
-const PopupManagerWrapper = ({ user }) => {
-  const location = useLocation();
-  return <PopupManager user={user} currentPath={location.pathname} />;
-};
 
 // Main App component wraps everything with providers
 function App() {  
@@ -289,12 +280,9 @@ const AppLayoutWithAuth = () => {
         </main>
       </div>
 
-      {/* Popup Manager - shows popups based on conditions */}
-      <PopupManagerWrapper user={user} />
       <GlobalFAB />
       <StudentQuickActions />
       <WhatsAppChatModal />
-      <AIChatFAB />
     </div>
     </AIChatProvider>
   );

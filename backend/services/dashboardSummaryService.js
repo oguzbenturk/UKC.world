@@ -187,18 +187,17 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     ORDER BY hours DESC
   `;
 
-  // Rental equipment breakdown: count by equipment name for active/upcoming rentals
+  // Rental service breakdown: count by service name for active/upcoming rentals
   const rentalBreakdownQuery = `
     SELECT
-      e.name AS equipment_name,
-      e.type AS equipment_type,
+      s.name AS service_name,
       COUNT(*)::int AS count
     FROM rentals r, LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid(id)
-    LEFT JOIN equipment e ON e.id::text = eid.id
+    LEFT JOIN services s ON s.id::text = eid.id
     WHERE r.equipment_ids IS NOT NULL AND jsonb_array_length(r.equipment_ids) > 0
       AND r.status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}, ${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}])
     ${rentalConditions.length ? `AND ${rentalConditions.map(c => c.replace(/\bstart_date\b/g, 'r.start_date').replace(/\bend_date\b/g, 'r.end_date')).join(' AND ')}` : ''}
-    GROUP BY e.id, e.name, e.type
+    GROUP BY s.id, s.name
     ORDER BY count DESC
     LIMIT 15
   `;
@@ -414,8 +413,7 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   };
   rentals.averageRevenue = rentals.total > 0 ? rentals.totalRevenue / rentals.total : 0;
   rentals.serviceBreakdown = (rentalBreakdownResult.rows || []).map(row => ({
-    equipmentName: row.equipment_name,
-    type: row.equipment_type,
+    serviceName: row.service_name,
     count: toNumber(row.count)
   }));
 

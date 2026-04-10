@@ -108,7 +108,7 @@ const CustomerBookingModal = ({ isOpen, onClose, customerId, onBookingCreated })
       // Load services, instructors, and customer data
       const [servicesRes, instructorsRes, customerRes] = await Promise.all([
         serviceApi.getServices(),
-        DataService.getInstructors(),
+        DataService.getInstructors('customer_modal'),
         DataService.getUserById(customerId)
       ]);
 

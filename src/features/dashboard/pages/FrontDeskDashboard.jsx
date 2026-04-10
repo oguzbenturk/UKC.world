@@ -38,7 +38,6 @@ import QuickActionCard from "../components/QuickActionCard";
 import { useQuickActionConfig } from "../hooks/useQuickActionConfig";
 
 // Lazy load modals for better performance
-const StepBookingModal = lazy(() => import('@/features/bookings/components/components/StepBookingModal'));
 const BookingDrawer = lazy(() => import('@/features/bookings/components/components/BookingDrawer'));
 const QuickRentalModal = lazy(() => import('../components/QuickRentalModal'));
 const QuickCustomerModal = lazy(() => import('../components/QuickCustomerModal'));
@@ -46,7 +45,6 @@ const QuickAccommodationModal = lazy(() => import('../components/QuickAccommodat
 const QuickShopSaleModal = lazy(() => import('../components/QuickShopSaleModal'));
 const QuickMembershipModal = lazy(() => import('../components/QuickMembershipModal'));
 
-// Import CalendarProvider for StepBookingModal context
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 
 const { Title, Text } = Typography;

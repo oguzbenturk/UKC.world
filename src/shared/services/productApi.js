@@ -16,7 +16,11 @@ export const productApi = {
       search,
       sort_by = 'created_at',
       sort_order = 'DESC',
-      low_stock = false
+      low_stock = false,
+      brand,
+      min_price,
+      max_price,
+      in_stock = false
     } = params;
 
     const queryParams = new URLSearchParams({
@@ -29,25 +33,41 @@ export const productApi = {
     if (category && category !== 'all') {
       queryParams.append('category', category);
     }
-    
+
     if (subcategory && subcategory !== 'all') {
       queryParams.append('subcategory', subcategory);
     }
-    
+
     if (status && status !== 'all') {
       queryParams.append('status', status);
     }
-    
+
     if (search) {
       queryParams.append('search', search);
     }
-    
+
     if (low_stock) {
       queryParams.append('low_stock', 'true');
     }
 
     if (params.is_featured) {
       queryParams.append('is_featured', 'true');
+    }
+
+    if (brand && brand !== 'all') {
+      queryParams.append('brand', brand);
+    }
+
+    if (min_price !== undefined && min_price > 0) {
+      queryParams.append('min_price', min_price.toString());
+    }
+
+    if (max_price !== undefined && max_price < 10000) {
+      queryParams.append('max_price', max_price.toString());
+    }
+
+    if (in_stock) {
+      queryParams.append('in_stock', 'true');
     }
 
   const response = await apiClient.get(`/products?${queryParams}`);
@@ -115,23 +135,6 @@ export const productApi = {
     return response.data;
   },
 
-  // Update stock quantity
-  updateStock: async (id, stockData) => {
-  const response = await apiClient.patch(`/products/${id}/stock`, stockData);
-  return withAuditFields(response.data);
-  },
-
-  // Get product categories
-  getCategories: async () => {
-  const response = await apiClient.get('/products/categories/list');
-  return response.data;
-  },
-
-  // Get low stock products
-  getLowStockProducts: async () => {
-  const response = await apiClient.get('/products/inventory/low-stock');
-  return normalizeAuditPayload(response.data);
-  }
 };
 
 export default productApi;

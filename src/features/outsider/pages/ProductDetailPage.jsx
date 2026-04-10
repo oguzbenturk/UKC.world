@@ -292,6 +292,16 @@ const ProductDetailPage = () => {
                                     </span>
                                 )}
                             </div>
+                            {userCurrency !== productCurrency && (
+                                <div className="text-sm text-gray-400 font-duotone-regular mt-0.5">
+                                    ≈ {formatCurrency(displayPrice, productCurrency)}
+                                    {product.original_price && product.original_price > displayPrice && (
+                                        <span className="line-through ml-2 text-gray-300">
+                                            {formatCurrency(product.original_price, productCurrency)}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                             {product.original_price && product.original_price > displayPrice && (
                                 <span className="text-sm text-green-600 font-semibold">
                                     Save {Math.round(((product.original_price - displayPrice) / product.original_price) * 100)}%
@@ -325,7 +335,14 @@ const ProductDetailPage = () => {
                                 ))}
                                 <div className="flex justify-between font-duotone-bold text-black border-t border-gray-100 pt-1.5 mt-1.5">
                                     <span>Total</span>
-                                    <span>{formatCurrency(grandTotal, userCurrency)}</span>
+                                    <div className="text-right">
+                                        <div>{formatCurrency(grandTotal, userCurrency)}</div>
+                                        {userCurrency !== productCurrency && (
+                                            <div className="text-xs text-gray-400 font-duotone-regular font-normal">
+                                                ≈ {formatCurrency(convertCurrency(grandTotal, userCurrency, productCurrency), productCurrency)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex gap-2">
@@ -373,9 +390,14 @@ const ProductDetailPage = () => {
                     <span className="text-gray-500 font-duotone-regular">
                         Total{selectedAddons.length > 0 ? ` (${1 + selectedAddons.length} items)` : ''}
                     </span>
-                    <span className="font-duotone-bold text-black">
-                        {formatCurrency(grandTotal, userCurrency)}
-                    </span>
+                    <div className="text-right">
+                        <div className="font-duotone-bold text-black">{formatCurrency(grandTotal, userCurrency)}</div>
+                        {userCurrency !== productCurrency && (
+                            <div className="text-xs text-gray-400 font-duotone-regular">
+                                ≈ {formatCurrency(convertCurrency(grandTotal, userCurrency, productCurrency), productCurrency)}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button

@@ -6,7 +6,7 @@ import { message } from '@/shared/utils/antdStatic';
 import { EditOutlined, DollarOutlined, CalendarOutlined } from '@ant-design/icons';
 import DataService from '@/shared/services/dataService';
 import LessonHistoryTable from '../../instructors/components/LessonHistoryTable';
-import StepBookingModal from '../../bookings/components/components/StepBookingModal';
+import BookingDrawer from '../../bookings/components/components/BookingDrawer';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 
 const DEFAULT_LOCATIONS = [
@@ -523,7 +523,7 @@ function StudentDetail() {
 
       {/* Customer Step Booking Modal */}
       <CalendarProvider>
-        <StepBookingModal
+        <BookingDrawer
           isOpen={showBookingModal}
           onClose={() => setShowBookingModal(false)}
           onBookingCreated={handleBookingCreated}

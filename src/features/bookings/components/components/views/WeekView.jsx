@@ -57,6 +57,7 @@ const WeekView = ({ onBookingClick, onTimeSlotClick }) => {
     if (checkInStatus === 'checked-in') return 'booking-card-checked-in';
     switch (status) {
       case 'confirmed':
+        return 'booking-card-confirmed';
       case 'pending':
         return 'booking-card-pending';
       case 'completed':

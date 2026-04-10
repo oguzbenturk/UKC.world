@@ -9,7 +9,7 @@ import { CalendarProvider } from '../components/contexts/CalendarContext';
  */
 const BookingCalendarPage = () => {
   return (
-    <div className="page-container px-0 w-full h-full">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       <CalendarProvider>
         <ModernCalendar />
       </CalendarProvider>

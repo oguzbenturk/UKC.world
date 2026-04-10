@@ -46,7 +46,11 @@ router.get('/', publicApiLimiter, async (req, res) => {
       search,
       sort_by = 'created_at',
       sort_order = 'DESC',
-      low_stock = false
+      low_stock = false,
+      brand,
+      min_price,
+      max_price,
+      in_stock
     } = req.query;
 
     const offset = (page - 1) * limit;
@@ -108,6 +112,27 @@ router.get('/', publicApiLimiter, async (req, res) => {
     // Low stock filter
     if (low_stock === 'true') {
       whereConditions.push(`stock_quantity <= min_stock_level`);
+    }
+
+    // Brand filter
+    if (brand && brand !== 'all') {
+      whereConditions.push(`brand = $${paramIndex++}`);
+      queryParams.push(brand);
+    }
+
+    // Price range filters
+    if (min_price !== undefined && !isNaN(parseFloat(min_price))) {
+      whereConditions.push(`price >= $${paramIndex++}`);
+      queryParams.push(parseFloat(min_price));
+    }
+    if (max_price !== undefined && !isNaN(parseFloat(max_price))) {
+      whereConditions.push(`price <= $${paramIndex++}`);
+      queryParams.push(parseFloat(max_price));
+    }
+
+    // In stock filter
+    if (in_stock === 'true') {
+      whereConditions.push(`stock_quantity > 0`);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

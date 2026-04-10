@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { fetchInstructorDashboard } from '../services/instructorApi';
+import { getAccessToken } from '@/shared/services/apiClient';
 
 const STORAGE_KEY = 'instructor-dashboard-cache::v1';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -34,13 +35,22 @@ const writeCache = (data) => {
   }
 };
 
-export function useInstructorDashboard(autoRefreshMs = 0) {
+export function useInstructorDashboard(autoRefreshMs = 0, { enabled = true } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const load = useCallback(async ({ silent = false } = {}) => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    const hasToken = getAccessToken() || localStorage.getItem('token');
+    if (!hasToken) {
+      setLoading(false);
+      return;
+    }
     try {
       if (!silent) {
         setLoading(true);
@@ -58,7 +68,7 @@ export function useInstructorDashboard(autoRefreshMs = 0) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     let silent = false;

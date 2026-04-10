@@ -18,7 +18,7 @@ import FloatingActionLauncher from '@/shared/components/FloatingActionLauncher';
 import DataService from '@/shared/services/dataService';
 import LessonHistoryTable from '../../instructors/components/LessonHistoryTable';
 import UserRolePromotion from '@/shared/components/UserRolePromotion';
-import StepBookingModal from '../../bookings/components/components/StepBookingModal';
+import BookingDrawer from '../../bookings/components/components/BookingDrawer';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 
 const CustomerDeleteModal = lazy(() => import('../components/CustomerDeleteModal'));
@@ -725,7 +725,7 @@ function UserDetail() {
       )}
 
       <CalendarProvider>
-        <StepBookingModal
+        <BookingDrawer
           isOpen={showBookingModal}
           onClose={() => setShowBookingModal(false)}
           onBookingCreated={handleBookingCreated}

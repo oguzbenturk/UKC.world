@@ -114,10 +114,11 @@ export const fetchAvailableSlots = async (date) => {
  * @param {boolean} [activeOnly=true] - Only return active instructors
  * @returns {Promise<Array>} - Array of instructors
  */
-export const getInstructors = async (activeOnly = true) => {
+export const getInstructors = async (activeOnly = true, context) => {
   try {    const response = await retryApiCall(() => apiClient.get('/instructors', {
-      params: { 
-        active: activeOnly 
+      params: {
+        active: activeOnly,
+        ...(context ? { context } : {})
       }
     }));
     
