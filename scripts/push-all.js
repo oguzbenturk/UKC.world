@@ -103,6 +103,84 @@ function bumpVersion(type = 'patch') {
   return newVersion;
 }
 
+async function syncN8nWorkflow(secrets) {
+  const n8nApiKey = secrets.n8nApiKey;
+  const workflowFile = path.join(cwd, 'kai-optimized.json');
+
+  if (!n8nApiKey) {
+    console.log('⏭️  No n8nApiKey in .deploy.secrets.json — skipping n8n sync.');
+    return;
+  }
+  if (!fs.existsSync(workflowFile)) {
+    console.log('⏭️  kai-optimized.json not found — skipping n8n sync.');
+    return;
+  }
+
+  console.log('🤖 Step 5/6: Syncing Kai (n8n workflow)...');
+
+  const N8N_BASE = 'https://n8n.plannivo.com/api/v1';
+  const headers = { 'Content-Type': 'application/json', 'X-N8N-API-KEY': n8nApiKey };
+
+  // Wait up to 30s for n8n to be ready after container restart
+  let n8nReady = false;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const r = await fetch(`${N8N_BASE}/workflows?limit=1`, { headers });
+      if (r.ok) { n8nReady = true; break; }
+    } catch {}
+    console.log(`   n8n not ready yet (${i + 1}/10)...`);
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  if (!n8nReady) {
+    console.warn('   ⚠️  n8n did not become ready in time — skipping workflow sync.');
+    return;
+  }
+
+  // Load and strip non-API fields
+  const { name, nodes, connections, settings, staticData } = JSON.parse(fs.readFileSync(workflowFile, 'utf8'));
+  const workflow = { name, nodes, connections, settings, ...(staticData !== undefined && { staticData }) };
+
+  // Find workflow ID
+  let workflowId = secrets.n8nWorkflowId;
+  if (!workflowId) {
+    const listRes = await fetch(`${N8N_BASE}/workflows`, { headers });
+    if (listRes.ok) {
+      const workflows = (await listRes.json()).data || [];
+      const match = workflows.find(w => w.name === workflow.name && w.active);
+      if (match) {
+        workflowId = match.id;
+        secrets.n8nWorkflowId = workflowId;
+        fs.writeFileSync(path.join(cwd, '.deploy.secrets.json'), JSON.stringify(secrets, null, 2));
+      }
+    }
+  }
+
+  if (!workflowId) {
+    console.warn('   ⚠️  Could not find n8n workflow ID — skipping sync.');
+    return;
+  }
+
+  // Push updated workflow
+  const putRes = await fetch(`${N8N_BASE}/workflows/${workflowId}`, {
+    method: 'PUT', headers, body: JSON.stringify(workflow),
+  });
+  if (!putRes.ok) {
+    console.warn(`   ⚠️  Workflow sync failed: ${putRes.status} ${await putRes.text()}`);
+    return;
+  }
+  console.log(`   ✓ Workflow synced: ${workflowId}`);
+
+  // Cycle the workflow to flush any cached state
+  await fetch(`${N8N_BASE}/workflows/${workflowId}/deactivate`, { method: 'POST', headers });
+  await new Promise(r => setTimeout(r, 2000));
+  const activateRes = await fetch(`${N8N_BASE}/workflows/${workflowId}/activate`, { method: 'POST', headers });
+  if (activateRes.ok) {
+    console.log('   ✓ Kai workflow reactivated — ready.');
+  } else {
+    console.warn(`   ⚠️  Could not reactivate workflow: ${activateRes.status}`);
+  }
+}
+
 async function main() {
   const { title, retry, noVersion, skipBuild } = parseArgs();
 
@@ -176,7 +254,7 @@ async function main() {
     }
 
     // Swap to prod envs, commit, push, restore
-    console.log('🚀 Step 2/5: Committing and pushing to Git...');
+    console.log('🚀 Step 2/6: Committing and pushing to Git...');
     if (fs.existsSync(rootEnv)) fs.copyFileSync(rootEnv, rootEnvBackup);
     if (fs.existsSync(beEnv)) fs.copyFileSync(beEnv, beEnvBackup);
     if (!copyFileSafe(rootEnvProd, rootEnv)) console.warn('⚠️  Root production env not found, skipping root .env swap.');
@@ -197,7 +275,7 @@ async function main() {
       sh(`git push origin ${currentBranch}`);
     } finally {
       // Always restore dev envs
-      console.log('♻️  Step 3/5: Restoring local development .env files...');
+      console.log('♻️  Step 3/6: Restoring local development .env files...');
       if (fs.existsSync(rootEnvBackup)) {
         fs.copyFileSync(rootEnvBackup, rootEnv);
         console.log('   ✓ Restored root .env');
@@ -219,7 +297,7 @@ async function main() {
   }
 
   // ── Step 4: SSH deploy ───────────────────────────────────────────────────────
-  console.log('🖥️  Step 4/5: Connecting to remote host to deploy...');
+  console.log('🖥️  Step 4/6: Connecting to remote host to deploy...');
   if (!deploy) {
     console.log('DEPLOY=false set. Skipping remote deployment.');
   } else {
@@ -397,7 +475,10 @@ echo "=== Deploy Complete ==="
     }
   }
 
-  console.log('🏁 Step 5/5: Done.');
+  // ── Step 5: Sync n8n workflow ────────────────────────────────────────────────
+  await syncN8nWorkflow(secrets);
+
+  console.log('🏁 Step 6/6: Done.');
 }
 
 main().catch((e) => {
