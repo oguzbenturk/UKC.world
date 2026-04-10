@@ -433,7 +433,8 @@
               "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "pub-services",
       "name": "pub_get_services",
@@ -476,7 +477,8 @@
               "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "pub-accommodation",
       "name": "pub_get_accommodation_options",
@@ -519,7 +521,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "pub-weather",
       "name": "pub_get_weather",
@@ -562,7 +565,8 @@
               "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, or harness\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "pub-equipment",
       "name": "pub_get_rental_equipment",
@@ -605,7 +609,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "pub-memberships",
       "name": "pub_get_member_offerings",
@@ -652,7 +657,8 @@
               "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-services",
       "name": "cust_get_services",
@@ -686,7 +692,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-wallet",
       "name": "cust_check_wallet_balance",
@@ -720,7 +727,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-packages",
       "name": "cust_get_customer_packages",
@@ -763,7 +771,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-bookings",
       "name": "cust_get_booking_list",
@@ -806,7 +815,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-schedule",
       "name": "cust_get_my_schedule",
@@ -873,7 +883,8 @@
               "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-create-booking",
       "name": "cust_create_booking",
@@ -916,7 +927,8 @@
               "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-acc-options",
       "name": "cust_get_accommodation_options",
@@ -979,7 +991,8 @@
               "value": "={{ $fromAI(\"notes\", \"Optional notes\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-create-acc",
       "name": "cust_create_accommodation_booking",
@@ -1022,7 +1035,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-my-acc",
       "name": "cust_get_my_accommodation_bookings",
@@ -1065,7 +1079,8 @@
               "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, harness\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-equipment",
       "name": "cust_get_rental_equipment",
@@ -1108,7 +1123,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-memberships",
       "name": "cust_get_member_offerings",
@@ -1151,7 +1167,8 @@
               "value": "={{ $fromAI(\"userId\", \"Leave empty for own subscriptions\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-subscriptions",
       "name": "cust_get_my_subscriptions",
@@ -1194,7 +1211,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-weather",
       "name": "cust_get_weather",
@@ -1237,7 +1255,8 @@
               "value": "={{ $fromAI(\"code\", \"Voucher code\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "cust-voucher",
       "name": "cust_validate_voucher",
@@ -1280,7 +1299,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-bookings",
       "name": "staff_get_booking_list",
@@ -1323,7 +1343,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-schedule",
       "name": "staff_get_my_schedule",
@@ -1357,7 +1378,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-notes-get",
       "name": "staff_get_student_notes",
@@ -1404,7 +1426,8 @@
               "value": "={{ $fromAI(\"note\", \"Progress note text\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-notes-add",
       "name": "staff_add_student_note",
@@ -1459,7 +1482,8 @@
               "value": "={{ $fromAI(\"googleDocUrl\", \"Full Google Doc URL\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-save-doc",
       "name": "staff_save_student_doc",
@@ -1506,7 +1530,8 @@
               "value": "={{ $fromAI(\"reason\", \"Optional cancellation reason\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-cancel",
       "name": "staff_cancel_booking",
@@ -1549,7 +1574,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "staff-weather",
       "name": "staff_get_weather",
@@ -1592,7 +1618,8 @@
               "value": "={{ $fromAI(\"query\", \"Name, email, or phone\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-search-customers",
       "name": "admin_search_customers",
@@ -1626,7 +1653,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-get-customer",
       "name": "admin_get_customer_profile",
@@ -1660,7 +1688,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-wallet",
       "name": "admin_check_wallet_balance",
@@ -1694,7 +1723,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-packages",
       "name": "admin_get_customer_packages",
@@ -1745,7 +1775,8 @@
               "value": "={{ $fromAI(\"customerId\", \"Customer UUID (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-bookings",
       "name": "admin_get_booking_list",
@@ -1816,7 +1847,8 @@
               "value": "={{ $fromAI(\"customerId\", \"Customer UUID (admin/manager only)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-create-booking",
       "name": "admin_create_booking",
@@ -1859,7 +1891,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-schedule",
       "name": "admin_get_my_schedule",
@@ -1902,7 +1935,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-instructor-schedule",
       "name": "admin_get_instructor_schedule",
@@ -1945,7 +1979,8 @@
               "value": "={{ $fromAI(\"period\", \"today, week, or month\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-finance-summary",
       "name": "admin_get_financial_summary",
@@ -1979,7 +2014,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-notes-get",
       "name": "admin_get_student_notes",
@@ -2026,7 +2062,8 @@
               "value": "={{ $fromAI(\"note\", \"Progress note text\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-notes-add",
       "name": "admin_add_student_note",
@@ -2081,7 +2118,8 @@
               "value": "={{ $fromAI(\"googleDocUrl\", \"Full Google Doc URL\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-save-doc",
       "name": "admin_save_student_doc",
@@ -2124,7 +2162,8 @@
               "value": "={{ $fromAI(\"code\", \"Voucher code\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-voucher",
       "name": "admin_validate_voucher",
@@ -2183,7 +2222,8 @@
               "value": "={{ $fromAI(\"targetRole\", \"student, instructor, manager, or admin\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-notification",
       "name": "admin_send_notification",
@@ -2238,7 +2278,8 @@
               "value": "={{ $fromAI(\"body\", \"Email body\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-email",
       "name": "admin_send_email",
@@ -2285,7 +2326,8 @@
               "value": "={{ $fromAI(\"level\", \"beginner, intermediate, or advanced\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-services",
       "name": "admin_get_services",
@@ -2328,7 +2370,8 @@
               "value": "={{ $fromAI(\"type\", \"villa, room, or apartment\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-acc-options",
       "name": "admin_get_accommodation_options",
@@ -2371,7 +2414,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-my-acc",
       "name": "admin_get_my_accommodation_bookings",
@@ -2438,7 +2482,8 @@
               "value": "={{ $fromAI(\"guestId\", \"Customer UUID to book for\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-create-acc",
       "name": "admin_create_accommodation_booking",
@@ -2485,7 +2530,8 @@
               "value": "={{ $fromAI(\"reason\", \"Cancellation reason\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-cancel",
       "name": "admin_cancel_booking",
@@ -2528,7 +2574,8 @@
               "value": "={{ $fromAI(\"date\", \"YYYY-MM-DD\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-weather",
       "name": "admin_get_weather",
@@ -2571,7 +2618,8 @@
               "value": "={{ $fromAI(\"type\", \"kite, board, wetsuit, harness\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-equipment",
       "name": "admin_get_rental_equipment",
@@ -2614,7 +2662,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-memberships",
       "name": "admin_get_member_offerings",
@@ -2657,7 +2706,8 @@
               "value": "={{ $fromAI(\"userId\", \"UUID to check (optional)\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-subscriptions",
       "name": "admin_get_my_subscriptions",
@@ -2700,7 +2750,8 @@
               "value": "={{ $fromAI(\"period\", \"month or week\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-expenses",
       "name": "admin_get_financial_expenses",
@@ -2743,7 +2794,8 @@
               "value": "={{ $fromAI(\"filter\", \"Optional filter string. Leave empty if not needed.\", \"string\") }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-wallet-deposits",
       "name": "admin_get_wallet_deposits",
@@ -2777,7 +2829,8 @@
               "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
             }
           ]
-        }
+        },
+        "optimizeResponse": true
       },
       "id": "admin-customer-bookings",
       "name": "admin_get_customer_bookings",
