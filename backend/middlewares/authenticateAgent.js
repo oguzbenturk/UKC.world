@@ -63,11 +63,17 @@ export const verifyAgentIdentity = async (req, res, next) => {
 
     const actualRole = rows[0].role;
 
-    if (actualRole !== claimedRole) {
+    // DB uses legacy role names that assistant.js normalizes before sending to n8n
+    // (e.g. 'customer' → 'student', 'super_admin' → 'admin'). Mirror that mapping here.
+    const DB_ROLE_ALIASES = { customer: 'student', super_admin: 'admin' };
+    const normalizedActualRole = DB_ROLE_ALIASES[actualRole] || actualRole;
+
+    if (normalizedActualRole !== claimedRole) {
       logger.warn('Agent API: role mismatch — possible spoofing attempt', {
         userId,
         claimedRole,
         actualRole,
+        normalizedActualRole,
         ip: req.ip,
         path: req.path,
       });
