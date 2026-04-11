@@ -13,8 +13,6 @@ import { useData } from '@/shared/hooks/useData';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import moment from 'moment';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 const { Option } = Select;
 
@@ -177,7 +175,9 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF();
     const cols = ['Date', 'Amount', 'Type', 'Method', 'Notes'];
     const rows = payrollHistory.map(p => [

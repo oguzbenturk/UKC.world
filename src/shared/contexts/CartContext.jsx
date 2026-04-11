@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { message } from '@/shared/utils/antdStatic';
 import apiClient from '@/shared/services/apiClient';
 
@@ -199,7 +199,7 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart]);
 
-  const value = {
+  const value = useMemo(() => ({
     cart,
     wishlist,
     addToCart,
@@ -212,8 +212,13 @@ export const CartProvider = ({ children }) => {
     moveWishlistToCart,
     getCartTotal,
     getCartCount,
-    refreshCartPrices
-  };
+    refreshCartPrices,
+  }), [
+    cart, wishlist,
+    addToCart, removeFromCart, updateQuantity, clearCart,
+    addToWishlist, removeFromWishlist, isInWishlist, moveWishlistToCart,
+    getCartTotal, getCartCount, refreshCartPrices,
+  ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

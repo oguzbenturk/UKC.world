@@ -25,6 +25,8 @@ class CacheService {
             enableReadyCheck: false,
             maxRetriesPerRequest: null,
             lazyConnect: true, // Connect only when needed
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+            reconnectOnError: (err) => !err.message.includes('READONLY'),
         };
 
         // Add password if configured (SEC-004: Redis Authentication)

@@ -17,6 +17,7 @@ import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import socketService from '../services/socketService.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
 
@@ -659,7 +660,7 @@ router.get('/',
 });
 
 // GET calendar bookings for a specific date (must be before /:id route)
-router.get('/calendar', authenticateJWT, async (req, res) => {
+router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:bookings:calendar:${req.query.date || 'all'}:${req.query.instructor_id || 'all'}`), async (req, res) => {
   try {
     const { date, instructor_id } = req.query;
     

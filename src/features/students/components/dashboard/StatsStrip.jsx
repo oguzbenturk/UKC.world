@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
 import accommodationApi from '@/shared/services/accommodationApi';
 import LessonsSection from './LessonsSection';
+import RentalsSection from './RentalsSection';
 
 const accentColors = {
   // Lessons
@@ -178,7 +179,7 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
   );
 };
 
-const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons = [] }) => {
+const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons = [], upcomingRentalsList = [], pastRentalsList = [] }) => {
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary } = useWalletSummary({ enabled: true, currency: storageCurrency });
@@ -319,6 +320,9 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
         >
           {key === 'lessons' && (upcomingLessons.length > 0 || pastLessons.length > 0) && (
             <LessonsSection upcoming={upcomingLessons} past={pastLessons} />
+          )}
+          {key === 'rentals' && (upcomingRentalsList.length > 0 || pastRentalsList.length > 0) && (
+            <RentalsSection upcoming={upcomingRentalsList} past={pastRentalsList} />
           )}
           {key === 'accommodations' && (
             <AccommodationCards

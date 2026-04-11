@@ -8,6 +8,7 @@ import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 
 /**
  * Extract extended pricing metadata stored inside the amenities JSONB array.
@@ -93,7 +94,7 @@ const router = Router();
 // ============================================================================
 
 // List all accommodation units (public for browsing, with availability)
-router.get('/units', async (req, res) => {
+router.get('/units', cacheMiddleware(120), async (req, res) => {
 	try {
 		const { status, type, checkIn, checkOut, guests, limit = 50, offset = 0 } = req.query;
 		const params = [];
@@ -161,7 +162,7 @@ router.get('/units', async (req, res) => {
 });
 
 // Get single unit by ID
-router.get('/units/:id', async (req, res) => {
+router.get('/units/:id', cacheMiddleware(300), async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { rows } = await pool.query(
@@ -206,8 +207,10 @@ router.get('/units/:id', async (req, res) => {
 	}
 });
 
+const accomCachePatterns = ['api:GET:/api/accommodation/units*'];
+
 // Create new accommodation unit (admin/manager only)
-router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	try {
 		const { 
 			name, 
@@ -244,7 +247,7 @@ router.post('/units', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
 });
 
 // Update accommodation unit
-router.put('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.put('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { name, type, category, capacity, price_per_night, description, amenities, status, image_url, images } = req.body;
@@ -287,7 +290,7 @@ router.put('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), 
 });
 
 // Delete accommodation unit
-router.delete('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.delete('/units/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
@@ -443,7 +446,7 @@ router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager'
 });
 
 // Mark an accommodation booking as completed and write snapshot
-router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
@@ -497,7 +500,7 @@ router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin',
 });
 
 // Cancel a booking — refund wallet if paid
-router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'student', 'outsider', 'trusted_customer']), async (req, res) => {
+router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'student', 'outsider', 'trusted_customer']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
@@ -567,7 +570,7 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 });
 
 // Create new accommodation booking (any authenticated user)
-router.post('/bookings', authenticateJWT, async (req, res) => {
+router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
@@ -892,7 +895,7 @@ router.get('/my-bookings', authenticateJWT, async (req, res) => {
 });
 
 // Confirm a pending booking (admin/manager)
-router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { rows } = await pool.query(
@@ -958,7 +961,7 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
 });
 
 // Delete a booking by ID (admin, manager, front_desk)
-router.delete('/bookings/:id', authenticateJWT, async (req, res) => {
+router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	try {
 		const { id } = req.params;
 		// Normalize role and determine staff

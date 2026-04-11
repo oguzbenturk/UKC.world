@@ -3,11 +3,15 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { getDashboardSummary } from '../services/dashboardSummaryService.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 
 const router = Router();
 const MANAGEMENT_ROLES = ['admin', 'manager', 'owner', 'developer'];
 
-router.get('/summary', authenticateJWT, authorizeRoles(MANAGEMENT_ROLES), async (req, res) => {
+const dashboardCacheKey = (req) =>
+  `api:dashboard:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`;
+
+router.get('/summary', authenticateJWT, authorizeRoles(MANAGEMENT_ROLES), cacheMiddleware(60, dashboardCacheKey), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const summary = await getDashboardSummary({ startDate, endDate });

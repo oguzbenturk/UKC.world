@@ -23,6 +23,21 @@ const resolveDate = (l) => {
   return raw ? dayjs(raw).format('ddd, MMM D') : 'TBD';
 };
 
+const resolveDuration = (l) => {
+  if (l?.durationHours != null) {
+    const h = Number(l.durationHours);
+    if (Number.isFinite(h) && h > 0) return `${h % 1 === 0 ? h : h.toFixed(1)}h`;
+  }
+  if (l?.startTime && l?.endTime) {
+    const mins = dayjs(l.endTime).diff(dayjs(l.startTime), 'minute');
+    if (mins > 0) {
+      const h = mins / 60;
+      return `${h % 1 === 0 ? h : h.toFixed(1)}h`;
+    }
+  }
+  return '—';
+};
+
 const statusCls = {
   completed: 'bg-emerald-50 text-emerald-700',
   scheduled: 'bg-sky-50 text-sky-700',
@@ -40,9 +55,10 @@ const LessonRow = ({ lesson, onClick }) => {
       className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
     >
       <td className="px-4 py-2.5 font-gotham-medium text-xs text-slate-600 whitespace-nowrap">{resolveDate(lesson)}</td>
-      <td className="px-4 py-2.5 font-duotone-bold text-xs text-slate-900">{resolveLessonName(lesson)}</td>
-      <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{resolveInstructorName(lesson)}</td>
-      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+      <td className="px-4 py-2.5 font-duotone-bold text-xs text-slate-900 truncate">{resolveLessonName(lesson)}</td>
+      <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap truncate">{resolveInstructorName(lesson)}</td>
+      <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{resolveDuration(lesson)}</td>
+      <td className="px-4 py-2.5 text-center whitespace-nowrap">
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-gotham-medium uppercase tracking-wider ${statusCls[status] || statusCls.scheduled}`}>
           {status}
         </span>
@@ -95,13 +111,14 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
 
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50/30">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[110px]">Date</th>
-                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Lesson</th>
-                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[130px]">Instructor</th>
-                <th className="px-4 py-2 text-right text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[100px]">Status</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Date</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Lesson</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Instructor</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Duration</th>
+                <th className="w-1/5 px-4 py-2 text-center text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Status</th>
               </tr>
             </thead>
             <tbody>

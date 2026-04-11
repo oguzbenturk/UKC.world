@@ -6,6 +6,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getInstructorEarningsData, getInstructorPayrollHistory, getAllInstructorBalances } from '../services/instructorFinanceService.js';
 import { resolveActorId } from '../utils/auditUtils.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 import {
   getWalletAccountSummary,
   recordTransaction as recordWalletTransaction,
@@ -2072,7 +2073,7 @@ router.use('/transactions/:id', (req, res, next) => {
  * GET /api/finances/summary
  * Get comprehensive financial summary with analytics
  */
-router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(60, (req) => `api:finances:summary:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}:${req.query.mode || 'cash'}`), async (req, res) => {
   try {
   const { startDate, endDate, serviceType, mode = 'accrual' } = req.query;
     
@@ -2451,7 +2452,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), as
  * GET /api/finances/lesson-breakdown
  * Get lesson service popularity and instructor performance data for charts
  */
-router.get('/lesson-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/lesson-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:lesson:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const dateStart = startDate || '1900-01-01';
@@ -2586,7 +2587,7 @@ router.get('/lesson-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  * GET /api/finances/rental-breakdown
  * Get equipment popularity and rental analytics data for charts
  */
-router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:rental:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const dateStart = startDate || '1900-01-01';
@@ -2683,7 +2684,7 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  * GET /api/finances/membership-breakdown
  * Get membership offering popularity and purchase analytics
  */
-router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:membership:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const dateStart = startDate || '1900-01-01';
@@ -2785,7 +2786,7 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
  * GET /api/finances/accommodation-breakdown
  * Get accommodation unit popularity, booking trends, and status breakdown
  */
-router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:accommodation:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const dateStart = startDate || '1900-01-01';
@@ -2874,7 +2875,7 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
  * GET /api/finances/events-breakdown
  * Get event type breakdown, registration trends, and revenue analysis
  */
-router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:events:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const dateStart = startDate || '1900-01-01';
@@ -2973,7 +2974,7 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  * Comprehensive financial overview using wallet_transactions as the source of truth.
  * Returns: headline stats, service breakdown, monthly trend, expense breakdown.
  */
-router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:overview:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
 
@@ -3098,7 +3099,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), a
  * Wallet deposit / manual credit transactions with user info
  * All amounts normalised to base currency (EUR) using currency_settings rates
  */
-router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:wallet-deposits:${req.query.page || 1}:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const limit = Math.min(Number.parseInt(req.query.limit, 10) || 200, 500);

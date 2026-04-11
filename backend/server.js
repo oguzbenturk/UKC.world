@@ -243,7 +243,7 @@ app.use(securityHeaders);
 app.use(securityResponseHeaders);
 
 // Request compression
-app.use(compression());
+app.use(compression({ threshold: 1024 }));
 
 // Performance monitoring (temporarily disabled)
 // app.use(performanceMonitor);

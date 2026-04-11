@@ -335,6 +335,8 @@ const buildFallbackStudentOverview = (studentId, fallbackUser = {}) => {
     upcomingSessions: [],
     nextLessons: [],
     previousLessons: [],
+    upcomingRentalsList: [],
+    pastRentalsList: [],
     progress: [],
     instructorNotes: [],
     notifications: [],
@@ -630,7 +632,9 @@ export async function getStudentOverview(studentId, options = {}) {
       transactionsRes,
       supportRes,
       previousLessonsRes,
-      instructorNotesRes
+      instructorNotesRes,
+      upcomingRentalsRes,
+      pastRentalsRes
     ] = await Promise.all([
       client.query(profileQuery, [normalizedStudentId]),
       client.query(
@@ -868,7 +872,39 @@ export async function getStudentOverview(studentId, options = {}) {
           )
         : Promise.resolve({ rows: [] }),
       previousLessonsPromise,
-      instructorNotesPromise
+      instructorNotesPromise,
+      hasRentalsTable
+        ? client.query(
+            `SELECT r.id, r.start_date, r.end_date, r.status,
+                    COALESCE(STRING_AGG(DISTINCT s.name, ', '), 'Equipment') AS equipment_names
+               FROM rentals r
+               LEFT JOIN rental_equipment re ON r.id = re.rental_id
+               LEFT JOIN services s ON re.equipment_id = s.id
+              WHERE r.user_id = $1
+                AND r.start_date >= CURRENT_DATE
+                AND r.status NOT IN ('cancelled')
+              GROUP BY r.id
+              ORDER BY r.start_date ASC
+              LIMIT 5`,
+            [normalizedStudentId]
+          )
+        : Promise.resolve({ rows: [] }),
+      hasRentalsTable
+        ? client.query(
+            `SELECT r.id, r.start_date, r.end_date, r.status,
+                    COALESCE(STRING_AGG(DISTINCT s.name, ', '), 'Equipment') AS equipment_names
+               FROM rentals r
+               LEFT JOIN rental_equipment re ON r.id = re.rental_id
+               LEFT JOIN services s ON re.equipment_id = s.id
+              WHERE r.user_id = $1
+                AND (r.start_date < CURRENT_DATE OR r.status IN ('completed', 'returned', 'closed'))
+                AND r.status NOT IN ('cancelled')
+              GROUP BY r.id
+              ORDER BY r.start_date DESC
+              LIMIT 10`,
+            [normalizedStudentId]
+          )
+        : Promise.resolve({ rows: [] })
     ]);
 
     const rowsOf = (result) => (Array.isArray(result?.rows) ? result.rows : []);
@@ -954,6 +990,22 @@ export async function getStudentOverview(studentId, options = {}) {
           serviceType: row.service_type || rating?.serviceType || 'lesson'
         };
       });
+
+  const upcomingRentalsList = rowsOf(upcomingRentalsRes).map((row) => ({
+    id: row.id,
+    startDate: row.start_date ? row.start_date.toISOString().split('T')[0] : null,
+    endDate: row.end_date ? row.end_date.toISOString().split('T')[0] : null,
+    status: row.status || 'active',
+    equipmentNames: row.equipment_names || 'Equipment',
+  }));
+
+  const pastRentalsList = rowsOf(pastRentalsRes).map((row) => ({
+    id: row.id,
+    startDate: row.start_date ? row.start_date.toISOString().split('T')[0] : null,
+    endDate: row.end_date ? row.end_date.toISOString().split('T')[0] : null,
+    status: row.status || 'completed',
+    equipmentNames: row.equipment_names || 'Equipment',
+  }));
 
   const statsRow = firstRowOf(statsRes) || {};
   const rentalStatsRow = firstRowOf(rentalStatsRes) || {};
@@ -1322,6 +1374,8 @@ export async function getStudentOverview(studentId, options = {}) {
       upcomingSessions,
       nextLessons: upcomingSessions,
       previousLessons,
+      upcomingRentalsList,
+      pastRentalsList,
       progress: progressEntries,
       instructorNotes,
       notifications,

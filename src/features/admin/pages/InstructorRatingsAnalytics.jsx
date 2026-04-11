@@ -39,8 +39,6 @@ import {
 	ReloadOutlined
 } from '@ant-design/icons';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useInstructorRatingsAnalytics } from '../hooks/useInstructorRatingsAnalytics';
 
 const { Title, Text } = Typography;
@@ -248,11 +246,13 @@ const InstructorRatingsAnalytics = () => {
 		}
 	}, [refetch]);
 
-	const handleExportPdf = useCallback(() => {
+	const handleExportPdf = useCallback(async () => {
 		if (!tableData.length) {
 			return;
 		}
 
+		const { default: jsPDF } = await import('jspdf');
+		const { default: autoTable } = await import('jspdf-autotable');
 		const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
 		doc.setFontSize(18);
 		doc.text('Instructor Rating Overview', 40, 40);

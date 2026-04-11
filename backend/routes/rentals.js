@@ -11,6 +11,9 @@ import CurrencyService from '../services/currencyService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
 
 const router = Router();
 
@@ -20,10 +23,11 @@ const router = Router();
 // Instructors should not access rentals (UI hidden) – enforce 403 server-side
 const ALLOW_ROLES_EXCEPT_INSTRUCTOR = ['admin', 'manager'];
 
-router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(600), async (req, res) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
     const query = `
-      SELECT 
+      SELECT
         r.*,
         u.name as customer_name,
         u.email as customer_email,
@@ -37,7 +41,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
               'dailyRate', re.daily_rate,
               'duration', s.duration
             )
-          ) FILTER (WHERE s.id IS NOT NULL), 
+          ) FILTER (WHERE s.id IS NOT NULL),
           '{}'::json
         ) as equipment_details,
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
@@ -48,8 +52,9 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
       LEFT JOIN services s ON re.equipment_id = s.id
       GROUP BY r.id, u.name, u.email, creator.name
       ORDER BY r.created_at DESC
+      LIMIT $1
     `;
-    const { rows } = await pool.query(query);
+    const { rows } = await pool.query(query, [limit]);
     res.json(rows);
   } catch (error) {
     logger.error('Error fetching all rentals', error);
@@ -60,7 +65,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
 /**
  * Get recent rentals with enriched data (limited)
  */
-router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(120), async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     const query = `
@@ -102,10 +107,10 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
 /**
  * Get all active rentals with enriched data
  */
-router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(60), async (req, res) => {
   try {
     const query = `
-      SELECT 
+      SELECT
         r.*,
         u.name as customer_name,
         u.email as customer_email,
@@ -119,7 +124,7 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
               'dailyRate', re.daily_rate,
               'duration', s.duration
             )
-          ) FILTER (WHERE s.id IS NOT NULL), 
+          ) FILTER (WHERE s.id IS NOT NULL),
           '{}'::json
         ) as equipment_details,
         array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
@@ -143,7 +148,7 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
 /**
  * Get all upcoming rentals with enriched data
  */
-router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(120), async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -184,7 +189,7 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
 /**
  * Get all overdue rentals with enriched data
  */
-router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(120), async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -225,7 +230,7 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
 /**
  * Get all completed rentals with enriched data
  */
-router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(300), async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -266,7 +271,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
 /**
  * Get all pending rentals (awaiting approval)
  */
-router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), cacheMiddleware(60), async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -356,7 +361,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
 /**
  * Create a new rental
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'student', 'outsider']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'student', 'outsider']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -809,7 +814,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
 /**
  * Update a rental
  */
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -944,7 +949,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
 /**
  * Delete a rental
  */
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
   const client = await pool.connect();
 
   try {

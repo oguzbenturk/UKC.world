@@ -5,13 +5,16 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const EVENT_CACHE_PATTERNS = ['api:GET:/api/events*'];
 
 const router = Router();
 
 const ALLOWED_ROLES = ['admin', 'manager', 'developer'];
 
 // Public endpoint - All users (including guests) can view events
-router.get('/public', async (req, res) => {
+router.get('/public', cacheMiddleware(120), async (req, res) => {
   try {
     const { status, from, to } = req.query;
     const filters = ['e.deleted_at IS NULL'];
@@ -35,11 +38,14 @@ router.get('/public', async (req, res) => {
     const query = `
       SELECT
         e.*,
-        COALESCE(
-          (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered'),
-          0
-        ) as registration_count
+        COALESCE(rc.registration_count, 0) AS registration_count
       FROM events e
+      LEFT JOIN (
+        SELECT event_id, COUNT(*) AS registration_count
+        FROM event_registrations
+        WHERE status = 'registered'
+        GROUP BY event_id
+      ) rc ON rc.event_id = e.id
       ${whereClause}
       ORDER BY e.start_at DESC
       LIMIT 500
@@ -54,7 +60,7 @@ router.get('/public', async (req, res) => {
 });
 
 // Admin endpoint - For event management
-router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), cacheMiddleware(120), async (req, res) => {
   try {
     const { status, from, to } = req.query;
     const filters = ['e.deleted_at IS NULL'];
@@ -79,12 +85,15 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res)
       SELECT
         e.*,
         u.name AS created_by_name,
-        COALESCE(
-          (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered'),
-          0
-        ) as registration_count
+        COALESCE(rc.registration_count, 0) AS registration_count
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
+      LEFT JOIN (
+        SELECT event_id, COUNT(*) AS registration_count
+        FROM event_registrations
+        WHERE status = 'registered'
+        GROUP BY event_id
+      ) rc ON rc.event_id = e.id
       ${whereClause}
       ORDER BY e.start_at DESC
       LIMIT 500
@@ -102,6 +111,7 @@ router.post(
   '/',
   authenticateJWT,
   authorizeRoles(ALLOWED_ROLES),
+  cacheInvalidationMiddleware(EVENT_CACHE_PATTERNS),
   [
     body('name').isString().trim().notEmpty(),
     body('event_type').optional({ nullable: true }).isString().trim(),
@@ -196,6 +206,7 @@ router.put(
   '/:eventId',
   authenticateJWT,
   authorizeRoles(ALLOWED_ROLES),
+  cacheInvalidationMiddleware(EVENT_CACHE_PATTERNS),
   [
     body('name').optional().isString().trim().notEmpty(),
     body('event_type').optional({ nullable: true }).isString().trim(),
@@ -268,7 +279,7 @@ router.put(
 );
 
 // Delete an event (soft delete)
-router.delete('/:eventId', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async (req, res) => {
+router.delete('/:eventId', authenticateJWT, authorizeRoles(ALLOWED_ROLES), cacheInvalidationMiddleware(EVENT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { eventId } = req.params;
 
@@ -295,7 +306,7 @@ router.delete('/:eventId', authenticateJWT, authorizeRoles(ALLOWED_ROLES), async
 });
 
 // Register for an event
-router.post('/:eventId/register', authenticateJWT, async (req, res) => {
+router.post('/:eventId/register', authenticateJWT, cacheInvalidationMiddleware(EVENT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { eventId } = req.params;
     const userId = req.user?.id;
@@ -350,7 +361,7 @@ router.post('/:eventId/register', authenticateJWT, async (req, res) => {
 });
 
 // Cancel registration
-router.delete('/:eventId/register', authenticateJWT, async (req, res) => {
+router.delete('/:eventId/register', authenticateJWT, cacheInvalidationMiddleware(EVENT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { eventId } = req.params;
     const userId = req.user?.id;

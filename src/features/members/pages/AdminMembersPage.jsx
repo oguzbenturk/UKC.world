@@ -67,14 +67,15 @@ const AdminMembersPage = () => {
       if (filters.status !== 'all') params.append('status', filters.status);
       if (filters.dateRange?.[0]) params.append('from', filters.dateRange[0].toISOString());
       if (filters.dateRange?.[1]) params.append('to', filters.dateRange[1].toISOString());
-      
+
       const { data } = await apiClient.get(`/member-offerings/admin/purchases?${params}`);
       // Use computed_status from backend which considers expiry dates
       return data.map(p => ({ ...p, status: p.computed_status || p.status }));
-    }
+    },
+    staleTime: 120_000,
   });
 
-  // Fetch stats
+  // Fetch stats — derived from purchases, but cached independently
   const { data: stats } = useQuery({
     queryKey: ['admin-member-stats'],
     queryFn: async () => {
@@ -87,7 +88,8 @@ const AdminMembersPage = () => {
         pending: data.filter(p => (p.computed_status || p.status) === 'pending').length,
         expired: data.filter(p => (p.computed_status || p.status) === 'expired').length
       };
-    }
+    },
+    staleTime: 300_000,
   });
 
   // Filter purchases by search term

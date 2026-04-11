@@ -220,6 +220,7 @@ export default function EventsPage() {
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!apiClient,
+    staleTime: 120_000,
   });
   const events = Array.isArray(rawEvents) ? rawEvents : [];
 
@@ -232,6 +233,7 @@ export default function EventsPage() {
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!apiClient && !!regEvent?.id,
+    staleTime: 30_000,
   });
   const registrations = Array.isArray(rawRegistrations) ? rawRegistrations : [];
 
@@ -375,6 +377,7 @@ export default function EventsPage() {
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled: !!apiClient && !isAdmin,
+    staleTime: 120_000,
   });
   const myRegEventIds = useMemo(() => {
     if (!myRegistrations) return new Set();

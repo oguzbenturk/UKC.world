@@ -4,7 +4,10 @@ import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined } from '@ant-des
 import { message } from '@/shared/utils/antdStatic';
 import { useData } from '@/shared/hooks/useData';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+
+const ADMIN_ROLES = new Set(['admin', 'manager', 'front_desk', 'developer', 'owner']);
 
 const statusStyles = {
   pending:    { bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200' },
@@ -29,6 +32,7 @@ function StatusBadge({ status }) {
 const CustomerShopHistory = ({ userId }) => {
   const { apiClient } = useData();
   const { formatCurrency } = useCurrency();
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
   const [fetchError, setFetchError] = useState(null);
@@ -36,11 +40,18 @@ const CustomerShopHistory = ({ userId }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
+  // Use admin endpoint for staff; use /my-orders for the user viewing their own profile
+  const isAdminView = currentUser && ADMIN_ROLES.has(currentUser.role);
+  const isSelfView = currentUser?.id === userId;
+
   const fetchOrders = async (page = 1) => {
     setLoading(true);
     setFetchError(null);
     try {
-      const response = await apiClient.get(`/shop-orders/admin/user/${userId}?page=${page}&limit=10`);
+      const url = (!isAdminView && isSelfView)
+        ? `/shop-orders/my-orders?page=${page}&limit=10`
+        : `/shop-orders/admin/user/${userId}?page=${page}&limit=10`;
+      const response = await apiClient.get(url);
       setOrders(response.data.orders || []);
       setPagination({
         current: response.data.page,

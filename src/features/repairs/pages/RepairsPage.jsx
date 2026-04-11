@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, Typography, Button, Tag, Form, Input, Select, Upload, Empty, Spin, Drawer, Space, Divider, Descriptions, Image, Avatar, Checkbox, Tabs, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, ToolOutlined, CameraOutlined, MessageOutlined, SendOutlined, LockOutlined, CheckOutlined, ClockCircleOutlined, CheckCircleOutlined, FireOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -235,6 +236,7 @@ const RepairMobileCard = ({ record, onAction, isAdmin, staffUsers = [] }) => {
  * Other roles: customer view with submit and track
  */
 const ADMIN_REPAIR_ROLES = ['admin', 'manager'];
+const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 const RepairsPage = () => {
   const { user } = useAuth();
@@ -251,8 +253,7 @@ const RepairsAdminPage = () => {
   const { user } = useAuth();
   const { usersWithStudentRole = [] } = useData();
 
-  const [repairs, setRepairs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [fileList, setFileList] = useState([]);
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('pending');
@@ -291,22 +292,19 @@ const RepairsAdminPage = () => {
   };
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
-  const fetchRepairs = async () => {
-    setLoading(true);
-    try {
+  const { data: repairs = [], isLoading: loading } = useQuery({
+    queryKey: ['repairs'],
+    queryFn: async () => {
       const res = await apiClient.get('/repair-requests');
-      const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-      const sorted = [...res.data.data].sort((a, b) => {
-        const pd = (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+      return [...res.data.data].sort((a, b) => {
+        const pd = (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4);
         return pd !== 0 ? pd : new Date(b.created_at) - new Date(a.created_at);
       });
-      setRepairs(sorted);
-    } catch {
-      message.error('Failed to load repair requests');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    staleTime: 60_000,
+  });
+
+  const fetchRepairs = () => queryClient.invalidateQueries({ queryKey: ['repairs'] });
 
   const fetchStaffUsers = async () => {
     try {
@@ -319,7 +317,6 @@ const RepairsAdminPage = () => {
   };
 
   useEffect(() => {
-    fetchRepairs();
     if (isAdmin) fetchStaffUsers();
   }, []);
 

@@ -5,6 +5,9 @@ import ExchangeRateService from '../services/exchangeRateService.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const CURRENCY_CACHE_PATTERNS = ['api:GET:/api/currencies*'];
 
 const router = express.Router();
 
@@ -20,7 +23,7 @@ router.post('/update-rates', authenticateJWT, authorizeRoles(['admin']), async (
 });
 
 // Get active currencies (public endpoint)
-router.get('/active', async (req, res) => {
+router.get('/active', cacheMiddleware(3600), async (req, res) => {
   try {
     const currencies = await CurrencyService.getActiveCurrencies();
     res.json(currencies);
@@ -31,7 +34,7 @@ router.get('/active', async (req, res) => {
 });
 
 // Get all currencies (admin only)
-router.get('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(['admin']), cacheMiddleware(1800), async (req, res) => {
   try {
     const currencies = await CurrencyService.getAllCurrencies();
     // Map database column names to frontend-expected property names
@@ -58,7 +61,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) => 
 });
 
 // Get base currency
-router.get('/base', async (req, res) => {
+router.get('/base', cacheMiddleware(3600), async (req, res) => {
   try {
     const baseCurrency = await CurrencyService.getBaseCurrency();
     res.json(baseCurrency);
@@ -107,7 +110,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin']), async (req, res) =>
 });
 
 // Update exchange rate (admin only)
-router.put('/:currencyCode/rate', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:currencyCode/rate', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const { exchangeRate } = req.body;
@@ -139,7 +142,7 @@ router.put('/:currencyCode/toggle', authenticateJWT, authorizeRoles(['admin']), 
 });
 
 // Set base currency (admin only)
-router.put('/base/:currencyCode', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/base/:currencyCode', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const baseCurrency = await CurrencyService.setBaseCurrency(currencyCode);
@@ -151,7 +154,7 @@ router.put('/base/:currencyCode', authenticateJWT, authorizeRoles(['admin']), as
 });
 
 // Sync rates with TCMB (admin only)
-router.post('/sync', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.post('/sync', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const result = await ExchangeRateService.updateRates();
     if (result.success) {

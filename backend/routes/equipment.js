@@ -3,11 +3,14 @@ import { pool } from '../db.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const EQUIPMENT_CACHE_PATTERNS = ['api:GET:/api/equipment*'];
 
 const router = express.Router();
 
 // GET all equipment
-router.get('/', async (req, res) => {
+router.get('/', cacheMiddleware(1800), async (req, res) => {
   try {
     const { type, availability, search } = req.query;
     
@@ -51,7 +54,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET equipment by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', cacheMiddleware(1800), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM equipment WHERE id = $1', [req.params.id]);
     
@@ -88,7 +91,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // CREATE equipment
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(EQUIPMENT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { 
       name, type, size, brand, model, serial_number, purchase_date,
@@ -145,7 +148,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
 });
 
 // UPDATE equipment
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(EQUIPMENT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { 
       name, type, size, brand, model, serial_number, purchase_date,
@@ -220,7 +223,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
 });
 
 // DELETE equipment
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(EQUIPMENT_CACHE_PATTERNS), async (req, res) => {
   const client = await pool.connect();
   
   try {

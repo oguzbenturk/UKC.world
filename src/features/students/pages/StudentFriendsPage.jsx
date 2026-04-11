@@ -328,9 +328,9 @@ const StudentFriendsPage = () => {
   }, []);
 
   // Queries
-  const { data: friends = [], isLoading: loadingFriends } = useQuery({ queryKey: ['friends'], queryFn: fetchFriends });
-  const { data: pendingRequests = [], isLoading: loadingPending } = useQuery({ queryKey: ['friendRequests', 'pending'], queryFn: fetchPendingRequests });
-  const { data: sentRequests = [], isLoading: loadingSent } = useQuery({ queryKey: ['friendRequests', 'sent'], queryFn: fetchSentRequests });
+  const { data: friends = [], isLoading: loadingFriends } = useQuery({ queryKey: ['friends'], queryFn: fetchFriends, staleTime: 120_000 });
+  const { data: pendingRequests = [], isLoading: loadingPending } = useQuery({ queryKey: ['friendRequests', 'pending'], queryFn: fetchPendingRequests, staleTime: 60_000 });
+  const { data: sentRequests = [], isLoading: loadingSent } = useQuery({ queryKey: ['friendRequests', 'sent'], queryFn: fetchSentRequests, staleTime: 60_000 });
 
   // Mutations
   const mutations = useFriendMutations(queryClient, { onSendSuccess: clearModalState });

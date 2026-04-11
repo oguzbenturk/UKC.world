@@ -2,6 +2,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ const PROTECTED_ROLE_NAMES = new Set([
 ]);
 
 // List roles with assignment counts
-router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (_req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(600), async (_req, res) => {
   try {
     const sql = `
       SELECT r.id, r.name, r.description, r.permissions, r.created_at, r.updated_at,

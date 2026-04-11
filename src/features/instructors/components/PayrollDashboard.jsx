@@ -5,9 +5,6 @@ import {
   DollarCircleOutlined, CalendarOutlined, ClockCircleOutlined,
   DownloadOutlined
 } from '@ant-design/icons';
-import { utils as xlsxUtils, writeFile as writeXlsxFile } from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useData } from '@/shared/hooks/useData';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -210,8 +207,9 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
     window.URL.revokeObjectURL(url);
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!earnings.length) return;
+    const { utils: xlsxUtils, writeFile: writeXlsxFile } = await import('xlsx');
     const ts = moment().format('YYYY-MM-DD HH:mm:ss');
     const ws = xlsxUtils.json_to_sheet(buildExportRows());
     const ss = xlsxUtils.aoa_to_sheet([['Summary', 'Value'], ...buildSummaryLines(ts)]);
@@ -221,8 +219,10 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
     writeXlsxFile(wb, `${safeName()}_earnings_${selectedPeriod}.xlsx`);
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     if (!earnings.length) return;
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     const ts = moment().format('YYYY-MM-DD HH:mm:ss');
     const rows = buildExportRows();
     const doc = new jsPDF({ orientation: 'landscape' });

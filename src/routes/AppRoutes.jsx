@@ -90,7 +90,6 @@ const StudentFriendsPage = lazyWithRetry(() => import('../features/students/page
 const StudentPortalUnavailable = lazyWithRetry(() => import('../features/students/pages/StudentPortalUnavailable'));
 const StudentBookServicePage = lazyWithRetry(() => import('../features/students/pages/StudentBookServicePage'));
 const StudentBookEquipmentPage = lazyWithRetry(() => import('../features/students/pages/StudentBookEquipmentPage'));
-const StudentMyRentalsPage = lazyWithRetry(() => import('../features/students/pages/StudentMyRentalsPage'));
 
 const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
@@ -444,7 +443,6 @@ const AppRoutes = () => {
         <Route path="/academy/book-service" element={<StudentBookServicePage />} />
         {/* Student rental pages */}
         <Route path="/rental/book-equipment" element={<StudentBookEquipmentPage />} />
-        <Route path="/rental/my-rentals" element={<StudentMyRentalsPage />} />
         {/* Student accommodation page */}
       </Route>
       {/* Customer management routes - instructors and above */}

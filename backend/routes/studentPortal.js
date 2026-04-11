@@ -1,6 +1,7 @@
 import express from 'express';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { pool } from '../db.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import {
   getStudentOverview,
   getStudentSchedule,
@@ -19,7 +20,11 @@ const router = express.Router();
 
 const requireStudent = authorizeRoles(['student', 'trusted_customer', 'outsider']);
 
-router.get('/dashboard', requireStudent, async (req, res, next) => {
+const studentKey = (suffix) => (req) =>
+  `api:student:${req.user?.id}:${typeof suffix === 'function' ? suffix(req) : suffix}`;
+const studentInvalidate = [(req) => `api:student:${req.user?.id}:*`];
+
+router.get('/dashboard', requireStudent, cacheMiddleware(60, studentKey('dashboard')), async (req, res, next) => {
   try {
     const overview = await getStudentOverview(req.user.id, { fallbackUser: req.user });
     res.json(overview);
@@ -28,7 +33,7 @@ router.get('/dashboard', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/schedule', requireStudent, async (req, res, next) => {
+router.get('/schedule', requireStudent, cacheMiddleware(60, studentKey(req => `schedule:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`)), async (req, res, next) => {
   try {
     const schedule = await getStudentSchedule(req.user.id, {
       startDate: req.query.startDate,
@@ -41,7 +46,7 @@ router.get('/schedule', requireStudent, async (req, res, next) => {
   }
 });
 
-router.patch('/bookings/:bookingId', requireStudent, async (req, res, next) => {
+router.patch('/bookings/:bookingId', requireStudent, cacheInvalidationMiddleware(studentInvalidate), async (req, res, next) => {
   try {
     const result = await updateStudentBooking(req.user.id, req.params.bookingId, req.body || {});
     res.json(result);
@@ -50,7 +55,7 @@ router.patch('/bookings/:bookingId', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/courses', requireStudent, async (req, res, next) => {
+router.get('/courses', requireStudent, cacheMiddleware(300, studentKey('courses')), async (req, res, next) => {
   try {
     const courses = await getStudentCourses(req.user.id);
     res.json(courses);
@@ -68,7 +73,7 @@ router.get('/resources/:courseId', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/invoices', requireStudent, async (req, res, next) => {
+router.get('/invoices', requireStudent, cacheMiddleware(120, studentKey(req => `invoices:${req.query.page || 1}`)), async (req, res, next) => {
   try {
     const invoices = await getStudentInvoices(req.user.id, {
       page: req.query.page ? Number(req.query.page) : undefined,
@@ -80,7 +85,7 @@ router.get('/invoices', requireStudent, async (req, res, next) => {
   }
 });
 
-router.post('/support/request', requireStudent, async (req, res, next) => {
+router.post('/support/request', requireStudent, cacheInvalidationMiddleware(studentInvalidate), async (req, res, next) => {
   try {
     const ticket = await createStudentSupportRequest(req.user.id, req.body || {});
     res.status(201).json(ticket);
@@ -89,7 +94,7 @@ router.post('/support/request', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/profile', requireStudent, async (req, res, next) => {
+router.get('/profile', requireStudent, cacheMiddleware(300, studentKey('profile')), async (req, res, next) => {
   try {
     const overview = await getStudentOverview(req.user.id, { fallbackUser: req.user });
     res.json(overview.student);
@@ -98,7 +103,7 @@ router.get('/profile', requireStudent, async (req, res, next) => {
   }
 });
 
-router.put('/profile', requireStudent, async (req, res, next) => {
+router.put('/profile', requireStudent, cacheInvalidationMiddleware(studentInvalidate), async (req, res, next) => {
   try {
     const profile = await updateStudentProfile(req.user.id, req.body || {});
     res.json(profile);
@@ -107,7 +112,7 @@ router.put('/profile', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/preferences', requireStudent, async (req, res, next) => {
+router.get('/preferences', requireStudent, cacheMiddleware(300, studentKey('preferences')), async (req, res, next) => {
   try {
     const preferences = await getStudentPreferences(req.user.id);
     res.json(preferences);
@@ -116,7 +121,7 @@ router.get('/preferences', requireStudent, async (req, res, next) => {
   }
 });
 
-router.put('/preferences', requireStudent, async (req, res, next) => {
+router.put('/preferences', requireStudent, cacheInvalidationMiddleware(studentInvalidate), async (req, res, next) => {
   try {
     const settings = await updateStudentNotificationSettings(req.user.id, req.body || {});
     res.json(settings);
@@ -126,7 +131,7 @@ router.put('/preferences', requireStudent, async (req, res, next) => {
 });
 
 // Student booking preferences (new table: student_preferences)
-router.get('/booking-preferences', requireStudent, async (req, res, next) => {
+router.get('/booking-preferences', requireStudent, cacheMiddleware(300, studentKey('booking-preferences')), async (req, res, next) => {
   try {
     const result = await pool.query(
       'SELECT * FROM student_preferences WHERE user_id = $1',
@@ -138,7 +143,7 @@ router.get('/booking-preferences', requireStudent, async (req, res, next) => {
   }
 });
 
-router.put('/booking-preferences', requireStudent, async (req, res, next) => {
+router.put('/booking-preferences', requireStudent, cacheInvalidationMiddleware(studentInvalidate), async (req, res, next) => {
   try {
     const {
       preferred_discipline,

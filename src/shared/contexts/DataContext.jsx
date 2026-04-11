@@ -388,9 +388,9 @@ export function SafeDataProvider({ children }) {
     }
   };
 
-  const value = {
+  const value = useMemo(() => ({
     students: usersWithStudentRole,
-    usersWithStudentRole, // Add this for backward compatibility
+    usersWithStudentRole,
     instructors,
     equipment,
     bookings,
@@ -407,8 +407,13 @@ export function SafeDataProvider({ children }) {
     refreshData: fetchData,
     loadPaymentsData,
     loadDashboardSummary,
-    apiClient // Expose the API client for direct use in components
-  };
+    apiClient,
+  }), [
+    usersWithStudentRole, instructors, equipment, bookings, services,
+    rentals, payments, dashboardSummary, loading, error,
+    addInstructor, updateInstructor, deleteInstructor, fetchInstructorById,
+    fetchData, loadPaymentsData, loadDashboardSummary, apiClient,
+  ]);
 
   return (
     <DataContext.Provider value={value}>

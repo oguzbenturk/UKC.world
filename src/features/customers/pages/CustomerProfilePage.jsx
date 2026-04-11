@@ -1,6 +1,7 @@
 // src/pages/CustomerProfilePage.jsx - Updated
 /* eslint-disable no-console, complexity */
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Card, Spin, Alert, Typography, Button, Tabs, Tag, 
@@ -455,174 +456,80 @@ function CustomerProfilePage() {
   }, [customer, id, navigate]);
 
   // Package history UI removed per request
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!id || id === 'undefined') {
-        setError('Invalid customer ID.');
-        setLoading(false);
-        return;
+  const queryClient = useQueryClient();
+
+  const { data: customerQueryData, isLoading: queryLoading, error: queryError } = useQuery({
+    queryKey: ['customer-profile', id],
+    queryFn: async () => {
+      const headers = buildAuthHeaders();
+      const [
+        customerResult,
+        lessonsResult,
+        rentalsResult,
+        instructorsResult,
+        balanceResult,
+        transactionsResult,
+        packagesResult
+      ] = await Promise.allSettled([
+        requestThrottle.execute(() => DataService.getUserById(id)),
+        DataService.getLessonsByUserId(id),
+        DataService.getRentalsByUserId(id),
+        DataService.getInstructors(),
+        FinancialService.getUserBalance(id, true),
+        FinancialService.getUserTransactions(id),
+        fetch(`/api/services/customer-packages/${id}`, { headers }).then((response) => {
+          if (!response.ok) throw new Error(`Failed to load customer packages: ${response.status}`);
+          return response.json();
+        })
+      ]);
+
+      if (customerResult.status === 'rejected') {
+        throw customerResult.reason || new Error('Failed to load customer data.');
       }
 
-      setLoading(true);
+      const bookingsArr = lessonsResult.status === 'fulfilled' ? lessonsResult.value || [] : [];
+      const packagesArr = packagesResult.status === 'fulfilled'
+        ? (Array.isArray(packagesResult.value) ? packagesResult.value : []) : [];
+
+      return {
+        customer: customerResult.value,
+        bookings: Array.from(new Map(bookingsArr.map(b => [b.id, b])).values()),
+        rentals: rentalsResult.status === 'fulfilled' ? rentalsResult.value || [] : [],
+        instructors: instructorsResult.status === 'fulfilled' ? instructorsResult.value || [] : [],
+        userAccount: balanceResult.status === 'fulfilled' ? balanceResult.value : null,
+        transactions: transactionsResult.status === 'fulfilled' ? transactionsResult.value || [] : [],
+        packages: Array.from(new Map(packagesArr.map(p => [p.id, p])).values()),
+      };
+    },
+    staleTime: 300_000,
+    enabled: !!id && id !== 'undefined',
+  });
+
+  useEffect(() => {
+    if (customerQueryData) {
+      setCustomer(customerQueryData.customer);
+      setBookings(customerQueryData.bookings);
+      setRentals(customerQueryData.rentals);
+      setInstructors(customerQueryData.instructors);
+      setUserAccount(customerQueryData.userAccount);
+      setTransactions(customerQueryData.transactions);
+      setCustomerPackages(customerQueryData.packages);
+      setLoading(false);
       setError(null);
+    }
+    if (queryLoading) setLoading(true);
+    if (queryError) {
+      setError(`Failed to load customer data: ${queryError.message || 'Please try again.'}`);
+      setLoading(false);
+    }
+  }, [customerQueryData, queryLoading, queryError]);
 
-      try {
-        const headers = buildAuthHeaders();
-
-        const [
-          customerResult,
-          lessonsResult,
-          rentalsResult,
-          instructorsResult,
-          balanceResult,
-          transactionsResult,
-          packagesResult
-        ] = await Promise.allSettled([
-          requestThrottle.execute(() => DataService.getUserById(id)),
-          DataService.getLessonsByUserId(id),
-          DataService.getRentalsByUserId(id),
-          DataService.getInstructors(),
-          FinancialService.getUserBalance(id, true),
-          FinancialService.getUserTransactions(id),
-          fetch(`/api/services/customer-packages/${id}`, { headers }).then((response) => {
-            if (!response.ok) {
-              throw new Error(`Failed to load customer packages: ${response.status}`);
-            }
-            return response.json();
-          })
-        ]);
-
-        if (customerResult.status === 'fulfilled') {
-          setCustomer(customerResult.value);
-        } else {
-          throw customerResult.reason || new Error('Failed to load customer data.');
-        }
-
-        if (lessonsResult.status === 'fulfilled') {
-          const bookingsArr = lessonsResult.value || [];
-          const uniqueBookings = Array.from(new Map(bookingsArr.map(b => [b.id, b])).values());
-          setBookings(uniqueBookings);
-        } else {
-          setBookings([]);
-          console.error('Error fetching customer lessons:', lessonsResult.reason);
-        }
-
-        setRentals(rentalsResult.status === 'fulfilled' ? rentalsResult.value || [] : []);
-        if (rentalsResult.status === 'rejected') {
-          console.error('Error fetching customer rentals:', rentalsResult.reason);
-        }
-
-        setInstructors(instructorsResult.status === 'fulfilled' ? instructorsResult.value || [] : []);
-        if (instructorsResult.status === 'rejected') {
-          console.error('Error fetching instructors:', instructorsResult.reason);
-        }
-
-        if (balanceResult.status === 'fulfilled') {
-          setUserAccount(balanceResult.value);
-        } else {
-          console.error('Error fetching financial data:', balanceResult.reason);
-          setUserAccount(null);
-        }
-
-        setTransactions(transactionsResult.status === 'fulfilled' ? transactionsResult.value || [] : []);
-        if (transactionsResult.status === 'rejected') {
-          console.error('Error fetching transactions:', transactionsResult.reason);
-        }
-
-        if (packagesResult.status === 'fulfilled') {
-          const arr = Array.isArray(packagesResult.value) ? packagesResult.value : [];
-          const unique = Array.from(new Map(arr.map(p => [p.id, p])).values());
-          setCustomerPackages(unique);
-        } else {
-          console.error('Error fetching customer packages:', packagesResult.reason);
-          setCustomerPackages([]);
-        }
-      } catch (err) {
-        console.error('Error loading customer data:', err);
-        setError(`Failed to load customer data: ${err.message || 'Please try again.'}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [buildAuthHeaders, id]);
-
-  // Centralized function to refresh all financial and customer data
+  // Centralized function to refresh all customer data
   const refreshAllCustomerData = useCallback(async () => {
-    if (!id) {
-      return;
-    }
-
-    const headers = buildAuthHeaders();
-
-    const [
-      balanceResult,
-      transactionsResult,
-      packagesResult,
-      lessonsResult,
-      rentalsResult
-    ] = await Promise.allSettled([
-      FinancialService.getUserBalance(id, true),
-      FinancialService.getUserTransactions(id),
-      fetch(`/api/services/customer-packages/${id}`, { headers }).then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to load customer packages: ${response.status}`);
-        }
-        return response.json();
-      }),
-      DataService.getLessonsByUserId(id),
-      DataService.getRentalsByUserId(id)
-    ]);
-
-    if (balanceResult.status === 'fulfilled') {
-      setUserAccount(balanceResult.value);
-    } else {
-      console.error('Error refreshing financial data:', balanceResult.reason);
-    }
-
-    if (transactionsResult.status === 'fulfilled') {
-      setTransactions(transactionsResult.value || []);
-    } else {
-      console.error('Error refreshing transactions:', transactionsResult.reason);
-    }
-
-    if (packagesResult.status === 'fulfilled') {
-      const arr = Array.isArray(packagesResult.value) ? packagesResult.value : [];
-      const unique = Array.from(new Map(arr.map(p => [p.id, p])).values());
-      setCustomerPackages(unique);
-    } else {
-      console.error('Error refreshing customer packages:', packagesResult.reason);
-    }
-
-    if (lessonsResult.status === 'fulfilled') {
-      const bookingsArr = lessonsResult.value || [];
-      const uniqueBookings = Array.from(new Map(bookingsArr.map(b => [b.id, b])).values());
-      setBookings(uniqueBookings);
-    } else {
-      console.error('Error refreshing customer lessons:', lessonsResult.reason);
-    }
-
-    if (rentalsResult.status === 'fulfilled') {
-      setRentals(rentalsResult.value || []);
-    } else {
-      console.error('Error refreshing customer rentals:', rentalsResult.reason);
-    }
-  }, [buildAuthHeaders, id]);
-
-  // Refresh data when page becomes visible (user switches back to tab)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && id) {
-        refreshAllCustomerData();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [id, refreshAllCustomerData]);
+    if (!id) return;
+    await queryClient.invalidateQueries({ queryKey: ['customer-profile', id] });
+    await queryClient.refetchQueries({ queryKey: ['customer-profile', id] });
+  }, [queryClient, id]);
   
   /**
    * Calculate statistics for a customer based on their bookings

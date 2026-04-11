@@ -3,12 +3,14 @@
  * Orchestrates tabs for forms, links, submissions, and registrations
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, Form, Tag, Tabs } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { FormOutlined, LinkOutlined, InboxOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import apiClient from '@/shared/services/apiClient';
 import * as quickLinksService from '../services/quickLinksService';
 import * as formService from '../../forms/services/formService';
 import usersService from '@/shared/services/usersService';
@@ -28,26 +30,14 @@ import CreateUserModal from '../components/CreateUserModal';
 
 const QuickLinksPage = ({ embedded = false }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('forms');
-  const [links, setLinks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [allFormTemplates, setAllFormTemplates] = useState([]);
-  const [formTemplatesLoading, setFormTemplatesLoading] = useState(false);
-  const [allRegistrations, setAllRegistrations] = useState([]);
-  const [registrationsLoading, setRegistrationsLoading] = useState(false);
-  const [formSubmissions, setFormSubmissions] = useState([]);
-  const [formSubmissionsLoading, setFormSubmissionsLoading] = useState(false);
   const [submissionFilters, setSubmissionFilters] = useState({ status: 'all', formId: null, search: '' });
 
   const [createUserModalVisible, setCreateUserModalVisible] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [createUserForm] = Form.useForm();
-  const [roles, setRoles] = useState([]);
 
-  const [accommodations, setAccommodations] = useState([]);
-  const [lessons, setLessons] = useState([]);
-  const [rentals, setRentals] = useState([]);
-  const [shopProducts, setShopProducts] = useState([]);
   const [selectedServiceType, setSelectedServiceType] = useState(null);
 
   const [createFormModalVisible, setCreateFormModalVisible] = useState(false);
@@ -67,135 +57,99 @@ const QuickLinksPage = ({ embedded = false }) => {
 
   // ===== Data Fetching =====
 
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const data = await rolesService.list();
-        setRoles(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error('Failed to fetch roles', e);
-      }
-    };
-    fetchRoles();
-  }, []);
+  const { data: roles = [] } = useQuery({
+    queryKey: ['quicklinks', 'roles'],
+    queryFn: async () => {
+      const data = await rolesService.list();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 600_000,
+  });
 
-  const fetchAllFormTemplates = useCallback(async () => {
-    setFormTemplatesLoading(true);
-    try {
+  const { data: allFormTemplates = [], isLoading: formTemplatesLoading, refetch: refetchForms } = useQuery({
+    queryKey: ['quicklinks', 'forms'],
+    queryFn: async () => {
       const data = await formService.getFormTemplates({ limit: 100 });
-      setAllFormTemplates(data.data || []);
-    } catch {
-      message.error('Failed to load forms');
-    } finally {
-      setFormTemplatesLoading(false);
-    }
-  }, []);
+      return data.data || [];
+    },
+    staleTime: 300_000,
+  });
 
-  const fetchLinks = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: links = [], isLoading: loading, refetch: refetchLinks } = useQuery({
+    queryKey: ['quicklinks', 'links'],
+    queryFn: async () => {
       const data = await quickLinksService.getQuickLinks();
-      setLinks(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load links:', error);
-      message.error('Failed to load links');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 60_000,
+  });
 
-  const fetchAllRegistrations = useCallback(async (linksList) => {
-    if (!linksList || linksList.length === 0) {
-      setAllRegistrations([]);
-      return;
-    }
-    setRegistrationsLoading(true);
-    try {
+  const linkIds = useMemo(() => links.map(l => l.id).sort().join(','), [links]);
+
+  const { data: allRegistrations = [], isLoading: registrationsLoading, refetch: refetchRegistrations } = useQuery({
+    queryKey: ['quicklinks', 'registrations', linkIds],
+    queryFn: async () => {
       const allRegs = [];
-      for (const link of linksList) {
+      for (const link of links) {
         if (link.link_type !== 'form') {
           try {
             const regs = await quickLinksService.getRegistrations(link.id);
-            if (regs && regs.length > 0) {
-              allRegs.push(...regs.map(r => ({
-                ...r,
-                link_name: link.name,
-                link_code: link.link_code,
-                service_type: link.service_type
-              })));
+            if (regs?.length > 0) {
+              allRegs.push(...regs.map(r => ({ ...r, link_name: link.name, link_code: link.link_code, service_type: link.service_type })));
             }
           } catch {
             // Skip failed fetches
           }
         }
       }
-      setAllRegistrations(allRegs);
-    } catch {
-      // Silently fail
-    } finally {
-      setRegistrationsLoading(false);
-    }
-  }, []);
+      return allRegs;
+    },
+    enabled: links.length > 0,
+    staleTime: 60_000,
+  });
 
-  const fetchFormSubmissions = useCallback(async () => {
-    setFormSubmissionsLoading(true);
-    try {
+  const { data: formSubmissions = [], isLoading: formSubmissionsLoading, refetch: refetchSubmissions } = useQuery({
+    queryKey: ['quicklinks', 'submissions', submissionFilters],
+    queryFn: async () => {
       const filters = { limit: 100, ...submissionFilters };
       if (filters.status === 'all') delete filters.status;
       const data = await formService.getFormSubmissions(filters);
-      setFormSubmissions(data.submissions || []);
-    } catch {
-      // Silently fail
-    } finally {
-      setFormSubmissionsLoading(false);
-    }
-  }, [submissionFilters]);
+      return data.submissions || [];
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchServices = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+  const { data: servicesData } = useQuery({
+    queryKey: ['quicklinks', 'services'],
+    queryFn: async () => {
+      const [accomRes, lessonRes, rentalRes, shopRes] = await Promise.allSettled([
+        apiClient.get('/accommodation/units').then(r => r.data),
+        apiClient.get('/services', { params: { category: 'lesson' } }).then(r => r.data),
+        apiClient.get('/services', { params: { serviceType: 'rental' } }).then(r => r.data),
+        apiClient.get('/shop/products').then(r => r.data),
+      ]);
+      const accomData = accomRes.status === 'fulfilled' ? accomRes.value : null;
+      const lessonData = lessonRes.status === 'fulfilled' ? lessonRes.value : null;
+      const rentalData = rentalRes.status === 'fulfilled' ? rentalRes.value : null;
+      const shopData = shopRes.status === 'fulfilled' ? shopRes.value : null;
+      return {
+        accommodations: accomData ? (accomData.accommodations || accomData) : [],
+        lessons: Array.isArray(lessonData) ? lessonData : [],
+        rentals: Array.isArray(rentalData) ? rentalData : [],
+        shopProducts: shopData ? (shopData.products || shopData) : [],
+      };
+    },
+    staleTime: 600_000,
+  });
 
-      const accomResponse = await fetch('/api/accommodation/units', headers ? { headers } : {});
-      if (accomResponse.ok) {
-        const accomData = await accomResponse.json();
-        setAccommodations(accomData.accommodations || accomData || []);
-      }
+  const accommodations = servicesData?.accommodations || [];
+  const lessons = servicesData?.lessons || [];
+  const rentals = servicesData?.rentals || [];
+  const shopProducts = servicesData?.shopProducts || [];
 
-      const lessonResponse = await fetch('/api/services?category=lesson');
-      if (lessonResponse.ok) {
-        const lessonData = await lessonResponse.json();
-        setLessons(Array.isArray(lessonData) ? lessonData : []);
-      }
-
-      const rentalResponse = await fetch('/api/services?serviceType=rental');
-      if (rentalResponse.ok) {
-        const rentalData = await rentalResponse.json();
-        setRentals(Array.isArray(rentalData) ? rentalData : []);
-      }
-
-      const shopResponse = await fetch('/api/shop/products', headers ? { headers } : {});
-      if (shopResponse.ok) {
-        const shopData = await shopResponse.json();
-        setShopProducts(shopData.products || shopData || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch services:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllFormTemplates();
-    fetchLinks();
-    fetchFormSubmissions();
-    fetchServices();
-  }, [fetchAllFormTemplates, fetchLinks, fetchFormSubmissions]);
-
-  useEffect(() => {
-    if (links.length > 0) {
-      fetchAllRegistrations(links);
-    }
-  }, [links, fetchAllRegistrations]);
+  const fetchAllFormTemplates = refetchForms;
+  const fetchLinks = refetchLinks;
+  const fetchFormSubmissions = refetchSubmissions;
 
   // ===== Handlers =====
 
@@ -214,7 +168,7 @@ const QuickLinksPage = ({ embedded = false }) => {
     try {
       const updated = await formService.updateFormSubmission(selectedSubmission.id, { notes: instructorNotes });
       setSelectedSubmission(prev => ({ ...prev, notes: updated.notes }));
-      setFormSubmissions(prev => prev.map(s => s.id === selectedSubmission.id ? { ...s, notes: updated.notes } : s));
+      fetchFormSubmissions();
       message.success('Notes saved');
     } catch {
       message.error('Failed to save notes');
@@ -518,7 +472,7 @@ const QuickLinksPage = ({ embedded = false }) => {
                 <RegistrationsTab
                   allRegistrations={allRegistrations}
                   registrationsLoading={registrationsLoading}
-                  onRefresh={() => fetchAllRegistrations(links)}
+                  onRefresh={refetchRegistrations}
                   onUpdateRegistration={handleUpdateRegistration}
                 />
               )

@@ -121,14 +121,14 @@ async function syncN8nWorkflow(secrets) {
   const N8N_BASE = 'https://n8n.plannivo.com/api/v1';
   const headers = { 'Content-Type': 'application/json', 'X-N8N-API-KEY': n8nApiKey };
 
-  // Wait up to 30s for n8n to be ready after container restart
+  // Wait up to 60s for n8n to be ready after container restart
   let n8nReady = false;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     try {
       const r = await fetch(`${N8N_BASE}/workflows?limit=1`, { headers });
       if (r.ok) { n8nReady = true; break; }
     } catch {}
-    console.log(`   n8n not ready yet (${i + 1}/10)...`);
+    console.log(`   n8n not ready yet (${i + 1}/20)...`);
     await new Promise(r => setTimeout(r, 3000));
   }
   if (!n8nReady) {
@@ -140,18 +140,25 @@ async function syncN8nWorkflow(secrets) {
   const { name, nodes, connections, settings, staticData } = JSON.parse(fs.readFileSync(workflowFile, 'utf8'));
   const workflow = { name, nodes, connections, settings, ...(staticData !== undefined && { staticData }) };
 
-  // Find workflow ID
+  // Helper: search all workflows by name (handles stale saved ID after container reset)
+  async function findWorkflowIdByName() {
+    const listRes = await fetch(`${N8N_BASE}/workflows?limit=100`, { headers });
+    if (!listRes.ok) return null;
+    const workflows = (await listRes.json()).data || [];
+    const match = workflows.find(w => w.name === workflow.name);
+    return match ? match.id : null;
+  }
+
+  // Find workflow ID — use saved ID first, fall back to name search
   let workflowId = secrets.n8nWorkflowId;
+
   if (!workflowId) {
-    const listRes = await fetch(`${N8N_BASE}/workflows`, { headers });
-    if (listRes.ok) {
-      const workflows = (await listRes.json()).data || [];
-      const match = workflows.find(w => w.name === workflow.name && w.active);
-      if (match) {
-        workflowId = match.id;
-        secrets.n8nWorkflowId = workflowId;
-        fs.writeFileSync(path.join(cwd, '.deploy.secrets.json'), JSON.stringify(secrets, null, 2));
-      }
+    console.log('   No saved workflow ID — searching by name...');
+    workflowId = await findWorkflowIdByName();
+    if (workflowId) {
+      secrets.n8nWorkflowId = workflowId;
+      fs.writeFileSync(path.join(cwd, '.deploy.secrets.json'), JSON.stringify(secrets, null, 2));
+      console.log(`   Found workflow: ${workflowId} — saved to .deploy.secrets.json`);
     }
   }
 
@@ -160,10 +167,26 @@ async function syncN8nWorkflow(secrets) {
     return;
   }
 
-  // Push updated workflow
-  const putRes = await fetch(`${N8N_BASE}/workflows/${workflowId}`, {
+  // Push updated workflow — if saved ID is stale (404), re-discover by name and retry once
+  let putRes = await fetch(`${N8N_BASE}/workflows/${workflowId}`, {
     method: 'PUT', headers, body: JSON.stringify(workflow),
   });
+
+  if (putRes.status === 404) {
+    console.log('   Saved workflow ID not found — re-discovering by name...');
+    workflowId = await findWorkflowIdByName();
+    if (!workflowId) {
+      console.warn('   ⚠️  Workflow not found by name either — skipping sync.');
+      return;
+    }
+    secrets.n8nWorkflowId = workflowId;
+    fs.writeFileSync(path.join(cwd, '.deploy.secrets.json'), JSON.stringify(secrets, null, 2));
+    console.log(`   Re-discovered: ${workflowId} — retrying sync...`);
+    putRes = await fetch(`${N8N_BASE}/workflows/${workflowId}`, {
+      method: 'PUT', headers, body: JSON.stringify(workflow),
+    });
+  }
+
   if (!putRes.ok) {
     console.warn(`   ⚠️  Workflow sync failed: ${putRes.status} ${await putRes.text()}`);
     return;
@@ -172,7 +195,7 @@ async function syncN8nWorkflow(secrets) {
 
   // Cycle the workflow to flush any cached state
   await fetch(`${N8N_BASE}/workflows/${workflowId}/deactivate`, { method: 'POST', headers });
-  await new Promise(r => setTimeout(r, 2000));
+  await new Promise(r => setTimeout(r, 3000));
   const activateRes = await fetch(`${N8N_BASE}/workflows/${workflowId}/activate`, { method: 'POST', headers });
   if (activateRes.ok) {
     console.log('   ✓ Kai workflow reactivated — ready.');

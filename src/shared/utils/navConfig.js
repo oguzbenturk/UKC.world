@@ -212,7 +212,6 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/rental/sls', label: 'SLS Equipment' },
           { to: '/rental/dlab', label: 'D/LAB Equipment' },
           { to: '/rental/efoil', label: 'E-Foil Equipment' },
-          { to: '/rental/my-rentals', label: 'My Equipment Rentals' }
         ]
       }),
       // 4. Member - Pistachio Green

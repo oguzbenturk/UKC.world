@@ -13,6 +13,7 @@ import voucherService from '../services/voucherService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import CurrencyService from '../services/currencyService.js';
 import { addTag } from '../services/userTagService.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 
 const router = express.Router();
 
@@ -866,7 +867,7 @@ router.get('/my-orders/unread-counts', authenticateJWT, async (req, res) => {
 });
 
 // Admin: Get specific user's orders (must be before /:id to avoid route conflict in Express 5)
-router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
   try {
     const { userId } = req.params;
     const pageNum = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -923,8 +924,8 @@ router.get('/:id', authenticateJWT, async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Check authorization - user can only see their own orders unless admin/manager
-    if (order.user_id !== userId && !['admin', 'manager'].includes(userRole)) {
+    // Check authorization - user can only see their own orders unless admin/manager/front_desk
+    if (order.user_id !== userId && !['admin', 'manager', 'front_desk'].includes(userRole)) {
       return res.status(403).json({ error: 'Not authorized to view this order' });
     }
 
@@ -968,7 +969,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
 });
 
 // Admin: Get all orders
-router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:shop:orders:all:${req.query.page || 1}:${req.query.status || ''}:${req.query.search || ''}:${req.query.date_from || ''}:${req.query.date_to || ''}`), async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -1285,7 +1286,7 @@ router.get('/admin/low-stock', authenticateJWT, authorizeRoles(['admin', 'manage
 });
 
 // Admin: Get order statistics
-router.get('/admin/stats', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/admin/stats', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(300, (req) => `api:shop:stats:${req.query.period || '30d'}`), async (req, res) => {
   try {
     const { period = '30d' } = req.query;
     

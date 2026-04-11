@@ -8,6 +8,7 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 
 const router = express.Router();
 
@@ -158,7 +159,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (re
 
 // GET users with student or outsider role (customers who can book services)
 // Supports ?q=search&limit=200 for paginated/searchable access
-router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
+router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), cacheMiddleware(300, (req) => `api:users:students:${req.query.q || ''}:${req.query.limit || 200}`), async (req, res) => {
   try {
     const { q, limit: rawLimit } = req.query;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 200, 1), 1000);
@@ -198,7 +199,7 @@ router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), asyn
 
 // === GET USERS FOR BOOKING PURPOSES (STAFF ONLY) ===
 // Supports ?q=search&limit=200 for searchable access
-router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
+router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), cacheMiddleware(300, (req) => `api:users:for-booking:${req.query.q || ''}:${req.query.limit || 200}`), async (req, res) => {
   try {
     const { q, limit: rawLimit } = req.query;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 200, 1), 1000);

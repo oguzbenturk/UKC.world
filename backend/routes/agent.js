@@ -115,12 +115,13 @@ router.get(
   requireRole(['admin', 'manager']),
   async (req, res) => {
     try {
-      const { q } = req.query;
-      if (!q || q.trim().length < 2) {
+      const { q, query } = req.query;
+      const searchTerm = (q || query || '').trim();
+      if (searchTerm.length < 2) {
         return res.status(400).json({ error: 'Search query must be at least 2 characters' });
       }
 
-      const search = `%${q.trim()}%`;
+      const search = `%${searchTerm}%`;
       const { rows } = await pool.query(
         `SELECT u.id, u.name, u.email, u.phone, r.name AS role,
                 COALESCE(wb.available_amount, 0) AS wallet_balance,
@@ -1419,8 +1420,7 @@ router.get('/staff', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT u.id, u.name
        FROM users u
-       JOIN user_roles ur ON ur.user_id = u.id
-       JOIN roles r ON r.id = ur.role_id
+       JOIN roles r ON r.id = u.role_id
        WHERE LOWER(r.name) = 'instructor'
          AND u.deleted_at IS NULL
        ORDER BY u.name`,

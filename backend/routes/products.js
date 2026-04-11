@@ -8,6 +8,9 @@ import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { syncVendorProducts } from '../services/vendorProductSyncService.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const PRODUCT_CACHE_PATTERNS = ['api:GET:/api/products*'];
 import {
   upsertProductRecommendation,
   removeProductRecommendation,
@@ -35,7 +38,7 @@ const parseBoolean = (value) => {
 
 // Get all products with filtering and pagination
 // Made public for guest browsing - no auth required, rate limited
-router.get('/', publicApiLimiter, async (req, res) => {
+router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
   try {
     const {
       page = 1,
@@ -241,7 +244,7 @@ const SHOP_CACHE_TTL = 60_000;
 export const clearShopCache = () => shopCache.clear();
 
 // Public endpoint - guests can browse shop
-router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
+router.get('/shop/by-category', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
   try {
     const limitPerCategory = Math.min(Math.max(parseInt(req.query.limit_per_category) || 10, 1), 1000);
     const categoryFilter = req.query.category ? req.query.category.toLowerCase() : null;
@@ -311,7 +314,7 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
 
 // Get available subcategories (all or by category)
 // Public endpoint - guests can view subcategories
-router.get('/subcategories', publicApiLimiter, async (req, res) => {
+router.get('/subcategories', publicApiLimiter, cacheMiddleware(3600), async (req, res) => {
   try {
     const { category } = req.query;
     
@@ -478,7 +481,7 @@ router.get('/:id', publicApiLimiter, async (req, res) => {
 });
 
 // Create new product
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const {
       name,
@@ -590,7 +593,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (r
 });
 
 // Update product
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -718,7 +721,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async 
 });
 
 // Delete product
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -774,7 +777,7 @@ router.patch('/:id/stock', authenticateJWT, authorizeRoles(['admin', 'manager'])
 
 // Get product categories
 // Public endpoint - guests can view categories
-router.get('/categories/list', publicApiLimiter, async (req, res) => {
+router.get('/categories/list', publicApiLimiter, cacheMiddleware(3600), async (req, res) => {
   try {
     const query = `
       SELECT 

@@ -2,11 +2,14 @@ import express from 'express';
 import { authenticateJWT } from './auth.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+const SETTINGS_CACHE_PATTERNS = ['api:GET:/api/settings*'];
 
 const router = express.Router();
 
 // Get registration-allowed currencies (public endpoint for registration form)
-router.get('/registration-currencies', async (req, res) => {
+router.get('/registration-currencies', cacheMiddleware(3600), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT value FROM settings WHERE key = 'allowed_registration_currencies'"
@@ -27,7 +30,7 @@ router.get('/registration-currencies', async (req, res) => {
 });
 
 // Get all application settings
-router.get('/', authenticateJWT, async (req, res) => {
+router.get('/', authenticateJWT, cacheMiddleware(1800), async (req, res) => {
   try {
     // Check if we have a settings table, if not return default settings
     const tableExists = await pool.query(
@@ -104,7 +107,7 @@ router.get('/', authenticateJWT, async (req, res) => {
 });
 
 // Update specific setting
-router.put('/:key', authenticateJWT, async (req, res) => {
+router.put('/:key', authenticateJWT, cacheInvalidationMiddleware(SETTINGS_CACHE_PATTERNS), async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;

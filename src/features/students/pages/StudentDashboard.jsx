@@ -322,6 +322,8 @@ const StudentDashboard = () => {
         businessCurrency={businessCurrency}
         upcomingLessons={overview.upcomingSessions || []}
         pastLessons={overview.previousLessons || []}
+        upcomingRentalsList={overview.upcomingRentalsList || []}
+        pastRentalsList={overview.pastRentalsList || []}
       />
 
       <PackageCards packages={overview.packages} />
