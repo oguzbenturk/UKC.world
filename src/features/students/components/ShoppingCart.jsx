@@ -1,5 +1,5 @@
 // src/features/students/components/ShoppingCart.jsx
-// Modern, mobile-friendly shopping cart drawer
+// Compact, light-themed shopping cart drawer (sits below navbar)
 
 import { useState, useEffect } from 'react';
 import { Drawer, Button, Typography, Space, Divider, Tag, Tooltip, Image } from 'antd';
@@ -21,6 +21,8 @@ import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import CheckoutModal from './CheckoutModal';
 
 const { Text, Title } = Typography;
+
+const NAVBAR_H = 64; // matches Navbar h-16
 
 const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefreshBalance }) => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, addToWishlist, refreshCartPrices } = useCart();
@@ -93,127 +95,119 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
       placement="right"
       onClose={onClose}
       open={visible}
-      width={Math.min(400, window.innerWidth)}
+      width={Math.min(380, window.innerWidth)}
       styles={{
         header: { display: 'none' },
-        body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }
+        body: { padding: 0, display: 'flex', flexDirection: 'column', height: '100%' },
+        wrapper: { boxShadow: '-4px 0 16px rgba(0,0,0,0.06)' },
       }}
+      rootStyle={{ top: NAVBAR_H, height: `calc(100vh - ${NAVBAR_H}px)` }}
       className="ukc-cart-drawer"
-      rootClassName="dark"
     >
-      {/* Custom Header */}
-      <div style={{ 
-        padding: '16px 20px', 
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
+      {/* Header */}
+      <div style={{
+        padding: '14px 18px',
+        borderBottom: '1px solid #e5e7eb',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'linear-gradient(180deg, #3a4a4f 0%, #2e3f44 60%, #263840 100%)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,168,196,0.15)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10
+        background: '#fff',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <ShoppingCartOutlined style={{ fontSize: 22, color: '#00a8c4' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ShoppingCartOutlined style={{ fontSize: 18, color: '#0ea5e9' }} />
           <div>
-            <Title level={5} style={{ margin: 0, fontSize: 16, color: '#fff' }} className="font-duotone-bold-extended tracking-tight">Cart</Title>
-            <Text style={{ fontSize: 12, color: '#9ca3af' }} className="font-duotone-regular">
+            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#0f172a' }} className="font-duotone-bold-extended tracking-tight">Cart</Title>
+            <Text style={{ fontSize: 11, color: '#94a3b8' }} className="font-duotone-regular">
               {itemCount} {itemCount === 1 ? 'item' : 'items'}
             </Text>
           </div>
         </div>
-        <Button 
-          type="text" 
-          icon={<CloseOutlined style={{ fontSize: 16, color: '#fff' }} />} 
+        <Button
+          type="text"
+          icon={<CloseOutlined style={{ fontSize: 14, color: '#64748b' }} />}
           onClick={onClose}
-          className="hover:!bg-white/10"
-          style={{ 
-            borderRadius: 8, 
-            width: 36, 
-            height: 36,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className="hover:!bg-slate-100"
+          style={{ borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         />
       </div>
 
       {/* Cart Items */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '16px 16px',
-        background: '#0d1511',
-        WebkitOverflowScrolling: 'touch'
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '12px 14px',
+        background: '#f8fafc',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {cart.length === 0 ? (
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
-            padding: '60px 20px'
+            padding: '48px 20px',
           }}>
             <div style={{
-              width: 120,
-              height: 120,
+              width: 88,
+              height: 88,
               borderRadius: '50%',
-              background: 'rgba(0,168,196,0.1)',
+              background: '#f0f9ff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 24,
-              border: '1px solid rgba(0,168,196,0.2)'
+              marginBottom: 18,
+              border: '1px solid #e0f2fe',
             }}>
-              <ShoppingCartOutlined style={{ fontSize: 48, color: '#00a8c4' }} />
+              <ShoppingCartOutlined style={{ fontSize: 36, color: '#0ea5e9' }} />
             </div>
-            <Title level={4} style={{ marginBottom: 8, color: '#fff', textAlign: 'center' }} className="font-duotone-bold-extended">
+            <Title level={5} style={{ marginBottom: 6, color: '#0f172a', textAlign: 'center' }} className="font-duotone-bold-extended">
               Your cart is empty
             </Title>
-            <Text style={{ textAlign: 'center', maxWidth: 260, lineHeight: 1.6, color: '#9ca3af' }} className="font-duotone-regular">
+            <Text style={{ textAlign: 'center', maxWidth: 220, lineHeight: 1.5, fontSize: 13, color: '#94a3b8' }} className="font-duotone-regular">
               Explore our shop and find amazing gear for your next adventure!
             </Text>
             <Button
               onClick={onClose}
-              size="large"
-              className="font-duotone-bold bg-[#00a8c4] text-white border-none shadow-lg shadow-[#00a8c4]/20 hover:!opacity-90 active:scale-[0.98] transition-all"
+              size="middle"
+              className="font-duotone-bold"
               style={{
-                marginTop: 28,
-                borderRadius: 10,
-                height: 44,
-                paddingLeft: 32,
-                paddingRight: 32,
-                fontWeight: 700
+                marginTop: 20,
+                borderRadius: 8,
+                height: 38,
+                paddingLeft: 24,
+                paddingRight: 24,
+                fontWeight: 600,
+                background: '#0ea5e9',
+                color: '#fff',
+                border: 'none',
               }}
             >
               Start Shopping
             </Button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {cart.map((item) => (
-              <div 
+              <div
                 key={item.cartItemId || item.id}
-                style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  borderRadius: 16, 
-                  padding: 14,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  border: '1px solid rgba(255,255,255,0.08)'
+                style={{
+                  background: '#fff',
+                  borderRadius: 10,
+                  padding: 12,
+                  border: '1px solid #e2e8f0',
                 }}
               >
-                <div style={{ display: 'flex', gap: 14 }}>
+                <div style={{ display: 'flex', gap: 10 }}>
                   {/* Product Image */}
-                  <div style={{ 
-                    width: 85, 
-                    height: 85, 
-                    borderRadius: 12, 
+                  <div style={{
+                    width: 68,
+                    height: 68,
+                    borderRadius: 8,
                     overflow: 'hidden',
                     flexShrink: 0,
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.05)'
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
                   }}>
                     {item.image_url ? (
                       <Image
@@ -223,92 +217,80 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         preview={false}
                       />
                     ) : (
-                      <div style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center' 
-                      }}>
-                        <ShoppingCartOutlined style={{ fontSize: 28, color: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ShoppingCartOutlined style={{ fontSize: 22, color: '#cbd5e1' }} />
                       </div>
                     )}
                   </div>
 
                   {/* Product Info */}
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         {item.brand && (
-                          <Text style={{ 
-                            fontSize: 11, 
-                            color: '#9ca3af', 
-                            textTransform: 'uppercase', 
-                            letterSpacing: 0.5,
-                            display: 'block',
-                            marginBottom: 2
-                          }} className="font-duotone-regular">
+                          <Text style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 1 }} className="font-duotone-regular">
                             {item.brand}
                           </Text>
                         )}
-                        <Text 
-                          style={{ 
-                            fontSize: 14, 
+                        <Text
+                          style={{
+                            fontSize: 13,
                             lineHeight: 1.3,
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            color: '#fff'
+                            color: '#0f172a',
                           }}
                           className="font-duotone-bold"
                         >
                           {item.name}
                         </Text>
-                        {/* Size and Color display */}
                         {(item.selectedSize || item.selectedColor) && (
-                          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                             {item.selectedSize && (
-                              <Tag 
-                                style={{ 
-                                  fontSize: 11, 
-                                  margin: 0, 
-                                  padding: '1px 8px',
+                              <Tag
+                                style={{
+                                  fontSize: 10,
+                                  margin: 0,
+                                  padding: '0 6px',
                                   borderRadius: 4,
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
-                                  color: '#d1d5db'
+                                  background: '#f1f5f9',
+                                  border: '1px solid #e2e8f0',
+                                  color: '#475569',
+                                  lineHeight: '18px',
                                 }}
                                 className="font-duotone-regular"
                               >
-                                Size: {item.selectedSize}
+                                {item.selectedSize}
                               </Tag>
                             )}
                             {item.selectedColor && (
-                              <Tag 
-                                style={{ 
-                                  fontSize: 11, 
-                                  margin: 0, 
-                                  padding: '1px 8px',
+                              <Tag
+                                style={{
+                                  fontSize: 10,
+                                  margin: 0,
+                                  padding: '0 6px',
                                   borderRadius: 4,
-                                  background: 'rgba(255,255,255,0.05)',
-                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  background: '#f1f5f9',
+                                  border: '1px solid #e2e8f0',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: 4,
-                                  color: '#d1d5db'
+                                  gap: 3,
+                                  color: '#475569',
+                                  lineHeight: '18px',
                                 }}
                                 className="font-duotone-regular"
                               >
-                                <span 
-                                  style={{ 
-                                    width: 10, 
-                                    height: 10, 
-                                    borderRadius: '50%', 
+                                <span
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
                                     background: item.selectedColor.toLowerCase(),
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    flexShrink: 0
-                                  }} 
+                                    border: '1px solid #cbd5e1',
+                                    flexShrink: 0,
+                                  }}
                                 />
                                 {item.selectedColor}
                               </Tag>
@@ -320,88 +302,50 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                         <Button
                           type="text"
                           size="small"
-                          icon={<DeleteOutlined style={{ fontSize: 14 }} />}
+                          icon={<DeleteOutlined style={{ fontSize: 13 }} />}
                           onClick={() => removeFromCart(item.cartItemId || item.id)}
-                          className="!text-[#ef4444] hover:!bg-[#ef4444]/20 !opacity-80 hover:!opacity-100 transition-all"
-                          style={{ 
-                            borderRadius: 8, 
-                            flexShrink: 0,
-                            width: 32,
-                            height: 32
-                          }}
+                          className="!text-slate-400 hover:!text-red-500 hover:!bg-red-50 transition-all"
+                          style={{ borderRadius: 6, flexShrink: 0, width: 28, height: 28 }}
                         />
                       </Tooltip>
                     </div>
 
-                    {/* Price */}
-                    <Text style={{ color: '#00a8c4', fontSize: 16, marginTop: 6 }} className="font-duotone-bold">
-                      {formatDualAmount(item.price, item.currency || storageCurrency)}
-                    </Text>
-
-                    {/* Quantity Controls */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                      <div style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
+                    {/* Price + Qty row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                      <Text style={{ color: '#0ea5e9', fontSize: 14 }} className="font-duotone-bold">
+                        {formatDualAmount(item.price, item.currency || storageCurrency)}
+                      </Text>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
                         gap: 0,
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        borderRadius: 10,
-                        padding: 3
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        padding: 2,
                       }}>
                         <Button
                           type="text"
                           size="small"
-                          icon={<MinusOutlined style={{ fontSize: 11 }} />}
+                          icon={<MinusOutlined style={{ fontSize: 10 }} />}
                           onClick={() => handleQuantityChange(item.cartItemId || item.id, -1, item.quantity, item.stock_quantity)}
                           disabled={item.quantity <= 1}
-                          className="!text-white disabled:!text-white/20 hover:!bg-white/10"
-                          style={{ 
-                            width: 30, 
-                            height: 30, 
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
+                          className="!text-slate-500 disabled:!text-slate-300 hover:!bg-slate-100"
+                          style={{ width: 26, height: 26, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         />
-                        <span style={{ 
-                          minWidth: 36, 
-                          textAlign: 'center', 
-                          fontWeight: 600,
-                          fontSize: 14,
-                          color: '#fff' 
-                        }} className="font-duotone-regular">
+                        <span style={{ minWidth: 28, textAlign: 'center', fontWeight: 600, fontSize: 13, color: '#0f172a' }} className="font-duotone-regular">
                           {item.quantity}
                         </span>
                         <Button
                           type="text"
                           size="small"
-                          icon={<PlusOutlined style={{ fontSize: 11 }} />}
+                          icon={<PlusOutlined style={{ fontSize: 10 }} />}
                           onClick={() => handleQuantityChange(item.cartItemId || item.id, 1, item.quantity, item.stock_quantity)}
                           disabled={item.quantity >= item.stock_quantity}
-                          className="!text-white disabled:!text-white/20 hover:!bg-white/10"
-                          style={{ 
-                            width: 30, 
-                            height: 30, 
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
+                          className="!text-slate-500 disabled:!text-slate-300 hover:!bg-slate-100"
+                          style={{ width: 26, height: 26, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         />
                       </div>
-                      
-                      <Tooltip title="Save for later">
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<HeartOutlined style={{ fontSize: 14 }} />}
-                          onClick={() => handleMoveToWishlist(item)}
-                          className="!text-white/60 hover:!text-white hover:!bg-white/10 transition-all"
-                          style={{ borderRadius: 8, width: 32, height: 32 }}
-                        />
-                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -411,70 +355,57 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
         )}
       </div>
 
-      {/* Footer - Only show when cart has items */}
+      {/* Footer */}
       {cart.length > 0 && (
-        <div style={{ 
-          padding: '16px 20px 20px', 
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          background: '#1a262b',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.3)',
-          position: 'relative',
-          zIndex: 10
+        <div style={{
+          padding: '14px 18px 18px',
+          borderTop: '1px solid #e5e7eb',
+          background: '#fff',
         }}>
-          {/* Order Summary */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ fontSize: 13, color: '#9ca3af' }} className="font-duotone-regular">Subtotal ({itemCount} items)</Text>
-              <Text style={{ fontSize: 14, color: '#fff' }} className="font-duotone-bold">{formatDualAmount(total)}</Text>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '10px 14px',
-              background: canAfford ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-              borderRadius: 10,
-              marginBottom: 10,
-              border: `1px solid ${canAfford ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
-            }}>
-              <Space size={6}>
-                <WalletOutlined style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 16 }} />
-                <Text style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 13 }} className="font-duotone-bold">
-                  Your Balance
-                </Text>
-              </Space>
-              <Text style={{ color: canAfford ? '#10b981' : '#f59e0b', fontSize: 14 }} className="font-duotone-bold">
-                {formatDualAmount(userBalance || 0)}
+          {/* Wallet row */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 12px',
+            background: canAfford ? '#f0fdf4' : '#fffbeb',
+            borderRadius: 8,
+            marginBottom: 10,
+            border: `1px solid ${canAfford ? '#bbf7d0' : '#fde68a'}`,
+          }}>
+            <Space size={6}>
+              <WalletOutlined style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 14 }} />
+              <Text style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 12 }} className="font-duotone-bold">
+                Wallet
               </Text>
-            </div>
-
-            {!canAfford && (
-              <div 
-                style={{ 
-                  width: '100%', 
-                  textAlign: 'center', 
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  margin: 0,
-                  fontSize: 13,
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  color: '#fbbf24',
-                  border: '1px solid rgba(245, 158, 11, 0.2)'
-                }}
-                className="font-duotone-regular"
-              >
-                Wallet low – other payment options available
-              </div>
-            )}
+            </Space>
+            <Text style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 13 }} className="font-duotone-bold">
+              {formatDualAmount(userBalance || 0)}
+            </Text>
           </div>
 
-          <Divider style={{ margin: '14px 0', borderColor: 'rgba(255,255,255,0.08)' }} />
+          {!canAfford && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '6px 10px',
+                borderRadius: 6,
+                marginBottom: 10,
+                fontSize: 11,
+                background: '#fffbeb',
+                color: '#b45309',
+                border: '1px solid #fde68a',
+              }}
+              className="font-duotone-regular"
+            >
+              Wallet low – other payment options available
+            </div>
+          )}
 
           {/* Total */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#fff' }} className="font-duotone-bold-extended">Total</Title>
-            <Title level={4} style={{ margin: 0, color: '#00a8c4', fontSize: 20 }} className="font-duotone-bold">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontSize: 13, color: '#64748b' }} className="font-duotone-regular">Total ({itemCount} items)</Text>
+            <Title level={5} style={{ margin: 0, color: '#0f172a', fontSize: 18 }} className="font-duotone-bold">
               {formatDualAmount(total)}
             </Title>
           </div>
@@ -484,33 +415,26 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
             type="primary"
             size="large"
             block
-            icon={<CreditCardOutlined style={{ fontSize: 18 }} />}
+            icon={<CreditCardOutlined style={{ fontSize: 16 }} />}
             onClick={handleCheckout}
-            className="!font-duotone-bold !text-white hover:!opacity-90 active:scale-[0.99] transition-all"
+            className="!font-duotone-bold hover:!opacity-90 active:scale-[0.99] transition-all"
             style={{
-              height: 52,
-              borderRadius: 12,
+              height: 44,
+              borderRadius: 10,
               fontWeight: 600,
-              fontSize: 16,
-              background: '#00a8c4',
+              fontSize: 14,
+              background: '#0ea5e9',
               border: 'none',
-              boxShadow: '0 4px 12px rgba(0, 168, 196, 0.3)'
+              color: '#fff',
             }}
           >
             Proceed to Checkout
           </Button>
 
-          {/* Security Note */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            gap: 8, 
-            marginTop: 14 
-          }}>
-            <SafetyCertificateOutlined style={{ color: '#10b981', fontSize: 13 }} />
-            <Text style={{ fontSize: 12, color: '#9ca3af' }} className="font-duotone-regular">
-              Secure checkout • Instant delivery
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+            <SafetyCertificateOutlined style={{ color: '#16a34a', fontSize: 11 }} />
+            <Text style={{ fontSize: 11, color: '#94a3b8' }} className="font-duotone-regular">
+              Secure checkout
             </Text>
           </div>
         </div>

@@ -119,7 +119,7 @@ const SECTION_DESCRIPTIONS = {
 
 const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, onUpdate = () => {}, readOnly = false }) => {
   const { user: currentUser } = useAuth();
-  const { formatCurrency: fmtCurrency, getCurrencySymbol, businessCurrency, convertCurrency } = useCurrency();
+  const { formatCurrency: fmtCurrency, getCurrencySymbol, businessCurrency, convertCurrency, getSupportedCurrencies } = useCurrency();
   const { modal } = App.useApp();
 
   // ─── State ────────────────────────────────────────────────────
@@ -138,6 +138,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   // Modal states
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showChargeModal, setShowChargeModal] = useState(false);
+  const [addFundsCurrency, setAddFundsCurrency] = useState(null); // null = will default to storageCurrency on open
+  const [addFundsAmount, setAddFundsAmount] = useState(null);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
@@ -275,6 +277,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     if (!isOpen) {
       hasFetchedRef.current = false;
       setActiveSection('profile');
+      setAddFundsCurrency(null);
+      setAddFundsAmount(null);
     }
   }, [isOpen, customerId, fetchCustomerData]);
 
@@ -334,11 +338,29 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const handleAddFunds = async (values) => {
     setPaymentProcessing(true);
     try {
-      await FinancialService.addFunds(customerId, values.amount, values.description || 'Account deposit', values.paymentMethod, values.referenceNumber);
+      const inputCurrency = addFundsCurrency || storageCurrency;
+      // Always store in storageCurrency (EUR). If admin entered a different currency, convert first.
+      const amountInStorage = inputCurrency !== storageCurrency
+        ? convertCurrency(values.amount, inputCurrency, storageCurrency)
+        : values.amount;
+      const result = await FinancialService.addFunds(customerId, amountInStorage, values.description || 'Account deposit', values.paymentMethod, values.referenceNumber, storageCurrency);
       message.success('Funds added successfully');
       setShowAddFundsModal(false);
+      setAddFundsAmount(null);
+      setAddFundsCurrency(null);
       paymentForm.resetFields();
+      // Immediately update the modal balance from the API response so the profile section
+      // reflects the new amount even before refreshAllData completes.
+      if (result?.wallet?.available !== undefined) {
+        setUserAccount(prev => ({
+          ...(prev || {}),
+          currentBalance: result.wallet.available,
+          availableCredits: result.wallet.available,
+          currency: result.wallet.currency || storageCurrency,
+        }));
+      }
       await refreshAllData();
+      onUpdate();
     } catch (err) {
       message.error('Failed to add funds: ' + (err.message || 'Unknown error'));
     } finally { setPaymentProcessing(false); }
@@ -347,11 +369,12 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const handleProcessCharge = async (values) => {
     setPaymentProcessing(true);
     try {
-      await FinancialService.processCharge(customerId, values.amount, values.description || 'Manual charge', values.relatedEntityId || null, values.relatedEntityType || 'manual');
+      await FinancialService.processCharge(customerId, values.amount, values.description || 'Manual charge', values.relatedEntityId || null, values.relatedEntityType || 'manual', storageCurrency);
       message.success('Charge processed successfully');
       setShowChargeModal(false);
       chargeForm.resetFields();
       await refreshAllData();
+      onUpdate();
     } catch (err) {
       message.error('Failed to process charge: ' + (err.message || 'Unknown error'));
     } finally { setPaymentProcessing(false); }
@@ -1219,19 +1242,134 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       {/* ── Modals ───────────────────────────────────── */}
 
       {/* Add Funds */}
-      <Modal title={<span><PlusCircleOutlined className="text-green-600 mr-2" />Add Balance to Account</span>} open={showAddFundsModal} onCancel={() => setShowAddFundsModal(false)} footer={null} destroyOnHidden>
-        <Form form={paymentForm} layout="vertical" onFinish={handleAddFunds} initialValues={{ amount: '', description: '', paymentMethod: 'cash', referenceNumber: '' }}>
-          <Form.Item name="amount" label={`Amount (${currencySymbol})`} rules={[{ required: true, message: 'Enter amount' }, { type: 'number', min: 0.01, message: 'Must be > 0' }]}>
-            <InputNumber style={{ width: '100%' }} step={5} min={0.01} precision={2} prefix={currencySymbol} placeholder="Amount" />
+      <Modal
+        title={null}
+        open={showAddFundsModal}
+        onCancel={() => { setShowAddFundsModal(false); setAddFundsAmount(null); setAddFundsCurrency(null); paymentForm.resetFields(); }}
+        footer={null}
+        destroyOnHidden
+        width={440}
+        styles={{ body: { padding: 0 } }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <PlusCircleOutlined className="text-emerald-600 text-base" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 text-base leading-tight">Add Balance</div>
+              <div className="text-xs text-gray-400 leading-tight mt-0.5">
+                {customer?.name || customer?.full_name || 'Customer'}'s account
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Form
+          form={paymentForm}
+          layout="vertical"
+          onFinish={handleAddFunds}
+          initialValues={{ amount: null, description: '', paymentMethod: 'cash', referenceNumber: '' }}
+          className="px-6 pt-5 pb-5"
+        >
+          {/* Amount + Currency Row */}
+          <Form.Item label="Amount" required className="mb-4">
+            <div className="flex gap-2">
+              <Form.Item
+                name="amount"
+                noStyle
+                rules={[
+                  { required: true, message: 'Enter amount' },
+                  { type: 'number', min: 0.01, message: 'Must be > 0' }
+                ]}
+              >
+                <InputNumber
+                  style={{ flex: 1 }}
+                  step={50}
+                  min={0.01}
+                  precision={2}
+                  prefix={<span className="text-gray-400 text-sm">{getCurrencySymbol(addFundsCurrency || storageCurrency)}</span>}
+                  placeholder="0.00"
+                  onChange={(val) => setAddFundsAmount(val)}
+                  size="large"
+                />
+              </Form.Item>
+              <Select
+                value={addFundsCurrency || storageCurrency}
+                onChange={(val) => setAddFundsCurrency(val)}
+                style={{ width: 100 }}
+                size="large"
+                options={getSupportedCurrencies().map(c => ({
+                  value: c.value,
+                  label: c.value,
+                }))}
+              />
+            </div>
+
+            {/* Conversion preview */}
+            {addFundsAmount > 0 && addFundsCurrency && addFundsCurrency !== storageCurrency && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />
+                <span>
+                  Will be credited as{' '}
+                  <span className="font-semibold text-gray-700">
+                    {fmtCurrency(convertCurrency(addFundsAmount, addFundsCurrency, storageCurrency), storageCurrency)}
+                  </span>
+                  {' '}to the account
+                </span>
+              </div>
+            )}
+            {addFundsAmount > 0 && (!addFundsCurrency || addFundsCurrency === storageCurrency) && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                <span>
+                  <span className="font-semibold text-gray-700">
+                    {fmtCurrency(addFundsAmount, storageCurrency)}
+                  </span>
+                  {' '}will be added to the account
+                </span>
+              </div>
+            )}
           </Form.Item>
-          <Form.Item name="description" label="Description" rules={[{ required: true, message: 'Enter description' }]}>
-            <Input placeholder="e.g., Deposit for lessons" />
+
+          <Form.Item name="description" label="Description" rules={[{ required: true, message: 'Enter description' }]} className="mb-4">
+            <Input placeholder="e.g., Deposit for lessons" size="large" />
           </Form.Item>
-          <Form.Item name="paymentMethod" label="Payment Method">
-            <Select><Option value="cash">Cash</Option><Option value="credit_card">Credit Card</Option><Option value="bank_transfer">Bank Transfer</Option><Option value="paypal">PayPal</Option><Option value="other">Other</Option></Select>
-          </Form.Item>
-          <Form.Item name="referenceNumber" label="Reference Number"><Input placeholder="Receipt number, etc." /></Form.Item>
-          <Form.Item className="mb-0"><div className="flex justify-end"><Button className="mr-2" onClick={() => setShowAddFundsModal(false)}>Cancel</Button><Button type="primary" htmlType="submit" loading={paymentProcessing} icon={<PlusCircleOutlined />}>Add Funds</Button></div></Form.Item>
+
+          <div className="flex gap-3">
+            <Form.Item name="paymentMethod" label="Payment Method" className="mb-4 flex-1">
+              <Select size="large">
+                <Option value="cash">Cash</Option>
+                <Option value="credit_card">Credit Card</Option>
+                <Option value="bank_transfer">Bank Transfer</Option>
+                <Option value="paypal">PayPal</Option>
+                <Option value="other">Other</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item name="referenceNumber" label="Reference No." className="mb-4 flex-1">
+              <Input placeholder="Receipt #, etc." size="large" />
+            </Form.Item>
+          </div>
+
+          <div className="flex gap-2 justify-end pt-1">
+            <Button
+              size="large"
+              onClick={() => { setShowAddFundsModal(false); setAddFundsAmount(null); setAddFundsCurrency(null); paymentForm.resetFields(); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              htmlType="submit"
+              loading={paymentProcessing}
+              icon={<PlusCircleOutlined />}
+              className="bg-emerald-500 hover:bg-emerald-600 border-emerald-500 hover:border-emerald-600"
+            >
+              Add Funds
+            </Button>
+          </div>
         </Form>
       </Modal>
 

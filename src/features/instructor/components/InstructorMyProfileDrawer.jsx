@@ -896,7 +896,7 @@ function SecuritySection({ user }) {
 const InstructorMyProfileDrawer = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshUser } = useAuth();
-  const isInstructor = isAuthenticated && ['instructor', 'manager', 'admin', 'developer', 'super_admin']
+  const isInstructor = isAuthenticated && ['instructor', 'manager']
     .includes(user?.role?.toLowerCase());
   const { data: dashData, loading: dashLoading } = useInstructorDashboard(0, { enabled: isInstructor });
   const { businessCurrency, formatCurrency } = useCurrency();

@@ -73,15 +73,12 @@ const PackagePurchaseModal = ({
   const getPackageDisplayPrice = (pkg) => {
     const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
     let finalPrice = price;
-    
-    if (appliedVoucher) {
-      if (appliedVoucher.discountType === 'percentage') {
-        finalPrice = price * (1 - appliedVoucher.discountValue / 100);
-      } else {
-        finalPrice = Math.max(0, price - appliedVoucher.discountValue);
-      }
+
+    const disc = appliedVoucher?.discount;
+    if (disc && disc.originalAmount > 0) {
+      finalPrice = Math.max(0, price * (disc.finalAmount / disc.originalAmount));
     }
-    
+
     return formatCurrency(finalPrice, currency);
   };
 

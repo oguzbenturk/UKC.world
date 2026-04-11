@@ -140,13 +140,14 @@ class FinancialService {
    * @param {string} referenceNumber - Reference number
    * @returns {Promise<Object>} - Transaction result
    */
-  static async addFunds(userId, amount, description = 'Funds added', paymentMethod = null, referenceNumber = null) {
+  static async addFunds(userId, amount, description = 'Funds added', paymentMethod = null, referenceNumber = null, currency = null) {
     try {
       const response = await apiClient.post(`/finances/accounts/${userId}/add-funds`, {
         amount,
         description,
         payment_method: paymentMethod,
-        reference_number: referenceNumber
+        reference_number: referenceNumber,
+        currency
       });
       
       return response.data;
@@ -165,13 +166,14 @@ class FinancialService {
    * @param {string} entityType - Entity type
    * @returns {Promise<Object>} - Transaction result
    */
-  static async processRefund(userId, amount, description = 'Refund processed', bookingId = null, entityType = null) {
+  static async processRefund(userId, amount, description = 'Refund processed', bookingId = null, entityType = null, currency = null) {
     try {
       const response = await apiClient.post(`/finances/accounts/${userId}/process-refund`, {
         amount,
         description,
         booking_id: bookingId,
-        entity_type: entityType
+        entity_type: entityType,
+        currency
       });
       
       return response.data;
@@ -190,13 +192,14 @@ class FinancialService {
    * @param {string} entityType - Entity type
    * @returns {Promise<Object>} - Transaction result
    */
-  static async processCharge(userId, amount, description = 'Account charged', bookingId = null, entityType = null) {
+  static async processCharge(userId, amount, description = 'Account charged', bookingId = null, entityType = null, currency = null) {
     try {
       const response = await apiClient.post(`/finances/accounts/${userId}/process-charge`, {
         amount,
         description,
         booking_id: bookingId,
-        entity_type: entityType
+        entity_type: entityType,
+        currency
       });
       
       return response.data;

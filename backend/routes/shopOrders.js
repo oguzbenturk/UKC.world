@@ -10,7 +10,7 @@ import socketService from '../services/socketService.js';
 import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
-import { dispatchToStaff } from '../services/notificationDispatcherUnified.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import CurrencyService from '../services/currencyService.js';
 import { addTag } from '../services/userTagService.js';
 
@@ -32,7 +32,7 @@ async function notifyAdminsNewOrder(order, items, buyerName) {
         orderNumber: order.order_number,
         totalAmount: order.total_amount,
         itemCount: items.length,
-        link: `/services/shop-orders`
+        link: `/services/shop?orderId=${order.id}`
       },
       idempotencyPrefix: `shop-order:${order.id}`,
       roles: ['admin', 'manager']
@@ -710,8 +710,9 @@ router.post('/', authenticateJWT, async (req, res) => {
     const buyerResult = await pool.query(
       'SELECT first_name, last_name FROM users WHERE id = $1', [userId]
     );
-    const buyerName = buyerResult.rows[0]
-      ? `${buyerResult.rows[0].first_name} ${buyerResult.rows[0].last_name}`.trim()
+    const buyer = buyerResult.rows[0];
+    const buyerName = buyer
+      ? [buyer.first_name, buyer.last_name].filter(Boolean).join(' ') || buyer.email || 'A customer'
       : 'A customer';
     notifyAdminsNewOrder(completeOrder, validatedItems, buyerName);
 
@@ -884,7 +885,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
 
     // Get status history
     const historyResult = await pool.query(`
-      SELECT 
+      SELECT
         h.*,
         u.first_name,
         u.last_name
@@ -894,9 +895,25 @@ router.get('/:id', authenticateJWT, async (req, res) => {
       ORDER BY h.created_at DESC
     `, [orderId]);
 
+    // Get bank transfer receipt if applicable
+    let receipt = null;
+    if (order.payment_method === 'bank_transfer') {
+      const receiptResult = await pool.query(`
+        SELECT receipt_url, amount, currency, status, admin_notes, created_at
+        FROM bank_transfer_receipts
+        WHERE shop_order_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [orderId]);
+      if (receiptResult.rows.length > 0) {
+        receipt = receiptResult.rows[0];
+      }
+    }
+
     res.json({
       ...order,
-      status_history: historyResult.rows
+      status_history: historyResult.rows,
+      receipt
     });
 
   } catch (error) {
@@ -1043,7 +1060,8 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
 
     // Get summary stats
     const statsResult = await pool.query(`
-      SELECT 
+      SELECT
+        COUNT(*) as total_orders,
         COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
         COUNT(*) FILTER (WHERE status = 'confirmed') as confirmed_count,
         COUNT(*) FILTER (WHERE status = 'processing') as processing_count,
@@ -1189,6 +1207,33 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
     await client.query('COMMIT');
 
     const updatedOrder = await getOrderWithItems(orderId);
+
+    // Notify the customer about their order status change (fire-and-forget)
+    const statusMessages = {
+      confirmed:  { title: 'Order Confirmed', message: `Your order ${updatedOrder.order_number} has been confirmed and is being prepared.` },
+      processing: { title: 'Order Being Processed', message: `Your order ${updatedOrder.order_number} is now being processed.` },
+      shipped:    { title: 'Order Shipped', message: `Great news! Your order ${updatedOrder.order_number} has been shipped and is on its way.` },
+      delivered:  { title: 'Order Delivered', message: `Your order ${updatedOrder.order_number} has been delivered. Enjoy!` },
+      cancelled:  { title: 'Order Cancelled', message: `Your order ${updatedOrder.order_number} has been cancelled.${admin_notes ? ` Note: ${admin_notes}` : ''}` },
+      refunded:   { title: 'Order Refunded', message: `Your order ${updatedOrder.order_number} has been refunded. The amount has been credited to your wallet.` },
+    };
+    const notifContent = statusMessages[status];
+    if (notifContent && updatedOrder.user_id) {
+      dispatchNotification({
+        userId: updatedOrder.user_id,
+        type: 'shop_order',
+        title: notifContent.title,
+        message: notifContent.message,
+        data: {
+          orderId,
+          orderNumber: updatedOrder.order_number,
+          newStatus: status,
+          previousStatus,
+          cta: { label: 'View Order', href: '/shop/orders' }
+        },
+        idempotencyKey: `shop-order-status:${orderId}:${status}`
+      }).catch((err) => logger.error('Failed to notify customer of order status change', { err, orderId }));
+    }
 
     // Emit socket event for order update
     emitSocketEvent('shop:orderStatusChanged', {

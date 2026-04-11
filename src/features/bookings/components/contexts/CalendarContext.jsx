@@ -1568,6 +1568,8 @@ function CalendarProvider({ children }) {
     setViewState, // For internal view changes without URL sync
     selectedDate,
     setSelectedDate,
+    highlightedBookingId,
+    setHighlightedBookingId,
     selectedSlot,
     setSelectedSlot,
       // Data State

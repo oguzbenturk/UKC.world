@@ -261,9 +261,11 @@ function CalendarViews({ view, onTimeSlotClick, onBookingClick }) {
 }
 
 const ModernCalendar = () => {
-  const { 
+  const {
     selectedDate,
     setSelectedDate,
+    highlightedBookingId,
+    setHighlightedBookingId,
     view,
     setView,
     setViewState, // For tab switching without URL sync
@@ -316,6 +318,19 @@ const ModernCalendar = () => {
       setDetailBookingSnapshot(selectedBooking);
     }
   }, [selectedBooking, selectedBookingId]);
+
+  // Auto-open booking detail when navigating here from a notification (via ?bookingId= URL param)
+  useEffect(() => {
+    if (!highlightedBookingId || isLoading || !_bookings?.length) return;
+    const booking = _bookings.find((b) => String(b.id) === String(highlightedBookingId));
+    if (booking) {
+      setDetailBookingSnapshot(booking);
+      setSelectedBookingId(booking.id);
+      setIsBookingDetailModalOpen(true);
+      setHighlightedBookingId(null);
+    }
+  }, [highlightedBookingId, _bookings, isLoading, setHighlightedBookingId]);
+
   const navigate = useNavigate();
   // Time navigation using extracted helpers
   const handlePrevious = () => setSelectedDate(getPrevDate(view, selectedDate));

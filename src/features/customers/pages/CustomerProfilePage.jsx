@@ -885,7 +885,8 @@ function CustomerProfilePage() {
         values.amount,
         values.description || 'Account deposit',
         values.paymentMethod,
-        values.referenceNumber
+        values.referenceNumber,
+        storageCurrency
       );
       
       message.success('Funds added successfully');
@@ -907,9 +908,10 @@ function CustomerProfilePage() {
       await FinancialService.processRefund(
         id,
         values.amount,
+        values.description || 'Manual refund',
         values.relatedEntityId || null,
         values.relatedEntityType || 'manual',
-        values.description || 'Manual refund'
+        storageCurrency
       );
       
       message.success('Refund processed successfully');
@@ -934,7 +936,8 @@ function CustomerProfilePage() {
         values.amount,
         values.description || 'Manual charge',
         values.relatedEntityId || null,
-        values.relatedEntityType || 'manual'
+        values.relatedEntityType || 'manual',
+        storageCurrency
       );
       
       message.success('Charge processed successfully');

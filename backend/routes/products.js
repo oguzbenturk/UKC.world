@@ -258,7 +258,7 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
       result = await pool.query(`
         SELECT ${SHOP_CARD_COLS}
         FROM products
-        WHERE status = 'active' AND category = $1
+        WHERE status = 'active' AND stock_quantity > 0 AND category = $1
         ORDER BY is_featured DESC, created_at DESC
         LIMIT $2
       `, [categoryFilter, limitPerCategory]);
@@ -266,11 +266,11 @@ router.get('/shop/by-category', publicApiLimiter, async (req, res) => {
       // LATERAL join: uses the per-category index instead of a full-table window sort
       result = await pool.query(`
         SELECT p.*
-        FROM (SELECT DISTINCT category FROM products WHERE status = 'active') cats
+        FROM (SELECT DISTINCT category FROM products WHERE status = 'active' AND stock_quantity > 0) cats
         CROSS JOIN LATERAL (
           SELECT ${SHOP_CARD_COLS}
           FROM products
-          WHERE status = 'active' AND category = cats.category
+          WHERE status = 'active' AND stock_quantity > 0 AND category = cats.category
           ORDER BY is_featured DESC, created_at DESC
           LIMIT $1
         ) p

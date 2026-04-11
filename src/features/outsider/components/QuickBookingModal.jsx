@@ -279,8 +279,14 @@ const PayStep = ({
   const eurPrice = isStandalone
     ? (servicePrice || 0)
     : parseFloat(((packageData?.price || 0) * packageProRataScale).toFixed(2));
-  const depositAmount = parseFloat((eurPrice * DEPOSIT_PERCENT / 100).toFixed(2));
-  const remainingAmount = parseFloat((eurPrice - depositAmount).toFixed(2));
+
+  const voucherDisc = appliedVoucher?.discount;
+  const finalEurPrice = (voucherDisc && voucherDisc.originalAmount > 0)
+    ? Math.max(0, eurPrice * (voucherDisc.finalAmount / voucherDisc.originalAmount))
+    : eurPrice;
+
+  const depositAmount = parseFloat((finalEurPrice * DEPOSIT_PERCENT / 100).toFixed(2));
+  const remainingAmount = parseFloat((finalEurPrice - depositAmount).toFixed(2));
 
   const showLocalCurrency = userCurrency && userCurrency !== 'EUR' && priceCurrency !== 'EUR';
   const fmtDual = (eurAmt) => {
@@ -290,11 +296,14 @@ const PayStep = ({
     return `${eurStr} (~${formatCurrency(local, userCurrency)})`;
   };
 
-  // Dual-price: show EUR first, then user's local currency equivalent
+  // Dual-price: show EUR first, then user's local currency equivalent (with discount applied)
   const dualPrice = (() => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
+    const eurFormatted = formatCurrency(finalEurPrice, 'EUR');
     if (!showLocalCurrency) return eurFormatted;
-    return `${eurFormatted} (~${formatCurrency(displayPrice, priceCurrency)})`;
+    const localFinal = (voucherDisc && voucherDisc.originalAmount > 0)
+      ? Math.max(0, displayPrice * (voucherDisc.finalAmount / voucherDisc.originalAmount))
+      : displayPrice;
+    return `${eurFormatted} (~${formatCurrency(localFinal, priceCurrency)})`;
   })();
 
   const isDeposit = paymentMethod === 'deposit';
@@ -1288,7 +1297,10 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     },
     [packageData, userCurrency, convertCurrency, isStandalone, servicePrice, proRataTotalHours]
   );
-  const walletInsufficient = paymentMethod === 'wallet' && displayPrice > walletBalance;
+  const effectiveDisplayPrice = appliedVoucher?.discount?.originalAmount > 0
+    ? Math.max(0, displayPrice * (appliedVoucher.discount.finalAmount / appliedVoucher.discount.originalAmount))
+    : displayPrice;
+  const walletInsufficient = paymentMethod === 'wallet' && effectiveDisplayPrice > walletBalance;
 
   const { data: instructorsData = [], isLoading: instructorsLoading } = useQuery({
     queryKey: ['quick-booking', 'instructors'],

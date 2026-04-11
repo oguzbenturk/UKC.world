@@ -5,10 +5,20 @@ import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-const assistantLimiter = rateLimit({
+const guestLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 5,
   message: { error: 'Too many requests. Please wait a moment before trying again.' },
+  keyGenerator: (req) => req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many requests. Please wait a moment before trying again.' },
+  keyGenerator: (req) => req.user?.id || req.ip,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -28,9 +38,14 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
+const adaptiveLimiter = (req, res, next) => {
+  if (req.user?.id) return authLimiter(req, res, next);
+  return guestLimiter(req, res, next);
+};
+
+router.post('/', optionalAuth, adaptiveLimiter, async (req, res) => {
   try {
-    const { message, conversationHistory, image, userName: clientUserName } = req.body;
+    const { message, image, userName: clientUserName, sessionId } = req.body;
 
     if ((!message || typeof message !== 'string' || message.trim().length === 0) && !image) {
       return res.status(400).json({ error: 'Message or image is required' });
@@ -60,7 +75,7 @@ router.post('/', assistantLimiter, optionalAuth, async (req, res) => {
       userId: req.user?.id || 'guest',
       userRole: normalizeRole(req.user?.role),
       userName: clientUserName || req.user?.email || 'Guest',
-      conversationHistory: conversationHistory || [],
+      sessionId: sessionId || null,
     };
     if (image) payload.image = image;
 

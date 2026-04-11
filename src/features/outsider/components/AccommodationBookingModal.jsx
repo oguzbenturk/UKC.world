@@ -256,12 +256,17 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
     return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
   };
 
+  const voucherDisc = appliedVoucher?.discount;
+  const effectiveTotalPrice = (voucherDisc && voucherDisc.originalAmount > 0)
+    ? Math.max(0, totalPrice * (voucherDisc.finalAmount / voucherDisc.originalAmount))
+    : totalPrice;
+
   const walletInUserCurrency = convertCurrency(walletBalance, walletCurrency, userCurrency);
-  const walletInsufficient = paymentMethod === 'wallet' && totalPrice > 0 && totalPrice > walletBalance;
+  const walletInsufficient = paymentMethod === 'wallet' && effectiveTotalPrice > 0 && effectiveTotalPrice > walletBalance;
 
   const DEPOSIT_PERCENT = 20;
-  const depositAmount = parseFloat((totalPrice * DEPOSIT_PERCENT / 100).toFixed(2));
-  const remainingAmount = parseFloat((totalPrice - depositAmount).toFixed(2));
+  const depositAmount = parseFloat((effectiveTotalPrice * DEPOSIT_PERCENT / 100).toFixed(2));
+  const remainingAmount = parseFloat((effectiveTotalPrice - depositAmount).toFixed(2));
   const isDeposit = paymentMethod === 'deposit';
 
   const { data: bankAccounts = [] } = useQuery({
@@ -720,7 +725,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 showIcon
                 className="!mt-3 !rounded-xl !text-xs !bg-amber-500/10 !border-amber-500/20 [&_.ant-alert-message]:!text-amber-400 [&_.ant-alert-description]:!text-amber-400/70 [&_.anticon]:!text-amber-400"
                 message="Insufficient wallet balance"
-                description={`You need ${formatPrice(totalPrice)} but have ${formatCurrency(walletInUserCurrency, userCurrency)}. ${canPayLater ? 'Switch to Pay Later or top up your wallet.' : 'Please top up your wallet first.'}`}
+                description={`You need ${formatPrice(effectiveTotalPrice)} but have ${formatCurrency(walletInUserCurrency, userCurrency)}. ${canPayLater ? 'Switch to Pay Later or top up your wallet.' : 'Please top up your wallet first.'}`}
               />
             )}
           </div>
@@ -760,7 +765,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                   </div>
                   <div className="text-right">
                     <span className="text-2xl font-bold text-white tracking-tight">
-                      {nights > 0 ? formatPrice(totalPrice) : '—'}
+                      {nights > 0 ? formatPrice(effectiveTotalPrice) : '—'}
                     </span>
                   </div>
                 </div>
@@ -828,10 +833,10 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                       : paymentMethod === 'pay_later'
                         ? 'Confirm — Pay Later'
                         : paymentMethod === 'credit_card'
-                          ? `Pay ${nights > 0 ? formatPrice(totalPrice) : ''} with Card`
+                          ? `Pay ${nights > 0 ? formatPrice(effectiveTotalPrice) : ''} with Card`
                           : isHotel
                             ? 'Request Booking'
-                            : `Pay ${nights > 0 ? formatPrice(totalPrice) : ''}`}
+                            : `Pay ${nights > 0 ? formatPrice(effectiveTotalPrice) : ''}`}
                   </>
                 )}
               </button>

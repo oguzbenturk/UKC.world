@@ -341,39 +341,73 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
     const account = userResult.rows[0];
     const userPreferredCurrency = account.preferred_currency || 'EUR';
     
-    // Try user's preferred currency first, then fallback to EUR
-    let walletCurrency = userPreferredCurrency;
-    let { balance, totalSpent, walletSummary } = await calculateUserBalance(id, walletCurrency);
+    // Aggregate ALL wallet rows, converting every currency to EUR.
+    // This correctly handles multi-currency deposits — e.g. admin deposits EUR while
+    // the customer's preferred wallet is TRY. The old single-wallet waterfall missed
+    // EUR funds whenever the preferred-currency wallet had any non-zero balance.
+    let balance = 0;
+    let totalSpent = 0;
+    let walletSummary = null;
+    const walletCurrency = 'EUR'; // Always report in EUR for consistent display
 
-    // If no balance found in preferred currency, try EUR
-    if (walletCurrency !== 'EUR' && (!walletSummary || (walletSummary.available === 0 && walletSummary.totalCredits === 0))) {
-      const eurResult = await calculateUserBalance(id, 'EUR');
-      if (eurResult.walletSummary && (eurResult.walletSummary.available !== 0 || eurResult.walletSummary.totalCredits !== 0)) {
-        balance = eurResult.balance;
-        totalSpent = eurResult.totalSpent;
-        walletSummary = eurResult.walletSummary;
-        walletCurrency = 'EUR';
-      }
-    }
+    try {
+      const { rows: walletRows } = await pool.query(
+        `SELECT wb.currency, wb.available_amount, cs.exchange_rate
+           FROM wallet_balances wb
+           LEFT JOIN currency_settings cs ON cs.currency_code = wb.currency
+          WHERE wb.user_id = $1`,
+        [id]
+      );
 
-    // Last resort: check if user has balance in ANY currency
-    if (!walletSummary || (walletSummary.available === 0 && walletSummary.totalCredits === 0)) {
-      try {
-        const anyBalance = await pool.query(
-          `SELECT currency, available_amount FROM wallet_balances WHERE user_id = $1 AND (available_amount != 0) LIMIT 1`,
-          [id]
-        );
-        if (anyBalance.rows.length > 0) {
-          const foundCurrency = anyBalance.rows[0].currency;
-          const anyResult = await calculateUserBalance(id, foundCurrency);
-          if (anyResult.walletSummary) {
-            balance = anyResult.balance;
-            totalSpent = anyResult.totalSpent;
-            walletSummary = anyResult.walletSummary;
-            walletCurrency = foundCurrency;
-          }
+      // Sum every wallet balance converted to EUR
+      let totalEur = 0;
+      for (const w of walletRows) {
+        const avail = parseFloat(w.available_amount || 0);
+        if (w.currency === 'EUR') {
+          totalEur += avail;
+        } else {
+          const rate = parseFloat(w.exchange_rate || 0);
+          if (rate > 0) totalEur += avail / rate;
         }
-      } catch (_) { /* fallback, non-critical */ }
+      }
+      balance = Math.round(totalEur * 100) / 100;
+
+      // Fetch EUR wallet summary for ancillary fields (totalSpent, timestamps).
+      // Override `available` with the aggregate total so the wallet response object
+      // reflects the correct multi-currency balance.
+      const eurSummary = await getWalletAccountSummary(id, 'EUR');
+      if (eurSummary) {
+        walletSummary = { ...eurSummary, available: balance };
+        totalSpent = eurSummary.totalSpent ?? 0;
+      } else if (balance !== 0) {
+        // No EUR wallet but funds exist in another currency — use preferred wallet summary
+        const prefSummary = await getWalletAccountSummary(id, userPreferredCurrency);
+        if (prefSummary) {
+          walletSummary = { ...prefSummary, available: balance };
+          totalSpent = prefSummary.totalSpent ?? 0;
+        }
+      }
+
+      // If no wallet rows or all wallets are zero, fall back to legacy users.balance
+      // (legacy balance can be negative for pre-wallet customers who owe money)
+      if (walletRows.length === 0 || balance === 0) {
+        const legacyBalance = parseFloat(account.db_balance || 0);
+        if (legacyBalance !== 0) {
+          balance = legacyBalance;
+          walletSummary = null; // Don't report a wallet object when using legacy balance
+        }
+      }
+    } catch (aggErr) {
+      logger.error('Error aggregating wallet balances:', { userId: id, error: aggErr?.message });
+      // Fallback: single-currency query for EUR
+      try {
+        const fallback = await calculateUserBalance(id, 'EUR');
+        balance = fallback.balance;
+        totalSpent = fallback.totalSpent;
+        walletSummary = fallback.walletSummary;
+      } catch (_) {
+        balance = parseFloat(account.db_balance || 0);
+      }
     }
 
     const responseBody = {
@@ -1196,8 +1230,8 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
 
     const transactionRecord = await recordWalletTransaction({
       userId: id,
-      amount: resolveWalletAmount('payment', numericAmount),
-      transactionType: 'payment',
+      amount: resolveWalletAmount('wallet_deposit', numericAmount),
+      transactionType: 'wallet_deposit',
       currency: targetCurrency,
       description: description || 'Funds added',
       paymentMethod: payment_method || null,

@@ -233,13 +233,29 @@ const NotificationBell = () => {
       }
 
       const href = notification.data?.cta?.href || notification.data?.link;
+      setOpen(false);
+      // Accommodation booking notifications → Stay calendar
+      if (notification.type === 'accommodation_booking' || notification.data?.bookingType === 'accommodation') {
+        navigate('/calendars/stay');
+        return;
+      }
+      // Shop order notifications → orders tab with order modal open
+      if (notification.type === 'shop_order') {
+        const orderId = notification.data?.orderId;
+        navigate(orderId ? `/services/shop?orderId=${orderId}` : '/services/shop');
+        return;
+      }
+      // Instructor pending booking notifications → daily calendar with booking open
+      if (notification.type === 'new_booking_alert') {
+        const bookingId = notification.data?.bookingId;
+        const date = notification.data?.date;
+        const params = new URLSearchParams();
+        if (bookingId) params.set('bookingId', String(bookingId));
+        if (date) params.set('date', date);
+        navigate(`/calendars/lessons?${params.toString()}`);
+        return;
+      }
       if (href) {
-        setOpen(false);
-        // Accommodation booking notifications → Pending Payments tab
-        if (notification.type === 'accommodation_booking' || notification.data?.bookingType === 'accommodation') {
-          navigate('/calendars/lessons?tab=pending-payments');
-          return;
-        }
         // Redirect rental booking notifications to the Rental Requests tab
         const sType = notification.data?.serviceType;
         const sName = (notification.data?.serviceName || '').toLowerCase();

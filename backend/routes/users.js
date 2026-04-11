@@ -13,7 +13,7 @@ const router = express.Router();
 
 // Rol ismine göre izin verilen alanlar
 const roleSpecificFields = {
-  student: ['package_hours', 'remaining_hours', 'instructor_id', 'next_lesson', 'last_lesson', 'first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'bio', 'profile_image_url', 'level', 'notes'],
+  student: ['package_hours', 'remaining_hours', 'instructor_id', 'next_lesson', 'last_lesson', 'first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency', 'bio', 'profile_image_url', 'level', 'notes'],
   instructor: [
     'first_name',
     'last_name',
@@ -23,7 +23,7 @@ const roleSpecificFields = {
     'address',
     'city',
     'country',
-    'postal_code',
+    'zip_code',
     'preferred_currency',
     'bio',
     'profile_image_url',
@@ -32,10 +32,10 @@ const roleSpecificFields = {
     'status',
     'is_freelance'
   ],
-  manager: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
-  sadmin: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency'],
-  freelancer: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'level', 'notes'],
-  outsider: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'postal_code', 'preferred_currency', 'profile_image_url'] // Self-registered users with limited fields
+  manager: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency'],
+  sadmin: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency'],
+  freelancer: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency', 'level', 'notes'],
+  outsider: ['first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency', 'profile_image_url'] // Self-registered users with limited fields
 };
 
 function getAllowedFieldsByRole(roleName) {
@@ -254,7 +254,10 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     const currentUserId = req.user?.id; // The authenticated user
 
     // Base filters: students, outsiders, trusted_customers, exclude soft-deleted users
-    const balanceColumn = 'COALESCE(wb.available_amount, u.balance, 0)';
+    // balanceColumn mirrors the CASE expression in the SELECT so WHERE filters stay consistent.
+    // wb_eur = EUR wallet (most customers); wb_pref = non-EUR wallet (converted to EUR in SELECT).
+    // For WHERE-clause filtering, using the EUR wallet + legacy u.balance fallback is sufficient.
+    const balanceColumn = 'COALESCE(wb_eur.available_amount, u.balance, 0)';
     const whereClauses = ["r.name IN ('student', 'outsider', 'trusted_customer')", "u.deleted_at IS NULL"];
     const params = [];
 
@@ -307,10 +310,17 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
         u.phone,
         r.name AS role,
         CASE
-          WHEN wb_pref.available_amount IS NOT NULL AND cs.exchange_rate IS NOT NULL AND cs.exchange_rate > 0
-            THEN ROUND((wb_pref.available_amount / cs.exchange_rate)::numeric, 2)
-          WHEN wb_eur.available_amount IS NOT NULL
+          -- Non-EUR wallet (non-zero): convert to EUR + add any EUR wallet balance.
+          -- This handles multi-currency scenarios where admin deposited EUR while the
+          -- customer's preferred wallet is a different currency (e.g. TRY).
+          WHEN wb_pref.available_amount IS NOT NULL AND wb_pref.available_amount != 0
+               AND cs.exchange_rate IS NOT NULL AND cs.exchange_rate > 0
+            THEN ROUND((wb_pref.available_amount / cs.exchange_rate + COALESCE(wb_eur.available_amount, 0))::numeric, 2)
+          -- EUR wallet only (non-zero): use directly
+          WHEN wb_eur.available_amount IS NOT NULL AND wb_eur.available_amount != 0
             THEN wb_eur.available_amount
+          -- No wallet or all-zero wallets: fall back to legacy u.balance
+          -- (u.balance can be negative for pre-wallet customers who owe money)
           ELSE COALESCE(u.balance, 0)
         END AS balance,
         COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,

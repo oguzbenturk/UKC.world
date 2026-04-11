@@ -210,7 +210,7 @@ const ShopPage = () => {
                     brand: filterBrand && filterBrand !== 'all' ? filterBrand : undefined,
                     min_price: filterPrice && filterPrice[0] > 0 ? filterPrice[0] : undefined,
                     max_price: filterPrice && filterPrice[1] < DEFAULT_PRICE_RANGE[1] ? filterPrice[1] : undefined,
-                    in_stock: filterInStock || undefined,
+                    in_stock: true,
                     sort_by: 'created_at',
                     sort_order: 'DESC',
                 });
@@ -462,18 +462,25 @@ const ShopPage = () => {
         const catDef = PRODUCT_CATEGORIES[cat]?.subcategories;
         if (!catDef) return [];
         const treeSubcats = productTree[cat]?.subcategories || {};
+        const catDefValues = Object.values(catDef);
+
+        // Recursively count products for a subcategory and ALL its descendants
+        const countWithDescendants = (value) => {
+            const direct = treeSubcats[value] || 0;
+            const children = catDefValues.filter(s => s.parent === value);
+            return direct + children.reduce((sum, c) => sum + countWithDescendants(c.value), 0);
+        };
 
         // Build top-level list: subcategories that are either parent=null or have no parent field
-        const topLevel = Object.values(catDef).filter(s => !s.parent);
+        const topLevel = catDefValues.filter(s => !s.parent);
 
         return topLevel
             .map(parent => {
-                // Count: parent's own products + all children's products
-                const children = Object.values(catDef).filter(s => s.parent === parent.value);
-                const count = (treeSubcats[parent.value] || 0) + children.reduce((sum, c) => sum + (treeSubcats[c.value] || 0), 0);
+                const count = countWithDescendants(parent.value);
+                const children = catDefValues.filter(s => s.parent === parent.value);
                 const childItems = children
-                    .filter(c => treeSubcats[c.value] > 0)
-                    .map(c => ({ value: c.value, label: c.label, count: treeSubcats[c.value] }));
+                    .map(c => ({ value: c.value, label: c.label, count: countWithDescendants(c.value) }))
+                    .filter(c => c.count > 0);
                 return { value: parent.value, label: parent.label, count, children: childItems };
             })
             .filter(s => s.count > 0)

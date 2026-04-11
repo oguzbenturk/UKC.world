@@ -136,41 +136,27 @@ const DownwinderBookingModal = ({
   // Get display price (dual: EUR first, then local currency)
   const getDisplayPrice = useCallback(() => {
     const eurBase = pkg?.price || 0;
-    let eurFinal = eurBase;
-    if (appliedVoucher) {
-      if (appliedVoucher.discountType === 'percentage') {
-        eurFinal = eurBase * (1 - appliedVoucher.discountValue / 100);
-      } else {
-        eurFinal = Math.max(0, eurBase - appliedVoucher.discountValue);
-      }
-    }
+    const disc = appliedVoucher?.discount;
+    const eurFinal = (disc && disc.originalAmount > 0)
+      ? Math.max(0, eurBase * (disc.finalAmount / disc.originalAmount))
+      : eurBase;
     const eurFormatted = formatCurrency(eurFinal, 'EUR');
     if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
     if (currency === 'EUR') return eurFormatted;
-    let localFinal = price;
-    if (appliedVoucher) {
-      if (appliedVoucher.discountType === 'percentage') {
-        localFinal = price * (1 - appliedVoucher.discountValue / 100);
-      } else {
-        const discountInLocal = convertCurrency ? convertCurrency(appliedVoucher.discountValue, 'EUR', currency) : appliedVoucher.discountValue;
-        localFinal = Math.max(0, price - discountInLocal);
-      }
-    }
+    const localFinal = (disc && disc.originalAmount > 0)
+      ? Math.max(0, price * (disc.finalAmount / disc.originalAmount))
+      : price;
     return `${eurFormatted} (~${formatCurrency(localFinal, currency)})`;
   }, [pkg, userCurrency, convertCurrency, appliedVoucher, formatCurrency]);
 
   const getRawPrice = useCallback(() => {
     const { price } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
-    let finalPrice = price;
-    if (appliedVoucher) {
-      if (appliedVoucher.discountType === 'percentage') {
-        finalPrice = price * (1 - appliedVoucher.discountValue / 100);
-      } else {
-        finalPrice = Math.max(0, price - appliedVoucher.discountValue);
-      }
+    const disc = appliedVoucher?.discount;
+    if (disc && disc.originalAmount > 0) {
+      return Math.max(0, price * (disc.finalAmount / disc.originalAmount));
     }
-    return finalPrice;
+    return price;
   }, [pkg, userCurrency, convertCurrency, appliedVoucher]);
 
   // Itinerary preview

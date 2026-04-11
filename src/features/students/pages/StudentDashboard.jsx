@@ -26,7 +26,7 @@ const REC_LINK = {
   product:       (rec) => rec.itemId ? `/shop/product/${rec.itemId}` : '/shop/browse',
   service:       ()    => '/academy/book-service',
   rental:        ()    => '/rental/book-equipment',
-  accommodation: ()    => '/stay/book-accommodation',
+  accommodation: ()    => '/accommodation',
   custom:        ()    => null,
 };
 

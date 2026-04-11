@@ -103,7 +103,9 @@ const ProductDetailPage = () => {
             selectedColor: variantState.selectedColor,
             selectedVariant: variantState.selectedVariant
         });
-        selectedAddons.forEach(addon => addToCartContext(addon, 1, {}));
+        selectedAddons.forEach(addon => addToCartContext(addon, 1, {
+            selectedSize: addon._selectedSize || null
+        }));
         const count = 1 + selectedAddons.length;
         message.success(`${count} item${count > 1 ? 's' : ''} added to cart`);
         setSelectedAddons([]);

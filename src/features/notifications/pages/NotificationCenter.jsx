@@ -110,7 +110,28 @@ const NotificationCenter = () => {
         persistRatingContext(notification.data.ratingContext);
       }
 
-      const href = notification.data?.cta?.href;
+      // Accommodation booking notifications → Stay calendar
+      if (notification.type === 'accommodation_booking' || notification.data?.bookingType === 'accommodation') {
+        navigate('/calendars/stay');
+        return;
+      }
+      // Shop order notifications → orders tab with order modal open
+      if (notification.type === 'shop_order') {
+        const orderId = notification.data?.orderId;
+        navigate(orderId ? `/services/shop?orderId=${orderId}` : '/services/shop');
+        return;
+      }
+      // Instructor pending booking notifications → daily calendar with booking open
+      if (notification.type === 'new_booking_alert') {
+        const bookingId = notification.data?.bookingId;
+        const date = notification.data?.date;
+        const params = new URLSearchParams();
+        if (bookingId) params.set('bookingId', String(bookingId));
+        if (date) params.set('date', date);
+        navigate(`/calendars/lessons?${params.toString()}`);
+        return;
+      }
+      const href = notification.data?.cta?.href || notification.data?.link;
       if (href) {
         navigate(href);
       }

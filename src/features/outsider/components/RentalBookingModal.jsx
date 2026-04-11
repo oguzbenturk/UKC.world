@@ -232,9 +232,9 @@ const DateStep = ({
       {/* Price breakdown — shows when dates selected */}
       {numberOfDays > 0 && (
         <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4">
-          {isPackage ? (
+          {maxDays ? (
             <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
-              <span>Package price ({maxDays} days)</span>
+              <span>{isPackage ? 'Package price' : 'Rental'} ({maxDays} days)</span>
               <span className="font-semibold text-slate-700">{formatCurrency(totalPrice, priceCurrency)}</span>
             </div>
           ) : (
@@ -330,9 +330,9 @@ const PayStep = ({
           {startDateLabel} → {endDateLabel}
         </p>
         <div className="mt-3 pt-3 border-t border-slate-200/60">
-          {isPackage ? (
+          {maxDays ? (
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-              <span>Package — {maxDays} days</span>
+              <span>{isPackage ? 'Package' : 'Rental'} — {maxDays} days</span>
             </div>
           ) : (
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
@@ -645,7 +645,10 @@ const RentalBookingModal = ({
   const clearDays = useCallback(() => setSelectedDays(new Set()), []);
 
   // ── Price resolution ──────────────────────────────────────────────────────
-  const packageTotalDays = isPackage && maxDays ? maxDays : null;
+  // Any service with durationHours >= 24 stores a PERIOD total (not a per-day rate).
+  // This covers both explicit packages (isPackage=true) AND weekly/multi-day rentals
+  // where servicePrice is the full-period price (e.g. 700 EUR for a week).
+  // Services with durationHours < 24 are priced as a daily rate × selected days.
 
   const dailyPrice = useMemo(() => {
     const basePrice = normalizeNumeric(servicePrice, 0);
@@ -653,22 +656,23 @@ const RentalBookingModal = ({
     const converted = (convertCurrency && userCurrency && userCurrency !== baseCurrency)
       ? convertCurrency(basePrice, baseCurrency, userCurrency)
       : basePrice;
-    // For packages the stored price is the total; derive per-day for display
-    if (isPackage && packageTotalDays > 0) return converted / packageTotalDays;
+    // For multi-day services the stored price is the period total; derive per-day for display
+    if (maxDays > 0) return converted / maxDays;
     return converted;
-  }, [servicePrice, serviceCurrency, userCurrency, convertCurrency, isPackage, packageTotalDays]);
+  }, [servicePrice, serviceCurrency, userCurrency, convertCurrency, maxDays]);
 
-  // For packages: total is always the fixed package price regardless of days selected
-  const packageTotalPrice = useMemo(() => {
-    if (!isPackage) return null;
+  // For multi-day services (packages OR weekly/multi-day rentals): price is the fixed period total
+  const effectiveTotalPrice = useMemo(() => {
+    if (!maxDays) return null;
     const basePrice = normalizeNumeric(servicePrice, 0);
     if (convertCurrency && userCurrency && userCurrency !== (serviceCurrency || 'EUR')) {
       return convertCurrency(basePrice, serviceCurrency || 'EUR', userCurrency);
     }
     return basePrice;
-  }, [isPackage, servicePrice, serviceCurrency, userCurrency, convertCurrency]);
+  }, [maxDays, servicePrice, serviceCurrency, userCurrency, convertCurrency]);
 
-  const totalPrice = isPackage ? (packageTotalPrice ?? 0) : dailyPrice * numberOfDays;
+  // Fixed total for multi-day services; per-day accumulation for daily/hourly
+  const totalPrice = maxDays ? (effectiveTotalPrice ?? 0) : dailyPrice * numberOfDays;
   const priceCurrency = userCurrency || serviceCurrency || 'EUR';
 
   // ── Insurance ─────────────────────────────────────────────────────────────
@@ -726,8 +730,9 @@ const RentalBookingModal = ({
   const handleConfirmPayment = useCallback(() => {
     if (!studentId || !serviceId || numberOfDays === 0) return;
     const rawTotal = normalizeNumeric(servicePrice, 0);
-    // For packages: split the fixed total evenly across the booked days
-    const unitPrice = isPackage && numberOfDays > 0
+    // For multi-day services (packages OR weekly/multi-day rentals): split the fixed
+    // period total evenly across the booked days for per-day DB records
+    const unitPrice = maxDays && numberOfDays > 0
       ? parseFloat((rawTotal / numberOfDays).toFixed(2))
       : rawTotal;
 

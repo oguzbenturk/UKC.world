@@ -2151,7 +2151,7 @@ router.post('/',
             instructorName,
             date: sessionDate,
             status: 'pending',
-            cta: { label: 'Review Booking', href: `/bookings/calendar` }
+            cta: { label: 'Review Booking', href: `/calendars/lessons?bookingId=${booking.id}&date=${sessionDate}` }
           },
           excludeUserIds: [req.user?.id],
           roles: ['admin', 'manager', 'owner']
@@ -3096,7 +3096,7 @@ router.post('/group',
             instructorName,
             date: sessionDate,
             status: 'pending',
-            cta: { label: 'Review Booking', href: `/bookings/calendar` }
+            cta: { label: 'Review Booking', href: `/calendars/lessons?bookingId=${booking.id}&date=${sessionDate}` }
           },
           excludeUserIds: [req.user?.id],
           roles: ['admin', 'manager', 'owner']
@@ -3742,7 +3742,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
               instructorName,
               date: normalizedDate,
               status: 'pending',
-              cta: { label: 'Review Booking', href: `/bookings/calendar` }
+              cta: { label: 'Review Booking', href: `/calendars/lessons?bookingId=${booking.rows[0].id}&date=${normalizedDate}` }
             },
             excludeUserIds: [req.user?.id],
             roles: ['admin', 'manager', 'owner']

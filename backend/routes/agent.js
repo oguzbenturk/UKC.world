@@ -16,9 +16,10 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { requireRole, verifyAgentIdentity } from '../middlewares/authenticateAgent.js';
 import { sendEmail } from '../services/emailService.js';
-import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
+import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { getDashboardSummary } from '../services/dashboardSummaryService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
+import { logAuditEvent } from '../services/auditLogService.js';
 
 const router = express.Router();
 
@@ -762,6 +763,16 @@ router.post(
         });
       }
 
+      logAuditEvent({
+        eventType: 'kai.booking.create',
+        action: 'create',
+        resourceType: 'booking',
+        resourceId: bookingId,
+        actorUserId: userId,
+        description: `Kai created booking for ${service.name} on ${date}`,
+        metadata: { via: 'kai', role, serviceId, date, startHour, paymentMethod: customerPackageId ? 'package' : paymentMethod },
+      }).catch((e) => logger.warn('Kai audit log failed (booking create)', e.message));
+
       res.status(201).json({
         bookingId,
         serviceName: service.name,
@@ -1193,9 +1204,20 @@ router.post(
         return res.status(400).json({ error: 'title and message are required' });
       }
 
+      const { userId: actorId, role: actorRole } = req.agent;
+
       // Target a single user
       if (targetUserId) {
         await dispatchNotification({ userId: targetUserId, type, title, message });
+        logAuditEvent({
+          eventType: 'kai.notification.send',
+          action: 'create',
+          resourceType: 'notification',
+          actorUserId: actorId,
+          targetUserId,
+          description: `Kai sent notification: ${title}`,
+          metadata: { via: 'kai', role: actorRole, type },
+        }).catch((e) => logger.warn('Kai audit log failed (notify)', e.message));
         return res.json({ success: true, notified: [targetUserId] });
       }
 
@@ -1207,8 +1229,16 @@ router.post(
            WHERE LOWER(r.name) = LOWER($1) AND u.deleted_at IS NULL`,
           [targetRole],
         );
-        const ids = rows.map((r) => r.id);
+        const ids = rows.map((id) => id.id);
         await Promise.all(ids.map((id) => dispatchNotification({ userId: id, type, title, message })));
+        logAuditEvent({
+          eventType: 'kai.notification.send',
+          action: 'create',
+          resourceType: 'notification',
+          actorUserId: actorId,
+          description: `Kai sent bulk notification to role ${targetRole}: ${title}`,
+          metadata: { via: 'kai', role: actorRole, targetRole, type, count: ids.length },
+        }).catch((e) => logger.warn('Kai audit log failed (notify bulk)', e.message));
         return res.json({ success: true, notified: ids });
       }
 
@@ -1233,6 +1263,16 @@ router.post(
       }
 
       await sendEmail({ to, subject, html: emailBody, text: emailBody });
+
+      const { userId: emailActorId, role: emailActorRole } = req.agent;
+      logAuditEvent({
+        eventType: 'kai.email.send',
+        action: 'create',
+        resourceType: 'email',
+        actorUserId: emailActorId,
+        description: `Kai sent email to ${to}: ${subject}`,
+        metadata: { via: 'kai', role: emailActorRole, to, subject },
+      }).catch((e) => logger.warn('Kai audit log failed (email)', e.message));
 
       res.json({ success: true, to, subject });
     } catch (err) {
@@ -1338,8 +1378,8 @@ router.post('/session/:sessionId', async (req, res) => {
       return res.status(400).json({ error: 'messages must be an array' });
     }
 
-    // Keep only the last 50 messages to prevent unbounded growth
-    const trimmed = messages.slice(-50);
+    // Keep only the last 30 messages to prevent unbounded growth
+    const trimmed = messages.slice(-30);
 
     await pool.query(
       `INSERT INTO kai_sessions (session_id, user_id, user_role, messages, summary, kb_snapshot, kb_fetched_at, updated_at)
@@ -1560,6 +1600,77 @@ router.post(
     } catch (err) {
       logger.error('Agent POST /bookings/:id/cancel error', err);
       res.status(500).json({ error: 'Failed to cancel booking' });
+    }
+  },
+);
+
+// ── POST /bookings/:id/reschedule — Student self-reschedule (24h window) ────────
+router.post(
+  '/bookings/:id/reschedule',
+  requireRole(['student', 'trusted_customer']),
+  verifyAgentIdentity,
+  async (req, res) => {
+    try {
+      const { userId } = req.agent;
+      const { id } = req.params;
+      const newDate = req.query.newDate || req.body?.newDate;
+      const newHour = req.query.newHour ?? req.body?.newHour;
+
+      if (!newDate || newHour == null) {
+        return res.status(400).json({ error: 'newDate and newHour are required' });
+      }
+
+      const { rows } = await pool.query(
+        `SELECT b.id, b.date, b.start_hour, b.status,
+                (b.date + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
+                u.name AS student_name
+         FROM bookings b
+         LEFT JOIN users u ON u.id = $2
+         WHERE b.id = $1
+           AND (b.student_user_id = $2 OR b.customer_user_id = $2)
+           AND b.deleted_at IS NULL`,
+        [id, userId],
+      );
+
+      if (!rows.length) return res.status(404).json({ error: 'Booking not found or not yours' });
+      if (rows[0].status === 'cancelled') {
+        return res.status(400).json({ error: 'Cannot reschedule a cancelled booking' });
+      }
+
+      const hoursUntil = (new Date(rows[0].start_ts) - new Date()) / 3600000;
+      if (hoursUntil < 24) {
+        return res.status(400).json({
+          error: `Reschedule window passed (${Math.round(hoursUntil)}h until lesson). Contact WhatsApp: +90 507 138 91 96`,
+        });
+      }
+
+      await pool.query(
+        `UPDATE bookings SET date = $1, start_hour = $2, updated_at = NOW() WHERE id = $3`,
+        [newDate, parseFloat(newHour), id],
+      );
+
+      const studentName = rows[0].student_name || 'Student';
+      dispatchToStaff({
+        type: 'booking_update',
+        title: 'Booking Rescheduled via Kai',
+        message: `${studentName} rescheduled a lesson to ${newDate} at ${newHour}:00 via Kai.`,
+        roles: ['super_admin', 'admin', 'manager', 'owner', 'frontdesk'],
+      }).catch((e) => logger.warn('Kai reschedule staff notify failed', e.message));
+
+      logAuditEvent({
+        eventType: 'kai.booking.reschedule',
+        action: 'update',
+        resourceType: 'booking',
+        resourceId: id,
+        actorUserId: userId,
+        description: `Kai rescheduled booking to ${newDate} at ${newHour}:00`,
+        metadata: { via: 'kai', role: 'student', newDate, newHour },
+      }).catch((e) => logger.warn('Kai audit log failed (reschedule)', e.message));
+
+      res.json({ success: true, message: `Booking rescheduled to ${newDate} at ${newHour}:00.` });
+    } catch (err) {
+      logger.error('Agent POST /bookings/:id/reschedule error', err);
+      res.status(500).json({ error: 'Failed to reschedule booking' });
     }
   },
 );

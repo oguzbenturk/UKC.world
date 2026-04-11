@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { XMarkIcon, MicrophoneIcon, PaperClipIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, MicrophoneIcon, PaperClipIcon, XCircleIcon, BookmarkIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
 import ReactMarkdown from 'react-markdown';
 import { useAIChat } from '@/shared/contexts/AIChatContext';
+import { useAuth } from '@/shared/hooks/useAuth';
+import KaiQuickActions, { useSaveMessage } from './KaiQuickActions';
 
 const formatTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -24,14 +26,17 @@ const TypingIndicator = () => (
 
 const WhatsAppChatModal = () => {
   const { isChatOpen, closeChat, messages, sending, send } = useAIChat();
+  const { user } = useAuth();
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [attachment, setAttachment] = useState(null); // { file, preview, base64 }
+  const [savedMsgs, setSavedMsgs] = useState(new Set()); // track which messages are already saved
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const saveMessage = useSaveMessage(user?.id);
 
   useEffect(() => {
     if (messages.length > 0 || sending) {
@@ -163,6 +168,21 @@ const WhatsAppChatModal = () => {
                 <div className="w-7 h-7 rounded-full bg-duotone-blue flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mb-0.5">K</div>
               )}
 
+              {/* Bookmark icon for user messages */}
+              {m.role === 'user' && m.content && (
+                <button
+                  onClick={() => {
+                    saveMessage(m.content);
+                    setSavedMsgs((prev) => new Set([...prev, i]));
+                  }}
+                  className="mb-1 flex-shrink-0 text-gray-300 hover:text-duotone-blue transition-colors"
+                  title="Save message">
+                  {savedMsgs.has(i)
+                    ? <BookmarkSolid className="w-3.5 h-3.5 text-duotone-blue" />
+                    : <BookmarkIcon className="w-3.5 h-3.5" />}
+                </button>
+              )}
+
               <div className={`relative max-w-[78%] px-3 pt-2 pb-1.5 text-sm ${
                 m.role === 'user'
                   ? 'bg-duotone-blue text-white rounded-2xl rounded-br-sm shadow-sm'
@@ -203,6 +223,9 @@ const WhatsAppChatModal = () => {
           {sending && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Quick action buttons */}
+        <KaiQuickActions onSend={(msg) => { send(msg); }} disabled={sending} />
 
         {/* Listening indicator */}
         {isListening && (

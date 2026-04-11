@@ -142,7 +142,7 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
           <button
             key={b.id}
             type="button"
-            onClick={() => navigate('/stay/book-accommodation')}
+            onClick={() => navigate('/accommodation')}
             className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
               isCurrent
                 ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50'

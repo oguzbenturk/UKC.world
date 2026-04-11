@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import apiClient from '@/shared/services/apiClient';
 import { useAuth } from './useAuth';
 
@@ -6,13 +6,23 @@ export function useAIAssistant() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
+  const sessionIdRef = useRef(getOrCreateSessionId());
 
   const greet = () => {
-    setMessages([{
-      role: 'assistant',
-      content: "Hi! I'm Kai, your UKC assistant. How can I help you today?",
-      timestamp: Date.now(),
-    }]);
+    const role = user?.role?.toLowerCase() || 'outsider';
+    const greeting =
+      GREETINGS[role]?.(user?.name) ??
+      "Hi! I'm Kai, your UKC assistant. How can I help you today?";
+    setMessages([{ role: 'assistant', content: greeting, timestamp: Date.now() }]);
+  };
+
+  const clearMessages = (newSession = false) => {
+    setMessages([]);
+    if (newSession) {
+      const id = crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, id);
+      sessionIdRef.current = id;
+    }
   };
 
   const send = async (text, imageBase64 = null) => {
@@ -23,8 +33,8 @@ export function useAIAssistant() {
     try {
       const payload = {
         message: text?.trim() || 'Analyze this image',
-        conversationHistory: messages,
         userName: user?.name || user?.email || null,
+        sessionId: sessionIdRef.current,
       };
       if (imageBase64) payload.image = imageBase64;
       const { data } = await apiClient.post('/assistant', payload);
@@ -46,5 +56,5 @@ export function useAIAssistant() {
     }
   };
 
-  return { messages, sending, send, greet };
+  return { messages, sending, send, greet, clearMessages };
 }

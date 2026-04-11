@@ -5,7 +5,7 @@ const AIChatContext = createContext(null);
 
 export function AIChatProvider({ children }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { messages, sending, send, greet } = useAIAssistant();
+  const { messages, sending, send, greet, clearMessages } = useAIAssistant();
   const hasGreeted = useRef(false);
 
   const openChat = useCallback(() => {
@@ -28,7 +28,7 @@ export function AIChatProvider({ children }) {
   }, [greet]);
 
   return (
-    <AIChatContext.Provider value={{ isChatOpen, openChat, closeChat, toggleChat, messages, sending, send }}>
+    <AIChatContext.Provider value={{ isChatOpen, openChat, closeChat, toggleChat, messages, sending, send, clearMessages }}>
       {children}
     </AIChatContext.Provider>
   );

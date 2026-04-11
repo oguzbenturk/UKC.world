@@ -733,7 +733,7 @@ class BookingNotificationService {
         data: notificationData,
         idempotencyPrefix: `booking-created:${bookingId}`,
         excludeUserIds: [instructorId, createdBy].filter(Boolean),
-        roles: ['super_admin', 'admin', 'manager', 'owner'],
+        roles: ['super_admin', 'admin', 'manager', 'owner', 'frontdesk'],
         client
       });
 
