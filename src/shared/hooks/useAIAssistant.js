@@ -2,6 +2,25 @@ import { useState, useRef } from 'react';
 import apiClient from '@/shared/services/apiClient';
 import { useAuth } from './useAuth';
 
+const SESSION_KEY = 'kai_session_id';
+
+const GREETINGS = {
+  admin:            (name) => `Hey ${name || 'there'} — what do you need? I can pull bookings, check financials, or look up a customer.`,
+  manager:          (name) => `Hi ${name || 'there'} — ready to help. Bookings, schedules, or customer data?`,
+  instructor:       (name) => `Hey ${name || 'Coach'} — want to see your schedule or add a student note?`,
+  student:          (name) => `Hey ${name || 'there'}! Ready to book your next session or check your package?`,
+  trusted_customer: (name) => `Hey ${name || 'there'} — how can I help with your bookings today?`,
+};
+
+function getOrCreateSessionId() {
+  let id = localStorage.getItem(SESSION_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, id);
+  }
+  return id;
+}
+
 export function useAIAssistant() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
