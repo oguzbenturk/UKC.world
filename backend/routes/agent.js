@@ -18,6 +18,7 @@ import { requireRole, verifyAgentIdentity } from '../middlewares/authenticateAge
 import { sendEmail } from '../services/emailService.js';
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { getDashboardSummary } from '../services/dashboardSummaryService.js';
+import bookingNotificationService from '../services/bookingNotificationService.js';
 
 const router = express.Router();
 
@@ -322,10 +323,14 @@ router.get('/customers/:id/packages', async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, package_name, total_hours, used_hours, remaining_hours, status, expiry_date
-       FROM customer_packages
-       WHERE customer_id = $1
-       ORDER BY created_at DESC`,
+      `SELECT cp.id, cp.package_name, cp.total_hours, cp.used_hours, cp.remaining_hours,
+              cp.status, cp.expiry_date, cp.lesson_service_name,
+              s.id AS service_id, s.name AS service_name
+       FROM customer_packages cp
+       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+       LEFT JOIN services s ON LOWER(s.name) = LOWER(COALESCE(cp.lesson_service_name, sp.lesson_service_name))
+       WHERE cp.customer_id = $1
+       ORDER BY cp.created_at DESC`,
       [id],
     );
 
@@ -333,6 +338,8 @@ router.get('/customers/:id/packages', async (req, res) => {
       rows.map((p) => ({
         packageId: p.id,
         packageName: p.package_name,
+        serviceId: p.service_id || null,
+        serviceName: p.service_name || p.lesson_service_name || null,
         totalHours: toNum(p.total_hours),
         usedHours: toNum(p.used_hours),
         remainingHours: toNum(p.remaining_hours),
@@ -744,6 +751,16 @@ router.post(
       }
 
       await client.query('COMMIT');
+
+      // Notify all participants: student, instructor, admin, manager, frontdesk
+      try {
+        await bookingNotificationService.sendBookingCreated({ bookingId });
+      } catch (notifErr) {
+        logger.warn('Agent POST /bookings: notification dispatch failed', {
+          bookingId,
+          error: notifErr?.message,
+        });
+      }
 
       res.status(201).json({
         bookingId,
