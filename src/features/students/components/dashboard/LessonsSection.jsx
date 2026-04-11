@@ -15,7 +15,7 @@ const pickFirst = (...values) => {
 };
 
 const resolveLessonName = (l) => pickFirst(l?.service?.name, l?.lessonType, 'Lesson');
-const resolveInstructorName = (l) => pickFirst(l?.instructor?.name, l?.instructorName, 'TBD');
+const resolveInstructorName = (l) => pickFirst(l?.instructor?.name, l?.instructorName, '—');
 const resolveStatus = (l) => pickFirst(l?.status, 'scheduled');
 
 const resolveDate = (l) => {
@@ -35,18 +35,19 @@ const statusCls = {
 const LessonRow = ({ lesson, onClick }) => {
   const status = resolveStatus(lesson);
   return (
-    <button
-      type="button"
+    <tr
       onClick={onClick}
-      className="w-full grid grid-cols-[1fr_1.2fr_1fr_auto] gap-2 items-center px-4 py-2.5 text-left text-xs hover:bg-slate-50 transition-colors"
+      className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
     >
-      <span className="font-gotham-medium text-slate-600 truncate">{resolveDate(lesson)}</span>
-      <span className="font-duotone-bold text-slate-900 truncate">{resolveLessonName(lesson)}</span>
-      <span className="text-slate-500 truncate">{resolveInstructorName(lesson)}</span>
-      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-gotham-medium uppercase tracking-wider ${statusCls[status] || statusCls.scheduled}`}>
-        {status}
-      </span>
-    </button>
+      <td className="px-4 py-2.5 font-gotham-medium text-xs text-slate-600 whitespace-nowrap">{resolveDate(lesson)}</td>
+      <td className="px-4 py-2.5 font-duotone-bold text-xs text-slate-900">{resolveLessonName(lesson)}</td>
+      <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{resolveInstructorName(lesson)}</td>
+      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-gotham-medium uppercase tracking-wider ${statusCls[status] || statusCls.scheduled}`}>
+          {status}
+        </span>
+      </td>
+    </tr>
   );
 };
 
@@ -94,24 +95,25 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
 
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50/30">
-          {/* header */}
-          <div className="grid grid-cols-[1fr_1.2fr_1fr_auto] gap-2 px-4 py-2 text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 border-b border-slate-100">
-            <span>Date</span>
-            <span>Lesson</span>
-            <span>Instructor</span>
-            <span>Status</span>
-          </div>
-
-          {/* rows */}
-          <div className="divide-y divide-slate-100">
-            {visible.map((lesson, i) => (
-              <LessonRow
-                key={lesson?.bookingId || lesson?.id || i}
-                lesson={lesson}
-                onClick={() => navigate('/student/schedule')}
-              />
-            ))}
-          </div>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[110px]">Date</th>
+                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Lesson</th>
+                <th className="px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[130px]">Instructor</th>
+                <th className="px-4 py-2 text-right text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400 w-[100px]">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((lesson, i) => (
+                <LessonRow
+                  key={lesson?.bookingId || lesson?.id || i}
+                  lesson={lesson}
+                  onClick={() => navigate('/student/schedule')}
+                />
+              ))}
+            </tbody>
+          </table>
 
           {/* show more */}
           {remaining > 0 && !showAll && (

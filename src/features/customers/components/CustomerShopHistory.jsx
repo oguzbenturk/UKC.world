@@ -31,14 +31,16 @@ const CustomerShopHistory = ({ userId }) => {
   const { formatCurrency } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState([]);
+  const [fetchError, setFetchError] = useState(null);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
   const fetchOrders = async (page = 1) => {
     setLoading(true);
+    setFetchError(null);
     try {
-      const response = await apiClient.get(`/shop-orders/admin/user/${userId}?page=${page}&limit=${pagination.pageSize}`);
+      const response = await apiClient.get(`/shop-orders/admin/user/${userId}?page=${page}&limit=10`);
       setOrders(response.data.orders || []);
       setPagination({
         current: response.data.page,
@@ -47,6 +49,7 @@ const CustomerShopHistory = ({ userId }) => {
       });
     } catch (error) {
       console.error('Failed to fetch orders', error);
+      setFetchError(error?.response?.data?.error || 'Failed to load shop orders');
     } finally {
       setLoading(false);
     }
@@ -153,6 +156,10 @@ const CustomerShopHistory = ({ userId }) => {
 
   if (loading && orders.length === 0) {
      return <div className="p-12 text-center"><Spin /></div>;
+  }
+
+  if (fetchError) {
+     return <Empty description={fetchError} />;
   }
 
   if (orders.length === 0) {

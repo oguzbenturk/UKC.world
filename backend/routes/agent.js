@@ -1409,6 +1409,25 @@ router.post('/session/:sessionId', async (req, res) => {
   }
 });
 
+// ── GET /staff — List instructors (all authenticated roles) ──────────────────
+router.get('/staff', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name
+       FROM users u
+       JOIN user_roles ur ON ur.user_id = u.id
+       JOIN roles r ON r.id = ur.role_id
+       WHERE LOWER(r.name) = 'instructor'
+         AND u.deleted_at IS NULL
+       ORDER BY u.name`,
+    );
+    res.json({ instructors: rows });
+  } catch (err) {
+    logger.error('Agent GET /staff error', err);
+    res.status(500).json({ error: 'Failed to fetch instructors' });
+  }
+});
+
 // ── GET /services — List lesson services + pricing (all roles) ───────────────
 router.get('/services', async (req, res) => {
   try {
