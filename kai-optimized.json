@@ -14,8 +14,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        240,
-        300
+        200,
+        -100
       ],
       "webhookId": "plannivo-assistant",
       "credentials": {
@@ -41,7 +41,7 @@
       "typeVersion": 4.2,
       "position": [
         460,
-        300
+        -100
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -65,8 +65,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        620,
-        300
+        720,
+        -100
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -84,8 +84,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        980,
+        -100
       ]
     },
     {
@@ -192,8 +192,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        900,
-        300
+        1240,
+        -100
       ]
     },
     {
@@ -209,8 +209,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1140,
-        60
+        1720,
+        -100
       ]
     },
     {
@@ -226,8 +226,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1140,
-        260
+        1720,
+        760
       ]
     },
     {
@@ -243,8 +243,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1140,
-        460
+        1720,
+        1440
       ]
     },
     {
@@ -260,8 +260,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1140,
-        660
+        1720,
+        2840
       ]
     },
     {
@@ -277,8 +277,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1020,
-        180
+        1720,
+        100
       ],
       "credentials": {
         "googlePalmApi": {
@@ -300,8 +300,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1020,
-        380
+        1720,
+        960
       ],
       "credentials": {
         "googlePalmApi": {
@@ -323,8 +323,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1020,
-        580
+        1720,
+        1640
       ],
       "credentials": {
         "googlePalmApi": {
@@ -346,8 +346,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1020,
-        780
+        1720,
+        3040
       ],
       "credentials": {
         "googlePalmApi": {
@@ -374,8 +374,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1580,
-        380
+        3060,
+        1440
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -393,8 +393,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
-        380
+        3300,
+        1440
       ]
     },
     {
@@ -407,8 +407,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1880,
-        380
+        3540,
+        1440
       ]
     },
     {
@@ -473,8 +473,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        940,
-        -100
+        1900,
+        -300
       ],
       "onError": "continueRegularOutput"
     },
@@ -531,8 +531,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1060,
-        -100
+        2120,
+        -300
       ],
       "onError": "continueRegularOutput"
     },
@@ -589,8 +589,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1180,
-        -100
+        2340,
+        -300
       ],
       "onError": "continueRegularOutput"
     },
@@ -647,8 +647,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1300,
-        -100
+        2560,
+        -300
       ],
       "onError": "continueRegularOutput"
     },
@@ -705,8 +705,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1420,
-        -100
+        2780,
+        -300
       ],
       "onError": "continueRegularOutput"
     },
@@ -772,8 +772,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        820,
-        380
+        1900,
+        200
       ],
       "onError": "continueRegularOutput"
     },
@@ -820,8 +820,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        380
+        2120,
+        200
       ],
       "onError": "continueRegularOutput"
     },
@@ -868,8 +868,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        380
+        2340,
+        200
       ],
       "onError": "continueRegularOutput"
     },
@@ -926,8 +926,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        380
+        2560,
+        200
       ],
       "onError": "continueRegularOutput"
     },
@@ -984,8 +984,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        380
+        2780,
+        200
       ],
       "onError": "continueRegularOutput"
     },
@@ -1092,8 +1092,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        480
+        1900,
+        380
       ],
       "onError": "continueRegularOutput"
     },
@@ -1150,8 +1150,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        480
+        2120,
+        380
       ],
       "onError": "continueRegularOutput"
     },
@@ -1249,8 +1249,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        480
+        2340,
+        380
       ],
       "onError": "continueRegularOutput"
     },
@@ -1307,8 +1307,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        480
+        2560,
+        380
       ],
       "onError": "continueRegularOutput"
     },
@@ -1365,8 +1365,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        580
+        2780,
+        380
       ],
       "onError": "continueRegularOutput"
     },
@@ -1423,8 +1423,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        580
+        1900,
+        560
       ],
       "onError": "continueRegularOutput"
     },
@@ -1481,8 +1481,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        580
+        2120,
+        560
       ],
       "onError": "continueRegularOutput"
     },
@@ -1539,8 +1539,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        580
+        2340,
+        560
       ],
       "onError": "continueRegularOutput"
     },
@@ -1597,8 +1597,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        680
+        2560,
+        560
       ],
       "onError": "continueRegularOutput"
     },
@@ -1655,8 +1655,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        820
+        1900,
+        1060
       ],
       "onError": "continueRegularOutput"
     },
@@ -1713,8 +1713,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        820
+        2120,
+        1060
       ],
       "onError": "continueRegularOutput"
     },
@@ -1761,8 +1761,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        820
+        2340,
+        1060
       ],
       "onError": "continueRegularOutput"
     },
@@ -1829,8 +1829,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        820
+        2560,
+        1060
       ],
       "onError": "continueRegularOutput"
     },
@@ -1910,8 +1910,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        920
+        1900,
+        1240
       ],
       "onError": "continueRegularOutput"
     },
@@ -1978,8 +1978,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        920
+        2120,
+        1240
       ],
       "onError": "continueRegularOutput"
     },
@@ -2036,8 +2036,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        920
+        2340,
+        1240
       ],
       "onError": "continueRegularOutput"
     },
@@ -2094,8 +2094,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1080
+        1900,
+        1740
       ],
       "onError": "continueRegularOutput"
     },
@@ -2142,8 +2142,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1080
+        2120,
+        1740
       ],
       "onError": "continueRegularOutput"
     },
@@ -2190,8 +2190,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1080
+        2340,
+        1740
       ],
       "onError": "continueRegularOutput"
     },
@@ -2238,8 +2238,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1080
+        2560,
+        1740
       ],
       "onError": "continueRegularOutput"
     },
@@ -2332,8 +2332,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1180
+        2780,
+        1740
       ],
       "onError": "continueRegularOutput"
     },
@@ -2449,8 +2449,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1180
+        1900,
+        1920
       ],
       "onError": "continueRegularOutput"
     },
@@ -2507,8 +2507,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1180
+        2120,
+        1920
       ],
       "onError": "continueRegularOutput"
     },
@@ -2570,8 +2570,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1180
+        2340,
+        1920
       ],
       "onError": "continueRegularOutput"
     },
@@ -2628,8 +2628,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1280
+        2560,
+        1920
       ],
       "onError": "continueRegularOutput"
     },
@@ -2676,8 +2676,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1280
+        2780,
+        1920
       ],
       "onError": "continueRegularOutput"
     },
@@ -2744,8 +2744,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1280
+        1900,
+        2100
       ],
       "onError": "continueRegularOutput"
     },
@@ -2825,8 +2825,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1280
+        2120,
+        2100
       ],
       "onError": "continueRegularOutput"
     },
@@ -2883,8 +2883,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1380
+        2340,
+        2100
       ],
       "onError": "continueRegularOutput"
     },
@@ -2973,8 +2973,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1380
+        2560,
+        2100
       ],
       "onError": "continueRegularOutput"
     },
@@ -3054,8 +3054,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1380
+        2780,
+        2100
       ],
       "onError": "continueRegularOutput"
     },
@@ -3121,8 +3121,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1380
+        1900,
+        2280
       ],
       "onError": "continueRegularOutput"
     },
@@ -3179,8 +3179,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1480
+        2120,
+        2280
       ],
       "onError": "continueRegularOutput"
     },
@@ -3237,8 +3237,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1480
+        2340,
+        2280
       ],
       "onError": "continueRegularOutput"
     },
@@ -3345,8 +3345,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1480
+        2560,
+        2280
       ],
       "onError": "continueRegularOutput"
     },
@@ -3413,8 +3413,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1480
+        2780,
+        2280
       ],
       "onError": "continueRegularOutput"
     },
@@ -3471,8 +3471,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1580
+        1900,
+        2460
       ],
       "onError": "continueRegularOutput"
     },
@@ -3529,8 +3529,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1580
+        2120,
+        2460
       ],
       "onError": "continueRegularOutput"
     },
@@ -3587,8 +3587,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1580
+        2340,
+        2460
       ],
       "onError": "continueRegularOutput"
     },
@@ -3645,8 +3645,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1220,
-        1580
+        2560,
+        2460
       ],
       "onError": "continueRegularOutput"
     },
@@ -3703,8 +3703,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        920,
-        1680
+        2780,
+        2460
       ],
       "onError": "continueRegularOutput"
     },
@@ -3761,8 +3761,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1020,
-        1680
+        1900,
+        2640
       ],
       "onError": "continueRegularOutput"
     },
@@ -3809,8 +3809,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        1120,
-        1680
+        2120,
+        2640
       ],
       "onError": "continueRegularOutput"
     }
