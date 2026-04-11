@@ -243,14 +243,9 @@ async function main() {
 
     // Frontend build
     if (!skipBuild) {
-      const distDir = path.join(cwd, 'dist');
-      if (fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0) {
-        console.log('📦 Using existing dist/ — run `npm run build` manually to rebuild.');
-      } else {
-        console.log('🏗️  Building frontend locally (no dist/ found)...');
-        sh('npm run build');
-        console.log('   ✓ Frontend built successfully');
-      }
+      console.log('🏗️  Building frontend locally...');
+      sh('npm run build');
+      console.log('   ✓ Frontend built successfully');
     }
 
     // Swap to prod envs, commit, push, restore
