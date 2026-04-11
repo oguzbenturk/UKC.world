@@ -322,9 +322,9 @@ router.get('/customers/:id/packages', async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, package_name, total_hours, used_hours, remaining_hours, status, expires_at
+      `SELECT id, package_name, total_hours, used_hours, remaining_hours, status, expiry_date
        FROM customer_packages
-       WHERE user_id = $1 AND deleted_at IS NULL
+       WHERE customer_id = $1
        ORDER BY created_at DESC`,
       [id],
     );
@@ -337,7 +337,7 @@ router.get('/customers/:id/packages', async (req, res) => {
         usedHours: toNum(p.used_hours),
         remainingHours: toNum(p.remaining_hours),
         status: p.status,
-        expiresAt: p.expires_at,
+        expiresAt: p.expiry_date,
       })),
     );
   } catch (err) {
