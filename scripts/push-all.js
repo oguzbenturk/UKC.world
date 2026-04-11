@@ -319,9 +319,9 @@ async function main() {
         if (retry) {
           console.log('♻️  --retry mode: skipping file uploads (using files already on server).');
         } else {
-          // Upload backend/.env.production
+          // Upload backend/.env.production to a temp path (git reset --hard would wipe the real path)
           console.log('🔑 Uploading backend/.env.production to server...');
-          await ssh.putFile(beEnvProd, `${remotePath}/backend/.env.production`);
+          await ssh.putFile(beEnvProd, `${remotePath}/.env.production.deploy`);
           console.log('   ✓ backend/.env.production uploaded');
 
           // Upload pre-built frontend dist
@@ -372,6 +372,14 @@ echo "=== Plannivo Deploy ==="
 echo "Pulling latest code..."
 git fetch --all
 git reset --hard origin/${remoteBranch}
+
+# Restore uploaded env file (git reset --hard wipes it if gitignored)
+if [ -f .env.production.deploy ]; then
+  mkdir -p backend
+  cp .env.production.deploy backend/.env.production
+  rm -f .env.production.deploy
+  echo "  ✓ backend/.env.production restored from upload"
+fi
 
 # 2. Verify prerequisites
 echo "Checking prerequisites..."
