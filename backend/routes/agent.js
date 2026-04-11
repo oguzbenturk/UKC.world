@@ -568,6 +568,7 @@ router.get('/bookings/:id', async (req, res) => {
 // ── POST /bookings — Create a booking ─────────────────────────────────────────
 // Always runs verifyAgentIdentity to prevent role spoofing on writes.
 // For students, student_user_id is ALWAYS forced to req.agent.userId.
+// Supports: package-based (customerPackageId), wallet, or cash/card payment.
 router.post(
   '/bookings',
   verifyAgentIdentity,
@@ -585,7 +586,8 @@ router.post(
       date,
       startHour,
       instructorId,
-      paymentMethod = 'cash',
+      customerPackageId,
+      paymentMethod = customerPackageId ? 'package' : 'cash',
       notes = '',
     } = req.body;
 
@@ -593,6 +595,11 @@ router.post(
     let studentUserId = req.body.customerId || req.body.studentId || userId;
     if (student.has(role)) {
       studentUserId = userId;
+    }
+
+    // Students can ONLY book from packages — no wallet/cash/card
+    if (student.has(role) && !customerPackageId) {
+      return res.status(400).json({ error: 'Students must book from a package. Provide customerPackageId.' });
     }
 
     if (!serviceId || !date || startHour == null) {
@@ -613,10 +620,67 @@ router.post(
         return res.status(400).json({ error: 'Service not found' });
       }
       const service = svcRows[0];
+      const bookingDuration = toNum(service.duration) || 1;
       const amount = toNum(service.price) || 0;
 
-      // Wallet check — MANDATORY when paying by wallet
-      if (paymentMethod === 'wallet') {
+      let finalPaymentStatus = 'pending';
+      let finalAmount = amount;
+      let usedPackageId = null;
+
+      // ── Package-based booking ──────────────────────────────────────────
+      if (customerPackageId) {
+        const { rows: pkgRows } = await client.query(
+          `SELECT id, package_name, remaining_hours, total_hours, used_hours, purchase_price, status
+           FROM customer_packages
+           WHERE id = $1 AND customer_id = $2
+             AND status IN ('active', 'waiting_payment')
+             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $3)
+             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)`,
+          [customerPackageId, studentUserId, bookingDuration],
+        );
+        if (!pkgRows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Package not found, not active, or insufficient hours remaining' });
+        }
+        const pkg = pkgRows[0];
+        const currentUsed = toNum(pkg.used_hours) || 0;
+        const currentRemaining = pkg.remaining_hours != null
+          ? toNum(pkg.remaining_hours)
+          : Math.max(0, (toNum(pkg.total_hours) || 0) - currentUsed);
+        const newUsed = currentUsed + bookingDuration;
+        const newRemaining = currentRemaining - bookingDuration;
+
+        const { rows: updatedPkg } = await client.query(
+          `UPDATE customer_packages
+           SET used_hours = $1::numeric, remaining_hours = $2::numeric,
+               last_used_date = $5,
+               updated_at = CURRENT_TIMESTAMP,
+               status = CASE
+                 WHEN $2::numeric <= 0
+                   AND COALESCE(rental_days_remaining, 0) <= 0
+                   AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                 THEN 'used_up'
+                 WHEN status = 'waiting_payment' THEN 'waiting_payment'
+                 ELSE 'active'
+               END
+           WHERE id = $3 AND status IN ('active', 'waiting_payment')
+             AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $4::numeric)
+           RETURNING id, package_name, used_hours, remaining_hours, status`,
+          [newUsed, newRemaining, customerPackageId, bookingDuration, date],
+        );
+        if (!updatedPkg.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Package update failed — hours may have changed' });
+        }
+
+        finalPaymentStatus = pkg.status === 'waiting_payment' ? 'pending_payment' : 'package';
+        const pkgPrice = toNum(pkg.purchase_price) || 0;
+        const pkgTotal = toNum(pkg.total_hours) || 1;
+        finalAmount = pkgPrice > 0 ? parseFloat(((pkgPrice / pkgTotal) * bookingDuration).toFixed(2)) : 0;
+        usedPackageId = customerPackageId;
+
+      // ── Wallet payment ─────────────────────────────────────────────────
+      } else if (paymentMethod === 'wallet') {
         const { rows: walletRows } = await client.query(
           `SELECT available_amount FROM wallet_balances WHERE user_id = $1 ORDER BY available_amount DESC LIMIT 1`,
           [studentUserId],
@@ -630,17 +694,18 @@ router.post(
             required: amount,
           });
         }
+        finalPaymentStatus = 'paid';
       }
 
-      const paymentStatus = paymentMethod === 'wallet' ? 'paid' : 'pending';
+      const bookingStatus = finalPaymentStatus === 'pending_payment' ? 'pending_payment' : 'confirmed';
 
       const { rows: bookingRows } = await client.query(
         `INSERT INTO bookings (
            service_id, student_user_id, instructor_user_id,
-           date, start_hour, duration,
+           date, start_hour, duration, customer_package_id,
            status, payment_status, amount, final_amount,
            notes, location, created_by, updated_by
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'TBD', $12, $12)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'TBD', $13, $13)
          RETURNING id`,
         [
           serviceId,
@@ -648,11 +713,12 @@ router.post(
           instructorId || null,
           date,
           parseFloat(startHour),
-          toNum(service.duration) || 1,
-          'confirmed',
-          paymentStatus,
-          amount,
-          amount,
+          bookingDuration,
+          usedPackageId,
+          bookingStatus,
+          finalPaymentStatus,
+          finalAmount,
+          finalAmount,
           notes || '',
           userId,
         ],
@@ -661,7 +727,7 @@ router.post(
       const bookingId = bookingRows[0].id;
 
       // Deduct from wallet if applicable
-      if (paymentMethod === 'wallet' && amount > 0) {
+      if (paymentMethod === 'wallet' && !customerPackageId && amount > 0) {
         await client.query(
           `INSERT INTO wallet_transactions (
              user_id, booking_id, amount, currency, direction,
@@ -684,10 +750,13 @@ router.post(
         serviceName: service.name,
         date,
         startHour: parseFloat(startHour),
-        amount,
-        paymentMethod,
-        status: 'confirmed',
-        message: `Booking confirmed for ${service.name} on ${date} at ${startHour}:00.`,
+        amount: finalAmount,
+        paymentMethod: customerPackageId ? 'package' : paymentMethod,
+        packageUsed: usedPackageId ? true : false,
+        status: bookingStatus,
+        message: customerPackageId
+          ? `Booking confirmed from package for ${service.name} on ${date} at ${startHour}:00.`
+          : `Booking confirmed for ${service.name} on ${date} at ${startHour}:00.`,
       });
     } catch (err) {
       await client.query('ROLLBACK');
