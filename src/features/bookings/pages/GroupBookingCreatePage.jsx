@@ -25,6 +25,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { usePageSEO } from '@/shared/utils/seo';
 import calendarConfig from '@/config/calendarConfig';
+import { useData } from '@/shared/hooks/useData';
 
 const PRESET_SLOTS = calendarConfig.preScheduledSlots;
 const HALF_HOUR = 30;
@@ -66,7 +67,16 @@ const GroupBookingCreatePage = () => {
   const { refreshToken } = useAuth();
   const { formatCurrency, userCurrency } = useCurrency();
   const [form] = Form.useForm();
+  const { instructors: ctxInstructors, services: ctxServices } = useData();
   const prefill = useMemo(() => location.state || {}, [location.state]);
+  const ctxServicesFiltered = useMemo(() => {
+    if (!ctxServices?.length) return undefined;
+    return ctxServices.filter(s => {
+      const isActive = s.status === 'active' || !s.status;
+      const cat = (s.lessonCategoryTag || s.lesson_category_tag || '').toLowerCase();
+      return isActive && GROUP_CATEGORIES.includes(cat);
+    });
+  }, [ctxServices]);
   const [currentStep, setCurrentStep] = useState(0);
   const [creating, setCreating] = useState(false);
   const [paymentModel, setPaymentModel] = useState('individual');
@@ -88,12 +98,16 @@ const GroupBookingCreatePage = () => {
       });
     },
     staleTime: 300_000,
+    initialData: ctxServicesFiltered,
+    initialDataUpdatedAt: ctxServicesFiltered ? Date.now() : undefined,
   });
 
   const { data: instructors = [], isLoading: instructorsLoading } = useQuery({
     queryKey: ['group-create', 'instructors'],
     queryFn: async () => { const res = await apiClient.get('/instructors'); return Array.isArray(res.data) ? res.data : res.data?.instructors || []; },
     staleTime: 300_000,
+    initialData: ctxInstructors?.length > 0 ? ctxInstructors : undefined,
+    initialDataUpdatedAt: ctxInstructors?.length > 0 ? Date.now() : undefined,
   });
 
   const { data: packages = [], isLoading: packagesLoading } = useQuery({

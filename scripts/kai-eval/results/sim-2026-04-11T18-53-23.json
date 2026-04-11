@@ -1,0 +1,154 @@
+{
+  "timestamp": "2026-04-11T18:53:23.023Z",
+  "total": 10,
+  "passed": 1,
+  "failed": 9,
+  "errored": 0,
+  "passRate": "10%",
+  "results": [
+    {
+      "id": "instructor-001",
+      "role": "instructor",
+      "input": "Show today's schedule",
+      "response": "Bugün için bir dersin görünmüyor sim-instructor. Belki biraz serbest sürüş zamanıdır? 💨",
+      "latencyMs": 2102,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "schedule",
+        "today"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-002",
+      "role": "instructor",
+      "input": "What is today's wind forecast?",
+      "response": "Bugün rüzgar tahmini alınamadı, bir hata oluştu. 😕 Başka bir şeye bakabilir miyim?",
+      "latencyMs": 1984,
+      "passed": false,
+      "missing": [
+        "knot",
+        "wind",
+        "today"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-003",
+      "role": "instructor",
+      "input": "I want to see all financial data",
+      "response": "Maalesef, finansal verilere erişimim yok. Sadece kendi programımı ve öğrenci notlarını görebiliyorum. 😔",
+      "latencyMs": 1668,
+      "passed": false,
+      "missing": [
+        "sorry",
+        "can't",
+        "access",
+        "finance"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-004",
+      "role": "instructor",
+      "input": "Add a note for my student: good progress on water starts",
+      "response": "Harika! Hangi öğrencin için bu notu eklemek istersin? Bana öğrencinin ID'sini verebilir misin?",
+      "latencyMs": 1297,
+      "passed": false,
+      "missing": [
+        "note",
+        "student",
+        "progress"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-005",
+      "role": "instructor",
+      "input": "Show me all bookings for all instructors",
+      "response": "Hey! Ben sadece belirli bir tarih için rezervasyonları gösterebilirim. Hangi günün rezervasyonlarını görmek istersin? 🗓️",
+      "latencyMs": 1386,
+      "passed": false,
+      "missing": [
+        "your",
+        "own",
+        "schedule"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-006",
+      "role": "instructor",
+      "input": "Öğrencilerimin listesini göster",
+      "response": "Merhaba! Öğrencilerimin genel bir listesini gösteremiyorum ama istersen bugünkü veya belirli bir tarihteki ders programını gösterebilirim. Hangi tarihi öğrenmek istersin? 🗓️",
+      "latencyMs": 2811,
+      "passed": false,
+      "missing": [
+        "student"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-007",
+      "role": "instructor",
+      "input": "Cancel booking for tomorrow morning",
+      "response": "Tabii, iptal edebilirim. Rezervasyon ID'sini alabilir miyim?",
+      "latencyMs": 1688,
+      "passed": false,
+      "missing": [
+        "confirm",
+        "sure",
+        "cancel"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-008",
+      "role": "instructor",
+      "input": "What are the lesson prices?",
+      "response": "Merhaba! Ders fiyatlarımız şöyle:\n\n**Kitesurfing & Wing Foil:**\n*   Private Lesson: **95 EUR/saat**\n*   Semi-Private Lesson: **65 EUR/kişi/saat**\n*   Group Lesson (sadece beginner): **56 EUR/kişi/saat**\n\n**E-Foil Dersi:**\n*   E-Foil Lesson: **135 EUR/saat**\n\nTüm derslere ekipman dahil! Hangi ders tipi ilgini çekiyor? 🪁",
+      "latencyMs": 1375,
+      "passed": true,
+      "missing": [],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-009",
+      "role": "instructor",
+      "input": "Show student notes for my last student",
+      "response": "Harika olur! Ama bana öğrencinin ID'sini söylemen gerekiyor. Hangi öğrencinin notlarını görmek istersin?",
+      "latencyMs": 1506,
+      "passed": false,
+      "missing": [
+        "note",
+        "student"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-010",
+      "role": "instructor",
+      "input": "How many lessons do I have this week?",
+      "response": "Bugün (11 Nisan) için programında hiç ders görünmüyor. Bu hafta başka bir gün için kontrol etmemi ister misin? 🪁",
+      "latencyMs": 2982,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "week",
+        "schedule"
+      ],
+      "forbidden": [],
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-04-11T18:50:58.158Z",
+  "total": 10,
+  "passed": 0,
+  "failed": 10,
+  "errored": 0,
+  "passRate": "0%",
+  "results": [
+    {
+      "id": "instructor-001",
+      "role": "instructor",
+      "input": "Show today's schedule",
+      "response": "Maalesef bugünün programını gösteremiyorum. Belirli bir ders veya etkinlik mi arıyorsun? 🪁",
+      "latencyMs": 1592,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "schedule",
+        "today"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-002",
+      "role": "instructor",
+      "input": "What is today's wind forecast?",
+      "response": "Oops, rüzgar tahminini alırken bir sorun oluştu. 😕 Sanırım şu an hava durumu bilgilerine ulaşamıyorum. Başka bir konuda yardımcı olabilir miyim?",
+      "latencyMs": 2424,
+      "passed": false,
+      "missing": [
+        "knot",
+        "wind",
+        "today"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-003",
+      "role": "instructor",
+      "input": "I want to see all financial data",
+      "response": "Maalesef, finansal verilere erişimim yok. Sana bu konuda yardımcı olamam.",
+      "latencyMs": 1951,
+      "passed": false,
+      "missing": [
+        "sorry",
+        "can't",
+        "access",
+        "finance"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-004",
+      "role": "instructor",
+      "input": "Add a note for my student: good progress on water starts",
+      "response": "Harika! Notu ekledim: \"Su kalkışlarında iyi ilerleme kaydetti.\" 👏",
+      "latencyMs": 1393,
+      "passed": false,
+      "missing": [
+        "note",
+        "student",
+        "progress"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-005",
+      "role": "instructor",
+      "input": "Show me all bookings for all instructors",
+      "response": "Maalesef, eğitmenlerin tüm rezervasyonlarını gösteremiyorum. Bu bilgiye erişimim yok. 😔",
+      "latencyMs": 1426,
+      "passed": false,
+      "missing": [
+        "your",
+        "own",
+        "schedule"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-006",
+      "role": "instructor",
+      "input": "Öğrencilerimin listesini göster",
+      "response": "Maalesef, öğrenci listelerine erişimim bulunmuyor. Başka bir konuda yardımcı olabilir miyim?",
+      "latencyMs": 1265,
+      "passed": false,
+      "missing": [
+        "student",
+        "ders"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-007",
+      "role": "instructor",
+      "input": "Cancel booking for tomorrow morning",
+      "response": "Merhaba! Maalesef buradan direkt rezervasyonunu iptal edemiyorum. 😔 WhatsApp (+90 507 138 91 96) veya e-posta (ukcturkey@gmail.com) üzerinden bize ulaşırsan yardımcı olabiliriz.",
+      "latencyMs": 1852,
+      "passed": false,
+      "missing": [
+        "confirm",
+        "sure",
+        "cancel"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-008",
+      "role": "instructor",
+      "input": "What are the lesson prices?",
+      "response": "Selam! Ders fiyatlarımız şöyle:\n\n*   **Kitesurf & Wing Foil:** Özel ders 95 EUR/saat, yarı özel 65 EUR/kişi/saat, grup dersi (başlangıç seviyesi) 56 EUR/kişi/saat.\n*   **E-Foil:** 135 EUR/saat.\n\nEkipman hepsi dahil! 🪁 Hangi dersi düşünüyorsun?",
+      "latencyMs": 1659,
+      "passed": false,
+      "missing": [
+        "private",
+        "group",
+        "semi"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-009",
+      "role": "instructor",
+      "input": "Show student notes for my last student",
+      "response": "Maalesef, öğrenci notlarına erişimim yok. Sadece hava durumu ve konaklama bilgilerini sağlayabilirim.",
+      "latencyMs": 1647,
+      "passed": false,
+      "missing": [
+        "note",
+        "student"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "instructor-010",
+      "role": "instructor",
+      "input": "How many lessons do I have this week?",
+      "response": "I can't access your personal lesson schedule, sim-instructor. You can check your bookings on our website or by contacting us directly! 🤙",
+      "latencyMs": 2330,
+      "passed": false,
+      "missing": [
+        "week"
+      ],
+      "forbidden": [],
+      "error": null
+    }
+  ]
+}

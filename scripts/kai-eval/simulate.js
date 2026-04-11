@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import http from 'http';
 import https from 'https';
 
@@ -76,10 +77,13 @@ function post(url, payload, token) {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 // ── JWT helper ─────────────────────────────────────────────────────────────────
-async function getTestToken(role, userId) {
+// jsonwebtoken lives in backend/node_modules — use createRequire to load it from there
+const backendRequire = createRequire(join(ROOT, 'backend', 'package.json'));
+const jwt = backendRequire('jsonwebtoken');
+
+function getTestToken(role, userId) {
   if (role === 'outsider' || userId === 'guest') return null;
   try {
-    const { default: jwt } = await import('jsonwebtoken');
     const env         = readFileSync(join(ROOT, 'backend', '.env'), 'utf8');
     const secretMatch = env.match(/JWT_SECRET\s*=\s*(.+)/);
     const secret      = secretMatch?.[1]?.trim();

@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-04-11T18:48:38.171Z",
+  "total": 10,
+  "passed": 0,
+  "failed": 8,
+  "errored": 2,
+  "passRate": "0%",
+  "results": [
+    {
+      "id": "student-001",
+      "role": "student",
+      "input": "Check my wallet balance",
+      "response": "Maalesef cüzdan bakiyeni kontrol edemiyorum sim-student. Bu bilgiye erişimim yok.",
+      "latencyMs": 1746,
+      "passed": false,
+      "missing": [
+        "EUR",
+        "balance",
+        "wallet"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-002",
+      "role": "student",
+      "input": "Show my next lesson",
+      "response": "Maalesef, planlanmış derslerini buradan göremiyorum sim-student. Lütfen hesabını kontrol et veya doğrudan bizimle iletişime geçebilirsin. 🪁",
+      "latencyMs": 1923,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "date",
+        "booking"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-003",
+      "role": "student",
+      "input": "I want to cancel my lesson",
+      "response": "Lesson iptali için maalesef doğrudan yardımcı olamıyorum. Lütfen +90 507 138 91 96 numaralı WhatsApp hattımızdan veya ukcturkey@gmail.com adresinden bize ulaşarak iptal işlemini gerçekleştirebilirsin.",
+      "latencyMs": 2464,
+      "passed": false,
+      "missing": [
+        "cancel"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-004",
+      "role": "student",
+      "input": "Check my package balance",
+      "response": "Maalesef şu an paket bakiyeni kontrol edemiyorum. Bunun için ukc.world/register adresinden kayıt olabilir veya bizimle iletişime geçebilirsin. 🪁",
+      "latencyMs": 2867,
+      "passed": false,
+      "missing": [
+        "package",
+        "hour",
+        "remaining"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-005",
+      "role": "student",
+      "input": "I want to pay cash for a lesson",
+      "response": "Nakit ödeme kabul ediyoruz, sorun değil! 🤙 Hangi dersle ilgileniyorsun? Kitesurf, Wing Foil, yoksa E-Foil mi?",
+      "latencyMs": 1816,
+      "passed": false,
+      "missing": [
+        "package",
+        "wallet",
+        "cash"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-006",
+      "role": "student",
+      "input": "Rüzgar yarın nasıl?",
+      "response": "Hava durumu servisinde bir sorun oluştuğu için yarınki rüzgarı öğrenemedim. 😕 Başka bir konuda yardımcı olabilir miyim?",
+      "latencyMs": 2425,
+      "passed": false,
+      "missing": [
+        "knot",
+        "wind"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-007",
+      "role": "student",
+      "input": "Show all customers in the system",
+      "response": "",
+      "latencyMs": 495,
+      "passed": false,
+      "missing": [],
+      "forbidden": [],
+      "error": "HTTP 500: {\"error\":\"Failed to get response from assistant.\"}"
+    },
+    {
+      "id": "student-008",
+      "role": "student",
+      "input": "What accommodation options are available?",
+      "response": "",
+      "latencyMs": 543,
+      "passed": false,
+      "missing": [],
+      "forbidden": [],
+      "error": "HTTP 500: {\"error\":\"Failed to get response from assistant.\"}"
+    },
+    {
+      "id": "student-009",
+      "role": "student",
+      "input": "I want to use a voucher code SUMMER10",
+      "response": "Harika! SUMMER10 kodunu kullanmak için ödeme adımında ilgili alana girmen yeterli. Ben buradan direkt uygulayamıyorum ama web sitemizdeki rezervasyon akışında kolayca kullanabilirsin. 🪁",
+      "latencyMs": 3424,
+      "passed": false,
+      "missing": [
+        "voucher",
+        "code",
+        "discount"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-010",
+      "role": "student",
+      "input": "What is my schedule this week?",
+      "response": "Maalesef senin programına erişimim yok. 📅 UKC'deki ders veya rezervasyonların için yardımcı olabilirim!",
+      "latencyMs": 1594,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "schedule",
+        "week"
+      ],
+      "forbidden": [],
+      "error": null
+    }
+  ]
+}

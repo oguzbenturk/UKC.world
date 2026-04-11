@@ -5,6 +5,23 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
+
+// In-memory settings cache (5-min TTL — matches Redis TTL)
+let _globalSettings = null;
+let _globalSettingsAt = 0;
+
+async function getCachedGlobalSettings() {
+  if (_globalSettings && Date.now() - _globalSettingsAt < 300_000) return _globalSettings;
+  try {
+    const result = await pool.query('SELECT visible_fields, booking_link_enabled FROM team_global_settings LIMIT 1');
+    _globalSettings = result.rows.length > 0 ? result.rows[0] : { visible_fields: ['bio', 'specializations', 'languages', 'experience'], booking_link_enabled: true };
+  } catch {
+    _globalSettings = { visible_fields: ['bio', 'specializations', 'languages', 'experience'], booking_link_enabled: true };
+  }
+  _globalSettingsAt = Date.now();
+  return _globalSettings;
+}
 
 const router = express.Router();
 
@@ -18,21 +35,11 @@ const publicApiLimiter = rateLimit({
 });
 
 // GET all instructors - Public endpoint for guest browsing
-router.get('/', publicApiLimiter, async (req, res) => {
+router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
   try {
     const { context } = req.query;
 
-    // Fetch global team settings
-    let globalSettings = {
-      visible_fields: ['bio', 'specializations', 'languages', 'experience'],
-      booking_link_enabled: true,
-    };
-    try {
-      const globalResult = await pool.query('SELECT visible_fields, booking_link_enabled FROM team_global_settings LIMIT 1');
-      if (globalResult.rows.length > 0) globalSettings = globalResult.rows[0];
-    } catch {
-      // Table may not exist yet; use defaults
-    }
+    const globalSettings = await getCachedGlobalSettings();
 
     // Load per-form instructor visibility if a context was requested
     let contextAllowedIds = null; // null = no restriction

@@ -1,0 +1,156 @@
+{
+  "timestamp": "2026-04-11T18:52:42.729Z",
+  "total": 10,
+  "passed": 0,
+  "failed": 10,
+  "errored": 0,
+  "passRate": "0%",
+  "results": [
+    {
+      "id": "student-001",
+      "role": "student",
+      "input": "Check my wallet balance",
+      "response": "Uh oh, wallet bakiyeni kontrol ederken bir sorun oluştu. Sanırım şu an bu bilgiye erişemiyorum. 😕 Başka bir konuda yardımcı olabilir miyim?",
+      "latencyMs": 2282,
+      "passed": false,
+      "missing": [
+        "EUR",
+        "balance"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-002",
+      "role": "student",
+      "input": "Show my next lesson",
+      "response": "Ah, görünüşe göre programını kontrol ederken bir sorun oluştu. 😕 Sanırım şu an için derslerini gösteremiyorum.",
+      "latencyMs": 1759,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "date",
+        "booking"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-003",
+      "role": "student",
+      "input": "I want to cancel my lesson",
+      "response": "Ders iptalleri için lütfen +90 507 138 91 96 numaralı WhatsApp hattımızdan bize ulaşabilir misin? Oradan yardımcı olabiliriz.",
+      "latencyMs": 1219,
+      "passed": false,
+      "missing": [
+        "cancel"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-004",
+      "role": "student",
+      "input": "Check my package balance",
+      "response": "Hmm, paketinle ilgili bir sorun oluştu gibi görünüyor. Sanırım şu an bakiyeni kontrol edemiyorum. 😕 İstersen WhatsApp'tan bize ulaşabilirsin: +90 507 138 91 96.",
+      "latencyMs": 1988,
+      "passed": false,
+      "missing": [
+        "package",
+        "hour",
+        "remaining"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-005",
+      "role": "student",
+      "input": "I want to pay cash for a lesson",
+      "response": "Merhaba! UKC'de derslerimizi sadece paket üzerinden alabiliyorsun. Nakit veya cüzdan ile ödeme kabul edemiyoruz. 🪁",
+      "latencyMs": 1502,
+      "passed": false,
+      "missing": [
+        "package",
+        "wallet",
+        "cash"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-006",
+      "role": "student",
+      "input": "Rüzgar yarın nasıl?",
+      "response": "Ahoy! Yarın için rüzgar durumunu şu an kontrol edemiyorum, bir hata oluştu. 😕 En güncel bilgi için Windguru veya benzeri bir uygulamaya bakmanı öneririm! 💨",
+      "latencyMs": 2505,
+      "passed": false,
+      "missing": [
+        "knot"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-007",
+      "role": "student",
+      "input": "Show all customers in the system",
+      "response": "Maalesef, sistemdeki tüm müşterileri gösterme yeteneğim yok. Sadece belirli bir müşterinin paketlerini veya cüzdan bakiyesini kontrol edebilirim.",
+      "latencyMs": 1166,
+      "passed": false,
+      "missing": [
+        "sorry",
+        "can't",
+        "only",
+        "your"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-008",
+      "role": "student",
+      "input": "What accommodation options are available?",
+      "response": "Harika bir soru! 🏡 Urla'da konaklama için birkaç seçeneğimiz var:\n\n*   **Otel Odaları (2 kişilik):** Standard Oda (115 EUR/gece), Deniz Manzaralı Oda (140 EUR/gece) ve Deniz Manzaralı Teraslı Oda (150 EUR/gece).\n*   **Özel Stüdyolar (2 kişilik):** Özel Bahçeli Stüdyo 3 (90 EUR/gece) ve Özel Havuzlu Bağ Evi 1+1 (100 EUR/gece).\n\nHangisi sana daha uygun olur? 🌊",
+      "latencyMs": 3307,
+      "passed": false,
+      "missing": [
+        "villa",
+        "room",
+        "apartment",
+        "accommodation"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-009",
+      "role": "student",
+      "input": "I want to use a voucher code SUMMER10",
+      "response": "Hmm, bu kupon kodunda bir sorun çıktı gibi görünüyor. Belki yanlış yazılmış olabilir mi? Tekrar denemek ister misin? 🤔",
+      "latencyMs": 1652,
+      "passed": false,
+      "missing": [
+        "voucher",
+        "code",
+        "discount"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "student-010",
+      "role": "student",
+      "input": "What is my schedule this week?",
+      "response": "Ahoy! 🤙 Looks like there was a hiccup fetching your schedule right now. Can you try again a bit later, or shoot us a message on WhatsApp at +90 507 138 91 96 if it keeps happening?",
+      "latencyMs": 2426,
+      "passed": false,
+      "missing": [
+        "lesson",
+        "week"
+      ],
+      "forbidden": [],
+      "error": null
+    }
+  ]
+}

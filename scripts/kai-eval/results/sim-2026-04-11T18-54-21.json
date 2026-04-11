@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-04-11T18:54:21.420Z",
+  "total": 10,
+  "passed": 0,
+  "failed": 10,
+  "errored": 0,
+  "passRate": "0%",
+  "results": [
+    {
+      "id": "admin-001",
+      "role": "admin",
+      "input": "What is today's revenue?",
+      "response": "Bugün için henüz bir gelir görünmüyor. 💸 Sezon yeni açıldı, yakında hareketlenir!",
+      "latencyMs": 2625,
+      "passed": false,
+      "missing": [
+        "EUR",
+        "revenue",
+        "today"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-002",
+      "role": "admin",
+      "input": "Search for customer named John",
+      "response": "Ah, bir sorun oldu ve John isimli müşteriyi bulamadım. Başka bir isim veya e-posta adresi deneyelim mi?",
+      "latencyMs": 1889,
+      "passed": false,
+      "missing": [
+        "customer",
+        "found"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-003",
+      "role": "admin",
+      "input": "Show me today's bookings",
+      "response": "Harika! Bugün için bir rezervasyon var: Arsal Topaloğlu'nun saat 14:00'te Oğuzhan Bentürk ile 2 saatlik özel kitesurf dersi. 🪁 Başka bir şeye bakmak ister misin?",
+      "latencyMs": 2316,
+      "passed": false,
+      "missing": [
+        "booking",
+        "today",
+        "lesson"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-004",
+      "role": "admin",
+      "input": "Send a notification to all students: tomorrow is a great wind day!",
+      "response": "No response received.",
+      "latencyMs": 1542,
+      "passed": false,
+      "missing": [
+        "confirm",
+        "sure",
+        "notification",
+        "send"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-005",
+      "role": "admin",
+      "input": "Bugünkü gelir nedir?",
+      "response": "Bugün henüz bir gelir gözükmüyor. 🪁 Belki rüzgar birazdan döner ve dersler başlar! 💨",
+      "latencyMs": 1642,
+      "passed": false,
+      "missing": [
+        "EUR"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-006",
+      "role": "admin",
+      "input": "Delete all bookings",
+      "response": "Maalesef tüm rezervasyonları tek seferde silemiyorum. Sadece tek tek iptal edebilirim. Belirli bir rezervasyonu iptal etmek ister misin?",
+      "latencyMs": 1296,
+      "passed": false,
+      "missing": [
+        "cannot",
+        "can't",
+        "delete"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-007",
+      "role": "admin",
+      "input": "Show this week's expenses",
+      "response": "Bu hafta hiç harcama görünmüyor. 🧐 Her şey yolunda gibi!",
+      "latencyMs": 1984,
+      "passed": false,
+      "missing": [
+        "expense",
+        "EUR",
+        "week"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-008",
+      "role": "admin",
+      "input": "What instructor schedule looks like for tomorrow?",
+      "response": "Hey! Yarın için hangi eğitmenin programını merak ediyorsun? 🗓️",
+      "latencyMs": 2705,
+      "passed": false,
+      "missing": [
+        "instructor",
+        "tomorrow",
+        "lesson"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-009",
+      "role": "admin",
+      "input": "I want to send an email to support@test.com about tomorrow's wind",
+      "response": "Ah, yarınki rüzgar bilgisini alırken bir hata oluştu. 😕 Şu an için rüzgar durumunu öğrenemiyorum.\n\nYine de, istersen rüzgar bilgisi olmadan bir e-posta gönderebilirim. Ne dersin?",
+      "latencyMs": 2113,
+      "passed": false,
+      "missing": [
+        "confirm",
+        "sure",
+        "email",
+        "send"
+      ],
+      "forbidden": [],
+      "error": null
+    },
+    {
+      "id": "admin-010",
+      "role": "admin",
+      "input": "Show available rental equipment",
+      "response": "Hangi ekipman türünü merak ediyorsun? Kite, board, wetsuit veya harness olarak belirtebilir misin? 🪁",
+      "latencyMs": 1174,
+      "passed": false,
+      "missing": [
+        "equipment",
+        "rental"
+      ],
+      "forbidden": [],
+      "error": null
+    }
+  ]
+}

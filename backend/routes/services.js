@@ -14,6 +14,7 @@ import { setPackagePrices, getPackagePrices, getPackagePricesBatch, setServicePr
 import voucherService from '../services/voucherService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
+import { cacheMiddleware, cacheKeyGenerators, cacheInvalidationMiddleware, cacheInvalidationPatterns } from '../middlewares/cache.js';
 const router = express.Router();
 
 // Minimal currency defaults to prevent FK errors when currency_settings isn't seeded
@@ -41,7 +42,7 @@ async function ensureCurrencyExists(client, code) {
 }
 
 // Get all services
-router.get('/', async (req, res) => {
+router.get('/', cacheMiddleware(300, cacheKeyGenerators.services), async (req, res) => {
   try {
     const { category, level, isPackage } = req.query;
     
@@ -250,7 +251,7 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
 
 // Public lesson packages endpoint (no auth)
 // Used by guest-facing academy pages (e.g. /academy/kite-lessons)
-router.get('/packages/public', async (req, res) => {
+router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages:public'), async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -371,7 +372,7 @@ router.get('/packages/public', async (req, res) => {
 });
 
 // Create new package
-router.post('/packages', authorize(['admin', 'manager']), async (req, res) => {
+router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   const client = await pool.connect();
   try {
     const { 
@@ -2004,7 +2005,7 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
 // Update package
 // eslint-disable-next-line complexity
-router.put('/packages/:id', authorize(['admin', 'manager']), async (req, res) => {
+router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -2258,7 +2259,7 @@ router.post('/customer-packages/:id/cancel', authenticateJWT, async (req, res) =
 });
 
 // Delete package
-router.delete('/packages/:id', authorize(['admin', 'manager']), async (req, res) => {
+router.delete('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -2413,7 +2414,7 @@ router.get('/:id', async (req, res) => {
 
 // Create a new service
 // eslint-disable-next-line complexity
-router.post('/', authorize(['admin', 'manager']), async (req, res) => {
+router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -2697,7 +2698,7 @@ router.post('/', authorize(['admin', 'manager']), async (req, res) => {
 
 // Update an existing service
 // eslint-disable-next-line complexity
-router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -2913,7 +2914,7 @@ router.put('/:id', authorize(['admin', 'manager']), async (req, res) => {
 });
 
 // Delete a service
-router.delete('/:id', authorize(['admin', 'manager']), async (req, res) => {
+router.delete('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   const client = await pool.connect();
   
   try {

@@ -16,6 +16,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import http from 'http';
 import https from 'https';
 
@@ -80,22 +81,20 @@ function post(url, payload, token) {
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 // ── Generate a test JWT for a role ───────────────────────────────────────────
-async function getTestToken(role, userId) {
-  // Skip token for guests/outsiders
-  if (role === 'outsider' || userId === 'guest') return null;
+// jsonwebtoken lives in backend/node_modules — use createRequire to load it from there
+const backendRequire = createRequire(join(ROOT, 'backend', 'package.json'));
+const jwt = backendRequire('jsonwebtoken');
 
+function getTestToken(role, userId) {
+  if (role === 'outsider' || userId === 'guest') return null;
   try {
-    // Lazy-import jwt — only available in Node
-    const { default: jwt } = await import('jsonwebtoken');
-    const envPath = join(ROOT, 'backend', '.env');
-    const env = readFileSync(envPath, 'utf8');
+    const env = readFileSync(join(ROOT, 'backend', '.env'), 'utf8');
     const secretMatch = env.match(/JWT_SECRET\s*=\s*(.+)/);
     const secret = secretMatch?.[1]?.trim();
     if (!secret) {
       console.warn('  ⚠ JWT_SECRET not found in backend/.env — sending without auth token');
       return null;
     }
-    // Map role to DB role name
     const roleMap = { student: 'customer', trusted_customer: 'trusted_customer', instructor: 'instructor', admin: 'super_admin', manager: 'manager' };
     return jwt.sign({ id: userId, role: roleMap[role] || role }, secret, { expiresIn: '10m' });
   } catch (e) {
@@ -111,7 +110,7 @@ let passed = 0, failed = 0, errored = 0;
 for (const tc of cases) {
   process.stdout.write(`  [${tc.id}] ${tc.input.slice(0, 50)}... `);
 
-  const token = await getTestToken(tc.role, tc.userId);
+  const token = getTestToken(tc.role, tc.userId);
   const startMs = Date.now();
 
   let result = {

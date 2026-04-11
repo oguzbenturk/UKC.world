@@ -220,12 +220,12 @@ router.get('/customers/:id/wallet', async (req, res) => {
       }
     }
 
+    // Return all wallet balances so Kai can report both EUR and TRY if present
     const { rows } = await pool.query(
       `SELECT currency, available_amount
        FROM wallet_balances
        WHERE user_id = $1
-       ORDER BY available_amount DESC
-       LIMIT 1`,
+       ORDER BY CASE WHEN currency = 'EUR' THEN 0 ELSE 1 END, available_amount DESC`,
       [id],
     );
 
@@ -233,10 +233,14 @@ router.get('/customers/:id/wallet', async (req, res) => {
       return res.json({ userId: id, currency: 'EUR', availableAmount: 0 });
     }
 
+    // Return primary (EUR preferred) and include others
+    const primary = rows[0];
+    const allBalances = rows.map(r => ({ currency: r.currency, amount: toNum(r.available_amount) }));
     res.json({
       userId: id,
-      currency: rows[0].currency,
-      availableAmount: toNum(rows[0].available_amount),
+      currency: primary.currency,
+      availableAmount: toNum(primary.available_amount),
+      allBalances,
     });
   } catch (err) {
     logger.error('Agent /customers/:id/wallet error', err);
@@ -1707,7 +1711,7 @@ router.get('/weather', async (req, res) => {
       `?latitude=${lat}&longitude=${lon}` +
       `&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m` +
       `&start_date=${targetDate}&end_date=${targetDate}` +
-      `&timezone=Europe%2FIstanbul&wind_speed_unit=knots`;
+      `&timezone=Europe%2FIstanbul&wind_speed_unit=kn`;
 
     const response = await fetch(url);
     if (!response.ok) throw new Error('Weather API unavailable');
