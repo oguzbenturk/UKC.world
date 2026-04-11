@@ -80,7 +80,7 @@ services:
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - KAI_AGENT_SECRET=${KAI_AGENT_SECRET}
       - PLANNIVO_API_BASE=http://backend:4000/api/agent
-      - N8N_BLOCK_ENV_ACCESS_IN_NODE=true
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
