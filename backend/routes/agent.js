@@ -123,15 +123,24 @@ router.get(
 
       const search = `%${searchTerm}%`;
       const { rows } = await pool.query(
-        `SELECT u.id, u.name, u.email, u.phone, r.name AS role,
+        `SELECT u.id,
+                COALESCE(u.name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,''))) AS name,
+                u.email, u.phone, r.name AS role,
                 COALESCE(wb.available_amount, 0) AS wallet_balance,
                 COALESCE(wb.currency, 'EUR') AS currency
          FROM users u
          JOIN roles r ON r.id = u.role_id
          LEFT JOIN wallet_balances wb ON wb.user_id = u.id
          WHERE u.deleted_at IS NULL
-           AND (u.name ILIKE $1 OR u.email ILIKE $1 OR u.phone ILIKE $1)
-         ORDER BY u.name
+           AND (
+             u.name       ILIKE $1
+             OR u.first_name ILIKE $1
+             OR u.last_name  ILIKE $1
+             OR (u.first_name || ' ' || u.last_name) ILIKE $1
+             OR u.email   ILIKE $1
+             OR u.phone   ILIKE $1
+           )
+         ORDER BY COALESCE(u.name, u.first_name) NULLS LAST
          LIMIT 20`,
         [search],
       );
@@ -1294,9 +1303,9 @@ router.get('/vouchers/validate', async (req, res) => {
     if (!code) return res.status(400).json({ error: 'code is required' });
 
     const { rows } = await pool.query(
-      `SELECT id, code, discount_type, discount_value, applicable_services,
-              max_uses, used_count, valid_from, valid_until, is_active
-       FROM vouchers
+      `SELECT id, code, voucher_type, discount_value, applies_to,
+              max_total_uses, total_uses, valid_from, valid_until, is_active
+       FROM voucher_codes
        WHERE UPPER(code) = UPPER($1) AND is_active = true`,
       [code.trim()],
     );
@@ -1314,16 +1323,16 @@ router.get('/vouchers/validate', async (req, res) => {
     if (v.valid_until && new Date(v.valid_until) < now) {
       return res.json({ valid: false, reason: 'Code has expired' });
     }
-    if (v.max_uses && v.used_count >= v.max_uses) {
+    if (v.max_total_uses && v.total_uses >= v.max_total_uses) {
       return res.json({ valid: false, reason: 'Code has reached its usage limit' });
     }
 
     res.json({
       valid: true,
       code: v.code,
-      discountType: v.discount_type,
+      discountType: v.voucher_type,
       discountValue: toNum(v.discount_value),
-      applicableServices: v.applicable_services,
+      applicableServices: v.applies_to,
       validUntil: v.valid_until,
     });
   } catch (err) {
@@ -1376,8 +1385,14 @@ router.get('/session/:sessionId', async (req, res) => {
 router.post('/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { userId, role: userRole } = req.agent;
     const { messages, summary, kbSnapshot, kbFetchedAt } = req.body;
+
+    // n8n's Save Session node sends userId/userRole in the body because it doesn't
+    // forward the user headers — use body values, fall back to agent middleware values.
+    const agentUserId   = req.agent.userId;
+    const agentUserRole = req.agent.role;
+    const userId   = (req.body.userId   && req.body.userId   !== 'guest') ? req.body.userId   : agentUserId;
+    const userRole = (req.body.userRole && req.body.userRole !== 'outsider') ? req.body.userRole : agentUserRole;
 
     if (!Array.isArray(messages)) {
       return res.status(400).json({ error: 'messages must be an array' });

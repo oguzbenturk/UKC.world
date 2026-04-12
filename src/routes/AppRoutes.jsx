@@ -477,6 +477,7 @@ const AppRoutes = () => {
   <Route path="/admin/legal-documents" element={<Navigate to="/settings?tab=legal" replace />} />
   <Route path="/admin/vouchers" element={<VoucherManagement />} />
   <Route path="/admin/support-tickets" element={<SupportTicketsPage />} />
+  <Route path="/admin/kai-sessions" element={<Navigate to="/settings?tab=kai-logs" replace />} />
         <Route path="/instructors/managers" element={<ManagerCommissionSettings />} />
         <Route path="/admin/manager-commissions" element={<Navigate to="/instructors/managers" replace />} />
         <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />

@@ -405,7 +405,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       })
     ];
   }
-  
+
   // For any custom/unrecognized roles (e.g., "Front Desk"), provide navigation
   // filtered by their actual permissions from the database.
   // All items with full styling - only items they have permissions for will show.
@@ -519,7 +519,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       customStyle: { textColor: '#f59e0b' }
     })
   ];
-  
+
   // If permissions are provided, filter the nav items
   if (userPermissions && typeof userPermissions === 'object') {
     return filterNavByPermissions(allStaffNavItems, userPermissions);

@@ -29,7 +29,8 @@ import {
   BookOutlined,
   MedicineBoxOutlined,
   LockOutlined,
-  CameraOutlined
+  CameraOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -52,6 +53,7 @@ const LegalDocumentsPage = lazy(() => import('./LegalDocumentsPage'));
 const DeletedBookingsPage = lazy(() => import('@/components/admin/DeletedBookingsPage'));
 const PaymentRefunds = lazy(() => import('@/features/finances/pages/PaymentRefunds'));
 const BankAccountsAdmin = lazy(() => import('@/features/finances/pages/BankAccountsAdmin'));
+const KaiSessionsPage = lazy(() => import('@/features/admin/pages/KaiSessionsPage'));
 
 // Lazy-loaded role-specific setting components
 const StudentSafetySettings = lazy(() => import('@/features/settings/components/StudentSafetySettings'));
@@ -643,6 +645,7 @@ const UserSettings = () => {
         { key: 'legal', label: 'Legal Documents', icon: <FileTextOutlined />, group: 'Legal' },
         { key: 'refunds', label: 'Payment Refunds', icon: <RollbackOutlined />, group: 'Payments' },
         { key: 'bank-accounts', label: 'Bank Accounts', icon: <BankOutlined />, group: 'Payments' },
+        { key: 'kai-logs', label: 'Kai Logs', icon: <RobotOutlined />, group: 'AI' },
       );
     }
     // Deleted Bookings: manager + admin
@@ -827,6 +830,9 @@ case 'finance':
 
       case 'bank-accounts':
         return isAdmin ? <BankAccountsAdmin /> : null;
+
+      case 'kai-logs':
+        return isAdmin ? <KaiSessionsPage /> : null;
 
       // Student settings
       case 'safety':
