@@ -3814,6 +3814,142 @@
         720,
         -100
       ]
+    },
+    {
+      "parameters": {
+        "name": "update_booking_status",
+        "description": "Update booking status. Confirm first. Required: bookingId (UUID), status (one of: confirmed, completed, pending, cancelled).",
+        "method": "POST",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{bookingId}/status",
+        "sendHeaders": true,
+        "sendBody": true,
+        "optimizeResponse": true,
+        "specifyHeaders": "keypair",
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "X-Kai-Agent-Secret",
+              "valueProvider": "fieldValue",
+              "value": "={{ $env.KAI_AGENT_SECRET }}"
+            },
+            {
+              "name": "X-Requesting-User-Id",
+              "valueProvider": "fieldValue",
+              "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
+            },
+            {
+              "name": "X-Requesting-User-Role",
+              "valueProvider": "fieldValue",
+              "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "specifyBody": "keypair",
+        "parametersBody": {
+          "values": [
+            {
+              "name": "status",
+              "valueProvider": "modelRequired"
+            }
+          ]
+        },
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "bookingId",
+              "description": "Booking UUID",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "description": "New status: confirmed|completed|pending|cancelled",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "admin-status",
+      "name": "admin_update_booking_status",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        3000,
+        2280
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "name": "update_booking_status",
+        "description": "Update booking status for your own lessons. Confirm first. Required: bookingId (UUID), status (confirmed|completed|pending|cancelled).",
+        "method": "POST",
+        "url": "={{ $env.PLANNIVO_API_BASE }}/bookings/{bookingId}/status",
+        "sendHeaders": true,
+        "sendBody": true,
+        "optimizeResponse": true,
+        "specifyHeaders": "keypair",
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "X-Kai-Agent-Secret",
+              "valueProvider": "fieldValue",
+              "value": "={{ $env.KAI_AGENT_SECRET }}"
+            },
+            {
+              "name": "X-Requesting-User-Id",
+              "valueProvider": "fieldValue",
+              "value": "={{ $('Webhook Trigger').item.json.body.userId }}"
+            },
+            {
+              "name": "X-Requesting-User-Role",
+              "valueProvider": "fieldValue",
+              "value": "={{ $('Webhook Trigger').item.json.body.userRole }}"
+            },
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "specifyBody": "keypair",
+        "parametersBody": {
+          "values": [
+            {
+              "name": "status",
+              "valueProvider": "modelRequired"
+            }
+          ]
+        },
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "bookingId",
+              "description": "Booking UUID",
+              "type": "string"
+            },
+            {
+              "name": "status",
+              "description": "New status: confirmed|completed|pending|cancelled",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "staff-status",
+      "name": "staff_update_booking_status",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        2340,
+        1240
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -4617,6 +4753,28 @@
           {
             "node": "Fetch KB",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "admin_update_booking_status": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Admin",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "staff_update_booking_status": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Staff",
+            "type": "ai_tool",
             "index": 0
           }
         ]

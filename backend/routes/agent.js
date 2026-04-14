@@ -1642,6 +1642,69 @@ router.post(
   },
 );
 
+// ── POST /bookings/:id/status — Update booking status (admin/manager/instructor) ─
+router.post(
+  '/bookings/:id/status',
+  requireRole(['admin', 'manager', 'instructor', 'owner']),
+  verifyAgentIdentity,
+  async (req, res) => {
+    try {
+      const { userId, role } = req.agent;
+      const { id } = req.params;
+      const status = (req.body?.status || req.query.status || '').toLowerCase();
+
+      const ALLOWED = ['confirmed', 'completed', 'pending', 'cancelled'];
+      if (!ALLOWED.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${ALLOWED.join(', ')}` });
+      }
+
+      const bookingRes = await pool.query(
+        `SELECT b.id, b.status, b.instructor_user_id,
+                s.name AS student_name
+         FROM bookings b
+         LEFT JOIN users s ON s.id = b.student_user_id
+         WHERE b.id = $1 AND b.deleted_at IS NULL`,
+        [id],
+      );
+      if (!bookingRes.rows.length) return res.status(404).json({ error: 'Booking not found' });
+      const booking = bookingRes.rows[0];
+
+      if (role === 'instructor' && booking.instructor_user_id !== userId) {
+        return res.status(403).json({ error: 'You can only update your own bookings' });
+      }
+
+      if (status === 'cancelled') {
+        await pool.query(
+          `UPDATE bookings
+           SET status = 'cancelled',
+               cancellation_reason = $2,
+               canceled_at = NOW(),
+               updated_at = NOW()
+           WHERE id = $1`,
+          [id, `Cancelled by ${role} via Kai`],
+        );
+      } else {
+        await pool.query(
+          `UPDATE bookings SET status = $2, updated_at = NOW() WHERE id = $1`,
+          [id, status],
+        );
+      }
+
+      res.json({
+        success: true,
+        bookingId: id,
+        studentName: booking.student_name,
+        previousStatus: booking.status,
+        newStatus: status,
+        message: `Booking marked as ${status}.`,
+      });
+    } catch (err) {
+      logger.error('Agent POST /bookings/:id/status error', err);
+      res.status(500).json({ error: 'Failed to update booking status' });
+    }
+  },
+);
+
 // ── POST /bookings/:id/reschedule — Student self-reschedule (24h window) ────────
 router.post(
   '/bookings/:id/reschedule',
