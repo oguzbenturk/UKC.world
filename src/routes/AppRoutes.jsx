@@ -43,6 +43,7 @@ import RegisterPage from '../features/authentication/pages/RegisterPage';
 // ── Lazy-loaded pages (code-split for fast mobile load) ──
 const AdminDashboard = lazyWithRetry(() => import('../features/dashboard/pages/AdminDashboard'));
 const DashboardRouter = lazyWithRetry(() => import('../features/dashboard/pages/DashboardRouter'));
+const PlannivoDashboard = lazyWithRetry(() => import('../features/dashboard/pages/PlannivoDashboard'));
 const InstructorDashboard = lazyWithRetry(() => import('../features/instructor/pages/InstructorDashboard'));
 const MyStudents = lazyWithRetry(() => import('../features/instructor/pages/MyStudents'));
 const StudentDetail = lazyWithRetry(() => import('../features/instructor/pages/StudentDetail'));
@@ -328,6 +329,11 @@ const AppRoutes = () => {
         <Route path="/repairs" element={<RepairsPage />} />
         <Route path="/shop/my-orders" element={<MyOrdersPage />} />
       </Route>
+
+      {/* Public design preview — no auth required so the design can be
+          reviewed without a running backend. Remove when promoting to the
+          default /dashboard. */}
+      <Route path="/dashboard/plannivo" element={<PlannivoDashboard />} />
 
       {/* Dashboard routes for staff */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER]} />}>

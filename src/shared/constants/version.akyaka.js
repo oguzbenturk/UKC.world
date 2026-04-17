@@ -9,7 +9,7 @@
  *
  * Version is auto-incremented by push-akyaka.js on each deploy.
  */
-export const APP_VERSION = '0.0.3';
+export const APP_VERSION = '0.0.4';
 
 // Log version on app load (helpful for debugging)
 if (typeof window !== 'undefined') {

@@ -1,19 +1,29 @@
 // src/shared/components/ui/AuthModal.jsx
-import { Modal, Button, Form, Input, Divider, Space, App } from 'antd';
-import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+// Plannivo editorial style — see docs/design-system/
+import { Modal, Button, Form, Input, App } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { SIGN_IN_DISABLED_USER_MESSAGE } from '../../services/auth/authService';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 
-function AuthModalTitle({ title }) {
-  return (
-    <h2 className="text-3xl font-duotone-bold-extended text-white mb-3 tracking-tight text-center">
-      {title || 'Sign In'}
-    </h2>
-  );
-}
+const PALETTE = {
+  bone:        '#F0EADD',
+  paper:       '#F5F0E3',
+  paperSoft:   '#F8F4EA',
+  ink:         '#141E28',
+  ink80:       'rgba(20, 30, 40, 0.80)',
+  ink60:       'rgba(20, 30, 40, 0.60)',
+  ink40:       'rgba(20, 30, 40, 0.42)',
+  ink20:       'rgba(20, 30, 40, 0.20)',
+  line:        '#D8CEB6',
+  seafoam:     '#557872',
+  seafoamSoft: '#A7BAB4',
+};
+
+const SERIF = '"Fraunces", "Cormorant Garamond", Georgia, serif';
+const SANS  = '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+const MONO  = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 const AuthModal = () => {
   const { message } = App.useApp();
@@ -22,22 +32,17 @@ const AuthModal = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState('signin'); // 'signin' or 'register'
 
   const handleSignIn = async (values) => {
     setLoading(true);
     try {
       const success = await login(values.email, values.password);
       if (success) {
-        message.success('Successfully signed in!');
+        message.success('Signed in.');
         closeAuthModal();
-        
-        // Redirect to return URL if specified
-        if (modalConfig.returnUrl) {
-          navigate(modalConfig.returnUrl);
-        }
+        if (modalConfig.returnUrl) navigate(modalConfig.returnUrl);
       } else {
-        message.error('Invalid email or password');
+        message.error('Email or password is incorrect.');
       }
     } catch (error) {
       if (error?.message === SIGN_IN_DISABLED_USER_MESSAGE) {
@@ -51,11 +56,8 @@ const AuthModal = () => {
   };
 
   const handleRegister = () => {
-    // Close modal and navigate to full registration page
     closeAuthModal();
-    navigate('/register', { 
-      state: { returnUrl: modalConfig.returnUrl } 
-    });
+    navigate('/register', { state: { returnUrl: modalConfig.returnUrl } });
   };
 
   const handleCancel = () => {
@@ -63,155 +65,253 @@ const AuthModal = () => {
     closeAuthModal();
   };
 
-  const switchMode = () => {
-    form.resetFields();
-    setMode(mode === 'signin' ? 'register' : 'signin');
-  };
-
   return (
     <Modal
       open={isOpen}
       onCancel={handleCancel}
       footer={null}
-      width={420}
+      width={440}
       centered
-      className="ukc-auth-modal"
-      rootClassName="dark"
-      closeIcon={<span className="text-white/40 hover:text-white transition-colors mt-2 mr-2">×</span>}
+      className="plannivo-auth-modal"
+      closeIcon={
+        <span
+          style={{
+            color: PALETTE.ink40, fontSize: 22, lineHeight: 1,
+            fontFamily: SANS, fontWeight: 300,
+            transition: 'color 0.2s ease',
+            padding: 6,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = PALETTE.ink; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = PALETTE.ink40; }}
+        >
+          ×
+        </span>
+      }
       styles={{
-        content: { padding: 0, backgroundColor: 'transparent', boxShadow: 'none' },
-        body: { padding: 0 }
+        content: {
+          padding: 0,
+          backgroundColor: PALETTE.bone,
+          borderRadius: 14,
+          border: `1px solid ${PALETTE.line}`,
+          boxShadow: '0 40px 80px -40px rgba(20, 30, 40, 0.22), 0 15px 25px -20px rgba(20, 30, 40, 0.10)',
+          overflow: 'hidden',
+        },
+        body: { padding: 0 },
+        mask: { backgroundColor: 'rgba(20, 30, 40, 0.45)', backdropFilter: 'blur(2px)' },
       }}
     >
-      <div className="bg-[#1a262b] p-8 sm:p-10 rounded-2xl overflow-hidden relative border border-white/5 ring-1 ring-white/10">
-        {/* Decorative background element */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.15) 0%, rgba(30,58,138,0) 70%)' }} />
-        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0) 70%)' }} />
-        <div className="text-center mb-10 relative z-10">
-          <AuthModalTitle title={modalConfig.title || 'Sign In'} />
-          <p className="text-gray-400 font-duotone-regular text-sm px-4">
-            {modalConfig.message || 'Please enter your details to continue'}
-          </p>
+      <style>{`
+        .plannivo-auth-modal .ant-input,
+        .plannivo-auth-modal .ant-input-affix-wrapper,
+        .plannivo-auth-modal .ant-input-password {
+          background: ${PALETTE.paperSoft} !important;
+          border-color: ${PALETTE.line} !important;
+          border-radius: 10px !important;
+          height: 44px !important;
+          font-family: ${SANS} !important;
+          font-size: 0.95rem !important;
+          color: ${PALETTE.ink} !important;
+          box-shadow: none !important;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .plannivo-auth-modal .ant-input-affix-wrapper > input.ant-input {
+          background: transparent !important;
+          color: ${PALETTE.ink} !important;
+        }
+        .plannivo-auth-modal .ant-input::placeholder,
+        .plannivo-auth-modal .ant-input-affix-wrapper > input.ant-input::placeholder {
+          color: ${PALETTE.ink40} !important;
+        }
+        .plannivo-auth-modal .ant-input-affix-wrapper:hover,
+        .plannivo-auth-modal .ant-input:hover {
+          border-color: ${PALETTE.seafoamSoft} !important;
+        }
+        .plannivo-auth-modal .ant-input-affix-wrapper:focus-within,
+        .plannivo-auth-modal .ant-input:focus {
+          border-color: ${PALETTE.seafoam} !important;
+          box-shadow: 0 0 0 3px rgba(85,120,114,0.15) !important;
+        }
+        .plannivo-auth-modal .ant-form-item-explain-error {
+          font-family: ${MONO} !important;
+          font-size: 0.7rem !important;
+          letter-spacing: 0.06em !important;
+          color: #8B4A3A !important;
+          margin-top: 0.4em !important;
+        }
+        .plannivo-auth-modal .plan-primary-btn.ant-btn {
+          background: ${PALETTE.ink} !important;
+          color: ${PALETTE.bone} !important;
+          border: none !important;
+          border-radius: 999px !important;
+          height: 44px !important;
+          font-family: ${SANS} !important;
+          font-size: 0.93rem !important;
+          font-weight: 500 !important;
+          letter-spacing: 0.005em !important;
+          box-shadow: none !important;
+          transition: all 0.25s ease !important;
+        }
+        .plannivo-auth-modal .plan-primary-btn.ant-btn:hover:not(:disabled) {
+          background: ${PALETTE.seafoam} !important;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 20px -10px rgba(85,120,114,0.5) !important;
+        }
+        .plannivo-auth-modal .plan-quiet-btn.ant-btn {
+          background: transparent !important;
+          color: ${PALETTE.ink} !important;
+          border: 1px solid ${PALETTE.line} !important;
+          border-radius: 999px !important;
+          height: 44px !important;
+          font-family: ${SANS} !important;
+          font-size: 0.9rem !important;
+          font-weight: 500 !important;
+          transition: all 0.25s ease !important;
+        }
+        .plannivo-auth-modal .plan-quiet-btn.ant-btn:hover:not(:disabled) {
+          border-color: ${PALETTE.seafoam} !important;
+          color: ${PALETTE.seafoam} !important;
+        }
+      `}</style>
+
+      <div
+        style={{
+          padding: '2rem 2rem 2.25rem',
+          background: PALETTE.bone,
+          backgroundImage: `radial-gradient(ellipse 500px 300px at 50% 0%, rgba(85,120,114,0.06), transparent 70%)`,
+          color: PALETTE.ink,
+          fontFamily: SANS,
+        }}
+      >
+        {/* Brand mark + kicker */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55em', marginBottom: '1.5rem' }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: PALETTE.seafoam,
+              boxShadow: `0 0 0 3px ${PALETTE.seafoamSoft}`,
+            }}
+          />
+          <span style={{
+            fontFamily: SERIF,
+            fontVariationSettings: '"opsz" 9, "SOFT" 0, "wght" 460',
+            fontSize: '1.1rem',
+            letterSpacing: '-0.015em',
+            color: PALETTE.ink,
+          }}>
+            Plannivo
+          </span>
         </div>
 
-      {mode === 'signin' ? (
-        <>
-          <Form
-            form={form}
-            onFinish={handleSignIn}
-            layout="vertical"
-            requiredMark={false}
+        {/* Title */}
+        <h2 style={{
+          fontFamily: SERIF,
+          fontVariationSettings: '"opsz" 60, "SOFT" 30, "wght" 400',
+          fontSize: '1.75rem',
+          lineHeight: 1.08,
+          letterSpacing: '-0.02em',
+          color: PALETTE.ink,
+          margin: '0 0 0.4em',
+        }}>
+          {modalConfig.title || 'Sign in.'}
+        </h2>
+
+        {/* Subtitle */}
+        <p style={{
+          fontFamily: SERIF,
+          fontVariationSettings: '"opsz" 18, "SOFT" 0, "wght" 370',
+          fontSize: '0.95rem',
+          lineHeight: 1.5,
+          color: PALETTE.ink80,
+          margin: '0 0 1.75rem',
+        }}>
+          {modalConfig.message || 'Please enter your details to continue.'}
+        </p>
+
+        <Form
+          form={form}
+          onFinish={handleSignIn}
+          layout="vertical"
+          requiredMark={false}
+        >
+          <Form.Item
+            name="email"
+            label={<span style={{ fontFamily: MONO, fontSize: '0.64rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: PALETTE.ink40 }}>Email</span>}
+            rules={[
+              { required: true, message: 'Email is required' },
+              { type: 'email', message: 'Enter a valid email' },
+            ]}
           >
-            <Form.Item
-              name="email"
-              className="mb-5"
-              rules={[
-                { required: true, message: 'Email is required' },
-                { type: 'email', message: 'Enter a valid email' }
-              ]}
+            <Input placeholder="you@school.com" autoComplete="email" />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            label={<span style={{ fontFamily: MONO, fontSize: '0.64rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: PALETTE.ink40 }}>Password</span>}
+            rules={[{ required: true, message: 'Password is required' }]}
+          >
+            <Input.Password placeholder="••••••••" autoComplete="current-password" />
+          </Form.Item>
+
+          <Form.Item style={{ marginTop: '1.5rem', marginBottom: 0 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              block
+              className="plan-primary-btn"
             >
-              <Input 
-                prefix={<MailOutlined className="text-[#1E3A8A]" />}
-                placeholder="Email"
-                size="large"
-                className="!bg-white/5 !border-white/10 hover:!border-[#1E3A8A]/50 focus-within:!border-[#1E3A8A] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60"
-                autoComplete="email"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              className="mb-8"
-              rules={[{ required: true, message: 'Password is required' }]}
-            >
-              <Input.Password
-                prefix={<LockOutlined className="text-[#1E3A8A]" />}
-                placeholder="Password"
-                size="large"
-                className="!bg-white/5 !border-white/10 hover:!border-[#1E3A8A]/50 focus-within:!border-[#1E3A8A] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60 [&_.ant-input-password-icon]:!text-white/40 hover:[&_.ant-input-password-icon]:!text-white/80"
-                autoComplete="current-password"
-              />
-            </Form.Item>
-
-            <Form.Item className="mb-0">
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                loading={loading}
-                block
-                size="large"
-                className="!h-12 !rounded-xl !bg-[#1E3A8A] !border-none !font-duotone-bold !text-sm hover:!opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-[#1E3A8A]/20"
-              >
-                Sign In
-              </Button>
-            </Form.Item>
-          </Form>
-
-          <div className="relative my-8 text-center px-4">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-white/5" />
-            </div>
-            <span className="relative z-10 px-4 bg-[#1a262b] text-[10px] sm:text-xs font-duotone-bold text-gray-500 uppercase tracking-[0.2em]">
-              Or connect with
-            </span>
-          </div>
-
-          <Space direction="vertical" className="w-full" size={12}>
-            <Button 
-              type="default" 
-              block 
-              size="large"
-              className="!h-12 !rounded-xl !bg-white/5 !border-white/10 !text-white !font-semibold !text-sm hover:!bg-white/10 hover:!border-white/20 transition-all"
-              onClick={handleRegister}
-            >
-              Create New Account
+              Sign in
             </Button>
-            
-            <div className="text-center pt-2">
-              <Button 
-                type="link" 
-                onClick={handleCancel}
-                className="!text-gray-500 hover:!text-[#1E3A8A] !text-xs transition-colors"
-              >
-                Continue as Guest
-              </Button>
-            </div>
-          </Space>
-        </>
-      ) : (
-        <div className="text-center relative z-10 px-2">
-          <p className="mb-8 text-gray-400 font-duotone-regular leading-relaxed text-sm">
-            To create a full account with access to all features,
-            we'll need a bit more information from you.
-          </p>
-          <Button 
-            type="primary" 
-            block 
-            size="large"
-            className="!h-12 !rounded-xl !bg-emerald-600 !border-none !font-duotone-bold !text-sm hover:!bg-emerald-500 transition-all shadow-lg shadow-emerald-500/10"
-            onClick={handleRegister}
-          >
-            Go to Registration
-          </Button>
-          
-          <div className="relative my-8 text-center px-4">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-white/5" />
-            </div>
-            <span className="relative z-10 px-4 bg-[#1a262b] text-xs font-duotone-bold text-gray-500 uppercase tracking-widest">
-              Or
-            </span>
-          </div>
+          </Form.Item>
+        </Form>
 
-          <Button 
-            type="link" 
-            onClick={switchMode}
-            className="!text-[#1E3A8A] hover:!text-[#1E3A8A]/80 !text-sm transition-colors"
-          >
-            Already have an account? Sign In
-          </Button>
+        {/* Divider */}
+        <div
+          role="separator"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '1rem',
+            margin: '1.75rem 0 1.25rem',
+          }}
+        >
+          <span style={{ flex: 1, height: 1, background: PALETTE.line }} />
+          <span style={{
+            fontFamily: MONO, fontSize: '0.6rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: PALETTE.ink40,
+          }}>or</span>
+          <span style={{ flex: 1, height: 1, background: PALETTE.line }} />
         </div>
-      )}
+
+        <Button
+          type="default"
+          block
+          onClick={handleRegister}
+          className="plan-quiet-btn"
+        >
+          Create an account
+        </Button>
+
+        <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={handleCancel}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0.4em 0.5em',
+              fontFamily: MONO, fontSize: '0.66rem',
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: PALETTE.ink40,
+              cursor: 'pointer',
+              transition: 'color 0.2s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = PALETTE.seafoam; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = PALETTE.ink40; }}
+          >
+            Continue as guest
+          </button>
+        </div>
       </div>
     </Modal>
   );

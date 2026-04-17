@@ -114,7 +114,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
       }),
-      item('/academy', 'Academy', 'AcademicCapIcon', {
+      item('/academy', 'Lessons', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
         isDirectLink: true,
         subItems: [
@@ -141,7 +141,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/care', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
       }),
-      item('/stay', 'Stay', 'HomeIcon', {
+      item('/stay', 'Accommodation', 'HomeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
         isDirectLink: true,
         subItems: [
@@ -149,7 +149,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/stay/hotel', label: 'Hotel' }
         ]
       }),
-      item('/experience', 'Experience', 'CalendarDaysIcon', {
+      item('/experience', 'Packages', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
         isDirectLink: true,
         subItems: [
@@ -190,7 +190,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         ]
       }),
       // 2. Academy - Light Green
-      item('/academy', 'Academy', 'AcademicCapIcon', {
+      item('/academy', 'Lessons', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
         isDirectLink: true,
         subItems: [
@@ -223,7 +223,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
       }),
       // 6. Stay - Blue
-      item('/stay', 'Stay', 'HomeIcon', {
+      item('/stay', 'Accommodation', 'HomeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
         isDirectLink: true,
         subItems: [
@@ -232,7 +232,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         ]
       }),
       // 7. Experience - Yellow
-      item('/experience', 'Experience', 'CalendarDaysIcon', {
+      item('/experience', 'Packages', 'CalendarDaysIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
         isDirectLink: true,
         subItems: [
@@ -297,7 +297,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { dotColor: '#2d6a3e', textColor: '#06b6d4' }
       }),
       // Academy - Light Green (Lessons, Calendar, Events)
-      item('/calendars', 'Academy', 'AcademicCapIcon', {
+      item('/calendars', 'Lessons', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
         subItems: [
           { to: '/bookings/calendar', label: 'Calendar View' },
@@ -305,7 +305,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         ]
       }),
       // Care - Teal
-      item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
+      item('/repairs', 'Repairs', 'WrenchScrewdriverIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
       // Finance - Emerald
@@ -347,11 +347,11 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { textColor: '#14b8a6' },
         subItems: [
           { to: '/calendars/shop-orders', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/calendars/lessons', label: 'Academy', dotColor: '#4ade80' },
+          { to: '/calendars/lessons', label: 'Lessons', dotColor: '#4ade80' },
           { to: '/calendars/rentals', label: 'Rental', dotColor: '#fb923c' },
           { to: '/calendars/members', label: 'Member', dotColor: '#93c47d' },
-          { to: '/repairs', label: 'Care', dotColor: '#14b8a6' },
-          { to: '/calendars/stay', label: 'Stay', dotColor: '#3b82f6' },
+          { to: '/repairs', label: 'Repairs', dotColor: '#14b8a6' },
+          { to: '/calendars/stay', label: 'Accommodation', dotColor: '#3b82f6' },
           { to: '/calendars/events', label: 'Community (Events)', dotColor: '#0ea5e9' }
         ]
       }),
@@ -361,11 +361,11 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { textColor: '#fb923c' },
         subItems: [
           { to: '/services/shop', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/services/lessons', label: 'Academy', dotColor: '#4ade80' },
+          { to: '/services/lessons', label: 'Lessons', dotColor: '#4ade80' },
           { to: '/services/rentals', label: 'Rental', dotColor: '#fb923c' },
           { to: '/services/memberships', label: 'Member', dotColor: '#93c47d' },
-          { to: '/services/accommodation', label: 'Stay', dotColor: '#3b82f6' },
-          { to: '/services/packages', label: 'Experience', dotColor: '#eab308' },
+          { to: '/services/accommodation', label: 'Accommodation', dotColor: '#3b82f6' },
+          { to: '/services/packages', label: 'Packages', dotColor: '#eab308' },
           { to: '/services/events', label: 'Events', dotColor: '#0ea5e9' }
         ]
       }),
@@ -374,10 +374,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { textColor: '#10b981' },
         subItems: [
           { to: '/finance/shop', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/finance/lessons', label: 'Academy', dotColor: '#4ade80' },
+          { to: '/finance/lessons', label: 'Lessons', dotColor: '#4ade80' },
           { to: '/finance/rentals', label: 'Rental', dotColor: '#fb923c' },
           { to: '/finance/membership', label: 'Member', dotColor: '#93c47d' },
-          { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
+          { to: '/finance/accommodation', label: 'Accommodation', dotColor: '#3b82f6' },
           { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
             { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
             { to: '/finance/wallet-deposits', label: 'Wallet Deposits', icon: 'WalletIcon' },
@@ -433,7 +433,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       ]
     }),
     // 2. Academy - Light Green
-    item('/calendars', 'Academy', 'AcademicCapIcon', {
+    item('/calendars', 'Lessons', 'AcademicCapIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
       subItems: [
         { to: '/calendars/lessons', label: 'Lessons' },
@@ -449,15 +449,15 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
     }),
     // 5. Care - Teal
-    item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
+    item('/repairs', 'Repairs', 'WrenchScrewdriverIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
     }),
     // 6. Stay - Blue
-    item('/calendars/stay', 'Stay', 'HomeIcon', {
+    item('/calendars/stay', 'Accommodation', 'HomeIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
     }),
     // 7. Experience - Yellow (Packages/Events)
-    item('/services/packages', 'Experience', 'CalendarDaysIcon', {
+    item('/services/packages', 'Packages', 'CalendarDaysIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }
     }),
     // 8. Community - Sky Blue (with dot styling)

@@ -15,7 +15,34 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { getNavItemsForRole } from '@/shared/utils/navConfig';
 import { APP_VERSION } from '@/shared/constants/version';
-import { UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
+// Inline brand mark — see PlannivoBrandMark below. UkcBrandWordmark is deprecated.
+const PlannivoBrandMark = ({ compact = false }) => (
+  <span
+    className="inline-flex items-baseline gap-[0.5em] whitespace-nowrap"
+    style={{
+      color: '#141E28',
+      fontFamily: '"Fraunces", "Cormorant Garamond", Georgia, serif',
+      fontVariationSettings: '"opsz" 9, "SOFT" 0, "wght" 460',
+      fontSize: compact ? '1.05rem' : '1.2rem',
+      letterSpacing: '-0.015em',
+      lineHeight: 1,
+    }}
+  >
+    <span
+      aria-hidden="true"
+      style={{
+        width: 9,
+        height: 9,
+        borderRadius: '50%',
+        background: '#557872',                        /* --seafoam */
+        boxShadow: '0 0 0 3px rgba(167,186,180,0.55)', /* --seafoam-soft halo */
+        alignSelf: 'center',
+        flex: 'none',
+      }}
+    />
+    <span>Plannivo</span>
+  </span>
+);
 
 const profileImageCandidateKeys = [
   'profile_image_url',
@@ -277,37 +304,33 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
   };
 
   return (
-    <div className="dark safe-pt">
+    <div className="safe-pt">
       <nav
-        className={`sticky top-0 z-[70] transition-all duration-300 ${
-          isScrolled
-            ? 'border-b border-white/10'
-            : 'border-b border-white/5'
-        }`}
+        className="sticky top-0 z-[70] transition-colors duration-200"
         style={{
-          background: isScrolled
-            ? 'linear-gradient(180deg, #3a4a4f 0%, #2e3f44 60%, #263840 100%)'
-            : 'linear-gradient(180deg, #46575c 0%, #3a4d53 60%, #324750 100%)',
-          boxShadow: isScrolled
-            ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(30,58,138,0.15)'
-            : '0 4px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(30,58,138,0.08)'
+          background: '#F0EADD',                                                /* --bone */
+          borderBottom: isScrolled ? '1px solid #D8CEB6' : '1px solid #E3DAC4', /* --line / --line-soft */
+          boxShadow: isScrolled ? '0 1px 0 rgba(20,30,40,0.02)' : 'none',
+          color: '#141E28',                                                     /* --ink */
+          fontFamily: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif',
+          fontFeatureSettings: '"ss01","ss02"',
         }}
       >
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center h-16">
               {/* Left Section - fixed width */}
               <div className="flex items-center flex-shrink-0 gap-2 min-w-0">
-                {/* Mobile/Tablet Menu Toggle - visible on all screens */}
+                {/* Sidebar toggle */}
                 <button
                   type="button"
                   onClick={handleSidebarToggle}
-                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#1E3A8A] transition-colors duration-150 ease-in-out shrink-0"
+                  className="p-2 rounded-md text-[rgba(20,30,40,0.60)] hover:text-[#141E28] hover:bg-[rgba(20,30,40,0.06)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#557872] transition-colors duration-150 ease-in-out shrink-0"
                   aria-expanded={false}
                   aria-label="Toggle sidebar"
                   data-sidebar-toggle="true"
                 >
                   <span className="sr-only">Toggle sidebar</span>
-                  <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
+                  <Bars3Icon className="block h-5 w-5" aria-hidden="true" strokeWidth={1.5} />
                 </button>
 
                 <div className="flex items-baseline gap-0.5 sm:gap-1 min-w-0">
@@ -315,9 +338,9 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   {location.pathname === '/guest' && (
                     <NavLink
                       to="/guest"
-                      className="hidden xl:flex items-baseline px-3 py-1 rounded-md hover:bg-white/10 transition-colors duration-150 shrink-0"
+                      className="hidden xl:flex items-baseline px-3 py-1 rounded-md hover:bg-[rgba(20,30,40,0.05)] transition-colors duration-150 shrink-0"
                     >
-                      <UkcBrandWordmark />
+                      <PlannivoBrandMark />
                     </NavLink>
                   )}
 
@@ -325,7 +348,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   {location.pathname !== '/guest' && (
                     <NavLink
                       to="/guest"
-                      className="flex items-center shrink-0 px-3 py-1 rounded-md hover:bg-white/10 transition-colors duration-150 ease-in-out"
+                      className="flex items-center shrink-0 px-3 py-1 rounded-md hover:bg-[rgba(20,30,40,0.05)] transition-colors duration-150 ease-in-out"
                       onClick={(e) => {
                         if (
                           (user?.role?.toLowerCase() === 'outsider' ||
@@ -357,7 +380,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                             className="flex items-center gap-3"
                             style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
                           >
-                            <UkcBrandWordmark />
+                            <PlannivoBrandMark />
                           </span>
                         );
                       })()}
@@ -380,10 +403,14 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       title={`Go to ${pageSectionIndicator.displayLabel}`}
                     >
                       <span
-                        className="font-gotham-bold whitespace-nowrap text-sm sm:text-base md:text-lg lg:text-xl truncate"
+                        className="whitespace-nowrap truncate"
                         style={{
-                          color: pageSectionIndicator.textColor,
-                          letterSpacing: '0.02em',
+                          color: '#141E28',
+                          fontFamily: '"Fraunces", "Cormorant Garamond", Georgia, serif',
+                          fontVariationSettings: '"opsz" 30, "SOFT" 20, "wght" 430',
+                          fontSize: 'clamp(0.95rem, 1.2vw, 1.15rem)',
+                          fontStyle: 'italic',
+                          letterSpacing: '-0.005em',
                         }}
                         title={pageSectionIndicator.displayLabel}
                       >
@@ -410,7 +437,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           to="/guest"
                           className="flex xl:hidden items-baseline hover:opacity-80 transition-opacity"
                         >
-                          <UkcBrandWordmark />
+                          <PlannivoBrandMark />
                         </NavLink>
                       );
                     }
@@ -427,15 +454,30 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                 {/* Subtle Plannivo link with version - managers/developers only */}
                 {['admin', 'manager', 'super_admin', 'developer'].includes(user?.role?.toLowerCase()) && (
-                <a 
-                  href="http://plannivo.com" 
-                  target="_blank" 
+                <a
+                  href="https://plannivo.com"
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="hidden lg:flex items-center gap-1.5 text-xs text-white/60 hover:text-white/90 transition-colors duration-150"
+                  className="hidden lg:flex items-center gap-1.5 text-[rgba(20,30,40,0.42)] hover:text-[rgba(20,30,40,0.70)] transition-colors duration-150"
                   title="Visit Plannivo.com"
+                  style={{
+                    fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    fontSize: '0.68rem',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                  }}
                 >
-                  <span>Plannivo</span>
-                  <span className="px-1.5 py-0.5 bg-white/10 text-white/80 rounded text-[10px] font-medium">
+                  <span>plannivo</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded"
+                    style={{
+                      background: '#141E28',
+                      color: '#F0EADD',
+                      fontSize: '0.58rem',
+                      letterSpacing: '0.08em',
+                      fontWeight: 500,
+                    }}
+                  >
                     v{APP_VERSION}
                   </span>
                 </a>
@@ -454,7 +496,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   <div className="relative profile-dropdown-container z-[80]">
                     <button 
                       onClick={toggleProfileDropdown}
-                      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
+                      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[rgba(20,30,40,0.60)] hover:text-[#141E28] hover:bg-[rgba(20,30,40,0.05)] transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#557872] dark:text-slate-300 dark:hover:text-sky-300 dark:hover:bg-slate-700/50"
                       aria-expanded={isProfileDropdownOpen}
                       aria-haspopup="true"
                       type="button"
@@ -465,13 +507,13 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                         shape="circle"
                         src={profileImage || undefined}
                         alt={`${displayName} avatar`}
-                        icon={!profileImage ? <UserCircleIcon className="h-5 w-5 text-slate-500 dark:text-slate-200" /> : undefined}
-                        className="border border-slate-200 bg-slate-100 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        icon={!profileImage ? <UserCircleIcon className="h-5 w-5 text-[rgba(20,30,40,0.60)]" /> : undefined}
+                        className="border border-[#D8CEB6] bg-[#E5DCC8] text-[#141E28] shadow-none"
                       />
                     </button>
                   {isProfileDropdownOpen && (
                     <div 
-                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-white border border-slate-200 focus:outline-none z-[9999] dark:bg-slate-800 dark:border-slate-700/40"
+                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-lg shadow-xl py-1 bg-[#F8F4EA] border border-[#D8CEB6] focus:outline-none z-[9999] dark:bg-slate-800 dark:border-slate-700/40"
                       role="menu" 
                       aria-orientation="vertical"
                       aria-labelledby="user-menu-button"
@@ -480,7 +522,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       {['instructor', 'manager', 'admin', 'developer', 'super_admin'].includes(user?.role?.toLowerCase()) ? (
                         <button
                           type="button"
-                          className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          className="block w-full text-left px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                           role="menuitem"
                           onClick={() => {
                             setIsProfileDropdownOpen(false);
@@ -492,7 +534,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       ) : (
                         <button
                           type="button"
-                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                           role="menuitem"
                           onClick={() => {
                             setIsProfileDropdownOpen(false);
@@ -500,7 +542,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           }}
                         >
                           <span>{displayName}</span>
-                          <span className="ml-2 text-xs text-sky-500 dark:text-sky-400 font-medium">My Profile</span>
+                          <span className="ml-2 text-xs text-[#557872] font-medium">My Profile</span>
                         </button>
                       )}
                       {isAuthenticated && (
@@ -510,18 +552,18 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                             handleWalletClick();
                             setIsProfileDropdownOpen(false);
                           }}
-                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          className="flex w-full items-center justify-between px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                           role="menuitem"
                         >
                           <span>My Wallet</span>
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <span className="text-xs font-semibold text-[rgba(20,30,40,0.42)]">
                             {walletBalance !== undefined && preferredCurrency ? `${preferredCurrency.symbol}${walletBalance.toFixed(2)}` : '...'}
                           </span>
                         </button>
                       )}
                       <NavLink
                         to="/shop/my-orders"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -533,7 +575,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       </NavLink>
                       <NavLink
                         to="/shop/browse"
-                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="flex items-center justify-between px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -549,14 +591,14 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       >
                         <span>Shopping Cart</span>
                         {getCartCount() > 0 && (
-                          <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
+                          <span className="text-xs font-semibold bg-[#A7BAB4] text-[#141E28] px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
                             {getCartCount()}
                           </span>
                         )}
                       </NavLink>
                       <NavLink
                         to="/settings"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -568,7 +610,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       </NavLink>
                       <NavLink
                         to="/notifications"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -580,7 +622,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       </NavLink>
                       <NavLink
                         to="/help"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -592,7 +634,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       </NavLink>
                       <NavLink
                         to="/privacy/gdpr"
-                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                         onClick={(e) => {
                           e.preventDefault();
@@ -602,10 +644,10 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       >
                         Privacy & GDPR
                       </NavLink>
-                      <hr className="my-1 border-slate-200 dark:border-slate-700" />
+                      <hr className="my-1 border-[#D8CEB6] dark:border-slate-700" />
                       <button
                         onClick={showLogoutConfirmation}
-                        className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                        className="block w-full text-left px-4 py-2 text-sm text-[#141E28] hover:bg-[#F5F0E3] hover:text-[#557872] transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                       >
                         Logout
@@ -623,11 +665,23 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                         returnUrl: location.pathname
                       });
                     }}
-                    className="px-4 py-2 rounded-md font-duotone-bold text-sm transition-all duration-150 focus:outline-none"
-                    style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 8px rgba(30,58,138,0.2)' }}
+                    className="transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#557872] focus:ring-offset-2 focus:ring-offset-[#F0EADD] hover:-translate-y-px"
+                    style={{
+                      background: '#141E28',
+                      color: '#F0EADD',
+                      padding: '0.6em 1.15em',
+                      borderRadius: 999,
+                      fontFamily: '"Instrument Sans", sans-serif',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      letterSpacing: '0.005em',
+                      border: 'none',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#557872'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#141E28'; }}
                     aria-label="Sign In"
                   >
-                    Sign In
+                    Sign in
                   </button>
                 )}
 

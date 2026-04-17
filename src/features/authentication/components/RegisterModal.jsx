@@ -1,5 +1,6 @@
 // src/features/authentication/components/RegisterModal.jsx
 // Multi-step registration wizard: Account → Profile → Address
+// Plannivo editorial styling — see docs/design-system/
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -25,6 +26,29 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 
 const { Option } = Select;
+
+// ─── Plannivo design tokens (see docs/design-system/) ───
+const P = {
+  bone:        '#F0EADD',
+  paper:       '#F5F0E3',
+  paperSoft:   '#F8F4EA',
+  ink:         '#141E28',
+  ink80:       'rgba(20, 30, 40, 0.80)',
+  ink60:       'rgba(20, 30, 40, 0.60)',
+  ink40:       'rgba(20, 30, 40, 0.42)',
+  ink20:       'rgba(20, 30, 40, 0.20)',
+  line:        '#D8CEB6',
+  seafoam:     '#557872',
+  seafoamSoft: '#A7BAB4',
+  clay:        '#B9876D',
+};
+const SERIF = '"Fraunces", "Cormorant Garamond", Georgia, serif';
+const SANS  = '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+const MONO  = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+const FRAME_SHADOW =
+  '0 1px 0 rgba(255, 255, 255, 0.8) inset,' +
+  '0 40px 80px -40px rgba(20, 30, 40, 0.22),' +
+  '0 15px 25px -20px rgba(20, 30, 40, 0.12)';
 
 // ─── Step configuration ───
 const STEPS = [
@@ -238,33 +262,124 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
   };
 
   // ─── Shared form item label helper ───
-  const lbl = (text) => <span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">{text}</span>;
+  const lbl = (text) => (
+    <span style={{
+      fontFamily: MONO,
+      fontSize: '0.6rem',
+      letterSpacing: '0.14em',
+      textTransform: 'uppercase',
+      color: P.ink40,
+    }}>{text}</span>
+  );
 
   const content = (
-    <div className="flex flex-col bg-[#1a1c1e] text-white rounded-3xl overflow-hidden w-full relative border border-white/10 shadow-2xl">
-      {/* Header with progress */}
-      <div className="bg-gradient-to-br from-antrasit to-[#0f1013] p-7 pb-5">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-white/5 text-duotone-blue flex items-center justify-center text-2xl border border-white/10 shadow-inner">
-            {STEPS[step].icon}
-          </div>
-          <div>
-            <h2 className="font-duotone-bold-extended text-white text-xl m-0 leading-tight uppercase tracking-tight">{STEPS[step].title}</h2>
-            <p className="font-duotone-regular text-gray-400 text-xs m-0 mt-1">{STEPS[step].subtitle}</p>
-          </div>
+    <div
+      style={{
+        display: 'flex', flexDirection: 'column',
+        background: P.bone,
+        color: P.ink,
+        borderRadius: inline ? 14 : 0,
+        overflow: 'hidden', width: '100%', position: 'relative',
+        border: inline ? `1px solid ${P.line}` : 'none',
+        boxShadow: inline ? FRAME_SHADOW : 'none',
+        fontFamily: SANS,
+      }}
+    >
+      {/* Header — editorial masthead */}
+      <div
+        style={{
+          padding: '1.75rem 2rem 1.25rem',
+          background: P.bone,
+          backgroundImage: `radial-gradient(ellipse 560px 320px at 50% 0%, rgba(85,120,114,0.08), transparent 70%)`,
+          borderBottom: `1px solid ${P.line}`,
+        }}
+      >
+        {/* Brand mark */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55em', marginBottom: '1rem' }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10, height: 10, borderRadius: '50%',
+              background: P.seafoam,
+              boxShadow: `0 0 0 3px ${P.seafoamSoft}`,
+            }}
+          />
+          <span style={{
+            fontFamily: SERIF,
+            fontVariationSettings: '"opsz" 9, "SOFT" 0, "wght" 460',
+            fontSize: '1.05rem',
+            letterSpacing: '-0.015em',
+            color: P.ink,
+          }}>
+            Plannivo
+          </span>
         </div>
-        {/* Step progress bars */}
-        <div className="flex gap-2">
+
+        {/* Kicker + title */}
+        <p style={{
+          fontFamily: MONO, fontSize: '0.66rem',
+          letterSpacing: '0.14em', textTransform: 'uppercase',
+          color: P.ink40,
+          margin: '0 0 0.75em',
+          display: 'flex', alignItems: 'center', gap: '0.6em',
+        }}>
+          <span style={{
+            display: 'inline-block',
+            padding: '3px 8px',
+            background: P.ink, color: P.bone,
+            borderRadius: 3,
+            fontSize: '0.58rem',
+            letterSpacing: '0.08em',
+            fontWeight: 500,
+          }}>{String(step).padStart(2, '0')}</span>
+          {STEPS[step].title}
+        </p>
+
+        <h2 style={{
+          fontFamily: SERIF,
+          fontVariationSettings: '"opsz" 60, "SOFT" 30, "wght" 400',
+          fontSize: '1.5rem',
+          lineHeight: 1.1,
+          letterSpacing: '-0.02em',
+          color: P.ink,
+          margin: '0 0 0.75em',
+        }}>
+          <em style={{
+            fontStyle: 'italic',
+            fontVariationSettings: '"opsz" 60, "SOFT" 80, "wght" 380',
+            color: P.seafoam,
+          }}>{STEPS[step].subtitle}</em>
+        </h2>
+
+        {/* Step progress */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
           {STEPS.map((s, i) => (
-            <div key={s.key} className={`flex-1 h-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-duotone-blue' : 'bg-white/10'}`} />
+            <div
+              key={s.key}
+              style={{
+                flex: 1, height: 2, borderRadius: 999,
+                background: i <= step ? P.seafoam : P.line,
+                transition: 'background 0.5s ease',
+              }}
+            />
           ))}
         </div>
-        <p className="font-duotone-regular text-gray-500 text-[10px] m-0 mt-3 text-right uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
+        <p style={{
+          fontFamily: MONO,
+          fontSize: '0.6rem',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: P.ink40,
+          margin: '0.7rem 0 0',
+          textAlign: 'right',
+        }}>
+          Step {step + 1} of {STEPS.length}
+        </p>
       </div>
 
       {/* Form body */}
-      <div className="p-7 px-8 bg-[#1a1c1e] flex-1">
-        <Form form={form} layout="vertical" requiredMark={false} className="register-form dark-form">
+      <div style={{ padding: '1.75rem 2rem 1.5rem', background: P.bone }}>
+        <Form form={form} layout="vertical" requiredMark={false} className="register-form plannivo-form">
           {/* ─── STEP 1: Account ─── */}
           <div style={{ display: step === 0 ? 'block' : 'none' }}>
             <div className="grid grid-cols-2 gap-3">
@@ -274,7 +389,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                 rules={[{ required: true, message: 'Required' }]}
               >
                 <Input
-                  prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
+                  prefix={<UserOutlined style={{ color: P.ink40 }} />}
                   placeholder="John"
                   autoComplete="given-name"
                   size="large"
@@ -287,7 +402,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                 rules={[{ required: true, message: 'Required' }]}
               >
                 <Input
-                  prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
+                  prefix={<UserOutlined style={{ color: P.ink40 }} />}
                   placeholder="Doe"
                   autoComplete="family-name"
                   size="large"
@@ -305,7 +420,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               ]}
             >
               <Input
-                prefix={<MailOutlined className="text-slate-400 dark:text-slate-500" />}
+                prefix={<MailOutlined style={{ color: P.ink40 }} />}
                 placeholder="you@example.com"
                 autoComplete="email"
                 size="large"
@@ -326,7 +441,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               ]}
             >
               <Input.Password
-                prefix={<LockOutlined className="text-slate-400 dark:text-slate-500" />}
+                prefix={<LockOutlined style={{ color: P.ink40 }} />}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 size="large"
@@ -388,7 +503,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               ]}
             >
               <Input.Password
-                prefix={<LockOutlined className="text-slate-400 dark:text-slate-500" />}
+                prefix={<LockOutlined style={{ color: P.ink40 }} />}
                 placeholder="••••••••"
                 autoComplete="new-password"
                 size="large"
@@ -431,7 +546,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                   ]}
                 >
                   <Input
-                    prefix={<PhoneOutlined className="text-slate-400 dark:text-slate-500" />}
+                    prefix={<PhoneOutlined style={{ color: P.ink40 }} />}
                     placeholder="5xx xxx xxxx"
                     autoComplete="tel-national"
                     size="large"
@@ -493,7 +608,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
             >
               <Select
                 placeholder="Select currency"
-                suffixIcon={<DollarOutlined className="text-slate-400 dark:text-slate-500" />}
+                suffixIcon={<DollarOutlined style={{ color: P.ink40 }} />}
                 showSearch
                 size="large"
                 className="[&_.ant-select-selector]:!rounded-lg"
@@ -506,7 +621,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                     <span className="flex items-center gap-2">
                       <span>{c.symbol}</span>
                       <span>{c.name}</span>
-                      <span className="text-slate-400">({c.value})</span>
+                      <span style={{ color: P.ink40, fontFamily: MONO, fontSize: '0.72em' }}>({c.value})</span>
                     </span>
                   </Option>
                 ))}
@@ -516,9 +631,28 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
           {/* ─── STEP 3: Address ─── */}
           <div style={{ display: step === 2 ? 'block' : 'none' }}>
-            <div className="mb-4 p-4 rounded-xl bg-duotone-blue/5 border border-duotone-blue/20">
-              <p className="text-duotone-blue text-[11px] font-duotone-regular m-0 leading-relaxed">
-                <span className="mr-1">📦</span> Your address will be used as the default delivery address for shop orders. You can always change it at checkout.
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '0.85rem 1rem',
+                borderRadius: 10,
+                background: 'rgba(85, 120, 114, 0.06)',
+                border: `1px solid ${P.seafoamSoft}`,
+              }}
+            >
+              <p style={{
+                margin: 0,
+                fontFamily: SANS, fontSize: '0.78rem',
+                lineHeight: 1.5,
+                color: P.ink80,
+              }}>
+                <span style={{
+                  fontFamily: MONO, fontSize: '0.58rem',
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: P.seafoam,
+                  display: 'block', marginBottom: '0.3em',
+                }}>Shipping</span>
+                This address will be used as the default delivery for shop orders. You can always change it at checkout.
               </p>
             </div>
 
@@ -528,7 +662,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               rules={[{ required: true, message: 'Required' }]}
             >
               <Input
-                prefix={<EnvironmentOutlined className="text-slate-400 dark:text-slate-500" />}
+                prefix={<EnvironmentOutlined style={{ color: P.ink40 }} />}
                 placeholder="123 Beach Road, Apt 4"
                 autoComplete="street-address"
                 size="large"
@@ -576,45 +710,90 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
         </Form>
 
         {/* ─── Navigation buttons ─── */}
-        <div className="flex items-center justify-between mt-6 pt-5 border-t border-white/5">
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginTop: '1.5rem', paddingTop: '1.25rem',
+            borderTop: `1px solid ${P.line}`,
+          }}
+        >
           {step > 0 ? (
-            <Button
-              icon={<ArrowLeftOutlined />}
+            <button
+              type="button"
               onClick={goBack}
               disabled={loading}
-              size="large"
-              type="text"
-              className="font-duotone-bold text-gray-400 hover:text-white flex items-center gap-2 border-0"
+              className="plannivo-quiet-btn"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.5em',
+                background: 'transparent', border: 'none',
+                padding: '0.4em 0.2em',
+                fontFamily: MONO, fontSize: '0.66rem',
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: P.ink60, cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.color = P.ink; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = P.ink60; }}
             >
-              BACK
-            </Button>
+              ← Back
+            </button>
           ) : (
-            <Button 
-              onClick={handleClose} 
-              disabled={loading} 
-              size="large" 
-              className="font-duotone-bold text-gray-500 border-white/10 hover:border-white/20 hover:text-gray-400 bg-transparent rounded-xl"
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${P.line}`,
+                padding: '0.7em 1.2em',
+                borderRadius: 999,
+                fontFamily: SANS, fontSize: '0.85rem',
+                fontWeight: 500,
+                color: P.ink80,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                transition: 'border-color 0.2s ease, color 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.borderColor = P.seafoam;
+                  e.currentTarget.style.color = P.seafoam;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = P.line;
+                e.currentTarget.style.color = P.ink80;
+              }}
             >
-              CANCEL
-            </Button>
+              Cancel
+            </button>
           )}
 
           {step < STEPS.length - 1 ? (
             <button
               type="button"
               onClick={goNext}
-              className="font-duotone-bold bg-antrasit border border-duotone-blue/30 text-duotone-blue py-2.5 px-8 rounded-xl hover:bg-[#525759] hover:border-duotone-blue/60 transition-all flex items-center gap-2 tracking-widest text-xs"
+              className="plannivo-primary-btn"
             >
-              CONTINUE <ArrowRightOutlined />
+              Continue
+              <svg className="arrow" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSubmit}
               disabled={loading}
-              className="font-duotone-bold bg-duotone-blue text-antrasit py-2.5 px-8 rounded-xl hover:bg-white transition-all flex items-center gap-2 tracking-widest text-xs shadow-lg shadow-duotone-blue/20"
+              className="plannivo-primary-btn"
             >
-              {loading ? 'CREATING...' : 'FINISH'} <CheckOutlined />
+              {loading ? 'Creating…' : 'Finish'}
+              {!loading && (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
           )}
         </div>
@@ -622,37 +801,156 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
     </div>
   );
 
+  // Scoped <style> overrides for Ant Design controls inside this modal.
+  const scopedStyles = (
+    <style>{`
+      .plannivo-register-modal .ant-input,
+      .plannivo-register-modal .ant-input-affix-wrapper,
+      .plannivo-register-modal .ant-input-password,
+      .plannivo-register-modal .ant-input-number,
+      .plannivo-register-modal .ant-input-number-input-wrap,
+      .plannivo-register-modal .ant-picker,
+      .plannivo-register-modal .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        background: ${P.paperSoft} !important;
+        border-color: ${P.line} !important;
+        border-radius: 10px !important;
+        font-family: ${SANS} !important;
+        color: ${P.ink} !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+      .plannivo-register-modal .ant-input,
+      .plannivo-register-modal .ant-input-affix-wrapper,
+      .plannivo-register-modal .ant-input-password,
+      .plannivo-register-modal .ant-picker,
+      .plannivo-register-modal .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+        height: 44px !important;
+      }
+      .plannivo-register-modal .ant-input-number { height: 44px !important; display: flex !important; align-items: center !important; }
+      .plannivo-register-modal .ant-input-number-input { height: 42px !important; line-height: 42px !important; color: ${P.ink} !important; }
+      .plannivo-register-modal .ant-input-affix-wrapper > input.ant-input {
+        background: transparent !important;
+        color: ${P.ink} !important;
+        height: auto !important;
+        box-shadow: none !important;
+      }
+      .plannivo-register-modal .ant-input::placeholder,
+      .plannivo-register-modal .ant-input-affix-wrapper > input.ant-input::placeholder,
+      .plannivo-register-modal .ant-select-selection-placeholder,
+      .plannivo-register-modal .ant-picker-input > input::placeholder {
+        color: ${P.ink40} !important;
+      }
+      .plannivo-register-modal .anticon {
+        color: ${P.ink40} !important;
+      }
+      .plannivo-register-modal .ant-input-affix-wrapper:hover,
+      .plannivo-register-modal .ant-input:hover,
+      .plannivo-register-modal .ant-picker:hover,
+      .plannivo-register-modal .ant-input-number:hover,
+      .plannivo-register-modal .ant-select:not(.ant-select-disabled):not(.ant-select-customize-input):hover .ant-select-selector {
+        border-color: ${P.seafoamSoft} !important;
+      }
+      .plannivo-register-modal .ant-input-affix-wrapper:focus-within,
+      .plannivo-register-modal .ant-input:focus,
+      .plannivo-register-modal .ant-picker-focused,
+      .plannivo-register-modal .ant-input-number-focused,
+      .plannivo-register-modal .ant-select-focused:not(.ant-select-customize-input) .ant-select-selector {
+        border-color: ${P.seafoam} !important;
+        box-shadow: 0 0 0 3px rgba(85, 120, 114, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+      }
+      .plannivo-register-modal .ant-select-selection-item {
+        color: ${P.ink} !important;
+        font-family: ${SANS} !important;
+      }
+      .plannivo-register-modal .ant-picker-input > input {
+        color: ${P.ink} !important;
+        font-family: ${SANS} !important;
+      }
+      .plannivo-register-modal .ant-form-item-explain-error {
+        font-family: ${MONO} !important;
+        font-size: 0.66rem !important;
+        letter-spacing: 0.06em !important;
+        color: #8B4A3A !important;
+        margin-top: 0.4em !important;
+      }
+      .plannivo-register-modal .plannivo-primary-btn {
+        display: inline-flex; align-items: center; gap: 0.55em;
+        padding: 0.7em 1.4em;
+        background: ${P.ink};
+        color: ${P.bone};
+        border: none;
+        border-radius: 999px;
+        font-family: ${SANS}; font-size: 0.9rem; font-weight: 500;
+        letter-spacing: 0.005em;
+        cursor: pointer;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 10px 24px -12px rgba(20, 30, 40, 0.4);
+        transition: all 0.25s ease;
+      }
+      .plannivo-register-modal .plannivo-primary-btn:hover:not(:disabled) {
+        background: ${P.seafoam};
+        transform: translateY(-1px);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 12px 28px -10px rgba(85, 120, 114, 0.6);
+      }
+      .plannivo-register-modal .plannivo-primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+      .plannivo-register-modal .plannivo-primary-btn .arrow { transition: transform 0.25s ease; }
+      .plannivo-register-modal .plannivo-primary-btn:hover:not(:disabled) .arrow { transform: translateX(3px); }
+    `}</style>
+  );
+
   if (inline) {
-    return content;
+    return (
+      <>
+        {scopedStyles}
+        {content}
+      </>
+    );
   }
 
   return (
-    <Modal
-      open={visible}
-      onCancel={handleClose}
-      footer={null}
-      width={480}
-      maskClosable={!loading}
-      closable={true}
-      closeIcon={<span className="text-gray-500 hover:text-white text-lg">✕</span>}
-      destroyOnHidden
-      styles={{ 
-        content: { 
-          padding: 0, 
-          overflow: 'hidden', 
-          borderRadius: '32px',
-          backgroundColor: 'transparent',
-          border: 'none',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
-        },
-        mask: {
-          backgroundColor: 'rgba(0,0,0,0.5)'
+    <>
+      {scopedStyles}
+      <Modal
+        open={visible}
+        onCancel={handleClose}
+        footer={null}
+        width={480}
+        maskClosable={!loading}
+        closable={true}
+        destroyOnHidden
+        className="plannivo-register-modal"
+        closeIcon={
+          <span
+            style={{
+              color: P.ink40, fontSize: 22, lineHeight: 1,
+              fontFamily: SANS, fontWeight: 300,
+              transition: 'color 0.2s ease',
+              padding: 6,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = P.ink; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = P.ink40; }}
+          >
+            ×
+          </span>
         }
-      }}
-      className="register-modal brand-modal"
-    >
-      {content}
-    </Modal>
+        styles={{
+          content: {
+            padding: 0,
+            overflow: 'hidden',
+            borderRadius: 14,
+            backgroundColor: P.bone,
+            border: `1px solid ${P.line}`,
+            boxShadow: FRAME_SHADOW,
+          },
+          body: { padding: 0 },
+          mask: {
+            backgroundColor: 'rgba(20, 30, 40, 0.45)',
+            backdropFilter: 'blur(2px)',
+          },
+        }}
+      >
+        {content}
+      </Modal>
+    </>
   );
 };
 

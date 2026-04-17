@@ -1,44 +1,46 @@
-/* Sidebar styling for Plannivo application */
+/* Sidebar styling — Plannivo design system
+   Tokens: see docs/design-system/tokens.css
+   Cream paper background, warm line borders, muted nav text. */
 
 /* Main sidebar container */
 .sidebar {
-  @apply fixed inset-y-0 left-0 z-40 text-white flex flex-col transform transition-all duration-300 ease-in-out;
-  background: linear-gradient(180deg, #4e5c62 0%, #435458 40%, #3b4b50 100%);
-  border-right: 1px solid rgba(30, 58, 138, 0.12);
-  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.22), inset -1px 0 0 rgba(30, 58, 138, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  width: 240px; /* Default expanded width */
-  flex-shrink: 0; /* Prevent sidebar from shrinking */
-  /* Prefer dynamic viewport height to avoid keyboard/URL bar issues */
-  height: 100vh; /* fallback */
-  height: 100dvh; /* Ensure full height on desktop/mobile */
-  overflow: hidden; /* Prevent main container scroll, let nav handle it */
+  @apply fixed inset-y-0 left-0 z-40 flex flex-col transform transition-all duration-300 ease-in-out;
+  background: #F5F0E3;                                       /* --paper */
+  color: #141E28;                                            /* --ink */
+  border-right: 1px solid #D8CEB6;                           /* --line */
+  box-shadow: 1px 0 0 rgba(20, 30, 40, 0.02);                /* near-flat, just a hairline */
+  width: 240px;
+  flex-shrink: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "ss01", "ss02";
 }
 
 /* Collapsed sidebar */
 .sidebar.collapsed {
-  width: 64px; /* Width when collapsed */
+  width: 64px;
 }
 
 /* Mobile/Tablet sidebar (hidden by default on screens < 1200px) */
 @media (max-width: 1199px) {
   .sidebar {
     transform: translateX(-100%);
-    top: 4rem; /* Start below navbar (navbar height is 4rem/64px) */
-  /* Use dvh for correct height when browser UI/keyboard is visible */
-  height: calc(100vh - 4rem); /* fallback */
-  height: calc(100dvh - 4rem); /* Full height minus navbar height */
-  max-height: calc(100vh - 4rem); /* fallback */
-  max-height: calc(100dvh - 4rem);
+    top: 4rem;                                               /* sit under navbar */
+    height: calc(100vh - 4rem);
+    height: calc(100dvh - 4rem);
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100dvh - 4rem);
     display: flex;
     flex-direction: column;
-    z-index: 60; /* Higher than navbar's z-50 */
+    z-index: 60;
   }
-  
+
   .sidebar.open {
     transform: translateX(0);
   }
-  
-  /* Ensure nav takes full available height */
+
   .sidebar nav {
     flex: 1;
     display: flex;
@@ -47,62 +49,57 @@
     max-height: 100%;
   }
 
-  /* Scrollable nav content area (items scroll, pinned button stays) */
+  /* Scrollable nav content area */
   .sidebar .sidebar-nav-scroll {
     flex: 1;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    scrollbar-width: auto; /* Firefox - show scrollbar */
-    scrollbar-color: #475569 #1e293b; /* Firefox - thumb and track colors */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 30, 40, 0.25) transparent;     /* --ink-20-ish on bone */
     max-height: 100%;
   }
 
-  /* Webkit scrollbar styling for mobile - make it more visible */
+  /* Webkit scrollbar — subtle on cream */
   .sidebar .sidebar-nav-scroll::-webkit-scrollbar {
-    width: 8px;
-    background-color: #1e293b;
+    width: 6px;
+    background-color: transparent;
   }
 
   .sidebar .sidebar-nav-scroll::-webkit-scrollbar-track {
-    background: #1e293b;
-    border-radius: 4px;
+    background: transparent;
   }
 
   .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb {
-    background-color: #475569;
-    border-radius: 4px;
-    border: 1px solid #334155;
+    background-color: rgba(20, 30, 40, 0.18);                /* --ink-20 */
+    border-radius: 3px;
   }
 
   .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
-    background-color: #64748b;
-  }
-
-  .sidebar .sidebar-nav-scroll::-webkit-scrollbar-thumb:active {
-    background-color: #94a3b8;
+    background-color: rgba(20, 30, 40, 0.32);
   }
 }
 
-/* Desktop sidebar (toggled via hamburger, hidden by default if desired) */
+/* Desktop sidebar */
 @media (min-width: 1200px) {
   .sidebar {
     position: fixed;
-    top: 4rem; /* Start below navbar */
+    top: 4rem;
     height: calc(100vh - 4rem);
     height: calc(100dvh - 4rem);
     transform: translateX(-100%);
     z-index: 60;
   }
-  
+
   .sidebar.open {
     transform: translateX(0);
   }
 }
 
-/* Content container - Full width as sidebar is now an overlay on all screens */
+/* Content container */
 .content-container {
-  @apply flex-1 bg-slate-100 transition-all duration-300;
+  @apply flex-1 transition-all duration-300;
+  background: #F0EADD;                                       /* --bone */
   width: 100%;
   min-height: 0;
   height: 100%;
@@ -111,7 +108,7 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* AI Chat FAB - mobile only (hidden when sidebar is visible on desktop) */
+/* AI Chat FAB */
 @media (min-width: 1200px) {
   .ai-chat-fab-mobile {
     display: none;
@@ -126,4 +123,3 @@
 .toggle-icon.collapsed {
   @apply rotate-180;
 }
-

@@ -1,0 +1,406 @@
+/* ==========================================================================
+   PlannivoDashboard — scoped styles
+   All selectors prefixed .plan-dash so nothing leaks into the rest of the app.
+   Tokens are locally defined so this file is drop-in without any global setup.
+   Source: docs/design-system/tokens.css
+   ========================================================================== */
+
+.plan-dash {
+  /* ── Palette ── */
+  --bone:         #F0EADD;
+  --paper:        #F5F0E3;
+  --paper-soft:   #F8F4EA;
+  --ink:          #141E28;
+  --ink-80:       rgba(20, 30, 40, 0.80);
+  --ink-60:       rgba(20, 30, 40, 0.60);
+  --ink-40:       rgba(20, 30, 40, 0.42);
+  --ink-20:       rgba(20, 30, 40, 0.20);
+  --ink-10:       rgba(20, 30, 40, 0.10);
+  --line:         #D8CEB6;
+  --line-soft:    #E3DAC4;
+  --seafoam:      #557872;
+  --seafoam-soft: #A7BAB4;
+  --clay:         #B9876D;
+  --clay-soft:    #E6D1BF;
+  --sand:         #E5DCC8;
+
+  /* ── Type ── */
+  --serif: "Fraunces", "Cormorant Garamond", Georgia, serif;
+  --sans:  "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ── Layout ── */
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+
+  /* Cream base with the same atmospheric radials plannivo.com uses */
+  background: var(--bone);
+  background-image:
+    radial-gradient(ellipse 1200px 500px at 50% -5%,  rgba(85, 120, 114, 0.06), transparent 65%),
+    radial-gradient(ellipse 900px  400px at 100% 45%, rgba(185, 135, 109, 0.04), transparent 65%),
+    radial-gradient(ellipse 900px  400px at 0%   85%, rgba(85, 120, 114, 0.03), transparent 65%);
+
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Paper grain — keeps the cream from feeling flat */
+  position: relative;
+}
+
+.plan-dash::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.12  0 0 0 0 0.16  0 0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  z-index: 0;
+}
+
+.plan-dash > * { position: relative; z-index: 1; }
+
+/* ─────────────────────────────  SIDEBAR  ──────────────────────────────── */
+
+.plan-side {
+  background: var(--paper);
+  border-right: 1px solid var(--line);
+  padding: 1.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.plan-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 9, "SOFT" 0, "wght" 560;
+  font-size: 1rem;
+  color: var(--ink);
+  padding: 0 0.4rem;
+}
+.plan-brand-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--clay);
+  flex: none;
+}
+
+.plan-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+}
+.plan-nav li {
+  padding: 0.58em 0.75em;
+  color: var(--ink-60);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  transition: background 0.25s ease, color 0.2s ease;
+}
+.plan-nav li:hover { background: var(--bone); color: var(--ink); }
+.plan-nav li.is-active {
+  background: var(--bone);
+  color: var(--ink);
+  font-weight: 500;
+}
+.plan-nav-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--seafoam);
+  flex: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.plan-nav li.is-active .plan-nav-dot { opacity: 1; }
+
+.plan-side-foot {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--ink-40);
+  letter-spacing: 0.1em;
+  padding: 1.5rem 0.4rem 0;
+  text-transform: lowercase;
+}
+
+/* ─────────────────────────────  MAIN  ─────────────────────────────────── */
+
+.plan-main {
+  padding: 2.25rem 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-width: 0;                                    /* grid item — prevent overflow */
+}
+
+/* ── Header row (kicker + greeting + stats) ── */
+
+.plan-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2.5rem;
+  align-items: flex-end;
+}
+
+.plan-kicker {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--ink-40);
+  text-transform: uppercase;
+  margin: 0 0 0.7em;
+}
+
+.plan-greeting {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 60, "SOFT" 30, "wght" 400;
+  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.plan-stats {
+  display: flex;
+  align-items: flex-end;
+  gap: 2.25rem;
+}
+.plan-stats > div {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.plan-stats .stat-num {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 60, "SOFT" 20, "wght" 420;
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  font-feature-settings: "tnum" 1;
+}
+.plan-stats .stat-label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-40);
+  text-transform: uppercase;
+}
+
+/* ── Calendar block ── */
+
+.plan-calendar {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.25rem 1.1rem 1.1rem;
+}
+
+.plan-cal-hours {
+  display: grid;
+  grid-template-columns: 110px repeat(9, 1fr);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--ink-40);
+  letter-spacing: 0.08em;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed var(--line);
+}
+.plan-cal-hours span { padding-left: 0.35em; }
+
+.plan-cal-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.plan-cal-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  height: 36px;
+}
+
+.plan-cal-name {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-60);
+}
+
+.plan-cal-track {
+  position: relative;
+  height: 100%;
+}
+
+.plan-lesson {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 5px;
+  padding: 0 0.85em;
+  display: flex;
+  align-items: center;
+  font-size: 0.74rem;
+  line-height: 1;
+  color: var(--ink);
+  overflow: hidden;
+  border: 1px solid rgba(20, 30, 40, 0.05);
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  white-space: nowrap;
+}
+.plan-lesson:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px -8px rgba(20, 30, 40, 0.22);
+  z-index: 2;
+}
+.plan-lesson span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plan-lesson.t-a { background: var(--seafoam-soft); }                /* lessons */
+.plan-lesson.t-b { background: var(--clay-soft);    color: #6B4A37; } /* rentals / events */
+.plan-lesson.t-c { background: var(--sand);         color: #5C4A2A; } /* camps / group */
+
+/* ── Revenue row ── */
+
+.plan-revenue {
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(200px, auto) 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.plan-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-40);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.plan-rev-num {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 72, "SOFT" 20, "wght" 380;
+  font-size: clamp(1.9rem, 3.2vw, 2.5rem);
+  line-height: 1;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  margin: 0.35em 0 0.25em;
+  font-feature-settings: "tnum" 1;
+}
+
+.plan-rev-delta {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  color: var(--seafoam);
+  margin: 0;
+}
+
+.plan-spark {
+  width: 100%;
+  height: 92px;
+  overflow: visible;
+}
+.plan-spark .spark-area { fill: var(--seafoam); opacity: 0.08; }
+.plan-spark .spark-line { fill: none; stroke: var(--seafoam); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.plan-spark .spark-dot  { fill: var(--seafoam); }
+.plan-spark .spark-axis { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.7; }
+
+/* ─────────────────────────────  MOTION  ───────────────────────────────── */
+
+.plan-reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: plan-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes plan-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.plan-spark .spark-line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: spark-draw 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+}
+.plan-spark .spark-dot {
+  opacity: 0;
+  animation: plan-fadein 0.6s ease 2s forwards;
+}
+.plan-spark .spark-area {
+  opacity: 0;
+  animation: plan-fadein 0.8s ease 1.2s forwards;
+}
+
+@keyframes spark-draw { to { stroke-dashoffset: 0; } }
+@keyframes plan-fadein { to { opacity: 0.08; } }
+
+/* Keep the dot visible at full opacity — override the 0.08 target */
+.plan-spark .spark-dot { animation-name: plan-fadein-dot; }
+@keyframes plan-fadein-dot { to { opacity: 1; } }
+
+/* ─────────────────────────────  RESPONSIVE  ───────────────────────────── */
+
+@media (max-width: 960px) {
+  .plan-dash { grid-template-columns: 1fr; }
+  .plan-side {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    flex-direction: row;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    gap: 1.5rem;
+  }
+  .plan-side-foot { display: none; }
+  .plan-nav { flex-direction: row; overflow-x: auto; flex: 1; gap: 0.5rem; }
+  .plan-nav li { white-space: nowrap; padding: 0.45em 0.8em; }
+  .plan-main { padding: 1.75rem 1.5rem 1.5rem; }
+  .plan-top { grid-template-columns: 1fr; gap: 1.5rem; }
+  .plan-stats { justify-content: flex-start; gap: 1.75rem; }
+  .plan-stats > div { text-align: left; }
+}
+
+@media (max-width: 640px) {
+  .plan-cal-hours { grid-template-columns: 80px repeat(9, 1fr); font-size: 0.6rem; }
+  .plan-cal-row { grid-template-columns: 80px 1fr; }
+  .plan-lesson { font-size: 0.68rem; padding: 0 0.55em; }
+  .plan-revenue { grid-template-columns: 1fr; gap: 1.25rem; }
+}
+
+/* ─────────────────────────────  PREFERS-REDUCED-MOTION  ───────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-reveal, .plan-spark .spark-line, .plan-spark .spark-dot, .plan-spark .spark-area {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
+  .plan-spark .spark-area { opacity: 0.08; }
+}

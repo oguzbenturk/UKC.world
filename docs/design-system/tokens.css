@@ -1,0 +1,80 @@
+/* ==========================================================================
+   Plannivo design tokens — extracted from plannivo.com landing page
+   Maritime editorial · calm palette · Fraunces + Instrument Sans + JetBrains Mono
+   Source of truth: https://plannivo.com/styles.css (2026-04-17)
+   ==========================================================================
+
+   HOW TO USE IN akyaka:
+   1. Add Google Fonts preconnect + link to index.html (see 01-foundations.md)
+   2. Import this file once from src/styles/ or inject via src/main.jsx
+   3. Reference tokens with var(--bone), var(--ink), etc.
+   4. For Tailwind, mirror these into tailwind.config.js → theme.extend (see README)
+   ========================================================================== */
+
+:root {
+  /* ── Palette · early morning on the water ── */
+  --bone:         #F0EADD;                       /* warm cream — page background */
+  --paper:        #F5F0E3;                       /* cards, ticker, subtle wells */
+  --paper-soft:   #F8F4EA;                       /* product / panel surface */
+  --ink:          #141E28;                       /* deep marine-black — primary text */
+  --ink-80:       rgba(20, 30, 40, 0.80);        /* secondary text */
+  --ink-60:       rgba(20, 30, 40, 0.60);        /* tertiary text, nav links */
+  --ink-40:       rgba(20, 30, 40, 0.42);        /* quiet labels, monospace meta */
+  --ink-20:       rgba(20, 30, 40, 0.20);        /* separators, disabled states */
+  --ink-10:       rgba(20, 30, 40, 0.10);        /* mono-inline tag bg, hairlines */
+  --line:         #D8CEB6;                       /* warm horizon line — borders */
+  --line-soft:    #E3DAC4;                       /* softer dividers */
+  --seafoam:      #557872;                       /* muted deep teal — primary accent, italics */
+  --seafoam-soft: #A7BAB4;                       /* accent halos, soft pills */
+  --clay:         #B9876D;                       /* muted terracotta — warm accent */
+  --clay-soft:    #E6D1BF;                       /* warm accent pills, calendar blocks */
+  --sand:         #E5DCC8;                       /* neutral warm accent for calendar */
+
+  /* ── Type stack ── */
+  --serif: "Fraunces", "Cormorant Garamond", Georgia, serif;
+  --sans:  "Instrument Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono:  "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ── Rhythm ── */
+  --page-pad:    clamp(1.25rem, 4vw, 4rem);
+  --chapter-gap: clamp(4rem, 10vh, 8rem);
+  --max:         1400px;
+
+  /* ── Type scale (fluid) ── */
+  --text-display: clamp(2.4rem, 7vw, 5.6rem);    /* hero h1 */
+  --text-h2:      clamp(1.9rem, 4vw, 3.2rem);    /* section h2 */
+  --text-h3:      1.2rem;                        /* feature / card title */
+  --text-lede:    clamp(1.05rem, 1.4vw, 1.3rem); /* hero subtitle (serif) */
+  --text-body:    1rem;                          /* body copy */
+  --text-ui:      0.93rem;                       /* buttons, form labels */
+  --text-sm:      0.88rem;                       /* nav, sidebar items */
+  --text-xs:      0.72rem;                       /* kicker / label text */
+  --text-xxs:     0.62rem;                       /* numbered badge */
+
+  /* ── Radii ── */
+  --radius-sm:    3px;
+  --radius-md:    6px;
+  --radius-lg:    14px;                          /* product frame, cards */
+  --radius-pill:  999px;                         /* buttons, cta */
+
+  /* ── Shadows ── */
+  --shadow-frame: 0 1px 0 rgba(255, 255, 255, 0.7) inset,
+                  0 40px 80px -40px rgba(20, 30, 40, 0.14),
+                  0 15px 25px -20px rgba(20, 30, 40, 0.08);
+  --shadow-btn-primary: 0 8px 20px -10px rgba(85, 120, 114, 0.5);
+}
+
+/* ── Variable-font axis presets for Fraunces ──
+   Use these via font-variation-settings to get the exact display feel.
+   opsz (optical size) 9-144 · SOFT 0-100 · wght 300-700
+*/
+.fv-display     { font-variation-settings: "opsz" 144, "SOFT" 50, "wght" 400; }
+.fv-display-em  { font-variation-settings: "opsz" 144, "SOFT" 80, "wght" 380; font-style: italic; color: var(--seafoam); }
+.fv-display-bold{ font-variation-settings: "opsz" 144, "SOFT" 30, "wght" 460; }  /* "surface" treatment */
+.fv-h2          { font-variation-settings: "opsz"  96, "SOFT" 40, "wght" 400; }
+.fv-h2-em       { font-variation-settings: "opsz"  96, "SOFT" 80, "wght" 380; font-style: italic; color: var(--seafoam); }
+.fv-h3          { font-variation-settings: "opsz"  30, "SOFT" 20, "wght" 500; }
+.fv-lede        { font-variation-settings: "opsz"  18, "SOFT"  0, "wght" 370; }
+.fv-mark-large  { font-variation-settings: "opsz"   9, "SOFT"  0, "wght" 460; }  /* logo, nav mark */
+.fv-mark-bold   { font-variation-settings: "opsz"   9, "SOFT"  0, "wght" 560; }
+.fv-tick        { font-variation-settings: "opsz"  60, "SOFT" 20, "wght" 420; }  /* big number in ticker */
