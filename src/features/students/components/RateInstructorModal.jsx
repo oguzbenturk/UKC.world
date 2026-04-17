@@ -134,8 +134,19 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
         content: {
           borderRadius: 24,
           overflow: 'hidden',
-          background: '#ffffff',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
+          // Frosted gradient: subtle icy blue at the top blends smoothly into
+          // white below, so the old header/body seam disappears.
+          background: `
+            linear-gradient(180deg,
+              rgba(224,242,254,0.9) 0%,
+              rgba(240,249,255,0.75) 18%,
+              rgba(248,250,252,0.6) 42%,
+              rgba(255,255,255,1) 75%,
+              #ffffff 100%)
+          `,
+          backdropFilter: 'blur(18px) saturate(1.1)',
+          WebkitBackdropFilter: 'blur(18px) saturate(1.1)',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.6), 0 0 0 1px rgba(186,230,253,0.35)',
         },
       }}
     >
@@ -161,12 +172,12 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
             </svg>
           </button>
 
-          {/* ── Header with soft gradient ── */}
-          <div className="relative px-8 pt-10 pb-5 text-center bg-gradient-to-b from-slate-50/80 to-white">
-            {/* Soft ambient glow behind avatar */}
+          {/* ── Header (transparent so modal's frosted gradient shows through) ── */}
+          <div className="relative px-8 pt-10 pb-5 text-center">
+            {/* Soft ambient glow behind avatar — larger & more diffuse for a smooth frozen halo */}
             <div
-              className="absolute left-1/2 top-4 -translate-x-1/2 w-44 h-44 rounded-full blur-[70px] pointer-events-none"
-              style={{ background: info.color, animation: 'rateGlowPulse 3s ease-in-out infinite', opacity: 0.15 }}
+              className="absolute left-1/2 top-2 -translate-x-1/2 w-72 h-72 rounded-full blur-[90px] pointer-events-none"
+              style={{ background: info.color, animation: 'rateGlowPulse 3s ease-in-out infinite', opacity: 0.12 }}
             />
 
             {/* Avatar with subtle ring */}
