@@ -1,5 +1,7 @@
 // backend/constants/vendorCatalogs.js
 // Configuration for external vendor catalog integrations (ION, Duotone, etc.)
+// NOTE: "Duotone" here is the kitesurfing equipment brand (manufacturer), not the
+// former "Duotone Pro Center" customer branding — keep these strings as-is.
 
 export const VENDOR_CATALOGS = [
   {

@@ -550,7 +550,7 @@ export async function sendAccountCreatedEmail({ to, customerName, loginDetails }
   
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1890ff;">Welcome to UKC.world! 🎉</h2>
+      <h2 style="color: #1E3A8A;">Welcome to Plannivo! 🎉</h2>
       
       <p>Dear ${customerName},</p>
       
@@ -568,7 +568,7 @@ export async function sendAccountCreatedEmail({ to, customerName, loginDetails }
       
       <div style="margin: 30px 0;">
         <a href="${loginDetails.loginUrl || 'https://plannivo.com/login'}" 
-           style="background-color: #1890ff; color: white; padding: 12px 24px; 
+           style="background-color: #1E3A8A; color: white; padding: 12px 24px; 
                   text-decoration: none; border-radius: 6px; display: inline-block;">
           Log In to Your Account
         </a>
@@ -585,7 +585,7 @@ export async function sendAccountCreatedEmail({ to, customerName, loginDetails }
   `;
 
   const textBody = `
-Welcome to UKC.world!
+Welcome to Plannivo!
 
 Dear ${customerName},
 
@@ -655,7 +655,7 @@ export async function sendResumeEmail({ to, formName, resumeLink, expiresAt }) {
   
   const htmlBody = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1890ff;">Continue Your Form</h2>
+      <h2 style="color: #1E3A8A;">Continue Your Form</h2>
       
       <p>You have an incomplete form that you can continue filling out.</p>
       
@@ -663,7 +663,7 @@ export async function sendResumeEmail({ to, formName, resumeLink, expiresAt }) {
       
       <div style="margin: 30px 0;">
         <a href="${resumeLink}" 
-           style="background-color: #1890ff; color: white; padding: 12px 24px; 
+           style="background-color: #1E3A8A; color: white; padding: 12px 24px; 
                   text-decoration: none; border-radius: 6px; display: inline-block;">
           Continue Form
         </a>
@@ -681,7 +681,7 @@ export async function sendResumeEmail({ to, formName, resumeLink, expiresAt }) {
       
       <p style="color: #999; font-size: 12px;">
         If the button doesn't work, copy and paste this link into your browser:<br/>
-        <a href="${resumeLink}" style="color: #1890ff;">${resumeLink}</a>
+        <a href="${resumeLink}" style="color: #1E3A8A;">${resumeLink}</a>
       </p>
     </div>
   `;

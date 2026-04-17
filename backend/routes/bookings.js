@@ -4249,7 +4249,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
               try {
                 await sendEmail({
                   to: student.email,
-                  subject: `Your ${serviceName} has been rescheduled — UKC World`,
+                  subject: `Your ${serviceName} has been rescheduled — Plannivo`,
                   userId: studentId,
                   notificationType: 'booking_rescheduled',
                   html: `
@@ -4267,10 +4267,10 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
                         </div>
                         <p style="color: #6b7280; font-size: 14px;">Please log in to confirm you've seen this change. If you have any questions, contact us anytime.</p>
                         <div style="text-align: center; margin-top: 20px;">
-                          <a href="${process.env.FRONTEND_URL || process.env.VITE_FRONTEND_URL || 'https://ukcworld.com'}" style="display: inline-block; background: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">View My Schedule</a>
+                          <a href="${process.env.FRONTEND_URL || process.env.VITE_FRONTEND_URL || 'https://akyaka.plannivo.com'}" style="display: inline-block; background: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">View My Schedule</a>
                         </div>
                       </div>
-                      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 16px;">UKC World — Your Watersport Academy</p>
+                      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 16px;">Plannivo</p>
                     </div>
                   `,
                   text: `Hi ${student.name || 'there'}, your ${serviceName} has been rescheduled. ${changeParts.join('. ')}. Please log in to confirm.`

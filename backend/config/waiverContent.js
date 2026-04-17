@@ -1,5 +1,5 @@
 /**
- * Liability Waiver Content - Duotone Pro Center
+ * Liability Waiver Content - [Company Name]
  * 
  * Professional kitesurfing and water sports center liability waiver
  * 
@@ -16,7 +16,7 @@
 export const WAIVER_VERSION = '2.0';
 export const WAIVER_LANGUAGE = 'en';
 export const EFFECTIVE_DATE = new Date('2026-01-01');
-export const COMPANY_NAME = 'Duotone Pro Center';
+export const COMPANY_NAME = '[Company Name]';
 export const COMPANY_LOCATION = 'International Kitesurfing Destinations';
 
 /**
@@ -32,10 +32,10 @@ export const waiverContent = {
   /**
    * Waiver title and introduction
    */
-  title: 'DUOTONE PRO CENTER LIABILITY WAIVER AND RELEASE',
+  title: '[COMPANY NAME] LIABILITY WAIVER AND RELEASE',
   
   introduction: {
-    heading: 'Welcome to Duotone Pro Center',
+    heading: 'Welcome to [Company Name]',
     content: `
 IMPORTANT LEGAL DOCUMENT - READ CAREFULLY BEFORE PARTICIPATING
 
@@ -48,7 +48,7 @@ BY SIGNING THIS AGREEMENT, YOU ACKNOWLEDGE THAT:
 • You are releasing the Center from all liability for injuries or damages that may occur
 • This waiver affects your legal rights, including the right to sue
 
-ACTIVITIES COVERED: This waiver applies to all kitesurfing, windsurfing, wing foiling, SUP, surfing, equipment rental, instruction, coaching, beach services, and any other activities provided by Duotone Pro Center.
+ACTIVITIES COVERED: This waiver applies to all kitesurfing, windsurfing, wing foiling, SUP, surfing, equipment rental, instruction, coaching, beach services, and any other activities provided by [Company Name].
 
 PARTICIPANT CONFIRMATION: I confirm that I am at least 18 years of age (or have parental/guardian consent if under 18), am in good physical and mental health, and understand the nature of the activities I will be undertaking.
     `.trim()
