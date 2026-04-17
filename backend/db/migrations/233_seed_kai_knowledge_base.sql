@@ -62,11 +62,11 @@ Tum paslar: lansman alani, plaj tesisleri ve okul bolgesi erisimi icerir.', '{ou
 - Winter Storage: 200 EUR (kuru, guvenli, sezon disi depolama)
 Guvenli depolama alani, ekipmaniniz her zaman hazir.', '{outsider,student,instructor,admin,manager}', 2),
 
-('Genel Bilgi', 'Konum & Iletisim', 'UKC (Urla Kite Club) — Urla, Izmir, Turkiye
-Ege kiyisinda, Urla''da yer alan ruzgar sporlari merkezi.
+('Genel Bilgi', 'Konum & Iletisim', 'Plannivo — Akyaka, Mugla, Turkiye
+Ege kiyisinda, Akyaka''da yer alan ruzgar sporlari merkezi.
 Disiplinler: Kitesurfing, Wing Foil, E-Foil
 Ekipman: Duotone (Standard, SLS, D/LAB serileri)
-Web: ukc.world', '{outsider,student,instructor,admin,manager}', 1),
+Web: akyaka.plannivo.com', '{outsider,student,instructor,admin,manager}', 1),
 
 ('Genel Bilgi', 'Ders Politikalari', '- Dersler ruzgar ve hava kosullarina baglidir
 - Ruzgar yetersizse ders ertelenebilir veya iptal edilebilir (ucret alinmaz)
