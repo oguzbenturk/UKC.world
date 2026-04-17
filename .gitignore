@@ -103,8 +103,12 @@ CREDENTIALS_BACKUP.md
 
 # Development/test env files with secrets
 backend/.env.development
+backend/.env.akyaka.development
 .env.test
 .env.production.template
+
+# Akyaka local db-sync dump (transient)
+akyaka_prod_dump.sql
 
 # Claude Code local settings
 .claude/settings.local.json
