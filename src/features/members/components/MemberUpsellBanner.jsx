@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
-import imgAcademy from '../../../../DuotoneFonts/pictures/Website-CAU_9020.jpg';
-import imgRental from '../../../../DuotoneFonts/pictures/Website-CAU_9031.jpg';
-import imgShop from '../../../../DuotoneFonts/pictures/Website-CAU_9001.jpg';
+const imgAcademy = '/Images/ukc/kite-header.jpg.png';
+const imgRental = '/Images/rental/rental-header.jpg';
+const imgShop = '/Images/shop/shop-header.jpg';
 
 const UPSELL_CARDS = [
   {
