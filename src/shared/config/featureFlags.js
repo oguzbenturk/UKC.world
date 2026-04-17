@@ -17,6 +17,7 @@ const coerceBoolean = (value, defaultValue = true) => {
 
 export const featureFlags = Object.freeze({
   studentPortal: coerceBoolean(import.meta.env?.VITE_STUDENT_PORTAL, true),
+  publicShopEnabled: coerceBoolean(import.meta.env?.VITE_PUBLIC_SHOP_ENABLED, false),
 });
 
 export const isFeatureEnabled = (flagName) => {

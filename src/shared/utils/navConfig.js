@@ -102,7 +102,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
   // Outsider role OR unauthenticated (guest) - ukc.World custom menu structure with styled dots (colors from actual images)
   if (r === ROLES.OUTSIDER || !r || r === 'undefined') {
     return [
-      item('/shop', 'Shop', 'ShoppingBagIcon', {
+      ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' }, // pembe (pink) - TOP POSITION
         isShopLink: true, // Special flag for shop - navigates directly
         subItems: [
@@ -113,7 +113,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
-      }),
+      })] : []),
       item('/academy', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
         isDirectLink: true,
@@ -177,7 +177,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
   if ((r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER) && featureFlags.studentPortal) {
     return [
       // 1. Shop - Pink
-      item('/shop', 'Shop', 'ShoppingBagIcon', {
+      ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' }, // pembe (pink) - TOP POSITION
         isShopLink: true, // Special flag for shop - navigates directly
         subItems: [
@@ -188,7 +188,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
-      }),
+      })] : []),
       // 2. Academy - Light Green
       item('/academy', 'Academy', 'AcademicCapIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
@@ -276,7 +276,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
   if (r === ROLES.INSTRUCTOR) {
     return [
       // Shop - Pink - TOP POSITION (same as outsider/student)
-      item('/shop', 'Shop', 'ShoppingBagIcon', {
+      ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
         isShopLink: true,
         subItems: [
@@ -287,7 +287,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/shop/ion', label: 'ION' },
           { to: '/shop/secondwind', label: 'SecondWind' }
         ]
-      }),
+      })] : []),
       // Dashboard - Blue
       item('/instructor/dashboard', 'Dashboard', 'HomeIcon', {
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
@@ -420,7 +420,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     }),
     // --- UKC Services in standard order ---
     // 1. Shop - Pink
-    item('/shop', 'Shop', 'ShoppingBagIcon', {
+    ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
       isShopLink: true,
       subItems: [
@@ -431,7 +431,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         { to: '/shop/ion', label: 'ION' },
         { to: '/shop/secondwind', label: 'SecondWind' }
       ]
-    }),
+    })] : []),
     // 2. Academy - Light Green
     item('/calendars', 'Academy', 'AcademicCapIcon', {
       customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },

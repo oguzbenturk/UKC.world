@@ -182,7 +182,7 @@ const MyOrdersPage = lazyWithRetry(() => import('../features/students/pages/MyOr
 // Admin Members
 const AdminMembersPage = lazyWithRetry(() => import('../features/members/pages/AdminMembersPage'));
 
-import { hasPermission, ROLES } from '../shared/utils/roleUtils';
+import { hasPermission, ROLES, isShopStaff } from '../shared/utils/roleUtils';
 import { featureFlags } from '../shared/config/featureFlags';
 
 // Helper component to redirect to current user's profile
@@ -341,10 +341,21 @@ const AppRoutes = () => {
       {/* These routes are browsable by guests but actions require sign-in */}
       
       {/* Shop - landing page + browse products */}
-      <Route path="/shop" element={<ShopLandingPage />} />
-      <Route path="/shop/browse" element={<ShopPage />} />
+      {/* Browsing pages are gated by publicShopEnabled; admin/manager/developer always pass. */}
+      {/* Direct product pages (/shop/product/:id) stay open so recommendation links keep working. */}
+      <Route
+        path="/shop"
+        element={(featureFlags.publicShopEnabled || isShopStaff(user?.role)) ? <ShopLandingPage /> : <Navigate to="/" replace />}
+      />
+      <Route
+        path="/shop/browse"
+        element={(featureFlags.publicShopEnabled || isShopStaff(user?.role)) ? <ShopPage /> : <Navigate to="/" replace />}
+      />
       <Route path="/shop/product/:id" element={<ProductDetailPage />} />
-      <Route path="/shop/:section" element={<ShopCategoryPage />} />
+      <Route
+        path="/shop/:section"
+        element={(featureFlags.publicShopEnabled || isShopStaff(user?.role)) ? <ShopCategoryPage /> : <Navigate to="/" replace />}
+      />
       
       {/* Academy lesson pages - browse and explore */}
       <Route path="/academy/kite-lessons" element={<KiteLessonsPublicPage />} />

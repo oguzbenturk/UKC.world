@@ -17,6 +17,7 @@ import {
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import { usePageSEO } from '@/shared/utils/seo';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
+import { featureFlags } from '@/shared/config/featureFlags';
 
 const GuestLandingPage = () => {
   usePageSEO({
@@ -33,7 +34,7 @@ const GuestLandingPage = () => {
   };
 
   const services = [
-    {
+    ...(featureFlags.publicShopEnabled ? [{
       title: 'Shop',
       icon: ShoppingBagIcon,
       accent: '#ec4899',
@@ -41,7 +42,7 @@ const GuestLandingPage = () => {
       tagline: 'Official Duotone Dealer',
       subItems: ['Kitesurf', 'Wing Foil', 'E-Foil', 'Wetsuits', 'ION ACCS', 'SecondWind'],
       image: '/Images/guest/dice-sls-header.jpg',
-    },
+    }] : []),
     {
       title: 'Academy',
       icon: AcademicCapIcon,
@@ -252,13 +253,15 @@ const GuestLandingPage = () => {
             >
               BOOK A LESSON
             </button>
-            <button
-              onClick={() => navigate('/shop')}
-              className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
-              style={{ fontFamily: '"Gotham Medium", sans-serif', background: 'transparent', color: '#4b4f54', border: '1.5px solid #4b4f54' }}
-            >
-              BROWSE SHOP
-            </button>
+            {featureFlags.publicShopEnabled && (
+              <button
+                onClick={() => navigate('/shop')}
+                className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
+                style={{ fontFamily: '"Gotham Medium", sans-serif', background: 'transparent', color: '#4b4f54', border: '1.5px solid #4b4f54' }}
+              >
+                BROWSE SHOP
+              </button>
+            )}
           </div>
         </div>
       </div>

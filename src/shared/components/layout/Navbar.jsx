@@ -14,6 +14,8 @@ import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { getNavItemsForRole } from '@/shared/utils/navConfig';
+import { isShopStaff } from '@/shared/utils/roleUtils';
+import { featureFlags } from '@/shared/config/featureFlags';
 import { APP_VERSION } from '@/shared/constants/version';
 import { UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
 
@@ -531,29 +533,31 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                       >
                         My Orders
                       </NavLink>
-                      <NavLink
-                        to="/shop/browse"
-                        className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
-                        role="menuitem"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setIsProfileDropdownOpen(false);
-                          navigate('/shop/browse', {
-                            state: {
-                              openCart: true,
-                              openedFrom: 'profile-menu',
-                              requestedAt: Date.now()
-                            }
-                          });
-                        }}
-                      >
-                        <span>Shopping Cart</span>
-                        {getCartCount() > 0 && (
-                          <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
-                            {getCartCount()}
-                          </span>
-                        )}
-                      </NavLink>
+                      {(featureFlags.publicShopEnabled || isShopStaff(user?.role)) && (
+                        <NavLink
+                          to="/shop/browse"
+                          className="flex items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setIsProfileDropdownOpen(false);
+                            navigate('/shop/browse', {
+                              state: {
+                                openCart: true,
+                                openedFrom: 'profile-menu',
+                                requestedAt: Date.now()
+                              }
+                            });
+                          }}
+                        >
+                          <span>Shopping Cart</span>
+                          {getCartCount() > 0 && (
+                            <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
+                              {getCartCount()}
+                            </span>
+                          )}
+                        </NavLink>
+                      )}
                       <NavLink
                         to="/settings"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"

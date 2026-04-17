@@ -4,6 +4,7 @@ import { RightOutlined } from '@ant-design/icons';
 import imgAcademy from '../../../../DuotoneFonts/pictures/Website-CAU_9020.jpg';
 import imgRental from '../../../../DuotoneFonts/pictures/Website-CAU_9031.jpg';
 import imgShop from '../../../../DuotoneFonts/pictures/Website-CAU_9001.jpg';
+import { featureFlags } from '@/shared/config/featureFlags';
 
 const UPSELL_CARDS = [
   {
@@ -47,6 +48,9 @@ const btnStyle = {
 
 const MemberUpsellBanner = () => {
   const navigate = useNavigate();
+  const cards = featureFlags.publicShopEnabled
+    ? UPSELL_CARDS
+    : UPSELL_CARDS.filter(c => c.key !== 'shop');
 
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
@@ -59,7 +63,7 @@ const MemberUpsellBanner = () => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {UPSELL_CARDS.map(({ key, gradient, image, eyebrow, title, body, cta, to }) => (
+          {cards.map(({ key, gradient, image, eyebrow, title, body, cta, to }) => (
             <div
               key={key}
               className="relative rounded-2xl overflow-hidden min-h-[300px] sm:min-h-[340px] group cursor-pointer"

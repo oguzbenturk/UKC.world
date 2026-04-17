@@ -47,6 +47,19 @@ export const getRoleLevel = (role) => {
 };
 
 /**
+ * Roles that can browse the shop when the public shop is disabled.
+ * Direct product links (/shop/product/:id) remain open to everyone;
+ * this gate only hides browsing, search, category pages, and shop CTAs.
+ */
+const SHOP_STAFF_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER];
+
+export const isShopStaff = (role) => {
+  if (typeof role !== 'string') return false;
+  const r = role.toLowerCase();
+  return SHOP_STAFF_ROLES.some((staffRole) => staffRole.toLowerCase() === r);
+};
+
+/**
  * Check if a user has permission based on their role
  * @param {string} userRole - The user's role
  * @param {Array|string} allowedRoles - Roles that are allowed

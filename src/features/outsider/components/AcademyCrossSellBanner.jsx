@@ -4,6 +4,7 @@ import { RightOutlined } from '@ant-design/icons';
 import stayCardImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
 import rentalBannerImg from '../../../../DuotoneFonts/pictures/shoprentalbanner.jpg';
 import shopBannerImg from '../../../../DuotoneFonts/pictures/shop.jpg';
+import { featureFlags } from '@/shared/config/featureFlags';
 
 const CROSS_SELL_CARDS = [
   {
@@ -49,9 +50,12 @@ const btnStyle = {
  */
 const AcademyCrossSellBanner = ({ excludeKey }) => {
   const navigate = useNavigate();
+  const visibleCards = featureFlags.publicShopEnabled
+    ? CROSS_SELL_CARDS
+    : CROSS_SELL_CARDS.filter(c => c.key !== 'shop');
   const cards = excludeKey
-    ? CROSS_SELL_CARDS.filter(c => c.key !== excludeKey)
-    : CROSS_SELL_CARDS;
+    ? visibleCards.filter(c => c.key !== excludeKey)
+    : visibleCards;
 
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">

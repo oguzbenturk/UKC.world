@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, AcademicCapIcon, ShoppingBagIcon, WalletIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAIChat } from '@/shared/contexts/AIChatContext';
+import { featureFlags } from '@/shared/config/featureFlags';
 
 const STUDENT_ROLES = ['student', 'trusted_customer'];
 const HIDDEN_EXACT_PATHS = ['/', '/login', '/register', '/reset-password', '/academy', '/guest'];
@@ -56,7 +57,7 @@ const StudentQuickActions = () => {
           {[
             { path: '/academy',          label: 'Visit Lessons',    icon: AcademicCapIcon,        gradient: 'linear-gradient(135deg, #33c4d9, #007a8f)' },
             { path: '/rental',           label: 'Visit Rentals',    icon: WrenchScrewdriverIcon,  gradient: 'linear-gradient(135deg, #f59e0b, #b45309)' },
-            { path: '/shop',             label: 'Visit Shop',       icon: ShoppingBagIcon,        gradient: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
+            ...(featureFlags.publicShopEnabled ? [{ path: '/shop', label: 'Visit Shop', icon: ShoppingBagIcon, gradient: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' }] : []),
             { path: '/student/schedule', label: 'Visit My Lessons', icon: CalendarDaysIcon,       gradient: 'linear-gradient(135deg, #10b981, #047857)' },
             { path: null,                label: 'My Wallet',        icon: WalletIcon,             gradient: 'linear-gradient(135deg, #00a8c4, #004f5e)', event: 'studentWallet:open' },
             { path: null,                label: 'Talk to Kai',      icon: SparklesIcon,           gradient: 'linear-gradient(135deg, #ec4899, #be185d)', action: 'openChat' },
