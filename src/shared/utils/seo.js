@@ -47,7 +47,7 @@ export function usePageSEO({ title, description, path }) {
     if (path) {
       const makeAbsolute = (p) => {
         if (/^https?:\/\//i.test(p)) return p;
-        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || 'https://plannivo.com';
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) || 'https://ukc.plannivo.com';
         if (p.startsWith('/')) return `${origin}${p}`;
         return `${origin}/${p}`;
       };

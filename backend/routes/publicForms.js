@@ -324,7 +324,7 @@ router.post('/:code/send-resume-link', async (req, res) => {
     }
 
     // Generate resume link with session ID
-    const baseUrl = process.env.FRONTEND_URL || 'https://plannivo.com';
+    const baseUrl = process.env.FRONTEND_URL || 'https://ukc.plannivo.com';
     const resumeLink = `${baseUrl}/forms/${req.params.code}?session_id=${session_id || submission.session_id}`;
 
     // Send email using the email notification service

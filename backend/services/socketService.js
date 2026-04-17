@@ -33,10 +33,7 @@ class SocketService {
         'http://localhost:8080',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:5173',
-        'http://plannivo.com',
-        'https://plannivo.com',
-        'http://www.plannivo.com',
-        'https://www.plannivo.com',
+        'https://ukc.plannivo.com',
         process.env.FRONTEND_URL
       ].filter(Boolean);
 

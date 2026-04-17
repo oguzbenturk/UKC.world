@@ -8,33 +8,33 @@ UKC. (Duotone Pro Center Urla) is a full-service watersports academy and pro cen
 
 ## Pages
 
-- [Home](https://plannivo.com/): Homepage of UKC. Duotone Pro Center Urla — overview of all services, location, and seasonal highlights.
-- [Guest Overview](https://plannivo.com/guest): Service overview and starting point for visitors exploring what UKC. offers.
-- [Shop](https://plannivo.com/shop): Watersports gear and accessories shop featuring Duotone brand equipment.
-- [Browse Products](https://plannivo.com/shop/browse): Browse and filter the full catalog of watersports products available for purchase.
-- [Academy](https://plannivo.com/academy): Academy landing page — certified watersports instruction across all disciplines.
-- [Kite Lessons](https://plannivo.com/academy/kite-lessons): Kite surfing lessons for beginners through advanced riders with certified instructors.
-- [Foil Lessons](https://plannivo.com/academy/foil-lessons): Foil boarding lessons covering hydrofoil technique and progression.
-- [Wing Lessons](https://plannivo.com/academy/wing-lessons): Wing foiling lessons from first flight to advanced maneuvers.
-- [E-Foil Lessons](https://plannivo.com/academy/efoil-lessons): Electric hydrofoil lessons — no wind required, suitable for all levels.
-- [Premium Lessons](https://plannivo.com/academy/premium-lessons): Premium private instruction with top-tier instructors and personalized coaching.
-- [Rentals](https://plannivo.com/rental): Equipment rental landing page — rent watersports gear by the hour or day.
-- [Standard Rentals](https://plannivo.com/rental/standard): Standard watersports equipment rentals for kite, wing, and foil.
-- [SLS Rentals](https://plannivo.com/rental/sls): Duotone SLS (Super Light Series) premium equipment rentals.
-- [D/LAB Rentals](https://plannivo.com/rental/dlab): Duotone D/LAB top-of-the-line prototype and limited edition equipment rentals.
-- [E-Foil Rentals](https://plannivo.com/rental/efoil): Electric hydrofoil rentals for wind-independent riding sessions.
-- [Premium Rentals](https://plannivo.com/rental/premium): Premium equipment rental packages with the latest high-end gear.
-- [Experiences](https://plannivo.com/experience): Experiences landing page — curated watersports packages, trips, and camps.
-- [Book a Package](https://plannivo.com/experience/book-package): Browse and book multi-session watersports experience packages.
-- [Kite Packages](https://plannivo.com/experience/kite-packages): Multi-day kite surfing packages combining lessons, practice, and progression.
-- [Wing Packages](https://plannivo.com/experience/wing-packages): Multi-day wing foiling packages for structured learning and progression.
-- [Downwinders](https://plannivo.com/experience/downwinders): Guided downwind kite or wing trips along the Turkish coastline.
-- [Camps](https://plannivo.com/experience/camps): Intensive watersports camps with accommodation, coaching, and community.
-- [Stay](https://plannivo.com/stay): Accommodation landing page — lodging options near the center in Urla.
-- [Hotel](https://plannivo.com/stay/hotel): Hotel accommodation for visitors and guests of UKC.
-- [Home](https://plannivo.com/stay/home): Private home and apartment accommodation options in Urla.
-- [Care](https://plannivo.com/care): Equipment repair and maintenance services for kites, boards, foils, and accessories.
-- [Contact](https://plannivo.com/contact): Contact information, location map, and inquiry form for UKC. Duotone Pro Center Urla.
-- [Team](https://plannivo.com/community/team): Meet the UKC. team — instructors, staff, and community members.
-- [Membership Packages](https://plannivo.com/members/offerings): Membership offerings and exclusive packages for regular riders and locals.
-- [Help & Support](https://plannivo.com/help): Help center and support resources for visitors and members.
+- [Home](https://ukc.plannivo.com/): Homepage of UKC. Duotone Pro Center Urla — overview of all services, location, and seasonal highlights.
+- [Guest Overview](https://ukc.plannivo.com/guest): Service overview and starting point for visitors exploring what UKC. offers.
+- [Shop](https://ukc.plannivo.com/shop): Watersports gear and accessories shop featuring Duotone brand equipment.
+- [Browse Products](https://ukc.plannivo.com/shop/browse): Browse and filter the full catalog of watersports products available for purchase.
+- [Academy](https://ukc.plannivo.com/academy): Academy landing page — certified watersports instruction across all disciplines.
+- [Kite Lessons](https://ukc.plannivo.com/academy/kite-lessons): Kite surfing lessons for beginners through advanced riders with certified instructors.
+- [Foil Lessons](https://ukc.plannivo.com/academy/foil-lessons): Foil boarding lessons covering hydrofoil technique and progression.
+- [Wing Lessons](https://ukc.plannivo.com/academy/wing-lessons): Wing foiling lessons from first flight to advanced maneuvers.
+- [E-Foil Lessons](https://ukc.plannivo.com/academy/efoil-lessons): Electric hydrofoil lessons — no wind required, suitable for all levels.
+- [Premium Lessons](https://ukc.plannivo.com/academy/premium-lessons): Premium private instruction with top-tier instructors and personalized coaching.
+- [Rentals](https://ukc.plannivo.com/rental): Equipment rental landing page — rent watersports gear by the hour or day.
+- [Standard Rentals](https://ukc.plannivo.com/rental/standard): Standard watersports equipment rentals for kite, wing, and foil.
+- [SLS Rentals](https://ukc.plannivo.com/rental/sls): Duotone SLS (Super Light Series) premium equipment rentals.
+- [D/LAB Rentals](https://ukc.plannivo.com/rental/dlab): Duotone D/LAB top-of-the-line prototype and limited edition equipment rentals.
+- [E-Foil Rentals](https://ukc.plannivo.com/rental/efoil): Electric hydrofoil rentals for wind-independent riding sessions.
+- [Premium Rentals](https://ukc.plannivo.com/rental/premium): Premium equipment rental packages with the latest high-end gear.
+- [Experiences](https://ukc.plannivo.com/experience): Experiences landing page — curated watersports packages, trips, and camps.
+- [Book a Package](https://ukc.plannivo.com/experience/book-package): Browse and book multi-session watersports experience packages.
+- [Kite Packages](https://ukc.plannivo.com/experience/kite-packages): Multi-day kite surfing packages combining lessons, practice, and progression.
+- [Wing Packages](https://ukc.plannivo.com/experience/wing-packages): Multi-day wing foiling packages for structured learning and progression.
+- [Downwinders](https://ukc.plannivo.com/experience/downwinders): Guided downwind kite or wing trips along the Turkish coastline.
+- [Camps](https://ukc.plannivo.com/experience/camps): Intensive watersports camps with accommodation, coaching, and community.
+- [Stay](https://ukc.plannivo.com/stay): Accommodation landing page — lodging options near the center in Urla.
+- [Hotel](https://ukc.plannivo.com/stay/hotel): Hotel accommodation for visitors and guests of UKC.
+- [Home](https://ukc.plannivo.com/stay/home): Private home and apartment accommodation options in Urla.
+- [Care](https://ukc.plannivo.com/care): Equipment repair and maintenance services for kites, boards, foils, and accessories.
+- [Contact](https://ukc.plannivo.com/contact): Contact information, location map, and inquiry form for UKC. Duotone Pro Center Urla.
+- [Team](https://ukc.plannivo.com/community/team): Meet the UKC. team — instructors, staff, and community members.
+- [Membership Packages](https://ukc.plannivo.com/members/offerings): Membership offerings and exclusive packages for regular riders and locals.
+- [Help & Support](https://ukc.plannivo.com/help): Help center and support resources for visitors and members.

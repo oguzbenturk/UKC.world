@@ -16,7 +16,7 @@ import { logger } from '../middlewares/errorHandler.js';
 
 // Token expires in 1 hour
 const TOKEN_EXPIRY_HOURS = 1;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://plannivo.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://ukc.plannivo.com';
 
 /**
  * Generate a secure random token

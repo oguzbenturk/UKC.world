@@ -12,7 +12,7 @@ const FamilyManagementPage = () => {
   setMetaTag('description', 'Manage your family members (under 18) to book lessons and rentals and complete waivers.');
   setOgTag('og:title', 'Family Members • Plannivo');
   setOgTag('og:description', 'Manage your family members (under 18) to book lessons and rentals and complete waivers.');
-  setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://plannivo.com') + '/student/family');
+  setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://ukc.plannivo.com') + '/student/family');
   setLinkTag('canonical', '/student/family');
 
   return (

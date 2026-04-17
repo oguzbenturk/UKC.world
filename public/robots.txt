@@ -14,4 +14,4 @@ User-agent: Bytespider
 Allow: /
 
 # Sitemap & LLM discovery
-Sitemap: https://plannivo.com/sitemap.xml
+Sitemap: https://ukc.plannivo.com/sitemap.xml

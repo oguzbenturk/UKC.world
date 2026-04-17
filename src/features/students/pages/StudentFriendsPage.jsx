@@ -316,7 +316,7 @@ const StudentFriendsPage = () => {
   setMetaTag('description', 'Manage your friends to create group bookings together.');
   setOgTag('og:title', 'Friends • Plannivo');
   setOgTag('og:description', 'Manage your friends to create group bookings together.');
-  setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://plannivo.com') + '/student/friends');
+  setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://ukc.plannivo.com') + '/student/friends');
   setLinkTag('canonical', '/student/friends');
 
   const clearModalState = useCallback(() => {

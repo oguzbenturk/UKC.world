@@ -7,7 +7,7 @@ import { buildWaiverConfirmationEmail } from './emailTemplates/waiverConfirmatio
 const DASHBOARD_URL = (process.env.APP_BASE_URL
   || process.env.FRONTEND_URL
   || process.env.PUBLIC_APP_URL
-  || 'https://app.plannivo.com').replace(/\/$/, '') + (process.env.WAIVER_PORTAL_PATH || '/student/family');
+  || 'https://ukc.plannivo.com').replace(/\/$/, '') + (process.env.WAIVER_PORTAL_PATH || '/student/family');
 
 async function fetchUser(userId) {
   if (!userId) {

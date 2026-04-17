@@ -430,7 +430,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                 {/* Subtle Plannivo link with version - managers/developers only */}
                 {['admin', 'manager', 'super_admin', 'developer'].includes(user?.role?.toLowerCase()) && (
                 <a 
-                  href="http://plannivo.com" 
+                  href="https://plannivo.com"
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="hidden lg:flex items-center gap-1.5 text-xs text-white/60 hover:text-white/90 transition-colors duration-150"

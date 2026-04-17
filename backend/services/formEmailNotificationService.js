@@ -567,7 +567,7 @@ export async function sendAccountCreatedEmail({ to, customerName, loginDetails }
       ` : ''}
       
       <div style="margin: 30px 0;">
-        <a href="${loginDetails.loginUrl || 'https://plannivo.com/login'}" 
+        <a href="${loginDetails.loginUrl || 'https://ukc.plannivo.com/login'}" 
            style="background-color: #1890ff; color: white; padding: 12px 24px; 
                   text-decoration: none; border-radius: 6px; display: inline-block;">
           Log In to Your Account
@@ -597,7 +597,7 @@ ${loginDetails.temporaryPassword ? `- Temporary Password: ${loginDetails.tempora
 
 ${loginDetails.temporaryPassword ? 'Important: Please change your password after your first login.' : ''}
 
-Log in at: ${loginDetails.loginUrl || 'https://plannivo.com/login'}
+Log in at: ${loginDetails.loginUrl || 'https://ukc.plannivo.com/login'}
 
 If you have any questions, please don't hesitate to contact us.
   `.trim();

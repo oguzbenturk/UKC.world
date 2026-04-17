@@ -1,7 +1,7 @@
 const DEFAULT_BASE_URL = process.env.APP_BASE_URL
   || process.env.FRONTEND_URL
   || process.env.PUBLIC_APP_URL
-  || 'https://app.plannivo.com';
+  || 'https://ukc.plannivo.com';
 
 const DEFAULT_DASHBOARD_PATH = process.env.WAIVER_PORTAL_PATH || '/student/family';
 const GlobalIntl = typeof globalThis !== 'undefined' ? globalThis.Intl : null;
