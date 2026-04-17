@@ -1,0 +1,119 @@
+# docker-compose.akyaka.yml
+# Akyaka customer stack — fully isolated from Plannivo.
+#
+# Isolation is enforced by:
+#   - COMPOSE_PROJECT_NAME=akyaka (namespaces containers, volumes, network)
+#   - Distinct host ports: 8081/8444 (frontend), 5433 (db)
+#   - Own env file: backend/.env.akyaka.production
+#   - Own SSL dir: ./SSL-akyaka
+#   - Own nginx config: ./infrastructure/nginx.akyaka.conf
+#
+# Prerequisites (gitignored, uploaded by push-akyaka.js):
+#   backend/.env.akyaka.production   — backend secrets + compose interpolation vars
+#   SSL-akyaka/fullchain.crt         — TLS certificate chain
+#   SSL-akyaka/private.key           — TLS private key
+#   dist/                            — pre-built frontend (shared with Plannivo for demo)
+#
+# Usage: COMPOSE_PROJECT_NAME=akyaka docker-compose -f docker-compose.akyaka.yml up -d
+version: "3.8"
+
+services:
+  frontend:
+    image: nginxinc/nginx-unprivileged:alpine
+    ports:
+      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:8444:8443"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      # Pre-built frontend (built locally, uploaded via SFTP)
+      - ./dist:/usr/share/nginx/html:ro
+      # Akyaka-specific nginx config
+      - ./infrastructure/nginx.akyaka.conf:/etc/nginx/conf.d/default.conf:ro
+      # Security headers include file (shared — same policy for both customers)
+      - ./infrastructure/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
+      # ACME challenge webroot (shared with Plannivo — read-only)
+      - /root/acme-webroot:/var/www/acme:ro
+      # Akyaka SSL certificates (uploaded via SFTP)
+      - ./SSL-akyaka:/etc/ssl/plannivo:ro
+      # Akyaka uploads volume (isolated from Plannivo's uploads)
+      - uploads_data:/var/www/uploads:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./backend/.env.akyaka.production
+    depends_on:
+      - db
+      - redis
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "127.0.0.1:5433:5432"
+    env_file:
+      - ./backend/.env.akyaka.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-akyaka}
+      POSTGRES_USER: ${POSTGRES_USER:-akyaka}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-akyaka} -d ${POSTGRES_DB:-akyaka}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    env_file:
+      - ./backend/.env.akyaka.production
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  app-network:
+    driver: bridge

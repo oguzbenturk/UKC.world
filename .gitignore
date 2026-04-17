@@ -30,6 +30,7 @@ backend/.env.backup
 
 # Local deployment secrets (never commit)
 .deploy.secrets.json
+.deploy.secrets.akyaka.json
 
 # Diagnostic artifacts
 remote-ls-output.txt
@@ -39,6 +40,7 @@ remote-ls-output.txt
 
 # SSL certificates and private keys (never commit)
 SSL/
+SSL-akyaka/
 *.key
 *.crt
 *.pem
@@ -94,6 +96,7 @@ backend/.env.server.production
 downloads-ion-duotone/
 DuotoneFonts/downloads/
 backend/.env.production
+backend/.env.akyaka.production
 
 # Credential backup (NEVER commit)
 CREDENTIALS_BACKUP.md
