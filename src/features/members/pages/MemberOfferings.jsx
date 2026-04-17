@@ -4,7 +4,6 @@ import MemberUpsellBanner from '@/features/members/components/MemberUpsellBanner
 import { Spin, Alert, message, Select, DatePicker, Tag, Button, Upload, Tooltip, InputNumber, Modal } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
   CrownOutlined,
   CheckOutlined,
@@ -32,7 +31,6 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
@@ -581,17 +579,9 @@ const MemberOfferings = () => {
       {/* Hero */}
       <div className="relative pt-12 md:pt-16">
         <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10 flex flex-col items-center">
-          <img
-            src={dpsLogo}
-            alt="Duotone Pro Center Urla"
-            className="w-full"
-            style={{ filter: 'invert(1) drop-shadow(0 1px 4px rgba(0,0,0,0.08))' }}
-          />
-          <p className="-mt-1.5 text-slate-900/80 tracking-[0.25em] text-sm sm:text-base">
-            <span className="font-duotone-bold uppercase">Powered by </span>
-            <span className="font-gotham-bold inline-flex items-baseline" style={{ letterSpacing: '0.05em', fontSize: 'inherit' }}>
-              UKC
-              <UkcBrandDot style={{ top: '0.14em' }} />
+          <p className="text-slate-900/80 tracking-[0.15em] text-sm sm:text-base">
+            <span className="font-gotham-bold" style={{ letterSpacing: '0.05em', fontSize: 'inherit' }}>
+              Plannivo
             </span>
           </p>
         </div>
@@ -1164,18 +1154,12 @@ const MemberOfferings = () => {
       {/* Upsell Banner */}
       <MemberUpsellBanner />
 
-      {/* Centered Logo at Bottom */}
+      {/* Centered Brand at Bottom */}
       <div className="w-full flex flex-col items-center" style={{ margin: '48px 0 24px 0' }}>
-        <img
-          src={dpsLogo}
-          alt="Duotone Pro Center Urla Logo"
-          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0', opacity: 0.15, filter: 'invert(1)' }}
-        />
-        <p className="-mt-1.5 text-slate-900/15 tracking-[0.25em] text-sm sm:text-base">
+        <p className="text-slate-900/20 tracking-[0.25em] text-sm sm:text-base">
           <span className="font-duotone-bold uppercase">Powered by </span>
-          <span className="font-gotham-bold inline-flex items-baseline" style={{ letterSpacing: '0.05em', fontSize: 'inherit' }}>
-            UKC
-            <UkcBrandDot className="!bg-emerald-400/15" style={{ top: '0.14em' }} />
+          <span className="font-gotham-bold" style={{ letterSpacing: '0.05em', fontSize: 'inherit' }}>
+            Plannivo
           </span>
         </p>
       </div>

@@ -18,7 +18,6 @@ import {
   Alert,
   theme
 } from 'antd';
-import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { 
   CheckCircleFilled, 
   HomeOutlined, 
@@ -252,11 +251,9 @@ const FormSuccessPage = () => {
         <div className="text-center text-gray-500 text-sm print:hidden mt-4">
           <Text type="secondary">
             Powered by{' '}
-            <span className="inline-flex items-baseline font-gotham-bold text-inherit" style={{ fontSize: 'inherit' }}>
-              UKC
-              <UkcBrandDot style={{ top: '0.1em' }} />
+            <span className="font-gotham-bold text-inherit" style={{ fontSize: 'inherit', letterSpacing: '0.05em' }}>
+              Plannivo
             </span>
-            world
           </Text>
         </div>
       )}

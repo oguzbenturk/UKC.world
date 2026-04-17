@@ -1,41 +1,16 @@
 // src/shared/components/ui/AuthModal.jsx
 import { Modal, Button, Form, Input, Divider, Space, App } from 'antd';
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
-import { useState, Fragment } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { SIGN_IN_DISABLED_USER_MESSAGE } from '../../services/auth/authService';
 import { useAuthModal } from '../../contexts/AuthModalContext';
-import { UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
 
-const UKC_TITLE_MARKER = 'UKC•';
-
-/** Renders title text; replaces literal `UKC•` with the same wordmark as the navbar (Gotham + emerald dot). */
 function AuthModalTitle({ title }) {
-  const baseClass =
-    'text-3xl font-duotone-bold-extended text-white mb-3 tracking-tight text-center';
-
-  if (!title || !title.includes(UKC_TITLE_MARKER)) {
-    return <h2 className={baseClass}>{title || 'Sign In'}</h2>;
-  }
-
-  const segments = title.split(UKC_TITLE_MARKER);
   return (
-    <h2
-      className={`${baseClass} flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-1`}
-    >
-      {segments.map((segment, i) => (
-        <Fragment key={`auth-title-${i}`}>
-          {segment ? <span>{segment}</span> : null}
-          {i < segments.length - 1 ? (
-            <UkcBrandWordmark
-              className="inline-flex shrink-0"
-              ukcClassName="text-white"
-              rootStyle={{ fontSize: '1.875rem' }}
-            />
-          ) : null}
-        </Fragment>
-      ))}
+    <h2 className="text-3xl font-duotone-bold-extended text-white mb-3 tracking-tight text-center">
+      {title || 'Sign In'}
     </h2>
   );
 }

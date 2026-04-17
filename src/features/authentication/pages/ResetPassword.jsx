@@ -5,14 +5,12 @@ import { message } from '@/shared/utils/antdStatic';
 import { LockOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 
-import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 
 const { Text, Title, Paragraph } = Typography;
 
-// Static logo component
 const Logo = () => (
   <div className="flex items-center justify-center gap-2 mb-6">
-    <img src={dpcLogo} alt="UKC•" style={{ height: '50px', objectFit: 'contain' }} />
+    <span className="font-gotham-bold text-3xl text-white" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
   </div>
 );
 

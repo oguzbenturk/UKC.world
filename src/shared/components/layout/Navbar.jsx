@@ -618,7 +618,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   <button
                     onClick={() => {
                       openAuthModal({
-                        title: 'Sign In to UKC•',
+                        title: 'Sign In',
                         message: 'Create an account or sign in to access all features',
                         returnUrl: location.pathname
                       });

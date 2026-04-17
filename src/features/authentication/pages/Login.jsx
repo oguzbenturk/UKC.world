@@ -6,8 +6,6 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { SIGN_IN_DISABLED_USER_MESSAGE } from '@/shared/services/auth/authService';
 import RegisterModal from '../components/RegisterModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
-import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
-import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 
 // Feature icons as static components
 const DashboardIcon = (props) => (
@@ -51,8 +49,8 @@ const FEATURES = [
 
 const Login = () => {
   usePageSEO({
-    title: 'Login | UKC•',
-    description: 'Sign in to manage lessons, rentals, customers, and operations at Duotone Pro Center Urla.',
+    title: 'Login | Plannivo',
+    description: 'Sign in to manage your Plannivo platform.',
     path: '/login'
   });
 
@@ -169,17 +167,10 @@ const Login = () => {
             {/* Logo and branding */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-center gap-3 mb-4">
-                <span className="font-gotham-bold text-4xl text-white tracking-tight inline-flex items-baseline">
-                  UKC
-                  <UkcBrandDot style={{ top: '0.18em' }} />
+                <span className="font-gotham-bold text-4xl text-white tracking-tight" style={{ letterSpacing: '0.05em' }}>
+                  Plannivo
                 </span>
               </div>
-
-              <img
-                src={dpcLogo}
-                alt="Duotone Pro Center Urla"
-                className="h-10 w-auto mx-auto mb-5"
-              />
 
               <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Member Login</h1>
               <p className="font-duotone-regular text-gray-400 text-sm">

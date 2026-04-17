@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Button, Tag, Divider, Spin, Alert, message } from 'antd';
-import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
   ToolOutlined,
   SearchOutlined,
@@ -245,14 +244,8 @@ const CareLandingPage = () => {
       <div className="relative overflow-hidden pt-12 md:pt-16">
         <div className="absolute inset-0 bg-gradient-to-br from-teal-900/30 via-transparent to-cyan-900/10 pointer-events-none" />
         
-        {/* Duotone Pro Center Urla Logo */}
-        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
-          <img
-            src={dpsLogo}
-            alt="Duotone Pro Center Urla Logo"
-            className="w-full"
-            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
-          />
+        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-10">
+          <span className="font-gotham-bold text-3xl text-white/80" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-14 relative z-10 text-center">
@@ -545,13 +538,8 @@ const CareLandingPage = () => {
 
       <GoogleReviewsStrip />
 
-      {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>
-        <img
-          src={dpsLogo}
-          alt="Duotone Pro Center Urla White Logo"
-          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
-        />
+        <span className="font-gotham-bold text-2xl text-white/20" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
       </div>
     </div>
   );

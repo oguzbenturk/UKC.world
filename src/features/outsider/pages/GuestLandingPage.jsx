@@ -1,7 +1,3 @@
-/**
- * GuestLandingPage - Duotone Pro Center Urla branded welcome page
- */
-
 import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBagIcon,
@@ -14,14 +10,13 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import { usePageSEO } from '@/shared/utils/seo';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const GuestLandingPage = () => {
   usePageSEO({
-    title: 'Welcome | UKC. Duotone Pro Center Urla',
-    description: 'Explore lessons, rentals, gear shop, experiences, accommodation, and more at UKC. Duotone Pro Center in Urla, Turkey.',
+    title: 'Welcome | Plannivo',
+    description: 'Explore lessons, rentals, gear shop, and more.',
     path: '/guest',
   });
   const navigate = useNavigate();
@@ -191,7 +186,7 @@ const GuestLandingPage = () => {
       {/* Header */}
       <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
         <div className="flex justify-center mb-8">
-          <img src={dpcLogo} alt="Duotone Pro Center Logo" className="mx-auto w-full sm:w-[85%] md:w-[500px]" style={{ filter: 'invert(1) drop-shadow(0 2px 8px rgba(75,79,84,0.18))', display: 'block', height: 'auto' }} />
+          <span className="font-gotham-bold text-4xl text-neutral-700 block text-center" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
         </div>
         {/* Divider */}
         <div className="flex items-center gap-5 mb-4">
