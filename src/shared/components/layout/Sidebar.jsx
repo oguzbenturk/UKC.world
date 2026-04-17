@@ -588,7 +588,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   ))}
                   <li>
                     {isGuest ? (
-                      <button onClick={() => openAuthModal({ title: 'Sign In', message: 'Sign in to access features', returnUrl: location.pathname })} className={`${commonLinkClasses} w-full text-left font-duotone-bold`} style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)' }}>
+                      <button onClick={() => openAuthModal({ title: 'Sign In', message: 'Sign in to access features', returnUrl: location.pathname })} className={`${commonLinkClasses} w-full text-left font-duotone-bold`} style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)' }}>
                         <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3" />
                         <span>Sign In</span>
                       </button>

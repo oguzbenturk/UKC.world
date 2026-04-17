@@ -97,7 +97,7 @@ export default function BrandPackageModalShell({
                 aria-modal="true"
                 aria-labelledby={ariaLabelledBy}
                 tabIndex={-1}
-                className={`package-details-modal-shell pkg-modal-panel pointer-events-auto relative my-0 flex w-full ${maxWidthClass} ${maxHeightClass} flex-col overflow-y-auto rounded-[24px] border border-[rgba(0,168,196,0.5)] bg-[rgba(255,255,255,0.98)] shadow-[0_20px_40px_-12px_rgba(0,168,196,0.25)] outline-none md:my-8 md:max-h-[min(90vh,880px)] md:min-h-0 ${visuallyOpen ? 'pkg-modal-panel--open' : ''}`}
+                className={`package-details-modal-shell pkg-modal-panel pointer-events-auto relative my-0 flex w-full ${maxWidthClass} ${maxHeightClass} flex-col overflow-y-auto rounded-[24px] border border-[rgba(30,58,138,0.5)] bg-[rgba(255,255,255,0.98)] shadow-[0_20px_40px_-12px_rgba(30,58,138,0.25)] outline-none md:my-8 md:max-h-[min(90vh,880px)] md:min-h-0 ${visuallyOpen ? 'pkg-modal-panel--open' : ''}`}
                 style={{ pointerEvents: open ? 'auto' : 'none' }}
                 onClick={(e) => e.stopPropagation()}
               >

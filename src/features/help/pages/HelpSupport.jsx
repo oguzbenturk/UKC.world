@@ -51,8 +51,8 @@ const faqItems = [
 
 const HelpSupport = () => {
   usePageSEO({
-    title: 'Help & Support | UKC. Duotone Pro Center Urla',
-    description: 'Help center, FAQs, and support resources for booking lessons, rentals, and using the UKC. platform.',
+    title: 'Help & Support | Plannivo',
+    description: 'Help center, FAQs, and support resources for using the Plannivo platform.',
     path: '/help',
   });
   const [search, setSearch] = useState('');

@@ -798,7 +798,7 @@ const PaymentStep = ({
   return (
     <div className="space-y-5">
       {/* Price summary card */}
-      <div className="rounded-2xl border border-[rgba(0,168,196,0.35)] bg-gradient-to-br from-duotone-blue/10 to-duotone-blue/5 p-4">
+      <div className="rounded-2xl border border-[rgba(30,58,138,0.35)] bg-gradient-to-br from-duotone-blue/10 to-duotone-blue/5 p-4">
         <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-600 mb-1">Total Price</p>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-2xl font-duotone-bold text-slate-900">{getDisplayPrice()}</span>
@@ -1144,9 +1144,9 @@ const AllInclusiveBookingModal = ({
 
   const brandModalContentStyle = {
     background: 'rgba(255,255,255,0.98)',
-    border: '1px solid rgba(0,168,196,0.5)',
+    border: '1px solid rgba(30,58,138,0.5)',
     borderRadius: 24,
-    boxShadow: '0 20px 40px -12px rgba(0,168,196,0.25)',
+    boxShadow: '0 20px 40px -12px rgba(30,58,138,0.25)',
   };
 
   return (
@@ -1171,7 +1171,7 @@ const AllInclusiveBookingModal = ({
       {selectedPackage && (
         <div>
           {/* Package summary bar */}
-          <div className="mb-4 p-3 rounded-xl border border-[rgba(0,168,196,0.25)] bg-duotone-blue/5 flex items-center justify-between flex-wrap gap-2">
+          <div className="mb-4 p-3 rounded-xl border border-[rgba(30,58,138,0.25)] bg-duotone-blue/5 flex items-center justify-between flex-wrap gap-2">
             <div>
               <p className="text-slate-900 font-duotone-bold text-sm">{selectedPackage.name}</p>
               <div className="flex flex-wrap gap-1 mt-1">

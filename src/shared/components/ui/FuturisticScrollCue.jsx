@@ -35,7 +35,7 @@ const FuturisticScrollCue = ({
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden
         style={{
-          filter: 'drop-shadow(0 0 10px rgba(0, 168, 196, 0.45))',
+          filter: 'drop-shadow(0 0 10px rgba(30, 58, 138, 0.45))',
         }}
       >
         {/* Wide “V” — shallow angle, long arms */}

@@ -1,4 +1,4 @@
-# CLAUDE.md — Plannivo (UKC.world)
+# CLAUDE.md — Plannivo
 
 ## What is this project?
 Plannivo is a business management platform for watersports academies (kite surfing focus). It handles bookings, CRM, finances, instructors, inventory, rentals, and more.

@@ -1550,7 +1550,7 @@ function PackageManagementInner() {
                               label="Camp Location"
                               rules={[{ required: true, message: 'Enter camp location' }]}
                             >
-                              <Input placeholder="e.g., UKC Gökçeada Beach Resort" />
+                              <Input placeholder="e.g., Akyaka Beach Resort" />
                             </Form.Item>
                           </Col>
                         )}

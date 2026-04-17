@@ -48,6 +48,11 @@
     "db:dev:down": "docker compose -f docker-compose.development.yml down",
     "db:dev:reset": "docker compose -f docker-compose.development.yml down -v && docker compose -f docker-compose.development.yml up -d",
     "db:sync": "node scripts/db-sync-from-prod.js",
+    "db:akyaka:up": "docker compose -f docker-compose.akyaka-development.yml up -d",
+    "db:akyaka:down": "docker compose -f docker-compose.akyaka-development.yml down",
+    "db:akyaka:reset": "docker compose -f docker-compose.akyaka-development.yml down -v && docker compose -f docker-compose.akyaka-development.yml up -d",
+    "db:akyaka:sync": "node scripts/db-sync-akyaka-from-prod.js",
+    "dev:akyaka": "node scripts/dev-akyaka.js",
     "dev:reset-passwords": "node backend/scripts/dev-reset-passwords.js"
   },
   "dependencies": {

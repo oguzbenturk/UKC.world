@@ -9,7 +9,7 @@ import {
   EyeOutlined,
   ShoppingCartOutlined
 } from '@ant-design/icons';
-import duotoneImages from '../../../shared/constants/duotoneImages';
+import duotoneImages from '../../../shared/constants/equipmentImages';
 import './DuotoneEquipmentShowcase.css';
 
 const DuotoneEquipmentShowcase = ({ onRentEquipment }) => {

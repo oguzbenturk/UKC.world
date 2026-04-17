@@ -8,11 +8,13 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { logger } from './middlewares/errorHandler.js';
 
-// Get correct path to .env file
+// Get correct path to .env file. Honors BACKEND_ENV_FILE so the Akyaka dev stack
+// loads backend/.env.akyaka.development instead of backend/.env without forking code.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const envPath = path.join(__dirname, '.env');
-// Load .env if present (non-blocking)
+const backendEnvFile = process.env.BACKEND_ENV_FILE || '.env';
+const envPath = path.join(__dirname, backendEnvFile);
+// Load env if present (non-blocking)
 dotenv.config({ path: envPath, override: true });
 
 const { Pool } = pg;

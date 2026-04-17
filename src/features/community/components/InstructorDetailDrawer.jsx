@@ -174,7 +174,7 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
           {instructor.booking_link_enabled && (
             <button
               onClick={handleBookLesson}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00a8c4] to-cyan-500 text-white font-semibold text-sm hover:from-[#0095ad] hover:to-cyan-600 transition-all duration-200 shadow-lg shadow-cyan-500/20"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#1E3A8A] to-cyan-500 text-white font-semibold text-sm hover:from-[#0095ad] hover:to-cyan-600 transition-all duration-200 shadow-lg shadow-cyan-500/20"
             >
               Book a Lesson
             </button>

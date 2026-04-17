@@ -50,8 +50,8 @@ const ProductDetailPage = () => {
 
     // SEO is updated dynamically once product loads (see useEffect below)
     usePageSEO({
-      title: product ? `${product.name} | UKC. Shop` : 'Product | UKC. Shop',
-      description: product?.description?.slice(0, 160) || 'View product details, specifications, and pricing at UKC. Duotone Pro Center shop.',
+      title: product ? `${product.name} | Plannivo Shop` : 'Product | Plannivo Shop',
+      description: product?.description?.slice(0, 160) || 'View product details, specifications, and pricing.',
       path: `/shop/product/${id}`,
     });
     const [cartVisible, setCartVisible] = useState(false);
@@ -431,7 +431,7 @@ const ProductDetailPage = () => {
                 className="fixed right-5 bottom-36 md:bottom-8 z-40 cursor-pointer rounded-full bg-[#23272a] p-3 shadow-lg hover:scale-105 active:scale-95 transition-transform"
             >
                 <Badge count={cartCount} size="small" offset={[-4, 4]} style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
-                    <ShoppingCartOutlined style={{ fontSize: 26, color: '#00a8c4' }} />
+                    <ShoppingCartOutlined style={{ fontSize: 26, color: '#1E3A8A' }} />
                 </Badge>
             </div>
 

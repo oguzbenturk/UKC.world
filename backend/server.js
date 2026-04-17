@@ -120,9 +120,17 @@ import { applyDisableLoginEnvPrecedence, isAuthCreationDisabled } from './utils/
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Load backend/.env first, then project root .env for any keys not already set (e.g. DISABLE_LOGIN only in root).
-dotenv.config({ path: path.join(__dirname, '.env') });
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Which backend env file to load. Defaults to `.env`; `npm run dev:akyaka` sets
+// BACKEND_ENV_FILE=.env.akyaka.development so the Akyaka dev stack stays isolated
+// from the default Plannivo dev env without touching Plannivo's code paths.
+const backendEnvFile = process.env.BACKEND_ENV_FILE || '.env';
+dotenv.config({ path: path.join(__dirname, backendEnvFile) });
+// Root .env fills in any keys not yet set (e.g. DISABLE_LOGIN only in root). Skip
+// it when a non-default backend env file is explicitly chosen, so Akyaka dev
+// never inherits UKC dev's root vars.
+if (!process.env.BACKEND_ENV_FILE) {
+  dotenv.config({ path: path.join(__dirname, '..', '.env') });
+}
 // Root .env must win over backend/.env for DISABLE_LOGIN (db.js loads backend with override:true early).
 applyDisableLoginEnvPrecedence(__dirname);
 

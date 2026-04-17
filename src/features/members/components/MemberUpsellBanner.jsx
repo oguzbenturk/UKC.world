@@ -30,7 +30,7 @@ const UPSELL_CARDS = [
     key: 'shop',
     gradient: 'linear-gradient(160deg, rgba(245,158,11,0.45) 0%, rgba(8,13,20,0.85) 100%)',
     image: imgShop,
-    eyebrow: 'Duotone Pro Shop',
+    eyebrow: 'Equipment Shop',
     title: 'Gear up right at the beach',
     body: 'Kites, boards, harnesses, accessories and apparel — everything you need, available on-site.',
     cta: 'Visit the Shop',
@@ -40,9 +40,9 @@ const UPSELL_CARDS = [
 
 const btnStyle = {
   background: '#4b4f54',
-  color: '#00a8c4',
-  border: '1px solid rgba(0,168,196,0.5)',
-  boxShadow: '0 0 12px rgba(0,168,196,0.2)',
+  color: '#1E3A8A',
+  border: '1px solid rgba(30,58,138,0.5)',
+  boxShadow: '0 0 12px rgba(30,58,138,0.2)',
 };
 
 const MemberUpsellBanner = () => {
@@ -51,7 +51,7 @@ const MemberUpsellBanner = () => {
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#00a8c4] text-center mb-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1E3A8A] text-center mb-2">
           More at the Spot
         </p>
         <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-center mb-10" style={{ color: '#00d4f4' }}>
@@ -79,7 +79,7 @@ const MemberUpsellBanner = () => {
 
               {/* Content */}
               <div className="relative z-10 h-full flex flex-col justify-end p-6 sm:p-8">
-                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.15em] text-[#00a8c4] mb-2">
+                <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.15em] text-[#1E3A8A] mb-2">
                   {eyebrow}
                 </span>
                 <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-white mb-2 leading-tight">

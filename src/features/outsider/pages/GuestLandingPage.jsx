@@ -1,7 +1,3 @@
-/**
- * GuestLandingPage - Duotone Pro Center Urla branded welcome page
- */
-
 import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBagIcon,
@@ -14,14 +10,13 @@ import {
   ChatBubbleLeftRightIcon,
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
-import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import { usePageSEO } from '@/shared/utils/seo';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const GuestLandingPage = () => {
   usePageSEO({
-    title: 'Welcome | UKC. Duotone Pro Center Urla',
-    description: 'Explore lessons, rentals, gear shop, experiences, accommodation, and more at UKC. Duotone Pro Center in Urla, Turkey.',
+    title: 'Welcome | Plannivo',
+    description: 'Explore lessons, rentals, gear shop, and more.',
     path: '/guest',
   });
   const navigate = useNavigate();
@@ -191,7 +186,7 @@ const GuestLandingPage = () => {
       {/* Header */}
       <div className="max-w-6xl mx-auto px-6 pt-10 pb-6">
         <div className="flex justify-center mb-8">
-          <img src={dpcLogo} alt="Duotone Pro Center Logo" className="mx-auto w-full sm:w-[85%] md:w-[500px]" style={{ filter: 'invert(1) drop-shadow(0 2px 8px rgba(75,79,84,0.18))', display: 'block', height: 'auto' }} />
+          <span className="font-gotham-bold text-4xl text-neutral-700 block text-center" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
         </div>
         {/* Divider */}
         <div className="flex items-center gap-5 mb-4">
@@ -206,9 +201,8 @@ const GuestLandingPage = () => {
         {/* Services description */}
         <p className="text-center mt-3 mb-1" style={{ fontFamily: '"Duotone Regular", sans-serif', fontWeight: 400, fontSize: '0.95rem', lineHeight: '1.7', color: '#6b7280', letterSpacing: '0.02em' }}>
           From gear to lessons, repairs to stays, everything you need for your water sports journey in{' '}
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Urla</span>.{' '}
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#00a8c4' }}>Duotone</span>{' '}
-          Dealer, professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Akyaka</span>.{' '}
+          Professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
         </p>
       </div>
 
@@ -225,7 +219,7 @@ const GuestLandingPage = () => {
       <div className="max-w-6xl mx-auto px-6 pb-14">
         <div className="flex items-center gap-5 mb-6 mt-2">
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(75,79,84,0.2))' }} />
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontSize: '0.65rem', letterSpacing: '0.22em', color: '#b0b8be', textTransform: 'uppercase' }}>Est. 2016 · Urla · Aegean</span>
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontSize: '0.65rem', letterSpacing: '0.22em', color: '#b0b8be', textTransform: 'uppercase' }}>Akyaka · Aegean</span>
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(75,79,84,0.2))' }} />
         </div>
         <div
@@ -236,7 +230,7 @@ const GuestLandingPage = () => {
             <h3
               style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.15rem', letterSpacing: '0.03em', color: '#4b4f54' }}
             >
-              Enjoy your ride with UKC.
+              Enjoy your ride with Plannivo.
             </h3>
             <p
               style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 400, fontSize: '0.82rem', letterSpacing: '0.04em', color: '#9ca3af', marginTop: '4px' }}
@@ -248,7 +242,7 @@ const GuestLandingPage = () => {
             <button
               onClick={() => navigate('/academy')}
               className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
-              style={{ fontFamily: '"Gotham Medium", sans-serif', background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.45)', boxShadow: '0 0 14px rgba(0,168,196,0.15)' }}
+              style={{ fontFamily: '"Gotham Medium", sans-serif', background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.45)', boxShadow: '0 0 14px rgba(30,58,138,0.15)' }}
             >
               BOOK A LESSON
             </button>

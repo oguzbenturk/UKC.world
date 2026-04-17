@@ -1,4 +1,4 @@
-# Design System — Plannivo (UKC.world)
+# Design System — Plannivo
 
 Reference for building new features with a consistent look and feel. All UI uses Tailwind CSS utility classes. Avoid Ant Design visual components (Table, Card, Tag, Button) in new code — use them only for complex widgets (Modal shell, DatePicker, Dropdown) where Tailwind alone is impractical.
 

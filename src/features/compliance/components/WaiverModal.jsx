@@ -42,7 +42,7 @@ const WaiverModal = ({ open, userId, userType, onSuccess, onCancel }) => {
           </div>
           <Title level={3} className="mb-2">Liability Waiver Required</Title>
           <Text type="secondary" className="text-base">
-            Duotone Pro Center Safety Protocol
+            [Company Name] Safety Protocol
           </Text>
         </div>
 

@@ -149,8 +149,8 @@
   .dark-form .ant-input-focused,
   .dark-form .ant-input-password-focused,
   .dark-form .ant-input-affix-wrapper-focused {
-    border-color: #00a8c4 !important;
-    box-shadow: 0 0 0 2px rgba(0, 168, 196, 0.2) !important;
+    border-color: #1E3A8A !important;
+    box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.2) !important;
   }
 
   .dark-form .ant-form-item-label > label {
@@ -184,7 +184,7 @@
   }
 
   .dark-form .ant-input-password-icon:hover {
-    color: #00a8c4 !important;
+    color: #1E3A8A !important;
   }
 }
 

@@ -31,7 +31,7 @@ export function useAIAssistant() {
     const role = user?.role?.toLowerCase() || 'outsider';
     const greeting =
       GREETINGS[role]?.(user?.name) ??
-      "Hi! I'm Kai, your UKC assistant. How can I help you today?";
+      "Hi! I'm Kai, your Plannivo assistant. How can I help you today?";
     setMessages([{ role: 'assistant', content: greeting, timestamp: Date.now() }]);
   };
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Select, Button, Tag, Divider, Spin, Alert, message } from 'antd';
-import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
   ToolOutlined,
   SearchOutlined,
@@ -181,8 +180,8 @@ const CareLandingPage = () => {
   const [trackError, setTrackError] = useState(null);
 
   usePageSEO({
-    title: '.Care | Equipment Repair – UKC World',
-    description: 'Submit a repair request for your kite, board, bar & lines — no account needed. All brands welcome. Track your repair status online.',
+    title: 'Equipment Repair | Plannivo',
+    description: 'Submit a repair request — no account needed. All brands welcome. Track your repair status online.',
   });
 
   // Auto-load tracking if token is in URL
@@ -245,14 +244,8 @@ const CareLandingPage = () => {
       <div className="relative overflow-hidden pt-12 md:pt-16">
         <div className="absolute inset-0 bg-gradient-to-br from-teal-900/30 via-transparent to-cyan-900/10 pointer-events-none" />
         
-        {/* Duotone Pro Center Urla Logo */}
-        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] z-10">
-          <img
-            src={dpsLogo}
-            alt="Duotone Pro Center Urla Logo"
-            className="w-full"
-            style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.2))' }}
-          />
+        <div className="absolute top-14 left-1/2 transform -translate-x-1/2 z-10">
+          <span className="font-gotham-bold text-3xl text-white/80" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-14 relative z-10 text-center">
@@ -360,7 +353,7 @@ const CareLandingPage = () => {
                 className="care-form"
               >
                 {/* Contact info */}
-                <p className="text-xs font-duotone-bold uppercase tracking-widest mb-3" style={{ color: '#00a8c4' }}>Your Contact Info</p>
+                <p className="text-xs font-duotone-bold uppercase tracking-widest mb-3" style={{ color: '#1E3A8A' }}>Your Contact Info</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <Form.Item
                     name="guestName"
@@ -370,7 +363,7 @@ const CareLandingPage = () => {
                     <Input
                       prefix={<UserOutlined className="text-white/30" />}
                       placeholder="John Doe"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-duotone-regular"
                     />
                   </Form.Item>
                   <Form.Item
@@ -381,7 +374,7 @@ const CareLandingPage = () => {
                     <Input
                       prefix={<MailOutlined className="text-white/30" />}
                       placeholder="you@example.com"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
@@ -393,7 +386,7 @@ const CareLandingPage = () => {
                   <Input
                     prefix={<PhoneOutlined className="text-white/30" />}
                     placeholder="+90 530 000 00 00"
-                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
+                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-duotone-regular"
                   />
                 </Form.Item>
 
@@ -420,7 +413,7 @@ const CareLandingPage = () => {
                   >
                     <Input
                       placeholder="e.g. Cabrinha Switchblade 12m"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
@@ -433,7 +426,7 @@ const CareLandingPage = () => {
                   <Input.TextArea
                     rows={4}
                     placeholder="Describe the damage or issue in as much detail as possible..."
-                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] !resize-none font-duotone-regular"
+                    className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] !resize-none font-duotone-regular"
                   />
                 </Form.Item>
 
@@ -461,7 +454,7 @@ const CareLandingPage = () => {
                   >
                     <Input
                       placeholder="e.g. Left at school storage"
-                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-duotone-regular"
+                      className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-duotone-regular"
                     />
                   </Form.Item>
                 </div>
@@ -473,7 +466,7 @@ const CareLandingPage = () => {
                   size="large"
                   block
                   className="!h-14 font-duotone-bold !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
-                  style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+                  style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
                 >
                   Submit Repair Request
                 </Button>
@@ -502,7 +495,7 @@ const CareLandingPage = () => {
                   prefix={<SearchOutlined className="text-white/30" />}
                   placeholder="Paste your tracking token here..."
                   size="large"
-                  className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#00a8c4]/50 focus:!border-[#00a8c4] font-mono"
+                  className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 hover:!border-[#1E3A8A]/50 focus:!border-[#1E3A8A] font-mono"
                 />
               </Form.Item>
               <Button
@@ -513,7 +506,7 @@ const CareLandingPage = () => {
                 block
                 icon={<SearchOutlined />}
                 className="!h-14 font-duotone-bold !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
-                style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+                style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
               >
                 {tracking ? 'Looking up...' : 'Check Status'}
               </Button>
@@ -545,13 +538,8 @@ const CareLandingPage = () => {
 
       <GoogleReviewsStrip />
 
-      {/* Centered White Logo at Bottom */}
       <div className="w-full flex justify-center items-center" style={{ margin: '48px 0 24px 0' }}>
-        <img
-          src={dpsLogo}
-          alt="Duotone Pro Center Urla White Logo"
-          style={{ width: '100%', maxWidth: '900px', height: 'auto', display: 'block', margin: '0 auto', padding: '8px 0' }}
-        />
+        <span className="font-gotham-bold text-2xl text-white/20" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
       </div>
     </div>
   );

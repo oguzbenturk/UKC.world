@@ -58,7 +58,7 @@ const DescriptionBlock = ({ text }) => {
       </div>
       <button
         type="button"
-        className="mt-1.5 text-xs font-duotone-bold text-[#00a8c4] hover:underline focus-visible:outline-none focus-visible:underline"
+        className="mt-1.5 text-xs font-duotone-bold text-[#1E3A8A] hover:underline focus-visible:outline-none focus-visible:underline"
         onClick={handleToggle}
       >
         {expanded ? 'Show less' : 'Read more'}
@@ -181,7 +181,7 @@ const PackageDetailsModal = ({ depsRef }) => {
       <div className="tcm-scroll p-4 sm:p-5 md:min-h-0 md:flex-1 md:overflow-y-auto md:p-7">
         <DescriptionBlock text={selectedPackage.description} />
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-          <CheckOutlined className="shrink-0 text-[#00a8c4]" />
+          <CheckOutlined className="shrink-0 text-[#1E3A8A]" />
           <span className="font-duotone-regular text-sm text-slate-600">All equipment &amp; materials included</span>
         </div>
       </div>
@@ -215,7 +215,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                 ? 'border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400/40'
                 : 'border-emerald-400 bg-emerald-50 hover:border-emerald-500 hover:bg-emerald-100'
               : isSelected
-                ? 'border-[rgba(0,168,196,0.55)] bg-[rgba(0,168,196,0.07)] shadow-[0_0_0_1px_rgba(0,168,196,0.12)]'
+                ? 'border-[rgba(30,58,138,0.55)] bg-[rgba(30,58,138,0.07)] shadow-[0_0_0_1px_rgba(30,58,138,0.12)]'
                 : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white';
             const handleDurationClick = () => {
               setUseCustomDuration(false);
@@ -241,7 +241,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                     ownedPkg
                       ? isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-emerald-400 bg-emerald-100'
-                      : isSelected ? 'border-[#00a8c4] bg-[#00a8c4]'    : 'border-slate-300 bg-white'
+                      : isSelected ? 'border-[#1E3A8A] bg-[#1E3A8A]'    : 'border-slate-300 bg-white'
                   }`}
                 >
                   {isSelected ? <CheckOutlined className="text-[10px] text-white" /> : null}
@@ -305,13 +305,13 @@ const PackageDetailsModal = ({ depsRef }) => {
               }}
               className={`relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 ${
                 useCustomDuration
-                  ? 'border-[rgba(0,168,196,0.55)] bg-[rgba(0,168,196,0.07)] shadow-[0_0_0_1px_rgba(0,168,196,0.12)]'
+                  ? 'border-[rgba(30,58,138,0.55)] bg-[rgba(30,58,138,0.07)] shadow-[0_0_0_1px_rgba(30,58,138,0.12)]'
                   : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white'
               }`}
             >
               <div
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                  useCustomDuration ? 'border-[#00a8c4] bg-[#00a8c4]' : 'border-slate-300 bg-white'
+                  useCustomDuration ? 'border-[#1E3A8A] bg-[#1E3A8A]' : 'border-slate-300 bg-white'
                 }`}
               >
                 {useCustomDuration ? <CheckOutlined className="text-[10px] text-white" /> : null}
@@ -414,9 +414,9 @@ const PackageDetailsModal = ({ depsRef }) => {
                 className="!h-12 !rounded-xl !text-base font-duotone-bold shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99]"
                 style={{
                   backgroundColor: '#4b4f54',
-                  color: '#00a8c4',
-                  border: '1px solid rgba(0,168,196,0.5)',
-                  boxShadow: '0 0 12px rgba(0,168,196,0.25)',
+                  color: '#1E3A8A',
+                  border: '1px solid rgba(30,58,138,0.5)',
+                  boxShadow: '0 0 12px rgba(30,58,138,0.25)',
                 }}
               >
                 {selOwned

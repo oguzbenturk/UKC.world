@@ -1,0 +1,51 @@
+# docker-compose.akyaka-development.yml
+# Standalone Postgres + Redis for LOCAL Akyaka development only.
+# Fully isolated from Plannivo UKC's local dev (docker-compose.development.yml):
+#   - Different container names, volumes, ports, and database name
+#   - Project name `akyaka-dev` so `docker compose` treats it as a separate stack
+#
+# Usage:
+#   npm run db:akyaka:up    # start containers
+#   npm run db:akyaka:down  # stop containers
+#   npm run db:akyaka:reset # wipe volumes and start fresh
+#   npm run db:akyaka:sync  # pull Akyaka production schema+data into local
+#   npm run dev:akyaka      # start backend (4001) + frontend (3001)
+name: akyaka-dev
+
+services:
+  db-akyaka-dev:
+    image: postgres:15-alpine
+    container_name: plannivo-akyaka-dev-db
+    ports:
+      - "127.0.0.1:5434:5432"
+    environment:
+      POSTGRES_DB: akyaka_dev
+      POSTGRES_USER: akyaka
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_akyaka_dev_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U akyaka -d akyaka_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis-akyaka-dev:
+    image: redis:7-alpine
+    container_name: plannivo-akyaka-dev-redis
+    ports:
+      - "127.0.0.1:6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_akyaka_dev_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_akyaka_dev_data:
+  redis_akyaka_dev_data:

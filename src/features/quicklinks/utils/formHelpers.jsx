@@ -102,7 +102,7 @@ export const humanizeValue = (value) => {
     'high_volume': 'High Volume',
     'occasional': 'Occasional',
     'premium_clientele': 'Premium Clientele',
-    'duotone_pro_center': 'Duotone Pro Center',
+    'duotone_pro_center': 'Plannivo',
     'radio_helmets': 'Radio Helmets',
     'progression_plans': 'Progression Plans',
     'video_analysis': 'Video Analysis',

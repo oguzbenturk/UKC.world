@@ -69,15 +69,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       locale={enUS}
       theme={{
         token: {
-          colorPrimary: '#3B82F6', // brand blue
-          colorInfo: '#3B82F6',
-          colorSuccess: '#10B981', // emerald
-          colorWarning: '#F59E0B', // amber
+          colorPrimary: '#1E3A8A',
+          colorInfo: '#1E3A8A',
+          colorSuccess: '#10B981',
+          colorWarning: '#F59E0B',
         },
         components: {
           Button: {
-            colorPrimaryHover: '#3B82F6',   // same as colorPrimary → no blue shift on hover
-            colorPrimaryActive: '#2563EB',
+            colorPrimaryHover: '#1E3A8A',
+            colorPrimaryActive: '#152A5F',
           }
         }
       }}

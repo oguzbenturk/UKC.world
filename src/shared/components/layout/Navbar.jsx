@@ -289,8 +289,8 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
             ? 'linear-gradient(180deg, #3a4a4f 0%, #2e3f44 60%, #263840 100%)'
             : 'linear-gradient(180deg, #46575c 0%, #3a4d53 60%, #324750 100%)',
           boxShadow: isScrolled
-            ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,168,196,0.15)'
-            : '0 4px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,168,196,0.08)'
+            ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(30,58,138,0.15)'
+            : '0 4px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(30,58,138,0.08)'
         }}
       >
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
@@ -301,7 +301,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                 <button
                   type="button"
                   onClick={handleSidebarToggle}
-                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#00a8c4] transition-colors duration-150 ease-in-out shrink-0"
+                  className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#1E3A8A] transition-colors duration-150 ease-in-out shrink-0"
                   aria-expanded={false}
                   aria-label="Toggle sidebar"
                   data-sidebar-toggle="true"
@@ -618,13 +618,13 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   <button
                     onClick={() => {
                       openAuthModal({
-                        title: 'Sign In to UKC•',
+                        title: 'Sign In',
                         message: 'Create an account or sign in to access all features',
                         returnUrl: location.pathname
                       });
                     }}
                     className="px-4 py-2 rounded-md font-duotone-bold text-sm transition-all duration-150 focus:outline-none"
-                    style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
+                    style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 8px rgba(30,58,138,0.2)' }}
                     aria-label="Sign In"
                   >
                     Sign In

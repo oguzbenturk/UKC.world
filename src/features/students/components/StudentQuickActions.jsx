@@ -58,7 +58,7 @@ const StudentQuickActions = () => {
             { path: '/rental',           label: 'Visit Rentals',    icon: WrenchScrewdriverIcon,  gradient: 'linear-gradient(135deg, #f59e0b, #b45309)' },
             { path: '/shop',             label: 'Visit Shop',       icon: ShoppingBagIcon,        gradient: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' },
             { path: '/student/schedule', label: 'Visit My Lessons', icon: CalendarDaysIcon,       gradient: 'linear-gradient(135deg, #10b981, #047857)' },
-            { path: null,                label: 'My Wallet',        icon: WalletIcon,             gradient: 'linear-gradient(135deg, #00a8c4, #004f5e)', event: 'studentWallet:open' },
+            { path: null,                label: 'My Wallet',        icon: WalletIcon,             gradient: 'linear-gradient(135deg, #1E3A8A, #004f5e)', event: 'studentWallet:open' },
             { path: null,                label: 'Talk to Kai',      icon: SparklesIcon,           gradient: 'linear-gradient(135deg, #ec4899, #be185d)', action: 'openChat' },
           ].map(({ path, label, icon: Icon, gradient, event, action }) => (
             <button
@@ -73,8 +73,8 @@ const StudentQuickActions = () => {
                   navigate(path);
                 }
               }}
-              className="flex items-center gap-3 rounded-2xl border border-[#00a8c4]/20 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-800 shadow-lg backdrop-blur-sm transition-all hover:bg-white hover:border-[#00a8c4]/40 whitespace-nowrap"
-              style={{ boxShadow: '0 4px 16px -2px rgba(0,168,196,0.18)' }}
+              className="flex items-center gap-3 rounded-2xl border border-[#1E3A8A]/20 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-800 shadow-lg backdrop-blur-sm transition-all hover:bg-white hover:border-[#1E3A8A]/40 whitespace-nowrap"
+              style={{ boxShadow: '0 4px 16px -2px rgba(30,58,138,0.18)' }}
             >
               <span
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
@@ -100,7 +100,7 @@ const StudentQuickActions = () => {
         <div
           className="pointer-events-none absolute -inset-5 rounded-full fab-glow"
           style={{
-            background: 'radial-gradient(circle, rgba(0,168,196,0.30) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(30,58,138,0.30) 0%, transparent 70%)',
             animationDelay: '0.5s',
           }}
         />
@@ -109,7 +109,7 @@ const StudentQuickActions = () => {
           className="pointer-events-none absolute -inset-[6px] rounded-full animate-spin"
           style={{
             animationDuration: '6s',
-            background: 'conic-gradient(from 0deg, #00a8c4 0%, #ffffff 18%, transparent 38%, transparent 68%, #005f70 82%, #00a8c4 100%)',
+            background: 'conic-gradient(from 0deg, #1E3A8A 0%, #ffffff 18%, transparent 38%, transparent 68%, #005f70 82%, #1E3A8A 100%)',
             WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2px))',
             mask: 'radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2px))',
             opacity: 0.9,
@@ -118,7 +118,7 @@ const StudentQuickActions = () => {
         {/* Close inner halo */}
         <div
           className="pointer-events-none absolute -inset-1 rounded-full fab-glow"
-          style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.5) 0%, transparent 60%)' }}
+          style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.5) 0%, transparent 60%)' }}
         />
 
         {/* The actual button */}
@@ -133,9 +133,9 @@ const StudentQuickActions = () => {
           <div
             className="absolute inset-0 rounded-full overflow-hidden transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
             style={{
-              background: 'linear-gradient(145deg, #33c4d9 0%, #00a8c4 38%, #007a8f 70%, #004f5e 100%)',
+              background: 'linear-gradient(145deg, #33c4d9 0%, #1E3A8A 38%, #007a8f 70%, #004f5e 100%)',
               boxShadow:
-                '0 10px 30px -4px rgba(0,168,196,0.65), 0 3px 10px rgba(0,0,0,0.18), inset 0 1.5px 0 rgba(255,255,255,0.28)',
+                '0 10px 30px -4px rgba(30,58,138,0.65), 0 3px 10px rgba(0,0,0,0.18), inset 0 1.5px 0 rgba(255,255,255,0.28)',
             }}
           >
             {/* Specular gloss cap — top-left white highlight */}
@@ -159,15 +159,15 @@ const StudentQuickActions = () => {
             />
           </div>
 
-          {/* UKC. label — shown when closed */}
+          {/* Brand label — shown when closed */}
           <div
             className={`absolute inset-0 flex items-center justify-center text-white transition-all duration-200 ${
               isOpen ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
             }`}
             style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))' }}
           >
-            <span className="font-gotham-bold text-[13px] tracking-tight leading-none">
-              UKC.
+            <span className="font-gotham-bold text-[10px] tracking-tight leading-none">
+              P
             </span>
           </div>
 

@@ -60,7 +60,7 @@ const DEFAULT_THEME = {
     show_header: true,
     header_bg_color: 'transparent',
     show_footer: true,
-    footer_text: 'Powered by UKC•world',
+    footer_text: 'Powered by Plannivo',
     footer_logos: [],
     social_links: {},
   },
@@ -588,7 +588,7 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
           </Form.Item>
 
           <Form.Item label="Form Subtitle" name="formSubtitle">
-            <Input placeholder="e.g., Location - Urla" />
+            <Input placeholder="e.g., Location - Akyaka" />
           </Form.Item>
 
           <Form.Item label="Form Description" name="formDescription">
@@ -628,7 +628,7 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
           </Form.Item>
 
           <Form.Item label="Company Tagline" name="companyName">
-            <Input placeholder="e.g., POWERED BY UKC" />
+            <Input placeholder="e.g., POWERED BY PLANNIVO" />
           </Form.Item>
 
           <Form.Item label="Logo">
@@ -669,7 +669,7 @@ const ThemeBrandingPanel = ({ themeConfig, onUpdate, disabled }) => {
           </Form.Item>
 
           <Form.Item label="Footer Text" name="footerText">
-            <Input placeholder="Powered by UKC•world" />
+            <Input placeholder="Powered by Plannivo" />
           </Form.Item>
 
           <Divider>Footer Logos</Divider>

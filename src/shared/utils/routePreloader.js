@@ -1,15 +1,12 @@
 // Maps route prefixes to their dynamic import functions.
 // Calling import() a second time returns the cached module — no double-download.
+//
+// Akyaka: public marketing routes have been removed. Only preload in-app routes
+// that authenticated users land on.
 const routeChunkMap = {
   '/guest': () => import('../../features/outsider/pages/GuestLandingPage'),
   '/shop/product': () => import('../../features/outsider/pages/ProductDetailPage'),
-  '/shop': () => import('../../features/outsider/pages/ShopLandingPage'),
-  '/academy': () => import('../../features/outsider/pages/AcademyLandingPage'),
-  '/rental': () => import('../../features/outsider/pages/RentalLandingPage'),
-  '/stay': () => import('../../features/outsider/pages/StayLandingPage'),
-  '/experience': () => import('../../features/outsider/pages/ExperienceLandingPage'),
-  '/contact': () => import('../../features/outsider/pages/ContactPage'),
-  '/care': () => import('../../features/outsider/pages/CareLandingPage'),
+  '/shop': () => import('../../features/dashboard/pages/Shop'),
   '/members/offerings': () => import('../../features/members/pages/MemberOfferings'),
   '/student/dashboard': () => import('../../features/students/pages/StudentDashboard'),
   '/student/schedule': () => import('../../features/students/pages/StudentSchedule'),

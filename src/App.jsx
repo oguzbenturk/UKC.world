@@ -33,7 +33,6 @@ import GlobalFAB from './shared/components/ui/GlobalFAB';
 import StudentQuickActions from './features/students/components/StudentQuickActions';
 import { AIChatProvider } from './shared/contexts/AIChatContext';
 import WhatsAppChatModal from './shared/components/chat/WhatsAppChatModal';
-import { UkcBrandDot } from './shared/components/ui/UkcBrandDot';
 import GlobalPackageDetailsModal from '@/features/outsider/components/GlobalPackageDetailsModal';
 
 // Main App component wraps everything with providers
@@ -224,10 +223,8 @@ const AppLayoutWithAuth = () => {
       <main className="min-h-dvh h-dvh overflow-y-auto safe-pb">
         {consentModal}
         <div className="bg-slate-800 shadow-lg sticky top-0 z-50 p-4 flex justify-between items-center">
-          <span className="flex items-baseline tracking-wide text-xl">
-            <span className="font-bold text-white">UKC</span>
-            <UkcBrandDot className="mx-0.5" style={{ top: '0.15em' }} />
-            <span className="font-medium text-slate-300 text-sm">World</span>
+          <span className="font-gotham-bold text-white text-xl" style={{ letterSpacing: '0.05em' }}>
+            Plannivo
           </span>
           <button 
             onClick={() => {

@@ -81,7 +81,7 @@ const GoogleReviewsStrip = ({ className = '' }) => {
         {/* Header */}
         <div className="flex items-end justify-between gap-4 mb-6 sm:mb-8">
           <div className="min-w-0">
-            <span className="text-[10px] sm:text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-1 block">
+            <span className="text-[10px] sm:text-xs font-duotone-regular uppercase tracking-widest text-[#1E3A8A] mb-1 block">
               What our students say
             </span>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -120,7 +120,7 @@ const GoogleReviewsStrip = ({ className = '' }) => {
               href={GOOGLE_MAPS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-2 inline-flex items-center gap-1.5 text-sm font-duotone-regular text-[#00a8c4] hover:underline underline-offset-4"
+              className="ml-2 inline-flex items-center gap-1.5 text-sm font-duotone-regular text-[#1E3A8A] hover:underline underline-offset-4"
             >
               <GoogleOutlined />
               See all
@@ -144,10 +144,10 @@ const GoogleReviewsStrip = ({ className = '' }) => {
               href={GOOGLE_MAPS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-shrink-0 w-[220px] sm:w-[260px] snap-start rounded-xl border border-dashed border-white/15 flex flex-col items-center justify-center gap-3 p-6 text-center hover:border-[#00a8c4]/40 hover:bg-white/[0.03] transition-all duration-200 group"
+              className="flex-shrink-0 w-[220px] sm:w-[260px] snap-start rounded-xl border border-dashed border-white/15 flex flex-col items-center justify-center gap-3 p-6 text-center hover:border-[#1E3A8A]/40 hover:bg-white/[0.03] transition-all duration-200 group"
             >
-              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#00a8c4]/10 transition-colors">
-                <GoogleOutlined className="text-xl text-white/30 group-hover:text-[#00a8c4] transition-colors" />
+              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#1E3A8A]/10 transition-colors">
+                <GoogleOutlined className="text-xl text-white/30 group-hover:text-[#1E3A8A] transition-colors" />
               </div>
               <span className="text-white/40 text-sm font-duotone-regular group-hover:text-white/60 transition-colors leading-snug">
                 Read all {AGGREGATE.totalReviews} reviews on Google
@@ -168,7 +168,7 @@ const GoogleReviewsStrip = ({ className = '' }) => {
             href={GOOGLE_MAPS_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-duotone-regular text-[#00a8c4] hover:underline underline-offset-4"
+            className="inline-flex items-center gap-1.5 text-sm font-duotone-regular text-[#1E3A8A] hover:underline underline-offset-4"
           >
             <GoogleOutlined />
             See all {AGGREGATE.totalReviews} reviews on Google

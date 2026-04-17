@@ -126,7 +126,7 @@ function StudentBookEquipmentPage() {
   const [rentalModalData, setRentalModalData] = useState(null);
 
   usePageSEO({
-    title: 'Book Equipment | UKC Academy',
+    title: 'Book Equipment | Plannivo',
     description: 'Rent quality Duotone and Core equipment for your kitesurfing session. All gear maintained daily with safety equipment included.'
   });
 

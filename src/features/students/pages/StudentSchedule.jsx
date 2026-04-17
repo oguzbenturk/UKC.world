@@ -127,10 +127,10 @@ const StatusBadge = ({ status }) => {
 /* ── Lesson detail modal ── */
 const DETAIL_STATUS = {
   completed: { accent: '#10b981', label: 'Completed', icon: '✓' },
-  scheduled: { accent: '#00a8c4', label: 'Scheduled', icon: '◉' },
+  scheduled: { accent: '#1E3A8A', label: 'Scheduled', icon: '◉' },
   pending:   { accent: '#f59e0b', label: 'Pending',   icon: '◷' },
   cancelled: { accent: '#ef4444', label: 'Cancelled', icon: '✕' },
-  confirmed: { accent: '#00a8c4', label: 'Confirmed', icon: '✓' },
+  confirmed: { accent: '#1E3A8A', label: 'Confirmed', icon: '✓' },
 };
 
 const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
@@ -229,7 +229,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
             type="button"
             onClick={() => { onClose(); onReschedule(lesson); }}
             className="group w-full h-11 rounded-2xl text-sm font-duotone-bold tracking-wide text-white overflow-hidden transition-all"
-            style={{ background: 'linear-gradient(135deg, #00a8c4, #0891b2)', boxShadow: '0 4px 14px rgba(0,168,196,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, #1E3A8A, #0891b2)', boxShadow: '0 4px 14px rgba(30,58,138,0.25)' }}
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               <CalendarOutlined />

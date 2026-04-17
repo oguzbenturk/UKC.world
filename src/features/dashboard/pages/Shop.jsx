@@ -61,7 +61,7 @@ const SHOP_NAV_CATEGORIES = [
     { id: 'foiling',    label: 'Foiling',         filterValue: 'foiling' },
     { id: 'efoil',      label: 'E-Foiling',       filterValue: 'efoil' },
     { id: 'ion',        label: 'ION Accessories', filterValue: 'ion' },
-    { id: 'ukc-shop',   label: 'UKC Shop',        filterValue: 'ukc-shop' },
+    { id: 'ukc-shop',   label: 'Plannivo Shop',    filterValue: 'ukc-shop' },
     { id: 'secondwind', label: 'SecondWind',       filterValue: 'secondwind' },
 ];
 
@@ -90,7 +90,7 @@ const renderLoadingSkeletons = () => (
 
 const ShopPage = () => {
     usePageSEO({
-        title: 'Browse Products | UKC. Shop',
+        title: 'Browse Products | Plannivo',
         description: 'Browse and shop watersports gear, kites, boards, wetsuits, harnesses, and accessories from Duotone and other top brands.',
         path: '/shop/browse',
     });
@@ -515,12 +515,12 @@ const ShopPage = () => {
                         onClick={() => { localHandleCategoryChange('all'); setSidebarExpandedCats({}); }}
                         className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-sm transition-colors ${
                             selectedCategory === 'all'
-                                ? 'bg-[#00a8c4]/10 text-[#00a8c4] font-semibold'
+                                ? 'bg-[#1E3A8A]/10 text-[#1E3A8A] font-semibold'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                     >
                         <span>All Products</span>
-                        <span className={`text-xs tabular-nums ${selectedCategory === 'all' ? 'text-[#00a8c4]' : 'text-gray-400'}`}>
+                        <span className={`text-xs tabular-nums ${selectedCategory === 'all' ? 'text-[#1E3A8A]' : 'text-gray-400'}`}>
                             {filteredProducts.length}
                         </span>
                     </button>
@@ -538,7 +538,7 @@ const ShopPage = () => {
                             <div key={cat}>
                                 {/* Category row */}
                                 <div className={`flex items-center rounded-lg transition-colors ${
-                                    isCatActive ? 'bg-[#00a8c4]/10' : 'hover:bg-gray-50'
+                                    isCatActive ? 'bg-[#1E3A8A]/10' : 'hover:bg-gray-50'
                                 }`}>
                                     <button
                                         onClick={() => {
@@ -548,13 +548,13 @@ const ShopPage = () => {
                                             }
                                         }}
                                         className={`flex-1 flex items-center gap-1.5 px-2 py-1.5 text-sm text-left transition-colors ${
-                                            isCatActive ? 'text-[#00a8c4] font-semibold' : 'text-gray-700 hover:text-gray-900'
+                                            isCatActive ? 'text-[#1E3A8A] font-semibold' : 'text-gray-700 hover:text-gray-900'
                                         }`}
                                     >
                                         <span>{catLabel}</span>
                                     </button>
                                     <div className="flex items-center gap-1 pr-2">
-                                        <span className={`text-xs tabular-nums ${isCatActive ? 'text-[#00a8c4]' : 'text-gray-400'}`}>
+                                        <span className={`text-xs tabular-nums ${isCatActive ? 'text-[#1E3A8A]' : 'text-gray-400'}`}>
                                             {count}
                                         </span>
                                         {hasSubcats && (
@@ -584,12 +584,12 @@ const ShopPage = () => {
                                                         }}
                                                         className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-sm transition-colors ${
                                                             isSubActive
-                                                                ? 'bg-[#00a8c4]/10 text-[#00a8c4] font-medium'
+                                                                ? 'bg-[#1E3A8A]/10 text-[#1E3A8A] font-medium'
                                                                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
                                                         }`}
                                                     >
                                                         <span>{sub.label}</span>
-                                                        <span className={`text-xs tabular-nums ${isSubActive ? 'text-[#00a8c4]' : 'text-gray-300'}`}>
+                                                        <span className={`text-xs tabular-nums ${isSubActive ? 'text-[#1E3A8A]' : 'text-gray-300'}`}>
                                                             {sub.count}
                                                         </span>
                                                     </button>
@@ -609,12 +609,12 @@ const ShopPage = () => {
                                                                         }}
                                                                         className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
                                                                             isChildActive
-                                                                                ? 'bg-[#00a8c4]/10 text-[#00a8c4] font-medium'
+                                                                                ? 'bg-[#1E3A8A]/10 text-[#1E3A8A] font-medium'
                                                                                 : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
                                                                         }`}
                                                                     >
                                                                         <span>{child.label}</span>
-                                                                        <span className={`tabular-nums ${isChildActive ? 'text-[#00a8c4]' : 'text-gray-300'}`}>
+                                                                        <span className={`tabular-nums ${isChildActive ? 'text-[#1E3A8A]' : 'text-gray-300'}`}>
                                                                             {child.count}
                                                                         </span>
                                                                     </button>
@@ -630,7 +630,7 @@ const ShopPage = () => {
                                         {isCatActive && selectedSubcategory !== 'all' && (
                                             <button
                                                 onClick={() => localHandleSubcategoryChange('all')}
-                                                className="w-full flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-[#00a8c4] transition-colors"
+                                                className="w-full flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-[#1E3A8A] transition-colors"
                                             >
                                                 ← All {catLabel}
                                             </button>
@@ -680,7 +680,7 @@ const ShopPage = () => {
                         checked={showInStockOnly}
                         onChange={setShowInStockOnly}
                         size="small"
-                        style={showInStockOnly ? { backgroundColor: '#00a8c4' } : {}}
+                        style={showInStockOnly ? { backgroundColor: '#1E3A8A' } : {}}
                     />
                 </div>
             </div>
@@ -973,7 +973,7 @@ const ShopPage = () => {
                     }}
                     extra={
                         <Button type="primary" size="small" onClick={() => setFilterDrawerOpen(false)}
-                            style={{ backgroundColor: '#00a8c4', borderColor: '#00a8c4' }}>
+                            style={{ backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' }}>
                             Show {filteredProducts.length} results
                         </Button>
                     }
@@ -1003,7 +1003,7 @@ const ShopPage = () => {
                     className="hover:scale-105 active:scale-95"
                 >
                     <Badge count={cartCount} size="small" offset={[-4, 4]} style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.2)' }}>
-                        <ShoppingCartOutlined style={{ fontSize: 26, color: '#00a8c4' }} />
+                        <ShoppingCartOutlined style={{ fontSize: 26, color: '#1E3A8A' }} />
                     </Badge>
                 </div>
 
