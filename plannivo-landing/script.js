@@ -3,12 +3,15 @@
 (function () {
   'use strict';
 
+  /* Gate animations — content visible without JS */
+  document.documentElement.classList.add('js-ready');
+
   /* ── Reveal on scroll ─────────────────────────────────────────────────── */
   const revealObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
+          entry.target.classList.add('is-visible');
           revealObserver.unobserve(entry.target);
         }
       });

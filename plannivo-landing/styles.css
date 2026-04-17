@@ -988,7 +988,7 @@ footer { padding: 2.5rem var(--page-pad) 3rem; }
 
 /* ─────────────────────────────  REVEAL  ───────────────────────────────── */
 
-.reveal {
+.js-ready .reveal {
   opacity: 0;
   transform: translateY(14px);
   transition:
@@ -996,7 +996,7 @@ footer { padding: 2.5rem var(--page-pad) 3rem; }
     transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
   will-change: opacity, transform;
 }
-.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.js-ready .reveal.is-visible { opacity: 1; transform: translateY(0); }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
