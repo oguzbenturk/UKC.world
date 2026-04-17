@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDaysIcon, ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
 
 const links = [
-  { to: '/academy',          label: 'Visit Lessons',    icon: AcademicCapIcon,        color: 'text-[#00a8c4] bg-sky-50'       },
+  { to: '/academy',          label: 'Visit Lessons',    icon: AcademicCapIcon,        color: 'text-[#1E3A8A] bg-sky-50'       },
   { to: '/rental',           label: 'Visit Rentals',    icon: WrenchScrewdriverIcon,   color: 'text-amber-600 bg-amber-50'     },
   { to: '/shop',             label: 'Visit Shop',       icon: ShoppingBagIcon,         color: 'text-violet-600 bg-violet-50'   },
   { to: '/student/schedule', label: 'Visit My Lessons', icon: CalendarDaysIcon,        color: 'text-emerald-600 bg-emerald-50' },

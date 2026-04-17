@@ -504,7 +504,7 @@ const ExperiencePackagesPage = ({
         style={{
           background: [
             'radial-gradient(ellipse 80% 50% at 10% 15%, rgba(52,211,153,0.14) 0%, transparent 70%)',
-            'radial-gradient(ellipse 60% 60% at 90% 45%, rgba(0,168,196,0.10) 0%, transparent 70%)',
+            'radial-gradient(ellipse 60% 60% at 90% 45%, rgba(30,58,138,0.10) 0%, transparent 70%)',
             'radial-gradient(ellipse 70% 40% at 50% 90%, rgba(5,150,105,0.08) 0%, transparent 70%)',
           ].join(', '),
         }}
@@ -514,7 +514,7 @@ const ExperiencePackagesPage = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-16 sm:pt-24">
           <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-slate-900 mb-2 tracking-tight uppercase">
             {headline}{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00a8c4] to-emerald-600">{accentWord}</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1E3A8A] to-emerald-600">{accentWord}</span>
           </h1>
           <p className="text-lg text-slate-600 font-duotone-regular max-w-2xl mx-auto leading-relaxed">
             {subheadline}
@@ -525,7 +525,7 @@ const ExperiencePackagesPage = ({
               type="primary"
               icon={<RocketOutlined />}
               className="!h-12 !px-8 !text-base font-duotone-bold !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
-              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+              style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
               onClick={() => {
                 if (!requireAuthForPurchase()) return;
                 navigate('/experience/book-package');

@@ -161,7 +161,7 @@ const StickyNavBar = ({
       <div className="max-w-7xl mx-auto relative flex items-center h-14 md:h-16 font-duotone-light-condensed">
         <button
           onClick={() => navigateSection(-1)}
-          className={`absolute left-0 top-0 bottom-0 pl-3 pr-6 sm:pl-5 sm:pr-8 z-20 flex flex-col justify-center bg-gradient-to-r from-[${bgColor.replace('bg-[', '').replace(']', '')}] via-[${bgColor.replace('bg-[', '').replace(']', '')}]/90 to-transparent text-white/90 hover:text-[#00a8c4] transition-colors drop-shadow-lg`}
+          className={`absolute left-0 top-0 bottom-0 pl-3 pr-6 sm:pl-5 sm:pr-8 z-20 flex flex-col justify-center bg-gradient-to-r from-[${bgColor.replace('bg-[', '').replace(']', '')}] via-[${bgColor.replace('bg-[', '').replace(']', '')}]/90 to-transparent text-white/90 hover:text-[#1E3A8A] transition-colors drop-shadow-lg`}
           aria-label="Previous Section"
         >
           <div className="flex items-center h-full pt-1">
@@ -187,7 +187,7 @@ const StickyNavBar = ({
                 onMouseLeave={handleButtonMouseLeave}
                 className={`flex-shrink-0 flex items-center h-full px-1 text-lg md:text-xl transition-all duration-200 drop-shadow-md tracking-wide whitespace-nowrap border-b-[3px] ${
                   isActive
-                    ? 'text-[#00a8c4] border-[#00a8c4]'
+                    ? 'text-[#1E3A8A] border-[#1E3A8A]'
                     : 'text-white/50 hover:text-white border-transparent'
                 }`}
               >
@@ -213,7 +213,7 @@ const StickyNavBar = ({
 
         <button
           onClick={() => navigateSection(1)}
-          className={`absolute right-0 top-0 bottom-0 pr-3 pl-6 sm:pr-5 sm:pl-8 z-20 flex flex-col justify-center bg-gradient-l from-[${bgColor.replace('bg-[', '').replace(']', '')}] via-[${bgColor.replace('bg-[', '').replace(']', '')}]/90 to-transparent text-white/90 hover:text-[#00a8c4] transition-colors drop-shadow-lg`}
+          className={`absolute right-0 top-0 bottom-0 pr-3 pl-6 sm:pr-5 sm:pl-8 z-20 flex flex-col justify-center bg-gradient-l from-[${bgColor.replace('bg-[', '').replace(']', '')}] via-[${bgColor.replace('bg-[', '').replace(']', '')}]/90 to-transparent text-white/90 hover:text-[#1E3A8A] transition-colors drop-shadow-lg`}
           aria-label="Next Section"
         >
           <div className="flex items-center h-full pt-1">
@@ -247,8 +247,8 @@ const StickyNavBar = ({
                 }}
                 className={`block w-full text-left px-4 py-2 text-sm transition-colors whitespace-nowrap ${
                   isChildActive
-                    ? 'text-[#00a8c4] bg-white/5'
-                    : 'text-white/70 hover:text-[#00a8c4] hover:bg-white/5'
+                    ? 'text-[#1E3A8A] bg-white/5'
+                    : 'text-white/70 hover:text-[#1E3A8A] hover:bg-white/5'
                 }`}
               >
                 {child.label}

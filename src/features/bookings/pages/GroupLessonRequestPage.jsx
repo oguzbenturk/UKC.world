@@ -212,7 +212,7 @@ const GroupLessonRequestPage = () => {
           {/* Submit */}
           <button type="button" onClick={handleSubmit} disabled={submitMutation.isPending}
             className="w-full h-12 rounded-2xl text-sm font-duotone-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(135deg, #00a8c4, #0891b2)', boxShadow: '0 4px 14px rgba(0,168,196,0.25)' }}>
+            style={{ background: 'linear-gradient(135deg, #1E3A8A, #0891b2)', boxShadow: '0 4px 14px rgba(30,58,138,0.25)' }}>
             {submitMutation.isPending ? 'Submitting...' : 'Submit Request'}
           </button>
         </Form>

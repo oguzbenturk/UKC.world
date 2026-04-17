@@ -269,7 +269,7 @@ const UserConsentModal = ({
 
             <Alert
               message="Liability Waiver"
-              description="You will sign the liability waiver in person at the Duotone Pro Center before your first lesson. Please bring a valid government-issued ID."
+              description="You will sign the liability waiver in person at [Company Name] before your first lesson. Please bring a valid government-issued ID."
               type="info"
               showIcon
               className="mt-4"

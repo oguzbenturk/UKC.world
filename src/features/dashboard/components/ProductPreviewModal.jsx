@@ -623,7 +623,7 @@ const ProductPreviewModal = ({
                             size="large"
                             icon={isInWishlist(product.id) ? <HeartFilled /> : <HeartOutlined />}
                             onClick={() => onWishlistToggle(product)}
-                            className={`rounded-xl h-13 w-13 flex items-center justify-center border-2 border-[#4b4f54] text-[#00a8c4] bg-[#23272a] ${duotoneBold}`}
+                            className={`rounded-xl h-13 w-13 flex items-center justify-center border-2 border-[#4b4f54] text-[#1E3A8A] bg-[#23272a] ${duotoneBold}`}
                             style={{ padding: 0 }}
                         />
                         <Button
@@ -648,7 +648,7 @@ const ProductPreviewModal = ({
                                 (uniqueSizes.length > 0 && !selectedSize) ||
                                 (uniqueColors.length > 0 && !selectedColor)
                             }
-                            className={`flex-1 rounded-xl h-13 flex items-center justify-center bg-[#23272a] text-[#00a8c4] border-none shadow-lg ${duotoneBold}`}
+                            className={`flex-1 rounded-xl h-13 flex items-center justify-center bg-[#23272a] text-[#1E3A8A] border-none shadow-lg ${duotoneBold}`}
                             style={{ fontWeight: 700, fontSize: 16 }}
                         >
                             Add to Cart

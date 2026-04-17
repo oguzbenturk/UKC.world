@@ -18,7 +18,6 @@ import dayjs from 'dayjs';
 import { usePageSEO } from '@/shared/utils/seo';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
-import dpsProCenterLogo from '../../../../DuotoneFonts/DPC Logo_230719.ai.svg';
 import { useImageAccent } from '@/features/outsider/hooks/useImageAccent';
 
 const EVENT_TYPES = [
@@ -72,7 +71,7 @@ function EventCard({ event, isRegistered, isFull, isPast, currencySymbol, onCard
       className={`group relative flex min-h-[360px] flex-col overflow-hidden rounded-3xl transition-[transform,box-shadow,border-color] duration-300 cursor-pointer hover:-translate-y-1 border ${
         isRegistered
           ? 'border-emerald-500/70 bg-[#1a1f26]/60 shadow-[0_0_12px_rgba(16,185,129,0.45),0_0_28px_rgba(16,185,129,0.2)] hover:border-emerald-500/85 hover:shadow-[0_0_18px_rgba(16,185,129,0.6),0_0_40px_rgba(16,185,129,0.25)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35),0_0_12px_rgba(16,185,129,0.35)] md:hover:shadow-[0_8px_28px_rgba(16,185,129,0.35),0_0_0_1px_rgba(16,185,129,0.4)]'
-          : 'border-[rgba(0,168,196,0.5)] bg-[#1a1f26]/60 shadow-[0_0_10px_rgba(0,168,196,0.3),0_0_25px_rgba(0,168,196,0.15)] backdrop-blur-sm hover:border-[rgba(0,168,196,0.75)] hover:shadow-[0_0_15px_rgba(0,168,196,0.45),0_0_35px_rgba(0,168,196,0.2)] md:border-[rgba(0,168,196,0.55)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:hover:border-[rgba(0,168,196,0.85)] md:hover:shadow-[0_8px_28px_rgba(0,168,196,0.25),0_0_0_1px_rgba(0,168,196,0.35)]'
+          : 'border-[rgba(30,58,138,0.5)] bg-[#1a1f26]/60 shadow-[0_0_10px_rgba(30,58,138,0.3),0_0_25px_rgba(30,58,138,0.15)] backdrop-blur-sm hover:border-[rgba(30,58,138,0.75)] hover:shadow-[0_0_15px_rgba(30,58,138,0.45),0_0_35px_rgba(30,58,138,0.2)] md:border-[rgba(30,58,138,0.55)] md:bg-[#1a1f26]/92 md:shadow-[0_2px_20px_rgba(0,0,0,0.35)] md:hover:border-[rgba(30,58,138,0.85)] md:hover:shadow-[0_8px_28px_rgba(30,58,138,0.25),0_0_0_1px_rgba(30,58,138,0.35)]'
       }`}
     >
       {/* Image / gradient area — 70% */}
@@ -183,8 +182,8 @@ function EventCard({ event, isRegistered, isFull, isPast, currencySymbol, onCard
 
 export default function EventsPage() {
   usePageSEO({
-    title: 'Events | UKC. Duotone Pro Center Urla',
-    description: 'Upcoming community events, social gatherings, competitions, and special experiences at UKC. Duotone Pro Center Urla.',
+    title: 'Events | Plannivo',
+    description: 'Upcoming community events, social gatherings, competitions, and special experiences.',
     path: '/services/events',
   });
   const navigate = useNavigate();
@@ -620,14 +619,8 @@ export default function EventsPage() {
         {/* Hero */}
         <div className="relative z-10 pt-6 pb-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-4">
-            {/* DPS Pro Center logo */}
             <div className="mb-4 flex justify-center">
-              <img
-                src={dpsProCenterLogo}
-                alt="Duotone Pro Center"
-                className="h-auto"
-                style={{ width: 'min(420px, 80vw)' }}
-              />
+              <span className="font-gotham-bold text-3xl text-white/80" style={{ letterSpacing: '0.05em' }}>Plannivo</span>
             </div>
 
             <h1 className="text-4xl md:text-5xl font-duotone-bold-extended text-slate-900 mb-4 uppercase">
@@ -701,7 +694,7 @@ export default function EventsPage() {
               <button
                 onClick={() => navigate('/contact')}
                 className="h-12 px-10 text-base font-duotone-bold rounded-md shadow-lg transition-transform hover:scale-[1.02] active:scale-95"
-                style={{ backgroundColor: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+                style={{ backgroundColor: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
               >
                 Contact Us
               </button>
@@ -799,7 +792,7 @@ export default function EventsPage() {
                   <div className="space-y-2">
                     {ev.start_at && (
                       <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                        <CalendarOutlined className="flex-shrink-0 text-base" style={{ color: '#00a8c4' }} />
+                        <CalendarOutlined className="flex-shrink-0 text-base" style={{ color: '#1E3A8A' }} />
                         <div>
                           <p className="font-duotone-bold text-sm text-slate-800">
                             {dayjs(ev.start_at).format('dddd, MMMM D, YYYY')}
@@ -812,17 +805,17 @@ export default function EventsPage() {
                     )}
                     {ev.location && (
                       <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                        <EnvironmentOutlined className="flex-shrink-0 text-base" style={{ color: '#00a8c4' }} />
+                        <EnvironmentOutlined className="flex-shrink-0 text-base" style={{ color: '#1E3A8A' }} />
                         <p className="font-duotone-regular text-sm text-slate-700">{ev.location}</p>
                       </div>
                     )}
                     <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                      <TeamOutlined className="flex-shrink-0 text-base" style={{ color: '#00a8c4' }} />
+                      <TeamOutlined className="flex-shrink-0 text-base" style={{ color: '#1E3A8A' }} />
                       <p className="font-duotone-regular text-sm text-slate-700">
                         {ev.registration_count || 0} registered
                         {ev.capacity ? ` / ${ev.capacity} spots` : ''}
                         {spotsLeft !== null && spotsLeft > 0 && (
-                          <span className="font-duotone-bold ml-1.5" style={{ color: '#00a8c4' }}>
+                          <span className="font-duotone-bold ml-1.5" style={{ color: '#1E3A8A' }}>
                             · {spotsLeft} left
                           </span>
                         )}
@@ -885,9 +878,9 @@ export default function EventsPage() {
                         className="w-full h-12 rounded-xl font-duotone-bold text-base shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
                         style={{
                           backgroundColor: '#4b4f54',
-                          color: '#00a8c4',
-                          border: '1px solid rgba(0,168,196,0.5)',
-                          boxShadow: '0 0 12px rgba(0,168,196,0.25)',
+                          color: '#1E3A8A',
+                          border: '1px solid rgba(30,58,138,0.5)',
+                          boxShadow: '0 0 12px rgba(30,58,138,0.25)',
                         }}
                       >
                         {selfRegisterMutation.isPending ? 'Joining...' : 'Confirm & Join'}

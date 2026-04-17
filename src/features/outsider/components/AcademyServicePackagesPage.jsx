@@ -1687,7 +1687,7 @@ const AcademyServicePackagesPage = ({
               size="large"
               onClick={() => navigate('/contact')}
               className="!h-12 !rounded-md font-duotone-bold !px-10 !text-base shadow-lg transition-transform hover:scale-[1.02] active:scale-95"
-              style={{ backgroundColor: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+              style={{ backgroundColor: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
             >
               Contact Us
             </Button>

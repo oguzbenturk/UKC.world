@@ -135,7 +135,7 @@ const BookingRow = ({ b, onClick, onAccept, onDecline, onSuggest, acceptLoading,
         {/* Participants bar */}
         <div className="hidden sm:block shrink-0 w-20">
           <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : '#00a8c4' }} />
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : '#1E3A8A' }} />
           </div>
         </div>
 

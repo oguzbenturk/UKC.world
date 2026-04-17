@@ -155,9 +155,9 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-4 px-4 sm:px-6 lg:px-8">
       {/* Background blobs for depth */}
-      <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.3) 0%, rgba(0,168,196,0) 70%)' }}></div>
+      <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.3) 0%, rgba(30,58,138,0) 70%)' }}></div>
       <div className="absolute top-0 -right-4 w-96 h-96 opacity-40 animate-blob animation-delay-2000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(75,79,84,0.4) 0%, rgba(75,79,84,0) 70%)' }}></div>
-      <div className="absolute -bottom-8 left-20 w-96 h-96 opacity-40 animate-blob animation-delay-4000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.2) 0%, rgba(0,168,196,0) 70%)' }}></div>
+      <div className="absolute -bottom-8 left-20 w-96 h-96 opacity-40 animate-blob animation-delay-4000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.2) 0%, rgba(30,58,138,0) 70%)' }}></div>
 
       <div className="relative w-full max-w-5xl">
         <div className="lg:flex lg:items-stretch overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
@@ -174,7 +174,7 @@ const Login = () => {
 
               <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Member Login</h1>
               <p className="font-duotone-regular text-gray-400 text-sm">
-                Welcome back to Duotone Pro Center Urla.
+                Welcome back to Plannivo.
               </p>
             </div>
 
@@ -256,7 +256,7 @@ const Login = () => {
                 disabled={isLoading}
                 className="w-full font-duotone-bold bg-antrasit border border-duotone-blue/30 text-duotone-blue py-3 px-6 rounded-xl hover:bg-[#525759] hover:border-duotone-blue/60 transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  boxShadow: '0 0 15px rgba(0,168,196,0.1)',
+                  boxShadow: '0 0 15px rgba(30,58,138,0.1)',
                   letterSpacing: '0.1em'
                 }}
               >
@@ -309,7 +309,7 @@ const Login = () => {
 
             <div className="mt-6 p-6 rounded-2xl bg-duotone-blue/10 border border-duotone-blue/20">
               <p className="font-duotone-regular text-sm text-gray-300 mb-6 italic">
-                "Join the leading watersports community in Urla. Access your progress, book sessions, and manage your membership with UKC."
+                "Manage your sessions, track progress, and access your membership — all in one place."
               </p>
               <div className="flex flex-col gap-4">
                 <p className="font-duotone-bold text-xs uppercase tracking-widest text-duotone-blue">

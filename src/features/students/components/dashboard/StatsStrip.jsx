@@ -13,7 +13,7 @@ import RentalsSection from './RentalsSection';
 const accentColors = {
   // Lessons
   completed: 'border-l-emerald-400',
-  upcoming:  'border-l-[#00a8c4]',
+  upcoming:  'border-l-[#1E3A8A]',
   hours:     'border-l-amber-400',
   // Rentals
   rentals_completed: 'border-l-orange-500',

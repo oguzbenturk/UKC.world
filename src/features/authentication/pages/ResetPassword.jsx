@@ -188,7 +188,7 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-12 px-4 shadow-inner">
       {/* Background blobs */}
-      <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.2) 0%, rgba(0,168,196,0) 70%)' }}></div>
+      <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.2) 0%, rgba(30,58,138,0) 70%)' }}></div>
       <div className="absolute -bottom-8 right-20 w-96 h-96 opacity-40 animate-blob animation-delay-4000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(75,79,84,0.3) 0%, rgba(75,79,84,0) 70%)' }}></div>
 
       <div className="relative w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 sm:p-12 shadow-2xl">

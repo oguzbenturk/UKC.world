@@ -247,14 +247,14 @@ const PromoCodeInput = ({
   const inputClass =
     variant === 'light'
       ? '!bg-white !border-slate-200 !text-slate-900 [&_input]:!text-slate-900 [&_input::placeholder]:!text-slate-400 hover:!border-duotone-blue/40 focus-within:!border-duotone-blue transition-colors'
-      : '!bg-white/5 !border-white/10 !text-white [&_input]:!text-white [&_input::placeholder]:!text-white/50 [&::placeholder]:!text-white/50 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] transition-colors';
+      : '!bg-white/5 !border-white/10 !text-white [&_input]:!text-white [&_input::placeholder]:!text-white/50 [&::placeholder]:!text-white/50 hover:!border-[#1E3A8A]/50 focus-within:!border-[#1E3A8A] transition-colors';
 
   const prefixClass = variant === 'light' ? 'text-slate-400' : 'text-white/40';
 
   const applyBtnClass =
     variant === 'light'
       ? 'font-duotone-bold !bg-duotone-blue !text-white !border-none hover:!opacity-90 disabled:!bg-slate-100 disabled:!text-slate-400 disabled:!border-slate-200 transition-all'
-      : 'font-duotone-bold !bg-[#00a8c4] !text-white !border-none hover:!opacity-90 disabled:!bg-white/10 disabled:!text-white/30 transition-all';
+      : 'font-duotone-bold !bg-[#1E3A8A] !text-white !border-none hover:!opacity-90 disabled:!bg-white/10 disabled:!text-white/30 transition-all';
 
   return (
     <div className="space-y-2">

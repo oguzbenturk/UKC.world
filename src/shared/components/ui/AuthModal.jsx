@@ -85,7 +85,7 @@ const AuthModal = () => {
     >
       <div className="bg-[#1a262b] p-8 sm:p-10 rounded-2xl overflow-hidden relative border border-white/5 ring-1 ring-white/10">
         {/* Decorative background element */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.15) 0%, rgba(0,168,196,0) 70%)' }} />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(30,58,138,0.15) 0%, rgba(30,58,138,0) 70%)' }} />
         <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0) 70%)' }} />
         <div className="text-center mb-10 relative z-10">
           <AuthModalTitle title={modalConfig.title || 'Sign In'} />
@@ -111,10 +111,10 @@ const AuthModal = () => {
               ]}
             >
               <Input 
-                prefix={<MailOutlined className="text-[#00a8c4]" />}
+                prefix={<MailOutlined className="text-[#1E3A8A]" />}
                 placeholder="Email"
                 size="large"
-                className="!bg-white/5 !border-white/10 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60"
+                className="!bg-white/5 !border-white/10 hover:!border-[#1E3A8A]/50 focus-within:!border-[#1E3A8A] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60"
                 autoComplete="email"
               />
             </Form.Item>
@@ -125,10 +125,10 @@ const AuthModal = () => {
               rules={[{ required: true, message: 'Password is required' }]}
             >
               <Input.Password
-                prefix={<LockOutlined className="text-[#00a8c4]" />}
+                prefix={<LockOutlined className="text-[#1E3A8A]" />}
                 placeholder="Password"
                 size="large"
-                className="!bg-white/5 !border-white/10 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60 [&_.ant-input-password-icon]:!text-white/40 hover:[&_.ant-input-password-icon]:!text-white/80"
+                className="!bg-white/5 !border-white/10 hover:!border-[#1E3A8A]/50 focus-within:!border-[#1E3A8A] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60 [&_.ant-input-password-icon]:!text-white/40 hover:[&_.ant-input-password-icon]:!text-white/80"
                 autoComplete="current-password"
               />
             </Form.Item>
@@ -140,7 +140,7 @@ const AuthModal = () => {
                 loading={loading}
                 block
                 size="large"
-                className="!h-12 !rounded-xl !bg-[#00a8c4] !border-none !font-duotone-bold !text-sm hover:!opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-[#00a8c4]/20"
+                className="!h-12 !rounded-xl !bg-[#1E3A8A] !border-none !font-duotone-bold !text-sm hover:!opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-[#1E3A8A]/20"
               >
                 Sign In
               </Button>
@@ -171,7 +171,7 @@ const AuthModal = () => {
               <Button 
                 type="link" 
                 onClick={handleCancel}
-                className="!text-gray-500 hover:!text-[#00a8c4] !text-xs transition-colors"
+                className="!text-gray-500 hover:!text-[#1E3A8A] !text-xs transition-colors"
               >
                 Continue as Guest
               </Button>
@@ -206,7 +206,7 @@ const AuthModal = () => {
           <Button 
             type="link" 
             onClick={switchMode}
-            className="!text-[#00a8c4] hover:!text-[#00a8c4]/80 !text-sm transition-colors"
+            className="!text-[#1E3A8A] hover:!text-[#1E3A8A]/80 !text-sm transition-colors"
           >
             Already have an account? Sign In
           </Button>

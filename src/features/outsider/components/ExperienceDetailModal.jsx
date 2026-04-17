@@ -232,7 +232,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                     <button
                       key={img}
                       onClick={(e) => { e.stopPropagation(); setPhotoIndex(i); }}
-                      className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIndex ? 'w-4 bg-[#00a8c4]' : 'bg-white/40'}`}
+                      className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIndex ? 'w-4 bg-[#1E3A8A]' : 'bg-white/40'}`}
                     />
                   ))}
                 </div>
@@ -270,7 +270,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                   <button
                     key={img}
                     onClick={() => setPhotoIndex(i)}
-                    className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${i === photoIndex ? 'border-[#00a8c4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                    className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${i === photoIndex ? 'border-[#1E3A8A] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
                   </button>
@@ -284,25 +284,25 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
               <div className="flex flex-wrap gap-3 mb-5">
                 {activePkg.totalHours > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
-                    <ClockCircleOutlined className="text-[#00a8c4]" />
+                    <ClockCircleOutlined className="text-[#1E3A8A]" />
                     <span><strong className="text-slate-900">{Math.round(Number(activePkg.totalHours))}h</strong> lessons</span>
                   </div>
                 )}
                 {activePkg.accommodationNights > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
-                    <CalendarOutlined className="text-[#00a8c4]" />
+                    <CalendarOutlined className="text-[#1E3A8A]" />
                     <span><strong className="text-slate-900">{activePkg.accommodationNights}</strong> nights</span>
                   </div>
                 )}
                 {activePkg.rentalDays > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
-                    <ThunderboltFilled className="text-[#00a8c4]" />
+                    <ThunderboltFilled className="text-[#1E3A8A]" />
                     <span><strong className="text-slate-900">{activePkg.rentalDays}</strong> rental days</span>
                   </div>
                 )}
                 {activePkg.maxParticipants > 0 && (
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
-                    <TeamOutlined className="text-[#00a8c4]" />
+                    <TeamOutlined className="text-[#1E3A8A]" />
                     <span>Max <strong className="text-slate-900">{activePkg.maxParticipants}</strong> riders</span>
                   </div>
                 )}
@@ -388,7 +388,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
               {isEvent && activePkg.itinerary && (
                 <div>
                   <h4 className="text-slate-900 font-duotone-bold-extended mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                    <ThunderboltFilled className="text-[#00a8c4]" /> Itinerary
+                    <ThunderboltFilled className="text-[#1E3A8A]" /> Itinerary
                   </h4>
                   <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <pre className="text-slate-700 whitespace-pre-wrap font-sans text-sm leading-relaxed mb-0 font-duotone-regular">
@@ -398,7 +398,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                       <Button
                         type="link"
                         onClick={() => setItineraryExpanded(!itineraryExpanded)}
-                        className="!p-0 !mt-3 !text-[#00a8c4] hover:!text-[#0088a0]"
+                        className="!p-0 !mt-3 !text-[#1E3A8A] hover:!text-[#0088a0]"
                       >
                         {itineraryExpanded ? 'Show Less' : 'Read Full Itinerary'}
                       </Button>
@@ -412,7 +412,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
           {/* ── RIGHT: Booking Panel ── */}
           <div className="lg:w-[40%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col min-h-0 pkg-modal-scroll">
             <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-slate-900 mb-4 flex items-center gap-2">
-              <RocketOutlined className="text-[#00a8c4]" /> Package Details
+              <RocketOutlined className="text-[#1E3A8A]" /> Package Details
             </h3>
 
             {/* Variant selector — only shown when there are multiple variants */}
@@ -428,7 +428,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                         onClick={() => { setActiveVariantIdx(idx); setPhotoIndex(0); }}
                         className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${
                           isActive
-                            ? 'border-[#00a8c4] bg-cyan-500/[0.07] shadow-sm'
+                            ? 'border-[#1E3A8A] bg-cyan-500/[0.07] shadow-sm'
                             : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'
                         }`}
                       >
@@ -525,9 +525,9 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                 className="!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg font-duotone-bold shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99]"
                 style={{
                   backgroundColor: '#4b4f54',
-                  color: '#00a8c4',
-                  border: '1px solid rgba(0,168,196,0.5)',
-                  boxShadow: '0 0 12px rgba(0,168,196,0.25)',
+                  color: '#1E3A8A',
+                  border: '1px solid rgba(30,58,138,0.5)',
+                  boxShadow: '0 0 12px rgba(30,58,138,0.25)',
                 }}
               >
                 Buy This Package

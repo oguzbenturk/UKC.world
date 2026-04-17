@@ -4,8 +4,8 @@
 .sidebar {
   @apply fixed inset-y-0 left-0 z-40 text-white flex flex-col transform transition-all duration-300 ease-in-out;
   background: linear-gradient(180deg, #4e5c62 0%, #435458 40%, #3b4b50 100%);
-  border-right: 1px solid rgba(0, 168, 196, 0.12);
-  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.22), inset -1px 0 0 rgba(0, 168, 196, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(30, 58, 138, 0.12);
+  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.22), inset -1px 0 0 rgba(30, 58, 138, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   width: 240px; /* Default expanded width */
   flex-shrink: 0; /* Prevent sidebar from shrinking */
   /* Prefer dynamic viewport height to avoid keyboard/URL bar issues */

@@ -16,8 +16,13 @@ export default {
         'gotham-light':          ['Gotham Light', 'sans-serif'],
       },
       colors: {
-        'antrasit':    '#4b4f54',
-        'duotone-blue': '#00a8c4',
+        'antrasit':        '#4b4f54',
+        'brand-ink':       '#0A0A0A',
+        'brand-paper':     '#FFFFFF',
+        'brand-navy':      '#1E3A8A',
+        'brand-navy-soft': '#3B5BCD',
+        // Alias: keeps existing duotone-blue classes building while migration is in progress
+        'duotone-blue':    '#1E3A8A',
       },
       animation: {
         blob: "blob 7s infinite",

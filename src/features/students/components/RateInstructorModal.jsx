@@ -9,7 +9,7 @@ const RATINGS = [
   { value: 2, label: 'Fair',     emoji: '\u{1F615}', color: '#f97316', bg: 'rgba(249,115,22,0.07)' },
   { value: 3, label: 'Good',     emoji: '\u{1F60A}', color: '#eab308', bg: 'rgba(234,179,8,0.07)'  },
   { value: 4, label: 'Great',    emoji: '\u{1F604}', color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  },
-  { value: 5, label: 'Amazing!', emoji: '\u{1F929}', color: '#00a8c4', bg: 'rgba(0,168,196,0.08)'  },
+  { value: 5, label: 'Amazing!', emoji: '\u{1F929}', color: '#1E3A8A', bg: 'rgba(30,58,138,0.08)'  },
 ];
 
 /* ── Custom star ── */
@@ -329,10 +329,10 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
               className="group relative w-full h-12 rounded-2xl font-duotone-bold text-sm tracking-wide overflow-hidden transition-all duration-200 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer"
               style={{
                 background: canSubmit
-                  ? 'linear-gradient(135deg, #00a8c4 0%, #0891b2 100%)'
+                  ? 'linear-gradient(135deg, #1E3A8A 0%, #0891b2 100%)'
                   : '#e2e8f0',
                 color: canSubmit ? '#ffffff' : '#94a3b8',
-                boxShadow: canSubmit ? '0 4px 16px rgba(0,168,196,0.3)' : 'none',
+                boxShadow: canSubmit ? '0 4px 16px rgba(30,58,138,0.3)' : 'none',
               }}
             >
               <span className="relative z-10 flex items-center justify-center gap-2">

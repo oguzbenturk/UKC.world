@@ -75,7 +75,7 @@ const ProductCard = memo(({
                         </div>
                     ) : (
                         <div className="flex h-full w-full items-center justify-center bg-white rounded">
-                            <ShoppingCartOutlined className="text-5xl" style={{ color: '#00a8c4' }} />
+                            <ShoppingCartOutlined className="text-5xl" style={{ color: '#1E3A8A' }} />
                         </div>
                     )}
                 </div>
@@ -109,7 +109,7 @@ const ProductCard = memo(({
                         {product.brand}
                     </span>
                 )}
-                <p className="text-sm font-duotone-regular text-gray-900 leading-snug line-clamp-2 mb-auto min-h-[40px] group-hover:text-[#00a8c4] transition-colors duration-150 m-0">
+                <p className="text-sm font-duotone-regular text-gray-900 leading-snug line-clamp-2 mb-auto min-h-[40px] group-hover:text-[#1E3A8A] transition-colors duration-150 m-0">
                     {product.name}
                 </p>
                 <div className="flex items-baseline gap-2 mt-3">

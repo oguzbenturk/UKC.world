@@ -47,9 +47,9 @@ const ALL_RENTAL_CARDS = [
 
 const btnStyle = {
   background: '#4b4f54',
-  color: '#00a8c4',
-  border: '1px solid rgba(0,168,196,0.5)',
-  boxShadow: '0 0 12px rgba(0,168,196,0.2)',
+  color: '#1E3A8A',
+  border: '1px solid rgba(30,58,138,0.5)',
+  boxShadow: '0 0 12px rgba(30,58,138,0.2)',
 };
 
 /**
@@ -64,7 +64,7 @@ const RentalUpsellBanner = ({ currentKey }) => {
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#00a8c4] text-center mb-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1E3A8A] text-center mb-2">
           Explore Other Rentals
         </p>
         <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-slate-900 text-center mb-10">

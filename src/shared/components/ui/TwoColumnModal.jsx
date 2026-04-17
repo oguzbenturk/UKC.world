@@ -77,7 +77,7 @@ const TwoColumnModal = ({
         aria-modal="true"
         aria-labelledby={ariaLabelledBy}
         tabIndex={-1}
-        className="tcm-panel relative z-[1] flex w-full flex-col outline-none rounded-t-[24px] md:rounded-[24px] border border-[rgba(0,168,196,0.5)] bg-[rgba(255,255,255,0.98)] shadow-[0_20px_40px_-12px_rgba(0,168,196,0.25)] max-h-[92dvh] overflow-y-auto md:my-8 md:max-h-[min(90vh,880px)] md:overflow-hidden mx-0 md:mx-4"
+        className="tcm-panel relative z-[1] flex w-full flex-col outline-none rounded-t-[24px] md:rounded-[24px] border border-[rgba(30,58,138,0.5)] bg-[rgba(255,255,255,0.98)] shadow-[0_20px_40px_-12px_rgba(30,58,138,0.25)] max-h-[92dvh] overflow-y-auto md:my-8 md:max-h-[min(90vh,880px)] md:overflow-hidden mx-0 md:mx-4"
         style={{
           maxWidth,
           opacity: paint ? 1 : 0,

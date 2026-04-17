@@ -202,7 +202,7 @@ const GuestLandingPage = () => {
         <p className="text-center mt-3 mb-1" style={{ fontFamily: '"Duotone Regular", sans-serif', fontWeight: 400, fontSize: '0.95rem', lineHeight: '1.7', color: '#6b7280', letterSpacing: '0.02em' }}>
           From gear to lessons, repairs to stays, everything you need for your water sports journey in{' '}
           <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Urla</span>.{' '}
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#00a8c4' }}>Duotone</span>{' '}
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#1E3A8A' }}>Duotone</span>{' '}
           Dealer, professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
         </p>
       </div>
@@ -231,7 +231,7 @@ const GuestLandingPage = () => {
             <h3
               style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, fontSize: '1.15rem', letterSpacing: '0.03em', color: '#4b4f54' }}
             >
-              Enjoy your ride with UKC.
+              Enjoy your ride with Plannivo.
             </h3>
             <p
               style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 400, fontSize: '0.82rem', letterSpacing: '0.04em', color: '#9ca3af', marginTop: '4px' }}
@@ -243,7 +243,7 @@ const GuestLandingPage = () => {
             <button
               onClick={() => navigate('/academy')}
               className="text-xs tracking-[0.2em] py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.03]"
-              style={{ fontFamily: '"Gotham Medium", sans-serif', background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.45)', boxShadow: '0 0 14px rgba(0,168,196,0.15)' }}
+              style={{ fontFamily: '"Gotham Medium", sans-serif', background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.45)', boxShadow: '0 0 14px rgba(30,58,138,0.15)' }}
             >
               BOOK A LESSON
             </button>

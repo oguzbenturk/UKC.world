@@ -15,7 +15,7 @@ const ProgressRing = ({ percent = 0 }) => {
       <svg height={radius * 2} width={radius * 2} className="-rotate-90">
         <circle stroke="#e2e8f0" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
         <circle
-          stroke="#00a8c4"
+          stroke="#1E3A8A"
           fill="transparent"
           strokeWidth={stroke}
           strokeLinecap="round"
@@ -51,7 +51,7 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
       <section className="rounded-3xl border border-slate-200/60 bg-gradient-to-br from-sky-50 via-white to-emerald-50/30 p-6 shadow-sm sm:p-8">
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-100">
-            <CalendarDaysIcon className="h-7 w-7 text-[#00a8c4]" />
+            <CalendarDaysIcon className="h-7 w-7 text-[#1E3A8A]" />
           </div>
           <div className="flex-1">
             <h2 className="font-duotone-bold-extended text-xl text-slate-900">Your kite is waiting</h2>
@@ -66,7 +66,7 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
     <section className="rounded-3xl border border-slate-200/60 bg-gradient-to-br from-sky-50 via-white to-emerald-50/30 p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 space-y-3">
-          <p className="font-gotham-medium text-[10px] uppercase tracking-widest text-[#00a8c4]">Next lesson</p>
+          <p className="font-gotham-medium text-[10px] uppercase tracking-widest text-[#1E3A8A]">Next lesson</p>
           <h2 className="font-duotone-bold-extended text-2xl text-slate-900 sm:text-3xl">
             {sessionDate ? format(sessionDate, 'EEEE, MMM d') : 'Coming soon'}
           </h2>

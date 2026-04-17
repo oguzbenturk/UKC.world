@@ -210,8 +210,8 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
     <div
       onClick={() => !isSoldOut && onPurchase(offering, isGroup ? group : null)}
       className={`group relative isolate overflow-hidden rounded-3xl flex flex-col h-[360px] transition-[transform,box-shadow] duration-300 ${isSoldOut ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-1'}`}
-      style={{ border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 2px 20px rgba(0,0,0,0.35)' }}
-      onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,168,196,0.25), 0 0 0 1px rgba(0,168,196,0.35)'; }}
+      style={{ border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 2px 20px rgba(0,0,0,0.35)' }}
+      onMouseEnter={e => { if (!isSoldOut) e.currentTarget.style.boxShadow = '0 8px 28px rgba(30,58,138,0.25), 0 0 0 1px rgba(30,58,138,0.35)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 20px rgba(0,0,0,0.35)'; }}
     >
       {/* Image — 70% of card */}
@@ -305,8 +305,8 @@ const VARIANT_ROW_BASE = 'relative flex w-full cursor-pointer items-center gap-3
 
 const MemberOfferings = () => {
   usePageSEO({
-    title: 'Membership Packages | UKC. Duotone Pro Center Urla',
-    description: 'Exclusive membership offerings with seasonal packages, VIP benefits, and member-only pricing at UKC. Duotone Pro Center.',
+    title: 'Membership Packages | Plannivo',
+    description: 'Exclusive membership offerings with seasonal packages, VIP benefits, and member-only pricing.',
     path: '/members/offerings',
   });
   const queryClient = useQueryClient();
@@ -788,7 +788,7 @@ const MemberOfferings = () => {
                     <div className="flex flex-col gap-2 mb-5">
                       {features.map((feat, i) => (
                         <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                          <CheckOutlined className="shrink-0 text-[#00a8c4]" style={{ fontSize: 11 }} />
+                          <CheckOutlined className="shrink-0 text-[#1E3A8A]" style={{ fontSize: 11 }} />
                           <span className="font-duotone-regular text-sm text-slate-600">{feat}</span>
                         </div>
                       ))}
@@ -828,7 +828,7 @@ const MemberOfferings = () => {
                               ? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30'
                               : 'border-emerald-500/25 bg-emerald-500/[0.06] hover:border-emerald-500/50 hover:bg-emerald-500/10'
                             : isSelected
-                              ? 'border-[rgba(0,168,196,0.55)] bg-[rgba(0,168,196,0.07)] shadow-[0_0_0_1px_rgba(0,168,196,0.12)]'
+                              ? 'border-[rgba(30,58,138,0.55)] bg-[rgba(30,58,138,0.07)] shadow-[0_0_0_1px_rgba(30,58,138,0.12)]'
                               : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white';
                           return (
                             <div
@@ -843,7 +843,7 @@ const MemberOfferings = () => {
                               <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
                                 isVariantOwned
                                   ? isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-emerald-400/60 bg-white'
-                                  : isSelected ? 'border-[#00a8c4] bg-[#00a8c4]'    : 'border-slate-300 bg-white'
+                                  : isSelected ? 'border-[#1E3A8A] bg-[#1E3A8A]'    : 'border-slate-300 bg-white'
                               }`}>
                                 {isSelected ? <CheckOutlined className="text-[10px] text-white" /> : null}
                               </div>
@@ -1042,7 +1042,7 @@ const MemberOfferings = () => {
                     onClick={() => isGuest ? executePurchase() : setConfirmVisible(true)}
                     disabled={!isGuest && (isPending || ownedOfferingIds.has(activeOffering.id) || walletIsInsufficient || (paymentMethod === 'deposit' && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))}
                     className="w-full h-11 rounded-xl font-duotone-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.25)' }}
+                    style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.25)' }}
                   >
                     {isGuest ? 'Sign In to Purchase' : isPending ? 'Processing...' : ownedOfferingIds.has(activeOffering.id) ? 'Already Active' : paymentMethod === 'deposit' ? `Pay Deposit — ${formatCurrency(depositAmount, 'EUR')}` : isStorage ? `Reserve Storage — ${eurFormatted}` : `Purchase — ${eurFormatted}`}
                   </button>
@@ -1060,13 +1060,13 @@ const MemberOfferings = () => {
             width={400}
             closable={false}
             zIndex={1200}
-            styles={{ body: { padding: 0 }, content: { borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(0,168,196,0.3)', boxShadow: '0 20px 40px -12px rgba(0,168,196,0.2)' } }}
+            styles={{ body: { padding: 0 }, content: { borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(30,58,138,0.3)', boxShadow: '0 20px 40px -12px rgba(30,58,138,0.2)' } }}
           >
             <div className="px-6 pt-5 pb-5">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="text-[10px] font-duotone-bold uppercase tracking-widest text-[#00a8c4] mb-1">Confirm Purchase</p>
+                  <p className="text-[10px] font-duotone-bold uppercase tracking-widest text-[#1E3A8A] mb-1">Confirm Purchase</p>
                   <p className="text-lg font-duotone-bold text-slate-900 leading-tight">{offering.name}</p>
                   {durLabel && <p className="text-sm text-slate-500 mt-0.5">{durLabel}</p>}
                 </div>
@@ -1114,7 +1114,7 @@ const MemberOfferings = () => {
                   onClick={() => { setConfirmVisible(false); executePurchase(); }}
                   disabled={isPending}
                   className="flex-1 h-10 rounded-xl text-sm font-duotone-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
+                  style={{ background: '#4b4f54', color: '#1E3A8A', border: '1px solid rgba(30,58,138,0.5)', boxShadow: '0 0 12px rgba(30,58,138,0.2)' }}
                 >
                   {isPending ? 'Processing…' : 'Confirm'}
                 </button>
