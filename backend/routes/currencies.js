@@ -12,7 +12,7 @@ const CURRENCY_CACHE_PATTERNS = ['api:GET:/api/currencies*'];
 const router = express.Router();
 
 // Trigger manual exchange rate update (Admin only)
-router.post('/update-rates', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.post('/update-rates', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     await ExchangeRateService.updateRates();
     res.json({ message: 'Exchange rates updated successfully' });
@@ -227,13 +227,13 @@ router.put('/:currencyCode/frequency', authenticateJWT, authorizeRoles(['admin']
 });
 
 // Force refresh rate for a currency (Admin only)
-router.post('/:currencyCode/refresh', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.post('/:currencyCode/refresh', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const userId = req.user?.id;
-    
+
     const updatedCurrency = await CurrencyService.forceRefreshRate(currencyCode, userId);
-    
+
     res.json({
       message: `Rate refreshed for ${currencyCode}`,
       currency: updatedCurrency
