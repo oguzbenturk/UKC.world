@@ -25,6 +25,8 @@ services:
     volumes:
       # Pre-built frontend (built locally, uploaded via SFTP)
       - ./dist:/usr/share/nginx/html:ro
+      # plannivo.com landing page (uploaded via SFTP)
+      - ./plannivo-landing:/usr/share/nginx/plannivo-landing:ro
       # Nginx config (from repo, replaces default.conf)
       - ./infrastructure/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # Security headers include file (referenced by nginx.conf)

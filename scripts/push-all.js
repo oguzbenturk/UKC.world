@@ -359,6 +359,20 @@ async function main() {
           });
           console.log('   ✓ Frontend dist uploaded');
 
+          // Upload plannivo.com landing page
+          const localLandingDir = path.join(cwd, 'plannivo-landing');
+          if (fs.existsSync(localLandingDir)) {
+            console.log('🌐 Uploading plannivo.com landing page...');
+            const remoteLandingDir = `${remotePath}/plannivo-landing`;
+            await ssh.execCommand(`rm -rf ${remoteLandingDir} && mkdir -p ${remoteLandingDir}`);
+            await ssh.putDirectory(localLandingDir, remoteLandingDir, {
+              recursive: false,
+              concurrency: 5,
+              validate: (p) => !p.endsWith('README.md'),
+            });
+            console.log('   ✓ Landing page uploaded');
+          }
+
           // Upload SSL certificates
           const localSslDir = path.join(cwd, 'SSL');
           const remoteSslDir = `${remotePath}/SSL`;
