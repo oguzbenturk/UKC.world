@@ -12,6 +12,7 @@ import {
 import { useData } from '@/shared/hooks/useData';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import moment from 'moment';
 
 const { Option } = Select;
@@ -19,6 +20,9 @@ const { Option } = Select;
 const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly = false }, ref) => {
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
+  const { user } = useAuth();
+  // Instructors viewing their own payments see rate/commission but NOT the lesson amount.
+  const hideLessonAmount = user?.role?.toLowerCase?.() === 'instructor';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const managementEnabled = !readOnly;
@@ -246,7 +250,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                 }
               },
               { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true },
-              { title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: (t, r) => formatCurrency(t || 0, r.currency || businessCurrency || 'EUR'), width: 100 },
+              ...(hideLessonAmount ? [] : [{ title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: (t, r) => formatCurrency(t || 0, r.currency || businessCurrency || 'EUR'), width: 100 }]),
               { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
                 render: (v, r) => {
                   const rv = typeof v === 'number' ? v : parseFloat(v || '0');

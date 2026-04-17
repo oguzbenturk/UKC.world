@@ -104,18 +104,53 @@ export default defineConfig({
     }
   },
   // Optimize dependencies
+  // Pre-bundle heavy / commonly-used deps on startup so Vite doesn't discover
+  // them mid-session and re-optimize (that re-optimization is what causes the
+  // "504 Outdated Optimize Dep" errors in the browser). Do NOT set force:true
+  // — that wipes the cache every startup and guarantees hash churn.
   optimizeDeps: {
     include: [
+      // React core
       'react',
       'react-dom',
       'react-dom/client',
-      'react-router-dom', 
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react-router-dom',
+      // UI libraries
       'antd',
       '@ant-design/icons',
+      '@headlessui/react',
+      '@heroicons/react/24/outline',
+      '@heroicons/react/24/solid',
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+      // Data / state
+      '@tanstack/react-query',
+      '@tanstack/react-table',
+      '@tanstack/react-virtual',
       'axios',
+      'socket.io-client',
+      // Dates / numbers
+      'dayjs',
+      'date-fns',
+      'moment',
+      'decimal.js',
+      // Forms / validation
+      'react-hook-form',
+      '@hookform/resolvers',
+      'yup',
+      // Charts / viz / perf
+      'recharts',
+      'web-vitals',
+      'framer-motion',
+      'react-big-calendar',
+      // Misc commonly-used
+      'uuid',
+      'dompurify',
     ],
     exclude: ['@vite/client', '@vite/env'],
-    // Force bundling React context dependencies together
-    force: true
   },
 })

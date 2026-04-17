@@ -29,6 +29,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const currencySymbol = getCurrencySymbol(businessCurrency);
   const { user } = useAuth();
   const canModifyBooking = ['manager', 'admin', 'developer'].includes(user?.role?.toLowerCase?.() || '');
+  // Instructors see duration/rate/commission but not the total booking amount.
+  const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -1227,28 +1229,30 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               {formatTime(booking.startTime || booking.start_hour || booking.time)} - {calculateEndTime(booking.startTime || booking.start_hour || booking.time, booking.duration)}
                             </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xl font-bold text-slate-900 mb-0.5">
-                            {(() => {
-                              const price = getDisplayPrice();
-                              const packageInfo = getPackageDisplayInfo();
-                              return (
-                                <span className={packageInfo ? 'text-green-600' : ''}>
-                                  {`${currencySymbol}${price.toFixed(2)}`}
-                                </span>
-                              );
-                            })()}
-                          </p>
-                          <p className="text-xs text-slate-500 font-medium">
-                            {(() => {
-                              const packageInfo = getPackageDisplayInfo();
-                              if (packageInfo) {
-                                return packageInfo.subtitle;
-                              }
-                              return 'Total';
-                            })()}
-                          </p>
-                        </div>
+                        {!isInstructor && (
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-slate-900 mb-0.5">
+                              {(() => {
+                                const price = getDisplayPrice();
+                                const packageInfo = getPackageDisplayInfo();
+                                return (
+                                  <span className={packageInfo ? 'text-green-600' : ''}>
+                                    {`${currencySymbol}${price.toFixed(2)}`}
+                                  </span>
+                                );
+                              })()}
+                            </p>
+                            <p className="text-xs text-slate-500 font-medium">
+                              {(() => {
+                                const packageInfo = getPackageDisplayInfo();
+                                if (packageInfo) {
+                                  return packageInfo.subtitle;
+                                }
+                                return 'Total';
+                              })()}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Status Badges */}

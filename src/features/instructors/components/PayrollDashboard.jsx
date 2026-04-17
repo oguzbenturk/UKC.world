@@ -8,6 +8,7 @@ import {
 import { useData } from '@/shared/hooks/useData';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import moment from 'moment';
 
 const { Option } = Select;
@@ -28,6 +29,9 @@ const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange'
 const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
   const { apiClient } = useData();
   const { businessCurrency } = useCurrency();
+  const { user } = useAuth();
+  // Instructors viewing their own payroll see rate/duration/commission but NOT the lesson amount.
+  const hideLessonAmount = user?.role?.toLowerCase?.() === 'instructor';
   const [summaryData, setSummaryData] = useState(null);
   const [earnings, setEarnings] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,18 +158,23 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
   }));
 
   // ── Export helpers ──
-  const buildExportRows = () => earnings.map(e => ({
-    Date: e.lesson_date ? moment.utc(e.lesson_date).format('YYYY-MM-DD') : 'N/A',
-    Student: latinize(e.student_name || 'N/A'),
-    Service: latinize(e.service_name || 'Private Lessons'),
-    Duration: `${e.lesson_duration || 0}h`,
-    'Lesson Amount': formatCurrency(parseFloat(e.lesson_amount) || 0, businessCurrency || 'EUR'),
-    'Commission Rate': e.commission_type === 'fixed'
+  const buildExportRows = () => earnings.map(e => {
+    const row = {
+      Date: e.lesson_date ? moment.utc(e.lesson_date).format('YYYY-MM-DD') : 'N/A',
+      Student: latinize(e.student_name || 'N/A'),
+      Service: latinize(e.service_name || 'Private Lessons'),
+      Duration: `${e.lesson_duration || 0}h`,
+    };
+    if (!hideLessonAmount) {
+      row['Lesson Amount'] = formatCurrency(parseFloat(e.lesson_amount) || 0, businessCurrency || 'EUR');
+    }
+    row['Commission Rate'] = e.commission_type === 'fixed'
       ? `${formatCurrency(Number.parseFloat(e.commission_rate) || 0, businessCurrency || 'EUR')}/h`
-      : `${Number.parseFloat(e.commission_rate || 0).toFixed(2)}%`,
-    Commission: formatCurrency(parseFloat(e.commission_amount) || 0, businessCurrency || 'EUR'),
-    Status: (e.status || 'pending').toUpperCase(),
-  }));
+      : `${Number.parseFloat(e.commission_rate || 0).toFixed(2)}%`;
+    row.Commission = formatCurrency(parseFloat(e.commission_amount) || 0, businessCurrency || 'EUR');
+    row.Status = (e.status || 'pending').toUpperCase();
+    return row;
+  });
 
   const buildSummaryLines = (exportedAt) => {
     if (!summaryData) return [];
@@ -333,7 +342,7 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
             { title: 'Category', dataIndex: 'lesson_category', key: 'category', width: 100,
               render: cat => cat ? <Tag color={CATEGORY_COLORS[cat] || 'default'} bordered={false} className="rounded-full capitalize m-0">{cat}</Tag> : <span className="text-gray-300">—</span> },
             { title: 'Duration', dataIndex: 'lesson_duration', key: 'dur', render: t => `${t || 0}h`, width: 80 },
-            { title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: t => fmt(t), width: 100 },
+            ...(hideLessonAmount ? [] : [{ title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: t => fmt(t), width: 100 }]),
             { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
               render: (v, r) => r.commission_type === 'fixed' ? `${fmt(v)}/h` : `${Number.parseFloat(v ?? 0).toFixed(1)}%` },
             { title: 'Commission', dataIndex: 'commission_amount', key: 'comm', render: t => <span className="font-medium text-emerald-700">{fmt(t)}</span>, width: 110 },
