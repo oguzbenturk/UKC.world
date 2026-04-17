@@ -65,7 +65,6 @@ const RentalServices = lazyWithRetry(() => import('../features/services/pages/Re
 const ShopManagement = lazyWithRetry(() => import('../features/services/pages/ShopManagement'));
 const PackageManagement = lazyWithRetry(() => import('../features/services/pages/PackageManagement'));
 const ShopPage = lazyWithRetry(() => import('../features/dashboard/pages/Shop'));
-const ShopLandingPage = lazyWithRetry(() => import('../features/outsider/pages/ShopLandingPage'));
 const ShopCategoryPage = lazyWithRetry(() => import('../features/outsider/pages/ShopCategoryPage'));
 const ProductDetailPage = lazyWithRetry(() => import('../features/outsider/pages/ProductDetailPage'));
 const UserProfilePage = lazyWithRetry(() => import('../features/authentication/pages/UserProfilePage'));
@@ -93,36 +92,8 @@ const StudentBookEquipmentPage = lazyWithRetry(() => import('../features/student
 
 const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
-// OutsiderBookingPage removed - /book now redirects to /guest
+// /guest is the outsider-role landing after login (auth-gated below).
 const GuestLandingPage = lazyWithRetry(() => import('../features/outsider/pages/GuestLandingPage'));
-const PublicHome = lazyWithRetry(() => import('../features/public/PublicHome'));
-const OutsiderPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/OutsiderPackagesPage'));
-const KiteLessonsPublicPage = lazyWithRetry(() => import('../features/outsider/pages/KiteLessonsPublicPage'));
-const AcademyLandingPage = lazyWithRetry(() => import('../features/outsider/pages/AcademyLandingPage'));
-const FoilLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/FoilLessonsPage'));
-const WingLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/WingLessonsPage'));
-const EFoilLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/EFoilLessonsPage'));
-const PremiumLessonsPage = lazyWithRetry(() => import('../features/outsider/pages/PremiumLessonsPage'));
-const RentalStandardShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalStandardShowcasePage'));
-const RentalPremiumShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalPremiumShowcasePage'));
-const RentalSlsShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalSlsShowcasePage'));
-const RentalDlabShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalDlabShowcasePage'));
-const RentalEFoilShowcasePage = lazyWithRetry(() => import('../features/outsider/pages/RentalEFoilShowcasePage'));
-const RentalLandingPage = lazyWithRetry(() => import('../features/outsider/pages/RentalLandingPage'));
-const ContactPage = lazyWithRetry(() => import('../features/outsider/pages/ContactPage'));
-const StayLandingPage = lazyWithRetry(() => import('../features/outsider/pages/StayLandingPage'));
-const ExperienceLandingPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceLandingPage'));
-// Stay pages
-const StayBookingPage = lazyWithRetry(() => import('../features/outsider/pages/StayBookingPage'));
-const StayHotelPage = lazyWithRetry(() => import('../features/outsider/pages/StayHotelPage'));
-const StayHomePage = lazyWithRetry(() => import('../features/outsider/pages/StayHomePage'));
-// Experience pages
-const ExperienceBookPackagePage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceBookPackagePage'));
-const ExperienceKitePackagesPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceKitePackagesPage'));
-const ExperienceWingPackagesPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceWingPackagesPage'));
-const ExperienceDownwindersPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceDownwindersPage'));
-const ExperienceCampsPage = lazyWithRetry(() => import('../features/outsider/pages/ExperienceCampsPage'));
-const CommunityTeamPage = lazyWithRetry(() => import('../features/community/pages/TeamPage'));
 const GroupInvitationPage = lazyWithRetry(() => import('../features/bookings/pages/GroupInvitationPage'));
 const StudentGroupBookingsPage = lazyWithRetry(() => import('../features/bookings/pages/StudentGroupBookingsPage'));
 const GroupBookingDetailPage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingDetailPage'));
@@ -144,7 +115,6 @@ const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPa
 
 // Repairs
 const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
-const CareLandingPage = lazyWithRetry(() => import('../features/outsider/pages/CareLandingPage'));
 
 // Marketing
 const MarketingPage = lazyWithRetry(() => import('../features/marketing/pages/MarketingPage'));
@@ -318,84 +288,36 @@ const AppRoutes = () => {
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
   <Route path="/payment/callback" element={<PaymentCallback />} />
   
-  {/* Default route: unauthenticated users see the "Enter the World" splash page */}
-  <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <PublicHome />} />
+  {/* Root: authenticated users go to their role landing, unauthenticated users go to login.
+      Akyaka is an app-only deployment — no public marketing surface. */}
+  <Route path="/" element={<Navigate to={isAuthenticated ? landingRoute : '/login'} replace />} />
 
-  {/* Guest Portal Main Page */}
-  <Route path="/guest" element={<GuestLandingPage />} />
-  
-  {/* Public route for group booking invitations */}
+  {/* Public transactional routes (keep public — real users reach these via links): */}
   <Route path="/group-invitation/:token" element={<GroupInvitationPage />} />
-  
-  {/* Public route for quick link registration */}
   <Route path="/quick/:linkCode" element={<PublicQuickBooking />} />
-
-  {/* Public route for custom forms (short URL: /f/CODE) */}
   <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />
   <Route path="/f/:linkCode" element={<PublicFormPage />} />
-
   {/* Form preview - rendered outside layout but requires auth (handled in component) */}
   <Route path="/forms/preview/:id" element={<FormPreviewPage />} />
-      
-      {/* PUBLIC ROUTES - Accessible without authentication (Guest Mode) */}
-      {/* These routes are browsable by guests but actions require sign-in */}
-      
-      {/* Shop - landing page + browse products */}
-      <Route path="/shop" element={<ShopLandingPage />} />
-      <Route path="/shop/browse" element={<ShopPage />} />
-      <Route path="/shop/product/:id" element={<ProductDetailPage />} />
-      <Route path="/shop/:section" element={<ShopCategoryPage />} />
-      
-      {/* Academy lesson pages - browse and explore */}
-      <Route path="/academy/kite-lessons" element={<KiteLessonsPublicPage />} />
-      <Route path="/academy/foil-lessons" element={<FoilLessonsPage />} />
-      <Route path="/academy/wing-lessons" element={<WingLessonsPage />} />
-      <Route path="/academy/efoil-lessons" element={<EFoilLessonsPage />} />
-      <Route path="/academy/premium-lessons" element={<PremiumLessonsPage />} />
-      
-      {/* Rental pages - browse equipment */}
-      <Route path="/rental/standard" element={<RentalStandardShowcasePage />} />
-      <Route path="/rental/sls" element={<RentalSlsShowcasePage />} />
-      <Route path="/rental/dlab" element={<RentalDlabShowcasePage />} />
-      <Route path="/rental/efoil" element={<RentalEFoilShowcasePage />} />
-      <Route path="/rental/premium" element={<RentalPremiumShowcasePage />} />
-      
-      {/* .Care public page – submit & track repair requests without an account */}
-      <Route path="/care" element={<CareLandingPage />} />
 
-      <Route path="/stay" element={<StayLandingPage />} />
-      {/* Stay pages - explore accommodation */}
-      <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
-      <Route path="/stay/hotel" element={<StayHotelPage />} />
-      <Route path="/stay/home" element={<StayHomePage />} />
-      
-      <Route path="/experience" element={<ExperienceLandingPage />} />
-      {/* Experience pages - browse packages */}
-      <Route path="/experience/book-package" element={<ExperienceBookPackagePage />} />
-      <Route path="/experience/kite-packages" element={<ExperienceKitePackagesPage />} />
-      <Route path="/experience/wing-packages" element={<ExperienceWingPackagesPage />} />
-      <Route path="/experience/downwinders" element={<ExperienceDownwindersPage />} />
-      <Route path="/experience/camps" element={<ExperienceCampsPage />} />
-      
-      {/* Member Offerings - browse VIP & Seasonal Packages */}
-      <Route path="/members/offerings" element={<MemberOfferings />} />
-      
-      {/* Events - view upcoming events */}
-      <Route path="/services/events" element={<EventsPage />} />
-      
-      {/* Community */}
-      <Route path="/community/team" element={<CommunityTeamPage />} />
-      
-      {/* Guest landing page - welcome page for Duotone Pro Center */}
-      <Route path="/academy" element={<AcademyLandingPage />} />
-      <Route path="/rental" element={<RentalLandingPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      {/* Legacy /book route - redirect to /guest */}
-      <Route path="/book" element={<Navigate to="/guest" replace />} />
-      <Route path="/outsider/packages" element={<OutsiderPackagesPage />} />
-      
-      {/* Help/Support - public access */}
-      <Route path="/help" element={<HelpSupport />} />
+      {/* AUTH-GATED IN-APP ROUTES (customer-facing inside the app, not public marketing) */}
+      <Route element={<ProtectedRoute allowedRoles={[]} />}>
+        {/* Shop browsing (authenticated customers only) */}
+        <Route path="/shop" element={<Navigate to="/shop/browse" replace />} />
+        <Route path="/shop/browse" element={<ShopPage />} />
+        <Route path="/shop/product/:id" element={<ProductDetailPage />} />
+        <Route path="/shop/:section" element={<ShopCategoryPage />} />
+
+        {/* Member offerings, events, help — inside-app pages */}
+        <Route path="/members/offerings" element={<MemberOfferings />} />
+        <Route path="/services/events" element={<EventsPage />} />
+        <Route path="/help" element={<HelpSupport />} />
+
+        {/* Guest landing — outsider role lands here after login */}
+        <Route path="/guest" element={<GuestLandingPage />} />
+        {/* Legacy /book path folds into /guest (still auth-gated) */}
+        <Route path="/book" element={<Navigate to="/guest" replace />} />
+      </Route>
       
       {/* AUTHENTICATED-ONLY ROUTES */}
       {/* These routes require authentication and redirect to login */}
@@ -558,11 +480,8 @@ const AppRoutes = () => {
         {/* User settings - accessible to all authenticated users */}
         <Route path="/settings" element={<UserSettings />} />
       </Route>
-        {/* Redirect root to login or dashboard */}
-  {/* Root redirects to /guest for unauthenticated users */}
-      
       {/* Catch all for non-existing routes */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : "/"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? landingRoute : '/login'} replace />} />
     </Routes>
     </Suspense>
   );
