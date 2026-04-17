@@ -9,9 +9,9 @@ const CROSS_SELL_CARDS = [
   {
     key: 'shop',
     image: shopBannerImg,
-    eyebrow: 'Duotone Pro Shop',
+    eyebrow: 'Equipment Shop',
     title: 'Gear up for the season',
-    body: 'Browse the latest Duotone kites, boards, harnesses and accessories. Pro center pricing, expert advice included.',
+    body: 'Browse the latest Duotone kites, boards, harnesses and accessories. Competitive pricing, expert advice included.',
     cta: 'Visit Shop',
     to: '/shop',
   },

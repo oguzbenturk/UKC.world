@@ -2,9 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { WhatsAppOutlined, InstagramOutlined, FacebookOutlined, DownOutlined } from '@ant-design/icons';
 
 const INSTAGRAM_OPTIONS = [
-  { label: 'DPC-urla', href: 'https://instagram.com/dpc_urla' },
-  { label: 'Urla Kite Center', href: 'https://instagram.com/urlakitecenter' },
-  { label: 'UKC Shop', href: 'https://instagram.com/ukc_shop' },
+  { label: 'Plannivo', href: 'https://instagram.com/plannivo' },
 ];
 
 const WHATSAPP_OPTIONS = [
@@ -72,7 +70,7 @@ const DropdownButton = ({ icon, label, color, bg, border, options, variant }) =>
 const FACEBOOK_OPTION = {
   key: 'facebook',
   label: 'Facebook',
-  href: 'https://facebook.com/urlakitecenter',
+  href: 'https://facebook.com/plannivo',
   icon: <FacebookOutlined />,
   color: '#1877F2',
   bg: 'rgba(24,119,242,0.10)',

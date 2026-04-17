@@ -61,7 +61,7 @@ const SHOP_NAV_CATEGORIES = [
     { id: 'foiling',    label: 'Foiling',         filterValue: 'foiling' },
     { id: 'efoil',      label: 'E-Foiling',       filterValue: 'efoil' },
     { id: 'ion',        label: 'ION Accessories', filterValue: 'ion' },
-    { id: 'ukc-shop',   label: 'UKC Shop',        filterValue: 'ukc-shop' },
+    { id: 'ukc-shop',   label: 'Plannivo Shop',    filterValue: 'ukc-shop' },
     { id: 'secondwind', label: 'SecondWind',       filterValue: 'secondwind' },
 ];
 

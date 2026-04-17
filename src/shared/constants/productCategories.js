@@ -84,7 +84,7 @@ export const PRODUCT_CATEGORIES = {
     }
   },
   'ukc-shop': {
-    label: 'UKC Shop',
+    label: 'Plannivo Shop',
     icon: '👕',
     value: 'ukc-shop',
     subcategories: {

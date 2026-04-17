@@ -688,7 +688,7 @@ export default function EventsPage() {
               Want to know about upcoming events?
             </h2>
             <p className="text-slate-500 font-duotone-regular mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-              Get in touch and we&apos;ll keep you posted on everything happening at UKC this season.
+              Get in touch and we&apos;ll keep you posted on everything happening at Plannivo this season.
             </p>
             <div className="flex justify-center">
               <button

@@ -201,9 +201,8 @@ const GuestLandingPage = () => {
         {/* Services description */}
         <p className="text-center mt-3 mb-1" style={{ fontFamily: '"Duotone Regular", sans-serif', fontWeight: 400, fontSize: '0.95rem', lineHeight: '1.7', color: '#6b7280', letterSpacing: '0.02em' }}>
           From gear to lessons, repairs to stays, everything you need for your water sports journey in{' '}
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Urla</span>.{' '}
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#1E3A8A' }}>Duotone</span>{' '}
-          Dealer, professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontWeight: 600, color: '#4b4f54' }}>Akyaka</span>.{' '}
+          Professional certified academy, premium rentals, equipment care, beautiful accommodation options, and an active rider community, all in one place.
         </p>
       </div>
 
@@ -220,7 +219,7 @@ const GuestLandingPage = () => {
       <div className="max-w-6xl mx-auto px-6 pb-14">
         <div className="flex items-center gap-5 mb-6 mt-2">
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(75,79,84,0.2))' }} />
-          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontSize: '0.65rem', letterSpacing: '0.22em', color: '#b0b8be', textTransform: 'uppercase' }}>Est. 2016 · Urla · Aegean</span>
+          <span style={{ fontFamily: '"Gotham Medium", sans-serif', fontSize: '0.65rem', letterSpacing: '0.22em', color: '#b0b8be', textTransform: 'uppercase' }}>Akyaka · Aegean</span>
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(75,79,84,0.2))' }} />
         </div>
         <div

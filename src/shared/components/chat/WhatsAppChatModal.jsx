@@ -142,7 +142,7 @@ const WhatsAppChatModal = () => {
             <div className="text-white font-semibold text-[15px] leading-tight font-gotham-medium">Kai</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] text-gray-300">UKC Assistant</span>
+              <span className="text-[11px] text-gray-300">Plannivo Assistant</span>
             </div>
           </div>
           <button onClick={closeChat}

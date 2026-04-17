@@ -9,7 +9,7 @@ import RegisterModal from '../components/RegisterModal';
 
 const RegisterPage = () => {
   usePageSEO({
-    title: 'Create Account | UKC•',
+    title: 'Create Account | Plannivo',
     description: 'Create your Plannivo account to access lessons, rentals, and more.',
     path: '/register',
   });

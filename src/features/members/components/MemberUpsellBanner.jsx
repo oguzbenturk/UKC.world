@@ -30,7 +30,7 @@ const UPSELL_CARDS = [
     key: 'shop',
     gradient: 'linear-gradient(160deg, rgba(245,158,11,0.45) 0%, rgba(8,13,20,0.85) 100%)',
     image: imgShop,
-    eyebrow: 'Duotone Pro Shop',
+    eyebrow: 'Equipment Shop',
     title: 'Gear up right at the beach',
     body: 'Kites, boards, harnesses, accessories and apparel — everything you need, available on-site.',
     cta: 'Visit the Shop',

@@ -37,7 +37,7 @@ const DEFAULT_THEME = {
     show_header: true,
     header_bg_color: 'transparent',
     show_footer: true,
-    footer_text: 'Powered by UKC•world',
+    footer_text: 'Powered by Plannivo',
     footer_logos: [], // Array of { url: string, alt: string, href?: string }
     social_links: {}, // { facebook: url, instagram: url, etc. }
   },
