@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import { Button, Tag, Spin, message } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import StayAccommodationModal from './StayAccommodationModal';
 import AcademyLessonPackageCard from './AcademyLessonPackageCard';
-import AccommodationBookingModal from './AccommodationBookingModal';
-import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
-import QuickBookingModal from './QuickBookingModal';
-import RentalBookingModal from './RentalBookingModal';
 import AcademyCrossSellBanner from './AcademyCrossSellBanner';
+
+const StayAccommodationModal = lazy(() => import('./StayAccommodationModal'));
+const AccommodationBookingModal = lazy(() => import('./AccommodationBookingModal'));
+const StudentBookingWizard = lazy(() => import('@/features/students/components/StudentBookingWizard'));
+const QuickBookingModal = lazy(() => import('./QuickBookingModal'));
+const RentalBookingModal = lazy(() => import('./RentalBookingModal'));
 import {
   RocketOutlined,
   HomeOutlined,
@@ -71,21 +72,26 @@ const AcademyServicePackagesPage = ({
   const [stayModalUnit, setStayModalUnit] = useState(null);
   const [stayModalPkg, setStayModalPkg] = useState(null);
   const [stayModalVisible, setStayModalVisible] = useState(false);
+  const [stayModalMounted, setStayModalMounted] = useState(false);
   // Discipline filter (rental pages only)
   const [disciplineFilter, setDisciplineFilter] = useState(null);
   const [availableDisciplines, setAvailableDisciplines] = useState([]);
   const [isLoading, setIsLoading] = useState(!!dynamicServiceKey);
   // Booking wizard state (lessons / rentals)
   const [bookingWizardOpen, setBookingWizardOpen] = useState(false);
+  const [bookingWizardMounted, setBookingWizardMounted] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
   // Accommodation booking modal state (stays)
   const [accomModalOpen, setAccomModalOpen] = useState(false);
+  const [accomModalMounted, setAccomModalMounted] = useState(false);
   const [accomBookingUnit, setAccomBookingUnit] = useState(null);
   // Quick booking modal state (lesson packages)
   const [quickBookingOpen, setQuickBookingOpen] = useState(false);
+  const [quickBookingMounted, setQuickBookingMounted] = useState(false);
   const [quickBookingData, setQuickBookingData] = useState(null);
   // Rental booking modal state
   const [rentalBookingOpen, setRentalBookingOpen] = useState(false);
+  const [rentalBookingMounted, setRentalBookingMounted] = useState(false);
   const [rentalBookingData, setRentalBookingData] = useState(null);
   // Raw package rows for lookup when opening quick booking
   const [rawPackageRows, setRawPackageRows] = useState([]);
@@ -1239,6 +1245,7 @@ const AcademyServicePackagesPage = ({
       // Open accommodation booking modal with the selected unit
       const unitData = rawUnits.find(u => String(u.id) === String(pkg?.id)) || pkg || {};
       setAccomBookingUnit(unitData);
+      setAccomModalMounted(true);
       setAccomModalOpen(true);
       setStayModalVisible(false);
     } else {
@@ -1285,6 +1292,7 @@ const AcademyServicePackagesPage = ({
             proRataTotalHours: selectedDur?.isCustomProRata ? parsedDurationHours : undefined,
             initialOwnedPackage: ownedByPackageId.get(String(resolvedPackageId)) || null,
           });
+          setQuickBookingMounted(true);
           setQuickBookingOpen(true);
           closePackageDetailsModal();
           return;
@@ -1300,6 +1308,7 @@ const AcademyServicePackagesPage = ({
           servicePrice: selectedDur?.price || 0,
           serviceName: pkg.name || 'Lesson',
         });
+        setQuickBookingMounted(true);
         setQuickBookingOpen(true);
         closePackageDetailsModal();
         return;
@@ -1320,6 +1329,7 @@ const AcademyServicePackagesPage = ({
           packageName: selectedDur?.packageName || null,
           insuranceRate: selectedDur?.insuranceRate ?? null,
         });
+        setRentalBookingMounted(true);
         setRentalBookingOpen(true);
         closePackageDetailsModal();
         return;
@@ -1333,6 +1343,7 @@ const AcademyServicePackagesPage = ({
         serviceId: resolvedServiceId || undefined,
         step: resolvedServiceId ? 1 : 0,
       });
+      setBookingWizardMounted(true);
       setBookingWizardOpen(true);
       closePackageDetailsModal();
     }
@@ -1364,6 +1375,7 @@ const AcademyServicePackagesPage = ({
       const unit = rawUnits.find((u) => String(u.id) === String(pkg.id)) || {};
       setStayModalUnit(unit);
       setStayModalPkg(pkg);
+      setStayModalMounted(true);
       setStayModalVisible(true);
     } else {
       openPackageDetailsModal(pkg);
@@ -1656,14 +1668,16 @@ const AcademyServicePackagesPage = ({
       </div>
 
       {/* Stay-specific gallery modal */}
-      {isStayPage && stayModalPkg && (
-        <StayAccommodationModal
-          unit={stayModalUnit}
-          pkg={stayModalPkg}
-          visible={stayModalVisible}
-          onClose={handleStayModalClose}
-          onBookNow={handleBookNow}
-        />
+      {isStayPage && stayModalMounted && stayModalPkg && (
+        <Suspense fallback={null}>
+          <StayAccommodationModal
+            unit={stayModalUnit}
+            pkg={stayModalPkg}
+            visible={stayModalVisible}
+            onClose={handleStayModalClose}
+            onBookNow={handleBookNow}
+          />
+        </Suspense>
       )}
 
       {promoBanner}
@@ -1696,49 +1710,65 @@ const AcademyServicePackagesPage = ({
         </div>
       </div>
 
-      {/* Booking Wizard — lessons & rentals */}
-      <StudentBookingWizard
-        open={bookingWizardOpen}
-        onClose={handleBookingWizardClose}
-        initialData={bookingInitialData}
-      />
+      {/* Booking Wizard — lessons & rentals (lazy: only loads on first open) */}
+      {bookingWizardMounted && (
+        <Suspense fallback={null}>
+          <StudentBookingWizard
+            open={bookingWizardOpen}
+            onClose={handleBookingWizardClose}
+            initialData={bookingInitialData}
+          />
+        </Suspense>
+      )}
 
-      {/* Quick Booking Modal — lesson packages */}
-      <QuickBookingModal
-        open={quickBookingOpen}
-        onClose={handleQuickBookingClose}
-        packageData={quickBookingData?.packageData}
-        serviceId={quickBookingData?.serviceId}
-        durationHours={quickBookingData?.durationHours}
-        proRataTotalHours={quickBookingData?.proRataTotalHours}
-        servicePrice={quickBookingData?.servicePrice}
-        serviceName={quickBookingData?.serviceName}
-        initialOwnedPackage={quickBookingData?.initialOwnedPackage ?? null}
-      />
+      {/* Quick Booking Modal — lesson packages (lazy: only loads on first open) */}
+      {quickBookingMounted && (
+        <Suspense fallback={null}>
+          <QuickBookingModal
+            open={quickBookingOpen}
+            onClose={handleQuickBookingClose}
+            packageData={quickBookingData?.packageData}
+            serviceId={quickBookingData?.serviceId}
+            durationHours={quickBookingData?.durationHours}
+            proRataTotalHours={quickBookingData?.proRataTotalHours}
+            servicePrice={quickBookingData?.servicePrice}
+            serviceName={quickBookingData?.serviceName}
+            initialOwnedPackage={quickBookingData?.initialOwnedPackage ?? null}
+          />
+        </Suspense>
+      )}
 
-      {/* Rental Booking Modal — equipment rentals */}
-      <RentalBookingModal
-        open={rentalBookingOpen}
-        onClose={handleRentalBookingClose}
-        serviceId={rentalBookingData?.serviceId}
-        serviceName={rentalBookingData?.serviceName}
-        servicePrice={rentalBookingData?.servicePrice}
-        serviceCurrency={rentalBookingData?.serviceCurrency}
-        durationHours={rentalBookingData?.durationHours}
-        serviceDescription={rentalBookingData?.serviceDescription}
-        serviceIncludes={rentalBookingData?.serviceIncludes}
-        isPackage={rentalBookingData?.isPackage}
-        packageId={rentalBookingData?.packageId}
-        packageName={rentalBookingData?.packageName}
-        insuranceRate={rentalBookingData?.insuranceRate ?? null}
-      />
+      {/* Rental Booking Modal — equipment rentals (lazy: only loads on first open) */}
+      {rentalBookingMounted && (
+        <Suspense fallback={null}>
+          <RentalBookingModal
+            open={rentalBookingOpen}
+            onClose={handleRentalBookingClose}
+            serviceId={rentalBookingData?.serviceId}
+            serviceName={rentalBookingData?.serviceName}
+            servicePrice={rentalBookingData?.servicePrice}
+            serviceCurrency={rentalBookingData?.serviceCurrency}
+            durationHours={rentalBookingData?.durationHours}
+            serviceDescription={rentalBookingData?.serviceDescription}
+            serviceIncludes={rentalBookingData?.serviceIncludes}
+            isPackage={rentalBookingData?.isPackage}
+            packageId={rentalBookingData?.packageId}
+            packageName={rentalBookingData?.packageName}
+            insuranceRate={rentalBookingData?.insuranceRate ?? null}
+          />
+        </Suspense>
+      )}
 
-      {/* Accommodation Booking Modal — stays */}
-      <AccommodationBookingModal
-        open={accomModalOpen}
-        onClose={handleAccomModalClose}
-        unit={accomBookingUnit}
-      />
+      {/* Accommodation Booking Modal — stays (lazy: only loads on first open) */}
+      {accomModalMounted && (
+        <Suspense fallback={null}>
+          <AccommodationBookingModal
+            open={accomModalOpen}
+            onClose={handleAccomModalClose}
+            unit={accomBookingUnit}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

@@ -263,7 +263,7 @@ router.get('/logs', authenticateJWT, authorizeRoles(['admin']), async (req, res)
 });
 
 // Update rate margin for a currency (Admin only)
-router.put('/:currencyCode/margin', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:currencyCode/margin', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const { marginPercent } = req.body;

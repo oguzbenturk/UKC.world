@@ -293,6 +293,22 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       // We’ll post-filter via pending_count > 0; keep all here to allow index use
     }
 
+    // Column-level balance sign filter (DB-wide, applies before pagination)
+    const balanceSign = (req.query.balanceSign || 'all').toString();
+    if (balanceSign === 'negative') whereClauses.push(`(${balanceColumn} < 0)`);
+    else if (balanceSign === 'zero') whereClauses.push(`(${balanceColumn} = 0)`);
+    else if (balanceSign === 'positive') whereClauses.push(`(${balanceColumn} > 0)`);
+
+    // Column-level payment-status filter — mirrors the status values the SELECT computes.
+    const paymentStatusParam = (req.query.paymentStatus || 'all').toString();
+    if (paymentStatusParam === 'overdue') {
+      whereClauses.push(`(${balanceColumn} < 0)`);
+    } else if (paymentStatusParam === 'pending') {
+      whereClauses.push(`(COALESCE(pb.pending_count, 0) > 0 AND ${balanceColumn} >= 0)`);
+    } else if (paymentStatusParam === 'paid') {
+      whereClauses.push(`(${balanceColumn} >= 0 AND COALESCE(pb.pending_count, 0) = 0)`);
+    }
+
     // Keyset pagination: order by u.id DESC; when cursor is provided, fetch records with id < cursor
     if (cursor) {
       params.push(cursor);

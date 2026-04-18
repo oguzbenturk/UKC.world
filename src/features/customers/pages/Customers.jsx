@@ -95,6 +95,8 @@ const Customers = () => {
         q: q || undefined,
         limit,
         cursor: append ? nextCursorRef.current || undefined : undefined,
+        balanceSign: balanceSignFilter !== 'all' ? balanceSignFilter : undefined,
+        paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
       };
 
       const res = await DataService.getCustomersList(params);
@@ -116,7 +118,7 @@ const Customers = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [q, limit]);
+  }, [q, limit, balanceSignFilter, paymentStatusFilter]);
 
   // Detect return from user creation and refresh data
   useEffect(() => {

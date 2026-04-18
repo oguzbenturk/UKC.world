@@ -1325,6 +1325,13 @@ router.post('/accounts/:id/reset-balance', authenticateJWT, authorizeRoles(['adm
       [id, currency]
     );
 
+    // Clear legacy users.balance so the fallback in the customer list query
+    // (users.js) doesn't resurface an old debt after the wallet reset.
+    await client.query(
+      `UPDATE users SET balance = 0, updated_at = NOW() WHERE id = $1`,
+      [id]
+    );
+
     // If target balance > 0, create a single clean transaction for the correct amount
     let adjustmentTransaction = null;
     if (numericTarget > 0) {
