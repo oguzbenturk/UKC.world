@@ -1243,6 +1243,10 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
         referenceNumber: reference_number || null,
         inputCurrency: currency || null // Track what admin entered for audit
       },
+      // A deposit always increases the balance; allow it even when the
+      // wallet is currently negative (legacy debt, admin overdraft, etc.)
+      // so admins can credit a customer without first manually zeroing.
+      allowNegative: true,
       createdBy: actorId || null
     });
 
