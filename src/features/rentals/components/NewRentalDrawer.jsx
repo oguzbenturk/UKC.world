@@ -199,8 +199,10 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
     return customers.map((c) => {
       const name = c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim();
       const label = name || c.email || 'Customer';
+      // searchText is a flat string AntD can match against via filterOption.
+      const searchText = `${label} ${c.phone || ''}`.toLowerCase();
       return (
-        <Option key={c.id} value={c.id} label={label}>
+        <Option key={c.id} value={c.id} label={label} data-search={searchText}>
           <div className="flex flex-col">
             <span className="font-medium text-slate-900">{label}</span>
             {c.email && c.email !== label && (
@@ -211,6 +213,16 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       );
     });
   }, [customers]);
+
+  // AntD can't search through nested JSX children, so match against the
+  // flat `data-search` string we attach to each Option. Tokenise the input
+  // on whitespace so "alper g" matches "Güralp Alper" regardless of order.
+  const customerFilterOption = useCallback((input, option) => {
+    if (!input) return true;
+    const haystack = String(option?.['data-search'] || option?.label || '').toLowerCase();
+    const tokens = input.toLowerCase().split(/\s+/).filter(Boolean);
+    return tokens.every((t) => haystack.includes(t));
+  }, []);
 
   const renderEquipmentOptions = useCallback(() => {
     if (!equipment.length)
@@ -345,7 +357,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                   placeholder="Search customer name or email"
                   showSearch
                   size="large"
-                  optionFilterProp="children"
+                  filterOption={customerFilterOption}
                   optionLabelProp="label"
                   className="w-full"
                 >
@@ -363,7 +375,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                   placeholder="Select customers"
                   showSearch
                   size="large"
-                  optionFilterProp="children"
+                  filterOption={customerFilterOption}
                   optionLabelProp="label"
                   className="w-full"
                   maxTagCount="responsive"
