@@ -1038,33 +1038,51 @@ router.get(
       const { period = 'week', startDate, endDate } = req.query;
       const { start, end } = periodToDateRange(period, startDate, endDate);
 
+      // Same data source as the admin UI (/finance/wallet-deposits): the
+      // wallet_transactions table with manual_credit / wallet_deposit types.
       const { rows } = await pool.query(
-        `SELECT wd.id, wd.amount, wd.currency, wd.status, wd.method,
-                wd.created_at, wd.completed_at,
-                u.name AS user_name, u.email
-         FROM wallet_deposit_requests wd
-         LEFT JOIN users u ON u.id = wd.user_id
-         WHERE wd.created_at::date BETWEEN $1 AND $2
-         ORDER BY wd.created_at DESC
+        `SELECT wt.id, wt.amount, wt.currency,
+                (wt.amount / COALESCE(cs.exchange_rate, 1)) AS amount_eur,
+                wt.transaction_type, wt.status, wt.description,
+                wt.payment_method, wt.reference_number,
+                wt.created_at,
+                u.name AS user_name, u.email AS user_email,
+                cb.name AS created_by_name
+         FROM wallet_transactions wt
+         LEFT JOIN currency_settings cs
+           ON cs.currency_code = wt.currency AND cs.is_active = true
+         LEFT JOIN users u ON u.id = wt.user_id
+         LEFT JOIN users cb ON cb.id = wt.created_by
+         WHERE wt.transaction_type IN ('manual_credit', 'wallet_deposit')
+           AND wt.created_at >= $1::date
+           AND wt.created_at < ($2::date + INTERVAL '1 day')
+         ORDER BY wt.created_at DESC
          LIMIT 100`,
         [start, end],
       );
+
+      const totalEur = rows.reduce((s, r) => s + (toNum(r.amount_eur) || 0), 0);
 
       res.json({
         period,
         startDate: start,
         endDate: end,
         count: rows.length,
+        totalEur,
         deposits: rows.map((d) => ({
           depositId: d.id,
           amount: toNum(d.amount),
           currency: d.currency,
+          amountEur: toNum(d.amount_eur),
+          type: d.transaction_type,
           status: d.status,
-          method: d.method,
+          description: d.description,
+          method: d.payment_method,
+          reference: d.reference_number,
           userName: d.user_name,
-          userEmail: d.email,
+          userEmail: d.user_email,
+          createdByName: d.created_by_name,
           createdAt: d.created_at,
-          completedAt: d.completed_at,
         })),
       });
     } catch (err) {
