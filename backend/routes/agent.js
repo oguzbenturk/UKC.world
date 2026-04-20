@@ -18,6 +18,7 @@ import { requireRole, verifyAgentIdentity } from '../middlewares/authenticateAge
 import { sendEmail } from '../services/emailService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { getDashboardSummary } from '../services/dashboardSummaryService.js';
+import { getInstructorEarningsData } from '../services/instructorFinanceService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
 
@@ -82,12 +83,34 @@ function periodToDateRange(period, startDate, endDate) {
   switch (period) {
     case 'today':
       return { start: today, end: today };
+    case 'tomorrow': {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      const t = fmt(d);
+      return { start: t, end: t };
+    }
     case 'yesterday': {
       const y = daysAgo(1);
       return { start: y, end: y };
     }
     case 'week':
       return { start: daysAgo(6), end: today };
+    case 'next_week': {
+      const dow = now.getDay();
+      const daysUntilNextMon = ((8 - dow) % 7) || 7;
+      const nextMon = new Date(now);
+      nextMon.setDate(now.getDate() + daysUntilNextMon);
+      const nextSun = new Date(nextMon);
+      nextSun.setDate(nextMon.getDate() + 6);
+      return { start: fmt(nextMon), end: fmt(nextSun) };
+    }
+    case 'next_7_days': {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      const end = new Date(now);
+      end.setDate(now.getDate() + 7);
+      return { start: fmt(d), end: fmt(end) };
+    }
     case 'last_week': {
       // Previous Monday–Sunday
       const dow = now.getDay(); // 0=Sun..6=Sat
@@ -103,6 +126,18 @@ function periodToDateRange(period, startDate, endDate) {
         start: `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`,
         end: today,
       };
+    case 'next_month': {
+      const firstOfNext = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const lastOfNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      return { start: fmt(firstOfNext), end: fmt(lastOfNext) };
+    }
+    case 'next_30_days': {
+      const d = new Date(now);
+      d.setDate(d.getDate() + 1);
+      const end = new Date(now);
+      end.setDate(now.getDate() + 30);
+      return { start: fmt(d), end: fmt(end) };
+    }
     case 'last_month': {
       const firstOfThis = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastOfPrev = new Date(firstOfThis);
@@ -160,6 +195,71 @@ router.get('/me', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
+
+// ── GET /me/earnings — Instructor earnings (actual + projected) ───────────────
+// Allows an instructor (or admin/manager acting on their own record) to see how
+// much they made in a past period OR how much is projected from future bookings.
+router.get(
+  '/me/earnings',
+  requireRole(['instructor', 'admin', 'manager']),
+  async (req, res) => {
+    try {
+      const { userId } = req.agent;
+      if (!userId || userId === 'guest') {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const { period = 'month', startDate, endDate, mode = 'both' } = req.query;
+      const { start, end } = periodToDateRange(period, startDate, endDate);
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+      const isFutureRange = start > todayStr;
+      const wantActual = mode !== 'projected' && !isFutureRange;
+      const wantProjected = mode !== 'actual';
+
+      const result = {
+        userId,
+        period,
+        startDate: start,
+        endDate: end,
+        currency: 'EUR',
+      };
+
+      if (wantActual) {
+        const actual = await getInstructorEarningsData(userId, {
+          startDate: start,
+          endDate: end,
+          statuses: ['completed'],
+        });
+        result.actual = {
+          totalEarnings: actual.totals.totalEarnings,
+          lessonsCount: actual.totals.totalLessons,
+          hours: actual.totals.totalHours,
+        };
+      }
+
+      if (wantProjected) {
+        const projected = await getInstructorEarningsData(userId, {
+          startDate: start,
+          endDate: end,
+          statuses: ['scheduled', 'confirmed', 'pending'],
+        });
+        result.projected = {
+          totalEarnings: projected.totals.totalEarnings,
+          lessonsCount: projected.totals.totalLessons,
+          hours: projected.totals.totalHours,
+          note: 'Based on bookings not yet completed; actual payout may differ if bookings are cancelled.',
+        };
+      }
+
+      res.json(result);
+    } catch (err) {
+      logger.error('Agent /me/earnings error', err);
+      res.status(500).json({ error: 'Failed to fetch earnings' });
+    }
+  },
+);
 
 // ── GET /customers/search?q= — Search customers (admin, manager) ──────────────
 router.get(

@@ -96,10 +96,13 @@ const mapEarningRow = (row) => {
   };
 };
 
-export async function getInstructorEarningsData(instructorId, { startDate, endDate } = {}) {
+export async function getInstructorEarningsData(
+  instructorId,
+  { startDate, endDate, statuses = ['completed'] } = {},
+) {
   try {
     let query = `
-      SELECT 
+      SELECT
         b.id as booking_id,
         b.date as lesson_date,
         b.start_hour,
@@ -154,11 +157,15 @@ export async function getInstructorEarningsData(instructorId, { startDate, endDa
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       WHERE b.instructor_user_id = $1
         AND b.deleted_at IS NULL
-        AND b.status = 'completed'
     `;
 
     const params = [instructorId];
     let paramIndex = 2;
+
+    const statusList = Array.isArray(statuses) && statuses.length ? statuses : ['completed'];
+    query += ` AND b.status = ANY($${paramIndex}::text[])`;
+    params.push(statusList);
+    paramIndex += 1;
 
     if (startDate) {
       query += ` AND b.date >= $${paramIndex}`;
