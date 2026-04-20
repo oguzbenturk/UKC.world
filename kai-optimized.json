@@ -2498,12 +2498,12 @@
             },
             {
               "name": "startDate",
-              "description": "Start of custom range, ISO date YYYY-MM-DD. Provide together with endDate.",
+              "description": "ISO date YYYY-MM-DD. For a single-day query pass just this (endDate optional).",
               "type": "string"
             },
             {
               "name": "endDate",
-              "description": "End of custom range (inclusive), ISO date YYYY-MM-DD.",
+              "description": "ISO date YYYY-MM-DD (inclusive). Omit for single-day queries.",
               "type": "string"
             }
           ]
@@ -3592,12 +3592,12 @@
             },
             {
               "name": "startDate",
-              "description": "Start of custom range, ISO date YYYY-MM-DD. Provide together with endDate.",
+              "description": "ISO date YYYY-MM-DD. For a single-day query pass just this (endDate optional).",
               "type": "string"
             },
             {
               "name": "endDate",
-              "description": "End of custom range (inclusive), ISO date YYYY-MM-DD.",
+              "description": "ISO date YYYY-MM-DD (inclusive). Omit for single-day queries.",
               "type": "string"
             }
           ]
@@ -3669,12 +3669,12 @@
             },
             {
               "name": "startDate",
-              "description": "Start of custom range, ISO date YYYY-MM-DD. Provide together with endDate.",
+              "description": "ISO date YYYY-MM-DD. For a single-day query pass just this (endDate optional).",
               "type": "string"
             },
             {
               "name": "endDate",
-              "description": "End of custom range (inclusive), ISO date YYYY-MM-DD.",
+              "description": "ISO date YYYY-MM-DD (inclusive). Omit for single-day queries.",
               "type": "string"
             }
           ]

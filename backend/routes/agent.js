@@ -65,9 +65,11 @@ const isoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
  * last_90_days, ytd, last_year, all_time.
  */
 function periodToDateRange(period, startDate, endDate) {
-  if (isoDate(startDate) && isoDate(endDate)) {
-    return { start: startDate, end: endDate };
-  }
+  const startOk = isoDate(startDate);
+  const endOk = isoDate(endDate);
+  if (startOk && endOk) return { start: startDate, end: endDate };
+  if (startOk) return { start: startDate, end: startDate };
+  if (endOk) return { start: endDate, end: endDate };
 
   const now = new Date();
   const today = fmt(now);
@@ -1038,6 +1040,12 @@ router.get(
       const { period = 'week', startDate, endDate } = req.query;
       const { start, end } = periodToDateRange(period, startDate, endDate);
 
+      logger.info('Agent /finance/wallet-deposits', {
+        rawQuery: req.query,
+        resolvedRange: { start, end },
+        requester: req.agent?.userId,
+      });
+
       // Same data source as the admin UI (/finance/wallet-deposits): the
       // wallet_transactions table with manual_credit / wallet_deposit types.
       const { rows } = await pool.query(
@@ -1062,6 +1070,17 @@ router.get(
       );
 
       const totalEur = rows.reduce((s, r) => s + (toNum(r.amount_eur) || 0), 0);
+
+      logger.info('Agent /finance/wallet-deposits result', {
+        count: rows.length,
+        totalEur,
+        sample: rows.slice(0, 3).map((r) => ({
+          id: r.id,
+          createdAt: r.created_at,
+          amount: r.amount,
+          type: r.transaction_type,
+        })),
+      });
 
       res.json({
         period,
