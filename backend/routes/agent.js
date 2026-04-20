@@ -53,27 +53,77 @@ router.use((req, _res, next) => {
 
 const toNum = (v) => (v == null ? null : parseFloat(v));
 
-/** Returns YYYY-MM-DD range for a period string */
-function periodToDateRange(period) {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmt = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const isoDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
-  if (period === 'today') {
-    return { start: today, end: today };
+/**
+ * Returns YYYY-MM-DD range for a period string, or honors an explicit
+ * startDate/endDate pair when both are valid ISO dates.
+ * Supported periods: today, yesterday, week (last 7d incl. today), last_week
+ * (prev Mon-Sun), month (current month-to-date), last_month, last_30_days,
+ * last_90_days, ytd, last_year, all_time.
+ */
+function periodToDateRange(period, startDate, endDate) {
+  if (isoDate(startDate) && isoDate(endDate)) {
+    return { start: startDate, end: endDate };
   }
-  if (period === 'week') {
+
+  const now = new Date();
+  const today = fmt(now);
+  const daysAgo = (n) => {
     const d = new Date(now);
-    d.setDate(d.getDate() - 6);
-    const start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    return { start, end: today };
+    d.setDate(d.getDate() - n);
+    return fmt(d);
+  };
+
+  switch (period) {
+    case 'today':
+      return { start: today, end: today };
+    case 'yesterday': {
+      const y = daysAgo(1);
+      return { start: y, end: y };
+    }
+    case 'week':
+      return { start: daysAgo(6), end: today };
+    case 'last_week': {
+      // Previous Monday–Sunday
+      const dow = now.getDay(); // 0=Sun..6=Sat
+      const daysSinceMonday = (dow + 6) % 7;
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - daysSinceMonday - 1);
+      const lastMonday = new Date(lastSunday);
+      lastMonday.setDate(lastSunday.getDate() - 6);
+      return { start: fmt(lastMonday), end: fmt(lastSunday) };
+    }
+    case 'month':
+      return {
+        start: `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`,
+        end: today,
+      };
+    case 'last_month': {
+      const firstOfThis = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastOfPrev = new Date(firstOfThis);
+      lastOfPrev.setDate(0);
+      const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
+      return { start: fmt(firstOfPrev), end: fmt(lastOfPrev) };
+    }
+    case 'last_30_days':
+      return { start: daysAgo(29), end: today };
+    case 'last_90_days':
+      return { start: daysAgo(89), end: today };
+    case 'ytd':
+      return { start: `${now.getFullYear()}-01-01`, end: today };
+    case 'last_year':
+      return {
+        start: `${now.getFullYear() - 1}-01-01`,
+        end: `${now.getFullYear() - 1}-12-31`,
+      };
+    case 'all_time':
+      return { start: '2000-01-01', end: today };
+    default:
+      return { start: today, end: today };
   }
-  if (period === 'month') {
-    const start = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-    return { start, end: today };
-  }
-  // Default: today
-  return { start: today, end: today };
 }
 
 // ── GET /me — Own profile (any authenticated role) ────────────────────────────
@@ -924,8 +974,8 @@ router.get(
   requireRole(['admin', 'manager']),
   async (req, res) => {
     try {
-      const { period = 'today' } = req.query;
-      const { start, end } = periodToDateRange(period);
+      const { period = 'today', startDate, endDate } = req.query;
+      const { start, end } = periodToDateRange(period, startDate, endDate);
 
       const summary = await getDashboardSummary({ startDate: start, endDate: end });
 
@@ -943,8 +993,8 @@ router.get(
       logger.error('Agent GET /finance/summary error', err);
       // Fallback: raw SQL if service fails
       try {
-        const { period = 'today' } = req.query;
-        const { start, end } = periodToDateRange(period);
+        const { period = 'today', startDate, endDate } = req.query;
+        const { start, end } = periodToDateRange(period, startDate, endDate);
         const { rows } = await pool.query(
           `SELECT
              COUNT(b.id) AS booking_count,
@@ -985,19 +1035,27 @@ router.get(
   requireRole(['admin', 'manager']),
   async (req, res) => {
     try {
+      const { period = 'week', startDate, endDate } = req.query;
+      const { start, end } = periodToDateRange(period, startDate, endDate);
+
       const { rows } = await pool.query(
         `SELECT wd.id, wd.amount, wd.currency, wd.status, wd.method,
                 wd.created_at, wd.completed_at,
                 u.name AS user_name, u.email
          FROM wallet_deposit_requests wd
          LEFT JOIN users u ON u.id = wd.user_id
-         WHERE wd.created_at >= NOW() - INTERVAL '7 days'
+         WHERE wd.created_at::date BETWEEN $1 AND $2
          ORDER BY wd.created_at DESC
-         LIMIT 30`,
+         LIMIT 100`,
+        [start, end],
       );
 
-      res.json(
-        rows.map((d) => ({
+      res.json({
+        period,
+        startDate: start,
+        endDate: end,
+        count: rows.length,
+        deposits: rows.map((d) => ({
           depositId: d.id,
           amount: toNum(d.amount),
           currency: d.currency,
@@ -1008,7 +1066,7 @@ router.get(
           createdAt: d.created_at,
           completedAt: d.completed_at,
         })),
-      );
+      });
     } catch (err) {
       logger.error('Agent GET /finance/wallet-deposits error', err);
       res.status(500).json({ error: 'Failed to fetch wallet deposits' });
@@ -1022,8 +1080,8 @@ router.get(
   requireRole(['admin', 'manager']),
   async (req, res) => {
     try {
-      const { period = 'month' } = req.query;
-      const { start, end } = periodToDateRange(period);
+      const { period = 'month', startDate, endDate } = req.query;
+      const { start, end } = periodToDateRange(period, startDate, endDate);
 
       const { rows } = await pool.query(
         `SELECT id, amount, currency, category, description, expense_date, created_at
@@ -1031,7 +1089,7 @@ router.get(
          WHERE expense_date BETWEEN $1 AND $2
            AND deleted_at IS NULL
          ORDER BY expense_date DESC
-         LIMIT 50`,
+         LIMIT 200`,
         [start, end],
       );
 

@@ -2477,7 +2477,18 @@
           "values": [
             {
               "name": "period",
-              "valueProvider": "modelRequired"
+              "description": "One of: today | yesterday | week | last_week | month | last_month | last_30_days | last_90_days | ytd | last_year | all_time. Ignored if startDate+endDate are provided.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "startDate",
+              "description": "ISO date YYYY-MM-DD. Provide with endDate for a custom range.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "endDate",
+              "description": "ISO date YYYY-MM-DD (inclusive). Provide with startDate.",
+              "valueProvider": "modelOptional"
             }
           ]
         },
@@ -2489,7 +2500,8 @@
               "type": "string"
             }
           ]
-        }
+        },
+        "toolDescription": "Get revenue summary (totals, bookings count, revenue by service type) for any historical or current period. Pass either a \"period\" keyword OR an explicit startDate/endDate pair (YYYY-MM-DD). Use this for questions like \"how much did we make last month\", \"revenue yesterday\", \"year-to-date sales\"."
       },
       "id": "admin-finance-summary",
       "name": "admin_get_financial_summary",
@@ -3552,7 +3564,18 @@
           "values": [
             {
               "name": "period",
-              "valueProvider": "modelRequired"
+              "description": "One of: today | yesterday | week | last_week | month | last_month | last_30_days | last_90_days | ytd | last_year | all_time. Ignored if startDate+endDate are provided.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "startDate",
+              "description": "ISO date YYYY-MM-DD.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "endDate",
+              "description": "ISO date YYYY-MM-DD (inclusive).",
+              "valueProvider": "modelOptional"
             }
           ]
         },
@@ -3564,7 +3587,8 @@
               "type": "string"
             }
           ]
-        }
+        },
+        "toolDescription": "Get business expenses for a historical or current period. Use for \"expenses last month\", \"what did we spend in Q1\", etc. Pass \"period\" OR startDate+endDate. Defaults to current month if nothing is passed."
       },
       "id": "admin-expenses",
       "name": "admin_get_financial_expenses",
@@ -3609,7 +3633,18 @@
         "parametersQuery": {
           "values": [
             {
-              "name": "filter",
+              "name": "period",
+              "description": "One of: today | yesterday | week | last_week | month | last_month | last_30_days | last_90_days | ytd | last_year | all_time. Ignored if startDate+endDate are provided.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "startDate",
+              "description": "ISO date YYYY-MM-DD.",
+              "valueProvider": "modelOptional"
+            },
+            {
+              "name": "endDate",
+              "description": "ISO date YYYY-MM-DD (inclusive).",
               "valueProvider": "modelOptional"
             }
           ]
@@ -3622,7 +3657,8 @@
               "type": "string"
             }
           ]
-        }
+        },
+        "toolDescription": "List customer wallet top-up requests for a historical or current period. Pass \"period\" OR startDate+endDate. Defaults to last 7 days."
       },
       "id": "admin-wallet-deposits",
       "name": "admin_get_wallet_deposits",
