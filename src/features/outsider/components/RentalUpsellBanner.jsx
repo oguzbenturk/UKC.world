@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import standardBg from '../../../../DuotoneFonts/DPSLOGOS/Website-DSC07450.jpg';
@@ -6,43 +8,11 @@ import slsBg from '../../../../DuotoneFonts/pictures/Website-Dtk-Duotone-Lazepum
 import dlabBg from '../../../../DuotoneFonts/pictures/Website-DTK-RebelD-Lab-Rigging-ColleenCarroll-HoodRiver-2026-TobyBromwich-3391.jpg';
 import efoilBg from '../../../../DuotoneFonts/pictures/Website-MelissaTrullier_MidfishAir_FoilAssistCruiseAL_Duotone_DTE_Tahiti_by_Ben_Thouard_54333.jpg';
 
-const ALL_RENTAL_CARDS = [
-  {
-    key: 'standard',
-    image: standardBg,
-    eyebrow: 'Duotone Standard',
-    title: 'Solid gear for every session',
-    body: 'Reliable, progression-friendly equipment. Perfect for daily sessions without breaking the bank.',
-    cta: 'Explore Standard',
-    to: '/rental/standard',
-  },
-  {
-    key: 'sls',
-    image: slsBg,
-    eyebrow: 'Strong Light Superior',
-    title: 'Want something that feels better?',
-    body: 'Lighter, stronger, more responsive. Our SLS range takes your session to the next level with premium carbon construction.',
-    cta: 'Explore SLS',
-    to: '/rental/sls',
-  },
-  {
-    key: 'dlab',
-    image: dlabBg,
-    eyebrow: 'Duotone Laboratory',
-    title: 'Try something exclusive',
-    body: 'The pinnacle of kiteboarding technology. D/LAB is the lightest, most responsive equipment Duotone has ever made.',
-    cta: 'Explore D/LAB',
-    to: '/rental/dlab',
-  },
-  {
-    key: 'efoil',
-    image: efoilBg,
-    eyebrow: 'Electric Hydrofoil',
-    title: 'Fly above the water',
-    body: 'No wind needed. Glide silently above the surface with our premium E-Foil rental — the most unique watersport experience.',
-    cta: 'Explore E-Foil',
-    to: '/rental/efoil',
-  },
+const CARD_CONFIG = [
+  { key: 'standard', image: standardBg, to: '/rental/standard' },
+  { key: 'sls', image: slsBg, to: '/rental/sls' },
+  { key: 'dlab', image: dlabBg, to: '/rental/dlab' },
+  { key: 'efoil', image: efoilBg, to: '/rental/efoil' },
 ];
 
 const btnStyle = {
@@ -52,27 +22,34 @@ const btnStyle = {
   boxShadow: '0 0 12px rgba(0,168,196,0.2)',
 };
 
-/**
- * Renders an upsell section promoting other rental tiers.
- * @param {object} props
- * @param {string} props.currentKey - The key of the current page to exclude (e.g. 'standard', 'sls', 'dlab', 'efoil')
- */
 const RentalUpsellBanner = ({ currentKey }) => {
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
-  const cards = ALL_RENTAL_CARDS.filter(c => c.key !== currentKey);
+
+  const cards = useMemo(() => CARD_CONFIG
+    .filter((c) => c.key !== currentKey)
+    .map((c) => ({
+      key: c.key,
+      image: c.image,
+      to: c.to,
+      eyebrow: t(`outsider:rentalUpsell.cards.${c.key}.eyebrow`),
+      title: t(`outsider:rentalUpsell.cards.${c.key}.title`),
+      body: t(`outsider:rentalUpsell.cards.${c.key}.body`),
+      cta: t(`outsider:rentalUpsell.cards.${c.key}.cta`),
+    })), [t, currentKey]);
 
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#00a8c4] text-center mb-2">
-          Explore Other Rentals
+          {t('outsider:rentalUpsell.sectionLabel')}
         </p>
         <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-slate-900 text-center mb-10">
-          Looking for something different?
+          {t('outsider:rentalUpsell.title')}
         </h2>
 
         <div className={`grid grid-cols-1 ${cards.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-6`}>
-          {cards.map(card => (
+          {cards.map((card) => (
             <div
               key={card.key}
               className="relative rounded-2xl overflow-hidden min-h-[300px] sm:min-h-[340px] group cursor-pointer"

@@ -1,4 +1,6 @@
 import axios from 'axios';
+import i18n from '@/i18n';
+import { resolveErrorKey } from '@/i18n/errorCodes';
 
 // Simple API client configuration
 // In production, use relative URLs so nginx can proxy to backend
@@ -169,6 +171,25 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
+      // i18n: if the backend sent a `code`, translate it and attach the
+      // resolved message to the error object. Also overwrite `data.error`
+      // so legacy call sites reading `err.response.data.error` get the
+      // translated text automatically.
+      const code = error.response.data?.code;
+      const errKey = resolveErrorKey(code);
+      if (errKey) {
+        const params = error.response.data?.errorParams || {};
+        const fallback = error.response.data?.error || error.response.data?.message;
+        const translated = i18n.t(`errors:${errKey}`, {
+          ...params,
+          defaultValue: fallback || code,
+        });
+        error.translatedMessage = translated;
+        if (error.response.data && typeof error.response.data === 'object') {
+          error.response.data.error = translated;
+        }
+      }
+
       if (
         error.response.status === 503 &&
         error.response.data?.code === 'LOGIN_DISABLED'

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthProvider } from './shared/contexts/AuthContext';
@@ -80,6 +81,7 @@ function App() {
 // Create a layout component that renders navigation only when authenticated
 // This component is separated from App so it can use the useAuth hook
 const AppLayoutWithAuth = () => {
+  const { t } = useTranslation(['common']);
   const location = useLocation();
   
   // Check if current route is a public form route (no sidebar/navbar needed)
@@ -111,9 +113,9 @@ const AppLayoutWithAuth = () => {
   const handleConsentSubmit = async (payload) => {
     try {
       await updateConsent(payload);
-      messageApi.success('Consent saved');
+      messageApi.success(t('common:app.consentSaved'));
     } catch (err) {
-      const errorMessage = err?.response?.data?.error || err?.message || 'Failed to save consent';
+      const errorMessage = err?.response?.data?.error || err?.message || t('common:app.consentFailed');
       messageApi.error(errorMessage);
     }
   };
@@ -179,15 +181,15 @@ const AppLayoutWithAuth = () => {
       <div className="flex items-center justify-center h-screen bg-slate-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-sky-600 mx-auto" />
-          <p className="mt-4 text-slate-600">Loading...</p>
+          <p className="mt-4 text-slate-600">{t('common:app.loading')}</p>
           {error && (
             <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md">
               <p className="text-red-800 text-sm">{error}</p>
-              <button 
+              <button
                 onClick={() => setForceShowApp(true)}
                 className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
               >
-                Continue Anyway
+                {t('common:app.continueAnyway')}
               </button>
             </div>
           )}
@@ -237,7 +239,7 @@ const AppLayoutWithAuth = () => {
             }}
             className="text-slate-300 hover:text-white text-sm"
           >
-            Logout
+            {t('common:app.logout')}
           </button>
         </div>
         <div className="p-4 md:p-6">

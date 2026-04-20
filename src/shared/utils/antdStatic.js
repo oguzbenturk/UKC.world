@@ -1,13 +1,20 @@
 /**
  * Antd Static API Holder
- * 
+ *
  * This module provides static access to antd's message, notification, and modal APIs
  * while properly consuming context (theme, locale, etc.)
- * 
+ *
  * Usage:
- * import { message, notification, modal } from '@/shared/utils/antdStatic';
- * message.success('It works!');
+ *   import { message, notification, modal } from '@/shared/utils/antdStatic';
+ *   message.success('It works!');
+ *
+ * i18n-aware wrappers (preferred for new code):
+ *   import { tMessage, tNotification, tModal } from '@/shared/utils/antdStatic';
+ *   tMessage.success('bookings:created');
+ *   tMessage.error('errors:AUTH_INVALID_CREDENTIALS', { email });
  */
+
+import i18n from '@/i18n';
 
 let messageApi = null;
 let notificationApi = null;
@@ -19,7 +26,6 @@ export const setAntdStaticApis = (apis) => {
   modalApi = apis.modal;
 };
 
-// Proxy objects that delegate to the real APIs once initialized
 export const message = {
   success: (...args) => messageApi?.success(...args),
   error: (...args) => messageApi?.error(...args),
@@ -46,4 +52,50 @@ export const modal = {
   warning: (...args) => modalApi?.warning(...args),
   confirm: (...args) => modalApi?.confirm(...args),
   destroyAll: (...args) => modalApi?.destroyAll(...args),
+};
+
+const translateFirstArg = (fn) => (key, vars, ...rest) => {
+  if (typeof key === 'string') return fn(i18n.t(key, vars), ...rest);
+  return fn(key, vars, ...rest);
+};
+
+export const tMessage = {
+  success: translateFirstArg((...a) => messageApi?.success(...a)),
+  error: translateFirstArg((...a) => messageApi?.error(...a)),
+  info: translateFirstArg((...a) => messageApi?.info(...a)),
+  warning: translateFirstArg((...a) => messageApi?.warning(...a)),
+  loading: translateFirstArg((...a) => messageApi?.loading(...a)),
+};
+
+export const tNotification = {
+  success: (config = {}) => notificationApi?.success({
+    ...config,
+    message: typeof config.message === 'string' ? i18n.t(config.message, config.messageVars) : config.message,
+    description: typeof config.description === 'string' ? i18n.t(config.description, config.descriptionVars) : config.description,
+  }),
+  error: (config = {}) => notificationApi?.error({
+    ...config,
+    message: typeof config.message === 'string' ? i18n.t(config.message, config.messageVars) : config.message,
+    description: typeof config.description === 'string' ? i18n.t(config.description, config.descriptionVars) : config.description,
+  }),
+  info: (config = {}) => notificationApi?.info({
+    ...config,
+    message: typeof config.message === 'string' ? i18n.t(config.message, config.messageVars) : config.message,
+    description: typeof config.description === 'string' ? i18n.t(config.description, config.descriptionVars) : config.description,
+  }),
+  warning: (config = {}) => notificationApi?.warning({
+    ...config,
+    message: typeof config.message === 'string' ? i18n.t(config.message, config.messageVars) : config.message,
+    description: typeof config.description === 'string' ? i18n.t(config.description, config.descriptionVars) : config.description,
+  }),
+};
+
+export const tModal = {
+  confirm: (config = {}) => modalApi?.confirm({
+    ...config,
+    title: typeof config.title === 'string' ? i18n.t(config.title, config.titleVars) : config.title,
+    content: typeof config.content === 'string' ? i18n.t(config.content, config.contentVars) : config.content,
+    okText: config.okText ? i18n.t(config.okText) : i18n.t('common:buttons.ok'),
+    cancelText: config.cancelText ? i18n.t(config.cancelText) : i18n.t('common:buttons.cancel'),
+  }),
 };

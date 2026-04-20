@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { message } from '@/shared/utils/antdStatic';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -9,7 +10,6 @@ import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 
-// Feature icons as static components
 const DashboardIcon = (props) => (
   <svg {...props} viewBox="0 0 20 20" fill="currentColor">
     <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
@@ -40,16 +40,16 @@ const UsersIcon = (props) => (
   </svg>
 );
 
-// Static features data
-const FEATURES = [
-  { text: 'Dashboard Analytics', Icon: DashboardIcon },
-  { text: 'Lesson Booking', Icon: CalendarIcon },
-  { text: 'Equipment Rentals', Icon: EquipmentIcon },
-  { text: 'Finance Tracking', Icon: FinanceIcon },
-  { text: 'Community Management', Icon: UsersIcon },
+const FEATURE_CONFIG = [
+  { key: 'dashboard', Icon: DashboardIcon },
+  { key: 'lessons', Icon: CalendarIcon },
+  { key: 'rentals', Icon: EquipmentIcon },
+  { key: 'finance', Icon: FinanceIcon },
+  { key: 'community', Icon: UsersIcon },
 ];
 
 const Login = () => {
+  const { t } = useTranslation(['public', 'errors']);
   usePageSEO({
     title: 'Login | UKC•',
     description: 'Sign in to manage lessons, rentals, customers, and operations at Duotone Pro Center Urla.',
@@ -63,13 +63,12 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
   const { login, error: authError, clearError } = useAuth();
   const didPrefill = useRef(false);
 
-  // Load remembered email on mount
   useEffect(() => {
     if (!didPrefill.current) {
       const rememberedEmail = localStorage.getItem('rememberedEmail');
@@ -79,21 +78,19 @@ const Login = () => {
       }
       localStorage.removeItem('rememberedPassword');
       didPrefill.current = true;
-      
+
       if (location.state?.showForgotPassword) {
         setShowForgotPasswordModal(true);
       }
     }
   }, [location.state]);
 
-  // Sync auth error to local state
   useEffect(() => {
     if (authError) {
       setError(getFriendlyError(authError));
     }
   }, [authError]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => clearError?.();
   }, [clearError]);
@@ -103,13 +100,13 @@ const Login = () => {
     if (msg === SIGN_IN_DISABLED_USER_MESSAGE) return msg;
     const lower = msg.toLowerCase();
     if (lower.includes('authentication')) {
-      return 'Email or password is incorrect.';
+      return t('public:login.errors.incorrect');
     }
     if (lower.includes('network')) {
-      return 'Could not reach server. Check your connection.';
+      return t('public:login.errors.networkError');
     }
     if (lower.includes('token')) {
-      return 'Session expired. Please sign in again.';
+      return t('public:login.errors.sessionExpired');
     }
     return msg;
   };
@@ -120,11 +117,11 @@ const Login = () => {
     setError('');
 
     if (!email.trim()) {
-      setError('Please enter your email address');
+      setError(t('public:login.errors.enterEmail'));
       return;
     }
     if (!password.trim()) {
-      setError('Please enter your password');
+      setError(t('public:login.errors.enterPassword'));
       return;
     }
 
@@ -132,7 +129,7 @@ const Login = () => {
 
     try {
       const result = await login(email, password);
-      
+
       if (result) {
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', email);
@@ -141,10 +138,10 @@ const Login = () => {
         }
         navigate('/admin/dashboard');
       } else {
-        setError('Email or password is incorrect.');
+        setError(t('public:login.errors.incorrect'));
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.message || t('public:login.errors.genericFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -154,19 +151,18 @@ const Login = () => {
     setShowForgotPasswordModal(true);
   };
 
+  const brandName = t('public:brand.name');
+
   return (
     <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-4 px-4 sm:px-6 lg:px-8">
-      {/* Background blobs for depth */}
       <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.3) 0%, rgba(0,168,196,0) 70%)' }}></div>
       <div className="absolute top-0 -right-4 w-96 h-96 opacity-40 animate-blob animation-delay-2000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(75,79,84,0.4) 0%, rgba(75,79,84,0) 70%)' }}></div>
       <div className="absolute -bottom-8 left-20 w-96 h-96 opacity-40 animate-blob animation-delay-4000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.2) 0%, rgba(0,168,196,0) 70%)' }}></div>
 
       <div className="relative w-full max-w-5xl">
         <div className="lg:flex lg:items-stretch overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl">
-          
-          {/* Left panel: Login Form */}
+
           <div className="w-full lg:w-1/2 p-6 sm:p-8 lg:p-10 flex flex-col justify-center">
-            {/* Logo and branding */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <span className="font-gotham-bold text-4xl text-white tracking-tight inline-flex items-baseline">
@@ -177,17 +173,16 @@ const Login = () => {
 
               <img
                 src={dpcLogo}
-                alt="Duotone Pro Center Urla"
+                alt={brandName}
                 className="h-10 w-auto mx-auto mb-5"
               />
 
-              <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Member Login</h1>
+              <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">{t('public:login.title')}</h1>
               <p className="font-duotone-regular text-gray-400 text-sm">
-                Welcome back to Duotone Pro Center Urla.
+                {t('public:login.welcome', { brand: brandName })}
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div
                 className={
@@ -208,18 +203,17 @@ const Login = () => {
               </div>
             )}
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block font-duotone-bold text-xs uppercase tracking-wider text-gray-400 mb-2">
-                  Email Address
+                  {t('public:login.emailLabel')}
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full font-duotone-regular bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-duotone-blue/50 focus:border-duotone-blue/50 transition-all"
-                  placeholder="name@example.com"
+                  placeholder={t('public:login.emailPlaceholder')}
                   required
                 />
               </div>
@@ -227,14 +221,14 @@ const Login = () => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block font-duotone-bold text-xs uppercase tracking-wider text-gray-400">
-                    Password
+                    {t('public:login.passwordLabel')}
                   </label>
                   <button
                     type="button"
                     onClick={handleForgotPassword}
                     className="font-duotone-regular text-xs text-duotone-blue hover:text-duotone-blue/80 transition-colors"
                   >
-                    Forgot password?
+                    {t('public:login.forgotPassword')}
                   </button>
                 </div>
                 <input
@@ -256,7 +250,7 @@ const Login = () => {
                   className="h-4 w-4 rounded bg-white/5 border-white/10 text-duotone-blue focus:ring-duotone-blue focus:ring-offset-black"
                 />
                 <label htmlFor="remember-me" className="ml-2 font-duotone-regular text-sm text-gray-400">
-                  Stay signed in
+                  {t('public:login.rememberMe')}
                 </label>
               </div>
 
@@ -276,7 +270,7 @@ const Login = () => {
                   </svg>
                 ) : (
                   <>
-                    SIGN IN
+                    {t('public:login.signIn')}
                     <div className="w-px h-3 bg-duotone-blue/30 mx-1 group-hover:bg-duotone-blue/60 transition-colors"></div>
                     <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -286,31 +280,29 @@ const Login = () => {
               </button>
             </form>
 
-            {/* Mobile Register */}
             <div className="mt-5 text-center lg:hidden">
               <p className="font-duotone-regular text-sm text-gray-500 mb-4">
-                Don't have an account?
+                {t('public:login.mobileNoAccount')}
               </p>
               <button
                 onClick={() => setShowRegisterModal(true)}
                 className="font-duotone-bold text-xs uppercase tracking-widest text-white hover:text-duotone-blue transition-colors underline underline-offset-8"
               >
-                Create Account
+                {t('public:login.createAccountLink')}
               </button>
             </div>
           </div>
 
-          {/* Right panel: Features & Branding */}
           <div className="hidden lg:flex lg:w-1/2 p-8 bg-white/5 border-l border-white/5 flex-col justify-between">
             <div>
-              <h2 className="font-duotone-bold-extended text-xl text-white mb-4">Expertise. Excellence. Experience.</h2>
+              <h2 className="font-duotone-bold-extended text-xl text-white mb-4">{t('public:login.rightTagline')}</h2>
               <div className="space-y-4">
-                {FEATURES.map(({ text, Icon }) => (
-                  <div key={text} className="flex items-center gap-4 group">
+                {FEATURE_CONFIG.map(({ key, Icon }) => (
+                  <div key={key} className="flex items-center gap-4 group">
                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-duotone-blue border border-white/10 group-hover:bg-duotone-blue group-hover:text-white transition-all duration-300">
                       <Icon className="w-5 h-5" />
                     </div>
-                    <span className="font-duotone-regular text-gray-300">{text}</span>
+                    <span className="font-duotone-regular text-gray-300">{t(`public:login.features.${key}`)}</span>
                   </div>
                 ))}
               </div>
@@ -318,17 +310,17 @@ const Login = () => {
 
             <div className="mt-6 p-6 rounded-2xl bg-duotone-blue/10 border border-duotone-blue/20">
               <p className="font-duotone-regular text-sm text-gray-300 mb-6 italic">
-                "Join the leading watersports community in Urla. Access your progress, book sessions, and manage your membership with UKC."
+                {t('public:login.rightQuote')}
               </p>
               <div className="flex flex-col gap-4">
                 <p className="font-duotone-bold text-xs uppercase tracking-widest text-duotone-blue">
-                  New here?
+                  {t('public:login.rightNewHere')}
                 </p>
                 <button
                   onClick={() => setShowRegisterModal(true)}
                   className="font-duotone-bold bg-white text-antrasit py-3 px-6 rounded-xl hover:bg-gray-100 transition-all text-center tracking-widest"
                 >
-                  CREATE ACCOUNT
+                  {t('public:login.rightCreateCta')}
                 </button>
               </div>
             </div>
@@ -337,13 +329,12 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Modals */}
       <RegisterModal
         visible={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}
         onSuccess={() => setShowRegisterModal(false)}
       />
-      
+
       <ForgotPasswordModal
         visible={showForgotPasswordModal}
         onClose={() => setShowForgotPasswordModal(false)}

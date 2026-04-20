@@ -5,15 +5,17 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'duotone-bold-extended': ['Duotone Bold Extended', 'sans-serif'],
-        'duotone-bold':          ['Duotone Bold', 'sans-serif'],
-        'duotone-regular':       ['Duotone Regular', 'sans-serif'],
-        'duotone-light-condensed': ['Duotone Light Condensed', 'sans-serif'],
-        'duotone-medium-condensed': ['Duotone Medium Condensed', 'sans-serif'],
-        'gotham':                ['Gotham', 'sans-serif'],
-        'gotham-bold':           ['Gotham Bold', 'sans-serif'],
-        'gotham-medium':         ['Gotham Medium', 'sans-serif'],
-        'gotham-light':          ['Gotham Light', 'sans-serif'],
+        // Duotone fonts ship Basic Latin only. Gotham-TR (same brand) covers Turkish
+        // and accented Latin — used as primary fallback. System fonts catch Cyrillic.
+        'duotone-bold-extended':    ['Duotone Bold Extended', 'Gotham Bold', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'duotone-bold':             ['Duotone Bold', 'Gotham Bold', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'duotone-regular':          ['Duotone Regular', 'Gotham Medium', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'duotone-light-condensed':  ['Duotone Light Condensed', 'Gotham Light', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'duotone-medium-condensed': ['Duotone Medium Condensed', 'Gotham Medium', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'gotham':                   ['Gotham', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'gotham-bold':              ['Gotham Bold', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'gotham-medium':            ['Gotham Medium', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'gotham-light':             ['Gotham Light', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
       colors: {
         'antrasit':    '#4b4f54',

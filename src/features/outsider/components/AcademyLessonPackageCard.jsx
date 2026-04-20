@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { HomeOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { useImageAccent } from '@/features/outsider/hooks/useImageAccent';
 import slsLogo from '../../../../DuotoneFonts/DPSLOGOS/sls.png';
@@ -39,7 +41,7 @@ function getCheapestPerHourRate(durations) {
 
 function formatDurationBadgeLine(hours) {
   const s = String(hours ?? '').trim();
-  if (!s || s === '—') return 'SESSION';
+  if (!s || s === '—') return i18n.t('outsider:servicePackages.card.session', { defaultValue: 'SESSION' });
   const m = s.match(/^([\d.]+)\s*h$/i);
   if (m) {
     const n = parseFloat(m[1]);
@@ -58,7 +60,7 @@ function tierLine(pkg) {
   }
   const sub = String(pkg.subtitle || '').trim();
   if (sub) return sub.length > 22 ? `${sub.slice(0, 20)}…` : sub;
-  return 'LESSON';
+  return i18n.t('outsider:servicePackages.card.lesson', { defaultValue: 'LESSON' });
 }
 
 /** First sentence without regex lookbehind (Safari < 16.4 throws on `(?<=...)`). */
@@ -95,12 +97,12 @@ function bundlePrimaryStatLine(pkg) {
   if (Number.isFinite(rd) && rd > 0) return rd === 1 ? '1-DAY' : `${rd}-DAY`;
   const th = Number(pkg.totalHours ?? pkg.total_hours);
   if (Number.isFinite(th) && th > 0) return formatDurationBadgeLine(`${th}h`);
-  return 'BUNDLE';
+  return i18n.t('outsider:servicePackages.card.bundle', { defaultValue: 'BUNDLE' });
 }
 
 function truncateTier(s, max = 22) {
   const t = String(s || '').trim();
-  if (!t) return 'PACKAGE';
+  if (!t) return i18n.t('outsider:servicePackages.card.package', { defaultValue: 'PACKAGE' });
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
@@ -157,11 +159,12 @@ export default function AcademyLessonPackageCard({
     tier = truncateTier(bundleSummaryLabel || tierLine(pkg));
     priceLabel = formatPrice(singlePrice);
   } else {
-    durationLine = 'SESSION';
+    durationLine = i18n.t('outsider:servicePackages.card.session', { defaultValue: 'SESSION' });
     tier = truncateTier(bundleSummaryLabel || tierLine(pkg));
     priceLabel = '—';
   }
 
+  const { t } = useTranslation(['outsider']);
   const tagline = cardTagline(pkg);
 
   return (
@@ -196,7 +199,7 @@ export default function AcademyLessonPackageCard({
         >
           <div className="px-4 text-center">
             <HomeOutlined className="mb-2 text-5xl text-white/40" />
-            <p className="text-xs text-white/60">No image uploaded</p>
+            <p className="text-xs text-white/60">{t('outsider:servicePackages.card.noImage')}</p>
           </div>
         </div>
 
@@ -236,7 +239,7 @@ export default function AcademyLessonPackageCard({
           )}
           {isOwned && (
             <div className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg backdrop-blur-sm">
-              <CheckCircleFilled className="text-[10px]" /> OWNED
+              <CheckCircleFilled className="text-[10px]" /> {t('outsider:servicePackages.card.owned')}
             </div>
           )}
         </div>
@@ -249,12 +252,12 @@ export default function AcademyLessonPackageCard({
             {tier}
           </p>
           <p className="mt-0.5 font-duotone-regular text-[7px] uppercase tracking-[0.18em] text-white/55">
-            FROM
+            {t('outsider:servicePackages.card.from')}
           </p>
           <p className="font-duotone-bold-extended text-sm italic leading-none text-white">{priceLabel}</p>
           {isOwned && (
             <p className="mt-1 flex items-center justify-end gap-0.5 text-[8px] font-bold uppercase tracking-wide text-emerald-400">
-              <CheckCircleFilled className="text-[9px]" /> Active Package
+              <CheckCircleFilled className="text-[9px]" /> {t('outsider:servicePackages.card.activePackage')}
             </p>
           )}
         </div>

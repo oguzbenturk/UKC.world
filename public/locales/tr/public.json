@@ -1,0 +1,158 @@
+{
+  "_meta": { "ai_drafted": false, "reviewed": false },
+  "brand": {
+    "name": "Duotone Pro Center Urla"
+  },
+  "login": {
+    "title": "Üye Girişi",
+    "welcome": "{{brand}}'a tekrar hoş geldiniz.",
+    "emailLabel": "E-posta Adresi",
+    "emailPlaceholder": "ad@ornek.com",
+    "passwordLabel": "Şifre",
+    "forgotPassword": "Şifremi unuttum?",
+    "rememberMe": "Beni hatırla",
+    "signIn": "GİRİŞ YAP",
+    "mobileNoAccount": "Hesabınız yok mu?",
+    "createAccountLink": "Hesap Oluştur",
+    "rightTagline": "Uzmanlık. Mükemmellik. Deneyim.",
+    "rightQuote": "Urla'nın önde gelen su sporları topluluğuna katılın. İlerlemenize erişin, dersler rezerve edin ve üyeliğinizi UKC ile yönetin.",
+    "rightNewHere": "Yeni mi geldiniz?",
+    "rightCreateCta": "HESAP OLUŞTUR",
+    "features": {
+      "dashboard": "Kontrol Paneli Analitiği",
+      "lessons": "Ders Rezervasyonu",
+      "rentals": "Ekipman Kiralama",
+      "finance": "Finans Takibi",
+      "community": "Topluluk Yönetimi"
+    },
+    "errors": {
+      "enterEmail": "Lütfen e-posta adresinizi girin",
+      "enterPassword": "Lütfen şifrenizi girin",
+      "incorrect": "E-posta veya şifre hatalı.",
+      "networkError": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edin.",
+      "sessionExpired": "Oturumun süresi doldu. Lütfen tekrar giriş yapın.",
+      "genericFailed": "Giriş başarısız. Lütfen tekrar deneyin."
+    }
+  },
+  "register": {
+    "steps": {
+      "account": { "title": "Hesap", "subtitle": "Sizi içeri alalım!" },
+      "profile": { "title": "Sürücü Profili", "subtitle": "Size doğru ekipmanı bulalım" },
+      "address": { "title": "Konumunuz", "subtitle": "Siparişlerinizi nereye gönderelim?" }
+    },
+    "stepIndicator": "Adım {{current}} / {{total}}",
+    "fields": {
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "email": "E-posta Adresi",
+      "password": "Şifre",
+      "confirmPassword": "Şifreyi Onayla",
+      "phone": "Telefon Numarası",
+      "dob": "Doğum Tarihi",
+      "weight": "Kilo (kg)",
+      "currency": "Tercih Edilen Para Birimi",
+      "address": "Sokak Adresi",
+      "city": "Şehir",
+      "zip": "Posta Kodu",
+      "country": "Ülke"
+    },
+    "placeholders": {
+      "firstName": "Ahmet",
+      "lastName": "Yılmaz",
+      "email": "siz@ornek.com",
+      "phone": "5xx xxx xxxx",
+      "weight": "örn. 70",
+      "currency": "Para birimi seçin",
+      "address": "Plaj Yolu No:123, Daire 4",
+      "city": "örn. İstanbul",
+      "zip": "örn. 34000",
+      "country": "Ülke seçin"
+    },
+    "hints": {
+      "dob": "Güvenlik kuralları için",
+      "weight": "Doğru kite ve board boyu için",
+      "currency": "Tüm fiyatlar ve ödemeler bu para biriminde işlenecek",
+      "shipping": "Adresiniz mağaza siparişleri için varsayılan teslimat adresi olarak kullanılacaktır. Ödeme sırasında her zaman değiştirebilirsiniz."
+    },
+    "strength": { "weak": "Zayıf", "fair": "Orta", "good": "İyi", "strong": "Güçlü" },
+    "validation": {
+      "passwordMin": "En az 8 karakter",
+      "passwordPattern": "Büyük, küçük harf, rakam ve özel karakter gerekli (@$!%*?&)",
+      "passwordsDontMatch": "Şifreler eşleşmiyor",
+      "phonePattern": "Geçerli bir telefon numarası gerekli",
+      "ageTooYoung": "En az 10 yaşında olmalısınız",
+      "ageInvalid": "Lütfen geçerli bir tarih girin",
+      "weightRange": "30–200 kg"
+    },
+    "buttons": {
+      "cancel": "İPTAL",
+      "back": "GERİ",
+      "continue": "DEVAM",
+      "finish": "BİTİR",
+      "creating": "OLUŞTURULUYOR..."
+    },
+    "success": {
+      "welcome": "Hoş geldiniz, {{name}}! Hesabınız hazır.",
+      "created": "Hesap başarıyla oluşturuldu! Lütfen giriş yapın."
+    },
+    "errors": { "generic": "Kayıt başarısız" }
+  },
+  "forgotPassword": {
+    "title": "Şifremi Unuttum",
+    "subtitle": "E-postanızı girin, şifrenizi sıfırlamanız için bir bağlantı göndereceğiz.",
+    "emailLabel": "E-posta Adresi",
+    "emailPlaceholder": "ad@ornek.com",
+    "send": "SIFIRLAMA BAĞLANTISI GÖNDER",
+    "sending": "GÖNDERİLİYOR...",
+    "backToLogin": "GİRİŞE DÖN",
+    "rateLimited": "Çok fazla istek. Lütfen tekrar denemeden önce bekleyin.",
+    "invalidEmail": "Lütfen geçerli bir e-posta adresi girin",
+    "sent": {
+      "title": "E-postanızı Kontrol Edin",
+      "body": "<strong>{{email}}</strong> ile bir hesap varsa, kısa süre içinde sıfırlama bağlantısı alacaksınız.",
+      "didntReceive": "Almadınız mı?",
+      "didntReceiveBody": "Spam klasörünüzü kontrol edin veya adresi doğru yazdığınızdan emin olun. Bağlantı 1 saat içinde sona erer.",
+      "returnLogin": "GİRİŞE DÖN"
+    }
+  },
+  "resetPassword": {
+    "validating": "Sıfırlama bağlantınız doğrulanıyor...",
+    "title": "Şifreyi Sıfırla",
+    "subtitle": "<strong>{{email}}</strong> için yeni bir şifre girin",
+    "fields": {
+      "newPassword": "Yeni Şifre",
+      "confirmPassword": "Şifreyi Onayla"
+    },
+    "requirementsTitle": "Gereksinimler:",
+    "requirementLength": "En az 8 karakter uzunluğunda",
+    "requirementStrong": "Güçlü, benzersiz bir şifre seçin",
+    "submit": "ŞİFREYİ SIFIRLA",
+    "submitting": "SIFIRLANIYOR...",
+    "cancelReturn": "İPTAL ET VE DÖN",
+    "successToast": "Şifre başarıyla sıfırlandı!",
+    "success": {
+      "title": "Başarılı!",
+      "body": "Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.",
+      "goLogin": "GİRİŞE GİT"
+    },
+    "invalid": {
+      "title": "Geçersiz Bağlantı",
+      "defaultBody": "Bu şifre sıfırlama bağlantısının süresi dolmuş veya geçersiz.",
+      "expiry": "Sıfırlama bağlantıları güvenlik nedeniyle 1 saat sonra sona erer.",
+      "requestNew": "YENİ BAĞLANTI İSTE",
+      "return": "GİRİŞE DÖN"
+    },
+    "errors": {
+      "invalidLink": "Geçersiz şifre sıfırlama bağlantısı. Lütfen yenisini isteyin.",
+      "expiredLink": "Bu şifre sıfırlama bağlantısı süresi doldu veya geçersiz. Lütfen yenisini isteyin.",
+      "validateFailed": "Sıfırlama bağlantısı doğrulanamadı. Lütfen daha sonra tekrar deneyin.",
+      "resetFailed": "Şifre sıfırlanamadı. Lütfen tekrar deneyin.",
+      "resetGenericFailed": "Şifre sıfırlanamadı. Lütfen daha sonra tekrar deneyin.",
+      "passwordsMismatch": "Şifreler eşleşmiyor",
+      "passwordTooShort": "Şifre en az 8 karakter uzunluğunda olmalıdır",
+      "enterPassword": "Lütfen yeni bir şifre girin",
+      "confirmRequired": "Lütfen şifrenizi onaylayın",
+      "passwordMinValidation": "Şifre en az 8 karakter olmalıdır"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "_meta": { "ai_drafted": false, "reviewed": false },
+  "language": {
+    "label": "Dil",
+    "change": "Dili değiştir"
+  },
+  "app": {
+    "loading": "Yükleniyor...",
+    "continueAnyway": "Yine de Devam Et",
+    "logout": "Çıkış Yap",
+    "consentSaved": "Onay kaydedildi",
+    "consentFailed": "Onay kaydedilemedi"
+  },
+  "buttons": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "create": "Oluştur",
+    "back": "Geri",
+    "next": "İleri",
+    "confirm": "Onayla",
+    "close": "Kapat",
+    "ok": "Tamam",
+    "yes": "Evet",
+    "no": "Hayır",
+    "apply": "Uygula",
+    "reset": "Sıfırla",
+    "submit": "Gönder"
+  },
+  "status": {
+    "active": "Aktif",
+    "pending": "Beklemede",
+    "completed": "Tamamlandı",
+    "cancelled": "İptal edildi",
+    "inactive": "Pasif",
+    "available": "Uygun",
+    "unavailable": "Uygun değil"
+  },
+  "table": {
+    "noData": "Veri yok",
+    "loading": "Yükleniyor...",
+    "actions": "İşlemler"
+  },
+  "empty": {
+    "default": "Henüz hiçbir şey yok"
+  },
+  "pagination": {
+    "prev": "Önceki",
+    "next": "Sonraki",
+    "total": "Toplam {{count}}"
+  },
+  "validation": {
+    "required": "Gerekli",
+    "email": "Geçerli bir e-posta girin",
+    "minLen": "En az {{count}} karakter",
+    "maxLen": "En fazla {{count}} karakter",
+    "phone": "Geçerli bir telefon numarası girin",
+    "pattern": "Geçersiz format"
+  },
+  "duration": {
+    "min": "{{count}} dk",
+    "hr": "{{count}} sa",
+    "hrMin": "{{hours}} sa {{minutes}} dk"
+  },
+  "dateFormat": {
+    "short": "DD/MM/YYYY",
+    "shortWithTime": "DD/MM/YYYY HH:mm"
+  }
+}

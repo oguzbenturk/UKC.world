@@ -18,6 +18,7 @@ import { isShopStaff } from '@/shared/utils/roleUtils';
 import { featureFlags } from '@/shared/config/featureFlags';
 import { APP_VERSION } from '@/shared/constants/version';
 import { UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
+import LanguageSwitcher from '@/shared/components/LanguageSwitcher';
 
 const profileImageCandidateKeys = [
   'profile_image_url',
@@ -443,6 +444,8 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                 </a>
                 )}
               
+                <LanguageSwitcher />
+
                 {/* Real-time Status Indicator - Only for authenticated users */}
                 {isAuthenticated && <NotificationBell />}
                 {isAuthenticated && ['admin', 'manager', 'super_admin', 'developer'].includes(user?.role?.toLowerCase()) && (

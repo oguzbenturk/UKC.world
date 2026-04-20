@@ -1,0 +1,70 @@
+{
+  "_meta": { "ai_drafted": true, "reviewed": false },
+  "language": {
+    "label": "Langue",
+    "change": "Changer de langue"
+  },
+  "app": {
+    "loading": "Chargement...",
+    "continueAnyway": "Continuer quand même",
+    "logout": "Déconnexion",
+    "consentSaved": "Consentement enregistré",
+    "consentFailed": "Impossible d'enregistrer le consentement"
+  },
+  "buttons": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "back": "Retour",
+    "next": "Suivant",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "ok": "OK",
+    "yes": "Oui",
+    "no": "Non",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "submit": "Envoyer"
+  },
+  "status": {
+    "active": "Actif",
+    "pending": "En attente",
+    "completed": "Terminé",
+    "cancelled": "Annulé",
+    "inactive": "Inactif",
+    "available": "Disponible",
+    "unavailable": "Indisponible"
+  },
+  "table": {
+    "noData": "Aucune donnée",
+    "loading": "Chargement...",
+    "actions": "Actions"
+  },
+  "empty": {
+    "default": "Rien pour l'instant"
+  },
+  "pagination": {
+    "prev": "Précédent",
+    "next": "Suivant",
+    "total": "Total {{count}}"
+  },
+  "validation": {
+    "required": "Requis",
+    "email": "Saisissez un e-mail valide",
+    "minLen": "Au moins {{count}} caractères",
+    "maxLen": "Au maximum {{count}} caractères",
+    "phone": "Saisissez un numéro de téléphone valide",
+    "pattern": "Format invalide"
+  },
+  "duration": {
+    "min": "{{count}} min",
+    "hr": "{{count}} h",
+    "hrMin": "{{hours}} h {{minutes}} min"
+  },
+  "dateFormat": {
+    "short": "DD/MM/YYYY",
+    "shortWithTime": "DD/MM/YYYY HH:mm"
+  }
+}

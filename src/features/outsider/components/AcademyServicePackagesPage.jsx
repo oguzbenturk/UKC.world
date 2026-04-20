@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import { Button, Tag, Spin, message } from 'antd';
@@ -62,6 +63,7 @@ const AcademyServicePackagesPage = ({
   dynamicServiceKey = null,
   promoBanner = null,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -136,11 +138,11 @@ const AcademyServicePackagesPage = ({
   const isLessonPage = LESSON_KEYS.has(normalize(dynamicServiceKey || ''));
 
   const DISCIPLINE_META = {
-    kite:     { label: 'Kitesurfing',  color: 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30',    active: 'bg-sky-500/40 border-sky-400 text-sky-100' },
-    wing:     { label: 'Wing Foil',    color: 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30', active: 'bg-purple-500/40 border-purple-400 text-purple-100' },
-    kite_foil:{ label: 'Kite Foil',   color: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30', active: 'bg-cyan-500/40 border-cyan-400 text-cyan-100' },
-    efoil:    { label: 'E-Foil',       color: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30', active: 'bg-yellow-500/40 border-yellow-400 text-yellow-100' },
-    accessory:{ label: 'Accessories',  color: 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30', active: 'bg-orange-500/40 border-orange-400 text-orange-100' },
+    kite:     { label: t('outsider:servicePackages.disciplines.kite'),      color: 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30',    active: 'bg-sky-500/40 border-sky-400 text-sky-100' },
+    wing:     { label: t('outsider:servicePackages.disciplines.wing'),      color: 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30', active: 'bg-purple-500/40 border-purple-400 text-purple-100' },
+    kite_foil:{ label: t('outsider:servicePackages.disciplines.kite_foil'), color: 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30', active: 'bg-cyan-500/40 border-cyan-400 text-cyan-100' },
+    efoil:    { label: 'E-Foil',                                             color: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/30', active: 'bg-yellow-500/40 border-yellow-400 text-yellow-100' },
+    accessory:{ label: t('outsider:servicePackages.disciplines.accessory'), color: 'bg-orange-500/20 border-orange-500/40 text-orange-300 hover:bg-orange-500/30', active: 'bg-orange-500/40 border-orange-400 text-orange-100' },
   };
 
   // The rental sport filters always available on rental pages
@@ -306,9 +308,9 @@ const AcademyServicePackagesPage = ({
         const insuranceRate = s.insuranceRate != null ? parseFloat(s.insuranceRate) : null;
         if (hoursNumeric < 24) {
           let friendlyLabel;
-          if (hoursNumeric === 1) friendlyLabel = 'Quick Session';
-          else if (hoursNumeric === 4) friendlyLabel = 'Half Day';
-          else if (hoursNumeric === 8) friendlyLabel = 'Full Day';
+          if (hoursNumeric === 1) friendlyLabel = t('outsider:servicePackages.auto.quickSession');
+          else if (hoursNumeric === 4) friendlyLabel = t('outsider:servicePackages.auto.halfDay');
+          else if (hoursNumeric === 8) friendlyLabel = t('outsider:servicePackages.auto.fullDay');
           else friendlyLabel = withSport(`${hoursNumeric}h Session`);
           if (isPackage) friendlyLabel = s.packageName || friendlyLabel;
           return {
@@ -330,7 +332,7 @@ const AcademyServicePackagesPage = ({
         if (hoursNumeric >= 168 && nearlyInteger(weeks) && weeks >= 1) {
           const w = Math.round(weeks);
           const wkLabel = w === 1 ? '1 week' : `${w} weeks`;
-          let label = w === 1 ? 'All inc one week rental' : withSport(`${w} weeks`);
+          let label = w === 1 ? t('outsider:servicePackages.auto.oneWeekAllInc') : withSport(t('outsider:servicePackages.auto.multiWeek', { count: w }));
           if (isPackage) label = s.packageName || label;
           return {
             hours: wkLabel,
@@ -422,18 +424,18 @@ const AcademyServicePackagesPage = ({
         imageRevision: imageRevisionFromRecord(first),
         description: first.description || `${displayName} — available in multiple durations.`,
         highlights: [
-          'Equipment included',
+          t('outsider:servicePackages.auto.equipmentIncluded'),
           `${items.length} duration option${items.length > 1 ? 's' : ''}`,
           discLabels.length > 1
             ? `Sports: ${discLabels.join(' · ')}`
             : discLabels[0]
               ? `Sport: ${discLabels[0]}`
-              : 'Multi-sport compatible',
-          'Daily safety checks',
-          'Book directly',
+              : t('outsider:servicePackages.auto.multiSport'),
+          t('outsider:servicePackages.auto.dailySafety'),
+          t('outsider:servicePackages.auto.bookDirectly'),
         ],
         isRentalCard: true,
-        durations: durations.length > 0 ? durations : [{ hours: '—', price: 0, label: 'Contact us', sessions: 'Flexible' }],
+        durations: durations.length > 0 ? durations : [{ hours: '—', price: 0, label: t('outsider:servicePackages.auto.contactUs'), sessions: t('outsider:servicePackages.auto.flexible') }],
         badges: [segment.toUpperCase(), ...discLabels],
       };
     }).filter(c => c.durations.length > 0);
@@ -705,8 +707,8 @@ const AcademyServicePackagesPage = ({
     }
     
     // Add generic helpful info
-    highlights.push('Book directly');
-    
+    highlights.push(t('outsider:servicePackages.auto.bookDirectly'));
+
     // Return first 5 highlights
     return highlights.slice(0, 5);
   };
@@ -761,7 +763,7 @@ const AcademyServicePackagesPage = ({
           price: pricePerNight,
           label: '1 Night',
           sessions: '1 night',
-          tag: 'Per Night',
+          tag: t('outsider:servicePackages.auto.perNight'),
         },
       ];
       seen.add(1);
@@ -777,7 +779,7 @@ const AcademyServicePackagesPage = ({
             price: Number(p.price) || pricePerNight * nights,
             label: p.name || `${nights} Nights`,
             sessions: `${nights} nights`,
-            tag: toTitle(p.packageType || p.package_type || 'Package'),
+            tag: toTitle(p.packageType || p.package_type || t('outsider:servicePackages.auto.packageFallback')),
           };
         })
         .filter(Boolean)
@@ -795,15 +797,15 @@ const AcademyServicePackagesPage = ({
         key: 'custom',
         nights: null,
         price: pricePerNight,
-        label: 'Custom',
-        sessions: 'Choose nights',
-        tag: 'Flexible',
+        label: t('outsider:servicePackages.auto.custom'),
+        sessions: t('outsider:servicePackages.auto.chooseNights'),
+        tag: t('outsider:servicePackages.auto.flexible'),
       });
 
       return {
         id: unit.id,
         name: unit.name,
-        subtitle: toTitle(unit.type || 'Accommodation'),
+        subtitle: toTitle(unit.type || t('outsider:servicePackages.auto.accommodation')),
         icon: <HomeOutlined />,
         featured: idx === 0,
         color: theme.color,
@@ -928,7 +930,7 @@ const AcademyServicePackagesPage = ({
           : (first.lessonServiceName || toTitle(serviceKey) || first.name),
         subtitle: isStayMode
           ? toTitle(first.packageType || first.package_type || 'Stay')
-          : (first.lessonCategoryTag ? toTitle(first.lessonCategoryTag) : 'Configured Package'),
+          : (first.lessonCategoryTag ? toTitle(first.lessonCategoryTag) : t('outsider:servicePackages.auto.configuredPackage')),
         icon: isStayMode ? <HomeOutlined /> : <RocketOutlined />,
         featured: idx === 0,
         color: theme.color,
@@ -938,21 +940,21 @@ const AcademyServicePackagesPage = ({
         image: resolveLessonCardImage(imageSource, serviceKey),
         imageRevision: imageRevisionFromRecord(imageSource),
         description: first.description || (isStayMode
-          ? `${first.accommodationUnitName || first.accommodation_unit_name || 'Accommodation'} available for booking.`
+          ? t('outsider:servicePackages.auto.availableForBooking', { name: first.accommodationUnitName || first.accommodation_unit_name || t('outsider:servicePackages.auto.accommodation') })
           : 'Structured lessons designed for progressive learning.'),
         highlights: isStayMode
           ? buildAccommodationHighlights(first)
           : [
-              'Equipment included',
-              first.levelTag ? `Level: ${toTitle(first.levelTag)}` : 'Progress-based sessions',
-              'Professional instruction',
-              'Flexible durations',
-              'Book directly'
+              t('outsider:servicePackages.auto.equipmentIncluded'),
+              first.levelTag ? t('outsider:servicePackages.auto.levelPrefix', { level: toTitle(first.levelTag) }) : t('outsider:servicePackages.auto.progressBased'),
+              t('outsider:servicePackages.auto.professionalInstruction'),
+              t('outsider:servicePackages.auto.flexibleDurations'),
+              t('outsider:servicePackages.auto.bookDirectly')
             ],
         durations: sortedDurations,
         badges: isStayMode
           ? [toTitle(first.packageType || first.package_type || 'Stay'), first.accommodationUnitType || 'Unit']
-          : [toTitle(first.lessonCategoryTag || 'Lesson'), toTitle(first.levelTag || 'Package')],
+          : [toTitle(first.lessonCategoryTag || t('outsider:servicePackages.auto.lessonFallback')), toTitle(first.levelTag || t('outsider:servicePackages.auto.packageFallback'))],
         lessonCategoryTag: normalize(first.lessonCategoryTag || '')
       };
     }).filter(Boolean);
@@ -1045,8 +1047,8 @@ const AcademyServicePackagesPage = ({
       lessonServiceName: s.name, 
       lessonServiceId: s.id, 
       disciplineTag: dTag,
-      lessonCategoryTag: s.lessonCategoryTag || s.category || 'Individual Lesson',
-      levelTag: s.levelTag || (s.level ? toTitle(s.level) : 'Single Session'),
+      lessonCategoryTag: s.lessonCategoryTag || s.category || t('outsider:servicePackages.auto.individualLesson'),
+      levelTag: s.levelTag || (s.level ? toTitle(s.level) : t('outsider:servicePackages.auto.singleSession')),
       includesLessons: true,
       imageUrl: s.imageUrl || s.image_url,
       updatedAt: s.updatedAt || s.updated_at,
@@ -1233,8 +1235,8 @@ const AcademyServicePackagesPage = ({
       closePackageDetailsModal();
       setStayModalVisible(false);
       openAuthModal({
-        title: 'Sign in to Book',
-        message: 'Create an account or sign in to book this service.',
+        title: t('outsider:servicePackages.authModal.title'),
+        message: t('outsider:servicePackages.authModal.message'),
         mode: 'register',
         returnUrl: window.location.pathname
       });
@@ -1537,7 +1539,7 @@ const AcademyServicePackagesPage = ({
         const days = parseFloat(ownedPkg.remainingRentalDays ?? ownedPkg.remaining_rental_days) || 0;
         const nights = parseFloat(ownedPkg.remainingAccommodationNights ?? ownedPkg.remaining_accommodation_nights) || 0;
         const parts = [hrs > 0 && `${hrs}h lessons`, days > 0 && `${days}d rental`, nights > 0 && `${nights}n stay`].filter(Boolean);
-        ownedHint = parts.length ? `${parts.join(' · ')} remaining` : 'Package owned';
+        ownedHint = parts.length ? `${parts.join(' · ')} ${t('outsider:servicePackages.auto.remaining')}` : t('outsider:servicePackages.auto.packageOwned');
       }
 
       return (
@@ -1618,7 +1620,7 @@ const AcademyServicePackagesPage = ({
                     : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
                 }`}
               >
-                All Services
+                {t('outsider:servicePackages.allServices')}
               </button>
               {RENTAL_DISCIPLINES.map(disc => {
                 const meta = DISCIPLINE_META[disc];
@@ -1650,14 +1652,14 @@ const AcademyServicePackagesPage = ({
         ) : displayPackages.length === 0 ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
             <h3 className="text-xl font-bold text-slate-900 mb-2">
-              {normalize(dynamicServiceKey).startsWith('stay') 
-                ? 'No accommodation units available' 
-                : 'No configured packages yet'}
+              {normalize(dynamicServiceKey).startsWith('stay')
+                ? t('outsider:servicePackages.emptyAccommodation.title')
+                : t('outsider:servicePackages.emptyPackages.title')}
             </h3>
             <p className="text-slate-500 max-w-2xl mx-auto">
               {normalize(dynamicServiceKey).startsWith('stay')
-                ? 'No accommodation units have been added to the system yet. Check back soon or contact us for availability.'
-                : 'This page only shows live packages configured in the admin panel for this discipline. Create lesson services and packages in Services → Lessons to publish them here.'}
+                ? t('outsider:servicePackages.emptyAccommodation.description')
+                : t('outsider:servicePackages.emptyPackages.description')}
             </p>
           </div>
         ) : (
@@ -1691,9 +1693,9 @@ const AcademyServicePackagesPage = ({
       {/* Contact Us Section */}
       <div className={`py-16 sm:py-20 ${pageBackgroundClass} border-t border-slate-200`}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-3 text-slate-900">Not sure which package is right for you?</h2>
+          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-3 text-slate-900">{t('outsider:servicePackages.faq.title')}</h2>
           <p className="text-slate-500 font-duotone-regular mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-            Our team is happy to help you pick the best option based on your experience level, goals, and schedule. Reach out — we don&apos;t bite.
+            {t('outsider:servicePackages.faq.description')}
           </p>
           <div className="flex justify-center">
             <Button
@@ -1703,7 +1705,7 @@ const AcademyServicePackagesPage = ({
               className="!h-12 !rounded-md font-duotone-bold !px-10 !text-base shadow-lg transition-transform hover:scale-[1.02] active:scale-95"
               style={{ backgroundColor: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
             >
-              Contact Us
+              {t('outsider:common.contactUs')}
             </Button>
           </div>
           <ContactOptionsBanner variant="light" />

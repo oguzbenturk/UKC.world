@@ -1,6 +1,7 @@
 // src/features/authentication/components/RegisterModal.jsx
 // Multi-step registration wizard: Account → Profile → Address
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -26,11 +27,11 @@ import { useAuth } from '@/shared/hooks/useAuth';
 
 const { Option } = Select;
 
-// ─── Step configuration ───
-const STEPS = [
-  { key: 'account', title: 'Account', subtitle: "Let's get you in!", icon: <UserOutlined /> },
-  { key: 'profile', title: 'Rider Profile', subtitle: 'Help us find the right gear for you', icon: <IdcardOutlined /> },
-  { key: 'address', title: 'Your Location', subtitle: 'Where should we ship your orders?', icon: <CompassOutlined /> },
+// ─── Step configuration (titles/subtitles resolved at render via i18n) ───
+const STEP_KEYS = [
+  { key: 'account', icon: <UserOutlined /> },
+  { key: 'profile', icon: <IdcardOutlined /> },
+  { key: 'address', icon: <CompassOutlined /> },
 ];
 
 // ─── Country codes ───
@@ -114,6 +115,7 @@ const COUNTRIES = [
 ];
 
 const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
+  const { t } = useTranslation(['public']);
   const [form] = Form.useForm();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -181,7 +183,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
   const goNext = async () => {
     try {
       await form.validateFields(stepFields[step]);
-      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+      setStep((s) => Math.min(s + 1, STEP_KEYS.length - 1));
     } catch {
       // validation errors shown automatically by antd
     }
@@ -214,9 +216,9 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
       // Auto-login after successful registration
       const loggedIn = await login(values.email.toLowerCase(), values.password);
       if (loggedIn) {
-        message.success(`Welcome, ${values.first_name}! Your account is ready.`);
+        message.success(t('public:register.success.welcome', { name: values.first_name }));
       } else {
-        message.success('Account created successfully! Please login.');
+        message.success(t('public:register.success.created'));
       }
 
       form.resetFields();
@@ -229,7 +231,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
       } else if (error.message === SIGN_IN_DISABLED_USER_MESSAGE) {
         message.info(SIGN_IN_DISABLED_USER_MESSAGE);
       } else {
-        const errorMessage = error.response?.data?.error || error.message || 'Registration failed';
+        const errorMessage = error.response?.data?.error || error.message || t('public:register.errors.generic');
         message.error(errorMessage);
       }
     } finally {
@@ -246,20 +248,20 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
       <div className="bg-gradient-to-br from-antrasit to-[#0f1013] p-7 pb-5">
         <div className="flex items-center gap-4 mb-4">
           <div className="w-12 h-12 rounded-xl bg-white/5 text-duotone-blue flex items-center justify-center text-2xl border border-white/10 shadow-inner">
-            {STEPS[step].icon}
+            {STEP_KEYS[step].icon}
           </div>
           <div>
-            <h2 className="font-duotone-bold-extended text-white text-xl m-0 leading-tight uppercase tracking-tight">{STEPS[step].title}</h2>
-            <p className="font-duotone-regular text-gray-400 text-xs m-0 mt-1">{STEPS[step].subtitle}</p>
+            <h2 className="font-duotone-bold-extended text-white text-xl m-0 leading-tight uppercase tracking-tight">{t(`public:register.steps.${STEP_KEYS[step].key}.title`)}</h2>
+            <p className="font-duotone-regular text-gray-400 text-xs m-0 mt-1">{t(`public:register.steps.${STEP_KEYS[step].key}.subtitle`)}</p>
           </div>
         </div>
         {/* Step progress bars */}
         <div className="flex gap-2">
-          {STEPS.map((s, i) => (
+          {STEP_KEYS.map((s, i) => (
             <div key={s.key} className={`flex-1 h-1 rounded-full transition-all duration-500 ${i <= step ? 'bg-duotone-blue' : 'bg-white/10'}`} />
           ))}
         </div>
-        <p className="font-duotone-regular text-gray-500 text-[10px] m-0 mt-3 text-right uppercase tracking-widest">Step {step + 1} of {STEPS.length}</p>
+        <p className="font-duotone-regular text-gray-500 text-[10px] m-0 mt-3 text-right uppercase tracking-widest">{t('public:register.stepIndicator', { current: step + 1, total: STEP_KEYS.length })}</p>
       </div>
 
       {/* Form body */}
@@ -270,12 +272,12 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
                 name="first_name"
-                label={lbl('First Name')}
-                rules={[{ required: true, message: 'Required' }]}
+                label={lbl(t('public:register.fields.firstName'))}
+                rules={[{ required: true, message: t('common:validation.required') }]}
               >
                 <Input
                   prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
-                  placeholder="John"
+                  placeholder={t('public:register.placeholders.firstName')}
                   autoComplete="given-name"
                   size="large"
                   className="rounded-lg"
@@ -283,12 +285,12 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               </Form.Item>
               <Form.Item
                 name="last_name"
-                label={lbl('Last Name')}
-                rules={[{ required: true, message: 'Required' }]}
+                label={lbl(t('public:register.fields.lastName'))}
+                rules={[{ required: true, message: t('common:validation.required') }]}
               >
                 <Input
                   prefix={<UserOutlined className="text-slate-400 dark:text-slate-500" />}
-                  placeholder="Doe"
+                  placeholder={t('public:register.placeholders.lastName')}
                   autoComplete="family-name"
                   size="large"
                   className="rounded-lg"
@@ -298,15 +300,15 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
             <Form.Item
               name="email"
-              label={lbl('Email Address')}
+              label={lbl(t('public:register.fields.email'))}
               rules={[
-                { required: true, message: 'Required' },
-                { type: 'email', message: 'Enter a valid email' },
+                { required: true, message: t('common:validation.required') },
+                { type: 'email', message: t('common:validation.email') },
               ]}
             >
               <Input
                 prefix={<MailOutlined className="text-slate-400 dark:text-slate-500" />}
-                placeholder="you@example.com"
+                placeholder={t('public:register.placeholders.email')}
                 autoComplete="email"
                 size="large"
                 className="rounded-lg"
@@ -315,13 +317,13 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
             <Form.Item
               name="password"
-              label={lbl('Password')}
+              label={lbl(t('public:register.fields.password'))}
               rules={[
-                { required: true, message: 'Required' },
-                { min: 8, message: 'Min 8 characters' },
+                { required: true, message: t('common:validation.required') },
+                { min: 8, message: t('public:register.validation.passwordMin') },
                 {
                   pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-                  message: 'Need uppercase, lowercase, number & special char (@$!%*?&)',
+                  message: t('public:register.validation.passwordPattern'),
                 },
               ]}
             >
@@ -349,10 +351,10 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                 if (/[@$!%*?&]/.test(pw)) score++;
                 
                 let pct = 0, label = '', color = '#d9d9d9';
-                if (score <= 2) { pct = 30; label = 'Weak'; color = '#ff4d4f'; }
-                else if (score <= 3) { pct = 55; label = 'Fair'; color = '#faad14'; }
-                else if (score <= 4) { pct = 80; label = 'Good'; color = '#1890ff'; }
-                else { pct = 100; label = 'Strong'; color = '#52c41a'; }
+                if (score <= 2) { pct = 30; label = t('public:register.strength.weak'); color = '#ff4d4f'; }
+                else if (score <= 3) { pct = 55; label = t('public:register.strength.fair'); color = '#faad14'; }
+                else if (score <= 4) { pct = 80; label = t('public:register.strength.good'); color = '#1890ff'; }
+                else { pct = 100; label = t('public:register.strength.strong'); color = '#52c41a'; }
 
                 return (
                   <div className="flex items-center gap-2">
@@ -375,14 +377,14 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
             <Form.Item
               name="confirm_password"
-              label={lbl('Confirm Password')}
+              label={lbl(t('public:register.fields.confirmPassword'))}
               dependencies={['password']}
               rules={[
-                { required: true, message: 'Required' },
+                { required: true, message: t('common:validation.required') },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('password') === value) return Promise.resolve();
-                    return Promise.reject(new Error('Passwords don\'t match'));
+                    return Promise.reject(new Error(t('public:register.validation.passwordsDontMatch')));
                   },
                 }),
               ]}
@@ -399,12 +401,12 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
 
           {/* ─── STEP 2: Rider Profile ─── */}
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
-            <Form.Item label={lbl('Phone Number')} required>
+            <Form.Item label={lbl(t('public:register.fields.phone'))} required>
               <Space.Compact className="flex !rounded-lg overflow-hidden w-full">
                 <Form.Item
                   name="country_code"
                   noStyle
-                  rules={[{ required: true, message: 'Required' }]}
+                  rules={[{ required: true, message: t('common:validation.required') }]}
                 >
                   <Select
                     style={{ width: 140 }}
@@ -426,13 +428,13 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                   name="phone"
                   noStyle
                   rules={[
-                    { required: true, message: 'Required' },
-                    { pattern: /^[0-9]{6,15}$/, message: 'Valid phone number needed' },
+                    { required: true, message: t('common:validation.required') },
+                    { pattern: /^[0-9]{6,15}$/, message: t('public:register.validation.phonePattern') },
                   ]}
                 >
                   <Input
                     prefix={<PhoneOutlined className="text-slate-400 dark:text-slate-500" />}
-                    placeholder="5xx xxx xxxx"
+                    placeholder={t('public:register.placeholders.phone')}
                     autoComplete="tel-national"
                     size="large"
                     style={{ width: 'calc(100% - 140px)' }}
@@ -445,9 +447,9 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
                 name="date_of_birth"
-                label={lbl('Date of Birth')}
+                label={lbl(t('public:register.fields.dob'))}
                 rules={[
-                  { required: true, message: 'Required' },
+                  { required: true, message: t('common:validation.required') },
                   () => ({
                     validator(_, value) {
                       if (!value) return Promise.resolve();
@@ -456,13 +458,13 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                       let calcAge = today.getFullYear() - dob.getFullYear();
                       const m = today.getMonth() - dob.getMonth();
                       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) calcAge--;
-                      if (calcAge < 10) return Promise.reject('Must be at least 10 years old');
-                      if (calcAge > 100) return Promise.reject('Please enter a valid date');
+                      if (calcAge < 10) return Promise.reject(t('public:register.validation.ageTooYoung'));
+                      if (calcAge > 100) return Promise.reject(t('public:register.validation.ageInvalid'));
                       return Promise.resolve();
                     }
                   })
                 ]}
-                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For safety guidelines</span>}
+                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>{t('public:register.hints.dob')}</span>}
               >
                 <DatePicker
                   placeholder="DD/MM/YYYY"
@@ -474,25 +476,25 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               </Form.Item>
               <Form.Item
                 name="weight"
-                label={lbl('Weight (kg)')}
+                label={lbl(t('public:register.fields.weight'))}
                 rules={[
-                  { required: true, message: 'Required' },
-                  { type: 'number', min: 30, max: 200, message: '30–200 kg' },
+                  { required: true, message: t('common:validation.required') },
+                  { type: 'number', min: 30, max: 200, message: t('public:register.validation.weightRange') },
                 ]}
-                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>For correct kite & board sizing</span>}
+                extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>{t('public:register.hints.weight')}</span>}
               >
-                <InputNumber placeholder="e.g. 70" className="w-full !rounded-lg" min={30} max={200} size="large" />
+                <InputNumber placeholder={t('public:register.placeholders.weight')} className="w-full !rounded-lg" min={30} max={200} size="large" />
               </Form.Item>
             </div>
 
             <Form.Item
               name="preferred_currency"
-              label={lbl('Preferred Currency')}
-              rules={[{ required: true, message: 'Required' }]}
-              extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>All prices and payments will be processed in this currency</span>}
+              label={lbl(t('public:register.fields.currency'))}
+              rules={[{ required: true, message: t('common:validation.required') }]}
+              extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>{t('public:register.hints.currency')}</span>}
             >
               <Select
-                placeholder="Select currency"
+                placeholder={t('public:register.placeholders.currency')}
                 suffixIcon={<DollarOutlined className="text-slate-400 dark:text-slate-500" />}
                 showSearch
                 size="large"
@@ -518,18 +520,18 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
           <div style={{ display: step === 2 ? 'block' : 'none' }}>
             <div className="mb-4 p-4 rounded-xl bg-duotone-blue/5 border border-duotone-blue/20">
               <p className="text-duotone-blue text-[11px] font-duotone-regular m-0 leading-relaxed">
-                <span className="mr-1">📦</span> Your address will be used as the default delivery address for shop orders. You can always change it at checkout.
+                <span className="mr-1">📦</span> {t('public:register.hints.shipping')}
               </p>
             </div>
 
             <Form.Item
               name="address"
-              label={lbl('Street Address')}
-              rules={[{ required: true, message: 'Required' }]}
+              label={lbl(t('public:register.fields.address'))}
+              rules={[{ required: true, message: t('common:validation.required') }]}
             >
               <Input
                 prefix={<EnvironmentOutlined className="text-slate-400 dark:text-slate-500" />}
-                placeholder="123 Beach Road, Apt 4"
+                placeholder={t('public:register.placeholders.address')}
                 autoComplete="street-address"
                 size="large"
                 className="rounded-lg"
@@ -539,27 +541,27 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
             <div className="grid grid-cols-2 gap-3">
               <Form.Item
                 name="city"
-                label={lbl('City')}
-                rules={[{ required: true, message: 'Required' }]}
+                label={lbl(t('public:register.fields.city'))}
+                rules={[{ required: true, message: t('common:validation.required') }]}
               >
-                <Input placeholder="e.g. Istanbul" autoComplete="address-level2" size="large" className="rounded-lg" />
+                <Input placeholder={t('public:register.placeholders.city')} autoComplete="address-level2" size="large" className="rounded-lg" />
               </Form.Item>
               <Form.Item
                 name="zip_code"
-                label={lbl('Postal / ZIP Code')}
-                rules={[{ required: true, message: 'Required' }]}
+                label={lbl(t('public:register.fields.zip'))}
+                rules={[{ required: true, message: t('common:validation.required') }]}
               >
-                <Input placeholder="e.g. 34000" autoComplete="postal-code" size="large" className="rounded-lg" />
+                <Input placeholder={t('public:register.placeholders.zip')} autoComplete="postal-code" size="large" className="rounded-lg" />
               </Form.Item>
             </div>
 
             <Form.Item
               name="country"
-              label={lbl('Country')}
-              rules={[{ required: true, message: 'Required' }]}
+              label={lbl(t('public:register.fields.country'))}
+              rules={[{ required: true, message: t('common:validation.required') }]}
             >
               <Select
-                placeholder="Select country"
+                placeholder={t('public:register.placeholders.country')}
                 showSearch
                 size="large"
                 className="[&_.ant-select-selector]:!rounded-lg"
@@ -586,26 +588,26 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               type="text"
               className="font-duotone-bold text-gray-400 hover:text-white flex items-center gap-2 border-0"
             >
-              BACK
+              {t('public:register.buttons.back')}
             </Button>
           ) : (
-            <Button 
-              onClick={handleClose} 
-              disabled={loading} 
-              size="large" 
+            <Button
+              onClick={handleClose}
+              disabled={loading}
+              size="large"
               className="font-duotone-bold text-gray-500 border-white/10 hover:border-white/20 hover:text-gray-400 bg-transparent rounded-xl"
             >
-              CANCEL
+              {t('public:register.buttons.cancel')}
             </Button>
           )}
 
-          {step < STEPS.length - 1 ? (
+          {step < STEP_KEYS.length - 1 ? (
             <button
               type="button"
               onClick={goNext}
               className="font-duotone-bold bg-antrasit border border-duotone-blue/30 text-duotone-blue py-2.5 px-8 rounded-xl hover:bg-[#525759] hover:border-duotone-blue/60 transition-all flex items-center gap-2 tracking-widest text-xs"
             >
-              CONTINUE <ArrowRightOutlined />
+              {t('public:register.buttons.continue')} <ArrowRightOutlined />
             </button>
           ) : (
             <button
@@ -614,7 +616,7 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               disabled={loading}
               className="font-duotone-bold bg-duotone-blue text-antrasit py-2.5 px-8 rounded-xl hover:bg-white transition-all flex items-center gap-2 tracking-widest text-xs shadow-lg shadow-duotone-blue/20"
             >
-              {loading ? 'CREATING...' : 'FINISH'} <CheckOutlined />
+              {loading ? t('public:register.buttons.creating') : t('public:register.buttons.finish')} <CheckOutlined />
             </button>
           )}
         </div>

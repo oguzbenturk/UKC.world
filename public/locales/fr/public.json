@@ -1,0 +1,158 @@
+{
+  "_meta": { "ai_drafted": true, "reviewed": false },
+  "brand": {
+    "name": "Duotone Pro Center Urla"
+  },
+  "login": {
+    "title": "Connexion Membre",
+    "welcome": "Bienvenue à nouveau chez {{brand}}.",
+    "emailLabel": "Adresse e-mail",
+    "emailPlaceholder": "nom@exemple.com",
+    "passwordLabel": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "rememberMe": "Rester connecté",
+    "signIn": "SE CONNECTER",
+    "mobileNoAccount": "Vous n'avez pas de compte ?",
+    "createAccountLink": "Créer un compte",
+    "rightTagline": "Expertise. Excellence. Expérience.",
+    "rightQuote": "Rejoignez la communauté de sports nautiques de premier plan à Urla. Accédez à votre progression, réservez des sessions et gérez votre adhésion avec UKC.",
+    "rightNewHere": "Nouveau ici ?",
+    "rightCreateCta": "CRÉER UN COMPTE",
+    "features": {
+      "dashboard": "Analyse du tableau de bord",
+      "lessons": "Réservation de cours",
+      "rentals": "Location d'équipement",
+      "finance": "Suivi financier",
+      "community": "Gestion de la communauté"
+    },
+    "errors": {
+      "enterEmail": "Veuillez saisir votre adresse e-mail",
+      "enterPassword": "Veuillez saisir votre mot de passe",
+      "incorrect": "E-mail ou mot de passe incorrect.",
+      "networkError": "Impossible de joindre le serveur. Vérifiez votre connexion.",
+      "sessionExpired": "Session expirée. Veuillez vous reconnecter.",
+      "genericFailed": "Échec de la connexion. Veuillez réessayer."
+    }
+  },
+  "register": {
+    "steps": {
+      "account": { "title": "Compte", "subtitle": "Mettons-vous en route !" },
+      "profile": { "title": "Profil Rider", "subtitle": "Aidez-nous à trouver le bon équipement" },
+      "address": { "title": "Votre localisation", "subtitle": "Où devons-nous livrer vos commandes ?" }
+    },
+    "stepIndicator": "Étape {{current}} sur {{total}}",
+    "fields": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "phone": "Numéro de téléphone",
+      "dob": "Date de naissance",
+      "weight": "Poids (kg)",
+      "currency": "Devise préférée",
+      "address": "Adresse",
+      "city": "Ville",
+      "zip": "Code postal",
+      "country": "Pays"
+    },
+    "placeholders": {
+      "firstName": "Jean",
+      "lastName": "Dupont",
+      "email": "vous@exemple.com",
+      "phone": "6xx xxx xxx",
+      "weight": "ex. 70",
+      "currency": "Sélectionnez une devise",
+      "address": "123 Rue de la Plage, Apt 4",
+      "city": "ex. Paris",
+      "zip": "ex. 75001",
+      "country": "Sélectionnez un pays"
+    },
+    "hints": {
+      "dob": "Pour les consignes de sécurité",
+      "weight": "Pour le bon dimensionnement kite et planche",
+      "currency": "Tous les prix et paiements seront traités dans cette devise",
+      "shipping": "Votre adresse sera utilisée comme adresse de livraison par défaut pour les commandes de la boutique. Vous pouvez toujours la modifier au moment du paiement."
+    },
+    "strength": { "weak": "Faible", "fair": "Moyen", "good": "Bon", "strong": "Fort" },
+    "validation": {
+      "passwordMin": "8 caractères min.",
+      "passwordPattern": "Majuscule, minuscule, chiffre et caractère spécial requis (@$!%*?&)",
+      "passwordsDontMatch": "Les mots de passe ne correspondent pas",
+      "phonePattern": "Numéro de téléphone valide requis",
+      "ageTooYoung": "Vous devez avoir au moins 10 ans",
+      "ageInvalid": "Veuillez saisir une date valide",
+      "weightRange": "30–200 kg"
+    },
+    "buttons": {
+      "cancel": "ANNULER",
+      "back": "RETOUR",
+      "continue": "CONTINUER",
+      "finish": "TERMINER",
+      "creating": "CRÉATION..."
+    },
+    "success": {
+      "welcome": "Bienvenue, {{name}} ! Votre compte est prêt.",
+      "created": "Compte créé avec succès ! Veuillez vous connecter."
+    },
+    "errors": { "generic": "Échec de l'inscription" }
+  },
+  "forgotPassword": {
+    "title": "Mot de passe oublié ?",
+    "subtitle": "Saisissez votre e-mail, nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "emailLabel": "Adresse e-mail",
+    "emailPlaceholder": "nom@exemple.com",
+    "send": "ENVOYER LE LIEN",
+    "sending": "ENVOI...",
+    "backToLogin": "RETOUR À LA CONNEXION",
+    "rateLimited": "Trop de requêtes. Veuillez patienter avant de réessayer.",
+    "invalidEmail": "Veuillez saisir une adresse e-mail valide",
+    "sent": {
+      "title": "Vérifiez votre e-mail",
+      "body": "Si un compte existe avec <strong>{{email}}</strong>, vous recevrez un lien de réinitialisation sous peu.",
+      "didntReceive": "Pas reçu ?",
+      "didntReceiveBody": "Vérifiez votre dossier spam ou assurez-vous d'avoir saisi la bonne adresse. Le lien expire dans 1 heure.",
+      "returnLogin": "RETOUR À LA CONNEXION"
+    }
+  },
+  "resetPassword": {
+    "validating": "Validation de votre lien de réinitialisation...",
+    "title": "Réinitialiser le mot de passe",
+    "subtitle": "Saisissez un nouveau mot de passe pour <strong>{{email}}</strong>",
+    "fields": {
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le mot de passe"
+    },
+    "requirementsTitle": "Exigences :",
+    "requirementLength": "Au moins 8 caractères",
+    "requirementStrong": "Choisissez un mot de passe fort et unique",
+    "submit": "RÉINITIALISER",
+    "submitting": "RÉINITIALISATION...",
+    "cancelReturn": "ANNULER ET RETOUR",
+    "successToast": "Mot de passe réinitialisé avec succès !",
+    "success": {
+      "title": "Succès !",
+      "body": "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
+      "goLogin": "ALLER À LA CONNEXION"
+    },
+    "invalid": {
+      "title": "Lien invalide",
+      "defaultBody": "Ce lien de réinitialisation a expiré ou est invalide.",
+      "expiry": "Les liens de réinitialisation expirent après 1 heure pour des raisons de sécurité.",
+      "requestNew": "DEMANDER UN NOUVEAU LIEN",
+      "return": "RETOUR À LA CONNEXION"
+    },
+    "errors": {
+      "invalidLink": "Lien de réinitialisation invalide. Veuillez en demander un nouveau.",
+      "expiredLink": "Ce lien de réinitialisation a expiré ou est invalide. Veuillez en demander un nouveau.",
+      "validateFailed": "Impossible de valider le lien. Veuillez réessayer plus tard.",
+      "resetFailed": "Échec de la réinitialisation. Veuillez réessayer.",
+      "resetGenericFailed": "Impossible de réinitialiser le mot de passe. Veuillez réessayer plus tard.",
+      "passwordsMismatch": "Les mots de passe ne correspondent pas",
+      "passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères",
+      "enterPassword": "Veuillez saisir un nouveau mot de passe",
+      "confirmRequired": "Veuillez confirmer votre mot de passe",
+      "passwordMinValidation": "Le mot de passe doit comporter au moins 8 caractères"
+    }
+  }
+}

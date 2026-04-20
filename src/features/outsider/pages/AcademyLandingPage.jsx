@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
 import {
   RocketOutlined,
@@ -23,19 +24,26 @@ import { AcademyBrandLockup } from '@/features/outsider/components/AcademyBrandL
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
-const ACADEMY_NAV_ITEMS = [
-  { id: 'kite-section', label: 'KITE' },
-  { id: 'foil-section', label: 'FOIL' },
-  { id: 'wing-section', label: 'WING' },
-  { id: 'efoil-section', label: 'E-FOIL' },
-  { id: 'premium-section', label: 'PREMIUM', shortLabel: 'VIP' },
+const ACADEMY_NAV_KEYS = [
+  { id: 'kite-section', key: 'kite' },
+  { id: 'foil-section', key: 'foil' },
+  { id: 'wing-section', key: 'wing' },
+  { id: 'efoil-section', key: 'efoil' },
+  { id: 'premium-section', key: 'premium', shortKey: 'premiumShort' },
 ];
 
 const AcademyLandingPage = () => {
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [activeSection, setActiveSection] = useState('kite-section');
   const [imagesLoaded, setImagesLoaded] = useState({});
+
+  const academyNavItems = ACADEMY_NAV_KEYS.map((n) => ({
+    id: n.id,
+    label: t(`outsider:academy.nav.${n.key}`),
+    ...(n.shortKey ? { shortLabel: t(`outsider:academy.nav.${n.shortKey}`) } : {}),
+  }));
 
   usePageSEO({
     title: 'Kite Lessons | UKC Academy',
@@ -69,7 +77,7 @@ const AcademyLandingPage = () => {
       <StickyNavBar
         className="sticky top-0 z-50"
         bgColor="bg-[#0d1511]"
-        items={ACADEMY_NAV_ITEMS}
+        items={academyNavItems}
         activeItem={activeSection}
         onItemClick={(id) => scrollToSection(id)}
       />
@@ -131,13 +139,13 @@ const AcademyLandingPage = () => {
 
           <div className="relative z-10 flex w-full max-w-7xl flex-grow flex-col justify-center mx-auto px-4 py-24 sm:px-6 md:py-32 lg:px-8">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight leading-tight text-white drop-shadow-xl mb-4">
-              KITE LESSONS
+              {t('outsider:academy.sections.kite.title')}
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-4 drop-shadow leading-tight">
-              Start your kitesurfing journey — or take it to the next level.
+              {t('outsider:academy.sections.kite.tagline')}
             </p>
             <p className="text-sm sm:text-base font-duotone-regular text-white max-w-lg leading-relaxed">
-              From your very first kite to carving waves and chasing jumps, our IKO-certified instructors tailor every lesson to your pace. Beginners, improvers, and advanced riders all welcome.
+              {t('outsider:academy.sections.kite.description')}
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -147,7 +155,7 @@ const AcademyLandingPage = () => {
                 className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
                 onClick={() => navigate('/academy/kite-lessons')}
               >
-                Discover Kite Lessons
+                {t('outsider:academy.sections.kite.cta')}
               </Button>
             </div>
           </div>
@@ -179,13 +187,13 @@ const AcademyLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex w-full max-w-7xl flex-grow flex-col justify-center mx-auto px-4 py-24 sm:px-6 md:py-32 lg:px-8">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-4 tracking-tight leading-tight text-white drop-shadow-xl">
-            WING FOILING
+            {t('outsider:academy.sections.wing.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-4 drop-shadow leading-tight">
-            The fastest growing watersport in the world — and easier than you think.
+            {t('outsider:academy.sections.wing.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white max-w-lg leading-relaxed">
-            Combine the simplicity of a handheld wing with the magic of foiling. Our coaches will have you gliding silently above the water in just a few sessions, no prior experience needed.
+            {t('outsider:academy.sections.wing.description')}
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -195,7 +203,7 @@ const AcademyLandingPage = () => {
               className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
               onClick={() => navigate('/academy/wing-lessons')}
             >
-              Discover Wing Foiling
+              {t('outsider:academy.sections.wing.cta')}
             </Button>
           </div>
         </div>
@@ -224,13 +232,13 @@ const AcademyLandingPage = () => {
 
         <div className="relative z-10 flex w-full max-w-7xl flex-grow flex-col justify-center mx-auto px-4 py-24 sm:px-6 md:py-32 lg:px-8">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-4 tracking-tight leading-tight text-white drop-shadow-xl">
-            KITE FOILING
+            {t('outsider:academy.sections.foil.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-4 drop-shadow leading-tight">
-            Take your kiting to new heights — literally.
+            {t('outsider:academy.sections.foil.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white max-w-lg leading-relaxed">
-            Already comfortable on a kite? Kite foiling unlocks a whole new dimension — near-silent flight, incredible upwind performance, and speeds that will blow your mind. Built for experienced kiters ready to push their progression.
+            {t('outsider:academy.sections.foil.description')}
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -240,7 +248,7 @@ const AcademyLandingPage = () => {
               className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
               onClick={() => navigate('/academy/foil-lessons')}
             >
-              Discover Kite Foiling
+              {t('outsider:academy.sections.foil.cta')}
             </Button>
           </div>
         </div>
@@ -269,13 +277,13 @@ const AcademyLandingPage = () => {
 
         <div className="relative z-10 flex w-full max-w-7xl flex-grow flex-col justify-center mx-auto px-4 py-24 sm:px-6 md:py-32 lg:px-8">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-duotone-bold-extended mb-4 tracking-tight leading-tight text-white drop-shadow-xl">
-            E-FOILING
+            {t('outsider:academy.sections.efoil.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-4 drop-shadow leading-tight">
-            No wind? No problem. Pure electric flight.
+            {t('outsider:academy.sections.efoil.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white max-w-lg leading-relaxed">
-            Experience the sensation of flying above the water on our Fliteboard e-foils — powered by a whisper-quiet electric motor. Zero wind required, zero prior experience needed. If you can balance, you can fly.
+            {t('outsider:academy.sections.efoil.description')}
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -285,7 +293,7 @@ const AcademyLandingPage = () => {
               className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
               onClick={() => navigate('/academy/efoil-lessons')}
             >
-              Discover E-Foiling
+              {t('outsider:academy.sections.efoil.cta')}
             </Button>
           </div>
         </div>
@@ -314,13 +322,13 @@ const AcademyLandingPage = () => {
 
         <div className="relative z-10 flex w-full max-w-7xl flex-grow flex-col justify-center mx-auto px-4 py-24 sm:px-6 md:py-32 lg:px-8">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended mb-4 tracking-tight leading-tight text-white drop-shadow-xl">
-            PREMIUM LESSONS
+            {t('outsider:academy.sections.premium.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-4 drop-shadow leading-tight">
-            Private coaching. Exclusive experience. Rapid results.
+            {t('outsider:academy.sections.premium.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white max-w-lg leading-relaxed">
-            Our Premium packages pair you with our most experienced instructors for fully personalized, one-on-one sessions. Whether you're fast-tracking your progression or simply want the best possible experience on the water — this is it.
+            {t('outsider:academy.sections.premium.description')}
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -330,7 +338,7 @@ const AcademyLandingPage = () => {
               className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
               onClick={() => navigate('/academy/premium-lessons')}
             >
-              Discover Premium Lessons
+              {t('outsider:academy.sections.premium.cta')}
             </Button>
           </div>
         </div>
@@ -341,10 +349,10 @@ const AcademyLandingPage = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-3xl sm:text-4xl font-duotone-bold-extended mb-4 tracking-tight leading-tight text-white">
-              Have Questions?
+              {t('outsider:academy.faq.title')}
             </h2>
             <p className="mb-6 font-duotone-regular text-lg leading-relaxed text-gray-400 sm:text-xl">
-              Not sure which package is right for you? Our team is here to help plan your kiteboarding journey.
+              {t('outsider:academy.faq.description')}
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row sm:gap-8">
               <Button
@@ -352,7 +360,7 @@ const AcademyLandingPage = () => {
                 size="large"
                 className="!bg-[#1a1d26] !text-white !border-white/10 hover:!border-white/30 font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg drop-shadow hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto"
               >
-                Read FAQ
+                {t('outsider:common.readFaq')}
               </Button>
               <Button
                 type="primary"
@@ -360,7 +368,7 @@ const AcademyLandingPage = () => {
                 className="bg-[#4b4f54] hover:!bg-[#4b4f54] text-[#00a8c4] hover:!text-[#00a8c4] font-duotone-bold !h-12 sm:!h-14 !px-8 sm:!px-10 !text-base sm:!text-lg !rounded-lg shadow-xl shadow-emerald-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-150 w-full sm:w-auto border-none"
                 onClick={() => navigate('/contact')}
               >
-                Contact Us
+                {t('outsider:common.contactUs')}
               </Button>
             </div>
             <ContactOptionsBanner />

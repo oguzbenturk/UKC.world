@@ -12,6 +12,7 @@ import { getConsentStatus, LATEST_TERMS_VERSION } from '../services/userConsentS
 import { requestPasswordReset, validateResetToken, resetPassword } from '../services/passwordResetService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
+import { ERROR_CODES } from '../shared/errorCodes.js';
 
 const router = express.Router();
 
@@ -63,7 +64,10 @@ router.post('/login', authRateLimit, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+    return res.status(400).json({
+      error: 'Email and password are required',
+      code: ERROR_CODES.AUTH_CREDENTIALS_REQUIRED,
+    });
   }
 
   if (isAuthCreationDisabled()) {
@@ -86,7 +90,10 @@ router.post('/login', authRateLimit, async (req, res) => {
     if (userResult.rows.length === 0) {
       // Log failed login attempt
       await logSecurityEvent(null, 'failed_login_invalid_user', req, { email });
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'Invalid email or password',
+        code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      });
     }
 
     const user = userResult.rows[0];
@@ -98,9 +105,10 @@ router.post('/login', authRateLimit, async (req, res) => {
       
       if (new Date() < unlockTime) {
         await logSecurityEvent(user.id, 'login_attempt_locked_account', req);
-        return res.status(423).json({ 
+        return res.status(423).json({
           error: 'Account is temporarily locked due to multiple failed login attempts',
-          unlockTime: unlockTime.toISOString()
+          code: ERROR_CODES.AUTH_ACCOUNT_LOCKED,
+          unlockTime: unlockTime.toISOString(),
         });
       } else {
         // Unlock account if lock period has expired
@@ -119,7 +127,10 @@ router.post('/login', authRateLimit, async (req, res) => {
     // Check account expiration
     if (user.account_expired_at && new Date(user.account_expired_at) < new Date()) {
       await logSecurityEvent(user.id, 'login_attempt_expired_account', req);
-      return res.status(423).json({ error: 'Account has expired' });
+      return res.status(423).json({
+        error: 'Account has expired',
+        code: ERROR_CODES.AUTH_ACCOUNT_EXPIRED,
+      });
     }
 
     // Compare password
@@ -150,13 +161,17 @@ router.post('/login', authRateLimit, async (req, res) => {
       });
 
       if (shouldLock) {
-        return res.status(423).json({ 
+        return res.status(423).json({
           error: 'Account locked due to multiple failed login attempts',
-          lockDuration: ACCOUNT_LOCK_DURATION
+          code: ERROR_CODES.AUTH_ACCOUNT_LOCKED,
+          lockDuration: ACCOUNT_LOCK_DURATION,
         });
       }
 
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'Invalid email or password',
+        code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      });
     }
 
     // Check if 2FA is enabled
@@ -187,7 +202,10 @@ router.post('/login', authRateLimit, async (req, res) => {
 
   } catch (err) {
     logger.error('Login failed', err);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({
+      error: 'Login failed',
+      code: ERROR_CODES.AUTH_LOGIN_FAILED,
+    });
   }
 });
 
@@ -200,26 +218,38 @@ export const authenticateJWT = async (req, res, next) => {
   const token = bearerToken || cookieToken;
   
   if (!token) {
-    return res.status(401).json({ error: 'Access denied. No token provided.' });
+    return res.status(401).json({
+      error: 'Access denied. No token provided.',
+      code: ERROR_CODES.AUTH_TOKEN_MISSING,
+    });
   }
   
   try {
     const verified = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
     if (!verified || !verified.id) {
-      return res.status(401).json({ error: 'Invalid token format' });
+      return res.status(401).json({
+        error: 'Invalid token format',
+        code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      });
     }
 
     // Reject temporary 2FA tokens — they must not be used as full session tokens
     if (verified.temp2fa) {
-      return res.status(401).json({ error: 'Two-factor authentication required.' });
+      return res.status(401).json({
+        error: 'Two-factor authentication required.',
+        code: ERROR_CODES.AUTH_2FA_REQUIRED,
+      });
     }
-    
+
     // SEC-007: Check if token is blacklisted (revoked)
     if (verified.jti) {
       const isBlacklisted = await cacheService.exists(`blacklist:${verified.jti}`);
       if (isBlacklisted) {
-        return res.status(401).json({ error: 'Token has been revoked. Please log in again.' });
+        return res.status(401).json({
+          error: 'Token has been revoked. Please log in again.',
+          code: ERROR_CODES.AUTH_TOKEN_REVOKED,
+        });
       }
     }
 
@@ -246,12 +276,21 @@ export const authenticateJWT = async (req, res, next) => {
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token has expired. Please log in again.' });
+      return res.status(401).json({
+        error: 'Token has expired. Please log in again.',
+        code: ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      });
     } else if (err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Invalid token. Please log in again.' });
+      return res.status(401).json({
+        error: 'Invalid token. Please log in again.',
+        code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      });
     }
-    
-    return res.status(401).json({ error: 'Authentication failed. Please log in again.' });
+
+    return res.status(401).json({
+      error: 'Authentication failed. Please log in again.',
+      code: ERROR_CODES.AUTH_TOKEN_INVALID,
+    });
   }
 };
 

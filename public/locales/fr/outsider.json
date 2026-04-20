@@ -1,0 +1,485 @@
+{
+  "_meta": { "ai_drafted": true, "reviewed": false },
+  "common": {
+    "viewDetails": "Voir les détails",
+    "readFaq": "Lire la FAQ",
+    "contactUs": "Nous contacter"
+  },
+  "landing": {
+    "sectionLabel": "Nos services",
+    "description": "De l'équipement aux cours, des réparations aux séjours, tout ce qu'il vous faut pour votre aventure nautique à <urla>Urla</urla>. Revendeur <duotone>Duotone</duotone>, académie certifiée professionnelle, locations premium, entretien d'équipement, belles options d'hébergement et une communauté de riders active — tout au même endroit.",
+    "established": "Depuis 2016 · Urla · Égée",
+    "ctaTitle": "Profitez de votre session avec UKC.",
+    "ctaSubtitle": "Prêt à rider ?",
+    "bookLesson": "RÉSERVER UN COURS",
+    "browseShop": "PARCOURIR LA BOUTIQUE",
+    "discover": "Découvrir",
+    "services": {
+      "shop": { "title": "Boutique", "tagline": "Revendeur Officiel Duotone", "subItems": ["Kitesurf", "Wing Foil", "E-Foil", "Combinaisons", "ION ACCS", "SecondWind"] },
+      "academy": { "title": "Académie", "tagline": "Instructeurs certifiés IKO", "subItems": ["Cours de Kite", "Cours de Foil", "Cours de Wing", "E-Foil", "Premium"] },
+      "rentals": { "title": "Locations", "tagline": "Équipement Premium", "subItems": ["Pack Complet", "Kiteboard Seul", "Combinaison", "Harnais & Barre", "E-Foil"] },
+      "membership": { "title": "Adhésion", "tagline": "Avantages Exclusifs", "subItems": ["Installations de plage", "WIFI", "Toilettes de plage", "Douches", "Compresseurs", "Aide au décollage et à l'atterrissage", "Et bien plus..."] },
+      "care": { "title": "Entretien", "tagline": "Toutes marques bienvenues", "subItems": ["Réparation de Kite", "Réparation de Board", "Barre & Lignes", "Service complet"] },
+      "stay": { "title": "Hébergement", "tagline": "Vivre en bord de mer", "subItems": ["Ferme avec piscine", "Studios dans l'oliveraie"] },
+      "experience": { "title": "Expérience", "tagline": "L'aventure vous attend", "subItems": ["Packages Kite", "Packages Wing", "DownWinders", "Stages"] },
+      "community": { "title": "Communauté", "tagline": "Rejoignez la tribu", "subItems": ["Chat en direct", "Événements & rencontres", "Communauté de riders"] }
+    }
+  },
+  "academy": {
+    "nav": { "kite": "KITE", "foil": "FOIL", "wing": "WING", "efoil": "E-FOIL", "premium": "PREMIUM", "premiumShort": "VIP" },
+    "sections": {
+      "kite": {
+        "title": "COURS DE KITE",
+        "tagline": "Commencez votre aventure kitesurf — ou passez au niveau supérieur.",
+        "description": "De votre toute première aile jusqu'aux vagues et aux sauts, nos instructeurs certifiés IKO adaptent chaque cours à votre rythme. Débutants, progressants et riders confirmés, bienvenue à tous.",
+        "cta": "Découvrir les cours de Kite"
+      },
+      "wing": {
+        "title": "WING FOIL",
+        "tagline": "Le sport nautique qui explose — et plus facile qu'il n'y paraît.",
+        "description": "Combinez la simplicité d'une aile portée à la main avec la magie du foil. Nos coachs vous feront glisser en silence au-dessus de l'eau en quelques sessions, aucune expérience préalable requise.",
+        "cta": "Découvrir le Wing Foil"
+      },
+      "foil": {
+        "title": "KITE FOIL",
+        "tagline": "Passez votre kite au niveau supérieur — littéralement.",
+        "description": "Vous êtes à l'aise en kite ? Le kite foil ouvre une toute nouvelle dimension — vol quasi silencieux, performances au près incroyables et vitesses époustouflantes. Conçu pour les kiters expérimentés prêts à progresser.",
+        "cta": "Découvrir le Kite Foil"
+      },
+      "efoil": {
+        "title": "E-FOIL",
+        "tagline": "Pas de vent ? Pas de problème. Vol électrique pur.",
+        "description": "Vivez la sensation de voler au-dessus de l'eau sur nos Fliteboard e-foils — propulsés par un moteur électrique ultra silencieux. Aucun vent requis, aucune expérience nécessaire. Si vous tenez en équilibre, vous volerez.",
+        "cta": "Découvrir le E-Foil"
+      },
+      "premium": {
+        "title": "COURS PREMIUM",
+        "tagline": "Coaching privé. Expérience exclusive. Résultats rapides.",
+        "description": "Nos formules Premium vous associent à nos instructeurs les plus expérimentés pour des sessions entièrement personnalisées en tête-à-tête. Pour accélérer votre progression ou simplement vivre la meilleure expérience possible sur l'eau.",
+        "cta": "Découvrir les cours Premium"
+      }
+    },
+    "faq": {
+      "title": "Des questions ?",
+      "description": "Vous ne savez pas quelle formule vous convient ? Notre équipe est là pour vous aider à planifier votre aventure kitesurf."
+    }
+  },
+  "servicePackages": {
+    "allServices": "Tous les services",
+    "emptyAccommodation": {
+      "title": "Aucun hébergement disponible",
+      "description": "Aucun hébergement n'a encore été ajouté au système. Revenez bientôt ou contactez-nous pour la disponibilité."
+    },
+    "emptyPackages": {
+      "title": "Aucun package configuré pour le moment",
+      "description": "Cette page n'affiche que les packages configurés dans le panneau d'administration pour cette discipline. Créez des services et packages dans Services → Cours pour les publier ici."
+    },
+    "faq": {
+      "title": "Vous ne savez pas quel package vous convient ?",
+      "description": "Notre équipe se fera un plaisir de vous aider à choisir la meilleure option selon votre niveau, vos objectifs et votre emploi du temps. Contactez-nous — on ne mord pas."
+    },
+    "disciplines": {
+      "kite": "Kitesurf",
+      "wing": "Wing Foil",
+      "kite_foil": "Kite Foil",
+      "accessory": "Accessoires"
+    },
+    "card": {
+      "from": "À PARTIR DE",
+      "owned": "POSSÉDÉ",
+      "activePackage": "Package actif",
+      "noImage": "Aucune image",
+      "session": "SESSION",
+      "lesson": "COURS",
+      "bundle": "BUNDLE",
+      "package": "PACKAGE"
+    },
+    "authModal": {
+      "title": "Connectez-vous pour réserver",
+      "message": "Créez un compte ou connectez-vous pour réserver ce service."
+    },
+    "auto": {
+      "quickSession": "Session rapide",
+      "halfDay": "Demi-journée",
+      "fullDay": "Journée complète",
+      "oneWeekAllInc": "Location tout compris 1 semaine",
+      "multiWeek": "{{count}} semaines",
+      "equipmentIncluded": "Équipement inclus",
+      "multiSport": "Multisport compatible",
+      "dailySafety": "Contrôles de sécurité quotidiens",
+      "bookDirectly": "Réservation directe",
+      "contactUs": "Contactez-nous",
+      "flexible": "Flexible",
+      "custom": "Personnalisé",
+      "chooseNights": "Choisissez les nuits",
+      "perNight": "Par nuit",
+      "accommodation": "Hébergement",
+      "configuredPackage": "Package configuré",
+      "availableForBooking": "{{name}} disponible à la réservation.",
+      "progressBased": "Sessions progressives",
+      "professionalInstruction": "Encadrement professionnel",
+      "flexibleDurations": "Durées flexibles",
+      "individualLesson": "Cours individuel",
+      "singleSession": "Session unique",
+      "lessonFallback": "Cours",
+      "packageFallback": "Package",
+      "packageOwned": "Package possédé",
+      "remaining": "restant",
+      "levelPrefix": "Niveau : {{level}}"
+    }
+  },
+  "academyKite": {
+    "hero": {
+      "pretitle": "Académie",
+      "title": "Cours",
+      "titleAccent": "de Kite",
+      "subtitle": "Choisissez votre parcours d'apprentissage idéal. Du débutant total au coaching pro, notre équipe expérimentée est prête."
+    },
+    "popular": "POPULAIRE",
+    "startingFrom": "À partir de",
+    "modal": {
+      "whatsIncluded": "Ce qui est inclus",
+      "chooseDuration": "Choisir la durée",
+      "totalPrice": "Prix total",
+      "perPersonShort": "/pers",
+      "perPerson": "par personne",
+      "bookNow": "Réserver",
+      "securityNote": "Aucun paiement aujourd'hui. Réservez votre place maintenant."
+    },
+    "faq": {
+      "title": "Vous ne savez pas quel package vous convient ?",
+      "description": "Notre équipe se fera un plaisir de vous aider à choisir la meilleure option selon votre niveau, vos objectifs et votre emploi du temps. Contactez-nous — on ne mord pas.",
+      "readFaq": "Lire la FAQ",
+      "contactUs": "Nous contacter"
+    },
+    "packages": {
+      "beginner": {
+        "name": "Débutant Privé",
+        "subtitle": "Cours individuel",
+        "description": "La façon la plus rapide d'apprendre. Bénéficiez d'une attention 100 % personnalisée d'un instructeur dédié, entièrement concentré sur votre rythme et votre confort.",
+        "highlights": ["Instructeur privé dédié", "Communication casque radio", "Dernier équipement Duotone inclus", "Plan de progression personnalisé", "Suivi progressif étape par étape", "Débriefing personnel"],
+        "badges": ["Focus privé", "Casque radio"],
+        "durations": [
+          { "label": "Intro", "sessions": "2 x 2h", "tag": "Basique" },
+          { "label": "Standard", "sessions": "3 x 2h", "tag": "Populaire" },
+          { "label": "Plus", "sessions": "4 x 2h", "tag": "Recommandé" },
+          { "label": "Pro", "sessions": "5 x 2h", "tag": "Meilleure offre" }
+        ]
+      },
+      "group": {
+        "name": "Cours en groupe",
+        "subtitle": "Semi-privé (2 élèves)",
+        "description": "Apprenez avec un ami ou rencontrez un nouveau partenaire de kite ! Ce format semi-privé offre un parfait équilibre entre instruction et temps de repos/observation.",
+        "highlights": ["Max 2 élèves par instructeur", "Kite et board partagés", "Apprenez en observant", "Ambiance sociale", "Tarif plus accessible", "Équipement complet inclus"],
+        "badges": ["Best-seller", "Fun social"],
+        "durations": [
+          { "label": "Intro", "sessions": "2 x 2h", "tag": "Démarrage" },
+          { "label": "Standard", "sessions": "3 x 2h", "tag": "Populaire" },
+          { "label": "Plus", "sessions": "4 x 2h", "tag": "Valeur" },
+          { "label": "Pro", "sessions": "5 x 2h", "tag": "Complet" }
+        ]
+      },
+      "advanced": {
+        "name": "Coaching avancé",
+        "subtitle": "Niveau pro",
+        "description": "Vous ridez déjà ? Passez au niveau supérieur avec nos instructeurs seniors. Maîtrisez sauts, transitions, tricks unhooked ou surf de vague.",
+        "highlights": ["Instructeur senior niveau 3", "Retour performance avancé", "Feuille de route progression tricks", "Support downwinder", "Préparation compétition", "Clinic de réglage équipement"],
+        "badges": ["Réservé experts", "Coaching progression"],
+        "durations": [
+          { "label": "Réglage", "sessions": "4 x 1h", "tag": "Tune-up" },
+          { "label": "Progression", "sessions": "6 x 1h", "tag": "Core" },
+          { "label": "Maîtrise", "sessions": "8 x 1h", "tag": "Avancé" },
+          { "label": "Pro Camp", "sessions": "10 x 1h", "tag": "Intensif" }
+        ]
+      },
+      "supervision": {
+        "name": "Supervision",
+        "subtitle": "Pratique autonome",
+        "description": "Pratiquez en toute tranquillité. Notre équipe de plage vous aide au décollage/atterrissage et garde un œil sur vous.",
+        "highlights": ["Aide au décollage & atterrissage", "Bateau de sécurité", "Accès zone école", "Briefing météo quotidien", "Accès équipement d'urgence"],
+        "badges": ["Sécurité d'abord", "Location possible"],
+        "durations": [
+          { "label": "Demi-journée", "sessions": "4h", "tag": "Rapide" },
+          { "label": "Journée", "sessions": "Quotidien", "tag": "Standard" },
+          { "label": "Weekend", "sessions": "2 jours", "tag": "Weekend" },
+          { "label": "Semaine", "sessions": "5 jours", "tag": "Séjour" }
+        ]
+      }
+    }
+  },
+  "rentalShowcase": {
+    "standard": {
+      "headline": "Standard",
+      "accentWord": "Location",
+      "subheadline": "Équipement fiable et accessible pour vos sessions quotidiennes. Choisissez votre matériel et votre durée en un seul endroit."
+    },
+    "sls": {
+      "headline": "SLS",
+      "accentWord": "Équipement",
+      "subheadline": "Setup Strong Light Superior pour les riders qui veulent plus de légèreté, une réponse plus rapide et des performances premium."
+    },
+    "dlab": {
+      "headline": "D/LAB",
+      "accentWord": "Équipement",
+      "subheadline": "La gamme de location la plus performante pour les riders qui veulent le matériel le plus léger et le plus réactif."
+    },
+    "efoil": {
+      "headline": "E-FOIL",
+      "accentWord": "Location",
+      "subheadline": "L'expérience nautique la plus unique. Pas de vent, pas de bruit — juste vous et l'eau."
+    }
+  },
+  "rentalUpsell": {
+    "sectionLabel": "Explorer d'autres locations",
+    "title": "Vous cherchez autre chose ?",
+    "cards": {
+      "standard": {
+        "eyebrow": "Duotone Standard",
+        "title": "Matériel solide pour chaque session",
+        "body": "Équipement fiable et progressif. Parfait pour les sessions quotidiennes sans se ruiner.",
+        "cta": "Explorer Standard"
+      },
+      "sls": {
+        "eyebrow": "Strong Light Superior",
+        "title": "Envie de quelque chose de mieux ?",
+        "body": "Plus léger, plus solide, plus réactif. Notre gamme SLS amène votre session au niveau supérieur avec une construction carbone premium.",
+        "cta": "Explorer SLS"
+      },
+      "dlab": {
+        "eyebrow": "Duotone Laboratory",
+        "title": "Essayez quelque chose d'exclusif",
+        "body": "Le summum de la technologie kiteboard. D/LAB est le matériel le plus léger et le plus réactif que Duotone ait jamais produit.",
+        "cta": "Explorer D/LAB"
+      },
+      "efoil": {
+        "eyebrow": "Hydrofoil électrique",
+        "title": "Volez au-dessus de l'eau",
+        "body": "Pas besoin de vent. Glissez en silence au-dessus de la surface avec notre location E-Foil premium — l'expérience nautique la plus unique.",
+        "cta": "Explorer E-Foil"
+      }
+    }
+  },
+  "academyCrossSell": {
+    "sectionLabel": "Complétez votre expérience",
+    "title": "Tout ce qu'il vous faut en un seul endroit",
+    "cards": {
+      "shop": {
+        "eyebrow": "Duotone Pro Shop",
+        "title": "Équipez-vous pour la saison",
+        "body": "Parcourez les dernières ailes, boards, harnais et accessoires Duotone. Tarifs pro center, conseils d'experts inclus.",
+        "cta": "Visiter la boutique"
+      },
+      "rental": {
+        "eyebrow": "Location d'équipement",
+        "title": "Ridez du matériel premium chaque jour",
+        "body": "De Standard à D/LAB — choisissez le niveau qui correspond à votre ride. Tout entretenu, tous les derniers modèles.",
+        "cta": "Parcourir les locations"
+      },
+      "stay": {
+        "eyebrow": "Hébergement",
+        "title": "Logez au bon endroit",
+        "body": "Réveillez-vous à quelques mètres de l'eau. Chambres et maisons confortables conçues pour les kiters, avec stockage du matériel inclus.",
+        "cta": "Trouver un hébergement"
+      }
+    }
+  },
+  "contactBanner": {
+    "orReachUs": "Ou contactez-nous directement",
+    "whatsapp": "WhatsApp",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "whatsappOptions": {
+      "shop": "Questions boutique",
+      "school": "Questions école"
+    }
+  },
+  "rentalStandard": {
+    "headline": "Standard",
+    "accentWord": "Location",
+    "subheadline": "Équipement fiable et accessible pour vos sessions quotidiennes. Choisissez votre matériel et votre durée en un seul endroit.",
+    "packages": {
+      "fullSet": {
+        "name": "Location Pack Complet",
+        "subtitle": "Setup Kite complet",
+        "description": "Tout le nécessaire pour aller sur l'eau avec un équipement fiable et progressif.",
+        "highlights": ["Aile + board + barre", "Harnais et combinaison inclus", "Leash et casque de sécurité", "Matériel vérifié chaque jour", "Idéal pour progresser", "Équipement inclus"],
+        "badges": ["Standard", "Pack Complet"],
+        "durations": [
+          { "label": "Session rapide", "sessions": "1 session" },
+          { "label": "Demi-journée", "sessions": "Location demi-journée", "tag": "Populaire" },
+          { "label": "Journée", "sessions": "Location journée" },
+          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Meilleure offre" }
+        ]
+      },
+      "board": {
+        "name": "Location Board",
+        "subtitle": "Twin Tip / Directionnel",
+        "description": "Voyagez léger et louez uniquement la board. Plusieurs tailles et formes pour toutes les conditions.",
+        "highlights": ["Options twin tip et directionnel", "Straps/pads inclus", "Housse disponible", "Matériel fraîchement préparé", "Équipement inclus", "Réservez directement ici"],
+        "badges": ["Boards", "Standard"],
+        "durations": [
+          { "label": "1 Jour", "sessions": "Location 1 jour" },
+          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Populaire" }
+        ]
+      },
+      "wetsuit": {
+        "name": "Location Combinaison",
+        "subtitle": "Combinaisons ION",
+        "description": "Combinaisons ION premium en plusieurs tailles, nettoyées et préparées après chaque usage.",
+        "highlights": ["Toutes tailles disponibles", "Fraîchement nettoyées", "Coupe confort", "Chaussons en option", "Équipement inclus", "Réservez directement ici"],
+        "badges": ["Combinaison", "Standard"],
+        "durations": [
+          { "label": "1 Jour", "sessions": "Location 1 jour" },
+          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Meilleure offre" }
+        ]
+      },
+      "harnessBar": {
+        "name": "Harnais & Barre",
+        "subtitle": "Système de contrôle",
+        "description": "Systèmes de contrôle et harnais récents pour des sessions sûres et réactives.",
+        "highlights": ["Barres de contrôle Duotone", "Harnais ceinture et culotte", "Systèmes de largage rapide", "Contrôles de sécurité inclus", "Équipement inclus", "Réservez directement ici"],
+        "badges": ["Accessoires", "Standard"],
+        "durations": [
+          { "label": "1 Jour", "sessions": "Location 1 jour" },
+          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Populaire" }
+        ]
+      }
+    }
+  },
+  "rentalPremium": {
+    "hero": {
+      "title": "Location d'équipement premium",
+      "description": "Ressentez la différence avec les équipements SLS et D/LAB de Duotone. Notre gamme premium offre le matériel le plus léger et le plus réactif disponible. Parfait pour les riders avancés ou pour ceux qui veulent la meilleure expérience possible.",
+      "cta": "Réserver du matériel premium"
+    },
+    "testCenter": {
+      "title": "Centre de test officiel Duotone",
+      "description": "En tant que seul Duotone Pro Test Center de Turquie, nous proposons les derniers équipements à l'essai. Essayez avant d'acheter !"
+    },
+    "whyPremium": {
+      "title": "Pourquoi le premium ?",
+      "cards": {
+        "light": { "title": "Ultra léger", "description": "La technologie SLS réduit le poids jusqu'à 20 %" },
+        "responsive": { "title": "Plus réactif", "description": "Châssis plus rigides pour un retour instantané" },
+        "serviced": { "title": "Révisé chaque jour", "description": "Équipement vérifié et entretenu quotidiennement" },
+        "latest": { "title": "Derniers modèles", "description": "Équipement saison 2024 mis à jour chaque année" }
+      }
+    },
+    "options": {
+      "title": "Options de location premium",
+      "pricing": "Tarifs :",
+      "included": "Inclus :",
+      "bookLabel": "Réserver {{name}}"
+    },
+    "packages": {
+      "sls": {
+        "title": "Équipement SLS",
+        "subtitle": "Location horaire",
+        "description": "La gamme Duotone SLS (Strong Light Superior) offre le summum de la performance. Plus léger, plus rigide et plus réactif que l'équipement standard.",
+        "durations": ["1 heure", "4 heures (demi-journée)", "8 heures (journée)", "1 Semaine"],
+        "included": ["Dernier modèle de kite SLS", "Board SLS au choix", "Harnais et barre premium", "Combinaison ION", "Équipement de sécurité"]
+      },
+      "dlab": {
+        "title": "Équipement D/LAB",
+        "subtitle": "Performance haut de gamme",
+        "description": "D/LAB est la gamme la plus aboutie de Duotone. Équipement fabriqué à la main en série limitée pour les riders exigeant la perfection.",
+        "durations": ["1 heure", "4 heures (demi-journée)", "8 heures (journée)"],
+        "included": ["Kite D/LAB (édition limitée)", "Board D/LAB ou SLS", "Harnais et barre premium", "Combinaison ION", "Assistance prioritaire"]
+      },
+      "foilBoard": {
+        "title": "Board de foil SLS",
+        "subtitle": "Équipement hydrofoil",
+        "description": "Boards de foil premium pour riders expérimentés. Parfait pour les sessions de vent léger ou pour progresser en foil.",
+        "durations": ["1 jour", "1 semaine"],
+        "included": ["Board de foil SLS", "Set de foil complet", "Housse de board", "Briefing sécurité foil"]
+      }
+    },
+    "bottomCta": {
+      "title": "Prêt pour l'expérience premium ?",
+      "description": "Ressentez la différence d'un matériel haut de gamme. Réservez votre location premium dès aujourd'hui !",
+      "bookBtn": "Réserver l'équipement premium",
+      "viewStandardBtn": "Voir les locations standard"
+    }
+  },
+  "rental": {
+    "nav": { "standard": "LOCATION STANDARD", "standardShort": "STANDARD", "sls": "LOCATION SLS", "slsShort": "SLS", "dlab": "LOCATION D-LAB", "dlabShort": "D-LAB", "efoil": "LOCATION E-FOIL", "efoilShort": "E-FOIL" },
+    "sections": {
+      "standard": {
+        "title": "LOCATION STANDARD",
+        "tagline": "Équipement fiable et de qualité pour tous les niveaux.",
+        "description": "Tout le monde n'a pas besoin du haut de gamme. Notre gamme de location standard offre un équipement fiable et de qualité, parfait pour progresser et pour les sessions quotidiennes."
+      },
+      "sls": {
+        "label": "Strong Light Superior",
+        "title": "LOCATION SLS",
+        "tagline": "Plus léger, plus solide, plus réactif.",
+        "description": "Découvrez la différence avec notre gamme SLS. Un équipement plus léger, plus solide et plus réactif pour ceux qui exigent de la performance."
+      },
+      "dlab": {
+        "label": "Duotone Laboratory",
+        "title": "LOCATION D-LAB",
+        "tagline": "Le summum de la technologie kiteboard.",
+        "description": "Volez avec le matériel le plus léger, le plus durable et le plus performant du marché."
+      },
+      "efoil": {
+        "label": "Electric Hydrofoil",
+        "title": "LOCATION E-FOIL",
+        "tagline": "Pas besoin de vent. Vol électrique.",
+        "description": "Glissez en silence au-dessus de l'eau sur nos hydrofoils électriques premium — l'expérience nautique la plus unique de la côte."
+      }
+    },
+    "faq": {
+      "title": "Vous ne savez pas quelle location vous convient ?",
+      "description": "Notre équipe est là pour vous aider à choisir l'équipement adapté à votre niveau et à vos objectifs. Contactez-nous."
+    }
+  },
+  "stay": {
+    "brandSubtitle": "séjour",
+    "sections": {
+      "home": {
+        "title": "HÉBERGEMENT MAISON",
+        "tagline": "Une maison loin de chez vous.",
+        "description": "Séjournez dans nos hébergements chaleureux. Studios avec piscine, ferme et logements du personnel pour une expérience plus personnelle et intime."
+      },
+      "hotel": {
+        "title": "SÉJOUR HÔTEL",
+        "tagline": "Confort et praticité, à deux pas de l'eau.",
+        "description": "Séjournez au paisible Burlahan Otel à Urla pendant que vous apprenez le kitesurf. Hébergement de qualité avec accès à la plage et équipements complets."
+      }
+    },
+    "faq": {
+      "title": "Besoin d'aide pour votre séjour ?",
+      "description": "Notre équipe est là pour vous aider à trouver l'hébergement idéal pour vos vacances kitesurf."
+    }
+  },
+  "experience": {
+    "brandSubtitle": "expérience",
+    "nav": { "kite": "PACKAGES KITE", "wing": "PACKAGES WING", "downwinders": "DOWNWINDERS", "camps": "STAGES" },
+    "sections": {
+      "kite": {
+        "title": "PACKAGES KITE",
+        "description": "Packages vacances kitesurf complets adaptés à votre niveau.",
+        "cta": "VOIR LES PACKAGES"
+      },
+      "wing": {
+        "title": "PACKAGES WING",
+        "description": "Vivez la liberté du wing foil avec nos packages complets.",
+        "cta": "VOIR LES PACKAGES"
+      },
+      "downwinders": {
+        "title": "DOWNWINDERS",
+        "description": "Voyages downwind inoubliables le long d'un littoral magnifique.",
+        "cta": "EXPLORER LES ROUTES"
+      },
+      "camps": {
+        "title": "STAGES",
+        "description": "Rejoignez nos stages exclusifs pour un entraînement intensif et une ambiance communautaire.",
+        "cta": "REJOINDRE UN STAGE"
+      }
+    },
+    "faq": {
+      "title": "Des questions sur nos packages ?",
+      "description": "Notre équipe est là pour vous aider à choisir le pack expérience adapté à votre niveau et à vos objectifs."
+    }
+  }
+}

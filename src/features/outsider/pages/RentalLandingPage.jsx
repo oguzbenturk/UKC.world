@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
 import { RightOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
@@ -11,16 +12,23 @@ import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import standardRentalHeroBg from '../../../../DuotoneFonts/DPSLOGOS/Website-DSC07450.jpg';
 
-const RENTAL_NAV_ITEMS = [
-  { id: 'standard-section', label: 'STANDARD RENTAL', shortLabel: 'STANDARD' },
-  { id: 'sls-section', label: 'SLS RENTAL', shortLabel: 'SLS' },
-  { id: 'dlab-section', label: 'D-LAB RENTAL', shortLabel: 'D-LAB' },
-  { id: 'efoil-section', label: 'E-FOIL RENTAL', shortLabel: 'E-FOIL' },
+const RENTAL_NAV_KEYS = [
+  { id: 'standard-section', key: 'standard', shortKey: 'standardShort' },
+  { id: 'sls-section', key: 'sls', shortKey: 'slsShort' },
+  { id: 'dlab-section', key: 'dlab', shortKey: 'dlabShort' },
+  { id: 'efoil-section', key: 'efoil', shortKey: 'efoilShort' },
 ];
 
 const RentalLandingPage = () => {
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('standard-section');
+
+  const rentalNavItems = RENTAL_NAV_KEYS.map((n) => ({
+    id: n.id,
+    label: t(`outsider:rental.nav.${n.key}`),
+    shortLabel: t(`outsider:rental.nav.${n.shortKey}`),
+  }));
 
   usePageSEO({
     title: 'Rentals | Duotone Pro Center Urla',
@@ -68,7 +76,7 @@ const RentalLandingPage = () => {
 
       {/* Unified Sticky Category Nav */}
       <StickyNavBar
-        items={RENTAL_NAV_ITEMS}
+        items={rentalNavItems}
         activeItem={activeSection}
         onItemClick={(id) => scrollToSection(id)}
       />
@@ -126,24 +134,24 @@ const RentalLandingPage = () => {
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
             <div className="mb-4">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
-                    STANDARD RENTAL
+                    {t('outsider:rental.sections.standard.title')}
                 </h1>
                 <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-                    Reliable, high-quality gear for every level.
+                    {t('outsider:rental.sections.standard.tagline')}
                 </p>
                 <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-                    Not everyone needs the high end gear. Our standard rental range offers reliable, high-quality equipment perfect for progression and everyday sessions.
+                    {t('outsider:rental.sections.standard.description')}
                 </p>
             </div>
-            
+
             <div className="flex flex-wrap gap-4">
-                <Button 
-                size="large" 
+                <Button
+                size="large"
                 className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
                 style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/standard')}
                 >
-                View Details <RightOutlined className="text-xs ml-1" />
+                {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
         </div>
@@ -166,26 +174,26 @@ const RentalLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
             <span className="font-duotone-bold text-amber-400 tracking-widest uppercase text-sm md:text-base mb-2 block">
-                Strong Light Superior
+                {t('outsider:rental.sections.sls.label')}
             </span>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
-                SLS RENTAL
+                {t('outsider:rental.sections.sls.title')}
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-                Lighter, stronger, more responsive.
+                {t('outsider:rental.sections.sls.tagline')}
             </p>
             <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-                Experience the difference with our SLS range. Lighter, stronger, and more responsive equipment for those who demand performance.
+                {t('outsider:rental.sections.sls.description')}
             </p>
-            
+
             <div className="flex flex-wrap gap-4">
-                <Button 
-                size="large" 
+                <Button
+                size="large"
                 className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
                 style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/sls')}
                 >
-                View Details <RightOutlined className="text-xs ml-1" />
+                {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
         </div>
@@ -208,26 +216,26 @@ const RentalLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
             <span className="font-duotone-bold text-yellow-400 tracking-widest uppercase text-sm md:text-base mb-2 block">
-                Duotone Laboratory
+                {t('outsider:rental.sections.dlab.label')}
             </span>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
-                D-LAB RENTAL
+                {t('outsider:rental.sections.dlab.title')}
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-                The pinnacle of kiteboarding technology.
+                {t('outsider:rental.sections.dlab.tagline')}
             </p>
             <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-                Fly the lightest, most durable, and highest performing gear on the market.
+                {t('outsider:rental.sections.dlab.description')}
             </p>
-            
+
             <div className="flex flex-wrap gap-4">
-                <Button 
-                size="large" 
+                <Button
+                size="large"
                 className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
                 style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/dlab')}
                 >
-                View Details <RightOutlined className="text-xs ml-1" />
+                {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
         </div>
@@ -247,26 +255,26 @@ const RentalLandingPage = () => {
 
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
             <span className="font-duotone-bold text-yellow-300 tracking-widest uppercase text-sm md:text-base mb-2 block">
-                Electric Hydrofoil
+                {t('outsider:rental.sections.efoil.label')}
             </span>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3">
-                E-FOIL RENTAL
+                {t('outsider:rental.sections.efoil.title')}
             </h1>
             <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-                No wind required. Electric flight.
+                {t('outsider:rental.sections.efoil.tagline')}
             </p>
             <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-                Glide silently above the water on our premium electric hydrofoils — the most unique watersports experience on the coast.
+                {t('outsider:rental.sections.efoil.description')}
             </p>
-            
+
             <div className="flex flex-wrap gap-4">
-                <Button 
-                size="large" 
+                <Button
+                size="large"
                 className="font-duotone-bold !h-14 !px-8 !text-lg !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
                 style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
                 onClick={() => viewDetails('/rental/efoil')}
                 >
-                View Details <RightOutlined className="text-xs ml-1" />
+                {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
                 </Button>
             </div>
         </div>
@@ -275,9 +283,9 @@ const RentalLandingPage = () => {
       {/* Contact Us Section */}
       <div className="py-16 sm:py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-3 text-white">Not sure which rental is right for you?</h2>
+          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-3 text-white">{t('outsider:rental.faq.title')}</h2>
           <p className="font-duotone-regular text-[#e0e0e0] mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-            Our team is on hand to help you choose the right equipment for your level and goals. Just get in touch.
+            {t('outsider:rental.faq.description')}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Button
@@ -286,7 +294,7 @@ const RentalLandingPage = () => {
               className="font-duotone-bold !h-12 !rounded-md !px-8 shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
               style={{ background: 'transparent', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.4)' }}
             >
-              Read FAQ
+              {t('outsider:common.readFaq')}
             </Button>
             <Button
               type="primary"
@@ -295,7 +303,7 @@ const RentalLandingPage = () => {
               style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               href="/contact"
             >
-              Contact Us
+              {t('outsider:common.contactUs')}
             </Button>
           </div>
           <ContactOptionsBanner />

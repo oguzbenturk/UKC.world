@@ -1,27 +1,35 @@
+import dayjs from 'dayjs';
+import i18n from '@/i18n';
+
 // This file centralizes all your helper functions into one place
 // to avoid duplication and make maintenance easier
 
+const currentLocale = () => i18n.resolvedLanguage || i18n.language || 'en';
+
 /**
- * Formats a currency value with the appropriate symbol and decimal places
- * @param {number} value - The numeric value to format as currency
- * @param {string} currencyCode - The currency code (default: EUR)
- * @param {string} currencySymbol - The currency symbol to use (optional)
- * @returns {string} Formatted currency string
+ * Formats a currency value using the active UI locale.
+ * @param {number} value
+ * @param {string} currencyCode - ISO 4217 code (default: EUR or window.__APP_CURRENCY__)
+ * @param {string} currencySymbol - Legacy custom-symbol path (kept for compatibility)
+ * @returns {string}
  */
 export function formatCurrency(value, currencyCode = null, currencySymbol = null) {
   const numValue = parseFloat(value ?? 0) || 0;
-  // If a custom symbol is provided, keep legacy behavior
   if (currencySymbol) {
-    return `${currencySymbol}${Math.round(numValue).toLocaleString('en-US')}`;
+    return `${currencySymbol}${Math.round(numValue).toLocaleString(currentLocale())}`;
   }
   const code = (currencyCode
     || (typeof window !== 'undefined' && window.__APP_CURRENCY__ && (window.__APP_CURRENCY__.business || window.__APP_CURRENCY__.user))
     || 'EUR');
   try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(numValue);
+    return new Intl.NumberFormat(currentLocale(), {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue);
   } catch {
-    // Safe fallback
-    return `${code}${Math.round(numValue).toLocaleString('en-US')}`;
+    return `${code}${Math.round(numValue).toLocaleString(currentLocale())}`;
   }
 }
 
@@ -32,7 +40,7 @@ export function formatCurrency(value, currencyCode = null, currencySymbol = null
  */
 export function getStatusColor(status) {
   if (!status) return 'bg-gray-400'; // Default styling for missing status
-  
+
   const colors = {
     active: 'bg-green-500 text-white',
     completed: 'bg-blue-500 text-white',
@@ -46,47 +54,32 @@ export function getStatusColor(status) {
     repair: 'bg-purple-500 text-white',
     default: 'bg-gray-500 text-white'
   };
-  
+
   return colors[status.toLowerCase()] || colors.default;
 }
 
 /**
- * Formats a date into a readable string
- * @param {Date|string} date - Date object or date string
- * @param {boolean} includeTime - Whether to include time in the output
- * @returns {string} Formatted date string
+ * Formats a date using the active UI locale and the day/month/year format
+ * defined in `common:dateFormat`.
  */
 export function formatDate(date, includeTime = false) {
-  if (!date) return 'N/A';
-  
-  const dateObj = date instanceof Date ? date : new Date(date);
-  
-  if (isNaN(dateObj.getTime())) return 'Invalid date';
-  
-  const options = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    ...(includeTime && { hour: '2-digit', minute: '2-digit' })
-  };
-  
-  return dateObj.toLocaleDateString('en-GB', options);
+  if (!date) return i18n.t('common:table.noData', { defaultValue: 'N/A' });
+  const d = dayjs(date);
+  if (!d.isValid()) return i18n.t('common:invalidDate', { defaultValue: 'Invalid date' });
+  const key = includeTime ? 'common:dateFormat.shortWithTime' : 'common:dateFormat.short';
+  return d.format(i18n.t(key));
 }
 
 /**
- * Formats a duration in minutes to a readable format
- * @param {number} minutes - Duration in minutes
- * @returns {string} Formatted duration string
+ * Formats a duration in minutes using translated hr/min units.
  */
 export function formatDuration(minutes) {
-  if (!minutes && minutes !== 0) return 'N/A';
-  
+  if (minutes == null) return i18n.t('common:table.noData', { defaultValue: 'N/A' });
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
-  if (hours === 0) return `${remainingMinutes} min`;
-  if (remainingMinutes === 0) return `${hours} hr`;
-  return `${hours} hr ${remainingMinutes} min`;
+  if (hours === 0) return i18n.t('common:duration.min', { count: remainingMinutes });
+  if (remainingMinutes === 0) return i18n.t('common:duration.hr', { count: hours });
+  return i18n.t('common:duration.hrMin', { hours, minutes: remainingMinutes });
 }
 
 /**
@@ -95,11 +88,11 @@ export function formatDuration(minutes) {
  * @returns {string} Formatted percentage string
  */
 export function formatModifierPercentage(value) {
-  if (value === null || value === undefined) return 'N/A';
-  
+  if (value === null || value === undefined) return i18n.t('common:table.noData', { defaultValue: 'N/A' });
+
   const numValue = parseFloat(value);
-  if (isNaN(numValue)) return 'Invalid';
-  
+  if (isNaN(numValue)) return i18n.t('common:invalid', { defaultValue: 'Invalid' });
+
   const formatted = numValue >= 0 ? `+${numValue}%` : `${numValue}%`;
   return formatted;
 }
@@ -114,7 +107,7 @@ export function formatPercentage(value, decimals = 1) {
   if (value === null || value === undefined || isNaN(value)) {
     return '0%';
   }
-  
+
   return `${Number(value).toFixed(decimals)}%`;
 }
 
@@ -125,7 +118,7 @@ export function formatPercentage(value, decimals = 1) {
  */
 export function getStatusBadge(status) {
   const color = getStatusColor(status);
-  
+
   return {
     backgroundColor: `${color}20`, // Add 20% opacity
     color: color,
@@ -147,19 +140,19 @@ export function getStatusBadge(status) {
 export function validateForm(data, rules) {
   const errors = {};
   let isValid = true;
-  
+
   for (const field in rules) {
     if (rules[field].required && (!data[field] || data[field].trim() === '')) {
-      errors[field] = rules[field].message || 'This field is required';
+      errors[field] = rules[field].message || i18n.t('common:validation.required');
       isValid = false;
     } else if (rules[field].minLength && data[field]?.length < rules[field].minLength) {
-      errors[field] = `Must be at least ${rules[field].minLength} characters`;
+      errors[field] = i18n.t('common:validation.minLen', { count: rules[field].minLength });
       isValid = false;
     } else if (rules[field].pattern && !rules[field].pattern.test(data[field])) {
-      errors[field] = rules[field].message || 'Invalid format';
+      errors[field] = rules[field].message || i18n.t('common:validation.pattern');
       isValid = false;
     }
   }
-  
+
   return { isValid, errors };
 }

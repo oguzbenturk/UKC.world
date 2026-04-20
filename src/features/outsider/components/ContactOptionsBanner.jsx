@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { WhatsAppOutlined, InstagramOutlined, FacebookOutlined, DownOutlined } from '@ant-design/icons';
 
+// Instagram handles are proper names — never translated.
 const INSTAGRAM_OPTIONS = [
   { label: 'DPC-urla', href: 'https://instagram.com/dpc_urla' },
   { label: 'Urla Kite Center', href: 'https://instagram.com/urlakitecenter' },
   { label: 'UKC Shop', href: 'https://instagram.com/ukc_shop' },
 ];
 
-const WHATSAPP_OPTIONS = [
-  { label: 'Shop inquiries', href: 'https://wa.me/905399529028' },
-  { label: 'School inquiries', href: 'https://wa.me/905071389196' },
+const WHATSAPP_OPTION_CONFIG = [
+  { key: 'shop', href: 'https://wa.me/905399529028' },
+  { key: 'school', href: 'https://wa.me/905071389196' },
 ];
 
 const DropdownButton = ({ icon, label, color, bg, border, options, variant }) => {
@@ -80,45 +82,53 @@ const FACEBOOK_OPTION = {
 };
 
 // variant: 'dark' (default, white text) | 'light' (for white/light backgrounds)
-const ContactOptionsBanner = ({ variant = 'dark' }) => (
-  <div className="mt-6 flex flex-col items-center gap-3">
-    <p className={`text-sm font-duotone-regular tracking-wide ${variant === 'light' ? 'text-slate-400' : 'text-white/40'}`}>Or reach us directly</p>
-    <div className="flex items-center gap-3">
-      <DropdownButton
-        icon={<WhatsAppOutlined />}
-        label="WhatsApp"
-        color="#25D366"
-        bg="rgba(37,211,102,0.10)"
-        border="rgba(37,211,102,0.25)"
-        options={WHATSAPP_OPTIONS}
-        variant={variant}
-      />
-      <a
-        href={FACEBOOK_OPTION.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={FACEBOOK_OPTION.label}
-        className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-duotone-bold transition-all duration-150 hover:scale-105 hover:brightness-110 no-underline"
-        style={{
-          color: FACEBOOK_OPTION.color,
-          background: FACEBOOK_OPTION.bg,
-          border: `1px solid ${FACEBOOK_OPTION.border}`,
-        }}
-      >
-        <span className="text-lg leading-none">{FACEBOOK_OPTION.icon}</span>
-        <span className="hidden sm:inline">{FACEBOOK_OPTION.label}</span>
-      </a>
-      <DropdownButton
-        icon={<InstagramOutlined />}
-        label="Instagram"
-        color="#E1306C"
-        bg="rgba(225,48,108,0.10)"
-        border="rgba(225,48,108,0.25)"
-        options={INSTAGRAM_OPTIONS}
-        variant={variant}
-      />
+const ContactOptionsBanner = ({ variant = 'dark' }) => {
+  const { t } = useTranslation(['outsider']);
+  const whatsappOptions = WHATSAPP_OPTION_CONFIG.map((o) => ({
+    label: t(`outsider:contactBanner.whatsappOptions.${o.key}`),
+    href: o.href,
+  }));
+
+  return (
+    <div className="mt-6 flex flex-col items-center gap-3">
+      <p className={`text-sm font-duotone-regular tracking-wide ${variant === 'light' ? 'text-slate-400' : 'text-white/40'}`}>{t('outsider:contactBanner.orReachUs')}</p>
+      <div className="flex items-center gap-3">
+        <DropdownButton
+          icon={<WhatsAppOutlined />}
+          label={t('outsider:contactBanner.whatsapp')}
+          color="#25D366"
+          bg="rgba(37,211,102,0.10)"
+          border="rgba(37,211,102,0.25)"
+          options={whatsappOptions}
+          variant={variant}
+        />
+        <a
+          href={FACEBOOK_OPTION.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('outsider:contactBanner.facebook')}
+          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-duotone-bold transition-all duration-150 hover:scale-105 hover:brightness-110 no-underline"
+          style={{
+            color: FACEBOOK_OPTION.color,
+            background: FACEBOOK_OPTION.bg,
+            border: `1px solid ${FACEBOOK_OPTION.border}`,
+          }}
+        >
+          <span className="text-lg leading-none">{FACEBOOK_OPTION.icon}</span>
+          <span className="hidden sm:inline">{t('outsider:contactBanner.facebook')}</span>
+        </a>
+        <DropdownButton
+          icon={<InstagramOutlined />}
+          label={t('outsider:contactBanner.instagram')}
+          color="#E1306C"
+          bg="rgba(225,48,108,0.10)"
+          border="rgba(225,48,108,0.25)"
+          options={INSTAGRAM_OPTIONS}
+          variant={variant}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default ContactOptionsBanner;

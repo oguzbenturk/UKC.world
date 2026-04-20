@@ -1,0 +1,485 @@
+{
+  "_meta": { "ai_drafted": false, "reviewed": false },
+  "common": {
+    "viewDetails": "Detayları Gör",
+    "readFaq": "SSS'yi Oku",
+    "contactUs": "İletişim"
+  },
+  "landing": {
+    "sectionLabel": "Hizmetlerimiz",
+    "description": "Ekipmandan derslere, tamirden konaklamaya, <urla>Urla</urla>'daki su sporları yolculuğunuz için ihtiyacınız olan her şey. <duotone>Duotone</duotone> bayisi, profesyonel sertifikalı akademi, premium kiralama, ekipman bakımı, güzel konaklama seçenekleri ve aktif bir sürücü topluluğu — hepsi tek bir yerde.",
+    "established": "Kuruluş 2016 · Urla · Ege",
+    "ctaTitle": "UKC ile sürüşünüzün keyfini çıkarın.",
+    "ctaSubtitle": "Sürmeye hazır mısınız?",
+    "bookLesson": "DERS AL",
+    "browseShop": "MAĞAZAYA GÖZ AT",
+    "discover": "Keşfet",
+    "services": {
+      "shop": { "title": "Mağaza", "tagline": "Resmi Duotone Bayisi", "subItems": ["Kitesurf", "Wing Foil", "E-Foil", "Dalış Elbiseleri", "ION ACCS", "SecondWind"] },
+      "academy": { "title": "Akademi", "tagline": "IKO Sertifikalı Eğitmenler", "subItems": ["Kite Dersleri", "Foil Dersleri", "Wing Dersleri", "E-Foil", "Premium"] },
+      "rentals": { "title": "Kiralama", "tagline": "Premium Ekipman", "subItems": ["Tam Set", "Sadece Kiteboard", "Dalış Elbisesi", "Harness & Bar", "E-Foil"] },
+      "membership": { "title": "Üyelik", "tagline": "Özel Avantajlar", "subItems": ["Plaj Olanakları", "WIFI", "Plaj Tuvaletleri", "Duşlar", "Kompresörler", "Kalkış & İniş Desteği", "Ve Çok Daha Fazlası..."] },
+      "care": { "title": "Bakım", "tagline": "Tüm Markalar Kabul Edilir", "subItems": ["Kite Tamiri", "Board Tamiri", "Bar & İp", "Tam Servis"] },
+      "stay": { "title": "Konaklama", "tagline": "Plaj Kenarında Yaşam", "subItems": ["Havuzlu Çiftlik Evi", "Zeytinlikte Stüdyo Daireler"] },
+      "experience": { "title": "Deneyim", "tagline": "Macera Bekliyor", "subItems": ["Kite Paketleri", "Wing Paketleri", "DownWinders", "Kamplar"] },
+      "community": { "title": "Topluluk", "tagline": "Kabileye Katıl", "subItems": ["Canlı Sohbet", "Etkinlikler & Buluşmalar", "Sürücü Topluluğu"] }
+    }
+  },
+  "academy": {
+    "nav": { "kite": "KITE", "foil": "FOIL", "wing": "WING", "efoil": "E-FOIL", "premium": "PREMIUM", "premiumShort": "VIP" },
+    "sections": {
+      "kite": {
+        "title": "KITE DERSLERİ",
+        "tagline": "Kitesurf yolculuğunuza başlayın — veya bir üst seviyeye taşıyın.",
+        "description": "İlk kite'ınızdan dalgaları kesip atlamalar yapmaya kadar, IKO sertifikalı eğitmenlerimiz her dersi sizin hızınıza göre uyarlar. Başlangıç, gelişen ve ileri seviye sürücüler her zaman hoş geldiniz.",
+        "cta": "Kite Derslerini Keşfet"
+      },
+      "wing": {
+        "title": "WING FOILING",
+        "tagline": "Dünyada en hızlı büyüyen su sporu — ve sandığınızdan daha kolay.",
+        "description": "Elde taşınan bir kanadın sadeliğini foilingin büyüsüyle birleştirin. Koçlarımız sizi birkaç seansta suyun üzerinde sessizce süzdürecek, önceden deneyim gerekmiyor.",
+        "cta": "Wing Foilingi Keşfet"
+      },
+      "foil": {
+        "title": "KITE FOILING",
+        "tagline": "Kite yeteneğinizi yeni zirvelere taşıyın — gerçek anlamda.",
+        "description": "Kite'ta rahat mısınız? Kite foiling yepyeni bir boyut açıyor — neredeyse sessiz uçuş, inanılmaz rüzgar üstü performansı ve aklınızı uçuracak hızlar. İlerlemesini zorlamaya hazır deneyimli kiter'lar için.",
+        "cta": "Kite Foilingi Keşfet"
+      },
+      "efoil": {
+        "title": "E-FOILING",
+        "tagline": "Rüzgar yok mu? Sorun değil. Saf elektrikli uçuş.",
+        "description": "Fliteboard e-foil'lerimiz üzerinde suyun üzerinde uçma hissini deneyimleyin — fısıltı kadar sessiz bir elektrik motoru ile. Rüzgara ya da deneyime gerek yok. Dengeyi bulabiliyorsanız uçabilirsiniz.",
+        "cta": "E-Foilingi Keşfet"
+      },
+      "premium": {
+        "title": "PREMIUM DERSLER",
+        "tagline": "Özel koçluk. Ayrıcalıklı deneyim. Hızlı sonuçlar.",
+        "description": "Premium paketlerimiz sizi en deneyimli eğitmenlerimizle birebir, tamamen kişiselleştirilmiş seanslarda eşleştirir. İlerlemenizi hızlandırmak ya da suda en iyi deneyimi yaşamak isteyin — işte tam olarak bu.",
+        "cta": "Premium Dersleri Keşfet"
+      }
+    },
+    "faq": {
+      "title": "Sorularınız mı var?",
+      "description": "Hangi paketin size uygun olduğundan emin değil misiniz? Ekibimiz kitesurf yolculuğunuzu planlamanıza yardımcı olmak için burada."
+    }
+  },
+  "servicePackages": {
+    "allServices": "Tüm Hizmetler",
+    "emptyAccommodation": {
+      "title": "Uygun konaklama birimi yok",
+      "description": "Henüz sisteme konaklama birimi eklenmemiş. Daha sonra tekrar kontrol edin veya uygunluk için bizimle iletişime geçin."
+    },
+    "emptyPackages": {
+      "title": "Henüz yapılandırılmış paket yok",
+      "description": "Bu sayfa yalnızca yönetim panelinde bu disiplin için yapılandırılmış canlı paketleri gösterir. Hizmetler → Dersler bölümünde ders hizmetleri ve paketler oluşturarak buraya yayınlayın."
+    },
+    "faq": {
+      "title": "Hangi paketin size uygun olduğundan emin değil misiniz?",
+      "description": "Ekibimiz, deneyim seviyeniz, hedefleriniz ve programınıza göre en iyi seçeneği belirlemenize memnuniyetle yardımcı olur. Bize ulaşın — ısırmıyoruz."
+    },
+    "disciplines": {
+      "kite": "Kitesurf",
+      "wing": "Wing Foil",
+      "kite_foil": "Kite Foil",
+      "accessory": "Aksesuarlar"
+    },
+    "card": {
+      "from": "BAŞLANGIÇ",
+      "owned": "SAHİBİSİNİZ",
+      "activePackage": "Aktif Paket",
+      "noImage": "Görsel yüklenmedi",
+      "session": "SEANS",
+      "lesson": "DERS",
+      "bundle": "BUNDLE",
+      "package": "PAKET"
+    },
+    "authModal": {
+      "title": "Rezervasyon için Giriş Yapın",
+      "message": "Bu hizmeti rezerve etmek için hesap oluşturun veya giriş yapın."
+    },
+    "auto": {
+      "quickSession": "Hızlı Seans",
+      "halfDay": "Yarım Gün",
+      "fullDay": "Tam Gün",
+      "oneWeekAllInc": "1 haftalık her şey dahil kiralama",
+      "multiWeek": "{{count}} hafta",
+      "equipmentIncluded": "Ekipman dahil",
+      "multiSport": "Çoklu spor uyumlu",
+      "dailySafety": "Günlük güvenlik kontrolleri",
+      "bookDirectly": "Doğrudan rezerve et",
+      "contactUs": "İletişime geçin",
+      "flexible": "Esnek",
+      "custom": "Özel",
+      "chooseNights": "Geceleri seçin",
+      "perNight": "Gecelik",
+      "accommodation": "Konaklama",
+      "configuredPackage": "Yapılandırılmış Paket",
+      "availableForBooking": "{{name}} rezervasyon için uygun.",
+      "progressBased": "İlerlemeye dayalı seanslar",
+      "professionalInstruction": "Profesyonel eğitim",
+      "flexibleDurations": "Esnek süreler",
+      "individualLesson": "Bireysel Ders",
+      "singleSession": "Tek Seans",
+      "lessonFallback": "Ders",
+      "packageFallback": "Paket",
+      "packageOwned": "Paket sahibisiniz",
+      "remaining": "kalan",
+      "levelPrefix": "Seviye: {{level}}"
+    }
+  },
+  "academyKite": {
+    "hero": {
+      "pretitle": "Akademi",
+      "title": "Kite",
+      "titleAccent": "Dersleri",
+      "subtitle": "Size en uygun öğrenme yolunu seçin. Sıfırdan başlayandan profesyonel seviyeye kadar, deneyimli ekibimiz hazır."
+    },
+    "popular": "POPÜLER",
+    "startingFrom": "Başlangıç",
+    "modal": {
+      "whatsIncluded": "Neler Dahil",
+      "chooseDuration": "Süre Seçin",
+      "totalPrice": "Toplam Fiyat",
+      "perPersonShort": "/kişi",
+      "perPerson": "kişi başı",
+      "bookNow": "Şimdi Rezerve Et",
+      "securityNote": "Bugün ödeme gerekmiyor. Yerinizi şimdi ayırtın."
+    },
+    "faq": {
+      "title": "Hangi paketin size uygun olduğundan emin değil misiniz?",
+      "description": "Ekibimiz; deneyim seviyeniz, hedefleriniz ve programınıza göre en iyi seçeneği belirlemenize memnuniyetle yardımcı olur. Bize ulaşın — ısırmıyoruz.",
+      "readFaq": "SSS'yi Oku",
+      "contactUs": "İletişim"
+    },
+    "packages": {
+      "beginner": {
+        "name": "Başlangıç Özel",
+        "subtitle": "1-1 Eğitim",
+        "description": "En hızlı öğrenme yolu. İlerleme hızınıza ve konfor seviyenize tamamen odaklanmış özel bir eğitmenden %100 kişiselleştirilmiş ilgi.",
+        "highlights": ["Özel eğitmen", "Telsiz kask iletişimi", "En yeni Duotone ekipman dahil", "Kişiselleştirilmiş ilerleme planı", "Adım adım ilerleme takibi", "Kişisel seans özeti"],
+        "badges": ["Özel Odak", "Telsiz Kask"],
+        "durations": [
+          { "label": "Giriş", "sessions": "2 x 2sa", "tag": "Temel" },
+          { "label": "Standart", "sessions": "3 x 2sa", "tag": "Popüler" },
+          { "label": "Plus", "sessions": "4 x 2sa", "tag": "Önerilen" },
+          { "label": "Pro", "sessions": "5 x 2sa", "tag": "En Avantajlı" }
+        ]
+      },
+      "group": {
+        "name": "Grup Dersi",
+        "subtitle": "Yarı-Özel (2 Öğrenci)",
+        "description": "Bir arkadaşınızla öğrenin ya da yeni bir kite arkadaşıyla tanışın! Bu yarı-özel format, eğitim ve dinlenme/gözlem süresinin mükemmel dengesini sunar.",
+        "highlights": ["Eğitmen başına maks. 2 öğrenci", "Ortak kite ve board", "Başkalarını izleyerek öğrenin", "Eğlenceli sosyal ortam", "Daha uygun fiyat", "Tüm ekipman dahil"],
+        "badges": ["En Çok Satan", "Sosyal Eğlence"],
+        "durations": [
+          { "label": "Giriş", "sessions": "2 x 2sa", "tag": "Başlangıç" },
+          { "label": "Standart", "sessions": "3 x 2sa", "tag": "Popüler" },
+          { "label": "Plus", "sessions": "4 x 2sa", "tag": "Değer" },
+          { "label": "Pro", "sessions": "5 x 2sa", "tag": "Tam" }
+        ]
+      },
+      "advanced": {
+        "name": "İleri Düzey Koçluk",
+        "subtitle": "Profesyonel Eğitim",
+        "description": "Zaten sürüyor musunuz? Kıdemli eğitmenlerimizle becerilerinizi bir üst seviyeye taşıyın. Atlama, geçiş, kanca dışı hareketler veya dalga sürüşünde ustalaşın.",
+        "highlights": ["Seviye 3 Kıdemli Eğitmen", "İleri performans geri bildirimi", "Trik ilerleme yol haritası", "Downwinder desteği", "Yarış hazırlığı", "Ekipman ayar atölyesi"],
+        "badges": ["Sadece Uzmanlar", "İlerleme Koçluğu"],
+        "durations": [
+          { "label": "Düzelt", "sessions": "4 x 1sa", "tag": "Ayar" },
+          { "label": "İlerle", "sessions": "6 x 1sa", "tag": "Çekirdek" },
+          { "label": "Ustalık", "sessions": "8 x 1sa", "tag": "İleri" },
+          { "label": "Pro Kamp", "sessions": "10 x 1sa", "tag": "Yoğun" }
+        ]
+      },
+      "supervision": {
+        "name": "Gözetim",
+        "subtitle": "Bağımsız Pratik",
+        "description": "Gönül rahatlığıyla bağımsız olarak pratik yapın. Plaj ekibimiz kalkış/iniş konusunda yardımcı olur ve siz sürerken gözünü sizden ayırmaz.",
+        "highlights": ["Kalkış & İniş desteği", "Güvenlik botu kurtarma", "Okul bölgesi erişimi", "Günlük hava brifingi", "Acil ekipman erişimi"],
+        "badges": ["Güvenlik Önce", "Kiralama Mevcut"],
+        "durations": [
+          { "label": "Yarım Gün", "sessions": "4sa Slot", "tag": "Hızlı" },
+          { "label": "Tam Gün", "sessions": "Günlük", "tag": "Standart" },
+          { "label": "Hafta Sonu", "sessions": "2 Gün", "tag": "Hafta Sonu" },
+          { "label": "Hafta", "sessions": "5 Gün", "tag": "Tatil" }
+        ]
+      }
+    }
+  },
+  "rentalShowcase": {
+    "standard": {
+      "headline": "Standart",
+      "accentWord": "Kiralama",
+      "subheadline": "Günlük seanslar için güvenilir, ilerlemeye uygun ekipman. Ekipmanınızı ve sürenizi tek bir yerde seçin."
+    },
+    "sls": {
+      "headline": "SLS",
+      "accentWord": "Ekipman",
+      "subheadline": "Daha hafif his, daha hızlı tepki ve premium performans isteyenler için Strong Light Superior kurulumu."
+    },
+    "dlab": {
+      "headline": "D/LAB",
+      "accentWord": "Ekipman",
+      "subheadline": "En hafif ve en duyarlı kurulumu isteyenler için en yüksek performanslı kiralama serisi."
+    },
+    "efoil": {
+      "headline": "E-FOIL",
+      "accentWord": "Kiralama",
+      "subheadline": "En benzersiz su sporu deneyimi. Rüzgar yok, ses yok — sadece siz ve su."
+    }
+  },
+  "rentalUpsell": {
+    "sectionLabel": "Diğer Kiralamaları Keşfet",
+    "title": "Farklı bir şey mi arıyorsunuz?",
+    "cards": {
+      "standard": {
+        "eyebrow": "Duotone Standart",
+        "title": "Her seans için sağlam ekipman",
+        "body": "Güvenilir, ilerlemeye uygun ekipman. Bütçeyi zorlamadan günlük seanslar için ideal.",
+        "cta": "Standart'ı Keşfet"
+      },
+      "sls": {
+        "eyebrow": "Strong Light Superior",
+        "title": "Daha iyi bir his ister misiniz?",
+        "body": "Daha hafif, daha güçlü, daha duyarlı. SLS serimiz premium karbon yapısıyla seansınızı bir üst seviyeye taşır.",
+        "cta": "SLS'i Keşfet"
+      },
+      "dlab": {
+        "eyebrow": "Duotone Laboratuvarı",
+        "title": "Özel bir şey deneyin",
+        "body": "Kiteboarding teknolojisinin zirvesi. D/LAB, Duotone'un şimdiye kadar yaptığı en hafif ve en duyarlı ekipman.",
+        "cta": "D/LAB'ı Keşfet"
+      },
+      "efoil": {
+        "eyebrow": "Elektrikli Hidrofoil",
+        "title": "Suyun üzerinde uçun",
+        "body": "Rüzgar gerekmez. Premium E-Foil kiralamamızla yüzeyin üstünde sessizce süzülün — en benzersiz su sporu deneyimi.",
+        "cta": "E-Foil'i Keşfet"
+      }
+    }
+  },
+  "academyCrossSell": {
+    "sectionLabel": "Deneyiminizi Tamamlayın",
+    "title": "Her şey tek bir yerde",
+    "cards": {
+      "shop": {
+        "eyebrow": "Duotone Pro Shop",
+        "title": "Sezona hazırlanın",
+        "body": "En yeni Duotone kiteler, boardlar, harnessler ve aksesuarlara göz atın. Pro center fiyatlandırması ve uzman tavsiyesi dahil.",
+        "cta": "Mağazayı Ziyaret Et"
+      },
+      "rental": {
+        "eyebrow": "Ekipman Kiralama",
+        "title": "Her gün premium ekipman sürün",
+        "body": "Standart'tan D/LAB'a — sürüşünüze uygun seviyeyi seçin. Hepsi bakımlı, hepsi en yeni modeller.",
+        "cta": "Kiralamalara Göz At"
+      },
+      "stay": {
+        "eyebrow": "Konaklama",
+        "title": "Tam noktada kalın",
+        "body": "Sudan sadece birkaç metre uzakta uyanın. Kiter'lar için tasarlanmış konforlu oda ve evler, ekipman deposu dahil.",
+        "cta": "Konaklama Bul"
+      }
+    }
+  },
+  "contactBanner": {
+    "orReachUs": "Ya da bize doğrudan ulaşın",
+    "whatsapp": "WhatsApp",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "whatsappOptions": {
+      "shop": "Mağaza soruları",
+      "school": "Okul soruları"
+    }
+  },
+  "rentalStandard": {
+    "headline": "Standart",
+    "accentWord": "Kiralama",
+    "subheadline": "Günlük seanslar için güvenilir, ilerlemeye uygun ekipman. Ekipmanınızı ve sürenizi tek bir yerde seçin.",
+    "packages": {
+      "fullSet": {
+        "name": "Tam Set Kiralama",
+        "subtitle": "Komple Kite Kurulumu",
+        "description": "Suya çıkmak için ihtiyacınız olan her şey — güvenilir, ilerlemeye uygun ekipmanla.",
+        "highlights": ["Kite + board + bar", "Harness ve dalış elbisesi dahil", "Güvenlik leash'i ve kask", "Günlük kontrol edilen ekipman", "İlerleme için ideal", "Ekipman dahil"],
+        "badges": ["Standart", "Tam Set"],
+        "durations": [
+          { "label": "Hızlı Seans", "sessions": "1 seans" },
+          { "label": "Yarım Gün", "sessions": "Yarım günlük kiralama", "tag": "Popüler" },
+          { "label": "Tam Gün", "sessions": "Tam günlük kiralama" },
+          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "En Avantajlı" }
+        ]
+      },
+      "board": {
+        "name": "Board Kiralama",
+        "subtitle": "Twin Tip / Directional",
+        "description": "Hafif seyahat edin ve sadece board kiralayın. Farklı koşullar için çeşitli boy ve şekil seçenekleri.",
+        "highlights": ["Twin tip ve directional seçenekleri", "Strap/pad dahil", "Board çantası mevcut", "Taze hazırlanmış ekipman", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
+        "badges": ["Boardlar", "Standart"],
+        "durations": [
+          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
+          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "Popüler" }
+        ]
+      },
+      "wetsuit": {
+        "name": "Dalış Elbisesi Kiralama",
+        "subtitle": "ION Dalış Elbiseleri",
+        "description": "Her kullanım sonrası temizlenip hazırlanan, birden fazla beden ile premium ION dalış elbiseleri.",
+        "highlights": ["Tüm bedenler mevcut", "Taze temizlenmiş", "Konfor odaklı kesim", "Bot opsiyonel", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
+        "badges": ["Dalış Elbisesi", "Standart"],
+        "durations": [
+          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
+          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "En Avantajlı" }
+        ]
+      },
+      "harnessBar": {
+        "name": "Harness & Bar",
+        "subtitle": "Kontrol Sistemi",
+        "description": "Güvenli ve duyarlı seanslar için en yeni kontrol sistemleri ve harness seçenekleri.",
+        "highlights": ["Duotone kontrol barları", "Bel ve koltuk harness seçenekleri", "Hızlı bırakma güvenlik sistemleri", "Güvenlik kontrolleri dahil", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
+        "badges": ["Aksesuarlar", "Standart"],
+        "durations": [
+          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
+          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "Popüler" }
+        ]
+      }
+    }
+  },
+  "rentalPremium": {
+    "hero": {
+      "title": "Premium Ekipman Kiralama",
+      "description": "Duotone'un SLS ve D/LAB ekipmanıyla farkı yaşayın. Premium serimiz, mevcut en hafif ve en duyarlı ekipmanı sunar. İleri seviye sürücüler ya da mutlak en iyi deneyimi isteyenler için ideal.",
+      "cta": "Premium Ekipman Kirala"
+    },
+    "testCenter": {
+      "title": "Resmi Duotone Test Merkezi",
+      "description": "Türkiye'nin tek Duotone Pro Test Merkezi olarak en yeni ekipmanı denemeye sunuyoruz. Satın almadan önce deneyin!"
+    },
+    "whyPremium": {
+      "title": "Neden Premium?",
+      "cards": {
+        "light": { "title": "Ultra Hafif", "description": "SLS teknolojisi ağırlığı %20'ye kadar azaltır" },
+        "responsive": { "title": "Daha Duyarlı", "description": "Anlık geri bildirim için daha sert çerçeveler" },
+        "serviced": { "title": "Günlük Servis", "description": "Ekipman her gün kontrol edilir ve bakımı yapılır" },
+        "latest": { "title": "En Yeni Modeller", "description": "Yıllık güncellenen 2024 sezon ekipmanı" }
+      }
+    },
+    "options": {
+      "title": "Premium Kiralama Seçenekleri",
+      "pricing": "Fiyatlandırma:",
+      "included": "Dahil Olanlar:",
+      "bookLabel": "{{name}} Kirala"
+    },
+    "packages": {
+      "sls": {
+        "title": "SLS Ekipmanı",
+        "subtitle": "Saatlik Kiralama",
+        "description": "Duotone SLS (Strong Light Superior) serisi en üst performansı sunar. Standart ekipmandan daha hafif, sert ve daha duyarlı.",
+        "durations": ["1 saat", "4 saat (Yarım Gün)", "8 saat (Tam Gün)", "1 Hafta"],
+        "included": ["En yeni SLS kite modeli", "Seçtiğiniz SLS board", "Premium harness ve bar", "ION dalış elbisesi", "Güvenlik ekipmanı"]
+      },
+      "dlab": {
+        "title": "D/LAB Ekipmanı",
+        "subtitle": "Üst Düzey Performans",
+        "description": "D/LAB, Duotone'un en gelişmiş serisidir. Mükemmellik arayan sürücüler için el yapımı, sınırlı üretim ekipmanı.",
+        "durations": ["1 saat", "4 saat (Yarım Gün)", "8 saat (Tam Gün)"],
+        "included": ["D/LAB kite (sınırlı üretim)", "D/LAB veya SLS board", "Premium harness ve bar", "ION dalış elbisesi", "Öncelikli kurtarma desteği"]
+      },
+      "foilBoard": {
+        "title": "SLS Foil Board",
+        "subtitle": "Hidrofoil Ekipmanı",
+        "description": "Deneyimli sürücüler için premium foil boardlar. Hafif rüzgar seansları veya foiling'inizi bir üst seviyeye taşımak için ideal.",
+        "durations": ["1 gün", "1 hafta"],
+        "included": ["SLS foil board", "Tam foil seti", "Board çantası", "Foil güvenlik brifingi"]
+      }
+    },
+    "bottomCta": {
+      "title": "Premium Deneyime Hazır mısınız?",
+      "description": "Üst düzey ekipmanın yaptığı farkı hissedin. Premium kiralamanızı bugün yapın!",
+      "bookBtn": "Premium Ekipman Kirala",
+      "viewStandardBtn": "Standart Kiralamaya Bak"
+    }
+  },
+  "rental": {
+    "nav": { "standard": "STANDART KİRALAMA", "standardShort": "STANDART", "sls": "SLS KİRALAMA", "slsShort": "SLS", "dlab": "D-LAB KİRALAMA", "dlabShort": "D-LAB", "efoil": "E-FOIL KİRALAMA", "efoilShort": "E-FOIL" },
+    "sections": {
+      "standard": {
+        "title": "STANDART KİRALAMA",
+        "tagline": "Her seviye için güvenilir, yüksek kaliteli ekipman.",
+        "description": "Herkes en üst segment ekipmana ihtiyaç duymaz. Standart kiralama yelpazemiz, ilerleme ve günlük seanslar için mükemmel, güvenilir ve kaliteli ekipman sunar."
+      },
+      "sls": {
+        "label": "Strong Light Superior",
+        "title": "SLS KİRALAMA",
+        "tagline": "Daha hafif, daha güçlü, daha duyarlı.",
+        "description": "SLS serimizle farkı hissedin. Performans talep edenler için daha hafif, daha güçlü ve daha duyarlı ekipman."
+      },
+      "dlab": {
+        "label": "Duotone Laboratory",
+        "title": "D-LAB KİRALAMA",
+        "tagline": "Kiteboarding teknolojisinin zirvesi.",
+        "description": "Piyasadaki en hafif, en dayanıklı ve en yüksek performanslı ekipmanı uçurun."
+      },
+      "efoil": {
+        "label": "Electric Hydrofoil",
+        "title": "E-FOIL KİRALAMA",
+        "tagline": "Rüzgar gerekmiyor. Elektrikli uçuş.",
+        "description": "Premium elektrikli hidrofoillerimiz üzerinde suyun üstünde sessizce süzülün — kıyının en benzersiz su sporu deneyimi."
+      }
+    },
+    "faq": {
+      "title": "Hangi kiralamanın size uygun olduğundan emin değil misiniz?",
+      "description": "Seviyeniz ve hedefleriniz için doğru ekipmanı seçmenize yardımcı olmak üzere ekibimiz burada. İletişime geçmeniz yeterli."
+    }
+  },
+  "stay": {
+    "brandSubtitle": "konaklama",
+    "sections": {
+      "home": {
+        "title": "EV KONAKLAMA",
+        "tagline": "Evden uzakta bir ev.",
+        "description": "Samimi ev konaklamalarımızda kalın. Havuzlu stüdyolar, çiftlik evi seçenekleri ve personel konaklamaları ile daha kişisel ve özel bir deneyim."
+      },
+      "hotel": {
+        "title": "OTEL KONAKLAMA",
+        "tagline": "Rahatlık ve kolaylık, sudan birkaç adım ötede.",
+        "description": "Urla'daki huzurlu Burlahan Otel'de kalırken kitesurf öğrenin. Sahile erişim ve tam olanaklarla kaliteli konaklama."
+      }
+    },
+    "faq": {
+      "title": "Konaklamanızda yardım ister misiniz?",
+      "description": "Ekibimiz kitesurf tatilinize uygun mükemmel konaklamayı bulmanıza yardımcı olmak için burada."
+    }
+  },
+  "experience": {
+    "brandSubtitle": "deneyim",
+    "nav": { "kite": "KITE PAKETLERİ", "wing": "WING PAKETLERİ", "downwinders": "DOWNWINDERS", "camps": "KAMPLAR" },
+    "sections": {
+      "kite": {
+        "title": "KITE PAKETLERİ",
+        "description": "Seviyenize göre özel hazırlanmış eksiksiz kitesurf tatil paketleri.",
+        "cta": "PAKETLERE BAK"
+      },
+      "wing": {
+        "title": "WING PAKETLERİ",
+        "description": "Kapsamlı paketlerimizle wing foilingin özgürlüğünü yaşayın.",
+        "cta": "PAKETLERE BAK"
+      },
+      "downwinders": {
+        "title": "DOWNWINDERS",
+        "description": "Büyüleyici kıyı boyunca unutulmaz aşağı rüzgar yolculukları.",
+        "cta": "ROTALARI KEŞFET"
+      },
+      "camps": {
+        "title": "KAMPLAR",
+        "description": "Yoğun eğitim ve topluluk havası için özel kamplarımıza katılın.",
+        "cta": "KAMPA KATIL"
+      }
+    },
+    "faq": {
+      "title": "Paketlerimizle ilgili sorularınız mı var?",
+      "description": "Seviyeniz ve hedefleriniz için doğru deneyim paketini seçmenize yardımcı olmak üzere ekibimiz burada."
+    }
+  }
+}

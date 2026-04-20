@@ -1,0 +1,158 @@
+{
+  "_meta": { "ai_drafted": true, "reviewed": false },
+  "brand": {
+    "name": "Duotone Pro Center Urla"
+  },
+  "login": {
+    "title": "Acceso de miembros",
+    "welcome": "Bienvenido de nuevo a {{brand}}.",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "nombre@ejemplo.com",
+    "passwordLabel": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "rememberMe": "Mantenerme conectado",
+    "signIn": "INICIAR SESIÓN",
+    "mobileNoAccount": "¿No tienes una cuenta?",
+    "createAccountLink": "Crear cuenta",
+    "rightTagline": "Experiencia. Excelencia. Dominio.",
+    "rightQuote": "Únete a la principal comunidad de deportes acuáticos de Urla. Accede a tu progreso, reserva sesiones y gestiona tu membresía con UKC.",
+    "rightNewHere": "¿Nuevo aquí?",
+    "rightCreateCta": "CREAR CUENTA",
+    "features": {
+      "dashboard": "Análisis del panel",
+      "lessons": "Reserva de clases",
+      "rentals": "Alquiler de equipo",
+      "finance": "Seguimiento financiero",
+      "community": "Gestión de la comunidad"
+    },
+    "errors": {
+      "enterEmail": "Por favor, introduce tu correo",
+      "enterPassword": "Por favor, introduce tu contraseña",
+      "incorrect": "Correo o contraseña incorrectos.",
+      "networkError": "No se pudo conectar al servidor. Verifica tu conexión.",
+      "sessionExpired": "Sesión expirada. Vuelve a iniciar sesión.",
+      "genericFailed": "Error al iniciar sesión. Inténtalo de nuevo."
+    }
+  },
+  "register": {
+    "steps": {
+      "account": { "title": "Cuenta", "subtitle": "¡Vamos a registrarte!" },
+      "profile": { "title": "Perfil del rider", "subtitle": "Ayúdanos a encontrar el equipo adecuado" },
+      "address": { "title": "Tu ubicación", "subtitle": "¿Dónde enviamos tus pedidos?" }
+    },
+    "stepIndicator": "Paso {{current}} de {{total}}",
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "phone": "Número de teléfono",
+      "dob": "Fecha de nacimiento",
+      "weight": "Peso (kg)",
+      "currency": "Moneda preferida",
+      "address": "Dirección",
+      "city": "Ciudad",
+      "zip": "Código postal",
+      "country": "País"
+    },
+    "placeholders": {
+      "firstName": "Juan",
+      "lastName": "Pérez",
+      "email": "tu@ejemplo.com",
+      "phone": "6xx xxx xxx",
+      "weight": "p.ej. 70",
+      "currency": "Selecciona moneda",
+      "address": "Calle de la Playa 123, Apt 4",
+      "city": "p.ej. Madrid",
+      "zip": "p.ej. 28001",
+      "country": "Selecciona país"
+    },
+    "hints": {
+      "dob": "Para normas de seguridad",
+      "weight": "Para el tamaño correcto de kite y tabla",
+      "currency": "Todos los precios y pagos se procesarán en esta moneda",
+      "shipping": "Tu dirección se usará como dirección de envío por defecto. Siempre puedes cambiarla al pagar."
+    },
+    "strength": { "weak": "Débil", "fair": "Regular", "good": "Buena", "strong": "Fuerte" },
+    "validation": {
+      "passwordMin": "Mín. 8 caracteres",
+      "passwordPattern": "Se requieren mayúscula, minúscula, número y carácter especial (@$!%*?&)",
+      "passwordsDontMatch": "Las contraseñas no coinciden",
+      "phonePattern": "Se requiere un número de teléfono válido",
+      "ageTooYoung": "Debes tener al menos 10 años",
+      "ageInvalid": "Introduce una fecha válida",
+      "weightRange": "30–200 kg"
+    },
+    "buttons": {
+      "cancel": "CANCELAR",
+      "back": "ATRÁS",
+      "continue": "CONTINUAR",
+      "finish": "FINALIZAR",
+      "creating": "CREANDO..."
+    },
+    "success": {
+      "welcome": "¡Bienvenido, {{name}}! Tu cuenta está lista.",
+      "created": "¡Cuenta creada! Inicia sesión."
+    },
+    "errors": { "generic": "Error al registrarse" }
+  },
+  "forgotPassword": {
+    "title": "¿Olvidaste tu contraseña?",
+    "subtitle": "Introduce tu correo y te enviaremos un enlace para restablecerla.",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "nombre@ejemplo.com",
+    "send": "ENVIAR ENLACE",
+    "sending": "ENVIANDO...",
+    "backToLogin": "VOLVER AL INICIO",
+    "rateLimited": "Demasiadas solicitudes. Espera antes de reintentar.",
+    "invalidEmail": "Introduce un correo válido",
+    "sent": {
+      "title": "Revisa tu correo",
+      "body": "Si existe una cuenta con <strong>{{email}}</strong>, recibirás un enlace en breve.",
+      "didntReceive": "¿No lo recibiste?",
+      "didntReceiveBody": "Revisa tu carpeta de spam o verifica la dirección. El enlace expira en 1 hora.",
+      "returnLogin": "VOLVER AL INICIO"
+    }
+  },
+  "resetPassword": {
+    "validating": "Validando tu enlace de restablecimiento...",
+    "title": "Restablecer contraseña",
+    "subtitle": "Introduce una nueva contraseña para <strong>{{email}}</strong>",
+    "fields": {
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar contraseña"
+    },
+    "requirementsTitle": "Requisitos:",
+    "requirementLength": "Al menos 8 caracteres",
+    "requirementStrong": "Elige una contraseña fuerte y única",
+    "submit": "RESTABLECER",
+    "submitting": "RESTABLECIENDO...",
+    "cancelReturn": "CANCELAR Y VOLVER",
+    "successToast": "¡Contraseña restablecida!",
+    "success": {
+      "title": "¡Éxito!",
+      "body": "Tu contraseña se ha restablecido. Ya puedes iniciar sesión con la nueva contraseña.",
+      "goLogin": "IR AL INICIO"
+    },
+    "invalid": {
+      "title": "Enlace inválido",
+      "defaultBody": "Este enlace de restablecimiento ha expirado o no es válido.",
+      "expiry": "Los enlaces expiran tras 1 hora por seguridad.",
+      "requestNew": "SOLICITAR NUEVO ENLACE",
+      "return": "VOLVER AL INICIO"
+    },
+    "errors": {
+      "invalidLink": "Enlace inválido. Solicita uno nuevo.",
+      "expiredLink": "Este enlace ha expirado o no es válido. Solicita uno nuevo.",
+      "validateFailed": "No se pudo validar el enlace. Inténtalo más tarde.",
+      "resetFailed": "No se pudo restablecer la contraseña. Inténtalo de nuevo.",
+      "resetGenericFailed": "No se pudo restablecer la contraseña. Inténtalo más tarde.",
+      "passwordsMismatch": "Las contraseñas no coinciden",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "enterPassword": "Introduce una nueva contraseña",
+      "confirmRequired": "Confirma tu contraseña",
+      "passwordMinValidation": "La contraseña debe tener al menos 8 caracteres"
+    }
+  }
+}

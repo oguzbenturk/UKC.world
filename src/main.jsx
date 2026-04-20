@@ -2,18 +2,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
-import { ConfigProvider, App as AntdApp } from 'antd';
-import enUS from 'antd/locale/en_US';
+import { App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import 'antd/dist/reset.css';
 import '@/index.css';
-import dayjs from 'dayjs';
-import 'dayjs/locale/en';
+import '@/i18n';
+import AppLocaleProvider from '@/i18n/AppLocaleProvider';
 import ErrorBoundary from '@/shared/components/error/ErrorBoundary';
 import AppErrorFallback from '@/shared/components/error/AppErrorFallback';
-
-// Set dayjs locale to English (Gregorian calendar)
-dayjs.locale('en');
 // Silence console noise by default (opt-in to debug via localStorage.DEBUG_CONSOLE='1')
 // import '@/shared/utils/silenceConsole.js'; // Temporarily disabled for debugging
 
@@ -65,8 +61,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     fallback={AppErrorFallback}
     showDetails={import.meta.env.DEV}
   >
-    <ConfigProvider
-      locale={enUS}
+    <AppLocaleProvider
       theme={{
         token: {
           colorPrimary: '#3B82F6', // brand blue
@@ -87,6 +82,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <App />
         </QueryClientProvider>
       </AntdApp>
-    </ConfigProvider>
+    </AppLocaleProvider>
   </ErrorBoundary>
 );

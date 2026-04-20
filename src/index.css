@@ -2,12 +2,19 @@
 @import './styles/product-images.css';
 
 /* ── Duotone Brand Fonts ───────────────────────────────────────── */
+/*
+ * Duotone font files only cover Basic Latin (U+0020-007F).
+ * unicode-range tells the browser NOT to try Duotone for other
+ * characters (Turkish ğ ı ş, accented chars, Cyrillic, etc.) —
+ * the browser falls back to the next family in the stack automatically.
+ */
 @font-face {
   font-family: 'Duotone Bold Extended';
   src: url('../DuotoneFonts/QualityFonts/DUOTONE-BoldExtended.woff2') format('woff2');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0020-007F;
 }
 
 @font-face {
@@ -16,6 +23,7 @@
   font-weight: bold;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0020-007F;
 }
 
 @font-face {
@@ -24,6 +32,7 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0020-007F;
 }
 
 @font-face {
@@ -32,6 +41,7 @@
   font-weight: 300;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0020-007F;
 }
 
 @font-face {
@@ -40,6 +50,7 @@
   font-weight: 500;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0020-007F;
 }
 
 @font-face {
@@ -91,26 +102,29 @@
 @tailwind utilities;
 
 @layer utilities {
+  /* Fallback stack for chars Duotone doesn't ship (Turkish ğ ı ş, French accents, Cyrillic).
+     Gotham-TR is the same brand family and includes these glyphs — visually much closer
+     to Duotone than a system font. System fonts only kick in as last resort (Cyrillic). */
   .font-duotone-bold-extended {
-    font-family: 'Duotone Bold Extended', sans-serif;
+    font-family: 'Duotone Bold Extended', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-duotone-bold {
-    font-family: 'Duotone Bold', sans-serif;
+    font-family: 'Duotone Bold', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-duotone-regular {
-    font-family: 'Duotone Regular', sans-serif;
+    font-family: 'Duotone Regular', 'Gotham Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-duotone-light-condensed {
-    font-family: 'Duotone Light Condensed', sans-serif;
+    font-family: 'Duotone Light Condensed', 'Gotham Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-gotham-bold {
-    font-family: 'Gotham Bold', sans-serif;
+    font-family: 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-gotham-medium {
-    font-family: 'Gotham Medium', sans-serif;
+    font-family: 'Gotham Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
   .font-gotham-light {
-    font-family: 'Gotham Light', sans-serif;
+    font-family: 'Gotham Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   }
 }
 
@@ -155,7 +169,7 @@
 
   .dark-form .ant-form-item-label > label {
     color: #4b4f54 !important;
-    font-family: 'Duotone Bold', sans-serif !important;
+    font-family: 'Duotone Bold', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
     font-size: 11px !important;

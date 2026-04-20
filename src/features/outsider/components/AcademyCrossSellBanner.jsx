@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import stayCardImg from '../../../../DuotoneFonts/ukcstay/WhatsApp Image 2026-03-17 at 13.14.32 (1).jpeg';
@@ -6,34 +8,10 @@ import rentalBannerImg from '../../../../DuotoneFonts/pictures/shoprentalbanner.
 import shopBannerImg from '../../../../DuotoneFonts/pictures/shop.jpg';
 import { featureFlags } from '@/shared/config/featureFlags';
 
-const CROSS_SELL_CARDS = [
-  {
-    key: 'shop',
-    image: shopBannerImg,
-    eyebrow: 'Duotone Pro Shop',
-    title: 'Gear up for the season',
-    body: 'Browse the latest Duotone kites, boards, harnesses and accessories. Pro center pricing, expert advice included.',
-    cta: 'Visit Shop',
-    to: '/shop',
-  },
-  {
-    key: 'rental',
-    image: rentalBannerImg,
-    eyebrow: 'Equipment Rental',
-    title: 'Ride premium gear daily',
-    body: 'Standard to D/LAB — pick the level that matches your riding. All maintained, all latest models.',
-    cta: 'Browse Rentals',
-    to: '/rental',
-  },
-  {
-    key: 'stay',
-    image: stayCardImg,
-    eyebrow: 'Accommodation',
-    title: 'Stay right at the spot',
-    body: 'Wake up meters from the water. Comfortable rooms and homes designed for kiters, with gear storage included.',
-    cta: 'Find a Stay',
-    to: '/stay',
-  },
+const CARD_CONFIG = [
+  { key: 'shop', image: shopBannerImg, to: '/shop' },
+  { key: 'rental', image: rentalBannerImg, to: '/rental' },
+  { key: 'stay', image: stayCardImg, to: '/stay' },
 ];
 
 const btnStyle = {
@@ -43,32 +21,38 @@ const btnStyle = {
   boxShadow: '0 0 12px rgba(0,168,196,0.2)',
 };
 
-/**
- * Cross-sell banner shown on Academy pages linking to Shop, Rental & Stay.
- * @param {object} props
- * @param {string} [props.excludeKey] - Optionally hide one card (e.g. 'rental' on a rental page)
- */
 const AcademyCrossSellBanner = ({ excludeKey }) => {
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
-  const visibleCards = featureFlags.publicShopEnabled
-    ? CROSS_SELL_CARDS
-    : CROSS_SELL_CARDS.filter(c => c.key !== 'shop');
-  const cards = excludeKey
-    ? visibleCards.filter(c => c.key !== excludeKey)
-    : visibleCards;
+
+  const cards = useMemo(() => {
+    const visible = featureFlags.publicShopEnabled
+      ? CARD_CONFIG
+      : CARD_CONFIG.filter((c) => c.key !== 'shop');
+    const filtered = excludeKey ? visible.filter((c) => c.key !== excludeKey) : visible;
+    return filtered.map((c) => ({
+      key: c.key,
+      image: c.image,
+      to: c.to,
+      eyebrow: t(`outsider:academyCrossSell.cards.${c.key}.eyebrow`),
+      title: t(`outsider:academyCrossSell.cards.${c.key}.title`),
+      body: t(`outsider:academyCrossSell.cards.${c.key}.body`),
+      cta: t(`outsider:academyCrossSell.cards.${c.key}.cta`),
+    }));
+  }, [t, excludeKey]);
 
   return (
     <div className="py-16 sm:py-20 bg-slate-50 border-t border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#00a8c4] text-center mb-2">
-          Complete Your Experience
+          {t('outsider:academyCrossSell.sectionLabel')}
         </p>
         <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-slate-900 text-center mb-10">
-          Everything you need in one place
+          {t('outsider:academyCrossSell.title')}
         </h2>
 
         <div className={`grid grid-cols-1 ${cards.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-6`}>
-          {cards.map(card => (
+          {cards.map((card) => (
             <div
               key={card.key}
               className="relative rounded-2xl overflow-hidden min-h-[300px] sm:min-h-[340px] group cursor-pointer"

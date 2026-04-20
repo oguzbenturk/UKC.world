@@ -1,0 +1,69 @@
+{
+  "language": {
+    "label": "Language",
+    "change": "Change language"
+  },
+  "app": {
+    "loading": "Loading...",
+    "continueAnyway": "Continue Anyway",
+    "logout": "Logout",
+    "consentSaved": "Consent saved",
+    "consentFailed": "Failed to save consent"
+  },
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "close": "Close",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "apply": "Apply",
+    "reset": "Reset",
+    "submit": "Submit"
+  },
+  "status": {
+    "active": "Active",
+    "pending": "Pending",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "inactive": "Inactive",
+    "available": "Available",
+    "unavailable": "Unavailable"
+  },
+  "table": {
+    "noData": "No data",
+    "loading": "Loading...",
+    "actions": "Actions"
+  },
+  "empty": {
+    "default": "Nothing here yet"
+  },
+  "pagination": {
+    "prev": "Previous",
+    "next": "Next",
+    "total": "Total {{count}}"
+  },
+  "validation": {
+    "required": "Required",
+    "email": "Enter a valid email",
+    "minLen": "At least {{count}} characters",
+    "maxLen": "At most {{count}} characters",
+    "phone": "Enter a valid phone number",
+    "pattern": "Invalid format"
+  },
+  "duration": {
+    "min": "{{count}} min",
+    "hr": "{{count}} hr",
+    "hrMin": "{{hours}} hr {{minutes}} min"
+  },
+  "dateFormat": {
+    "short": "DD/MM/YYYY",
+    "shortWithTime": "DD/MM/YYYY HH:mm"
+  }
+}

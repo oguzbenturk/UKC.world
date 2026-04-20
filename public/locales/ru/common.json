@@ -1,0 +1,70 @@
+{
+  "_meta": { "ai_drafted": true, "reviewed": false },
+  "language": {
+    "label": "Язык",
+    "change": "Сменить язык"
+  },
+  "app": {
+    "loading": "Загрузка...",
+    "continueAnyway": "Всё равно продолжить",
+    "logout": "Выйти",
+    "consentSaved": "Согласие сохранено",
+    "consentFailed": "Не удалось сохранить согласие"
+  },
+  "buttons": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Изменить",
+    "create": "Создать",
+    "back": "Назад",
+    "next": "Далее",
+    "confirm": "Подтвердить",
+    "close": "Закрыть",
+    "ok": "OK",
+    "yes": "Да",
+    "no": "Нет",
+    "apply": "Применить",
+    "reset": "Сбросить",
+    "submit": "Отправить"
+  },
+  "status": {
+    "active": "Активен",
+    "pending": "В ожидании",
+    "completed": "Завершён",
+    "cancelled": "Отменён",
+    "inactive": "Неактивен",
+    "available": "Доступен",
+    "unavailable": "Недоступен"
+  },
+  "table": {
+    "noData": "Нет данных",
+    "loading": "Загрузка...",
+    "actions": "Действия"
+  },
+  "empty": {
+    "default": "Здесь пока пусто"
+  },
+  "pagination": {
+    "prev": "Назад",
+    "next": "Вперёд",
+    "total": "Всего {{count}}"
+  },
+  "validation": {
+    "required": "Обязательно",
+    "email": "Введите корректный email",
+    "minLen": "Не менее {{count}} символов",
+    "maxLen": "Не более {{count}} символов",
+    "phone": "Введите корректный номер телефона",
+    "pattern": "Неверный формат"
+  },
+  "duration": {
+    "min": "{{count}} мин",
+    "hr": "{{count}} ч",
+    "hrMin": "{{hours}} ч {{minutes}} мин"
+  },
+  "dateFormat": {
+    "short": "DD.MM.YYYY",
+    "shortWithTime": "DD.MM.YYYY HH:mm"
+  }
+}

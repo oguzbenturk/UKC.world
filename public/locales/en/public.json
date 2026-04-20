@@ -1,0 +1,157 @@
+{
+  "brand": {
+    "name": "Duotone Pro Center Urla"
+  },
+  "login": {
+    "title": "Member Login",
+    "welcome": "Welcome back to {{brand}}.",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "passwordLabel": "Password",
+    "forgotPassword": "Forgot password?",
+    "rememberMe": "Stay signed in",
+    "signIn": "SIGN IN",
+    "mobileNoAccount": "Don't have an account?",
+    "createAccountLink": "Create Account",
+    "rightTagline": "Expertise. Excellence. Experience.",
+    "rightQuote": "Join the leading watersports community in Urla. Access your progress, book sessions, and manage your membership with UKC.",
+    "rightNewHere": "New here?",
+    "rightCreateCta": "CREATE ACCOUNT",
+    "features": {
+      "dashboard": "Dashboard Analytics",
+      "lessons": "Lesson Booking",
+      "rentals": "Equipment Rentals",
+      "finance": "Finance Tracking",
+      "community": "Community Management"
+    },
+    "errors": {
+      "enterEmail": "Please enter your email address",
+      "enterPassword": "Please enter your password",
+      "incorrect": "Email or password is incorrect.",
+      "networkError": "Could not reach server. Check your connection.",
+      "sessionExpired": "Session expired. Please sign in again.",
+      "genericFailed": "Login failed. Please try again."
+    }
+  },
+  "register": {
+    "steps": {
+      "account": { "title": "Account", "subtitle": "Let's get you in!" },
+      "profile": { "title": "Rider Profile", "subtitle": "Help us find the right gear for you" },
+      "address": { "title": "Your Location", "subtitle": "Where should we ship your orders?" }
+    },
+    "stepIndicator": "Step {{current}} of {{total}}",
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email Address",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "phone": "Phone Number",
+      "dob": "Date of Birth",
+      "weight": "Weight (kg)",
+      "currency": "Preferred Currency",
+      "address": "Street Address",
+      "city": "City",
+      "zip": "Postal / ZIP Code",
+      "country": "Country"
+    },
+    "placeholders": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "you@example.com",
+      "phone": "5xx xxx xxxx",
+      "weight": "e.g. 70",
+      "currency": "Select currency",
+      "address": "123 Beach Road, Apt 4",
+      "city": "e.g. Istanbul",
+      "zip": "e.g. 34000",
+      "country": "Select country"
+    },
+    "hints": {
+      "dob": "For safety guidelines",
+      "weight": "For correct kite & board sizing",
+      "currency": "All prices and payments will be processed in this currency",
+      "shipping": "Your address will be used as the default delivery address for shop orders. You can always change it at checkout."
+    },
+    "strength": { "weak": "Weak", "fair": "Fair", "good": "Good", "strong": "Strong" },
+    "validation": {
+      "passwordMin": "Min 8 characters",
+      "passwordPattern": "Need uppercase, lowercase, number & special char (@$!%*?&)",
+      "passwordsDontMatch": "Passwords don't match",
+      "phonePattern": "Valid phone number needed",
+      "ageTooYoung": "Must be at least 10 years old",
+      "ageInvalid": "Please enter a valid date",
+      "weightRange": "30–200 kg"
+    },
+    "buttons": {
+      "cancel": "CANCEL",
+      "back": "BACK",
+      "continue": "CONTINUE",
+      "finish": "FINISH",
+      "creating": "CREATING..."
+    },
+    "success": {
+      "welcome": "Welcome, {{name}}! Your account is ready.",
+      "created": "Account created successfully! Please login."
+    },
+    "errors": { "generic": "Registration failed" }
+  },
+  "forgotPassword": {
+    "title": "Forgot Password?",
+    "subtitle": "Enter your email and we'll send you a link to reset your password.",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "name@example.com",
+    "send": "SEND RESET LINK",
+    "sending": "SENDING...",
+    "backToLogin": "BACK TO LOGIN",
+    "rateLimited": "Too many requests. Please wait before trying again.",
+    "invalidEmail": "Please enter a valid email address",
+    "sent": {
+      "title": "Check Your Email",
+      "body": "If an account exists with <strong>{{email}}</strong>, you will receive a reset link shortly.",
+      "didntReceive": "Didn't receive it?",
+      "didntReceiveBody": "Check your spam folder or verify you entered the correct address. The link expires in 1 hour.",
+      "returnLogin": "RETURN TO LOGIN"
+    }
+  },
+  "resetPassword": {
+    "validating": "Validating your reset link...",
+    "title": "Reset Password",
+    "subtitle": "Enter a new password for <strong>{{email}}</strong>",
+    "fields": {
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password"
+    },
+    "requirementsTitle": "Requirements:",
+    "requirementLength": "At least 8 characters long",
+    "requirementStrong": "Choose a strong, unique password",
+    "submit": "RESET PASSWORD",
+    "submitting": "RESETTING...",
+    "cancelReturn": "CANCEL AND RETURN",
+    "successToast": "Password reset successfully!",
+    "success": {
+      "title": "Success!",
+      "body": "Your password has been reset successfully. You can now log in with your new password.",
+      "goLogin": "GO TO LOGIN"
+    },
+    "invalid": {
+      "title": "Link Invalid",
+      "defaultBody": "This password reset link has expired or is invalid.",
+      "expiry": "Reset links expire after 1 hour for security reasons.",
+      "requestNew": "REQUEST NEW LINK",
+      "return": "RETURN TO LOGIN"
+    },
+    "errors": {
+      "invalidLink": "Invalid password reset link. Please request a new one.",
+      "expiredLink": "This password reset link has expired or is invalid. Please request a new one.",
+      "validateFailed": "Unable to validate reset link. Please try again later.",
+      "resetFailed": "Failed to reset password. Please try again.",
+      "resetGenericFailed": "Unable to reset password. Please try again later.",
+      "passwordsMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 8 characters long",
+      "enterPassword": "Please enter a new password",
+      "confirmRequired": "Please confirm your password",
+      "passwordMinValidation": "Password must be at least 8 characters"
+    }
+  }
+}

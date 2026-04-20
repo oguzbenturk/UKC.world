@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Modal, Input, Button, Space, Alert } from 'antd';
+import { useTranslation, Trans } from 'react-i18next';
+import { Modal, Input, Alert } from 'antd';
+import { message } from '@/shared/utils/antdStatic';
 import { MailOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 
-/**
- * ForgotPasswordModal - Modal for requesting password reset email
- */
 const ForgotPasswordModal = ({ visible, onClose }) => {
+  const { t } = useTranslation(['public']);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -14,7 +14,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
 
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) {
-      message.error('Please enter a valid email address');
+      message.error(t('public:forgotPassword.invalidEmail'));
       return;
     }
 
@@ -29,7 +29,7 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
     } catch (err) {
       console.error('Password reset request failed:', err);
       if (err.response?.status === 429) {
-        setError('Too many requests. Please wait before trying again.');
+        setError(t('public:forgotPassword.rateLimited'));
       } else {
         setSuccess(true);
       }
@@ -59,9 +59,9 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
             <div className="w-16 h-16 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-duotone-blue text-3xl shadow-inner">
               <MailOutlined />
             </div>
-            <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Forgot Password?</h2>
+            <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">{t('public:forgotPassword.title')}</h2>
             <p className="font-duotone-regular text-gray-400 text-sm">
-              Enter your email and we'll send you a link to reset your password.
+              {t('public:forgotPassword.subtitle')}
             </p>
           </div>
 
@@ -81,12 +81,12 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
           <div className="space-y-6">
             <div>
               <label className="block font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500 mb-2">
-                Email Address
+                {t('public:forgotPassword.emailLabel')}
               </label>
               <Input
                 prefix={<MailOutlined className="text-gray-600 mr-2" />}
                 type="email"
-                placeholder="name@example.com"
+                placeholder={t('public:forgotPassword.emailPlaceholder')}
                 size="large"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -101,14 +101,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
               disabled={loading}
               className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2 tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
             >
-              {loading ? 'SENDING...' : 'SEND RESET LINK'}
+              {loading ? t('public:forgotPassword.sending') : t('public:forgotPassword.send')}
             </button>
 
             <button
               onClick={handleClose}
               className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors flex items-center justify-center gap-2 text-xs tracking-widest"
             >
-              <ArrowLeftOutlined /> BACK TO LOGIN
+              <ArrowLeftOutlined /> {t('public:forgotPassword.backToLogin')}
             </button>
           </div>
         </>
@@ -117,23 +117,27 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
           <div className="w-16 h-16 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-green-400 text-3xl shadow-inner">
             <CheckCircleOutlined />
           </div>
-          <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Check Your Email</h2>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">{t('public:forgotPassword.sent.title')}</h2>
           <p className="font-duotone-regular text-gray-400 text-sm mb-6">
-            If an account exists with <strong className="text-white">{email}</strong>, you will receive a reset link shortly.
+            <Trans
+              i18nKey="public:forgotPassword.sent.body"
+              values={{ email }}
+              components={{ strong: <strong className="text-white" /> }}
+            />
           </p>
-          
+
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-left mb-8">
-            <h4 className="font-duotone-bold text-xs text-duotone-blue mb-2 uppercase tracking-widest">Didn't receive it?</h4>
+            <h4 className="font-duotone-bold text-xs text-duotone-blue mb-2 uppercase tracking-widest">{t('public:forgotPassword.sent.didntReceive')}</h4>
             <p className="font-duotone-regular text-xs text-gray-400 leading-relaxed">
-              Check your spam folder or verify you entered the correct address. The link expires in 1 hour.
+              {t('public:forgotPassword.sent.didntReceiveBody')}
             </p>
           </div>
-          
+
           <button
             onClick={handleClose}
             className="w-full font-duotone-bold bg-white text-antrasit py-4 rounded-xl hover:bg-gray-100 transition-all tracking-widest text-sm"
           >
-            RETURN TO LOGIN
+            {t('public:forgotPassword.sent.returnLogin')}
           </button>
         </div>
       )}
@@ -150,14 +154,14 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
       closable={true}
       closeIcon={<span className="text-gray-500 hover:text-white text-lg">✕</span>}
       destroyOnHidden
-      styles={{ 
-        content: { 
-          padding: 0, 
-          overflow: 'hidden', 
+      styles={{
+        content: {
+          padding: 0,
+          overflow: 'hidden',
           borderRadius: '32px',
           backgroundColor: 'transparent',
           border: 'none',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
         },
         mask: {
           backgroundColor: 'rgba(0,0,0,0.5)'

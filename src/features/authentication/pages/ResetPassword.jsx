@@ -1,33 +1,21 @@
 import { useState, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Input, Button, Typography, Spin, Alert, Space, Form } from 'antd';
+import { Input, Spin, Form } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { LockOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import { LockOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 
-const { Text, Title, Paragraph } = Typography;
-
-// Static logo component
 const Logo = () => (
   <div className="flex items-center justify-center gap-2 mb-6">
     <img src={dpcLogo} alt="UKC•" style={{ height: '50px', objectFit: 'contain' }} />
   </div>
 );
 
-/**
- * ResetPassword - Page for resetting password via email link
- * 
- * URL format: /reset-password?token=xxx&email=xxx
- * 
- * Security features:
- * - Token validation before showing form
- * - Password strength requirements
- * - Rate limited on backend
- * - Token expires after 1 hour
- */
 const ResetPassword = () => {
+  const { t } = useTranslation(['public']);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
@@ -42,14 +30,13 @@ const ResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
 
-  // Validate token on mount
   useEffect(() => {
     validateToken();
   }, [token, email]);
 
   const validateToken = async () => {
     if (!token || !email) {
-      setError('Invalid password reset link. Please request a new one.');
+      setError(t('public:resetPassword.errors.invalidLink'));
       setValidating(false);
       setLoading(false);
       return;
@@ -61,11 +48,11 @@ const ResetPassword = () => {
       if (response.data.valid) {
         setTokenValid(true);
       } else {
-        setError(response.data.error || 'This password reset link has expired or is invalid. Please request a new one.');
+        setError(response.data.error || t('public:resetPassword.errors.expiredLink'));
       }
     } catch (err) {
       console.error('Token validation failed:', err);
-      setError(err.response?.data?.error || 'Unable to validate reset link. Please try again later.');
+      setError(err.response?.data?.error || t('public:resetPassword.errors.validateFailed'));
     } finally {
       setValidating(false);
       setLoading(false);
@@ -76,12 +63,12 @@ const ResetPassword = () => {
     const { password, confirmPassword } = values;
 
     if (password !== confirmPassword) {
-      message.error('Passwords do not match');
+      message.error(t('public:resetPassword.errors.passwordsMismatch'));
       return;
     }
 
     if (password.length < 8) {
-      message.error('Password must be at least 8 characters long');
+      message.error(t('public:resetPassword.errors.passwordTooShort'));
       return;
     }
 
@@ -93,13 +80,13 @@ const ResetPassword = () => {
 
       if (response.data.success) {
         setSuccess(true);
-        message.success('Password reset successfully!');
+        message.success(t('public:resetPassword.successToast'));
       } else {
-        setError(response.data.error || 'Failed to reset password. Please try again.');
+        setError(response.data.error || t('public:resetPassword.errors.resetFailed'));
       }
     } catch (err) {
       console.error('Password reset failed:', err);
-      setError(err.response?.data?.error || 'Unable to reset password. Please try again later.');
+      setError(err.response?.data?.error || t('public:resetPassword.errors.resetGenericFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -113,21 +100,19 @@ const ResetPassword = () => {
     navigate('/login', { state: { showForgotPassword: true } });
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-2xl">
           <Spin size="large" />
           <p className="font-duotone-regular mt-6 text-gray-400">
-            Validating your reset link...
+            {t('public:resetPassword.validating')}
           </p>
         </div>
       </div>
     );
   }
 
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
@@ -135,22 +120,21 @@ const ResetPassword = () => {
           <div className="w-20 h-20 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-green-400 shadow-inner">
             <CheckCircleOutlined className="text-4xl" />
           </div>
-          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">Success!</h2>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">{t('public:resetPassword.success.title')}</h2>
           <p className="font-duotone-regular text-gray-400 mb-8">
-            Your password has been reset successfully. You can now log in with your new password.
+            {t('public:resetPassword.success.body')}
           </p>
           <button
             onClick={goToLogin}
             className="w-full font-duotone-bold bg-white text-antrasit py-4 rounded-xl hover:bg-gray-100 transition-all tracking-widest text-sm shadow-lg"
           >
-            GO TO LOGIN
+            {t('public:resetPassword.success.goLogin')}
           </button>
         </div>
       </div>
     );
   }
 
-  // Error/Invalid token state
   if (!tokenValid || error) {
     return (
       <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
@@ -158,13 +142,13 @@ const ResetPassword = () => {
           <div className="w-20 h-20 mx-auto mb-6 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 text-red-400 shadow-inner">
             <CloseCircleOutlined className="text-4xl" />
           </div>
-          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">Link Invalid</h2>
+          <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">{t('public:resetPassword.invalid.title')}</h2>
           <p className="font-duotone-regular text-gray-400 mb-6">
-            {error || 'This password reset link has expired or is invalid.'}
+            {error || t('public:resetPassword.invalid.defaultBody')}
           </p>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left mb-8">
             <p className="font-duotone-regular text-xs text-duotone-blue leading-relaxed m-0">
-              ℹ️ Reset links expire after 1 hour for security reasons.
+              ℹ️ {t('public:resetPassword.invalid.expiry')}
             </p>
           </div>
           <div className="space-y-4">
@@ -172,13 +156,13 @@ const ResetPassword = () => {
               onClick={requestNewLink}
               className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
             >
-              REQUEST NEW LINK
+              {t('public:resetPassword.invalid.requestNew')}
             </button>
             <button
               onClick={goToLogin}
               className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors tracking-widest text-xs"
             >
-              RETURN TO LOGIN
+              {t('public:resetPassword.invalid.return')}
             </button>
           </div>
         </div>
@@ -186,19 +170,21 @@ const ResetPassword = () => {
     );
   }
 
-  // Password reset form
   return (
     <div className="min-h-screen bg-[#0f1013] relative overflow-hidden flex items-center justify-center py-12 px-4 shadow-inner">
-      {/* Background blobs */}
       <div className="absolute top-0 -left-4 w-96 h-96 opacity-40 animate-blob pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,168,196,0.2) 0%, rgba(0,168,196,0) 70%)' }}></div>
       <div className="absolute -bottom-8 right-20 w-96 h-96 opacity-40 animate-blob animation-delay-4000 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(75,79,84,0.3) 0%, rgba(75,79,84,0) 70%)' }}></div>
 
       <div className="relative w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 sm:p-12 shadow-2xl">
         <div className="text-center mb-8">
           <Logo />
-          <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">Reset Password</h1>
+          <h1 className="font-duotone-bold-extended text-2xl text-white mb-2 uppercase tracking-tight">{t('public:resetPassword.title')}</h1>
           <p className="font-duotone-regular text-gray-400 text-sm">
-            Enter a new password for <strong className="text-white">{email}</strong>
+            <Trans
+              i18nKey="public:resetPassword.subtitle"
+              values={{ email }}
+              components={{ strong: <strong className="text-white" /> }}
+            />
           </p>
         </div>
 
@@ -211,10 +197,10 @@ const ResetPassword = () => {
         >
           <Form.Item
             name="password"
-            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">New Password</span>}
+            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">{t('public:resetPassword.fields.newPassword')}</span>}
             rules={[
-              { required: true, message: 'Please enter a new password' },
-              { min: 8, message: 'Password must be at least 8 characters' },
+              { required: true, message: t('public:resetPassword.errors.enterPassword') },
+              { min: 8, message: t('public:resetPassword.errors.passwordMinValidation') },
             ]}
           >
             <Input.Password
@@ -228,16 +214,16 @@ const ResetPassword = () => {
 
           <Form.Item
             name="confirmPassword"
-            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">Confirm Password</span>}
+            label={<span className="font-duotone-bold text-[12px] uppercase tracking-wider text-gray-500">{t('public:resetPassword.fields.confirmPassword')}</span>}
             dependencies={['password']}
             rules={[
-              { required: true, message: 'Please confirm your password' },
+              { required: true, message: t('public:resetPassword.errors.confirmRequired') },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (!value || getFieldValue('password') === value) {
                     return Promise.resolve();
                   }
-                  return Promise.reject(new Error('Passwords do not match'));
+                  return Promise.reject(new Error(t('public:resetPassword.errors.passwordsMismatch')));
                 },
               }),
             ]}
@@ -252,13 +238,13 @@ const ResetPassword = () => {
           </Form.Item>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left mb-8">
-            <h4 className="font-duotone-bold text-[10px] text-duotone-blue mb-2 uppercase tracking-widest">Requirements:</h4>
+            <h4 className="font-duotone-bold text-[10px] text-duotone-blue mb-2 uppercase tracking-widest">{t('public:resetPassword.requirementsTitle')}</h4>
             <ul className="list-none p-0 m-0 space-y-1">
               <li className="font-duotone-regular text-[11px] text-gray-400 flex items-center gap-2">
-                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> At least 8 characters long
+                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> {t('public:resetPassword.requirementLength')}
               </li>
               <li className="font-duotone-regular text-[11px] text-gray-400 flex items-center gap-2">
-                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> Choose a strong, unique password
+                <span className="w-1 h-1 bg-duotone-blue rounded-full"></span> {t('public:resetPassword.requirementStrong')}
               </li>
             </ul>
           </div>
@@ -268,7 +254,7 @@ const ResetPassword = () => {
               type="submit"
               className="w-full font-duotone-bold bg-duotone-blue text-antrasit py-4 rounded-xl hover:bg-white transition-all tracking-widest text-sm shadow-lg shadow-duotone-blue/20"
             >
-              {submitting ? 'RESETTING...' : 'RESET PASSWORD'}
+              {submitting ? t('public:resetPassword.submitting') : t('public:resetPassword.submit')}
             </button>
           </Form.Item>
 
@@ -277,7 +263,7 @@ const ResetPassword = () => {
             onClick={goToLogin}
             className="w-full font-duotone-bold text-gray-500 hover:text-white transition-colors tracking-widest text-xs"
           >
-            CANCEL AND RETURN
+            {t('public:resetPassword.cancelReturn')}
           </button>
         </Form>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import { Button } from 'antd';
@@ -18,6 +19,7 @@ import FuturisticScrollCue from '@/shared/components/ui/FuturisticScrollCue';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 
 const StayLandingPage = () => {
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -57,7 +59,7 @@ const StayLandingPage = () => {
                 className="font-gotham-bold antialiased bg-gradient-to-r from-blue-500 to-sky-500 bg-clip-text text-transparent"
                 style={{ letterSpacing: '0.02em', fontSize: 'clamp(2.5rem, 6.5vw, 5rem)', textRendering: 'geometricPrecision' }}
               >
-                Stay
+                {t('outsider:stay.brandSubtitle')}
               </span>
             </div>
           </div>
@@ -106,13 +108,13 @@ const StayLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 uppercase">
-            HOME ACCOMMODATION
+            {t('outsider:stay.sections.home.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-            A home away from home.
+            {t('outsider:stay.sections.home.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-            Stay at our cozy home accommodations. Pool studios, farm house options, and staff quarters for a more personal and intimate experience.
+            {t('outsider:stay.sections.home.description')}
           </p>
           <div className="flex flex-wrap gap-4">
             <Button
@@ -121,7 +123,7 @@ const StayLandingPage = () => {
               style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               onClick={() => navigate('/stay/home')}
             >
-              View Details <RightOutlined className="text-xs ml-1" />
+              {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
             </Button>
           </div>
         </div>
@@ -144,13 +146,13 @@ const StayLandingPage = () => {
         {/* Hero Content */}
         <div className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-duotone-bold-extended tracking-tight text-white drop-shadow-xl mb-3 uppercase">
-            HOTEL STAY
+            {t('outsider:stay.sections.hotel.title')}
           </h1>
           <p className="text-lg sm:text-xl font-duotone-regular text-white mb-2 drop-shadow">
-            Comfort and convenience, steps from the water.
+            {t('outsider:stay.sections.hotel.tagline')}
           </p>
           <p className="text-sm sm:text-base font-duotone-regular text-white mb-6 sm:mb-8 max-w-lg leading-relaxed">
-            Stay at the peaceful Burlahan Otel in Urla while learning to kitesurf. Quality accommodation with beachfront access and full amenities.
+            {t('outsider:stay.sections.hotel.description')}
           </p>
           <div className="flex flex-wrap gap-4">
             <Button
@@ -159,7 +161,7 @@ const StayLandingPage = () => {
               style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               onClick={() => navigate('/stay/hotel')}
             >
-              View Details <RightOutlined className="text-xs ml-1" />
+              {t('outsider:common.viewDetails')} <RightOutlined className="text-xs ml-1" />
             </Button>
           </div>
         </div>
@@ -168,14 +170,14 @@ const StayLandingPage = () => {
       {/* Contact Us Section */}
       <div className="py-16 sm:py-20 border-t border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-1 text-white uppercase tracking-tight">Need help with your stay?</h2>
+          <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended mb-1 text-white uppercase tracking-tight">{t('outsider:stay.faq.title')}</h2>
           <p className="font-gotham-bold mb-3 text-xs tracking-widest flex items-baseline justify-center gap-0 text-[#00a8c4]">
             <span>UKC</span>
             <UkcBrandDot className="mx-[0.02em]" style={{ top: '0.1em' }} />
-            <span>stay</span>
+            <span>{t('outsider:stay.brandSubtitle')}</span>
           </p>
           <p className="font-duotone-regular text-gray-300 mb-8 text-sm sm:text-base max-w-lg mx-auto leading-relaxed">
-            Our team is here to help you find the perfect accommodation to match your kitesurfing holiday.
+            {t('outsider:stay.faq.description')}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Button
@@ -185,7 +187,7 @@ const StayLandingPage = () => {
               style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
               href="/contact"
             >
-              Contact Us
+              {t('outsider:common.contactUs')}
             </Button>
           </div>
           <ContactOptionsBanner />
