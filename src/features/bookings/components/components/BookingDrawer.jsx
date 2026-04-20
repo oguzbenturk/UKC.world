@@ -397,9 +397,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     return () => clearTimeout(timer);
   }, [customerSearchQuery]);
 
-  // Merged customer pool used for rendering options and resolving selected ids.
-  // Order matters: already-selected participants first (so they always render),
-  // then the preloaded context slice, then server search hits.
+  // Full lookup pool for resolving selected ids back to user records.
+  // Includes every source we might have seen a user from.
   const customerPool = useMemo(() => {
     const map = new Map();
     (formData.participants || []).forEach((p) => {
@@ -411,6 +410,30 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     customerSearchResults.forEach((u) => { if (u?.id && !map.has(u.id)) map.set(u.id, u); });
     return Array.from(map.values());
   }, [formData.participants, users, customerSearchResults]);
+
+  // Options shown in the dropdown. With `filterOption={false}` AntD renders
+  // whatever we pass, so we must narrow explicitly when a search is active:
+  // show server hits (+ already-selected) instead of the full preloaded slice.
+  const customerOptions = useMemo(() => {
+    const q = customerSearchQuery.trim();
+    const selected = new Map();
+    (formData.participants || []).forEach((p) => {
+      if (p.userId) selected.set(p.userId, { id: p.userId, name: p.userName });
+    });
+
+    const source = q
+      ? customerSearchResults
+      : (users || []);
+
+    const map = new Map(selected);
+    source.forEach((u) => {
+      if (u?.id && !map.has(u.id)) {
+        const label = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email;
+        map.set(u.id, { id: u.id, name: label });
+      }
+    });
+    return Array.from(map.values()).map((u) => ({ value: u.id, label: u.name }));
+  }, [customerSearchQuery, customerSearchResults, users, formData.participants]);
 
   // Assign package
   const [assignPkgUser, setAssignPkgUser] = useState(null);
@@ -1152,10 +1175,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                     filterOption={false}
                     loading={customerSearching}
                     notFoundContent={customerSearching ? <Spin size="small" /> : 'No customers found'}
-                    options={customerPool.map(u => ({
-                      value: u.id,
-                      label: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
-                    }))}
+                    options={customerOptions}
                     className="flex-1 [&_.ant-select-selector]:!min-h-[38px] [&_.ant-select-selection-item]:!text-sm [&_.ant-select-selection-placeholder]:!text-sm"
                     maxTagCount="responsive"
                   />
