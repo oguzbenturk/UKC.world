@@ -313,10 +313,9 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
             </div>
 
             <p className="text-[9px] font-gotham-medium uppercase tracking-widest text-slate-400">Payment Method</p>
-            <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {[
                 { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: `${walletBalance.toFixed(0)} ${userCurrency}` },
-                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico' },
                 ...(canPayLater ? [{ key: 'pay_later', icon: <ShopOutlined />, label: 'At Center', sub: 'Pay later' }] : []),
               ].map(({ key, icon, label, sub }) => (
                 <button key={key} type="button" onClick={() => setPaymentMethod(key)}

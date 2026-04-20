@@ -421,26 +421,6 @@ const PayStep = ({
             )}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={() => setPaymentMethod('credit_card')}
-          className={`relative flex flex-col items-center gap-1 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 transition-all text-center ${
-            paymentMethod === 'credit_card'
-              ? 'border-emerald-500 bg-emerald-50 shadow-sm shadow-emerald-500/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-          }`}
-        >
-          {paymentMethod === 'credit_card' && (
-            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-              <CheckOutlined className="text-white text-[8px]" />
-            </div>
-          )}
-          <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`} />
-          <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'credit_card' ? 'text-emerald-700' : 'text-slate-600'}`}>Credit Card</span>
-          <span className={`text-[10px] sm:text-xs ${paymentMethod === 'credit_card' ? 'text-emerald-500' : 'text-slate-400'}`}>
-            Iyzico
-          </span>
-        </button>
         {canPayLater && (
           <button
             type="button"

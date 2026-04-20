@@ -17,6 +17,24 @@ const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
 
 const router = Router();
 
+// Record a manager commission for a rental. Awaited so the commission row
+// lands before the response returns — fire-and-forget was losing work under
+// nodemon reloads. Never throws; logs the failure and returns null instead.
+async function safeRecordRentalCommission(rental, context) {
+  if (!rental) return null;
+  try {
+    const { recordRentalCommission } = await import('../services/managerCommissionService.js');
+    return await recordRentalCommission(rental);
+  } catch (err) {
+    logger.error('Manager commission calculation failed', {
+      rentalId: rental.id,
+      context,
+      error: err?.message,
+    });
+    return null;
+  }
+}
+
 /**
  * Get all rentals with enriched data
  */
@@ -815,65 +833,67 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
  * Update a rental
  */
 router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
+  const { id } = req.params;
+  const {
+    customer_id,
+    equipment_ids,
+    status,
+    notes,
+    rental_date,
+    total_price
+  } = req.body;
+
+  const parsedTotalPrice =
+    total_price == null || total_price === '' ? null : Number(total_price);
+  if (parsedTotalPrice !== null && !(Number.isFinite(parsedTotalPrice) && parsedTotalPrice >= 0)) {
+    return res.status(400).json({ error: 'Invalid total price' });
+  }
+
   const client = await pool.connect();
-  
   try {
     await client.query('BEGIN');
     const actorId = resolveActorId(req);
-    
-    const { id } = req.params;
-    const { 
-      customer_id, 
-      equipment_ids, 
-      status, 
-      notes,
-      rental_date, // Use rental_date from frontend
-      participant_type 
-    } = req.body;
 
-
-    // Get current rental to preserve original start time if no new date is provided
     const currentRentalResult = await client.query(
       'SELECT * FROM rentals WHERE id = $1',
       [id]
     );
-    
+
     if (currentRentalResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Rental not found' });
     }
 
     const existingRental = currentRentalResult.rows[0];
-    
-    // Determine the correct user_id to update
+
     const finalUserId = customer_id || existingRental.user_id;
     if (!finalUserId) {
       throw new Error('Customer ID is missing or invalid.');
     }
 
-    // Use the date from the form, fallback to existing, finally fallback to now
     const rentalDate = rental_date ? new Date(rental_date) : (existingRental.start_date ? new Date(existingRental.start_date) : new Date());
     const rentalDateFormatted = rentalDate.toISOString().split('T')[0];
 
-    // Determine final values for other fields, preserving existing if not provided
     const finalStatus = status || existingRental.status;
     const finalNotes = notes !== undefined ? notes : existingRental.notes;
     const finalEquipmentIds = equipment_ids || existingRental.equipment_ids || [];
-    const finalParticipantType = participant_type || existingRental.participant_type || 'single';
+    const finalTotalPrice = parsedTotalPrice !== null ? parsedTotalPrice : existingRental.total_price;
 
-    // Update the rental record
+    // participant_type uses values ('self' | 'family_member') that don't
+    // correspond to the drawer's 'single' | 'multiple' modes, so we preserve
+    // the existing value instead of overwriting it from the request body.
     const rentalResult = await client.query(
-      `UPDATE rentals 
-       SET 
-         user_id = $1, 
-         status = $2, 
-         notes = $3, 
+      `UPDATE rentals
+       SET
+         user_id = $1,
+         status = $2,
+         notes = $3,
          updated_at = NOW(),
          equipment_ids = $4::jsonb,
          rental_date = $5,
-         participant_type = $6
+         total_price = $6
        WHERE id = $7 RETURNING *`,
-      [finalUserId, finalStatus, finalNotes, JSON.stringify(finalEquipmentIds), rentalDateFormatted, finalParticipantType, id]
+      [finalUserId, finalStatus, finalNotes, JSON.stringify(finalEquipmentIds), rentalDateFormatted, finalTotalPrice, id]
     );
 
     const updatedRental = rentalResult.rows[0];
@@ -881,11 +901,16 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
     // Also update rental_equipment join table for compatibility
     // Only update if equipment_ids were actually provided in the request
     if (equipment_ids && equipment_ids.length > 0) {
+      const prices = await client.query(
+        'SELECT id, price FROM services WHERE id = ANY($1::uuid[])',
+        [equipment_ids]
+      );
+      const priceMap = new Map(prices.rows.map((r) => [r.id, parseFloat(r.price) || 0]));
       await client.query('DELETE FROM rental_equipment WHERE rental_id = $1', [id]);
       for (const equipmentId of equipment_ids) {
         await client.query(
-          'INSERT INTO rental_equipment (rental_id, equipment_id, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-          [id, equipmentId, actorId || null]
+          'INSERT INTO rental_equipment (rental_id, equipment_id, daily_rate, created_by) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+          [id, equipmentId, priceMap.get(equipmentId) || 0, actorId || null]
         );
       }
     }
@@ -934,6 +959,16 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       } catch (socketError) {
         logger.error('Error broadcasting rental update:', socketError);
       }
+    }
+
+    // If this edit transitioned the rental into an earning state
+    // (pending → active | completed), record the manager commission.
+    // recordRentalCommission() is idempotent so this is safe even if the
+    // status was already active/completed.
+    const prevStatus = existingRental.status;
+    const newStatus = completeRental.status;
+    if (prevStatus !== newStatus && (newStatus === 'active' || newStatus === 'completed')) {
+      await safeRecordRentalCommission(completeRental, `put:${prevStatus}->${newStatus}`);
     }
 
     res.json(completeRental);
@@ -1056,17 +1091,22 @@ router.get('/completed', authenticateJWT, authorizeRoles(['admin', 'manager', 'i
 router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await pool.query(
       `UPDATE rentals SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Rental not found' });
     }
-    
+
     const rental = result.rows[0];
+
+    // Record manager commission on approval — at this point the customer is
+    // committed and payment has been captured, so the commission is earned.
+    // If the rental is later cancelled, cancelCommission() reverses it.
+    await safeRecordRentalCommission(rental, 'activate');
     
     // Broadcast real-time event for rental activation
     if (req.socketService) {
@@ -1152,15 +1192,8 @@ router.patch('/:id/complete', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
       writeRentalSnapshot(completed).catch(() => {});
     } catch {}
 
-    // Fire-and-forget manager commission calculation
-    try {
-      const { recordRentalCommission } = await import('../services/managerCommissionService.js');
-      recordRentalCommission(completed).catch((err) => {
-        logger.error('Manager commission calculation failed (non-blocking):', err.message);
-      });
-    } catch (commissionErr) {
-      logger.error('Failed to import manager commission service:', commissionErr.message);
-    }
+    // Record manager commission — safe (idempotent) if already recorded on activate.
+    await safeRecordRentalCommission(completed, 'complete');
 
     res.json(completed);
   } catch (error) {

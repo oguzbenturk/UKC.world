@@ -20,10 +20,8 @@ import {
   CheckOutlined,
   CloseOutlined,
   ClockCircleOutlined,
-  UserOutlined,
   ToolOutlined,
   CalendarOutlined,
-  DollarOutlined,
   ShoppingOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '@/shared/utils/formatters';
@@ -414,12 +412,15 @@ function Rentals() {
       // Normalize rental records to match the booking columns shape
       const pendingRentals = (Array.isArray(pendingRentalsRes?.data) ? pendingRentalsRes.data : []).map(r => {
         const eqDetails = typeof r.equipment_details === 'string' ? JSON.parse(r.equipment_details) : (r.equipment_details || {});
-        const equipmentNames = Object.values(eqDetails).map(e => e.name).filter(Boolean).join(', ') || 'Rental';
+        const eqList = Object.values(eqDetails);
+        const equipmentNames = eqList.map(e => e.name).filter(Boolean).join(', ') || 'Rental';
+        const totalDuration = eqList.reduce((sum, e) => sum + (Number(e.duration) || 0), 0);
         return {
           ...r,
           _source: 'rental',
           student_name: r.customer_name,
           service_name: equipmentNames,
+          service_duration: totalDuration || undefined,
           date: r.rental_date || r.start_date,
           amount: r.total_price,
           status: r.status, // 'pending'
@@ -631,15 +632,29 @@ function Rentals() {
       key: 'student',
       render: (_, record) => {
         const name = record.student_name || record.studentName || 'Student';
+        const initials = name
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase())
+          .join('') || 'S';
         return (
-          <div>
-            <div className="font-medium flex items-center">
-              <UserOutlined className="mr-1" />
-              {name}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full
+                         bg-gradient-to-br from-sky-100 to-sky-200 text-sky-700
+                         text-[11px] font-semibold tracking-wide ring-1 ring-sky-200/60"
+            >
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <div className="font-medium text-slate-800 text-sm truncate leading-tight">{name}</div>
+              {record.group_size > 1 && (
+                <span className="text-[10px] uppercase tracking-wider text-sky-700 font-semibold">
+                  Group of {record.group_size}
+                </span>
+              )}
             </div>
-            {record.group_size > 1 && (
-              <Tag color="geekblue" className="mt-1">Group of {record.group_size}</Tag>
-            )}
           </div>
         );
       },
@@ -650,31 +665,30 @@ function Rentals() {
       render: (_, record) => {
         const serviceName = record.service_name || record.serviceName || 'Rental Service';
         return (
-          <div className="flex items-center">
-            <ToolOutlined className="mr-1 text-orange-500" />
-            <span className="font-medium">{serviceName}</span>
-          </div>
+          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
+            {serviceName}
+          </span>
         );
       },
     },
     {
-      title: 'Date & Time',
+      title: 'Date',
       key: 'datetime',
       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
       defaultSortOrder: 'descend',
       render: (_, record) => {
         const dateStr = record.date || record.formatted_date;
         const startHour = record.start_hour || record.startHour;
+        if (!dateStr) return <span className="text-slate-300">—</span>;
+        const d = dayjs(dateStr);
         return (
-          <div>
-            <div className="flex items-center">
-              <CalendarOutlined className="mr-1" />
-              <span className="text-sm font-medium">
-                {dateStr ? dayjs(dateStr).format('MMM DD, YYYY') : 'â€”'}
-              </span>
+          <div className="leading-tight">
+            <div className="text-sm font-medium text-slate-800 tabular-nums">
+              {d.format('MMM DD')}
+              <span className="text-slate-400 font-normal ml-1">{d.format('YYYY')}</span>
             </div>
             {startHour != null && (
-              <div className="text-xs text-slate-500 mt-0.5">
+              <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
                 {String(Math.floor(startHour)).padStart(2, '0')}:{String(Math.round((startHour % 1) * 60)).padStart(2, '0')}
               </div>
             )}
@@ -683,25 +697,32 @@ function Rentals() {
       },
     },
     {
-      title: 'Rental Period',
+      title: 'Period',
       key: 'duration',
+      width: 90,
       render: (_, record) => {
-        // Prefer the service's actual duration (rental period) over the booking's timeslot duration
         const dur = Number(record.service_duration) || Number(record.duration);
-        if (!dur) return <span className="text-slate-400">â€”</span>;
-        return <span className="text-sm">{formatRentalDuration(dur)}</span>;
+        if (!dur) return <span className="text-slate-300">—</span>;
+        return (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-md
+                       bg-slate-100 text-slate-700 text-xs font-medium tabular-nums"
+          >
+            {formatRentalDuration(dur)}
+          </span>
+        );
       },
     },
     {
       title: 'Amount',
       key: 'amount',
+      width: 110,
       render: (_, record) => {
         const amount = record.final_amount ?? record.finalAmount ?? record.amount ?? 0;
         return (
-          <div className="flex items-center">
-            <DollarOutlined className="mr-1" />
-            <span className="font-medium">{formatCurrency(Number(amount), businessCurrency)}</span>
-          </div>
+          <span className="text-sm font-semibold text-slate-800 tabular-nums">
+            {formatCurrency(Number(amount), businessCurrency)}
+          </span>
         );
       },
     },
@@ -709,6 +730,7 @@ function Rentals() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 120,
       filters: [
         { text: 'Pending', value: 'pending' },
         { text: 'Confirmed', value: 'confirmed' },
@@ -718,46 +740,48 @@ function Rentals() {
       onFilter: (value, record) => record.status === value,
       render: (status) => {
         const statusConfig = {
-          pending: { color: 'orange', label: 'Pending' },
-          confirmed: { color: 'green', label: 'Approved' },
-          cancelled: { color: 'red', label: 'Declined' },
-          completed: { color: 'blue', label: 'Completed' },
-          no_show: { color: 'default', label: 'No Show' },
+          pending: { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-800 ring-amber-200', label: 'Pending' },
+          confirmed: { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Approved' },
+          cancelled: { dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-800 ring-rose-200', label: 'Declined' },
+          completed: { dot: 'bg-sky-500', pill: 'bg-sky-50 text-sky-800 ring-sky-200', label: 'Completed' },
+          no_show: { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: 'No Show' },
         };
-        const config = statusConfig[status] || { color: 'default', label: status };
-        return <Tag color={config.color}>{config.label}</Tag>;
-      },
-    },
-    {
-      title: 'Instructor',
-      key: 'instructor',
-      render: (_, record) => {
-        const name = record.instructor_name || record.instructorName;
-        if (!name) return <span className="text-slate-400 text-xs">Not assigned</span>;
-        return <span className="text-sm">{name}</span>;
+        const c = statusConfig[status] || { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: status };
+        return (
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full ring-1 text-[11px] font-semibold ${c.pill}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+            {c.label}
+          </span>
+        );
       },
     },
     {
       title: 'Notes',
       dataIndex: 'notes',
       key: 'notes',
-      width: 160,
-      render: (notes) => notes ? (
-        <Tooltip title={notes}>
-          <span className="text-xs text-slate-600">{notes.length > 40 ? `${notes.substring(0, 40)}â€¦` : notes}</span>
-        </Tooltip>
-      ) : <span className="text-slate-400 text-xs italic">â€”</span>,
+      width: 180,
+      render: (notes) => {
+        if (!notes) return null;
+        const display = notes.length > 48 ? `${notes.slice(0, 48)}…` : notes;
+        return (
+          <Tooltip title={notes}>
+            <span className="text-xs text-slate-500 italic leading-snug line-clamp-2">{display}</span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
-      width: 160,
+      width: 96,
+      align: 'right',
       render: (_, record) => {
         const isPending = record.status === 'pending';
         const isConfirmed = record.status === 'confirmed';
         const isRental = record._source === 'rental';
 
+        const stop = (e) => e.stopPropagation();
         const onApprove = () => isRental
           ? handleRentalRequestChange(record.id, 'approve')
           : handleBookingStatusChange(record.id, 'confirmed');
@@ -765,53 +789,55 @@ function Rentals() {
           ? handleRentalRequestChange(record.id, 'decline')
           : handleBookingStatusChange(record.id, 'cancelled');
 
-        return (
-          <Space>
-            {isPending && (
-              <>
-                <Tooltip title="Approve">
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<CheckOutlined />}
-                    className="bg-green-500 border-green-500 hover:bg-green-600"
-                    onClick={onApprove}
-                  >
-                    Approve
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Decline">
-                  <Popconfirm
-                    title="Decline this rental request?"
-                    description="The student will be notified and any charged amount will be refunded."
-                    onConfirm={onDecline}
-                    okText="Decline"
-                    okButtonProps={{ danger: true }}
-                    cancelText="Keep"
-                  >
-                    <Button size="small" danger icon={<CloseOutlined />}>
-                      Decline
-                    </Button>
-                  </Popconfirm>
-                </Tooltip>
-              </>
-            )}
-            {isConfirmed && (
-              <Tooltip title="Mark Completed">
-                <Button
-                  size="small"
-                  icon={<CheckOutlined />}
-                  onClick={() => handleBookingStatusChange(record.id, 'completed')}
-                >
-                  Complete
-                </Button>
+        const iconBtn = 'inline-flex items-center justify-center w-8 h-8 rounded-lg transition-all';
+        const variants = {
+          primary: 'bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 hover:shadow',
+          danger: 'bg-white text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 hover:ring-rose-300',
+          ghost: 'bg-white text-sky-700 ring-1 ring-sky-200 hover:bg-sky-50 hover:ring-sky-300',
+        };
+
+        if (isPending) {
+          return (
+            <div className="flex items-center justify-end gap-1" onClick={stop}>
+              <Tooltip title="Approve">
+                <button type="button" onClick={onApprove} aria-label="Approve" className={`${iconBtn} ${variants.primary}`}>
+                  <CheckOutlined className="text-xs" />
+                </button>
               </Tooltip>
-            )}
-            {!isPending && !isConfirmed && (
-              <span className="text-xs text-slate-400">No actions</span>
-            )}
-          </Space>
-        );
+              <Popconfirm
+                title="Decline this rental request?"
+                description="The student will be notified and any charged amount will be refunded."
+                onConfirm={onDecline}
+                okText="Decline"
+                okButtonProps={{ danger: true }}
+                cancelText="Keep"
+              >
+                <Tooltip title="Decline">
+                  <button type="button" aria-label="Decline" className={`${iconBtn} ${variants.danger}`}>
+                    <CloseOutlined className="text-xs" />
+                  </button>
+                </Tooltip>
+              </Popconfirm>
+            </div>
+          );
+        }
+        if (isConfirmed) {
+          return (
+            <div className="flex items-center justify-end" onClick={stop}>
+              <Tooltip title="Mark Completed">
+                <button
+                  type="button"
+                  onClick={() => handleBookingStatusChange(record.id, 'completed')}
+                  aria-label="Mark Completed"
+                  className={`${iconBtn} ${variants.ghost}`}
+                >
+                  <CheckOutlined className="text-xs" />
+                </button>
+              </Tooltip>
+            </div>
+          );
+        }
+        return <span className="text-[11px] text-slate-300 italic">—</span>;
       },
     },
   ], [businessCurrency, formatCurrency, handleBookingStatusChange, handleRentalRequestChange]);
@@ -941,20 +967,27 @@ function Rentals() {
         ) : (
           /* Desktop table layout */
           activeTab === 'requests' ? (
-            <UnifiedTable density="comfortable">
+            <UnifiedTable density="compact">
               <Table
                 columns={requestColumns}
                 dataSource={rentalRequests}
                 loading={requestsLoading}
                 rowKey="id"
+                size="small"
                 pagination={{
                   pageSize: 25,
                   showSizeChanger: true,
                   showQuickJumper: true,
                   showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
                 }}
-                scroll={{ x: 1400 }}
+                scroll={{ x: 1000 }}
                 locale={{ emptyText: 'No rental booking requests found' }}
+                onRow={(record) => ({
+                  onClick: () => {
+                    if (record._source === 'rental') handleEdit(record);
+                  },
+                  className: record._source === 'rental' ? 'cursor-pointer hover:bg-sky-50/40' : '',
+                })}
               />
             </UnifiedTable>
           ) : (
@@ -982,7 +1015,10 @@ function Rentals() {
       <NewRentalDrawer
         isOpen={isModalVisible}
         onClose={handleDrawerClose}
-        onSuccess={loadRentals}
+        onSuccess={() => {
+          loadRentals();
+          loadRentalRequests();
+        }}
         editingRental={editingRental}
       />
     </div>

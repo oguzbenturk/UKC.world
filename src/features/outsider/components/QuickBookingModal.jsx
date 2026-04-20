@@ -384,10 +384,9 @@ const PayStep = ({
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
             Payment Method
           </p>
-          <div className="grid gap-2 grid-cols-3">
+          <div className="grid gap-2 grid-cols-2">
             {[
               { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', activeColor: '#3b82f6', activeBg: '#eff6ff', sub: formatCurrency(convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance, userCurrency) },
-              { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981', activeBg: '#ecfdf5', sub: 'Iyzico' },
               { key: 'deposit', icon: <SafetyCertificateOutlined />, label: `Deposit ${DEPOSIT_PERCENT}%`, activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
             ].map(({ key, icon, label, activeColor, activeBg, sub }) => (
               <button
@@ -417,7 +416,7 @@ const PayStep = ({
               showIcon
               className="!mt-3 !rounded-xl !text-xs"
               message="Insufficient wallet balance"
-              description="Switch to Credit Card or top up your wallet first."
+              description="Top up your wallet to continue."
             />
           )}
 
@@ -439,9 +438,8 @@ const PayStep = ({
 
               <div className="border-t border-violet-200 pt-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 mb-2">Pay deposit via</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {[
-                    { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981' },
                     { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer', activeColor: '#3b82f6' },
                   ].map(({ key, icon, label, activeColor }) => (
                     <button
@@ -1022,7 +1020,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
   // ── Local state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
-  const [depositMethod, setDepositMethod] = useState('credit_card');
+  const [depositMethod, setDepositMethod] = useState('bank_transfer');
   const [purchasing, setPurchasing] = useState(false);
   const [purchasedPackage, setPurchasedPackage] = useState(null);
   const [isExistingPackage, setIsExistingPackage] = useState(false);

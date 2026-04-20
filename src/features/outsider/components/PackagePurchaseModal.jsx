@@ -195,13 +195,6 @@ const PackagePurchaseModal = ({
                   </Tag>
                 </div>
               </Radio>
-              <Radio value="credit_card">
-                <div className="flex items-center gap-2">
-                  <CreditCardOutlined />
-                  <span>Card</span>
-                  <Tag color="blue" className="!text-xs">Iyzico</Tag>
-                </div>
-              </Radio>
               {isTrustedCustomer && (
                 <Radio value="pay_later">
                   <div className="flex items-center gap-2">

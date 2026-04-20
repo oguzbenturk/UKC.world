@@ -142,6 +142,7 @@ const standardizeBookingData = (rawBooking) => {
   payment_status: rawBooking.payment_status || rawBooking.paymentStatus,
   customer_package_id: rawBooking.customer_package_id || rawBooking.customerPackageId || null,
     instructor_commission: Number(rawBooking.instructor_commission) || 0,
+    commission_type: rawBooking.commission_type || null,
     participants: rawBooking.participants || [], // Preserve participants array from backend
     createdAt: rawBooking.createdAt || rawBooking.created_at,
     updatedAt: rawBooking.updatedAt || rawBooking.updated_at,

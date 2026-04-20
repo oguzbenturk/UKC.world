@@ -342,7 +342,7 @@ const MemberOfferings = () => {
   const [pendingPurchaseId, setPendingPurchaseId] = useState(null);
   const [startDate, setStartDate] = useState(dayjs());
   const [paymentMethod, setPaymentMethod] = useState('wallet');
-  const [depositMethod, setDepositMethod] = useState('credit_card');
+  const [depositMethod, setDepositMethod] = useState('bank_transfer');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
   const [fileList, setFileList] = useState([]);
 
@@ -509,7 +509,7 @@ const MemberOfferings = () => {
     }
     setStartDate(dayjs());
     setPaymentMethod('wallet');
-    setDepositMethod('credit_card');
+    setDepositMethod('bank_transfer');
     setSelectedBankAccountId(null);
     setFileList([]);
     // For groups: pre-select the first (shortest/cheapest) variant
@@ -928,10 +928,9 @@ const MemberOfferings = () => {
                   )}
                   <div>
                     <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Payment Method</p>
-                    <div className="grid gap-2 grid-cols-3">
+                    <div className="grid gap-2 grid-cols-2">
                       {[
                         { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', activeColor: '#3b82f6', activeBg: '#eff6ff', sub: walletFormatted },
-                        { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981', activeBg: '#ecfdf5', sub: 'Iyzico' },
                         { key: 'deposit', icon: <SafetyCertificateOutlined />, label: 'Deposit 20%', activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
                       ].map(({ key, icon, label, activeColor, activeBg, sub }) => (
                         <button
@@ -967,9 +966,8 @@ const MemberOfferings = () => {
                         </div>
                         <div className="border-t border-violet-200 pt-2.5">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Pay deposit via</p>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 gap-2">
                             {[
-                              { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', activeColor: '#10b981' },
                               { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer', activeColor: '#3b82f6' },
                             ].map(({ key, icon, label, activeColor }) => (
                               <button

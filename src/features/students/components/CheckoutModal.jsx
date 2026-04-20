@@ -100,7 +100,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const { user } = useAuth();
 
   const [paymentMethod, setPaymentMethod] = useState('wallet');
-  const [depositMethod, setDepositMethod] = useState('credit_card');
+  const [depositMethod, setDepositMethod] = useState('bank_transfer');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
   const [fileList, setFileList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -365,7 +365,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     }
     setError(null);
     setPaymentMethod('wallet');
-    setDepositMethod('credit_card');
+    setDepositMethod('bank_transfer');
     setSelectedBankAccountId(null);
     setFileList([]);
     setEditingAddress(false);
@@ -455,14 +455,6 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         : walletBal > 0
           ? <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600 }}>Partial</span>
           : <span style={{ fontSize: 11, color: '#94a3b8' }}>Empty</span>,
-    },
-    {
-      key: 'credit_card',
-      icon: <CreditCardOutlined />,
-      iconColor: '#0ea5e9',
-      label: 'Card',
-      sublabel: walletBal > 0 ? 'Wallet balance applied first' : 'Secure via Iyzico',
-      badge: <SafetyCertificateOutlined style={{ color: '#16a34a', fontSize: 13 }} />,
     },
     {
       key: 'bank_transfer',
@@ -770,9 +762,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
             {/* Sub-method selector */}
             <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Pay deposit via</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
               {[
-                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card' },
                 { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer' },
               ].map(({ key, icon, label }) => {
                 const active = depositMethod === key;

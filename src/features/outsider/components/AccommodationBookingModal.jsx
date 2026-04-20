@@ -121,7 +121,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       setCalendarMonth(dayjs().startOf('month'));
       setSelectingCheckOut(false);
       setPaymentMethod('wallet');
-      setDepositMethod('credit_card');
+      setDepositMethod('bank_transfer');
       setSelectedBankAccountId(null);
       setFileList([]);
       setShowIyzicoModal(false);
@@ -596,10 +596,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
               Payment Method
             </p>
-            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            <div className={`grid gap-3 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {[
                 { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: formatCurrency(walletInUserCurrency, userCurrency), color: 'blue-500', textColor: 'text-blue-400' },
-                { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico', color: 'emerald-500', textColor: 'text-emerald-400' },
                 { key: 'deposit', icon: <SafetyCertificateOutlined />, label: `Deposit ${DEPOSIT_PERCENT}%`, sub: nights > 0 ? formatPrice(depositAmount) : '20% now', color: 'violet-500', textColor: 'text-violet-400' },
                 ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: 'Pay Later', sub: 'At center', color: 'sky-500', textColor: 'text-sky-400' }] : []),
               ].map(({ key, icon, label, sub, color, textColor }) => {
@@ -647,9 +646,8 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">Pay deposit via</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     {[
-                      { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card' },
                       { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer' },
                     ].map(({ key, icon, label }) => {
                       const active = depositMethod === key;

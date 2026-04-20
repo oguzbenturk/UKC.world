@@ -397,6 +397,7 @@ router.get('/',
         cp.package_name as customer_package_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
         COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value) as instructor_commission,
+        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type,
         t.id as transaction_id,
         creator.name as created_by_name,
         creator.email as created_by_email,
@@ -514,7 +515,7 @@ router.get('/',
       }
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, t.id, creator.name, creator.email, updater.name, updater.email
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, t.id, creator.name, creator.email, updater.name, updater.email
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     
@@ -665,15 +666,17 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
     const { date, instructor_id } = req.query;
     
     let query = `
-      SELECT b.*, 
+      SELECT b.*,
         s.name as student_name,
         i.name as instructor_name,
         srv.name as service_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
+        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value) as instructor_commission,
+        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type,
         COALESCE(
           json_agg(
-            CASE 
-              WHEN bp.user_id IS NOT NULL THEN 
+            CASE
+              WHEN bp.user_id IS NOT NULL THEN
                 json_build_object(
                   'userId', bp.user_id,
                   'userName', pu.name,
@@ -694,6 +697,10 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN users i ON i.id = b.instructor_user_id
       LEFT JOIN services srv ON srv.id = b.service_id
+      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
+      LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+      LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       LEFT JOIN booking_participants bp ON bp.booking_id = b.id
       LEFT JOIN users pu ON bp.user_id = pu.id
       WHERE b.deleted_at IS NULL AND b.status != 'pending_payment'
@@ -714,7 +721,7 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       params.push(instructor_id);
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, i.name, srv.name`;
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, i.name, srv.name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type`;
     query += ` ORDER BY b.start_hour ASC`;
     
     const { rows } = await pool.query(query, params);

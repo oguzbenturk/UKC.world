@@ -1,0 +1,624 @@
+diff --git a/backend/routes/rentals.js b/backend/routes/rentals.js
+index 1605489..fe16a10 100644
+--- a/backend/routes/rentals.js
++++ b/backend/routes/rentals.js
+@@ -17,6 +17,24 @@ const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
+ 
+ const router = Router();
+ 
++// Record a manager commission for a rental. Awaited so the commission row
++// lands before the response returns — fire-and-forget was losing work under
++// nodemon reloads. Never throws; logs the failure and returns null instead.
++async function safeRecordRentalCommission(rental, context) {
++  if (!rental) return null;
++  try {
++    const { recordRentalCommission } = await import('../services/managerCommissionService.js');
++    return await recordRentalCommission(rental);
++  } catch (err) {
++    logger.error('Manager commission calculation failed', {
++      rentalId: rental.id,
++      context,
++      error: err?.message,
++    });
++    return null;
++  }
++}
++
+ /**
+  * Get all rentals with enriched data
+  */
+@@ -822,13 +840,13 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
+     const actorId = resolveActorId(req);
+     
+     const { id } = req.params;
+-    const { 
+-      customer_id, 
+-      equipment_ids, 
+-      status, 
++    const {
++      customer_id,
++      equipment_ids,
++      status,
+       notes,
+       rental_date, // Use rental_date from frontend
+-      participant_type 
++      total_price
+     } = req.body;
+ 
+ 
+@@ -859,21 +877,32 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
+     const finalStatus = status || existingRental.status;
+     const finalNotes = notes !== undefined ? notes : existingRental.notes;
+     const finalEquipmentIds = equipment_ids || existingRental.equipment_ids || [];
+-    const finalParticipantType = participant_type || existingRental.participant_type || 'single';
+ 
+-    // Update the rental record
++    const parsedTotalPrice =
++      total_price === undefined || total_price === null || total_price === ''
++        ? null
++        : Number(total_price);
++    if (parsedTotalPrice !== null && (!Number.isFinite(parsedTotalPrice) || parsedTotalPrice < 0)) {
++      await client.query('ROLLBACK');
++      return res.status(400).json({ error: 'Invalid total price' });
++    }
++    const finalTotalPrice = parsedTotalPrice !== null ? parsedTotalPrice : existingRental.total_price;
++
++    // participant_type uses values ('self' | 'family_member') that don't
++    // correspond to the drawer's 'single' | 'multiple' modes, so we preserve
++    // the existing value instead of overwriting it from the request body.
+     const rentalResult = await client.query(
+-      `UPDATE rentals 
+-       SET 
+-         user_id = $1, 
+-         status = $2, 
+-         notes = $3, 
++      `UPDATE rentals
++       SET
++         user_id = $1,
++         status = $2,
++         notes = $3,
+          updated_at = NOW(),
+          equipment_ids = $4::jsonb,
+          rental_date = $5,
+-         participant_type = $6
++         total_price = $6
+        WHERE id = $7 RETURNING *`,
+-      [finalUserId, finalStatus, finalNotes, JSON.stringify(finalEquipmentIds), rentalDateFormatted, finalParticipantType, id]
++      [finalUserId, finalStatus, finalNotes, JSON.stringify(finalEquipmentIds), rentalDateFormatted, finalTotalPrice, id]
+     );
+ 
+     const updatedRental = rentalResult.rows[0];
+@@ -883,9 +912,14 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
+     if (equipment_ids && equipment_ids.length > 0) {
+       await client.query('DELETE FROM rental_equipment WHERE rental_id = $1', [id]);
+       for (const equipmentId of equipment_ids) {
++        const priceResult = await client.query(
++          'SELECT price FROM services WHERE id = $1',
++          [equipmentId]
++        );
++        const dailyRate = parseFloat(priceResult.rows[0]?.price) || 0;
+         await client.query(
+-          'INSERT INTO rental_equipment (rental_id, equipment_id, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+-          [id, equipmentId, actorId || null]
++          'INSERT INTO rental_equipment (rental_id, equipment_id, daily_rate, created_by) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
++          [id, equipmentId, dailyRate, actorId || null]
+         );
+       }
+     }
+@@ -936,6 +970,16 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
+       }
+     }
+ 
++    // If this edit transitioned the rental into an earning state
++    // (pending → active | completed), record the manager commission.
++    // recordRentalCommission() is idempotent so this is safe even if the
++    // status was already active/completed.
++    const prevStatus = existingRental.status;
++    const newStatus = completeRental.status;
++    if (prevStatus !== newStatus && (newStatus === 'active' || newStatus === 'completed')) {
++      await safeRecordRentalCommission(completeRental, `put:${prevStatus}->${newStatus}`);
++    }
++
+     res.json(completeRental);
+   } catch (error) {
+     await client.query('ROLLBACK');
+@@ -1056,17 +1100,22 @@ router.get('/completed', authenticateJWT, authorizeRoles(['admin', 'manager', 'i
+ router.patch('/:id/activate', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), async (req, res) => {
+   try {
+     const { id } = req.params;
+-    
++
+     const result = await pool.query(
+       `UPDATE rentals SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING *`,
+       [id]
+     );
+-    
++
+     if (result.rows.length === 0) {
+       return res.status(404).json({ error: 'Rental not found' });
+     }
+-    
++
+     const rental = result.rows[0];
++
++    // Record manager commission on approval — at this point the customer is
++    // committed and payment has been captured, so the commission is earned.
++    // If the rental is later cancelled, cancelCommission() reverses it.
++    await safeRecordRentalCommission(rental, 'activate');
+     
+     // Broadcast real-time event for rental activation
+     if (req.socketService) {
+@@ -1152,15 +1201,8 @@ router.patch('/:id/complete', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT
+       writeRentalSnapshot(completed).catch(() => {});
+     } catch {}
+ 
+-    // Fire-and-forget manager commission calculation
+-    try {
+-      const { recordRentalCommission } = await import('../services/managerCommissionService.js');
+-      recordRentalCommission(completed).catch((err) => {
+-        logger.error('Manager commission calculation failed (non-blocking):', err.message);
+-      });
+-    } catch (commissionErr) {
+-      logger.error('Failed to import manager commission service:', commissionErr.message);
+-    }
++    // Record manager commission — safe (idempotent) if already recorded on activate.
++    await safeRecordRentalCommission(completed, 'complete');
+ 
+     res.json(completed);
+   } catch (error) {
+diff --git a/src/features/rentals/components/NewRentalDrawer.jsx b/src/features/rentals/components/NewRentalDrawer.jsx
+index 2d2db4f..5704628 100644
+--- a/src/features/rentals/components/NewRentalDrawer.jsx
++++ b/src/features/rentals/components/NewRentalDrawer.jsx
+@@ -7,6 +7,7 @@ import {
+   Select,
+   DatePicker,
+   Input,
++  InputNumber,
+   Button,
+   Tag,
+   Checkbox,
+@@ -127,6 +128,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+         rental_date: editingRental.rental_date ? dayjs(editingRental.rental_date) : dayjs(),
+         status: editingRental.status || 'active',
+         notes: editingRental.notes,
++        total_price: editingRental.total_price != null ? Number(editingRental.total_price) : undefined,
+       });
+     } else {
+       form.resetFields();
+@@ -272,6 +274,10 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+         rental_days: 1,
+       };
+ 
++      if (values.total_price !== undefined && values.total_price !== null && values.total_price !== '') {
++        basePayload.total_price = Number(values.total_price);
++      }
++
+       const customerIds = toArray(values.customer_ids);
+       const isMultipleCreation = !editingRental && participantMode === 'multiple';
+ 
+@@ -302,8 +308,9 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+ 
+       onSuccess?.();
+       handleClose();
+-    } catch {
+-      messageApi.error('Failed to save rental');
++    } catch (err) {
++      const serverMsg = err?.response?.data?.error || err?.message;
++      messageApi.error(serverMsg ? `Failed to save rental: ${serverMsg}` : 'Failed to save rental');
+     }
+   };
+ 
+@@ -491,6 +498,25 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+               </Form.Item>
+             </div>
+ 
++            {/* Total price — manual override of the calculated rental price */}
++            <Form.Item
++              name="total_price"
++              label="Total price"
++              className="!mb-2"
++              tooltip="Override the calculated rental price"
++            >
++              <InputNumber
++                size="large"
++                className="w-full"
++                min={0}
++                step={1}
++                precision={2}
++                placeholder="e.g. 100.00"
++                addonBefore={businessCurrency || 'EUR'}
++                disabled={usePackage && !!selectedPackageId}
++              />
++            </Form.Item>
++
+             {/* Notes */}
+             <Form.Item name="notes" label="Notes" className="!mb-0">
+               <Input.TextArea
+diff --git a/src/features/rentals/pages/Rentals.jsx b/src/features/rentals/pages/Rentals.jsx
+index e01ea20..c2f2e3e 100644
+--- a/src/features/rentals/pages/Rentals.jsx
++++ b/src/features/rentals/pages/Rentals.jsx
+@@ -20,10 +20,8 @@ import {
+   CheckOutlined,
+   CloseOutlined,
+   ClockCircleOutlined,
+-  UserOutlined,
+   ToolOutlined,
+   CalendarOutlined,
+-  DollarOutlined,
+   ShoppingOutlined,
+ } from '@ant-design/icons';
+ import { formatDate } from '@/shared/utils/formatters';
+@@ -414,12 +412,15 @@ function Rentals() {
+       // Normalize rental records to match the booking columns shape
+       const pendingRentals = (Array.isArray(pendingRentalsRes?.data) ? pendingRentalsRes.data : []).map(r => {
+         const eqDetails = typeof r.equipment_details === 'string' ? JSON.parse(r.equipment_details) : (r.equipment_details || {});
+-        const equipmentNames = Object.values(eqDetails).map(e => e.name).filter(Boolean).join(', ') || 'Rental';
++        const eqList = Object.values(eqDetails);
++        const equipmentNames = eqList.map(e => e.name).filter(Boolean).join(', ') || 'Rental';
++        const totalDuration = eqList.reduce((sum, e) => sum + (Number(e.duration) || 0), 0);
+         return {
+           ...r,
+           _source: 'rental',
+           student_name: r.customer_name,
+           service_name: equipmentNames,
++          service_duration: totalDuration || undefined,
+           date: r.rental_date || r.start_date,
+           amount: r.total_price,
+           status: r.status, // 'pending'
+@@ -631,15 +632,29 @@ function Rentals() {
+       key: 'student',
+       render: (_, record) => {
+         const name = record.student_name || record.studentName || 'Student';
++        const initials = name
++          .split(/\s+/)
++          .filter(Boolean)
++          .slice(0, 2)
++          .map((part) => part[0]?.toUpperCase())
++          .join('') || 'S';
+         return (
+-          <div>
+-            <div className="font-medium flex items-center">
+-              <UserOutlined className="mr-1" />
+-              {name}
++          <div className="flex items-center gap-2.5 min-w-0">
++            <span
++              className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full
++                         bg-gradient-to-br from-sky-100 to-sky-200 text-sky-700
++                         text-[11px] font-semibold tracking-wide ring-1 ring-sky-200/60"
++            >
++              {initials}
++            </span>
++            <div className="min-w-0">
++              <div className="font-medium text-slate-800 text-sm truncate leading-tight">{name}</div>
++              {record.group_size > 1 && (
++                <span className="text-[10px] uppercase tracking-wider text-sky-700 font-semibold">
++                  Group of {record.group_size}
++                </span>
++              )}
+             </div>
+-            {record.group_size > 1 && (
+-              <Tag color="geekblue" className="mt-1">Group of {record.group_size}</Tag>
+-            )}
+           </div>
+         );
+       },
+@@ -650,31 +665,30 @@ function Rentals() {
+       render: (_, record) => {
+         const serviceName = record.service_name || record.serviceName || 'Rental Service';
+         return (
+-          <div className="flex items-center">
+-            <ToolOutlined className="mr-1 text-orange-500" />
+-            <span className="font-medium">{serviceName}</span>
+-          </div>
++          <span className="text-sm font-medium text-slate-700 line-clamp-2 leading-snug">
++            {serviceName}
++          </span>
+         );
+       },
+     },
+     {
+-      title: 'Date & Time',
++      title: 'Date',
+       key: 'datetime',
+       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+       defaultSortOrder: 'descend',
+       render: (_, record) => {
+         const dateStr = record.date || record.formatted_date;
+         const startHour = record.start_hour || record.startHour;
++        if (!dateStr) return <span className="text-slate-300">—</span>;
++        const d = dayjs(dateStr);
+         return (
+-          <div>
+-            <div className="flex items-center">
+-              <CalendarOutlined className="mr-1" />
+-              <span className="text-sm font-medium">
+-                {dateStr ? dayjs(dateStr).format('MMM DD, YYYY') : 'â€”'}
+-              </span>
++          <div className="leading-tight">
++            <div className="text-sm font-medium text-slate-800 tabular-nums">
++              {d.format('MMM DD')}
++              <span className="text-slate-400 font-normal ml-1">{d.format('YYYY')}</span>
+             </div>
+             {startHour != null && (
+-              <div className="text-xs text-slate-500 mt-0.5">
++              <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                 {String(Math.floor(startHour)).padStart(2, '0')}:{String(Math.round((startHour % 1) * 60)).padStart(2, '0')}
+               </div>
+             )}
+@@ -683,25 +697,32 @@ function Rentals() {
+       },
+     },
+     {
+-      title: 'Rental Period',
++      title: 'Period',
+       key: 'duration',
++      width: 90,
+       render: (_, record) => {
+-        // Prefer the service's actual duration (rental period) over the booking's timeslot duration
+         const dur = Number(record.service_duration) || Number(record.duration);
+-        if (!dur) return <span className="text-slate-400">â€”</span>;
+-        return <span className="text-sm">{formatRentalDuration(dur)}</span>;
++        if (!dur) return <span className="text-slate-300">—</span>;
++        return (
++          <span
++            className="inline-flex items-center px-2 py-0.5 rounded-md
++                       bg-slate-100 text-slate-700 text-xs font-medium tabular-nums"
++          >
++            {formatRentalDuration(dur)}
++          </span>
++        );
+       },
+     },
+     {
+       title: 'Amount',
+       key: 'amount',
++      width: 110,
+       render: (_, record) => {
+         const amount = record.final_amount ?? record.finalAmount ?? record.amount ?? 0;
+         return (
+-          <div className="flex items-center">
+-            <DollarOutlined className="mr-1" />
+-            <span className="font-medium">{formatCurrency(Number(amount), businessCurrency)}</span>
+-          </div>
++          <span className="text-sm font-semibold text-slate-800 tabular-nums">
++            {formatCurrency(Number(amount), businessCurrency)}
++          </span>
+         );
+       },
+     },
+@@ -709,6 +730,7 @@ function Rentals() {
+       title: 'Status',
+       dataIndex: 'status',
+       key: 'status',
++      width: 120,
+       filters: [
+         { text: 'Pending', value: 'pending' },
+         { text: 'Confirmed', value: 'confirmed' },
+@@ -718,100 +740,116 @@ function Rentals() {
+       onFilter: (value, record) => record.status === value,
+       render: (status) => {
+         const statusConfig = {
+-          pending: { color: 'orange', label: 'Pending' },
+-          confirmed: { color: 'green', label: 'Approved' },
+-          cancelled: { color: 'red', label: 'Declined' },
+-          completed: { color: 'blue', label: 'Completed' },
+-          no_show: { color: 'default', label: 'No Show' },
++          pending: { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-800 ring-amber-200', label: 'Pending' },
++          confirmed: { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Approved' },
++          cancelled: { dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-800 ring-rose-200', label: 'Declined' },
++          completed: { dot: 'bg-sky-500', pill: 'bg-sky-50 text-sky-800 ring-sky-200', label: 'Completed' },
++          no_show: { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: 'No Show' },
+         };
+-        const config = statusConfig[status] || { color: 'default', label: status };
+-        return <Tag color={config.color}>{config.label}</Tag>;
+-      },
+-    },
+-    {
+-      title: 'Instructor',
+-      key: 'instructor',
+-      render: (_, record) => {
+-        const name = record.instructor_name || record.instructorName;
+-        if (!name) return <span className="text-slate-400 text-xs">Not assigned</span>;
+-        return <span className="text-sm">{name}</span>;
++        const c = statusConfig[status] || { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: status };
++        return (
++          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full ring-1 text-[11px] font-semibold ${c.pill}`}>
++            <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
++            {c.label}
++          </span>
++        );
+       },
+     },
+     {
+       title: 'Notes',
+       dataIndex: 'notes',
+       key: 'notes',
+-      width: 160,
+-      render: (notes) => notes ? (
+-        <Tooltip title={notes}>
+-          <span className="text-xs text-slate-600">{notes.length > 40 ? `${notes.substring(0, 40)}â€¦` : notes}</span>
+-        </Tooltip>
+-      ) : <span className="text-slate-400 text-xs italic">â€”</span>,
++      width: 180,
++      render: (notes) => {
++        if (!notes) return null;
++        const display = notes.length > 48 ? `${notes.slice(0, 48)}…` : notes;
++        return (
++          <Tooltip title={notes}>
++            <span className="text-xs text-slate-500 italic leading-snug line-clamp-2">{display}</span>
++          </Tooltip>
++        );
++      },
+     },
+     {
+       title: 'Actions',
+       key: 'actions',
+       fixed: 'right',
+-      width: 160,
++      width: 96,
++      align: 'right',
+       render: (_, record) => {
+         const isPending = record.status === 'pending';
+         const isConfirmed = record.status === 'confirmed';
+         const isRental = record._source === 'rental';
+ 
+-        const onApprove = () => isRental
+-          ? handleRentalRequestChange(record.id, 'approve')
+-          : handleBookingStatusChange(record.id, 'confirmed');
++        const stop = (e) => e.stopPropagation();
++        const onApprove = (e) => {
++          e.stopPropagation();
++          return isRental
++            ? handleRentalRequestChange(record.id, 'approve')
++            : handleBookingStatusChange(record.id, 'confirmed');
++        };
+         const onDecline = () => isRental
+           ? handleRentalRequestChange(record.id, 'decline')
+           : handleBookingStatusChange(record.id, 'cancelled');
+ 
+-        return (
+-          <Space>
+-            {isPending && (
+-              <>
+-                <Tooltip title="Approve">
+-                  <Button
+-                    type="primary"
+-                    size="small"
+-                    icon={<CheckOutlined />}
+-                    className="bg-green-500 border-green-500 hover:bg-green-600"
+-                    onClick={onApprove}
+-                  >
+-                    Approve
+-                  </Button>
+-                </Tooltip>
++        if (isPending) {
++          return (
++            <div className="flex items-center justify-end gap-1" onClick={stop}>
++              <Tooltip title="Approve">
++                <button
++                  type="button"
++                  onClick={onApprove}
++                  aria-label="Approve"
++                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg
++                             bg-emerald-500 text-white shadow-sm
++                             hover:bg-emerald-600 hover:shadow transition-all"
++                >
++                  <CheckOutlined className="text-xs" />
++                </button>
++              </Tooltip>
++              <Popconfirm
++                title="Decline this rental request?"
++                description="The student will be notified and any charged amount will be refunded."
++                onConfirm={onDecline}
++                okText="Decline"
++                okButtonProps={{ danger: true }}
++                cancelText="Keep"
++              >
+                 <Tooltip title="Decline">
+-                  <Popconfirm
+-                    title="Decline this rental request?"
+-                    description="The student will be notified and any charged amount will be refunded."
+-                    onConfirm={onDecline}
+-                    okText="Decline"
+-                    okButtonProps={{ danger: true }}
+-                    cancelText="Keep"
++                  <button
++                    type="button"
++                    aria-label="Decline"
++                    onClick={stop}
++                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg
++                               bg-white text-rose-600 ring-1 ring-rose-200
++                               hover:bg-rose-50 hover:ring-rose-300 transition-all"
+                   >
+-                    <Button size="small" danger icon={<CloseOutlined />}>
+-                      Decline
+-                    </Button>
+-                  </Popconfirm>
++                    <CloseOutlined className="text-xs" />
++                  </button>
+                 </Tooltip>
+-              </>
+-            )}
+-            {isConfirmed && (
++              </Popconfirm>
++            </div>
++          );
++        }
++        if (isConfirmed) {
++          return (
++            <div className="flex items-center justify-end" onClick={stop}>
+               <Tooltip title="Mark Completed">
+-                <Button
+-                  size="small"
+-                  icon={<CheckOutlined />}
+-                  onClick={() => handleBookingStatusChange(record.id, 'completed')}
++                <button
++                  type="button"
++                  onClick={(e) => { e.stopPropagation(); handleBookingStatusChange(record.id, 'completed'); }}
++                  aria-label="Mark Completed"
++                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg
++                             bg-white text-sky-700 ring-1 ring-sky-200
++                             hover:bg-sky-50 hover:ring-sky-300 transition-all"
+                 >
+-                  Complete
+-                </Button>
++                  <CheckOutlined className="text-xs" />
++                </button>
+               </Tooltip>
+-            )}
+-            {!isPending && !isConfirmed && (
+-              <span className="text-xs text-slate-400">No actions</span>
+-            )}
+-          </Space>
+-        );
++            </div>
++          );
++        }
++        return <span className="text-[11px] text-slate-300 italic">—</span>;
+       },
+     },
+   ], [businessCurrency, formatCurrency, handleBookingStatusChange, handleRentalRequestChange]);
+@@ -941,20 +979,27 @@ function Rentals() {
+         ) : (
+           /* Desktop table layout */
+           activeTab === 'requests' ? (
+-            <UnifiedTable density="comfortable">
++            <UnifiedTable density="compact">
+               <Table
+                 columns={requestColumns}
+                 dataSource={rentalRequests}
+                 loading={requestsLoading}
+                 rowKey="id"
++                size="small"
+                 pagination={{
+                   pageSize: 25,
+                   showSizeChanger: true,
+                   showQuickJumper: true,
+                   showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
+                 }}
+-                scroll={{ x: 1400 }}
++                scroll={{ x: 1000 }}
+                 locale={{ emptyText: 'No rental booking requests found' }}
++                onRow={(record) => ({
++                  onClick: () => {
++                    if (record._source === 'rental') handleEdit(record);
++                  },
++                  className: record._source === 'rental' ? 'cursor-pointer hover:bg-sky-50/40' : '',
++                })}
+               />
+             </UnifiedTable>
+           ) : (
+@@ -982,7 +1027,10 @@ function Rentals() {
+       <NewRentalDrawer
+         isOpen={isModalVisible}
+         onClose={handleDrawerClose}
+-        onSuccess={loadRentals}
++        onSuccess={() => {
++          loadRentals();
++          loadRentalRequests();
++        }}
+         editingRental={editingRental}
+       />
+     </div>

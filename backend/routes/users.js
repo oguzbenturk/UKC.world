@@ -8,7 +8,11 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
-import { cacheMiddleware } from '../middlewares/cache.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+
+// Any user create/update must bust the /students and /for-booking caches so
+// freshly-added customers show up in booking/rental search immediately.
+const USER_LIST_CACHE_PATTERNS = ['api:users:students:*', 'api:users:for-booking:*'];
 
 const router = express.Router();
 
@@ -46,7 +50,7 @@ function getAllowedFieldsByRole(roleName) {
 }
 
 // === CREATE USER ===
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
   const { password, role_id } = req.body;
   
   if (!password || !role_id) {

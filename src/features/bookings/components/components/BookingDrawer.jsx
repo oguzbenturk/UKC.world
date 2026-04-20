@@ -371,6 +371,46 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
   // Customer
   const [showNewUserModal, setShowNewUserModal] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerSearchResults, setCustomerSearchResults] = useState([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+
+  // Server-side customer search — the context preloads only ~200 customers
+  // alphabetically; querying the API on-type finds names past that window.
+  useEffect(() => {
+    const q = customerSearchQuery.trim();
+    if (!q) {
+      setCustomerSearchResults([]);
+      return;
+    }
+    setCustomerSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get('/users/students', { params: { q, limit: 50 } });
+        setCustomerSearchResults(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        setCustomerSearchResults([]);
+      } finally {
+        setCustomerSearching(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [customerSearchQuery]);
+
+  // Merged customer pool used for rendering options and resolving selected ids.
+  // Order matters: already-selected participants first (so they always render),
+  // then the preloaded context slice, then server search hits.
+  const customerPool = useMemo(() => {
+    const map = new Map();
+    (formData.participants || []).forEach((p) => {
+      if (p.userId && !map.has(p.userId)) {
+        map.set(p.userId, { id: p.userId, name: p.userName, email: p.userEmail, phone: p.userPhone });
+      }
+    });
+    (users || []).forEach((u) => { if (u?.id && !map.has(u.id)) map.set(u.id, u); });
+    customerSearchResults.forEach((u) => { if (u?.id && !map.has(u.id)) map.set(u.id, u); });
+    return Array.from(map.values());
+  }, [formData.participants, users, customerSearchResults]);
 
   // Assign package
   const [assignPkgUser, setAssignPkgUser] = useState(null);
@@ -562,7 +602,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     const kept = current.filter(p => selectedIds.includes(p.userId));
     const existingIds = new Set(kept.map(p => p.userId));
     const added = selectedIds.filter(id => !existingIds.has(id)).map(id => {
-      const user = (users || []).find(u => u.id === id);
+      const user = customerPool.find(u => u.id === id);
       return {
         userId: id,
         userName: user?.name || '',
@@ -589,7 +629,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setUserPackages(prev => { const copy = { ...prev }; removedIds.forEach(id => delete copy[id]); return copy; });
       setUserBalances(prev => { const copy = { ...prev }; removedIds.forEach(id => delete copy[id]); return copy; });
     }
-  }, [formData.participants, users, updateFormData]);
+  }, [formData.participants, customerPool, updateFormData]);
 
   // ── Instructor selection ────────────────────────────────────────
   const handleInstructorSelect = useCallback((instr) => {
@@ -1108,8 +1148,14 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                     placeholder="Search or select customers…"
                     value={(formData.participants || []).map(p => p.userId)}
                     onChange={handleCustomerChange}
-                    filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                    options={(users || []).map(u => ({ value: u.id, label: u.name }))}
+                    onSearch={setCustomerSearchQuery}
+                    filterOption={false}
+                    loading={customerSearching}
+                    notFoundContent={customerSearching ? <Spin size="small" /> : 'No customers found'}
+                    options={customerPool.map(u => ({
+                      value: u.id,
+                      label: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+                    }))}
                     className="flex-1 [&_.ant-select-selector]:!min-h-[38px] [&_.ant-select-selection-item]:!text-sm [&_.ant-select-selection-placeholder]:!text-sm"
                     maxTagCount="responsive"
                   />

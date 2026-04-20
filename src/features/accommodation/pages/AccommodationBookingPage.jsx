@@ -661,18 +661,6 @@ function AccommodationBookingPage() {
                   <WalletOutlined className="text-xl mb-1" />
                   <p className="text-sm font-medium">Wallet</p>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('credit_card')}
-                  className={`p-3 rounded-lg border-2 text-center transition-all ${
-                    paymentMethod === 'credit_card'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                      : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  <CreditCardOutlined className="text-xl mb-1" />
-                  <p className="text-sm font-medium">Credit Card</p>
-                </button>
               </div>
             </div>
 

@@ -667,6 +667,17 @@ router.post('/register', authRateLimit, async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Bust customer-list caches so the new outsider appears in booking/rental
+    // customer search without waiting for the 5-minute TTL.
+    try {
+      await Promise.all([
+        cacheService.del('api:users:students:*'),
+        cacheService.del('api:users:for-booking:*'),
+      ]);
+    } catch (cacheErr) {
+      logger.warn('Failed to invalidate user list cache after registration', { error: cacheErr.message });
+    }
+
     // Log registration event
     await logSecurityEvent(newUser.id, 'self_registration', req, {
       email: newUser.email,

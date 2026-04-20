@@ -608,17 +608,21 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   // For fixed commissions the stored value is per-hour, so multiply by duration
   const formatCommissionDisplay = (commissionValue, { withTotal = true } = {}) => {
     if (!commissionValue) return null;
-    
+
+    // Prefer the commission_type resolved on the booking (matches the priority
+    // chain: booking custom → service-specific → category rate → instructor default).
+    // Fall back to the instructor's default only when the booking didn't carry one.
     const instructorId = booking.instructor_user_id || booking.instructorId || booking.instructor_id;
     const instructor = instructors.find(i => i.id === instructorId);
-    const commissionType = instructor?.commission_type || 'percent';
+    const rawType = booking.commission_type || instructor?.commission_type;
+    const isFixed = rawType === 'fixed' || rawType === 'fixed_amount';
     const duration = Number(booking.actualDuration) || Number(booking.duration) || 1;
-    
-    if (commissionType === 'fixed' || commissionType === 'fixed_amount') {
+
+    if (isFixed) {
       const total = Number(commissionValue) * duration;
       return `${currencySymbol}${total}`;
     }
-    
+
     return `${commissionValue}%`;
   };
   

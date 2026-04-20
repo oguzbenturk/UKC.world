@@ -7,6 +7,7 @@ import {
   Select,
   DatePicker,
   Input,
+  InputNumber,
   Button,
   Tag,
   Checkbox,
@@ -127,6 +128,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
         rental_date: editingRental.rental_date ? dayjs(editingRental.rental_date) : dayjs(),
         status: editingRental.status || 'active',
         notes: editingRental.notes,
+        total_price: editingRental.total_price != null ? Number(editingRental.total_price) : undefined,
       });
     } else {
       form.resetFields();
@@ -272,6 +274,10 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
         rental_days: 1,
       };
 
+      if (values.total_price !== undefined && values.total_price !== null && values.total_price !== '') {
+        basePayload.total_price = Number(values.total_price);
+      }
+
       const customerIds = toArray(values.customer_ids);
       const isMultipleCreation = !editingRental && participantMode === 'multiple';
 
@@ -302,8 +308,9 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
 
       onSuccess?.();
       handleClose();
-    } catch {
-      messageApi.error('Failed to save rental');
+    } catch (err) {
+      const serverMsg = err?.response?.data?.error || err?.message;
+      messageApi.error(serverMsg ? `Failed to save rental: ${serverMsg}` : 'Failed to save rental');
     }
   };
 
@@ -490,6 +497,24 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                 </Select>
               </Form.Item>
             </div>
+
+            <Form.Item
+              name="total_price"
+              label="Total price"
+              className="!mb-2"
+              tooltip="Override the calculated rental price"
+            >
+              <InputNumber
+                size="large"
+                className="w-full"
+                min={0}
+                step={1}
+                precision={2}
+                placeholder="e.g. 100.00"
+                addonBefore={businessCurrency || 'EUR'}
+                disabled={usePackage && !!selectedPackageId}
+              />
+            </Form.Item>
 
             {/* Notes */}
             <Form.Item name="notes" label="Notes" className="!mb-0">

@@ -443,17 +443,6 @@ const OutsiderBookingPage = () => {
                 )}
               </Radio>
 
-              {/* Card Payment */}
-              <Radio 
-                value="credit_card" 
-                className="w-full p-3 border rounded-lg hover:bg-slate-50"
-              >
-                <div className="flex items-center gap-2">
-                  <CreditCardOutlined className="text-blue-600" />
-                  <span>Card</span>
-                </div>
-              </Radio>
-
               {/* Pay Later - REMOVED for outsiders to prevent refund issues
                  Outsiders must pay upfront (wallet or card payment only) */}
             </div>

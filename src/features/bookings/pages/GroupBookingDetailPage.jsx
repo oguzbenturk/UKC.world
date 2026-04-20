@@ -190,8 +190,8 @@ const GroupBookingDetailPage = () => {
             </div>
           </div>
           <p className="text-[9px] font-gotham-medium uppercase tracking-widest text-slate-400">Payment Method</p>
-          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {[{ key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: fmt(walletBalance) }, { key: 'credit_card', icon: <CreditCardOutlined />, label: 'Card', sub: 'Iyzico' }, ...(canPayLater ? [{ key: 'pay_later', icon: <ShopOutlined />, label: 'At Center', sub: 'Pay later' }] : [])].map(({ key, icon, label, sub }) => (
+          <div className={`grid gap-2 ${canPayLater ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {[{ key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: fmt(walletBalance) }, ...(canPayLater ? [{ key: 'pay_later', icon: <ShopOutlined />, label: 'At Center', sub: 'Pay later' }] : [])].map(({ key, icon, label, sub }) => (
               <button key={key} type="button" onClick={() => setPaymentMethod(key)}
                 className={`flex flex-col items-center gap-0.5 p-2.5 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === key ? 'border-duotone-blue bg-duotone-blue/5' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                 <span className={`text-base ${paymentMethod === key ? 'text-duotone-blue' : 'text-slate-400'}`}>{icon}</span>

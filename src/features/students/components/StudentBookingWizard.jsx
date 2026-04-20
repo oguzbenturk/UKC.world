@@ -1529,16 +1529,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         ),
         display: 'Wallet'
       },
-      {
-        value: 'credit_card',
-        label: (
-          <Space align="baseline" className="w-full justify-between">
-            <Text>Credit Card</Text>
-            <Tag color="blue">Iyzico</Tag>
-          </Space>
-        ),
-        display: 'Credit Card'
-      }
     ];
 
     if (hasPackages) {
@@ -2557,7 +2547,6 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                     <div className="flex flex-wrap gap-2">
                       <Radio.Button value="wallet">💳 Wallet</Radio.Button>
                       <Radio.Button value="pay_later">💵 Cash</Radio.Button>
-                      <Radio.Button value="credit_card">💳 Card</Radio.Button>
                     </div>
                   </Radio.Group>
                 </div>

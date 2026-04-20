@@ -852,28 +852,6 @@ const PaymentStep = ({
             </span>
           </button>
 
-          {/* Card (Iyzico) */}
-          <button
-            type="button"
-            onClick={() => onPaymentMethodChange('credit_card')}
-            className={`relative flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all text-center ${
-              selectedPaymentMethod === 'credit_card'
-                ? 'border-purple-500 bg-purple-50 shadow-md shadow-purple-500/15'
-                : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'
-            }`}
-          >
-            {selectedPaymentMethod === 'credit_card' && (
-              <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center">
-                <CheckCircleOutlined className="text-white text-[8px]" />
-              </div>
-            )}
-            <CreditCardOutlined className={`text-xl ${selectedPaymentMethod === 'credit_card' ? 'text-purple-600' : 'text-slate-500'}`} />
-            <span className={`text-sm font-duotone-bold ${selectedPaymentMethod === 'credit_card' ? 'text-purple-900' : 'text-slate-700'}`}>Card</span>
-            <span className={`text-[10px] font-duotone-regular ${selectedPaymentMethod === 'credit_card' ? 'text-purple-800' : 'text-slate-600'}`}>
-              Credit / Debit Card
-            </span>
-          </button>
-
           {/* Pay Later — trusted only */}
           {isTrustedCustomer && (
             <button
