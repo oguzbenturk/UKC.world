@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Tag, Divider, Skeleton, Badge, Typography, Button } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -29,24 +30,25 @@ const parseJSON = (field) => {
     return field;
 };
 
-const getStockStatus = (quantity) => {
-    if (quantity === 0) return { label: 'Out of Stock', color: '#ff4d4f' };
-    if (quantity <= 5) return { label: 'Low Stock', color: '#faad14' };
-    if (quantity <= 10) return { label: 'Limited', color: '#faad14' };
-    return { label: 'In Stock', color: '#52c41a' };
-};
-
 const ProductDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation(['outsider']);
+
+    const getStockStatus = (quantity) => {
+        if (quantity === 0) return { label: t('outsider:productDetail.stock.outOfStock'), color: '#ff4d4f' };
+        if (quantity <= 5) return { label: t('outsider:productDetail.stock.lowStock'), color: '#faad14' };
+        if (quantity <= 10) return { label: t('outsider:productDetail.stock.limited'), color: '#faad14' };
+        return { label: t('outsider:productDetail.stock.inStock'), color: '#52c41a' };
+    };
 
     const { data: product, isLoading: loading, error: queryError } = useQuery({
         queryKey: ['product', id],
         queryFn: () => productApi.getProduct(id),
     });
     const error = queryError
-        ? (queryError?.response?.status === 404 ? 'Product not found' : 'Failed to load product')
-        : (!loading && !product ? 'Product not found' : null);
+        ? (queryError?.response?.status === 404 ? t('outsider:productDetail.error.notFound') : t('outsider:productDetail.error.failedToLoad'))
+        : (!loading && !product ? t('outsider:productDetail.error.notFound') : null);
 
     // SEO is updated dynamically once product loads (see useEffect below)
     usePageSEO({
@@ -107,7 +109,7 @@ const ProductDetailPage = () => {
             selectedSize: addon._selectedSize || null
         }));
         const count = 1 + selectedAddons.length;
-        message.success(`${count} item${count > 1 ? 's' : ''} added to cart`);
+        message.success(t('outsider:productDetail.toasts.addedToCart', { count }));
         setSelectedAddons([]);
     }, [product, variantState, selectedAddons, addToCartContext]);
 
@@ -116,10 +118,10 @@ const ProductDetailPage = () => {
         if (!target) return;
         if (isInWishlist(target.id)) {
             removeFromWishlist(target.id);
-            message.success('Removed from wishlist');
+            message.success(t('outsider:productDetail.toasts.removedFromWishlist'));
         } else {
             addToWishlist(target);
-            message.success('Saved to wishlist');
+            message.success(t('outsider:productDetail.toasts.savedToWishlist'));
         }
     }, [product, isInWishlist, removeFromWishlist, addToWishlist]);
 
@@ -182,10 +184,10 @@ const ProductDetailPage = () => {
                     <div className="py-20">
                         <ShoppingCartOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
                         <Title level={3} className="mt-4" style={{ color: '#595959' }}>
-                            {error || 'Product not found'}
+                            {error || t('outsider:productDetail.error.notFound')}
                         </Title>
                         <Button type="primary" onClick={() => navigate('/shop/browse')} className="mt-4">
-                            Back to Shop
+                            {t('outsider:productDetail.error.backToShop')}
                         </Button>
                     </div>
                 </div>
@@ -204,11 +206,11 @@ const ProductDetailPage = () => {
                 {/* Back + Breadcrumb */}
                 <div className="flex items-center gap-2 text-sm text-gray-400 mb-6 flex-wrap">
                     <button onClick={() => navigate(-1)} className="hover:text-gray-700 cursor-pointer bg-transparent border-none p-0 text-sm text-gray-400 flex items-center gap-1 mr-2">
-                        <ArrowLeftOutlined style={{ fontSize: 12 }} /> Back
+                        <ArrowLeftOutlined style={{ fontSize: 12 }} /> {t('outsider:productDetail.back')}
                     </button>
                     <span className="text-gray-300">|</span>
                     <button onClick={() => navigate('/shop')} className="hover:text-gray-700 cursor-pointer bg-transparent border-none p-0 text-sm text-gray-400 font-duotone-regular">
-                        Shop
+                        {t('outsider:productDetail.shopBreadcrumb')}
                     </button>
                     <span>/</span>
                     <button onClick={() => navigate(`/shop/${product.category}`)} className="hover:text-gray-700 cursor-pointer bg-transparent border-none p-0 text-sm text-gray-400 font-duotone-regular">
@@ -227,7 +229,7 @@ const ProductDetailPage = () => {
                         {/* Description */}
                         {description && (
                             <div>
-                                <h3 className="text-sm uppercase tracking-wider text-gray-400 font-duotone-bold mb-3">Description</h3>
+                                <h3 className="text-sm uppercase tracking-wider text-gray-400 font-duotone-bold mb-3">{t('outsider:productDetail.sections.description')}</h3>
                                 <p className="text-gray-600 text-sm leading-relaxed font-duotone-regular whitespace-pre-line m-0">
                                     {description}
                                 </p>
@@ -236,27 +238,27 @@ const ProductDetailPage = () => {
 
                         {/* Product Specs */}
                         <div>
-                            <h3 className="text-sm uppercase tracking-wider text-gray-400 font-duotone-bold mb-3">Details</h3>
+                            <h3 className="text-sm uppercase tracking-wider text-gray-400 font-duotone-bold mb-3">{t('outsider:productDetail.sections.details')}</h3>
                             <div className="space-y-2 text-sm">
                                 {product.sku && (
                                     <div className="flex justify-between">
-                                        <span className="text-gray-400">SKU</span>
+                                        <span className="text-gray-400">{t('outsider:productDetail.detailLabels.sku')}</span>
                                         <span className="text-gray-700 font-duotone-regular">{product.sku}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between">
-                                    <span className="text-gray-400">Category</span>
+                                    <span className="text-gray-400">{t('outsider:productDetail.detailLabels.category')}</span>
                                     <span className="text-gray-700 font-duotone-regular">{categoryLabel}</span>
                                 </div>
                                 {product.subcategory && (
                                     <div className="flex justify-between">
-                                        <span className="text-gray-400">Type</span>
+                                        <span className="text-gray-400">{t('outsider:productDetail.detailLabels.type')}</span>
                                         <span className="text-gray-700 font-duotone-regular capitalize">{product.subcategory.replace(/-/g, ' ')}</span>
                                     </div>
                                 )}
                                 {product.weight && (
                                     <div className="flex justify-between">
-                                        <span className="text-gray-400">Weight</span>
+                                        <span className="text-gray-400">{t('outsider:productDetail.detailLabels.weight')}</span>
                                         <span className="text-gray-700 font-duotone-regular">{product.weight} kg</span>
                                     </div>
                                 )}
@@ -306,7 +308,7 @@ const ProductDetailPage = () => {
                             )}
                             {product.original_price && product.original_price > displayPrice && (
                                 <span className="text-sm text-green-600 font-semibold">
-                                    Save {Math.round(((product.original_price - displayPrice) / product.original_price) * 100)}%
+                                    {t('outsider:productDetail.order.savePercent', { percent: Math.round(((product.original_price - displayPrice) / product.original_price) * 100) })}
                                 </span>
                             )}
                         </div>
@@ -336,7 +338,7 @@ const ProductDetailPage = () => {
                                     </div>
                                 ))}
                                 <div className="flex justify-between font-duotone-bold text-black border-t border-gray-100 pt-1.5 mt-1.5">
-                                    <span>Total</span>
+                                    <span>{t('outsider:productDetail.order.total')}</span>
                                     <div className="text-right">
                                         <div>{formatCurrency(grandTotal, userCurrency)}</div>
                                         {userCurrency !== productCurrency && (
@@ -367,7 +369,7 @@ const ProductDetailPage = () => {
                                         disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <ShoppingCartOutlined style={{ fontSize: 18 }} />
-                                    Add to Cart{selectedAddons.length > 0 ? ` (${1 + selectedAddons.length})` : ''}
+                                    {selectedAddons.length > 0 ? t('outsider:productDetail.order.addToCartCount', { count: 1 + selectedAddons.length }) : t('outsider:productDetail.order.addToCart')}
                                 </button>
                             </div>
                         </div>
@@ -390,7 +392,7 @@ const ProductDetailPage = () => {
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-2 pb-3 z-50 md:hidden">
                 <div className="flex justify-between items-center mb-2 text-sm px-1">
                     <span className="text-gray-500 font-duotone-regular">
-                        Total{selectedAddons.length > 0 ? ` (${1 + selectedAddons.length} items)` : ''}
+                        {selectedAddons.length > 0 ? t('outsider:productDetail.order.mobileTotal', { count: 1 + selectedAddons.length }) : t('outsider:productDetail.order.total')}
                     </span>
                     <div className="text-right">
                         <div className="font-duotone-bold text-black">{formatCurrency(grandTotal, userCurrency)}</div>

@@ -1,0 +1,751 @@
+{
+  "dashboard": {
+    "title": "Kazançlarım",
+    "salaryTypes": {
+      "commission": "Komisyon Bazlı",
+      "fixed_per_lesson": "Ders Başına",
+      "monthly_salary": "Aylık Maaş"
+    },
+    "stats": {
+      "thisMonth": "Bu Ay",
+      "pendingPayout": "Bekleyen Ödeme",
+      "yearToDate": "Yıl Başından İtibaren",
+      "vsLastMonth": "Geçen Aya Göre",
+      "paid_ytd": "Ödenen (YTD)",
+      "pending_ytd": "Bekleyen (YTD)",
+      "collected": "Tahsil Edilen",
+      "transactions": "{{count}} işlem",
+      "bookingsRentals": "{{bookings}} rezervasyon · {{rentals}} kiralama",
+      "prevMonth": "Önceki: {{amount}}",
+      "items": "{{count}} kalem"
+    },
+    "categoryBreakdown": {
+      "title": "Bu Ay Kategoriye Göre",
+      "bookings": "Rezervasyonlar",
+      "rentals": "Kiralamalar",
+      "accommodation": "Konaklama",
+      "shop": "Mağaza",
+      "membership": "Üyelik",
+      "packages": "Paketler"
+    },
+    "history": {
+      "title": "Komisyon Geçmişi",
+      "columns": {
+        "date": "Tarih",
+        "source": "Kaynak",
+        "details": "Detaylar",
+        "amount": "Tutar",
+        "rate": "Oran",
+        "commission": "Komisyon",
+        "status": "Durum"
+      },
+      "filters": {
+        "source": "Kaynak",
+        "status": "Durum",
+        "booking": "Rezervasyon",
+        "rental": "Kiralama",
+        "accommodation": "Konaklama",
+        "shop": "Mağaza",
+        "membership": "Üyelik",
+        "package": "Paket",
+        "pending": "Beklemede",
+        "paid": "Ödendi",
+        "cancelled": "İptal Edildi"
+      },
+      "empty": "Komisyon kaydı bulunamadı",
+      "total": "{{count}} kayıt"
+    }
+  },
+  "commissionSettings": {
+    "title": "Müdür Komisyon Ayarları",
+    "columns": {
+      "manager": "Müdür",
+      "salaryType": "Maaş Türü",
+      "rateAmount": "Oran / Tutar",
+      "categoryRates": "Kategori Oranları",
+      "totalEarnings": "Toplam Kazanç",
+      "pending": "Bekleyen",
+      "paid": "Ödenen",
+      "actions": "İşlemler"
+    },
+    "salaryTypeLabels": {
+      "commission": "Komisyon",
+      "fixed_per_lesson": "Ders Başına",
+      "monthly_salary": "Aylık Maaş"
+    },
+    "tooltips": {
+      "pendingCommission": "Bekleyen komisyon tutarı",
+      "totalPaid": "Toplam ödenen komisyon",
+      "viewDetails": "Detayları Gör",
+      "viewPayroll": "Bordroyu Gör"
+    },
+    "actions": {
+      "details": "Detaylar"
+    },
+    "empty": "Müdür bulunamadı. Başlamak için bir kullanıcının rolünü Müdür olarak değiştirin."
+  },
+  "payroll": {
+    "title": "Müdür Bordrosu",
+    "subtitle": "Aylık ve sezonluk detaylı kazanç özeti",
+    "backToCommissions": "Müdür Ayarlarına Dön",
+    "back": "Geri",
+    "backButton": "Komisyonlara Dön",
+    "noData": "Bordro verisi bulunamadı",
+    "paymentProgress": "Ödeme İlerlemesi",
+    "settingsCard": {
+      "title": "Mevcut Maaş Yapılandırması",
+      "salaryType": "Maaş Türü",
+      "commissionType": "Komisyon Türü",
+      "defaultRate": "Varsayılan Oran",
+      "perCategory": "Kategoriye Göre",
+      "flatRate": "Sabit Oran"
+    },
+    "seasonalSummary": "Sezonluk Özet",
+    "months": {
+      "title": "Aylık Döküm",
+      "columns": {
+        "month": "Ay",
+        "bookings": "Rezervasyonlar",
+        "rentals": "Kiralamalar",
+        "accommodation": "Konaklama",
+        "shop": "Mağaza",
+        "membership": "Üyelik",
+        "packages": "Paketler",
+        "grossTotal": "Brüt Toplam",
+        "status": "Durum",
+        "count": "Adet",
+        "earned": "Kazanılan"
+      },
+      "total": "Toplam"
+    },
+    "totals": {
+      "gross": "Brüt Kazanç",
+      "paid": "Ödenen",
+      "pending": "Bekleyen"
+    },
+    "status": {
+      "paid": "Ödendi",
+      "partial": "Kısmi",
+      "pending": "Beklemede"
+    },
+    "season": {
+      "bookings": "{{count}} rezervasyon",
+      "rentals": "{{count}} kiralama",
+      "paid": "Ödenen: {{amount}}",
+      "pending": "Bekleyen: {{amount}}"
+    }
+  },
+  "detailPanel": {
+    "sections": {
+      "profile": "Profil",
+      "skills": "Beceriler",
+      "commissions": "Komisyonlar",
+      "earnings": "Kazançlar",
+      "history": "Geçmiş",
+      "payments": "Ödemeler"
+    },
+    "sectionDescriptions": {
+      "info": "Müdür profili ve hızlı istatistikler",
+      "skills": "Öğretme becerileri ve nitelikler",
+      "commissions": "Maaş türü ve komisyon oranlarını yapılandır",
+      "earnings": "Müdür ve eğitmen kazanç özeti",
+      "history": "Rezervasyon, kiralama ve komisyon detayları",
+      "payroll": "Ödemeler ve işlem geçmişi"
+    },
+    "profile": {
+      "role": "MÜDÜR",
+      "email": "E-posta",
+      "joined": "Katılım Tarihi",
+      "managerCommission": "Müdür Komisyonu",
+      "lessonCommission": "Ders Komisyonu",
+      "paid": "Ödenen",
+      "pending": "Bekleyen",
+      "instructorIncome": "Eğitmen Geliri",
+      "managerIncome": "Müdür Geliri",
+      "totalIncome": "Toplam Gelir",
+      "noCategories": "Kategori yapılandırılmamış",
+      "perLesson": "/ders",
+      "perMonth": "/ay"
+    },
+    "commissions": {
+      "tabs": {
+        "manager": "Müdür Komisyonu",
+        "instructor": "Eğitmen Komisyonu"
+      },
+      "salaryModel": "Maaş Modeli",
+      "salaryModelDesc": "Bu müdür nasıl ödeme alıyor",
+      "salaryTypes": {
+        "commission": "Komisyon %",
+        "fixed_per_lesson": "Ders Başına",
+        "monthly_salary": "Aylık Maaş"
+      },
+      "monthlyAmount": "Aylık Tutar",
+      "perLessonAmount": "Ders Başına Tutar",
+      "perLessonDesc": "Tamamlanan ders başına sabit ücret",
+      "commissionRates": "Komisyon Oranları",
+      "commissionRatesDesc": "Her kategori için komisyonu etkinleştirmek üzere açın",
+      "categories": {
+        "bookingRate": "Rezervasyonlar",
+        "rentalRate": "Kiralamalar",
+        "accommodationRate": "Konaklama",
+        "shopRate": "Mağaza / Satış",
+        "membershipRate": "Üyelik",
+        "packageRate": "Paketler"
+      },
+      "categoryDescs": {
+        "bookingRate": "Bireysel ve grup dersleri",
+        "rentalRate": "Ekipman kiralamaları",
+        "accommodationRate": "Oda ve konaklama rezervasyonları",
+        "shopRate": "Ürün ve eşya satışları",
+        "membershipRate": "Tekrarlayan üyelikler",
+        "packageRate": "Paket hizmetler"
+      },
+      "saveSettings": "Ayarları Kaydet",
+      "saved": "Komisyon ayarları kaydedildi",
+      "saveFailed": "Ayarlar kaydedilemedi",
+      "validation": {
+        "enterAmount": "Tutar girin",
+        "setRate": "Oran belirleyin",
+        "rateRange": "0,1–100%"
+      },
+      "placeholders": {
+        "monthlyAmount": "ör. 2000",
+        "perLessonAmount": "ör. 25",
+        "perMonthSuffix": "€ / ay",
+        "perLessonSuffix": "€ / ders"
+      }
+    },
+    "earnings": {
+      "managerEarnings": "Müdür Kazançları",
+      "instructorEarnings": "Eğitmen Kazançları",
+      "totalEarned": "Toplam Kazanılan",
+      "totalEarnedThisYear": "Toplam Kazanılan (Bu Yıl)",
+      "totalEarnedAllTime": "Toplam Kazanılan (Tüm Zamanlar)",
+      "byCategory": "Kategoriye Göre",
+      "quickRanges": {
+        "thisYear": "Bu Yıl",
+        "allTime": "Tüm Zamanlar"
+      },
+      "paid": "Ödenen",
+      "pending": "Bekleyen"
+    },
+    "history": {
+      "filters": {
+        "sourceType": "Kaynak türü",
+        "status": "Durum",
+        "search": "Ara...",
+        "instructorLesson": "Eğitmen Dersleri",
+        "mgrBooking": "Müdür Kom. — Rezervasyon",
+        "mgrRental": "Müdür Kom. — Kiralama",
+        "mgrAccommodation": "Müdür Kom. — Konaklama",
+        "mgrPackage": "Müdür Kom. — Paket",
+        "mgrShop": "Müdür Kom. — Mağaza",
+        "mgrMembership": "Müdür Kom. — Üyelik",
+        "pending": "Beklemede",
+        "paid": "Ödendi",
+        "cancelled": "İptal"
+      },
+      "categories": {
+        "instructorLessons": "Eğitmen Dersleri",
+        "mgrLessons": "Müdür Kom. — Dersler",
+        "mgrRentals": "Müdür Kom. — Kiralamalar",
+        "mgrAccommodation": "Müdür Kom. — Konaklama",
+        "mgrShop": "Müdür Kom. — Mağaza / Satış",
+        "mgrMembership": "Müdür Kom. — Üyelik",
+        "mgrPackages": "Müdür Kom. — Paketler"
+      },
+      "columns": {
+        "date": "Tarih",
+        "student": "Öğrenci",
+        "customer": "Müşteri",
+        "guest": "Misafir",
+        "service": "Hizmet",
+        "equipment": "Ekipman",
+        "membership": "Üyelik",
+        "package": "Paket",
+        "order": "Sipariş",
+        "duration": "Süre",
+        "period": "Dönem",
+        "nights": "Gece",
+        "items": "Kalem",
+        "days": "Gün",
+        "hours": "Saat",
+        "amount": "Tutar",
+        "rate": "Oran",
+        "commission": "Kom.",
+        "status": "Durum",
+        "earning": "Kazanç",
+        "start": "Başlangıç",
+        "checkIn": "Giriş"
+      },
+      "empty": "Kayıt bulunamadı",
+      "noCommissions": "{{category}} komisyonu yok"
+    }
+  },
+  "finances": {
+    "overview": {
+      "title": "Finans Yönetimi - Genel Bakış",
+      "subtitle": "Tüm hizmetlerdeki para girişi ve çıkışı",
+      "maintenance": {
+        "title": "Bakımda",
+        "message": "Finans Genel Bakış sayfası şu an güncelleniyor. Lütfen daha sonra tekrar deneyin."
+      },
+      "quickRanges": {
+        "today": "Bugün",
+        "thisWeek": "Bu Hafta",
+        "thisMonth": "Bu Ay",
+        "thisYear": "Bu Yıl",
+        "allHistory": "Tüm Geçmiş"
+      },
+      "serviceFilter": "Hizmet filtresi:",
+      "services": {
+        "all": "Tümü",
+        "lessons": "Dersler",
+        "rentals": "Kiralamalar",
+        "membership": "Üyelik",
+        "shop": "Mağaza"
+      },
+      "stats": {
+        "totalIncome": "Toplam Gelir",
+        "totalIncomeSub": "Cüzdanlara yapılan tüm yüklemeler",
+        "totalCharges": "Toplam Ücretler",
+        "totalChargesSub": "Cüzdanlardan yapılan tüm düşümler",
+        "netProfit": "Net Kâr",
+        "netProfitSub": "Ücretler − İadeler − Komisyon",
+        "refundsIssued": "Yapılan İadeler",
+        "refundsSub": "Müşterilere iade edilen para",
+        "instructorCommission": "Eğitmen Komisyonu",
+        "instructorCommissionSub": "Eğitmenlere ödenen",
+        "depositsHelper": "{{amount}} depozito",
+        "transactionsHelper": "{{count}} işlem"
+      }
+    },
+    "expenses": {
+      "title": "İşletme Giderleri",
+      "addExpense": "Gider Ekle",
+      "refresh": "Yenile",
+      "exportCsv": "CSV Dışa Aktar",
+      "exportSuccess": "Giderler başarıyla dışa aktarıldı",
+      "summary": {
+        "totalExpenses": "Toplam Giderler",
+        "totalEntries": "Toplam Kayıt"
+      },
+      "filters": {
+        "searchPlaceholder": "Açıklama veya tedarikçi ara...",
+        "startDate": "Başlangıç Tarihi",
+        "endDate": "Bitiş Tarihi",
+        "category": "Kategori",
+        "reset": "Sıfırla"
+      },
+      "table": {
+        "date": "Tarih",
+        "description": "Açıklama",
+        "category": "Kategori",
+        "amount": "Tutar",
+        "payment": "Ödeme",
+        "addedBy": "Ekleyen",
+        "actions": "İşlemler",
+        "empty": "Gider bulunamadı. Oluşturmak için 'Gider Ekle'ye tıklayın.",
+        "noDescription": "Açıklama yok",
+        "showTotal": "{{start}}-{{end}} / {{total}} gider"
+      },
+      "modal": {
+        "addTitle": "Yeni Gider Ekle",
+        "editTitle": "Gideri Düzenle",
+        "addSuccess": "Gider başarıyla eklendi",
+        "editSuccess": "Gider başarıyla güncellendi",
+        "deleteSuccess": "Gider başarıyla silindi",
+        "loadError": "Giderler yüklenemedi",
+        "saveError": "Gider kaydedilemedi",
+        "deleteError": "Gider silinemedi",
+        "deleteConfirm": "Gider silinsin mi?",
+        "deleteWarning": "Bu işlem geri alınamaz.",
+        "add": "Ekle",
+        "update": "Güncelle",
+        "fields": {
+          "amount": "Tutar",
+          "date": "Tarih",
+          "category": "Kategori",
+          "paymentMethod": "Ödeme Yöntemi",
+          "description": "Açıklama",
+          "vendor": "Tedarikçi",
+          "reference": "Referans / Fatura No",
+          "notes": "Ek Notlar"
+        },
+        "placeholders": {
+          "amount": "0,00",
+          "description": "Bu gider ne için?",
+          "vendor": "Şirket veya kişi adı",
+          "reference": "Fatura veya fiş numarası",
+          "notes": "Ek bilgiler...",
+          "selectCategory": "Kategori seçin",
+          "selectMethod": "Yöntem seçin"
+        },
+        "validation": {
+          "enterAmount": "Lütfen tutar girin",
+          "amountMin": "Tutar 0'dan büyük olmalı",
+          "selectDate": "Lütfen tarih seçin",
+          "selectCategory": "Lütfen kategori seçin",
+          "enterDescription": "Lütfen açıklama girin"
+        }
+      },
+      "categories": {
+        "rent": "Kira",
+        "utilities": "Faturalar",
+        "salaries": "Maaşlar",
+        "equipment": "Ekipman",
+        "maintenance": "Bakım",
+        "supplies": "Malzeme",
+        "marketing": "Pazarlama",
+        "insurance": "Sigorta",
+        "professional_services": "Profesyonel Hizmetler",
+        "travel": "Seyahat",
+        "software_subscriptions": "Yazılım / Abonelikler",
+        "bank_fees": "Banka Ücretleri",
+        "taxes": "Vergiler",
+        "other": "Diğer"
+      },
+      "paymentMethods": {
+        "cash": "Nakit",
+        "bank_transfer": "Banka Havalesi",
+        "card": "Kart",
+        "wallet": "Cüzdan",
+        "other": "Diğer"
+      }
+    }
+  },
+  "equipment": {
+    "title": "Ekipman ve Malzeme",
+    "subtitle": "Tüm ekipman envanterini takip edin ve yönetin. Müsaitlik, durum ve bakım takvimlerini izleyin.",
+    "addEquipment": "Ekipman Ekle",
+    "refresh": "Yenile",
+    "backToList": "Listeye Dön",
+    "loading": "Ekipman verileri yükleniyor...",
+    "tryAgain": "Tekrar dene"
+  },
+  "rentals": {
+    "title": "Kiralamalar",
+    "newRental": "Yeni Kiralama",
+    "tabs": {
+      "requests": "Kiralama Talepleri",
+      "recent": "Son Kiralamalar",
+      "total": "Tüm Kiralamalar"
+    },
+    "columns": {
+      "customer": "Müşteri",
+      "equipment": "Ekipman",
+      "date": "Tarih",
+      "price": "Fiyat",
+      "status": "Durum",
+      "student": "Öğrenci",
+      "service": "Hizmet",
+      "period": "Dönem",
+      "amount": "Tutar",
+      "notes": "Notlar",
+      "actions": "İşlemler"
+    },
+    "status": {
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "pending": "Beklemede",
+      "cancelled": "İptal Edildi",
+      "overdue": "Gecikmiş",
+      "reserved": "Rezerve",
+      "returned": "İade Edildi",
+      "confirmed": "Onaylandı",
+      "no_show": "Gelmedi"
+    },
+    "actions": {
+      "approve": "Onayla",
+      "decline": "Reddet",
+      "complete": "Tamamla",
+      "edit": "Düzenle",
+      "reject": "Reddet"
+    },
+    "confirm": {
+      "declineTitle": "Bu kiralama talebi reddedilsin mi?",
+      "declineDesc": "Öğrenci bilgilendirilecek ve tahsil edilen tutar iade edilecektir.",
+      "declineOk": "Reddet",
+      "declineCancel": "Kalsın",
+      "deleteTitle": "Silinsin mi?"
+    },
+    "messages": {
+      "approved": "Kiralama başarıyla onaylandı",
+      "declined": "Kiralama başarıyla reddedildi",
+      "statusUpdated": "Kiralama {{status}} olarak güncellendi",
+      "deleted": "Kiralama başarıyla silindi",
+      "loadError": "Kiralama verileri yüklenemedi",
+      "requestsError": "Kiralama talepleri yüklenemedi",
+      "statusError": "Rezervasyon durumu güncellenemedi",
+      "deleteError": "Kiralama silinemedi"
+    },
+    "empty": {
+      "noRentals": "Kiralama bulunamadı",
+      "noRequests": "Kiralama rezervasyon talebi bulunamadı"
+    },
+    "package": "Paket",
+    "groupOf": "{{count}} kişilik grup"
+  },
+  "products": {
+    "title": "Ürünler",
+    "subtitle": "Stok ve arka ofis ürünlerini yönetin"
+  },
+  "accommodation": {
+    "title": "Konaklama",
+    "admin": {
+      "status": {
+        "pending": "Beklemede",
+        "confirmed": "Onaylandı",
+        "completed": "Tamamlandı",
+        "cancelled": "İptal Edildi"
+      },
+      "actions": {
+        "confirm": "Onayla",
+        "complete": "Tamamla",
+        "cancel": "İptal Et",
+        "delete": "Sil"
+      },
+      "nights": "{{count}} gece",
+      "unknown": "Bilinmiyor"
+    }
+  },
+  "marketing": {
+    "title": "Pazarlama"
+  },
+  "events": {
+    "title": "Topluluk Etkinlikleri",
+    "subtitle": "Topluluk etkinliklerini oluşturun, yönetin ve takip edin",
+    "newEvent": "Yeni Etkinlik",
+    "eventManager": "Etkinlik Yöneticisi",
+    "types": {
+      "party": "Parti / Sosyal Etkinlik",
+      "diving": "Dalış Gezisi",
+      "yoga": "Yoga Seansı",
+      "workshop": "Atölye",
+      "competition": "Yarışma",
+      "training": "Grup Antrenmanı",
+      "excursion": "Gezi / Tur",
+      "other": "Diğer"
+    },
+    "stats": {
+      "total": "Toplam",
+      "active": "Aktif",
+      "upcoming": "Yaklaşan",
+      "registrations": "Kayıtlar"
+    },
+    "columns": {
+      "event": "Etkinlik",
+      "type": "Tür",
+      "date": "Tarih",
+      "capacity": "Kapasite",
+      "price": "Fiyat",
+      "status": "Durum"
+    },
+    "status": {
+      "active": "Aktif",
+      "inactive": "Aktif Değil"
+    },
+    "price": {
+      "free": "Ücretsiz",
+      "from": "BAŞLANGIÇ",
+      "paid": "Ücretli etkinlik",
+      "paidDesc": "{{price}} kişi başı — akademi tarafından tahsil edilir."
+    },
+    "capacity": {
+      "spotsLeft": "{{count}} YER KALDI",
+      "spotLeft": "{{count}} YER KALDI",
+      "soldOut": "TÜKENDİ"
+    },
+    "badges": {
+      "going": "GİDİYORUM",
+      "soldOut": "TÜKENDİ",
+      "past": "GEÇTİ"
+    },
+    "public": {
+      "heroTitle": "Topluluk Etkinlikleri",
+      "heroSubtitle": "Ekibe katıl. Plaj partilerinden dalış gezilerine, atölyelerden yarışmalara kadar her zaman bir şeyler oluyor.",
+      "noEvents": "Yaklaşan etkinlik yok",
+      "noEventsDesc": "Şu an planlanmış etkinlik bulunmuyor. Yakında tekrar kontrol edin ya da haberdar olmak için bize ulaşın.",
+      "contactUs": "Bize Ulaşın",
+      "loading": "Etkinlikler yükleniyor...",
+      "stayPosted": "Yaklaşan etkinliklerden haberdar olmak ister misiniz?",
+      "stayPostedDesc": "Bize ulaşın, bu sezon UKC'de olup bitenlerden sizi haberdar edelim.",
+      "registered": "Katılıyorum",
+      "cancelRegistration": "Kaydı İptal Et",
+      "cancellingRegistration": "İptal ediliyor...",
+      "confirmJoin": "Onayla ve Katıl",
+      "joining": "Katılıyor...",
+      "close": "Kapat",
+      "eventPassed": "Bu etkinlik geçti",
+      "eventFull": "Bu etkinlik dolu",
+      "cancelAnytime": "Kaydınızı istediğiniz zaman iptal edebilirsiniz.",
+      "registeredCount": "{{count}} kayıtlı",
+      "spotsTotal": " / {{total}} yer",
+      "spotsLeft": "· {{count}} yer kaldı"
+    },
+    "form": {
+      "createTitle": "Yeni Etkinlik",
+      "editTitle": "Etkinliği Düzenle",
+      "configureNew": "Yeni bir topluluk etkinliği yapılandırın",
+      "updateSettings": "Etkinlik ayarlarını güncelle",
+      "fields": {
+        "name": "Etkinlik Adı *",
+        "type": "Etkinlik Türü *",
+        "startAt": "Başlangıç Tarihi ve Saati *",
+        "endAt": "Bitiş Tarihi ve Saati",
+        "capacity": "Maksimum Katılımcı",
+        "price": "Fiyat (kişi başı)",
+        "location": "Konum",
+        "coverPhoto": "Kapak Fotoğrafı",
+        "description": "Açıklama"
+      },
+      "placeholders": {
+        "name": "ör. Plaj Partisi, Sabah Yogası",
+        "type": "Tür seçin...",
+        "endAt": "Bitiş (isteğe bağlı)",
+        "capacity": "Sınırsız",
+        "price": "0 = Ücretsiz",
+        "location": "ör. Ana Plaj, Stüdyo A",
+        "description": "Etkinlik detayları, getirilmesi gerekenler...",
+        "imageHint": "Etkinlik kartında gösterilir. JPG veya PNG, maks. 5 MB. Ayarlanmadıysa etkinlik türüne göre gradyan kullanılır.",
+        "upload": "Yükle",
+        "uploading": "Yükleniyor..."
+      },
+      "validation": {
+        "enterName": "Etkinlik adı girin",
+        "selectType": "Tür seçin",
+        "selectStart": "Başlangıç tarihi seçin"
+      },
+      "removePhoto": "Fotoğrafı kaldır",
+      "save": "Oluştur",
+      "update": "Güncelle",
+      "saving": "Kaydediliyor...",
+      "cancel": "İptal"
+    },
+    "registrations": {
+      "count": "{{count}} kayıt",
+      "countSingular": "{{count}} kayıt",
+      "capacity": " / {{total}} kapasite",
+      "addParticipant": "Katılımcı Ekle",
+      "searchUsers": "Kullanıcı ara...",
+      "add": "Ekle",
+      "noRegistrations": "Henüz kayıt yok",
+      "loadingRegistrations": "Kayıtlar yükleniyor...",
+      "noUsers": "Kullanıcı bulunamadı"
+    },
+    "messages": {
+      "created": "Etkinlik oluşturuldu",
+      "updated": "Etkinlik güncellendi",
+      "deleted": "Etkinlik silindi",
+      "statusUpdated": "Durum güncellendi",
+      "participantAdded": "Katılımcı eklendi",
+      "participantRemoved": "Katılımcı kaldırıldı",
+      "registered": "Kaydınız alındı!",
+      "unregistered": "Kayıt iptal edildi",
+      "createError": "Etkinlik oluşturulamadı",
+      "updateError": "Etkinlik güncellenemedi",
+      "deleteError": "Etkinlik silinemedi",
+      "statusError": "Durum güncellenemedi",
+      "addError": "Katılımcı eklenemedi",
+      "removeError": "Katılımcı kaldırılamadı",
+      "registerError": "Kayıt gerçekleştirilemedi",
+      "unregisterError": "Kayıt iptal edilemedi",
+      "imageUploaded": "Görsel yüklendi",
+      "imageError": "Görsel yüklenemedi",
+      "imageTypeError": "Lütfen bir görsel dosyası yükleyin",
+      "imageSizeError": "Görsel 5 MB'dan küçük olmalı"
+    },
+    "table": {
+      "empty": "Etkinlik bulunamadı",
+      "createFirst": "Etkinlik Oluştur",
+      "showTotal": "{{count}} etkinlik"
+    },
+    "tooltips": {
+      "edit": "Düzenle",
+      "deactivate": "Devre Dışı Bırak",
+      "activate": "Etkinleştir",
+      "registrations": "Kayıtlar",
+      "delete": "Sil"
+    },
+    "deleteConfirm": "Bu etkinlik silinsin mi?",
+    "notSet": "Belirsiz"
+  },
+  "quicklinks": {
+    "title": "Hızlı Bağlantılar ve Formlar",
+    "tabs": {
+      "forms": "Formlar",
+      "links": "Bağlantılar",
+      "submissions": "Gönderiler",
+      "registrations": "Kayıtlar"
+    }
+  },
+  "services": {
+    "title": "Hizmetler",
+    "consoleLabel": "Hizmet Konsolu",
+    "allServices": "Tüm Hizmetler",
+    "categories": {
+      "all": "Tüm Hizmetler",
+      "accommodation": "Konaklama",
+      "lesson": "Dersler",
+      "rental": "Kiralamalar",
+      "sales": "Mağaza"
+    },
+    "stats": {
+      "total": "Toplam",
+      "catalogItems": "Katalog öğeleri",
+      "categories": "Kategoriler",
+      "typesOffered": "Sunulan türler",
+      "inCart": "Sepette",
+      "awaitingCheckout": "Ödeme bekliyor"
+    },
+    "search": {
+      "placeholder": "Hizmet ara...",
+      "liveFilter": "Canlı filtre"
+    },
+    "actions": {
+      "createService": "Hizmet oluştur",
+      "openCart": "Sepeti aç ({{count}})",
+      "proceedToCheckout": "Ödemeye Geç"
+    },
+    "manageDesc": "Hizmetleri yönetin, teklifleri düzenleyin ve rezervasyonları tamamlayın.",
+    "cart": {
+      "title": "Sepetiniz ({{count}} ürün)",
+      "empty": "Sepetiniz boş",
+      "remove": "Kaldır",
+      "singleSession": "Tek Seans",
+      "package": "Paket",
+      "bookingInfo": "Rezervasyon Bilgisi",
+      "bookingInfoDesc": "Bir sonraki adımda kullanıcı bilgilerini seçebilir ve rezervasyonunuzu onaylayabilirsiniz.",
+      "total": "Toplam:"
+    },
+    "drawer": {
+      "createTitle": "Yeni Hizmet Oluştur",
+      "editTitle": "Hizmeti Düzenle"
+    },
+    "delete": {
+      "title": "Hizmeti Sil",
+      "confirm": "\"{{name}}\" hizmetini silmek istediğinizden emin misiniz?",
+      "warning": "Bu işlem geri alınamaz."
+    },
+    "messages": {
+      "created": "Hizmet başarıyla oluşturuldu!",
+      "updated": "Hizmet başarıyla güncellendi!",
+      "deleted": "Hizmet başarıyla silindi!",
+      "createError": "Hizmet oluşturulamadı: {{error}}",
+      "updateError": "Hizmet güncellenemedi: {{error}}",
+      "deleteError": "Hizmet silinemedi: {{error}}",
+      "addedToCart": "Sepete eklendi!",
+      "viewCart": "Sepeti Görüntüle",
+      "removedFromCart": "Ürün sepetten kaldırıldı",
+      "proceedingToCheckout": "Ödeme sayfasına yönlendiriliyor...",
+      "loadError": "Hizmetler yüklenemedi. Lütfen daha sonra tekrar deneyin."
+    },
+    "empty": {
+      "noServices": "Bu kategoride hizmet bulunamadı.",
+      "createPrompt": "Başlamak için yeni bir hizmet oluşturun."
+    }
+  },
+  "errors": {
+    "loadFailed": "Veriler yüklenemedi. Lütfen tekrar deneyin."
+  }
+}

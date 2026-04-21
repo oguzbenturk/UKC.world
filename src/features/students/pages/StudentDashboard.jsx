@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { App } from 'antd';
 import { analyticsService } from '@/shared/services/analyticsService';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -40,6 +41,7 @@ const REC_PLACEHOLDER_CLS = {
 
 const InstructorRecommendations = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   const [recs, setRecs] = useState(null);
 
   useEffect(() => {
@@ -53,8 +55,8 @@ const InstructorRecommendations = () => {
   return (
     <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100">
-        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Recommended for You</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Suggestions from your instructor</p>
+        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{t('student:dashboard.recommendations.heading')}</h2>
+        <p className="text-xs text-slate-500 mt-0.5">{t('student:dashboard.recommendations.subheading')}</p>
       </div>
       <ul className="divide-y divide-slate-100">
         {recs.map(rec => {
@@ -107,7 +109,7 @@ const InstructorRecommendations = () => {
                       onClick={() => navigate(link)}
                       className="mt-1.5 text-xs font-medium text-sky-600 hover:text-sky-800 transition-colors"
                     >
-                      View →
+                      {t('student:dashboard.recommendations.viewCta')}
                     </button>
                   )}
                 </div>
@@ -173,22 +175,26 @@ const DashboardSkeleton = () => (
 
 /* ── Empty state ── */
 
-const DashboardEmpty = () => (
-  <div className="flex flex-col items-center py-16 text-center">
-    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50">
-      <svg className="h-8 w-8 text-duotone-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-      </svg>
+const DashboardEmpty = () => {
+  const { t } = useTranslation(['student']);
+  return (
+    <div className="flex flex-col items-center py-16 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50">
+        <svg className="h-8 w-8 text-duotone-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+        </svg>
+      </div>
+      <h2 className="mt-4 font-duotone-bold-extended text-lg text-slate-900">{t('student:dashboard.emptyState.heading')}</h2>
+      <p className="mt-1 text-sm text-slate-500">{t('student:dashboard.emptyState.body')}</p>
     </div>
-    <h2 className="mt-4 font-duotone-bold-extended text-lg text-slate-900">Nothing to show yet</h2>
-    <p className="mt-1 text-sm text-slate-500">Your dashboard will come alive once you book your first lesson.</p>
-  </div>
-);
+  );
+};
 
 /* ── Main component ── */
 
 const StudentDashboard = () => {
   const { notification } = App.useApp();
+  const { t } = useTranslation(['student']);
   const context = useOutletContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const rateBookingId = searchParams.get('rateBooking');
@@ -220,7 +226,7 @@ const StudentDashboard = () => {
   useEffect(() => {
     if (error) {
       notification.error({
-        message: 'Unable to load dashboard',
+        message: t('student:dashboard.errorToast.title'),
         description: error.message,
         placement: 'bottomRight',
       });
@@ -284,8 +290,8 @@ const StudentDashboard = () => {
     setIsRatingModalOpen(false);
     if (submitted) {
       notification.success({
-        message: 'Thanks for your feedback!',
-        description: 'Your rating helps us improve your experience.',
+        message: t('student:dashboard.ratingToast.title'),
+        description: t('student:dashboard.ratingToast.description'),
         placement: 'bottomRight',
       });
     }

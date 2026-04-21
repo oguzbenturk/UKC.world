@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import {
@@ -78,6 +79,7 @@ const DateStep = ({
   onContinue,
   isPackage,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const [currentMonth, setCurrentMonth] = useState(() => dayjs().startOf('month'));
   const today = dayjs().startOf('day');
   const cells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
@@ -103,10 +105,10 @@ const DateStep = ({
         <div className="relative">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{serviceName}</h3>
           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{isPackage ? 'Package' : 'Rental'}</Tag>
+            <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{isPackage ? t('outsider:rentalBooking.dates.packageTag') : t('outsider:rentalBooking.dates.rentalTag')}</Tag>
             {!isPackage && (
               <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
-                {formatCurrency(dailyPrice, priceCurrency)} / day
+                {formatCurrency(dailyPrice, priceCurrency)} {t('outsider:rentalBooking.dates.perDay')}
               </Tag>
             )}
           </div>
@@ -115,7 +117,7 @@ const DateStep = ({
           )}
           {includes && (
             <p className="text-xs text-slate-400 mt-1.5">
-              <span className="font-medium text-slate-500">Includes: </span>{includes}
+              <span className="font-medium text-slate-500">{t('outsider:rentalBooking.dates.includes')} </span>{includes}
             </p>
           )}
         </div>
@@ -141,7 +143,7 @@ const DateStep = ({
               onClick={selectWeekdays}
               className="text-[10px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-md px-1.5 py-0.5 transition-colors"
             >
-              Weekdays
+              {t('outsider:rentalBooking.dates.weekdays')}
             </button>
           </div>
           <button
@@ -216,14 +218,14 @@ const DateStep = ({
                 ))}
               </div>
               <span className={`text-[10px] font-semibold ${atMax ? 'text-orange-600' : 'text-slate-400'}`}>
-                {numberOfDays}/{maxDays} days
+                {t('outsider:rentalBooking.dates.daysCounter', { selected: numberOfDays, total: maxDays })}
               </span>
             </>
           ) : (
             <p className="text-[10px] text-slate-400">
               {numberOfDays === 0
-                ? 'Tap days to select — tap again to deselect'
-                : `${numberOfDays} day${numberOfDays !== 1 ? 's' : ''} selected`}
+                ? t('outsider:rentalBooking.dates.tapInstruction')
+                : t('outsider:rentalBooking.dates.daysSelected', { count: numberOfDays })}
             </p>
           )}
         </div>
@@ -240,12 +242,12 @@ const DateStep = ({
           ) : (
             <>
               <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-2">
-                <span>Daily rate</span>
+                <span>{t('outsider:rentalBooking.dates.dailyRate')}</span>
                 <span>{formatCurrency(dailyPrice, priceCurrency)}</span>
               </div>
               <div className="flex justify-between items-center text-xs sm:text-sm text-slate-500 mb-3">
-                <span>Duration</span>
-                <span>{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+                <span>{t('outsider:rentalBooking.dates.duration')}</span>
+                <span>{t('outsider:rentalBooking.dates.dayCount', { count: numberOfDays })}</span>
               </div>
             </>
           )}
@@ -255,7 +257,7 @@ const DateStep = ({
               onClick={onClearDays}
               className="text-[10px] text-slate-400 hover:text-red-500 transition-colors"
             >
-              Clear all
+              {t('outsider:rentalBooking.dates.clearAll')}
             </button>
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
               {formatCurrency(totalPrice, priceCurrency)}
@@ -274,8 +276,8 @@ const DateStep = ({
         icon={<CalendarOutlined />}
       >
         {numberOfDays > 0
-          ? `Continue — ${numberOfDays} day${numberOfDays !== 1 ? 's' : ''}`
-          : 'Select dates to continue'}
+          ? t('outsider:rentalBooking.dates.continueButton', { count: numberOfDays })
+          : t('outsider:rentalBooking.dates.selectToContinue')}
       </Button>
     </div>
   );
@@ -312,7 +314,9 @@ const PayStep = ({
   serviceId,
   isPackage,
   maxDays,
-}) => (
+}) => {
+  const { t } = useTranslation(['outsider']);
+  return (
   <div className="space-y-4 sm:space-y-5">
     {/* Booking summary */}
     <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50/50 to-orange-50/30 p-4 sm:p-5">
@@ -320,9 +324,9 @@ const PayStep = ({
       <div className="relative">
         <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{serviceName}</h3>
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-          <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">Rental</Tag>
+          <Tag color="orange" className="!text-[10px] sm:!text-xs !m-0 !leading-tight">{t('outsider:rentalBooking.pay.rentalTag')}</Tag>
           <Tag className="!text-[10px] sm:!text-xs !m-0 !leading-tight">
-            {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}
+            {t('outsider:rentalBooking.dates.dayCount', { count: numberOfDays })}
           </Tag>
         </div>
         <p className="text-xs sm:text-sm text-slate-500 mt-2">
@@ -332,21 +336,21 @@ const PayStep = ({
         <div className="mt-3 pt-3 border-t border-slate-200/60">
           {maxDays ? (
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-              <span>{isPackage ? 'Package' : 'Rental'} — {maxDays} days</span>
+              <span>{t(isPackage ? 'outsider:rentalBooking.pay.maxLine_package' : 'outsider:rentalBooking.pay.maxLine_rental', { count: maxDays })}</span>
             </div>
           ) : (
             <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
-              <span>{formatCurrency(dailyPrice, priceCurrency)} × {numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+              <span>{t('outsider:rentalBooking.dates.rateLine', { rate: formatCurrency(dailyPrice, priceCurrency), count: numberOfDays })}</span>
             </div>
           )}
           {insuranceAccepted && insuranceAmount > 0 && (
             <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
-              <span>Insurance ({insuranceRate}%)</span>
+              <span>{t('outsider:rentalBooking.pay.insurance')} ({insuranceRate}%)</span>
               <span className="text-emerald-600">+{formatCurrency(insuranceAmount, priceCurrency)}</span>
             </div>
           )}
           <div className="flex items-end justify-between mt-1">
-            <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">Total</span>
+            <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">{t('outsider:rentalBooking.pay.total')}</span>
             <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
               {formatCurrency(finalTotal, priceCurrency)}
             </span>
@@ -359,7 +363,7 @@ const PayStep = ({
     {insuranceRate != null && insuranceRate > 0 && (
       <div>
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          Equipment Insurance
+          {t('outsider:rentalBooking.pay.insurance')}
         </p>
         <button
           type="button"
@@ -377,10 +381,10 @@ const PayStep = ({
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-xs sm:text-sm font-semibold leading-tight ${insuranceAccepted ? 'text-emerald-700' : 'text-slate-700'}`}>
-              Add equipment insurance
+              {t('outsider:rentalBooking.pay.addInsurance')}
             </p>
             <p className={`text-[10px] sm:text-xs mt-0.5 ${insuranceAccepted ? 'text-emerald-500' : 'text-slate-400'}`}>
-              {insuranceRate}% of rental cost — {formatCurrency(insuranceAmount, priceCurrency)} added to your total
+              {t('outsider:rentalBooking.pay.insuranceNote', { percent: insuranceRate })} — {formatCurrency(insuranceAmount, priceCurrency)} added to your total
             </p>
           </div>
           <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
@@ -395,7 +399,7 @@ const PayStep = ({
     {/* Payment method */}
     <div>
       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Payment Method
+        {t('outsider:rentalBooking.pay.paymentMethod')}
       </p>
       <div className={`grid gap-2 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <button
@@ -413,7 +417,7 @@ const PayStep = ({
             </div>
           )}
           <WalletOutlined className={`text-lg sm:text-xl ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`} />
-          <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'wallet' ? 'text-blue-700' : 'text-slate-600'}`}>Wallet</span>
+          <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'wallet' ? 'text-blue-700' : 'text-slate-600'}`}>{t('outsider:rentalBooking.pay.wallet')}</span>
           <span className={`text-[10px] sm:text-xs ${paymentMethod === 'wallet' ? 'text-blue-500' : 'text-slate-400'}`}>
             {formatCurrency(
               convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance,
@@ -437,9 +441,9 @@ const PayStep = ({
               </div>
             )}
             <CreditCardOutlined className={`text-lg sm:text-xl ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`} />
-            <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-orange-700' : 'text-slate-600'}`}>Pay Later</span>
+            <span className={`text-xs sm:text-sm font-semibold ${paymentMethod === 'pay_later' ? 'text-orange-700' : 'text-slate-600'}`}>{t('outsider:rentalBooking.pay.payLater')}</span>
             <span className={`text-[10px] sm:text-xs ${paymentMethod === 'pay_later' ? 'text-orange-500' : 'text-slate-400'}`}>
-              At the center
+              {t('outsider:rentalBooking.pay.atCenter')}
             </span>
           </button>
         )}
@@ -450,8 +454,8 @@ const PayStep = ({
           type="warning"
           showIcon
           className="!mt-3 !rounded-xl !text-xs"
-          message="Insufficient wallet balance"
-          description="Switch to Credit Card or top up your wallet first."
+          message={t('outsider:rentalBooking.pay.insufficientBalance')}
+          description={t('outsider:rentalBooking.pay.switchOrTopUp')}
         />
       )}
     </div>
@@ -459,7 +463,7 @@ const PayStep = ({
     {/* Promo Code */}
     <div>
       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        Promo Code
+        {t('outsider:rentalBooking.pay.promoCode')}
       </p>
       <PromoCodeInput
         context="rentals"
@@ -488,10 +492,11 @@ const PayStep = ({
         ? `Pay ${formatCurrency(finalTotal, priceCurrency)}`
         : paymentMethod === 'credit_card'
           ? `Pay ${formatCurrency(finalTotal, priceCurrency)} with Card`
-          : 'Confirm — Pay Later'}
+          : t('outsider:rentalBooking.done.payLater')}
     </Button>
   </div>
-);
+  );
+};
 
 const DoneStep = ({
   serviceName,
@@ -503,7 +508,9 @@ const DoneStep = ({
   formatCurrency,
   priceCurrency,
   onClose,
-}) => (
+}) => {
+  const { t } = useTranslation(['outsider']);
+  return (
   <div className="text-center space-y-4 sm:space-y-5 py-2 sm:py-4">
     {/* Success icon with pulse ring */}
     <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 relative">
@@ -514,37 +521,37 @@ const DoneStep = ({
     </div>
 
     <div className="px-2">
-      <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">All Done!</h3>
+      <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">{t('outsider:rentalBooking.done.title')}</h3>
       <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-        Your rental is booked! Check your dashboard for details.
+        {t('outsider:rentalBooking.done.subtitle')}
       </p>
     </div>
 
     <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 text-left space-y-2.5">
       <div className="flex justify-between items-center text-xs sm:text-sm">
-        <span className="text-slate-500">Equipment</span>
+        <span className="text-slate-500">{t('outsider:rentalBooking.done.equipment')}</span>
         <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{serviceName}</span>
       </div>
       <div className="flex justify-between items-center text-xs sm:text-sm">
-        <span className="text-slate-500">Dates</span>
+        <span className="text-slate-500">{t('outsider:rentalBooking.done.dates')}</span>
         <span className="font-semibold text-slate-800">
           {startDateLabel} → {endDateLabel}
         </span>
       </div>
       <div className="flex justify-between items-center text-xs sm:text-sm">
-        <span className="text-slate-500">Duration</span>
-        <span className="font-semibold text-slate-800">{numberOfDays} day{numberOfDays !== 1 ? 's' : ''}</span>
+        <span className="text-slate-500">{t('outsider:rentalBooking.done.duration')}</span>
+        <span className="font-semibold text-slate-800">{t('outsider:rentalBooking.dates.dayCount', { count: numberOfDays })}</span>
       </div>
       {totalPrice > 0 && (
         <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-slate-500">Total</span>
+          <span className="text-slate-500">{t('outsider:rentalBooking.done.total')}</span>
           <span className="font-semibold text-slate-800">{formatCurrency(totalPrice, priceCurrency)}</span>
         </div>
       )}
       <div className="flex justify-between items-center text-xs sm:text-sm">
-        <span className="text-slate-500">Payment</span>
+        <span className="text-slate-500">{t('outsider:rentalBooking.done.payment')}</span>
         <Tag color={paymentMethod === 'wallet' ? 'green' : paymentMethod === 'credit_card' ? 'cyan' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
-          {paymentMethod === 'wallet' ? 'Paid' : paymentMethod === 'credit_card' ? 'Card Paid' : 'Pay Later'}
+          {paymentMethod === 'wallet' ? t('outsider:rentalBooking.done.paid') : paymentMethod === 'credit_card' ? t('outsider:rentalBooking.done.cardPaid') : t('outsider:rentalBooking.done.payLater')}
         </Tag>
       </div>
     </div>
@@ -556,10 +563,11 @@ const DoneStep = ({
       onClick={onClose}
       className="!h-11 sm:!h-12 !rounded-xl !font-bold !text-sm"
     >
-      Done
+      {t('outsider:rentalBooking.done.done')}
     </Button>
   </div>
-);
+  );
+};
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
@@ -579,6 +587,7 @@ const RentalBookingModal = ({
   packageName,
   insuranceRate = null,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const { user, refreshToken } = useAuth();
@@ -717,24 +726,24 @@ const RentalBookingModal = ({
       : rawTotal;
 
     Modal.confirm({
-      title: 'Confirm Rental',
+      title: t('outsider:rentalBooking.confirm.title'),
       icon: <ToolOutlined style={{ color: '#f97316' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
-          <p><strong>{isPackage ? (packageName || serviceName || 'Rental Package') : (serviceName || 'Equipment Rental')}</strong></p>
-          <p style={{ color: '#555' }}>{startDate.format('ddd, MMM D')} → {endDate.format('ddd, MMM D')} ({numberOfDays} day{numberOfDays !== 1 ? 's' : ''})</p>
+          <p><strong>{isPackage ? (packageName || serviceName || t('outsider:rentalBooking.confirm.rentalPackageFallback')) : (serviceName || t('outsider:rentalBooking.confirm.equipmentRentalFallback'))}</strong></p>
+          <p style={{ color: '#555' }}>{startDate.format('ddd, MMM D')} → {endDate.format('ddd, MMM D')} ({t('outsider:rentalBooking.dates.dayCount', { count: numberOfDays })})</p>
           {numberOfDays > 1 && (
-            <p style={{ color: '#888', fontSize: 12 }}>{numberOfDays} separate rentals will be created</p>
+            <p style={{ color: '#888', fontSize: 12 }}>{t('outsider:rentalBooking.confirm.multipleRentals', { count: numberOfDays })}</p>
           )}
           {insuranceAccepted && insuranceAmount > 0 && (
-            <p style={{ color: '#059669', fontSize: 12 }}>Insurance ({effectiveInsuranceRate}%): +{formatCurrency(insuranceAmount, priceCurrency)}</p>
+            <p style={{ color: '#059669', fontSize: 12 }}>{t('outsider:rentalBooking.confirm.insurance', { percent: effectiveInsuranceRate, amount: formatCurrency(insuranceAmount, priceCurrency) })}</p>
           )}
           <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, priceCurrency)}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentMethod === 'wallet' ? 'Wallet' : paymentMethod === 'credit_card' ? 'Credit Card' : 'Pay at Center'}</p>
+          <p style={{ color: '#888' }}>{t('outsider:rentalBooking.confirm.payment', { method: paymentMethod === 'wallet' ? t('outsider:rentalBooking.pay.wallet') : paymentMethod === 'credit_card' ? t('outsider:rentalBooking.pay.creditCard') : t('outsider:rentalBooking.pay.atCenter') })}</p>
         </div>
       ),
-      okText: 'Confirm & Pay',
-      cancelText: 'Go Back',
+      okText: t('outsider:rentalBooking.confirm.confirmPay'),
+      cancelText: t('outsider:rentalBooking.confirm.goBack'),
       centered: true,
       onOk: async () => {
         setSubmitting(true);
@@ -781,7 +790,7 @@ const RentalBookingModal = ({
           queryClient.invalidateQueries({ queryKey: ['rentals'] });
           queryClient.invalidateQueries({ queryKey: ['student-booking'] });
           queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
-          message.success(`${numberOfDays} rental${numberOfDays !== 1 ? 's' : ''} booked!`);
+          message.success(t('outsider:rentalBooking.toasts.rentalsBooked', { count: numberOfDays }));
           setStep(2);
         } catch (err) {
           message.error(err.response?.data?.error || err.message || 'Booking failed');
@@ -795,11 +804,15 @@ const RentalBookingModal = ({
   const handleClose = useCallback(() => onClose(), [onClose]);
 
   // ── Step titles & progress ────────────────────────────────────────────────
-  const stepTitles = ['Select Dates', 'Review & Pay', 'Complete'];
+  const stepTitles = [
+    t('outsider:rentalBooking.steps.selectDates'),
+    t('outsider:rentalBooking.steps.reviewPay'),
+    t('outsider:rentalBooking.steps.complete'),
+  ];
   const visibleSteps = [
-    { title: 'Select Dates', idx: 0 },
-    { title: 'Review & Pay', idx: 1 },
-    { title: 'Complete', idx: 2 },
+    { title: t('outsider:rentalBooking.steps.selectDates'), idx: 0 },
+    { title: t('outsider:rentalBooking.steps.reviewPay'), idx: 1 },
+    { title: t('outsider:rentalBooking.steps.complete'), idx: 2 },
   ];
 
   return (
@@ -825,10 +838,10 @@ const RentalBookingModal = ({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
-              {stepTitles[step] || 'Rent Equipment'}
+              {stepTitles[step] || t('outsider:rentalBooking.steps.fallbackTitle')}
             </h3>
             <p className="text-[10px] sm:text-xs text-slate-400 leading-tight mt-0.5">
-              Step {step + 1} of {visibleSteps.length}
+              {t('outsider:rentalBooking.steps.stepOf', { current: step + 1, total: visibleSteps.length })}
             </p>
           </div>
           {/* Progress bar */}
@@ -929,7 +942,7 @@ const RentalBookingModal = ({
         queryClient.invalidateQueries({ queryKey: ['rentals'] });
         queryClient.invalidateQueries({ queryKey: ['student-booking'] });
         queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
-        message.success('Payment confirmed! Rental booked.');
+        message.success(t('outsider:rentalBooking.toasts.paymentConfirmed'));
         setStep(2);
       }}
       onClose={() => {

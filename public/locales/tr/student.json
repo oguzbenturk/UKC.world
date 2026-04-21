@@ -1,0 +1,802 @@
+{
+  "dashboard": {
+    "recommendations": {
+      "heading": "Senin İçin Önerilenler",
+      "subheading": "Eğitmeninin önerileri",
+      "viewCta": "Görüntüle →"
+    },
+    "emptyState": {
+      "heading": "Henüz gösterilecek bir şey yok",
+      "body": "İlk dersinizi rezerve ettiğinizde paneliniz hayat bulacak."
+    },
+    "errorToast": {
+      "title": "Panel yüklenemedi"
+    },
+    "ratingToast": {
+      "title": "Geri bildiriminiz için teşekkürler!",
+      "description": "Puanlamanız deneyiminizi geliştirmemize yardımcı oluyor."
+    },
+    "nextLesson": {
+      "label": "Sonraki ders",
+      "comingSoon": "Yakında",
+      "noLesson": {
+        "heading": "Uçurtmanız sizi bekliyor",
+        "body": "Henüz planlanmış bir dersiniz yok — başlamak için bir ders rezerve edin."
+      },
+      "progressLabel": "İlerleme"
+    },
+    "ratingPrompt": {
+      "rateWith": "{{name}} ile derse puan verin",
+      "moreCount": "+{{count}} daha",
+      "rateButton": "Puan Ver"
+    },
+    "packageCards": {
+      "sectionHeading": "Aktif paketler",
+      "progressRow": {
+        "left": "{{remaining}} kaldı",
+        "used": "{{used}} / {{total}} kullanıldı"
+      },
+      "lessonHours": "Ders saatleri",
+      "rentalDays": "Kiralama günleri",
+      "accommodationNights": "Konaklama geceleri",
+      "expiresSoon": "Yakında sona eriyor",
+      "exp": "Son: {{date}}"
+    },
+    "quickLinks": {
+      "sectionHeading": "Hızlı erişim",
+      "visitLessons": "Derslere Git",
+      "visitRentals": "Kiralamalara Git",
+      "visitShop": "Mağazaya Git",
+      "visitMyLessons": "Derslerime Git"
+    },
+    "statsStrip": {
+      "lessons": "Dersler",
+      "rentals": "Kiralamalar",
+      "accommodations": "Konaklama",
+      "shop": "Mağaza",
+      "memberships": "Üyelikler",
+      "wallet": "Cüzdan",
+      "stats": {
+        "completed": "Tamamlandı",
+        "upcoming": "Yaklaşan",
+        "totalHours": "Toplam saat",
+        "days": "Gün",
+        "spent": "Harcandı",
+        "nights": "Gece",
+        "pending": "Bekliyor",
+        "active": "Aktif",
+        "expired": "Süresi doldu",
+        "balance": "Bakiye"
+      },
+      "membership": {
+        "owned": "Sahip olundu",
+        "expires": "Son: {{date}}"
+      },
+      "accommodation": {
+        "now": "Şimdi",
+        "nightCount_one": "{{count}} gece",
+        "nightCount_other": "{{count}} gece",
+        "guests": "{{count}} misafir"
+      }
+    },
+    "lessonsSection": {
+      "upcomingLabel": "Yaklaşan",
+      "pastLabel": "Geçmiş",
+      "noLessons": "{{label}} ders bulunamadı",
+      "columns": {
+        "date": "Tarih",
+        "lesson": "Ders",
+        "instructor": "Eğitmen",
+        "duration": "Süre",
+        "status": "Durum"
+      },
+      "showMore": "Daha fazla göster ({{count}})"
+    },
+    "rentalsSection": {
+      "upcomingLabel": "Yaklaşan",
+      "pastLabel": "Geçmiş",
+      "noRentals": "{{label}} kiralama bulunamadı",
+      "columns": {
+        "date": "Tarih",
+        "equipment": "Ekipman",
+        "duration": "Süre",
+        "status": "Durum"
+      },
+      "showMore": "Daha fazla göster ({{count}})"
+    }
+  },
+  "schedule": {
+    "tabs": {
+      "mySchedule": "Programım",
+      "groupLessons": "Grup Dersleri"
+    },
+    "statsBar": {
+      "total": "toplam",
+      "upcoming": "yaklaşan",
+      "past": "geçmiş",
+      "next": "Sonraki:"
+    },
+    "sections": {
+      "upcomingHeading": "Yaklaşan",
+      "pastHeading": "Geçmiş"
+    },
+    "emptyMessages": {
+      "noUpcoming": "Henüz yaklaşan ders yok",
+      "noPast": "Henüz kayıtlı ders yok"
+    },
+    "lessonRow": {
+      "nextBadge": "Sonraki",
+      "reschedule": "Yeniden Planla"
+    },
+    "detailModal": {
+      "lessonLabel": "Ders",
+      "instructorLabel": "Eğitmen",
+      "durationLabel": "Süre",
+      "notesLabel": "Notlar",
+      "requestReschedule": "Yeniden Planlama Talep Et",
+      "close": "Kapat",
+      "statusLabels": {
+        "completed": "Tamamlandı",
+        "scheduled": "Planlandı",
+        "pending": "Bekliyor",
+        "cancelled": "İptal Edildi",
+        "confirmed": "Onaylandı"
+      }
+    },
+    "rescheduleModal": {
+      "title": "Yeniden Planlama Talebi",
+      "subtitle": "Yeni tarih ve saat seçin",
+      "currentBookingLabel": "Mevcut Rezervasyon",
+      "withInstructor": "{{name}} ile",
+      "selectDateLabel": "Yeni Tarih Seçin",
+      "datePlaceholder": "Tarih seçin",
+      "availableSlotsLabel": "Uygun Zaman Aralıkları",
+      "checkingAvailability": "Müsaitlik kontrol ediliyor...",
+      "noSlots": "Uygun slot yok",
+      "noSlotsDescription": "{{name}}, {{date}} tarihinde uygun slotu bulunmuyor. Farklı bir tarih deneyin.",
+      "slotsAvailable_one": "{{count}} slot mevcut",
+      "slotsAvailable_other": "{{count}} slot mevcut",
+      "newTimeSummary": "Yeni zaman: {{datetime}} — {{slot}}",
+      "newTimeSub": "{{instructor}} ile {{duration}} saatlik {{lesson}}",
+      "reasonLabel": "Yeniden planlama nedeni (isteğe bağlı)",
+      "reasonPlaceholder": "ör. Program çakışması, kişisel acil durum...",
+      "managerConfirm": "Yönetici talebinizi onaylayacak",
+      "cancelButton": "İptal",
+      "submitButton": "Yeniden Planlama Talep Et",
+      "sendingButton": "Gönderiliyor...",
+      "successMessage": "Yeniden planlama talebi gönderildi! Yönetici yeni saatinizi onaylayacak.",
+      "errors": {
+        "loadFailed": "Program yüklenemedi",
+        "invalidData": "Geçersiz yeniden planlama verisi",
+        "invalidDataDesc": "Lütfen tarih ve zaman aralığı seçin",
+        "unableToReschedule": "Yeniden planlama yapılamadı"
+      }
+    }
+  },
+  "payments": {
+    "stats": {
+      "walletBalance": "Cüzdan Bakiyesi",
+      "availableToSpend": "Kullanılabilir tutar",
+      "settled": "Ödenenler",
+      "completedInvoices": "Tamamlanmış faturalar",
+      "settledAmount": "Ödenen Tutar",
+      "totalPaid": "Toplam ödendi",
+      "pending": "Bekleyen",
+      "awaitingProcessing": "İşlem bekleniyor"
+    },
+    "actions": {
+      "addFunds": "+ Para Ekle",
+      "openWallet": "Cüzdanı Aç",
+      "refresh": "Yenile",
+      "refreshing": "Yenileniyor..."
+    },
+    "table": {
+      "heading": "Ödeme Geçmişi",
+      "emptyState": "Henüz ödeme yok",
+      "columns": {
+        "date": "Tarih",
+        "description": "Açıklama",
+        "amount": "Tutar",
+        "status": "Durum"
+      }
+    },
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "pageOf": "Sayfa {{page}} / {{total}}"
+    },
+    "notifications": {
+      "paymentSuccess": "Ödeme Başarılı!",
+      "depositProcessed": "{{amount}} {{currency}} tutarındaki para yatırma işleminiz başarıyla gerçekleştirildi.",
+      "depositProcessedGeneric": "Para yatırma işleminiz başarıyla gerçekleştirildi.",
+      "paymentFailed": "Ödeme Başarısız",
+      "paymentFailedReason": "Neden: {{reason}}",
+      "paymentFailedGeneric": "Ödemeniz işlenemedi. Lütfen tekrar deneyin.",
+      "fundsAdded": "Para Eklendi",
+      "fundsAddedDesc": "Tutar cüzdanınıza başarıyla eklendi.",
+      "loadError": "Ödemeler yüklenemedi"
+    }
+  },
+  "myProfile": {
+    "profileCard": {
+      "profileFields": {
+        "email": "E-posta",
+        "phone": "Telefon",
+        "preferredLanguage": "Tercih Edilen Dil",
+        "customerSince": "Müşteri Olduğu Tarih",
+        "notProvided": "Belirtilmedi",
+        "notSet": "Ayarlanmadı",
+        "unknown": "Bilinmiyor"
+      },
+      "accountHighlights": {
+        "currentBalance": "Mevcut Bakiye",
+        "lifetimeValue": "Toplam Değer",
+        "lastPayment": "Son Ödeme",
+        "noPaymentsYet": "Henüz ödeme yapılmadı"
+      },
+      "statCards": {
+        "hoursAttended": "Katıldığı Saatler",
+        "attendanceRate": "Devam Oranı",
+        "totalLessons": "Toplam Ders",
+        "totalRentals": "Toplam Kiralama"
+      },
+      "notes": "Notlar"
+    },
+    "packageSummary": {
+      "heading": "Paket Özeti",
+      "viewOnly": "Yalnızca görüntüle",
+      "generalPackage": "Genel paket",
+      "rentalSuffix": "+ Kiralama",
+      "accommodationSuffix": "+ Konaklama",
+      "noPackages": "Atanmış paket yok",
+      "expiresOn": "Son: {{date}}",
+      "noExpiry": "Son kullanma tarihi yok",
+      "sections": {
+        "totalHours": "Toplam Saat",
+        "used": "Kullanıldı",
+        "remaining": "Kaldı",
+        "utilisation": "Kullanım",
+        "totalDays": "Toplam Gün",
+        "equipment": "Ekipman",
+        "totalNights": "Toplam Gece",
+        "unit": "Ünite"
+      }
+    },
+    "upcomingLessons": {
+      "heading": "Yaklaşan Dersler",
+      "viewOnly": "Yalnızca görüntüle",
+      "scheduled": "Planlandı",
+      "instructorPrefix": "Eğitmen:",
+      "noUpcoming": "Yaklaşan ders yok"
+    },
+    "historySection": {
+      "tabs": {
+        "total": "Tüm Geçmiş",
+        "lessons": "Ders Geçmişi",
+        "rentals": "Kiralama Geçmişi",
+        "shop": "Alışveriş Geçmişi",
+        "memberships": "Üyelik Geçmişi",
+        "events": "Etkinlik Geçmişi",
+        "financial": "Finansal Geçmiş"
+      },
+      "tableHeadings": {
+        "allActivity": "Tüm Aktiviteler",
+        "lessonHistory": "Ders Geçmişi",
+        "rentalHistory": "Kiralama Geçmişi",
+        "shopPurchases": "Alışveriş Siparişleri",
+        "membershipPurchases": "Üyelik Satın Alımları",
+        "eventRegistrations": "Etkinlik Kayıtları",
+        "financialHistory": "Finansal Geçmiş"
+      },
+      "columns": {
+        "date": "Tarih",
+        "type": "Tür",
+        "description": "Açıklama",
+        "dateTime": "Tarih ve Saat",
+        "service": "Hizmet",
+        "instructor": "Eğitmen",
+        "duration": "Süre",
+        "price": "Fiyat",
+        "status": "Durum",
+        "payment": "Ödeme",
+        "equipment": "Ekipman",
+        "rentalDate": "Kiralama Tarihi",
+        "amount": "Tutar",
+        "purchased": "Satın Alındı",
+        "membership": "Üyelik",
+        "expires": "Son Kullanma",
+        "item": "Ürün",
+        "quantity": "Miktar",
+        "event": "Etkinlik",
+        "location": "Konum",
+        "registration": "Kayıt"
+      },
+      "emptyStates": {
+        "noActivity": "Aktivite geçmişi yok",
+        "noLessons": "Ders geçmişi yok",
+        "noRentals": "Kiralama geçmişi yok",
+        "noShop": "Alışveriş siparişi yok",
+        "noMemberships": "Üyelik satın alımı yok",
+        "noEvents": "Etkinlik kaydı yok",
+        "noFinancial": "Kayıtlı ödeme yok"
+      },
+      "values": {
+        "notAssigned": "Atanmadı",
+        "hour_one": "{{count}} saat",
+        "hour_other": "{{count}} saat",
+        "item_one": "{{count}} ürün",
+        "item_other": "{{count}} ürün",
+        "free": "Ücretsiz",
+        "tba": "Belirlenecek"
+      }
+    },
+    "familyAlert": {
+      "message": "Aile üyelerinizi mi arıyorsunuz?",
+      "description": "Profil → Aile yolunu izleyerek kenar çubuğundan aile bilgilerini yönetin."
+    },
+    "loadingActivity": "Aktiviteleriniz yükleniyor...",
+    "alerts": {
+      "profileUnavailable": "Profil kullanılamıyor",
+      "historyError": "Geçmişinizin bir kısmı yüklenirken sorun yaşandı"
+    }
+  },
+  "family": {
+    "pageTitle": "Aile Üyeleri",
+    "pageSubtitle": "Rezervasyon ve feragatname için çocuklarınızın profillerini ekleyin ve yönetin.",
+    "seoTitle": "Aile Üyeleri • Plannivo",
+    "seoDescription": "18 yaşın altındaki aile üyelerinizi ders ve kiralama rezervasyonları ile feragatname işlemleri için yönetin.",
+    "cardTitle": "Aile Üyeleri",
+    "management": {
+      "description": "Aşağıdaki aile üyelerinizi yönetin. Listede yer alan her aile üyesi için ders ve kiralama rezervasyonu yapabilirsiniz.",
+      "showingCount_one": "{{count}} üye gösteriliyor",
+      "showingCount_other": "{{count}} üye gösteriliyor",
+      "showingOf": " / toplam {{total}}",
+      "adjustFilters": " Daha fazla aile üyesi görmek için filtrelerinizi ayarlayın."
+    },
+    "emptyState": {
+      "heading": "Henüz aile üyesi yok",
+      "body": "Çocuklarınızı (18 yaş altı) ekleyerek onlar adına kolayca ders ve kiralama rezervasyonu yapabilirsiniz. Ayrıca feragatname imzalayabilir ve aktivitelerini takip edebilirsiniz.",
+      "addButton": "İlk Aile Üyenizi Ekleyin"
+    },
+    "filteredEmpty": {
+      "heading": "Eşleşme bulunamadı",
+      "body": "Arama veya filtrelerinizi ayarlamayı deneyin",
+      "clearButton": "Tüm Filtreleri Temizle"
+    },
+    "filters": {
+      "searchPlaceholder": "İsim veya notlara göre ara...",
+      "allRelationships": "Tüm ilişkiler",
+      "allWaiverStatuses": "Tüm feragatname durumları",
+      "clearButton": "Temizle"
+    },
+    "actions": {
+      "export": "Dışa Aktar",
+      "exportTooltipOnline": "CSV olarak indir",
+      "exportTooltipOffline": "Dışa aktarmak için bağlanın",
+      "addMember": "Üye Ekle",
+      "addMemberTooltipOnline": "Yeni aile üyesi ekle",
+      "addMemberTooltipOffline": "Çevrimdışısınız"
+    },
+    "offline": {
+      "title": "Çevrimdışı mod",
+      "description": "En son önbelleğe alınmış aile üyelerini görüntülüyorsunuz. Aile üyesi oluşturmak veya düzenlemek için internet bağlantısı gereklidir."
+    },
+    "loadError": "Aile Üyeleri Yüklenirken Hata",
+    "loading": "Aile üyeleri yükleniyor...",
+    "relationships": {
+      "son": "Oğul",
+      "daughter": "Kız",
+      "child": "Çocuk",
+      "sibling": "Kardeş",
+      "other": "Diğer"
+    },
+    "waiverStatuses": {
+      "signed": "İmzalandı",
+      "pending": "İşlem gerekiyor",
+      "expired": "Süresi doldu",
+      "unknown": "Bilinmiyor"
+    },
+    "memberCard": {
+      "yearsOld_one": "{{count}} yaşında",
+      "yearsOld_other": "{{count}} yaşında",
+      "hasMedicalNotes": "Tıbbi not mevcut",
+      "waiver": {
+        "upToDate": "Feragatname Güncel",
+        "expired": "Feragatname Süresi Doldu",
+        "newVersionRequired": "Yeni Versiyon Gerekli",
+        "pending": "Feragatname Bekliyor",
+        "unknown": "Feragatname Durumu Bilinmiyor",
+        "lastSigned": "Son imzalanma: {{date}}",
+        "signButton": "Feragatname İmzala"
+      },
+      "tooltips": {
+        "viewActivity": "Aktiviteyi görüntüle",
+        "signWaiver": "Feragatname imzala",
+        "edit": "Düzenle",
+        "remove": "Kaldır"
+      }
+    },
+    "deleteConfirm": {
+      "title": "Aile Üyesini Kaldır",
+      "body": "{{name}} adlı kişiyi aile üyelerinizden kaldırmak istediğinizden emin misiniz?",
+      "consequence": "Bu işlem mevcut rezervasyonları etkilemeyecek, ancak yeni rezervasyonlarda bu kişi görünmeyecek.",
+      "okText": "Kaldır",
+      "cancelText": "İptal",
+      "undoMessage": "{{name}} kaldırıldı.",
+      "undoButton": "Geri Al",
+      "restored": "{{name}} geri yüklendi",
+      "removeError": "Aile üyesi kaldırılamadı"
+    },
+    "modal": {
+      "addTitle": "Aile Üyesi Ekle",
+      "editTitle": "Aile Üyesini Düzenle",
+      "addSubtitle": "Onlar adına aktivite rezervasyonu yapabilmek için bir aile üyesi ekleyin",
+      "editSubtitle": "Aşağıdaki aile üyesi bilgilerini güncelleyin",
+      "sections": {
+        "personal": "Kişisel",
+        "basicInfo": "Temel Bilgiler",
+        "safety": "Güvenlik",
+        "emergencyMedical": "Acil Durum ve Tıbbi"
+      },
+      "ageAlert": {
+        "childTitle": "Yaş kısıtlaması uygulanır",
+        "childDesc": "Çocuk, oğul, kız ve kardeşler 18 yaşından küçük olmalıdır.",
+        "adultTitle": "Herhangi bir aile üyesi ekleyin",
+        "adultDesc": "Eş, ebeveyn veya yetişkin bir aile üyesi ekleyebilirsiniz."
+      },
+      "fields": {
+        "fullName": "Ad Soyad",
+        "fullNamePlaceholder": "Adı soyadı girin",
+        "relationship": "Yakınlık Derecesi",
+        "relationshipPlaceholder": "Yakınlık derecesi seçin",
+        "dateOfBirth": "Doğum Tarihi",
+        "dobUnderAge": "18 yaşından küçük olmalıdır",
+        "dobEnter": "Doğum tarihini girin",
+        "gender": "Cinsiyet",
+        "genderPlaceholder": "Cinsiyet seçin (isteğe bağlı)",
+        "emergencyContact": "Acil İletişim",
+        "emergencyPlaceholder": "Telefon numarası veya iletişim bilgisi (isteğe bağlı)",
+        "medicalNotes": "Tıbbi Notlar",
+        "medicalPlaceholder": "Tıbbi bilgileri, alerjileri veya özel ihtiyaçları girin (isteğe bağlı)",
+        "medicalHint": "Alerjiler, tıbbi durumlar veya özel ihtiyaçlar. Bu bilgiler şifrelenmiş olup yalnızca yetkili personel tarafından erişilebilir."
+      },
+      "genderOptions": {
+        "male": "Erkek",
+        "female": "Kadın",
+        "other": "Diğer",
+        "preferNotToSay": "Belirtmek istemiyorum"
+      },
+      "relationships": {
+        "son": "Oğul",
+        "daughter": "Kız",
+        "child": "Çocuk",
+        "spouse": "Eş",
+        "sibling": "Kardeş",
+        "parent": "Ebeveyn",
+        "other": "Diğer"
+      },
+      "validation": {
+        "nameRequired": "Lütfen ad soyadı girin",
+        "nameMin": "Ad en az 2 karakter olmalıdır",
+        "nameMax": "Ad 255 karakterden az olmalıdır",
+        "relationshipRequired": "Lütfen yakınlık derecesi seçin",
+        "dobRequired": "Lütfen doğum tarihini seçin",
+        "emergencyMax": "Acil iletişim bilgisi 50 karakterden az olmalıdır",
+        "medicalMax": "Tıbbi notlar 2000 karakterden az olmalıdır"
+      },
+      "ageError": {
+        "title": "Yaş Şartı Karşılanmadı",
+        "content": "Çocuk, oğul, kız ve kardeşler 18 yaşından küçük olmalıdır. Yetişkinler için \"Eş\" veya \"Ebeveyn\" seçeneğini seçin."
+      },
+      "saveError": {
+        "title": "Kaydedilemedi"
+      },
+      "discardConfirm": {
+        "title": "Değişiklikler iptal edilsin mi?",
+        "content": "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden kapatmak istediğinizden emin misiniz?",
+        "okText": "İptal Et",
+        "cancelText": "Düzenlemeye devam et"
+      },
+      "buttons": {
+        "cancel": "İptal",
+        "add": "Aile Üyesi Ekle",
+        "update": "Güncelle"
+      },
+      "toasts": {
+        "updated": "{{name}} güncellendi",
+        "added": "{{name}} ailenize eklendi",
+        "saveError": "Aile üyesi kaydedilemedi"
+      }
+    },
+    "exportSuccess": "Aile üyesi listesi indirildi",
+    "exportError": "Aile üyeleri dışa aktarılamadı",
+    "waiverSigned": "{{name}} için feragatname imzalandı",
+    "waiverSignedGeneric": "Feragatname başarıyla imzalandı"
+  },
+  "support": {
+    "stats": {
+      "totalTickets": "Toplam Talep",
+      "open": "Açık",
+      "resolved": "Çözüldü"
+    },
+    "channelPicker": {
+      "heading": "Yardım alın",
+      "channels": {
+        "ticket": {
+          "label": "Yeni Talep",
+          "description": "Destek talebi açın"
+        },
+        "email": {
+          "label": "E-posta Gönderin",
+          "description": "hello@plannivo.com"
+        },
+        "whatsapp": {
+          "label": "WhatsApp",
+          "description": "WhatsApp'tan yazın"
+        },
+        "chat": {
+          "label": "Canlı Sohbet",
+          "description": "Ekiple sohbet edin"
+        },
+        "kai": {
+          "label": "Kai'ye Sor",
+          "description": "Anında yapay zeka yanıtı alın"
+        }
+      }
+    },
+    "tabs": {
+      "newTicket": "Yeni Talep",
+      "myTickets": "Taleplerim"
+    },
+    "form": {
+      "intro": "Rezervasyon, ödeme veya ekipman konusunda yardıma mı ihtiyacınız var? Bize kısa bir not bırakın, ekibimiz size geri dönsün.",
+      "subjectLabel": "Konu",
+      "subjectPlaceholder": "ör. Dersimi ayarlamam gerekiyor",
+      "subjectRequired": "Nasıl yardımcı olabileceğimizi belirtin",
+      "priorityLabel": "Öncelik",
+      "messageLabel": "Mesaj",
+      "messagePlaceholder": "Okula mesajınızı yazın",
+      "messageRequired": "Biraz daha ayrıntı verin",
+      "submitButton": "Talep gönder",
+      "sendingButton": "Gönderiliyor…",
+      "priorityOptions": {
+        "low": "Düşük",
+        "normal": "Normal",
+        "high": "Yüksek"
+      }
+    },
+    "ticketList": {
+      "emptyState": "Henüz destek talebiniz yok",
+      "ticketFallback": "Talep #{{id}}",
+      "statusLabels": {
+        "open": "Açık",
+        "in_progress": "İşlemde",
+        "resolved": "Çözüldü",
+        "closed": "Kapatıldı",
+        "pending": "Bekliyor"
+      }
+    },
+    "notifications": {
+      "requestSent": "Destek talebi gönderildi",
+      "sendError": "Talep gönderilemedi"
+    }
+  },
+  "ratingModal": {
+    "sessionHeading": "Dersiniz nasıldı?",
+    "sessionWith": "ile",
+    "feedbackLabel": {
+      "under5": "5 yıldız kazanmak için ne yapabiliriz?",
+      "under5Required": "*",
+      "5stars": "Deneyiminizi paylaşın"
+    },
+    "placeholders": {
+      "under5": "Daha iyisini yapmak istiyoruz — neyi geliştirebiliriz?",
+      "5stars": "Bu dersi harika yapan neydi?"
+    },
+    "charCount": "{{count}} / 2000",
+    "requiredNote": "5 yıldızın altındaki puanlamalar için zorunlu",
+    "anonymous": {
+      "label": "Anonim olarak gönder",
+      "hint": "Puanınız sayılır, isminiz gizli kalır"
+    },
+    "submitButton": "Puanı Gönder",
+    "submittingButton": "Gönderiliyor…",
+    "maybeLater": "Belki sonra",
+    "noBookingFound": "Bu ders için ayrıntı bulunamadı.",
+    "success": {
+      "heading": "Teşekkürler!",
+      "body": "Geri bildiriminiz daha büyük dalgalara ulaşmamıza yardımcı oluyor."
+    },
+    "ratings": {
+      "poor": "Kötü",
+      "fair": "Orta",
+      "good": "İyi",
+      "great": "Harika",
+      "amazing": "Muhteşem!"
+    }
+  },
+  "layout": {
+    "portalDisabled": {
+      "heading": "Öğrenci portalı devre dışı",
+      "body": "Hesabınız aktif, ancak öğrenci portalı henüz kullanılabilir değil. Bunun bir hata olduğunu düşünüyorsanız lütfen okulla iletişime geçin."
+    },
+    "welcome": "Hoş geldin, {{name}}"
+  },
+  "portalUnavailable": {
+    "heading": "Öğrenci portalı yakında",
+    "body": "Öğrenci deneyimi yayına hazırlanıyor. Daha sonra tekrar kontrol edin veya derslerinizi yönetmek için yardıma ihtiyacınız varsa okulla iletişime geçin."
+  },
+  "myOrders": {
+    "pageTitle": "Siparişlerim",
+    "pageSubtitle": "Satın alımları, ödemeleri ve mesajlaşmayı takip edin",
+    "browseShop": "Mağazaya Gözat",
+    "orderHistory": {
+      "heading": "Sipariş geçmişi",
+      "subheading": "Satın alımları inceleyin, durumu takip edin ve konuşmaları sürdürün"
+    },
+    "metrics": {
+      "totalOrders": "Toplam Sipariş",
+      "totalOrdersHint": "Bu sayfada yüklendi",
+      "active": "Aktif",
+      "activeHint": "Bekliyor veya devam ediyor",
+      "completed": "Tamamlandı",
+      "completedHint": "Başarıyla teslim edildi",
+      "unreadMessages": "Okunmamış Mesajlar",
+      "unreadThreads_one": "{{count}} konu",
+      "unreadThreads_other": "{{count}} konu"
+    },
+    "latestOrderHint": "En son sipariş <strong>{{number}}</strong>, {{time}} verildi. Güncellemeleri görmek veya ekibe mesaj atmak için tıklayın.",
+    "filters": {
+      "all": "Tümü",
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal Edildi"
+    },
+    "statusLabels": {
+      "pending": "Bekliyor",
+      "confirmed": "Onaylandı",
+      "processing": "İşleniyor",
+      "shipped": "Kargoya Verildi",
+      "delivered": "Teslim Edildi",
+      "completed": "Tamamlandı",
+      "cancelled": "İptal Edildi",
+      "refunded": "İade Edildi"
+    },
+    "paymentLabels": {
+      "wallet": "Cüzdan",
+      "credit_card": "Kredi Kartı",
+      "cash": "Nakit",
+      "other": "Diğer"
+    },
+    "paymentTags": {
+      "paid": "Ödendi",
+      "paymentPending": "Ödeme Bekliyor"
+    },
+    "orderCard": {
+      "items_one": "{{count}} ürün",
+      "items_other": "{{count}} ürün",
+      "moreItems_one": "+{{count}} ürün daha",
+      "moreItems_other": "+{{count}} ürün daha",
+      "qty": "Adet: {{qty}}",
+      "size": "Beden: {{size}}",
+      "newMessages_one": "{{count}} yeni",
+      "newMessages_other": "{{count}} yeni"
+    },
+    "emptyState": {
+      "noOrdersTitle": "Henüz sipariş yok",
+      "noFilterTitle": "{{filter}} sipariş yok",
+      "noOrdersBody": "Satın alımlarınız ödeme ayrıntıları, kargo güncellemeleri ve mesajlaşma ile burada görünecek.",
+      "noFilterBody": "Başka bir filtre deneyin veya en güncel bilgiler için yenileyin.",
+      "clearFilter": "Filtreyi Temizle"
+    },
+    "detail": {
+      "drawerTitle": "Sipariş Detayları",
+      "statusHistory": "Durum Geçmişi",
+      "fromStatus": "{{status}} durumundan",
+      "orderNotes": "Sipariş Notları",
+      "orderCancelledTitle": "Sipariş İptal Edildi",
+      "orderRefundedTitle": "Sipariş İade Edildi",
+      "infoLabels": {
+        "status": "Durum",
+        "payment": "Ödeme",
+        "voucher": "Kupon",
+        "shippingAddress": "Teslimat Adresi"
+      },
+      "itemsHeading": "Ürünler",
+      "totals": {
+        "subtotal": "Ara Toplam",
+        "discount": "İndirim",
+        "total": "Toplam"
+      }
+    },
+    "messages": {
+      "heading": "Sipariş Mesajları",
+      "emptyState": "Henüz mesaj yok. Siparişinizle ilgili bir soru sorun!",
+      "placeholder": "Mesajınızı yazın...",
+      "staffFallback": "Personel"
+    }
+  },
+  "feedback": {
+    "form": {
+      "title": "Deneyiminizi Paylaşın",
+      "updateTitle": "Geri Bildiriminizi Güncelleyin",
+      "overallExperience": "Genel Deneyim",
+      "wouldRecommend": "Bizi arkadaşlarınıza tavsiye eder misiniz?",
+      "recommendYes": "Evet, kesinlikle!",
+      "recommendNo": "Hayır, muhtemelen etmem",
+      "detailedRatings": "Ayrıntılı Puanlama",
+      "instructorRating": "Eğitmen",
+      "equipmentRating": "Ekipman Kalitesi",
+      "locationRating": "Konum ve Koşullar",
+      "valueRating": "Para Değeri",
+      "skillProgress": "Sörf İlerlemeniz",
+      "skillBefore": "Ders Öncesi Beceri Seviyesi",
+      "skillAfter": "Ders Sonrası Beceri Seviyesi",
+      "skillPlaceholderBefore": "Ders öncesi beceri seviyenizi seçin",
+      "skillPlaceholderAfter": "Ders sonrası beceri seviyenizi seçin",
+      "skillLevels": {
+        "complete_beginner": "Tam Başlangıç",
+        "beginner": "Başlangıç",
+        "intermediate": "Orta",
+        "advanced": "İleri",
+        "expert": "Uzman"
+      },
+      "lessonConditions": "Ders Koşulları",
+      "weatherConditions": "Hava koşulları nasıldı?",
+      "weatherOptions": {
+        "excellent": "Mükemmel - Sörf için ideal",
+        "good": "İyi - Güzel koşullar",
+        "fair": "Orta - Kabul edilebilir koşullar",
+        "poor": "Kötü - Zorlu koşullar",
+        "unsuitable": "Uygunsuz - İptal edilmeliydi"
+      },
+      "favoriteAspect": "Dersin En Beğenilen Yönü",
+      "favoriteAspectPlaceholder": "En çok neyi beğendiniz?",
+      "favoriteOptions": {
+        "instructor_teaching": "Eğitmenin öğretim tarzı",
+        "equipment_quality": "Yüksek kaliteli ekipman",
+        "location_beauty": "Güzel konum",
+        "safety_measures": "Güvenlik önlemleri",
+        "skill_progress": "Öğrenme ilerleme",
+        "overall_experience": "Genel deneyim"
+      },
+      "commentsLabel": "Deneyiminizi anlatın",
+      "commentsPlaceholder": "Dersinizle ilgili ayrıntıları, öğrendiklerinizi ve hissettiklerinizi paylaşın...",
+      "improvementLabel": "Nasıl iyileştirebiliriz?",
+      "improvementPlaceholder": "Derslerimizi daha iyi hale getirmek için önerileriniz?",
+      "submitButton": "Geri Bildirim Gönder",
+      "updateButton": "Geri Bildirimi Güncelle",
+      "validation": {
+        "overallRequired": "Lütfen genel deneyiminizi puanlayın",
+        "instructorRequired": "Lütfen eğitmeninizi puanlayın",
+        "equipmentRequired": "Lütfen ekipmanı puanlayın",
+        "locationRequired": "Lütfen konumu puanlayın",
+        "valueRequired": "Lütfen para değerini puanlayın"
+      },
+      "errors": {
+        "submitFailed": "Geri bildirim gönderilemedi. Lütfen tekrar deneyin.",
+        "errorTitle": "Hata"
+      }
+    },
+    "thankYou": {
+      "heading": "Geri Bildiriminiz İçin Teşekkürler!",
+      "body": "Geri bildiriminiz sörf derslerimizi geliştirmemize ve tüm öğrenciler için daha iyi deneyimler sunmamıza yardımcı oluyor.",
+      "continueButton": "Devam Et"
+    },
+    "summary": {
+      "totalReviews": "Toplam Yorum",
+      "averageRating": "Ortalama Puan",
+      "recommendationRate": "Tavsiye Oranı",
+      "responseRate": "Yanıt Oranı",
+      "ratingBreakdown": "Puan Dağılımı",
+      "recentComments": "Son Yorumlar",
+      "suggestionPrefix": "Öneri:",
+      "noFeedback": "Geri bildirim verisi yok",
+      "noFeedbackDesc": "Seçilen dönem için henüz geri bildirim alınmadı.",
+      "loading": "Geri bildirim özeti yükleniyor..."
+    },
+    "achievements": {
+      "modalTitle": "Başarım Kilit Açıldı!"
+    }
+  }
+}

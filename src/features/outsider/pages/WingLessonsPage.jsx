@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ThunderboltOutlined,
   RocketOutlined,
@@ -121,17 +122,20 @@ const wingPackages = [
   }
 ];
 
-const WingLessonsPage = () => (
-  <AcademyServicePackagesPage
-    seoTitle="Wing Lessons | UKC Academy"
-    seoDescription="Learn wing foiling with structured packages from beginner to advanced."
-    headline="Wing"
-    accentWord="Lessons"
-    academyTheme="academy"
-    subheadline="Choose your wing progression path. From first rides to advanced transitions, our team supports every step."
-    packages={wingPackages}
-    dynamicServiceKey="wing"
-  />
-);
+const WingLessonsPage = () => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <AcademyServicePackagesPage
+      seoTitle="Wing Lessons | UKC Academy"
+      seoDescription="Learn wing foiling with structured packages from beginner to advanced."
+      headline={t('outsider:academyWing.hero.title')}
+      accentWord={t('outsider:academyWing.hero.titleAccent')}
+      academyTheme="academy"
+      subheadline={t('outsider:academyWing.hero.subtitle')}
+      packages={wingPackages}
+      dynamicServiceKey="wing"
+    />
+  );
+};
 
 export default WingLessonsPage;

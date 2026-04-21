@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -13,21 +14,7 @@ import apiClient from '@/shared/services/apiClient';
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
-const QUICK_RANGES = [
-  { key: 'today', label: 'Today', start: () => dayjs(), end: () => dayjs() },
-  { key: 'thisWeek', label: 'This Week', start: () => dayjs().startOf('week'), end: () => dayjs().endOf('week') },
-  { key: 'thisMonth', label: 'This Month', start: () => dayjs().startOf('month'), end: () => dayjs().endOf('month') },
-  { key: 'thisYear', label: 'This Year', start: () => dayjs().startOf('year'), end: () => dayjs().endOf('year') },
-  { key: 'allHistory', label: 'All History', start: () => dayjs('2020-01-01'), end: () => dayjs().endOf('year') }
-];
-
-const SERVICE_TYPES = [
-  { key: 'all', label: 'All', color: 'blue' },
-  { key: 'lessons', label: 'Lessons', color: 'green' },
-  { key: 'rentals', label: 'Rentals', color: 'orange' },
-  { key: 'membership', label: 'Membership', color: 'purple' },
-  { key: 'shop', label: 'Shop', color: 'cyan' }
-];
+// QUICK_RANGES and SERVICE_TYPES are built inside the component using t()
 
 const accentStyles = {
   indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
@@ -38,8 +25,25 @@ const accentStyles = {
 };
 
 function FinanceAdminView({ defaultFilter = 'all' }) {
+  const { t } = useTranslation(['manager']);
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+
+  const QUICK_RANGES = [
+    { key: 'today', label: t('manager:finances.overview.quickRanges.today'), start: () => dayjs(), end: () => dayjs() },
+    { key: 'thisWeek', label: t('manager:finances.overview.quickRanges.thisWeek'), start: () => dayjs().startOf('week'), end: () => dayjs().endOf('week') },
+    { key: 'thisMonth', label: t('manager:finances.overview.quickRanges.thisMonth'), start: () => dayjs().startOf('month'), end: () => dayjs().endOf('month') },
+    { key: 'thisYear', label: t('manager:finances.overview.quickRanges.thisYear'), start: () => dayjs().startOf('year'), end: () => dayjs().endOf('year') },
+    { key: 'allHistory', label: t('manager:finances.overview.quickRanges.allHistory'), start: () => dayjs('2020-01-01'), end: () => dayjs().endOf('year') }
+  ];
+
+  const SERVICE_TYPES = [
+    { key: 'all', label: t('manager:finances.overview.services.all'), color: 'blue' },
+    { key: 'lessons', label: t('manager:finances.overview.services.lessons'), color: 'green' },
+    { key: 'rentals', label: t('manager:finances.overview.services.rentals'), color: 'orange' },
+    { key: 'membership', label: t('manager:finances.overview.services.membership'), color: 'purple' },
+    { key: 'shop', label: t('manager:finances.overview.services.shop'), color: 'cyan' }
+  ];
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
     endDate: dayjs().endOf('year').format('YYYY-MM-DD')
@@ -118,32 +122,31 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
   const overviewStats = useMemo(() => {
     const h = overviewData?.headline;
     if (!h) return null;
-    const net = h.net ?? (h.totalIncome - h.totalCharges);
     return [
       {
         key: 'income',
-        label: 'Total Income',
-        sublabel: 'All credits to wallets',
+        label: t('manager:finances.overview.stats.totalIncome'),
+        sublabel: t('manager:finances.overview.stats.totalIncomeSub'),
         value: formatCurrency(h.totalIncome),
         raw: h.totalIncome,
         accent: 'emerald',
         icon: <ArrowUpOutlined className="text-emerald-500" />,
-        helper: `${formatCurrency(h.totalDeposits)} in deposits`
+        helper: t('manager:finances.overview.stats.depositsHelper', { amount: formatCurrency(h.totalDeposits) })
       },
       {
         key: 'charges',
-        label: 'Total Charges',
-        sublabel: 'All debits from wallets',
+        label: t('manager:finances.overview.stats.totalCharges'),
+        sublabel: t('manager:finances.overview.stats.totalChargesSub'),
         value: formatCurrency(h.totalCharges),
         raw: h.totalCharges,
         accent: 'rose',
         icon: <ArrowDownOutlined className="text-rose-500" />,
-        helper: `${h.totalTransactions.toLocaleString()} transactions`
+        helper: t('manager:finances.overview.stats.transactionsHelper', { count: h.totalTransactions.toLocaleString() })
       },
       {
         key: 'net',
-        label: 'Net Profit',
-        sublabel: 'Charges − Refunds − Commission',
+        label: t('manager:finances.overview.stats.netProfit'),
+        sublabel: t('manager:finances.overview.stats.netProfitSub'),
         value: formatCurrency(h.totalCharges - h.totalRefunds - h.instructorCommission),
         raw: h.totalCharges - h.totalRefunds - h.instructorCommission,
         accent: (h.totalCharges - h.totalRefunds - h.instructorCommission) >= 0 ? 'indigo' : 'rose',
@@ -152,8 +155,8 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
       },
       {
         key: 'refunds',
-        label: 'Refunds Issued',
-        sublabel: 'Money returned to customers',
+        label: t('manager:finances.overview.stats.refundsIssued'),
+        sublabel: t('manager:finances.overview.stats.refundsSub'),
         value: formatCurrency(h.totalRefunds),
         raw: h.totalRefunds,
         accent: 'amber',
@@ -162,8 +165,8 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
       },
       {
         key: 'commission',
-        label: 'Instructor Commission',
-        sublabel: 'Paid to instructors',
+        label: t('manager:finances.overview.stats.instructorCommission'),
+        sublabel: t('manager:finances.overview.stats.instructorCommissionSub'),
         value: formatCurrency(h.instructorCommission),
         raw: h.instructorCommission,
         accent: 'slate',
@@ -171,7 +174,7 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         helper: null
       }
     ];
-  }, [overviewData]);
+  }, [overviewData, t]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -179,9 +182,9 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="m-0 text-2xl font-semibold text-slate-900">Finance Management - Overview</h1>
+              <h1 className="m-0 text-2xl font-semibold text-slate-900">{t('manager:finances.overview.title')}</h1>
             </div>
-            <p className="m-0 text-sm text-slate-500">All money in & out across every service · {rangeLabel}</p>
+            <p className="m-0 text-sm text-slate-500">{t('manager:finances.overview.subtitle')} · {rangeLabel}</p>
           </div>
           <Space wrap size="small" className="justify-start lg:justify-end">
             {isMobile ? (
@@ -237,11 +240,11 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         <Spin spinning={overviewLoading}>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(overviewStats || [
-              { key: 'income',     label: 'Total Income',         sublabel: 'All credits to wallets',        value: '--', accent: 'emerald', icon: <ArrowUpOutlined />,   helper: null },
-              { key: 'charges',    label: 'Total Charges',        sublabel: 'All debits from wallets',       value: '--', accent: 'rose',    icon: <ArrowDownOutlined />, helper: null },
-              { key: 'net',        label: 'Net Profit',           sublabel: 'Charges − Refunds − Commission', value: '--', accent: 'indigo', icon: null, helper: null },
-              { key: 'refunds',    label: 'Refunds Issued',       sublabel: 'Money returned to customers',  value: '--', accent: 'amber',   icon: null, helper: null },
-              { key: 'commission', label: 'Instructor Commission', sublabel: 'Paid to instructors',          value: '--', accent: 'slate',   icon: null, helper: null }
+              { key: 'income',     label: t('manager:finances.overview.stats.totalIncome'),         sublabel: t('manager:finances.overview.stats.totalIncomeSub'),        value: '--', accent: 'emerald', icon: <ArrowUpOutlined />,   helper: null },
+              { key: 'charges',    label: t('manager:finances.overview.stats.totalCharges'),        sublabel: t('manager:finances.overview.stats.totalChargesSub'),       value: '--', accent: 'rose',    icon: <ArrowDownOutlined />, helper: null },
+              { key: 'net',        label: t('manager:finances.overview.stats.netProfit'),           sublabel: t('manager:finances.overview.stats.netProfitSub'), value: '--', accent: 'indigo', icon: null, helper: null },
+              { key: 'refunds',    label: t('manager:finances.overview.stats.refundsIssued'),       sublabel: t('manager:finances.overview.stats.refundsSub'),  value: '--', accent: 'amber',   icon: null, helper: null },
+              { key: 'commission', label: t('manager:finances.overview.stats.instructorCommission'), sublabel: t('manager:finances.overview.stats.instructorCommissionSub'),          value: '--', accent: 'slate',   icon: null, helper: null }
             ]).map((stat) => {
               const accent = accentStyles[stat.accent] || accentStyles.slate;
               return (
@@ -281,7 +284,7 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">Service filter:</span>
+          <span className="text-xs font-medium text-slate-500">{t('manager:finances.overview.serviceFilter')}</span>
           {SERVICE_TYPES.map(s => (
             <Tag
               key={s.key}
@@ -305,6 +308,7 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
 }
 
 function Finance({ defaultFilter = 'all' }) {
+  const { t } = useTranslation(['manager']);
   const { user } = useAuth();
   const role = user?.role?.toLowerCase?.();
 
@@ -329,9 +333,9 @@ function Finance({ defaultFilter = 'all' }) {
     <div className="flex min-h-[60vh] items-center justify-center">
       <Card className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 text-center shadow-sm">
         <div className="text-4xl mb-4">🔧</div>
-        <h2 className="text-xl font-semibold text-amber-800 mb-2">Under Maintenance</h2>
+        <h2 className="text-xl font-semibold text-amber-800 mb-2">{t('manager:finances.overview.maintenance.title')}</h2>
         <p className="text-amber-700">
-          The Finance Overview page is currently being updated. Please check back soon.
+          {t('manager:finances.overview.maintenance.message')}
         </p>
       </Card>
     </div>

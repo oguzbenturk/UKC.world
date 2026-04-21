@@ -1,0 +1,751 @@
+{
+  "dashboard": {
+    "title": "Mis Ingresos",
+    "salaryTypes": {
+      "commission": "Por Comisión",
+      "fixed_per_lesson": "Por Clase",
+      "monthly_salary": "Salario Mensual"
+    },
+    "stats": {
+      "thisMonth": "Este Mes",
+      "pendingPayout": "Pago Pendiente",
+      "yearToDate": "Desde el Inicio del Año",
+      "vsLastMonth": "vs Mes Anterior",
+      "paid_ytd": "Pagado (acumulado)",
+      "pending_ytd": "Pendiente (acumulado)",
+      "collected": "Cobrado",
+      "transactions": "{{count}} transacciones",
+      "bookingsRentals": "{{bookings}} reservas · {{rentals}} alquileres",
+      "prevMonth": "Anterior: {{amount}}",
+      "items": "{{count}} elementos"
+    },
+    "categoryBreakdown": {
+      "title": "Este Mes por Categoría",
+      "bookings": "Reservas",
+      "rentals": "Alquileres",
+      "accommodation": "Alojamiento",
+      "shop": "Tienda",
+      "membership": "Membresía",
+      "packages": "Paquetes"
+    },
+    "history": {
+      "title": "Historial de Comisiones",
+      "columns": {
+        "date": "Fecha",
+        "source": "Fuente",
+        "details": "Detalles",
+        "amount": "Importe",
+        "rate": "Tasa",
+        "commission": "Comisión",
+        "status": "Estado"
+      },
+      "filters": {
+        "source": "Fuente",
+        "status": "Estado",
+        "booking": "Reserva",
+        "rental": "Alquiler",
+        "accommodation": "Alojamiento",
+        "shop": "Tienda",
+        "membership": "Membresía",
+        "package": "Paquete",
+        "pending": "Pendiente",
+        "paid": "Pagado",
+        "cancelled": "Cancelado"
+      },
+      "empty": "No se encontraron registros de comisión",
+      "total": "{{count}} registros"
+    }
+  },
+  "commissionSettings": {
+    "title": "Configuración de Comisiones de Managers",
+    "columns": {
+      "manager": "Manager",
+      "salaryType": "Tipo de Salario",
+      "rateAmount": "Tasa / Importe",
+      "categoryRates": "Tasas por Categoría",
+      "totalEarnings": "Ingresos Totales",
+      "pending": "Pendiente",
+      "paid": "Pagado",
+      "actions": "Acciones"
+    },
+    "salaryTypeLabels": {
+      "commission": "Comisión",
+      "fixed_per_lesson": "Por Clase",
+      "monthly_salary": "Salario Mensual"
+    },
+    "tooltips": {
+      "pendingCommission": "Importe de comisión pendiente",
+      "totalPaid": "Comisión total pagada",
+      "viewDetails": "Ver Detalles",
+      "viewPayroll": "Ver Nómina"
+    },
+    "actions": {
+      "details": "Detalles"
+    },
+    "empty": "No se encontraron managers. Cambia el rol de un usuario a Manager para empezar."
+  },
+  "payroll": {
+    "title": "Nómina del Manager",
+    "subtitle": "Desglose detallado de ingresos por mes y temporada",
+    "backToCommissions": "Volver a Configuración de Manager",
+    "back": "Atrás",
+    "backButton": "Volver a Comisiones",
+    "noData": "No se encontraron datos de nómina",
+    "paymentProgress": "Progreso de Pagos",
+    "settingsCard": {
+      "title": "Configuración Salarial Actual",
+      "salaryType": "Tipo de Salario",
+      "commissionType": "Tipo de Comisión",
+      "defaultRate": "Tasa por Defecto",
+      "perCategory": "Por Categoría",
+      "flatRate": "Tasa Fija"
+    },
+    "seasonalSummary": "Resumen por Temporada",
+    "months": {
+      "title": "Desglose Mensual",
+      "columns": {
+        "month": "Mes",
+        "bookings": "Reservas",
+        "rentals": "Alquileres",
+        "accommodation": "Alojamiento",
+        "shop": "Tienda",
+        "membership": "Membresía",
+        "packages": "Paquetes",
+        "grossTotal": "Total Bruto",
+        "status": "Estado",
+        "count": "Cantidad",
+        "earned": "Ganado"
+      },
+      "total": "Total"
+    },
+    "totals": {
+      "gross": "Ingresos Brutos",
+      "paid": "Pagado",
+      "pending": "Pendiente"
+    },
+    "status": {
+      "paid": "Pagado",
+      "partial": "Parcial",
+      "pending": "Pendiente"
+    },
+    "season": {
+      "bookings": "{{count}} reservas",
+      "rentals": "{{count}} alquileres",
+      "paid": "Pagado: {{amount}}",
+      "pending": "Pendiente: {{amount}}"
+    }
+  },
+  "detailPanel": {
+    "sections": {
+      "profile": "Perfil",
+      "skills": "Habilidades",
+      "commissions": "Comisiones",
+      "earnings": "Ingresos",
+      "history": "Historial",
+      "payments": "Pagos"
+    },
+    "sectionDescriptions": {
+      "info": "Perfil del manager y estadísticas rápidas",
+      "skills": "Habilidades de enseñanza y cualificaciones",
+      "commissions": "Configurar tipo de salario y tasas de comisión",
+      "earnings": "Resumen de ingresos del manager e instructor",
+      "history": "Detalles de reservas, alquileres y comisiones",
+      "payroll": "Historial de pagos y transacciones"
+    },
+    "profile": {
+      "role": "MANAGER",
+      "email": "Correo",
+      "joined": "Fecha de Registro",
+      "managerCommission": "Comisión Manager",
+      "lessonCommission": "Comisión por Clase",
+      "paid": "Pagado",
+      "pending": "Pendiente",
+      "instructorIncome": "Ingresos Instructor",
+      "managerIncome": "Ingresos Manager",
+      "totalIncome": "Ingresos Totales",
+      "noCategories": "Sin categorías configuradas",
+      "perLesson": "/clase",
+      "perMonth": "/mes"
+    },
+    "commissions": {
+      "tabs": {
+        "manager": "Comisión Manager",
+        "instructor": "Comisión Instructor"
+      },
+      "salaryModel": "Modelo Salarial",
+      "salaryModelDesc": "Cómo se remunera a este manager",
+      "salaryTypes": {
+        "commission": "Comisión %",
+        "fixed_per_lesson": "Por Clase",
+        "monthly_salary": "Salario Mensual"
+      },
+      "monthlyAmount": "Importe Mensual",
+      "perLessonAmount": "Importe por Clase",
+      "perLessonDesc": "Importe fijo por reserva completada",
+      "commissionRates": "Tasas de Comisión",
+      "commissionRatesDesc": "Activa para aplicar comisión por categoría",
+      "categories": {
+        "bookingRate": "Reservas",
+        "rentalRate": "Alquileres",
+        "accommodationRate": "Alojamiento",
+        "shopRate": "Tienda / Ventas",
+        "membershipRate": "Membresía",
+        "packageRate": "Paquetes"
+      },
+      "categoryDescs": {
+        "bookingRate": "Clases privadas y en grupo",
+        "rentalRate": "Alquiler de equipos",
+        "accommodationRate": "Reservas de habitaciones y estancias",
+        "shopRate": "Ventas de productos y mercancía",
+        "membershipRate": "Membresías recurrentes",
+        "packageRate": "Paquetes de servicios agrupados"
+      },
+      "saveSettings": "Guardar Configuración",
+      "saved": "Configuración de comisiones guardada",
+      "saveFailed": "Error al guardar la configuración",
+      "validation": {
+        "enterAmount": "Introduce el importe",
+        "setRate": "Define la tasa",
+        "rateRange": "0,1–100%"
+      },
+      "placeholders": {
+        "monthlyAmount": "ej. 2000",
+        "perLessonAmount": "ej. 25",
+        "perMonthSuffix": "€ / mes",
+        "perLessonSuffix": "€ / clase"
+      }
+    },
+    "earnings": {
+      "managerEarnings": "Ingresos Manager",
+      "instructorEarnings": "Ingresos Instructor",
+      "totalEarned": "Total Ganado",
+      "totalEarnedThisYear": "Total Ganado (Este Año)",
+      "totalEarnedAllTime": "Total Ganado (Todo el Tiempo)",
+      "byCategory": "Por Categoría",
+      "quickRanges": {
+        "thisYear": "Este Año",
+        "allTime": "Todo el Tiempo"
+      },
+      "paid": "Pagado",
+      "pending": "Pendiente"
+    },
+    "history": {
+      "filters": {
+        "sourceType": "Tipo de fuente",
+        "status": "Estado",
+        "search": "Buscar...",
+        "instructorLesson": "Clases Instructor",
+        "mgrBooking": "Com. Mgr — Reserva",
+        "mgrRental": "Com. Mgr — Alquiler",
+        "mgrAccommodation": "Com. Mgr — Alojamiento",
+        "mgrPackage": "Com. Mgr — Paquete",
+        "mgrShop": "Com. Mgr — Tienda",
+        "mgrMembership": "Com. Mgr — Membresía",
+        "pending": "Pendiente",
+        "paid": "Pagado",
+        "cancelled": "Cancelado"
+      },
+      "categories": {
+        "instructorLessons": "Clases Instructor",
+        "mgrLessons": "Com. Mgr — Clases",
+        "mgrRentals": "Com. Mgr — Alquileres",
+        "mgrAccommodation": "Com. Mgr — Alojamiento",
+        "mgrShop": "Com. Mgr — Tienda / Ventas",
+        "mgrMembership": "Com. Mgr — Membresía",
+        "mgrPackages": "Com. Mgr — Paquetes"
+      },
+      "columns": {
+        "date": "Fecha",
+        "student": "Alumno",
+        "customer": "Cliente",
+        "guest": "Huésped",
+        "service": "Servicio",
+        "equipment": "Equipo",
+        "membership": "Membresía",
+        "package": "Paquete",
+        "order": "Pedido",
+        "duration": "Dur.",
+        "period": "Período",
+        "nights": "Noches",
+        "items": "Artículos",
+        "days": "Días",
+        "hours": "Horas",
+        "amount": "Importe",
+        "rate": "Tasa",
+        "commission": "Com.",
+        "status": "Estado",
+        "earning": "Ganancia",
+        "start": "Inicio",
+        "checkIn": "Entrada"
+      },
+      "empty": "No se encontraron registros",
+      "noCommissions": "Sin comisiones de {{category}}"
+    }
+  },
+  "finances": {
+    "overview": {
+      "title": "Gestión Financiera - Resumen",
+      "subtitle": "Todo el dinero entrante y saliente de cada servicio",
+      "maintenance": {
+        "title": "En Mantenimiento",
+        "message": "La página de Resumen Financiero está siendo actualizada. Por favor, vuelve pronto."
+      },
+      "quickRanges": {
+        "today": "Hoy",
+        "thisWeek": "Esta Semana",
+        "thisMonth": "Este Mes",
+        "thisYear": "Este Año",
+        "allHistory": "Todo el Historial"
+      },
+      "serviceFilter": "Filtro de servicio:",
+      "services": {
+        "all": "Todo",
+        "lessons": "Clases",
+        "rentals": "Alquileres",
+        "membership": "Membresía",
+        "shop": "Tienda"
+      },
+      "stats": {
+        "totalIncome": "Ingresos Totales",
+        "totalIncomeSub": "Todos los créditos a carteras",
+        "totalCharges": "Cargos Totales",
+        "totalChargesSub": "Todos los débitos de carteras",
+        "netProfit": "Beneficio Neto",
+        "netProfitSub": "Cargos − Reembolsos − Comisión",
+        "refundsIssued": "Reembolsos Emitidos",
+        "refundsSub": "Dinero devuelto a clientes",
+        "instructorCommission": "Comisión Instructor",
+        "instructorCommissionSub": "Pagada a instructores",
+        "depositsHelper": "{{amount}} en depósitos",
+        "transactionsHelper": "{{count}} transacciones"
+      }
+    },
+    "expenses": {
+      "title": "Gastos Empresariales",
+      "addExpense": "Añadir Gasto",
+      "refresh": "Actualizar",
+      "exportCsv": "Exportar CSV",
+      "exportSuccess": "Gastos exportados con éxito",
+      "summary": {
+        "totalExpenses": "Gastos Totales",
+        "totalEntries": "Total de Registros"
+      },
+      "filters": {
+        "searchPlaceholder": "Buscar descripción o proveedor...",
+        "startDate": "Fecha de Inicio",
+        "endDate": "Fecha de Fin",
+        "category": "Categoría",
+        "reset": "Restablecer"
+      },
+      "table": {
+        "date": "Fecha",
+        "description": "Descripción",
+        "category": "Categoría",
+        "amount": "Importe",
+        "payment": "Pago",
+        "addedBy": "Añadido por",
+        "actions": "Acciones",
+        "empty": "No se encontraron gastos. Haz clic en 'Añadir Gasto' para crear uno.",
+        "noDescription": "Sin descripción",
+        "showTotal": "{{start}}-{{end}} de {{total}} gastos"
+      },
+      "modal": {
+        "addTitle": "Añadir Nuevo Gasto",
+        "editTitle": "Editar Gasto",
+        "addSuccess": "Gasto añadido con éxito",
+        "editSuccess": "Gasto actualizado con éxito",
+        "deleteSuccess": "Gasto eliminado con éxito",
+        "loadError": "Error al cargar los gastos",
+        "saveError": "Error al guardar el gasto",
+        "deleteError": "Error al eliminar el gasto",
+        "deleteConfirm": "¿Eliminar gasto?",
+        "deleteWarning": "Esta acción no se puede deshacer.",
+        "add": "Añadir",
+        "update": "Actualizar",
+        "fields": {
+          "amount": "Importe",
+          "date": "Fecha",
+          "category": "Categoría",
+          "paymentMethod": "Método de Pago",
+          "description": "Descripción",
+          "vendor": "Proveedor",
+          "reference": "Referencia / Nº Factura",
+          "notes": "Notas Adicionales"
+        },
+        "placeholders": {
+          "amount": "0,00",
+          "description": "¿Para qué es este gasto?",
+          "vendor": "Nombre de empresa o persona",
+          "reference": "Número de factura o recibo",
+          "notes": "Información adicional...",
+          "selectCategory": "Seleccionar categoría",
+          "selectMethod": "Seleccionar método"
+        },
+        "validation": {
+          "enterAmount": "Por favor, introduce el importe",
+          "amountMin": "El importe debe ser mayor que 0",
+          "selectDate": "Por favor, selecciona una fecha",
+          "selectCategory": "Por favor, selecciona una categoría",
+          "enterDescription": "Por favor, introduce una descripción"
+        }
+      },
+      "categories": {
+        "rent": "Alquiler",
+        "utilities": "Suministros",
+        "salaries": "Salarios",
+        "equipment": "Equipamiento",
+        "maintenance": "Mantenimiento",
+        "supplies": "Materiales",
+        "marketing": "Marketing",
+        "insurance": "Seguro",
+        "professional_services": "Servicios Profesionales",
+        "travel": "Viajes",
+        "software_subscriptions": "Software / Suscripciones",
+        "bank_fees": "Comisiones Bancarias",
+        "taxes": "Impuestos",
+        "other": "Otro"
+      },
+      "paymentMethods": {
+        "cash": "Efectivo",
+        "bank_transfer": "Transferencia Bancaria",
+        "card": "Tarjeta",
+        "wallet": "Cartera",
+        "other": "Otro"
+      }
+    }
+  },
+  "equipment": {
+    "title": "Equipamiento y Material",
+    "subtitle": "Rastrea y gestiona todo el inventario de equipos. Controla la disponibilidad, el estado y los calendarios de mantenimiento.",
+    "addEquipment": "Añadir Equipamiento",
+    "refresh": "Actualizar",
+    "backToList": "Volver a la Lista",
+    "loading": "Cargando datos de equipos...",
+    "tryAgain": "Intentar de nuevo"
+  },
+  "rentals": {
+    "title": "Alquileres",
+    "newRental": "Nuevo Alquiler",
+    "tabs": {
+      "requests": "Solicitudes de Alquiler",
+      "recent": "Alquileres Recientes",
+      "total": "Todos los Alquileres"
+    },
+    "columns": {
+      "customer": "Cliente",
+      "equipment": "Equipo",
+      "date": "Fecha",
+      "price": "Precio",
+      "status": "Estado",
+      "student": "Alumno",
+      "service": "Servicio",
+      "period": "Período",
+      "amount": "Importe",
+      "notes": "Notas",
+      "actions": "Acciones"
+    },
+    "status": {
+      "active": "Activo",
+      "completed": "Completado",
+      "pending": "Pendiente",
+      "cancelled": "Cancelado",
+      "overdue": "Retrasado",
+      "reserved": "Reservado",
+      "returned": "Devuelto",
+      "confirmed": "Aprobado",
+      "no_show": "No se presentó"
+    },
+    "actions": {
+      "approve": "Aprobar",
+      "decline": "Rechazar",
+      "complete": "Completar",
+      "edit": "Editar",
+      "reject": "Rechazar"
+    },
+    "confirm": {
+      "declineTitle": "¿Rechazar esta solicitud de alquiler?",
+      "declineDesc": "El alumno será notificado y cualquier importe cobrado será reembolsado.",
+      "declineOk": "Rechazar",
+      "declineCancel": "Mantener",
+      "deleteTitle": "¿Eliminar?"
+    },
+    "messages": {
+      "approved": "Alquiler aprobado con éxito",
+      "declined": "Alquiler rechazado con éxito",
+      "statusUpdated": "Alquiler {{status}} con éxito",
+      "deleted": "Alquiler eliminado con éxito",
+      "loadError": "Error al cargar los datos de alquiler",
+      "requestsError": "Error al cargar las solicitudes de alquiler",
+      "statusError": "Error al actualizar el estado de la reserva",
+      "deleteError": "Error al eliminar el alquiler"
+    },
+    "empty": {
+      "noRentals": "No se encontraron alquileres",
+      "noRequests": "No se encontraron solicitudes de alquiler"
+    },
+    "package": "Paquete",
+    "groupOf": "Grupo de {{count}}"
+  },
+  "products": {
+    "title": "Productos",
+    "subtitle": "Gestionar inventario y productos de back-office"
+  },
+  "accommodation": {
+    "title": "Alojamiento",
+    "admin": {
+      "status": {
+        "pending": "Pendiente",
+        "confirmed": "Confirmado",
+        "completed": "Completado",
+        "cancelled": "Cancelado"
+      },
+      "actions": {
+        "confirm": "Confirmar",
+        "complete": "Completar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      },
+      "nights": "{{count}}n",
+      "unknown": "Desconocido"
+    }
+  },
+  "marketing": {
+    "title": "Marketing"
+  },
+  "events": {
+    "title": "Eventos Comunitarios",
+    "subtitle": "Crea, gestiona y rastrea eventos comunitarios e inscripciones",
+    "newEvent": "Nuevo Evento",
+    "eventManager": "Gestor de Eventos",
+    "types": {
+      "party": "Fiesta / Evento Social",
+      "diving": "Excursión de Buceo",
+      "yoga": "Sesión de Yoga",
+      "workshop": "Taller",
+      "competition": "Competición",
+      "training": "Entrenamiento en Grupo",
+      "excursion": "Excursión / Viaje",
+      "other": "Otro"
+    },
+    "stats": {
+      "total": "Total",
+      "active": "Activo",
+      "upcoming": "Próximos",
+      "registrations": "Inscripciones"
+    },
+    "columns": {
+      "event": "Evento",
+      "type": "Tipo",
+      "date": "Fecha",
+      "capacity": "Capacidad",
+      "price": "Precio",
+      "status": "Estado"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "price": {
+      "free": "Gratis",
+      "from": "DESDE",
+      "paid": "Evento de pago",
+      "paidDesc": "{{price}} por persona — cobrado por la academia."
+    },
+    "capacity": {
+      "spotsLeft": "{{count}} PLAZAS RESTANTES",
+      "spotLeft": "{{count}} PLAZA RESTANTE",
+      "soldOut": "AGOTADO"
+    },
+    "badges": {
+      "going": "VADO",
+      "soldOut": "AGOTADO",
+      "past": "PASADO"
+    },
+    "public": {
+      "heroTitle": "Eventos Comunitarios",
+      "heroSubtitle": "Únete al equipo. Desde fiestas en la playa y excursiones de buceo hasta talleres y competiciones — siempre hay algo pasando.",
+      "noEvents": "Sin eventos próximos",
+      "noEventsDesc": "No hay eventos programados ahora mismo. Vuelve pronto o contáctanos para estar al día.",
+      "contactUs": "Contáctanos",
+      "loading": "Cargando eventos...",
+      "stayPosted": "¿Quieres saber sobre los próximos eventos?",
+      "stayPostedDesc": "Contáctanos y te mantendremos informado de todo lo que pasa en UKC esta temporada.",
+      "registered": "Voy a ir",
+      "cancelRegistration": "Cancelar Inscripción",
+      "cancellingRegistration": "Cancelando...",
+      "confirmJoin": "Confirmar y Unirse",
+      "joining": "Uniéndose...",
+      "close": "Cerrar",
+      "eventPassed": "Este evento ya ha pasado",
+      "eventFull": "Este evento está lleno",
+      "cancelAnytime": "Puedes cancelar tu inscripción en cualquier momento.",
+      "registeredCount": "{{count}} inscrito(s)",
+      "spotsTotal": " / {{total}} plazas",
+      "spotsLeft": "· {{count}} restante(s)"
+    },
+    "form": {
+      "createTitle": "Nuevo Evento",
+      "editTitle": "Editar Evento",
+      "configureNew": "Configurar un nuevo evento comunitario",
+      "updateSettings": "Actualizar la configuración del evento",
+      "fields": {
+        "name": "Nombre del Evento *",
+        "type": "Tipo de Evento *",
+        "startAt": "Fecha y Hora de Inicio *",
+        "endAt": "Fecha y Hora de Fin",
+        "capacity": "Máximo de Participantes",
+        "price": "Precio (por persona)",
+        "location": "Ubicación",
+        "coverPhoto": "Foto de Portada",
+        "description": "Descripción"
+      },
+      "placeholders": {
+        "name": "ej. Fiesta de Playa, Yoga Matutino",
+        "type": "Seleccionar tipo...",
+        "endAt": "Fin (opcional)",
+        "capacity": "Sin límite",
+        "price": "0 = Gratis",
+        "location": "ej. Playa Principal, Estudio A",
+        "description": "Detalles del evento, qué traer...",
+        "imageHint": "Se muestra en la tarjeta del evento. JPG o PNG, máx. 5 MB. Sin imagen se usa un gradiente según el tipo.",
+        "upload": "Subir",
+        "uploading": "Subiendo..."
+      },
+      "validation": {
+        "enterName": "Introduce el nombre del evento",
+        "selectType": "Selecciona un tipo",
+        "selectStart": "Selecciona la fecha de inicio"
+      },
+      "removePhoto": "Eliminar foto",
+      "save": "Crear",
+      "update": "Actualizar",
+      "saving": "Guardando...",
+      "cancel": "Cancelar"
+    },
+    "registrations": {
+      "count": "{{count}} inscripción(es)",
+      "countSingular": "{{count}} inscripción",
+      "capacity": " / {{total}} capacidad",
+      "addParticipant": "Añadir Participante",
+      "searchUsers": "Buscar usuarios...",
+      "add": "Añadir",
+      "noRegistrations": "Aún no hay inscripciones",
+      "loadingRegistrations": "Cargando inscripciones...",
+      "noUsers": "No se encontraron usuarios"
+    },
+    "messages": {
+      "created": "Evento creado",
+      "updated": "Evento actualizado",
+      "deleted": "Evento eliminado",
+      "statusUpdated": "Estado actualizado",
+      "participantAdded": "Participante añadido",
+      "participantRemoved": "Participante eliminado",
+      "registered": "¡Te has inscrito!",
+      "unregistered": "Inscripción cancelada",
+      "createError": "Error al crear el evento",
+      "updateError": "Error al actualizar el evento",
+      "deleteError": "Error al eliminar el evento",
+      "statusError": "Error al actualizar el estado",
+      "addError": "Error al añadir el participante",
+      "removeError": "Error al eliminar el participante",
+      "registerError": "Error al inscribirse",
+      "unregisterError": "Error al cancelar la inscripción",
+      "imageUploaded": "Imagen subida",
+      "imageError": "Error al subir la imagen",
+      "imageTypeError": "Por favor, sube un archivo de imagen",
+      "imageSizeError": "La imagen debe ser menor de 5 MB"
+    },
+    "table": {
+      "empty": "No se encontraron eventos",
+      "createFirst": "Crear Evento",
+      "showTotal": "{{count}} eventos"
+    },
+    "tooltips": {
+      "edit": "Editar",
+      "deactivate": "Desactivar",
+      "activate": "Activar",
+      "registrations": "Inscripciones",
+      "delete": "Eliminar"
+    },
+    "deleteConfirm": "¿Eliminar este evento?",
+    "notSet": "No establecido"
+  },
+  "quicklinks": {
+    "title": "Enlaces Rápidos y Formularios",
+    "tabs": {
+      "forms": "Formularios",
+      "links": "Enlaces",
+      "submissions": "Envíos",
+      "registrations": "Inscripciones"
+    }
+  },
+  "services": {
+    "title": "Servicios",
+    "consoleLabel": "Consola de Servicios",
+    "allServices": "Todos los Servicios",
+    "categories": {
+      "all": "Todos los Servicios",
+      "accommodation": "Alojamiento",
+      "lesson": "Clases",
+      "rental": "Alquileres",
+      "sales": "Tienda"
+    },
+    "stats": {
+      "total": "Total",
+      "catalogItems": "Artículos del catálogo",
+      "categories": "Categorías",
+      "typesOffered": "Tipos ofrecidos",
+      "inCart": "En el carrito",
+      "awaitingCheckout": "Esperando pago"
+    },
+    "search": {
+      "placeholder": "Buscar servicios...",
+      "liveFilter": "Filtro en vivo"
+    },
+    "actions": {
+      "createService": "Crear servicio",
+      "openCart": "Abrir carrito ({{count}})",
+      "proceedToCheckout": "Proceder al Pago"
+    },
+    "manageDesc": "Gestiona servicios, organiza ofertas y finaliza reservas.",
+    "cart": {
+      "title": "Tu Carrito ({{count}} artículos)",
+      "empty": "Tu carrito está vacío",
+      "remove": "Eliminar",
+      "singleSession": "Sesión Individual",
+      "package": "Paquete",
+      "bookingInfo": "Información de Reserva",
+      "bookingInfoDesc": "Podrás elegir los detalles del usuario y confirmar tu reserva en el siguiente paso.",
+      "total": "Total:"
+    },
+    "drawer": {
+      "createTitle": "Crear Nuevo Servicio",
+      "editTitle": "Editar Servicio"
+    },
+    "delete": {
+      "title": "Eliminar Servicio",
+      "confirm": "¿Estás seguro de que deseas eliminar «{{name}}»?",
+      "warning": "Esta acción no se puede deshacer."
+    },
+    "messages": {
+      "created": "¡Servicio creado con éxito!",
+      "updated": "¡Servicio actualizado con éxito!",
+      "deleted": "¡Servicio eliminado con éxito!",
+      "createError": "Error al crear el servicio: {{error}}",
+      "updateError": "Error al actualizar el servicio: {{error}}",
+      "deleteError": "Error al eliminar el servicio: {{error}}",
+      "addedToCart": "¡Añadido al carrito!",
+      "viewCart": "Ver Carrito",
+      "removedFromCart": "Artículo eliminado del carrito",
+      "proceedingToCheckout": "Redirigiendo al pago...",
+      "loadError": "Error al cargar los servicios. Por favor, inténtalo más tarde."
+    },
+    "empty": {
+      "noServices": "No se encontraron servicios en esta categoría.",
+      "createPrompt": "Crea un nuevo servicio para empezar."
+    }
+  },
+  "errors": {
+    "loadFailed": "No se pudieron cargar los datos. Inténtalo de nuevo."
+  }
+}

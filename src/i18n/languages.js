@@ -4,6 +4,7 @@ export const LANGUAGES = [
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
   { code: 'ru', name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' },
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
 ];
 
 export const getLanguage = (code) =>

@@ -1,0 +1,751 @@
+{
+  "dashboard": {
+    "title": "Meine Einnahmen",
+    "salaryTypes": {
+      "commission": "Provisionsbasiert",
+      "fixed_per_lesson": "Pro Stunde",
+      "monthly_salary": "Monatliches Gehalt"
+    },
+    "stats": {
+      "thisMonth": "Dieser Monat",
+      "pendingPayout": "Ausstehende Auszahlung",
+      "yearToDate": "Seit Jahresbeginn",
+      "vsLastMonth": "vs. letzten Monat",
+      "paid_ytd": "Gezahlt (lfd. Jahr)",
+      "pending_ytd": "Ausstehend (lfd. Jahr)",
+      "collected": "Eingezogen",
+      "transactions": "{{count}} Transaktionen",
+      "bookingsRentals": "{{bookings}} Buchungen · {{rentals}} Vermietungen",
+      "prevMonth": "Vormonat: {{amount}}",
+      "items": "{{count}} Positionen"
+    },
+    "categoryBreakdown": {
+      "title": "Dieser Monat nach Kategorie",
+      "bookings": "Buchungen",
+      "rentals": "Vermietungen",
+      "accommodation": "Unterkunft",
+      "shop": "Shop",
+      "membership": "Mitgliedschaft",
+      "packages": "Pakete"
+    },
+    "history": {
+      "title": "Provisionshistorie",
+      "columns": {
+        "date": "Datum",
+        "source": "Quelle",
+        "details": "Details",
+        "amount": "Betrag",
+        "rate": "Rate",
+        "commission": "Provision",
+        "status": "Status"
+      },
+      "filters": {
+        "source": "Quelle",
+        "status": "Status",
+        "booking": "Buchung",
+        "rental": "Vermietung",
+        "accommodation": "Unterkunft",
+        "shop": "Shop",
+        "membership": "Mitgliedschaft",
+        "package": "Paket",
+        "pending": "Ausstehend",
+        "paid": "Bezahlt",
+        "cancelled": "Storniert"
+      },
+      "empty": "Keine Provisionsdatensätze gefunden",
+      "total": "{{count}} Datensätze"
+    }
+  },
+  "commissionSettings": {
+    "title": "Provisionseinstellungen für Manager",
+    "columns": {
+      "manager": "Manager",
+      "salaryType": "Gehaltsart",
+      "rateAmount": "Rate / Betrag",
+      "categoryRates": "Kategoriesätze",
+      "totalEarnings": "Gesamteinnahmen",
+      "pending": "Ausstehend",
+      "paid": "Bezahlt",
+      "actions": "Aktionen"
+    },
+    "salaryTypeLabels": {
+      "commission": "Provision",
+      "fixed_per_lesson": "Pro Stunde",
+      "monthly_salary": "Monatliches Gehalt"
+    },
+    "tooltips": {
+      "pendingCommission": "Ausstehender Provisionsbetrag",
+      "totalPaid": "Gesamte bezahlte Provision",
+      "viewDetails": "Details Anzeigen",
+      "viewPayroll": "Gehaltsabrechnung Anzeigen"
+    },
+    "actions": {
+      "details": "Details"
+    },
+    "empty": "Keine Manager gefunden. Ändern Sie die Rolle eines Benutzers auf Manager, um zu beginnen."
+  },
+  "payroll": {
+    "title": "Manager-Gehaltsabrechnung",
+    "subtitle": "Detaillierte Aufschlüsselung der Einnahmen nach Monat und Saison",
+    "backToCommissions": "Zurück zu Manager-Einstellungen",
+    "back": "Zurück",
+    "backButton": "Zurück zu Provisionen",
+    "noData": "Keine Gehaltsabrechnungsdaten gefunden",
+    "paymentProgress": "Zahlungsfortschritt",
+    "settingsCard": {
+      "title": "Aktuelle Gehaltskonfiguration",
+      "salaryType": "Gehaltsart",
+      "commissionType": "Provisionsart",
+      "defaultRate": "Standardsatz",
+      "perCategory": "Pro Kategorie",
+      "flatRate": "Pauschalsatz"
+    },
+    "seasonalSummary": "Saisonale Zusammenfassung",
+    "months": {
+      "title": "Monatliche Aufschlüsselung",
+      "columns": {
+        "month": "Monat",
+        "bookings": "Buchungen",
+        "rentals": "Vermietungen",
+        "accommodation": "Unterkunft",
+        "shop": "Shop",
+        "membership": "Mitgliedschaft",
+        "packages": "Pakete",
+        "grossTotal": "Bruttogesamt",
+        "status": "Status",
+        "count": "Anzahl",
+        "earned": "Verdient"
+      },
+      "total": "Gesamt"
+    },
+    "totals": {
+      "gross": "Bruttoeinnahmen",
+      "paid": "Bezahlt",
+      "pending": "Ausstehend"
+    },
+    "status": {
+      "paid": "Bezahlt",
+      "partial": "Teilweise",
+      "pending": "Ausstehend"
+    },
+    "season": {
+      "bookings": "{{count}} Buchungen",
+      "rentals": "{{count}} Vermietungen",
+      "paid": "Bezahlt: {{amount}}",
+      "pending": "Ausstehend: {{amount}}"
+    }
+  },
+  "detailPanel": {
+    "sections": {
+      "profile": "Profil",
+      "skills": "Fähigkeiten",
+      "commissions": "Provisionen",
+      "earnings": "Einnahmen",
+      "history": "Verlauf",
+      "payments": "Zahlungen"
+    },
+    "sectionDescriptions": {
+      "info": "Managerprofil und Schnellstatistiken",
+      "skills": "Lehrfähigkeiten und Qualifikationen",
+      "commissions": "Gehaltsart und Provisionssätze konfigurieren",
+      "earnings": "Überblick über Einnahmen von Manager und Instruktor",
+      "history": "Details zu Buchungen, Vermietungen und Provisionen",
+      "payroll": "Zahlungs- und Transaktionsverlauf"
+    },
+    "profile": {
+      "role": "MANAGER",
+      "email": "E-Mail",
+      "joined": "Beigetreten am",
+      "managerCommission": "Manager-Provision",
+      "lessonCommission": "Stundenprovision",
+      "paid": "Bezahlt",
+      "pending": "Ausstehend",
+      "instructorIncome": "Instruktoreinkommen",
+      "managerIncome": "Managereinkommen",
+      "totalIncome": "Gesamteinkommen",
+      "noCategories": "Keine Kategorien konfiguriert",
+      "perLesson": "/Stunde",
+      "perMonth": "/Monat"
+    },
+    "commissions": {
+      "tabs": {
+        "manager": "Manager-Provision",
+        "instructor": "Instruktor-Provision"
+      },
+      "salaryModel": "Gehaltsmodell",
+      "salaryModelDesc": "Wie dieser Manager bezahlt wird",
+      "salaryTypes": {
+        "commission": "Provision %",
+        "fixed_per_lesson": "Pro Stunde",
+        "monthly_salary": "Monatliches Gehalt"
+      },
+      "monthlyAmount": "Monatlicher Betrag",
+      "perLessonAmount": "Betrag pro Stunde",
+      "perLessonDesc": "Festbetrag pro abgeschlossener Buchung",
+      "commissionRates": "Provisionssätze",
+      "commissionRatesDesc": "Aktivieren, um Provision pro Kategorie anzuwenden",
+      "categories": {
+        "bookingRate": "Buchungen",
+        "rentalRate": "Vermietungen",
+        "accommodationRate": "Unterkunft",
+        "shopRate": "Shop / Verkäufe",
+        "membershipRate": "Mitgliedschaft",
+        "packageRate": "Pakete"
+      },
+      "categoryDescs": {
+        "bookingRate": "Einzel- und Gruppenunterricht",
+        "rentalRate": "Ausrüstungsvermietungen",
+        "accommodationRate": "Zimmer- und Aufenthaltsbuchungen",
+        "shopRate": "Merchandise und Produktverkäufe",
+        "membershipRate": "Wiederkehrende Mitgliedschaften",
+        "packageRate": "Gebündelte Servicepakete"
+      },
+      "saveSettings": "Einstellungen Speichern",
+      "saved": "Provisionseinstellungen gespeichert",
+      "saveFailed": "Einstellungen konnten nicht gespeichert werden",
+      "validation": {
+        "enterAmount": "Betrag eingeben",
+        "setRate": "Satz festlegen",
+        "rateRange": "0,1–100 %"
+      },
+      "placeholders": {
+        "monthlyAmount": "z. B. 2000",
+        "perLessonAmount": "z. B. 25",
+        "perMonthSuffix": "€ / Monat",
+        "perLessonSuffix": "€ / Stunde"
+      }
+    },
+    "earnings": {
+      "managerEarnings": "Manager-Einnahmen",
+      "instructorEarnings": "Instruktor-Einnahmen",
+      "totalEarned": "Gesamt Verdient",
+      "totalEarnedThisYear": "Gesamt Verdient (Dieses Jahr)",
+      "totalEarnedAllTime": "Gesamt Verdient (Alle Zeit)",
+      "byCategory": "Nach Kategorie",
+      "quickRanges": {
+        "thisYear": "Dieses Jahr",
+        "allTime": "Alle Zeit"
+      },
+      "paid": "Bezahlt",
+      "pending": "Ausstehend"
+    },
+    "history": {
+      "filters": {
+        "sourceType": "Quellentyp",
+        "status": "Status",
+        "search": "Suchen...",
+        "instructorLesson": "Instruktorstunden",
+        "mgrBooking": "Mgr-Prov. — Buchung",
+        "mgrRental": "Mgr-Prov. — Vermietung",
+        "mgrAccommodation": "Mgr-Prov. — Unterkunft",
+        "mgrPackage": "Mgr-Prov. — Paket",
+        "mgrShop": "Mgr-Prov. — Shop",
+        "mgrMembership": "Mgr-Prov. — Mitgliedschaft",
+        "pending": "Ausstehend",
+        "paid": "Bezahlt",
+        "cancelled": "Storniert"
+      },
+      "categories": {
+        "instructorLessons": "Instruktorstunden",
+        "mgrLessons": "Mgr-Prov. — Stunden",
+        "mgrRentals": "Mgr-Prov. — Vermietungen",
+        "mgrAccommodation": "Mgr-Prov. — Unterkunft",
+        "mgrShop": "Mgr-Prov. — Shop / Verkäufe",
+        "mgrMembership": "Mgr-Prov. — Mitgliedschaft",
+        "mgrPackages": "Mgr-Prov. — Pakete"
+      },
+      "columns": {
+        "date": "Datum",
+        "student": "Schüler",
+        "customer": "Kunde",
+        "guest": "Gast",
+        "service": "Service",
+        "equipment": "Ausrüstung",
+        "membership": "Mitgliedschaft",
+        "package": "Paket",
+        "order": "Bestellung",
+        "duration": "Dauer",
+        "period": "Zeitraum",
+        "nights": "Nächte",
+        "items": "Positionen",
+        "days": "Tage",
+        "hours": "Stunden",
+        "amount": "Betrag",
+        "rate": "Rate",
+        "commission": "Prov.",
+        "status": "Status",
+        "earning": "Verdienst",
+        "start": "Beginn",
+        "checkIn": "Check-in"
+      },
+      "empty": "Keine Datensätze gefunden",
+      "noCommissions": "Keine {{category}}-Provisionen"
+    }
+  },
+  "finances": {
+    "overview": {
+      "title": "Finanzverwaltung - Übersicht",
+      "subtitle": "Alle Geldein- und -ausgänge über alle Dienste",
+      "maintenance": {
+        "title": "In Wartung",
+        "message": "Die Finanzübersichtsseite wird gerade aktualisiert. Bitte schauen Sie bald wieder vorbei."
+      },
+      "quickRanges": {
+        "today": "Heute",
+        "thisWeek": "Diese Woche",
+        "thisMonth": "Dieser Monat",
+        "thisYear": "Dieses Jahr",
+        "allHistory": "Gesamter Verlauf"
+      },
+      "serviceFilter": "Dienstfilter:",
+      "services": {
+        "all": "Alle",
+        "lessons": "Stunden",
+        "rentals": "Vermietungen",
+        "membership": "Mitgliedschaft",
+        "shop": "Shop"
+      },
+      "stats": {
+        "totalIncome": "Gesamteinnahmen",
+        "totalIncomeSub": "Alle Gutschriften auf Wallets",
+        "totalCharges": "Gesamtgebühren",
+        "totalChargesSub": "Alle Belastungen von Wallets",
+        "netProfit": "Nettoprofit",
+        "netProfitSub": "Gebühren − Rückerstattungen − Provision",
+        "refundsIssued": "Ausgestellte Rückerstattungen",
+        "refundsSub": "An Kunden zurückgezahltes Geld",
+        "instructorCommission": "Instruktor-Provision",
+        "instructorCommissionSub": "An Instruktoren gezahlt",
+        "depositsHelper": "{{amount}} in Einlagen",
+        "transactionsHelper": "{{count}} Transaktionen"
+      }
+    },
+    "expenses": {
+      "title": "Betriebsausgaben",
+      "addExpense": "Ausgabe Hinzufügen",
+      "refresh": "Aktualisieren",
+      "exportCsv": "CSV Exportieren",
+      "exportSuccess": "Ausgaben erfolgreich exportiert",
+      "summary": {
+        "totalExpenses": "Gesamtausgaben",
+        "totalEntries": "Gesamteinträge"
+      },
+      "filters": {
+        "searchPlaceholder": "Beschreibung oder Anbieter suchen...",
+        "startDate": "Startdatum",
+        "endDate": "Enddatum",
+        "category": "Kategorie",
+        "reset": "Zurücksetzen"
+      },
+      "table": {
+        "date": "Datum",
+        "description": "Beschreibung",
+        "category": "Kategorie",
+        "amount": "Betrag",
+        "payment": "Zahlung",
+        "addedBy": "Hinzugefügt von",
+        "actions": "Aktionen",
+        "empty": "Keine Ausgaben gefunden. Klicken Sie auf 'Ausgabe Hinzufügen', um eine zu erstellen.",
+        "noDescription": "Keine Beschreibung",
+        "showTotal": "{{start}}-{{end}} von {{total}} Ausgaben"
+      },
+      "modal": {
+        "addTitle": "Neue Ausgabe Hinzufügen",
+        "editTitle": "Ausgabe Bearbeiten",
+        "addSuccess": "Ausgabe erfolgreich hinzugefügt",
+        "editSuccess": "Ausgabe erfolgreich aktualisiert",
+        "deleteSuccess": "Ausgabe erfolgreich gelöscht",
+        "loadError": "Ausgaben konnten nicht geladen werden",
+        "saveError": "Ausgabe konnte nicht gespeichert werden",
+        "deleteError": "Ausgabe konnte nicht gelöscht werden",
+        "deleteConfirm": "Ausgabe löschen?",
+        "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+        "add": "Hinzufügen",
+        "update": "Aktualisieren",
+        "fields": {
+          "amount": "Betrag",
+          "date": "Datum",
+          "category": "Kategorie",
+          "paymentMethod": "Zahlungsmethode",
+          "description": "Beschreibung",
+          "vendor": "Anbieter",
+          "reference": "Referenz / Rechnungsnr.",
+          "notes": "Zusätzliche Notizen"
+        },
+        "placeholders": {
+          "amount": "0,00",
+          "description": "Wofür ist diese Ausgabe?",
+          "vendor": "Firmen- oder Personenname",
+          "reference": "Rechnungs- oder Belegnummer",
+          "notes": "Weitere Informationen...",
+          "selectCategory": "Kategorie auswählen",
+          "selectMethod": "Methode auswählen"
+        },
+        "validation": {
+          "enterAmount": "Bitte Betrag eingeben",
+          "amountMin": "Betrag muss größer als 0 sein",
+          "selectDate": "Bitte Datum auswählen",
+          "selectCategory": "Bitte Kategorie auswählen",
+          "enterDescription": "Bitte Beschreibung eingeben"
+        }
+      },
+      "categories": {
+        "rent": "Miete",
+        "utilities": "Versorgungsleistungen",
+        "salaries": "Gehälter",
+        "equipment": "Ausrüstung",
+        "maintenance": "Wartung",
+        "supplies": "Verbrauchsmaterial",
+        "marketing": "Marketing",
+        "insurance": "Versicherung",
+        "professional_services": "Professionelle Dienstleistungen",
+        "travel": "Reisen",
+        "software_subscriptions": "Software / Abonnements",
+        "bank_fees": "Bankgebühren",
+        "taxes": "Steuern",
+        "other": "Sonstiges"
+      },
+      "paymentMethods": {
+        "cash": "Bargeld",
+        "bank_transfer": "Banküberweisung",
+        "card": "Karte",
+        "wallet": "Wallet",
+        "other": "Sonstiges"
+      }
+    }
+  },
+  "equipment": {
+    "title": "Ausrüstung und Ausrüstungsgegenstände",
+    "subtitle": "Verfolgen und verwalten Sie das gesamte Ausrüstungsinventar. Überwachen Sie Verfügbarkeit, Zustand und Wartungspläne.",
+    "addEquipment": "Ausrüstung Hinzufügen",
+    "refresh": "Aktualisieren",
+    "backToList": "Zurück zur Liste",
+    "loading": "Ausrüstungsdaten werden geladen...",
+    "tryAgain": "Erneut versuchen"
+  },
+  "rentals": {
+    "title": "Vermietungen",
+    "newRental": "Neue Vermietung",
+    "tabs": {
+      "requests": "Mietanfragen",
+      "recent": "Letzte Vermietungen",
+      "total": "Alle Vermietungen"
+    },
+    "columns": {
+      "customer": "Kunde",
+      "equipment": "Ausrüstung",
+      "date": "Datum",
+      "price": "Preis",
+      "status": "Status",
+      "student": "Schüler",
+      "service": "Service",
+      "period": "Zeitraum",
+      "amount": "Betrag",
+      "notes": "Notizen",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "active": "Aktiv",
+      "completed": "Abgeschlossen",
+      "pending": "Ausstehend",
+      "cancelled": "Storniert",
+      "overdue": "Überfällig",
+      "reserved": "Reserviert",
+      "returned": "Zurückgegeben",
+      "confirmed": "Genehmigt",
+      "no_show": "Nicht erschienen"
+    },
+    "actions": {
+      "approve": "Genehmigen",
+      "decline": "Ablehnen",
+      "complete": "Abschließen",
+      "edit": "Bearbeiten",
+      "reject": "Ablehnen"
+    },
+    "confirm": {
+      "declineTitle": "Diese Mietanfrage ablehnen?",
+      "declineDesc": "Der Schüler wird benachrichtigt und jeder berechnete Betrag wird erstattet.",
+      "declineOk": "Ablehnen",
+      "declineCancel": "Behalten",
+      "deleteTitle": "Löschen?"
+    },
+    "messages": {
+      "approved": "Vermietung erfolgreich genehmigt",
+      "declined": "Vermietung erfolgreich abgelehnt",
+      "statusUpdated": "Vermietung {{status}} erfolgreich",
+      "deleted": "Vermietung erfolgreich gelöscht",
+      "loadError": "Vermietungsdaten konnten nicht geladen werden",
+      "requestsError": "Mietanfragen konnten nicht geladen werden",
+      "statusError": "Buchungsstatus konnte nicht aktualisiert werden",
+      "deleteError": "Vermietung konnte nicht gelöscht werden"
+    },
+    "empty": {
+      "noRentals": "Keine Vermietungen gefunden",
+      "noRequests": "Keine Mietanfragen gefunden"
+    },
+    "package": "Paket",
+    "groupOf": "Gruppe von {{count}}"
+  },
+  "products": {
+    "title": "Produkte",
+    "subtitle": "Inventar und Back-Office-Produkte verwalten"
+  },
+  "accommodation": {
+    "title": "Unterkunft",
+    "admin": {
+      "status": {
+        "pending": "Ausstehend",
+        "confirmed": "Bestätigt",
+        "completed": "Abgeschlossen",
+        "cancelled": "Storniert"
+      },
+      "actions": {
+        "confirm": "Bestätigen",
+        "complete": "Abschließen",
+        "cancel": "Stornieren",
+        "delete": "Löschen"
+      },
+      "nights": "{{count}}N",
+      "unknown": "Unbekannt"
+    }
+  },
+  "marketing": {
+    "title": "Marketing"
+  },
+  "events": {
+    "title": "Community-Events",
+    "subtitle": "Community-Events und Anmeldungen erstellen, verwalten und verfolgen",
+    "newEvent": "Neues Event",
+    "eventManager": "Event-Manager",
+    "types": {
+      "party": "Party / Gesellschaftliches Event",
+      "diving": "Tauchausflug",
+      "yoga": "Yogastunde",
+      "workshop": "Workshop",
+      "competition": "Wettkampf",
+      "training": "Gruppentraining",
+      "excursion": "Ausflug / Reise",
+      "other": "Sonstiges"
+    },
+    "stats": {
+      "total": "Gesamt",
+      "active": "Aktiv",
+      "upcoming": "Bevorstehend",
+      "registrations": "Anmeldungen"
+    },
+    "columns": {
+      "event": "Event",
+      "type": "Typ",
+      "date": "Datum",
+      "capacity": "Kapazität",
+      "price": "Preis",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "price": {
+      "free": "Kostenlos",
+      "from": "AB",
+      "paid": "Kostenpflichtiges Event",
+      "paidDesc": "{{price}} pro Person — wird von der Akademie erhoben."
+    },
+    "capacity": {
+      "spotsLeft": "{{count}} PLÄTZE FREI",
+      "spotLeft": "{{count}} PLATZ FREI",
+      "soldOut": "AUSGEBUCHT"
+    },
+    "badges": {
+      "going": "DABEI",
+      "soldOut": "AUSGEBUCHT",
+      "past": "VERGANGEN"
+    },
+    "public": {
+      "heroTitle": "Community-Events",
+      "heroSubtitle": "Mach mit. Von Strandpartys und Tauchausflügen bis hin zu Workshops und Wettkämpfen — hier ist immer etwas los.",
+      "noEvents": "Keine bevorstehenden Events",
+      "noEventsDesc": "Derzeit sind keine Events geplant. Schau bald wieder vorbei oder kontaktiere uns, um auf dem Laufenden zu bleiben.",
+      "contactUs": "Kontaktiere uns",
+      "loading": "Events werden geladen...",
+      "stayPosted": "Möchtest du über bevorstehende Events informiert werden?",
+      "stayPostedDesc": "Kontaktiere uns und wir halten dich über alles, was diese Saison bei UKC passiert, auf dem Laufenden.",
+      "registered": "Ich bin dabei",
+      "cancelRegistration": "Anmeldung Stornieren",
+      "cancellingRegistration": "Stornierung...",
+      "confirmJoin": "Bestätigen & Teilnehmen",
+      "joining": "Anmeldung...",
+      "close": "Schließen",
+      "eventPassed": "Dieses Event ist bereits vorbei",
+      "eventFull": "Dieses Event ist ausgebucht",
+      "cancelAnytime": "Du kannst deine Anmeldung jederzeit stornieren.",
+      "registeredCount": "{{count}} angemeldet",
+      "spotsTotal": " / {{total}} Plätze",
+      "spotsLeft": "· {{count}} verbleibend"
+    },
+    "form": {
+      "createTitle": "Neues Event",
+      "editTitle": "Event Bearbeiten",
+      "configureNew": "Ein neues Community-Event konfigurieren",
+      "updateSettings": "Event-Einstellungen aktualisieren",
+      "fields": {
+        "name": "Event-Name *",
+        "type": "Event-Typ *",
+        "startAt": "Startdatum und -uhrzeit *",
+        "endAt": "Enddatum und -uhrzeit",
+        "capacity": "Max. Teilnehmer",
+        "price": "Preis (pro Person)",
+        "location": "Ort",
+        "coverPhoto": "Titelbild",
+        "description": "Beschreibung"
+      },
+      "placeholders": {
+        "name": "z. B. Strandparty, Morgen-Yoga",
+        "type": "Typ auswählen...",
+        "endAt": "Ende (optional)",
+        "capacity": "Unbegrenzt",
+        "price": "0 = Kostenlos",
+        "location": "z. B. Hauptstrand, Studio A",
+        "description": "Event-Details, was mitgebracht werden soll...",
+        "imageHint": "Wird auf der Event-Karte angezeigt. JPG oder PNG, max. 5 MB. Ohne Bild wird ein Farbverlauf je nach Event-Typ verwendet.",
+        "upload": "Hochladen",
+        "uploading": "Wird hochgeladen..."
+      },
+      "validation": {
+        "enterName": "Event-Namen eingeben",
+        "selectType": "Typ auswählen",
+        "selectStart": "Startdatum auswählen"
+      },
+      "removePhoto": "Foto entfernen",
+      "save": "Erstellen",
+      "update": "Aktualisieren",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen"
+    },
+    "registrations": {
+      "count": "{{count}} Anmeldung(en)",
+      "countSingular": "{{count}} Anmeldung",
+      "capacity": " / {{total}} Kapazität",
+      "addParticipant": "Teilnehmer Hinzufügen",
+      "searchUsers": "Benutzer suchen...",
+      "add": "Hinzufügen",
+      "noRegistrations": "Noch keine Anmeldungen",
+      "loadingRegistrations": "Anmeldungen werden geladen...",
+      "noUsers": "Keine Benutzer gefunden"
+    },
+    "messages": {
+      "created": "Event erstellt",
+      "updated": "Event aktualisiert",
+      "deleted": "Event gelöscht",
+      "statusUpdated": "Status aktualisiert",
+      "participantAdded": "Teilnehmer hinzugefügt",
+      "participantRemoved": "Teilnehmer entfernt",
+      "registered": "Du bist angemeldet!",
+      "unregistered": "Anmeldung storniert",
+      "createError": "Event konnte nicht erstellt werden",
+      "updateError": "Event konnte nicht aktualisiert werden",
+      "deleteError": "Event konnte nicht gelöscht werden",
+      "statusError": "Status konnte nicht aktualisiert werden",
+      "addError": "Teilnehmer konnte nicht hinzugefügt werden",
+      "removeError": "Teilnehmer konnte nicht entfernt werden",
+      "registerError": "Anmeldung fehlgeschlagen",
+      "unregisterError": "Stornierung der Anmeldung fehlgeschlagen",
+      "imageUploaded": "Bild hochgeladen",
+      "imageError": "Bild konnte nicht hochgeladen werden",
+      "imageTypeError": "Bitte eine Bilddatei hochladen",
+      "imageSizeError": "Das Bild muss kleiner als 5 MB sein"
+    },
+    "table": {
+      "empty": "Keine Events gefunden",
+      "createFirst": "Event Erstellen",
+      "showTotal": "{{count}} Events"
+    },
+    "tooltips": {
+      "edit": "Bearbeiten",
+      "deactivate": "Deaktivieren",
+      "activate": "Aktivieren",
+      "registrations": "Anmeldungen",
+      "delete": "Löschen"
+    },
+    "deleteConfirm": "Dieses Event löschen?",
+    "notSet": "Nicht festgelegt"
+  },
+  "quicklinks": {
+    "title": "Schnelllinks & Formulare",
+    "tabs": {
+      "forms": "Formulare",
+      "links": "Links",
+      "submissions": "Einsendungen",
+      "registrations": "Anmeldungen"
+    }
+  },
+  "services": {
+    "title": "Dienste",
+    "consoleLabel": "Dienste-Konsole",
+    "allServices": "Alle Dienste",
+    "categories": {
+      "all": "Alle Dienste",
+      "accommodation": "Unterkunft",
+      "lesson": "Stunden",
+      "rental": "Vermietungen",
+      "sales": "Shop"
+    },
+    "stats": {
+      "total": "Gesamt",
+      "catalogItems": "Katalogelemente",
+      "categories": "Kategorien",
+      "typesOffered": "Angebotene Typen",
+      "inCart": "Im Warenkorb",
+      "awaitingCheckout": "Wartet auf Kasse"
+    },
+    "search": {
+      "placeholder": "Dienste suchen...",
+      "liveFilter": "Live-Filter"
+    },
+    "actions": {
+      "createService": "Dienst erstellen",
+      "openCart": "Warenkorb öffnen ({{count}})",
+      "proceedToCheckout": "Zur Kasse"
+    },
+    "manageDesc": "Dienste verwalten, Angebote organisieren und Buchungen abschließen.",
+    "cart": {
+      "title": "Dein Warenkorb ({{count}} Artikel)",
+      "empty": "Dein Warenkorb ist leer",
+      "remove": "Entfernen",
+      "singleSession": "Einzelsitzung",
+      "package": "Paket",
+      "bookingInfo": "Buchungsinformationen",
+      "bookingInfoDesc": "Im nächsten Schritt kannst du Benutzerdetails auswählen und deine Buchung bestätigen.",
+      "total": "Gesamt:"
+    },
+    "drawer": {
+      "createTitle": "Neuen Dienst Erstellen",
+      "editTitle": "Dienst Bearbeiten"
+    },
+    "delete": {
+      "title": "Dienst Löschen",
+      "confirm": "Möchtest du «{{name}}» wirklich löschen?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "messages": {
+      "created": "Dienst erfolgreich erstellt!",
+      "updated": "Dienst erfolgreich aktualisiert!",
+      "deleted": "Dienst erfolgreich gelöscht!",
+      "createError": "Dienst konnte nicht erstellt werden: {{error}}",
+      "updateError": "Dienst konnte nicht aktualisiert werden: {{error}}",
+      "deleteError": "Dienst konnte nicht gelöscht werden: {{error}}",
+      "addedToCart": "Zum Warenkorb hinzugefügt!",
+      "viewCart": "Warenkorb Anzeigen",
+      "removedFromCart": "Artikel aus dem Warenkorb entfernt",
+      "proceedingToCheckout": "Weiterleitung zur Kasse...",
+      "loadError": "Dienste konnten nicht geladen werden. Bitte versuche es später erneut."
+    },
+    "empty": {
+      "noServices": "Keine Dienste in dieser Kategorie gefunden.",
+      "createPrompt": "Erstelle einen neuen Dienst, um zu beginnen."
+    }
+  },
+  "errors": {
+    "loadFailed": "Daten konnten nicht geladen werden. Bitte erneut versuchen."
+  }
+}

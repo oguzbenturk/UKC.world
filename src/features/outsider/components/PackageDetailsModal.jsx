@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button, InputNumber } from 'antd';
 import {
   RocketOutlined,
@@ -37,6 +38,7 @@ const defaultColors = {
 const getThemeColor = (pkg) => defaultColors[pkg?.color] || defaultColors.blue;
 
 const DescriptionBlock = ({ text }) => {
+  const { t } = useTranslation(['outsider']);
   const [expanded, setExpanded] = useState(false);
   const handleToggle = () => setExpanded((prev) => !prev);
   return (
@@ -61,7 +63,7 @@ const DescriptionBlock = ({ text }) => {
         className="mt-1.5 text-xs font-duotone-bold text-[#00a8c4] hover:underline focus-visible:outline-none focus-visible:underline"
         onClick={handleToggle}
       >
-        {expanded ? 'Show less' : 'Read more'}
+        {expanded ? t('outsider:packageModal.showLess') : t('outsider:packageModal.readMore')}
       </button>
     </div>
   );
@@ -74,6 +76,7 @@ const DescriptionBlock = ({ text }) => {
  * @param {{ current: { handleBookNow?: Function, ownedByPackageId?: Map } }} depsRef
  */
 const PackageDetailsModal = ({ depsRef }) => {
+  const { t } = useTranslation(['outsider']);
   const location = useLocation();
   const pathnameRef = useRef(location.pathname);
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
@@ -182,7 +185,7 @@ const PackageDetailsModal = ({ depsRef }) => {
         <DescriptionBlock text={selectedPackage.description} />
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
           <CheckOutlined className="shrink-0 text-[#00a8c4]" />
-          <span className="font-duotone-regular text-sm text-slate-600">All equipment &amp; materials included</span>
+          <span className="font-duotone-regular text-sm text-slate-600">{t('outsider:packageModal.equipmentIncluded')}</span>
         </div>
       </div>
     </>
@@ -193,7 +196,7 @@ const PackageDetailsModal = ({ depsRef }) => {
       {/* Duration picker */}
       <div className="tcm-scroll space-y-3 px-4 pt-5 pb-4 sm:px-5 sm:pt-6 md:min-h-0 md:flex-1 md:overflow-y-auto md:px-7 md:pt-8">
         <h3 className="flex items-center gap-2 text-base font-duotone-bold-extended text-slate-900 sm:text-lg">
-          <ClockCircleOutlined className="text-slate-400" /> Choose duration
+          <ClockCircleOutlined className="text-slate-400" /> {t('outsider:packageModal.chooseDuration')}
         </h3>
 
         <div className="flex flex-col gap-2">
@@ -258,7 +261,7 @@ const PackageDetailsModal = ({ depsRef }) => {
                     ) : null}
                     {dur.isPackage ? (
                       <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-duotone-bold text-amber-700">
-                        Package
+                        {t('outsider:packageModal.packageBadge')}
                       </span>
                     ) : null}
                   </div>
@@ -271,14 +274,14 @@ const PackageDetailsModal = ({ depsRef }) => {
                   {ownedPkg ? (
                     <div className="mt-1.5 flex items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-                        <GiftOutlined className="text-[10px]" /> Owned
+                        <GiftOutlined className="text-[10px]" /> {t('outsider:packageModal.owned')}
                       </span>
                       <span className="text-[10px] font-semibold text-emerald-600">
                         {ownedRemaining > 0
-                          ? `${ownedRemaining}h remaining`
+                          ? t('outsider:packageModal.hoursRemaining', { hours: ownedRemaining })
                           : ownedLessonsFullyScheduledPending
-                            ? `${ownedUsed}h of ${ownedTotal}h scheduled`
-                            : ownedTotal > 0 ? 'No hours remaining' : ''}
+                            ? t('outsider:packageModal.hoursScheduled', { used: ownedUsed, total: ownedTotal })
+                            : ownedTotal > 0 ? t('outsider:packageModal.noHoursRemaining') : ''}
                       </span>
                     </div>
                   ) : null}
@@ -319,10 +322,10 @@ const PackageDetailsModal = ({ depsRef }) => {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`font-duotone-bold text-sm ${useCustomDuration ? 'text-slate-900' : 'text-slate-600'}`}>
-                    Custom length
+                    {t('outsider:packageModal.customLength')}
                   </span>
                   <span className="text-[10px] font-duotone-regular uppercase tracking-wide text-slate-400">
-                    Pro-rata from base
+                    {t('outsider:packageModal.proRataFromBase')}
                   </span>
                 </div>
               </div>
@@ -345,9 +348,9 @@ const PackageDetailsModal = ({ depsRef }) => {
                   }}
                   className="!w-[88px]"
                   size="small"
-                  aria-label="Custom hours"
+                  aria-label={t('outsider:packageModal.customHoursAria')}
                 />
-                <span className="text-xs font-duotone-regular text-slate-500">hours</span>
+                <span className="text-xs font-duotone-regular text-slate-500">{t('outsider:packageModal.hoursUnit')}</span>
                 <span className="font-duotone-bold-extended text-sm text-slate-900 sm:text-base">
                   {customDurRow ? formatPrice(roundCurrency(customDurRow.price)) : '—'}
                 </span>
@@ -376,16 +379,16 @@ const PackageDetailsModal = ({ depsRef }) => {
                 <div className="min-w-0">
                   {selOwned ? (
                     <>
-                      <p className="text-sm font-duotone-bold uppercase tracking-wider text-emerald-600">You own this package</p>
+                      <p className="text-sm font-duotone-bold uppercase tracking-wider text-emerald-600">{t('outsider:packageModal.youOwnThisPackage')}</p>
                       <p className="text-sm font-duotone-regular text-emerald-600/90">
                         {selLessonsFullyScheduledPending
-                          ? `${selOwnedUsed}h of ${selOwnedTotal}h scheduled — pending staff confirmation`
-                          : `${selOwnedRemaining}h remaining — schedule a session`}
+                          ? t('outsider:packageModal.scheduledPending', { used: selOwnedUsed, total: selOwnedTotal })
+                          : t('outsider:packageModal.remainingSchedule', { hours: selOwnedRemaining })}
                       </p>
                     </>
                   ) : (
                     <>
-                      <p className="text-xs font-duotone-bold uppercase tracking-wider text-slate-500">Total</p>
+                      <p className="text-xs font-duotone-bold uppercase tracking-wider text-slate-500">{t('outsider:packageModal.total')}</p>
                       <p className="text-xs font-duotone-regular text-slate-400">{selDur?.sessions}</p>
                     </>
                   )}
@@ -393,14 +396,14 @@ const PackageDetailsModal = ({ depsRef }) => {
                 <div className="shrink-0 text-right">
                   {selOwned ? (
                     <span className="flex items-center justify-end gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white shadow-sm">
-                      <GiftOutlined /> Owned
+                      <GiftOutlined /> {t('outsider:packageModal.owned')}
                     </span>
                   ) : (
                     <>
                       <span className="font-duotone-bold-extended text-xl tracking-tight text-slate-900 sm:text-2xl">
                         {formatPrice(getCurrentPrice())}
                       </span>
-                      {selDur?.perPerson ? <p className="text-[10px] text-slate-400">per person</p> : null}
+                      {selDur?.perPerson ? <p className="text-[10px] text-slate-400">{t('outsider:packageModal.perPerson')}</p> : null}
                     </>
                   )}
                 </div>
@@ -420,18 +423,18 @@ const PackageDetailsModal = ({ depsRef }) => {
                 }}
               >
                 {selOwned
-                  ? selLessonsFullyScheduledPending ? 'View in dashboard' : 'Schedule Session'
-                  : 'Book Now'}
+                  ? selLessonsFullyScheduledPending ? t('outsider:packageModal.viewInDashboard') : t('outsider:packageModal.scheduleSession')
+                  : t('outsider:packageModal.bookNow')}
               </Button>
               <p className="mt-2.5 flex items-center justify-center gap-1 text-center text-[10px] font-duotone-regular text-slate-400">
                 <InfoCircleOutlined />
                 {selOwned
                   ? selLessonsFullyScheduledPending
-                    ? 'Your package sessions are booked and awaiting confirmation.'
-                    : 'Use your existing package hours — no extra charge.'
+                    ? t('outsider:packageModal.footerScheduledPending')
+                    : t('outsider:packageModal.footerUseExisting')
                   : user
-                    ? 'Pick your date & time in the next step.'
-                    : 'Sign in to secure your spot.'}
+                    ? t('outsider:packageModal.footerPickNext')
+                    : t('outsider:packageModal.footerSignIn')}
               </p>
             </>
           );

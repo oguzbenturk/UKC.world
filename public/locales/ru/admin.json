@@ -1,0 +1,1307 @@
+{
+  "waivers": {
+    "title": "Управление отказами от ответственности",
+    "subtitle": "Поиск, проверка и экспорт подписанных отказов для студентов и членов семьи.",
+    "filters": {
+      "searchPlaceholder": "Поиск по имени или email",
+      "refresh": "Обновить",
+      "exportCsv": "Экспорт CSV"
+    },
+    "status": {
+      "all": "Все статусы",
+      "valid": "Действительный",
+      "outdated": "Требует повторной подписи",
+      "expired": "Истёк",
+      "missing": "Не подписан",
+      "pending": "Ожидает (отсутствует/истёк/устарел)"
+    },
+    "subjectType": {
+      "all": "Все субъекты",
+      "user": "Студенты",
+      "family": "Члены семьи"
+    },
+    "sort": {
+      "nameAsc": "Имя А → Я",
+      "nameDesc": "Имя Я → А",
+      "signedAtDesc": "Последние подписи",
+      "signedAtAsc": "Старые подписи",
+      "statusAsc": "Статус (Действительные первые)",
+      "statusDesc": "Статус (Отсутствующие первые)"
+    },
+    "table": {
+      "name": "Имя",
+      "status": "Статус",
+      "signedAt": "Подписан",
+      "version": "Версия",
+      "parentContact": "Родитель / Контакт",
+      "actions": "Действия",
+      "view": "Просмотр",
+      "student": "Студент",
+      "familyMember": "Член семьи",
+      "noParent": "Родитель не записан",
+      "latestVersion": "Последняя: {{version}}"
+    },
+    "mobileCard": {
+      "viewDetails": "Просмотр деталей",
+      "signed": "Подписан:",
+      "version": "Версия:",
+      "parent": "Родитель:",
+      "noRecord": "Нет записи",
+      "newVersion": "Новая: {{version}}"
+    },
+    "stats": {
+      "totalSubjects": "Всего субъектов",
+      "signed": "Подписано",
+      "pending": "Ожидает",
+      "completionRate": "Процент выполнения",
+      "valid": "Действительных: {{count}}",
+      "outdated": "Устаревших: {{count}}",
+      "expired": "Истёкших: {{count}}",
+      "missing": "Отсутствующих: {{count}}"
+    },
+    "viewer": {
+      "title": "Детали отказа",
+      "loading": "Загрузка деталей отказа...",
+      "loadError": "Не удалось загрузить детали отказа",
+      "noSubject": "Субъект не выбран",
+      "subjectInfo": "Информация о субъекте",
+      "signatureImage": "Изображение подписи",
+      "waiverHistory": "История отказов",
+      "noHistory": "Нет отправленных отказов",
+      "notes": "Примечания",
+      "notesDescription": "История включает все отправки отказов, зафиксированные для данного субъекта. Запись, помеченная как «Требует повторной подписи», указывает на то, что активна более новая версия или срок действия отказа истёк.",
+      "historyColumns": {
+        "signedAt": "Подписан",
+        "version": "Версия",
+        "language": "Язык",
+        "photoConsent": "Согласие на фото"
+      },
+      "photoConsentYes": "Да",
+      "photoConsentNo": "Нет",
+      "photoConsentGranted": "Предоставлено",
+      "photoConsentDeclined": "Отклонено",
+      "subjectFields": {
+        "name": "Имя",
+        "relationship": "Отношение",
+        "email": "Email",
+        "contactEmail": "Контактный email",
+        "parentGuardian": "Родитель / Опекун",
+        "accountOwner": "Владелец аккаунта",
+        "lastSignedBy": "Последний подписавший",
+        "language": "Язык",
+        "ipAddress": "IP-адрес",
+        "userAgent": "Агент пользователя"
+      },
+      "statusMessages": {
+        "noSignature": "Подпись не зафиксирована",
+        "lastSigned": "Последний раз подписан {{datetime}}",
+        "defaultMessage": "Ниже отображается информация о последнем статусе отказа."
+      }
+    },
+    "toast": {
+      "exportSuccess": "Экспорт отказов загружен",
+      "exportError": "Не удалось экспортировать данные отказов",
+      "loadError": "Не удалось загрузить отказы",
+      "statsError": "Не удалось загрузить статистику отказов"
+    }
+  },
+  "vouchers": {
+    "title": "Управление ваучерами",
+    "subtitle": "Создавайте и управляйте кодами скидок, подарочными ваучерами и рекламными предложениями",
+    "actions": {
+      "refresh": "Обновить",
+      "bulkGenerate": "Массовая генерация",
+      "createVoucher": "Создать ваучер",
+      "updateVoucher": "Обновить ваучер"
+    },
+    "stats": {
+      "totalVouchers": "Всего ваучеров",
+      "activeVouchers": "Активные ваучеры",
+      "totalRedemptions": "Всего активаций",
+      "totalDiscountGiven": "Общая предоставленная скидка"
+    },
+    "filters": {
+      "searchPlaceholder": "Поиск по коду или названию...",
+      "filterByType": "Фильтр по типу",
+      "activeOnly": "Только активные",
+      "inactiveOnly": "Только неактивные",
+      "all": "Все"
+    },
+    "table": {
+      "code": "Код",
+      "name": "Название",
+      "type": "Тип",
+      "value": "Значение",
+      "usage": "Использование",
+      "validity": "Срок действия",
+      "status": "Статус",
+      "actions": "Действия",
+      "active": "Активный",
+      "inactive": "Неактивный",
+      "copyCode": "Копировать код",
+      "validUntil": "До: {{date}}",
+      "totalVouchers": "Всего {{total}} ваучеров"
+    },
+    "mobileCard": {
+      "validUntil": "Действителен до:",
+      "usage": "Использование:"
+    },
+    "voucherTypes": {
+      "percentage": {
+        "label": "Процентная скидка",
+        "description": "Скидка в процентах от суммы. Отлично для распродаж и акций."
+      },
+      "fixed_amount": {
+        "label": "Фиксированная сумма",
+        "description": "Фиксированная скидка с заказа. Просто и понятно."
+      },
+      "wallet_credit": {
+        "label": "Кредит кошелька",
+        "description": "Добавляет кредит на кошелёк пользователя. Подходит для реферальных программ."
+      },
+      "free_service": {
+        "label": "Бесплатная услуга",
+        "description": "Разблокирует бесплатную услугу для клиента."
+      },
+      "package_upgrade": {
+        "label": "Обновление пакета",
+        "description": "Повышает уровень пакета клиента."
+      }
+    },
+    "appliesTo": {
+      "all": {
+        "label": "Все услуги",
+        "description": "Действует везде — уроки, магазин, аренда и т. д."
+      },
+      "shop": {
+        "label": "Только магазин",
+        "description": "Физические товары и мерчандайз"
+      },
+      "lessons": {
+        "label": "Только уроки",
+        "description": "Бронирование уроков и учебные сессии"
+      },
+      "rentals": {
+        "label": "Только аренда",
+        "description": "Бронирование аренды оборудования"
+      },
+      "accommodation": {
+        "label": "Только проживание",
+        "description": "Бронирование номеров и проживания"
+      },
+      "packages": {
+        "label": "Только пакеты",
+        "description": "Пакетные предложения и бандлы"
+      },
+      "wallet": {
+        "label": "Пополнение кошелька",
+        "description": "Транзакции пополнения кошелька"
+      }
+    },
+    "usageType": {
+      "single_global": "Одноразовое (всего)",
+      "single_per_user": "Одноразовое на пользователя",
+      "multi_limited": "Ограниченное количество",
+      "multi_per_user": "Ограничено на пользователя",
+      "unlimited": "Неограниченно"
+    },
+    "visibility": {
+      "public": "Публичный (любой может использовать)",
+      "private": "Приватный (только назначенные пользователи)",
+      "role_based": "На основе роли"
+    },
+    "wizard": {
+      "editTitle": "Редактировать ваучер",
+      "createTitle": "Создать ваучер",
+      "editSubtitle": "Обновить настройки ваучера",
+      "createSubtitle": "Настройте новый код скидки за несколько простых шагов",
+      "steps": {
+        "type": "Тип",
+        "valueScope": "Значение и область",
+        "rules": "Правила",
+        "codeReview": "Код и проверка"
+      },
+      "step0": {
+        "prompt": "Какой тип ваучера вы хотите создать?"
+      },
+      "step1": {
+        "promptPercentage": "Какой процент скидки?",
+        "promptFixed": "Сколько скидки с суммы?",
+        "promptWallet": "Сколько кредита на кошелёк?",
+        "promptFreeService": "Детали бесплатной услуги",
+        "promptPackageUpgrade": "Детали обновления пакета",
+        "percentageLabel": "Процент (%)",
+        "creditAmountLabel": "Сумма кредита",
+        "discountAmountLabel": "Сумма скидки",
+        "currencyLabel": "Валюта",
+        "maxDiscountLabel": "Максимальный предел скидки",
+        "maxDiscountExtra": "Необязательно — ограничивает скидку для крупных заказов",
+        "minPurchaseLabel": "Минимальная сумма покупки",
+        "minPurchaseExtra": "Клиент должен потратить не менее этой суммы для использования кода",
+        "whereUsed": "Где можно использовать этот ваучер?"
+      },
+      "step2": {
+        "prompt": "Установите правила и ограничения использования",
+        "usageLimits": "Лимиты использования",
+        "howManyTimes": "Сколько раз можно использовать?",
+        "maxTotalUses": "Максимум всего использований",
+        "maxUsesPerUser": "Максимум использований на пользователя",
+        "validityPeriod": "Период действия",
+        "validDateRange": "Диапазон дат действия",
+        "validDateExtra": "Оставьте пустым для отсутствия временных ограничений",
+        "startDate": "Дата начала",
+        "endDate": "Дата окончания",
+        "accessControl": "Управление доступом",
+        "whoCanUse": "Кто может использовать этот ваучер?",
+        "firstPurchaseOnly": "Только первая покупка",
+        "canCombine": "Можно комбинировать",
+        "activeOnCreate": "Активен при создании"
+      },
+      "step3": {
+        "prompt": "Назовите ваучер и проверьте",
+        "voucherCode": "Код ваучера",
+        "voucherCodeExtra": "Клиенты вводят этот код при оформлении заказа",
+        "displayName": "Отображаемое название",
+        "displayNameExtra": "Внутреннее название (отображается клиенту при применении)",
+        "internalDescription": "Внутреннее описание",
+        "descriptionPlaceholder": "Необязательные заметки об этом ваучере",
+        "reviewSummary": "Сводка проверки",
+        "type": "ТИП",
+        "value": "ЗНАЧЕНИЕ",
+        "appliesTo": "ПРИМЕНЯЕТСЯ К",
+        "usage": "ИСПОЛЬЗОВАНИЕ",
+        "minPurchase": "МИН ПОКУПКА",
+        "maxDiscount": "макс {{amount}} {{currency}}"
+      },
+      "navigation": {
+        "back": "Назад",
+        "next": "Далее",
+        "review": "Проверить",
+        "cancel": "Отмена",
+        "createVoucher": "Создать ваучер"
+      }
+    },
+    "bulk": {
+      "title": "Массовая генерация кодов",
+      "subtitle": "Генерация нескольких уникальных кодов ваучеров с одинаковыми настройками",
+      "numberOfCodes": "Количество кодов",
+      "codePrefix": "Префикс кода",
+      "codePrefixExtra": "напр., ПОДАРОК → ПОДАРОК-A1B2C3",
+      "voucherName": "Название ваучера",
+      "type": "Тип",
+      "value": "Значение",
+      "scope": "Область",
+      "validDateRange": "Диапазон дат действия",
+      "validDateExtra": "Оставьте пустым для отсутствия временных ограничений",
+      "cancel": "Отмена",
+      "generate": "Генерировать коды"
+    },
+    "detail": {
+      "drawerTitle": "Детали ваучера: {{code}}",
+      "voucherInfo": "Информация о ваучере",
+      "redemptionHistory": "История активаций",
+      "noRedemptions": "Активаций пока нет",
+      "code": "Код",
+      "status": "Статус",
+      "type": "Тип",
+      "value": "Значение",
+      "usage": "Использование",
+      "appliesTo": "Применяется к",
+      "validFrom": "Действителен с",
+      "validUntil": "Действителен до",
+      "created": "Создан",
+      "redemptionColumns": {
+        "user": "Пользователь",
+        "email": "Email",
+        "originalAmount": "Исходная сумма",
+        "discountApplied": "Применённая скидка",
+        "reference": "Ссылка",
+        "date": "Дата"
+      }
+    },
+    "popconfirm": {
+      "deactivateTitle": "Деактивировать этот ваучер?",
+      "deactivateDescription": "Пользователи больше не смогут использовать этот код.",
+      "deactivateOk": "Деактивировать",
+      "cancel": "Отмена",
+      "deactivateMobile": "Деактивировать?"
+    },
+    "toast": {
+      "created": "Ваучер успешно создан",
+      "updated": "Ваучер успешно обновлён",
+      "deactivated": "Ваучер деактивирован",
+      "bulkGenerated": "Сгенерировано {{count}} кодов ваучеров",
+      "codeCopied": "Код скопирован в буфер обмена",
+      "duplicateCode": "Ваучер с таким кодом уже существует",
+      "loadError": "Не удалось загрузить ваучеры",
+      "createError": "Не удалось создать ваучер",
+      "updateError": "Не удалось обновить ваучер",
+      "deleteError": "Не удалось удалить ваучер",
+      "bulkError": "Не удалось сгенерировать ваучеры",
+      "redemptionsError": "Не удалось загрузить активации"
+    },
+    "validation": {
+      "codeRequired": "Код обязателен",
+      "codeMin": "Минимум 3 символа",
+      "codeMax": "Максимум 50 символов",
+      "codePattern": "Только буквы, цифры, - и _",
+      "nameRequired": "Название обязательно",
+      "enterValue": "Введите значение"
+    }
+  },
+  "spareParts": {
+    "title": "Заказы запчастей",
+    "actions": {
+      "refresh": "Обновить",
+      "exportCsv": "Экспорт CSV",
+      "newOrder": "Новый заказ",
+      "apply": "Применить"
+    },
+    "filters": {
+      "statusPlaceholder": "Статус",
+      "searchPlaceholder": "Поиск по запчасти или поставщику...",
+      "status": {
+        "pending": "Ожидает",
+        "ordered": "Заказано",
+        "received": "Получено",
+        "cancelled": "Отменено"
+      }
+    },
+    "table": {
+      "part": "Запчасть",
+      "quantity": "Количество",
+      "supplier": "Поставщик",
+      "status": "Статус",
+      "actions": "Действия",
+      "markOrdered": "Отметить заказанным",
+      "markReceived": "Отметить полученным",
+      "delete": "Удалить"
+    },
+    "mobileCard": {
+      "supplierLabel": "Поставщик: {{supplier}}",
+      "qty": "Кол-во: {{qty}}",
+      "ordered": "Заказано",
+      "recv": "Получено",
+      "del": "Удал"
+    },
+    "modal": {
+      "title": "Новый заказ запчасти",
+      "create": "Создать",
+      "partLabel": "Запчасть",
+      "partPlaceholder": "напр., Тормозные колодки",
+      "partRequired": "Название запчасти обязательно",
+      "quantityLabel": "Количество",
+      "quantityPlaceholder": "напр., 2",
+      "quantityRequired": "Количество обязательно",
+      "supplierLabel": "Поставщик",
+      "supplierPlaceholder": "напр., ACME Supplies",
+      "statusLabel": "Статус"
+    },
+    "toast": {
+      "created": "Заказ создан",
+      "createError": "Не удалось создать заказ",
+      "statusUpdated": "Статус обновлён на {{status}}",
+      "statusError": "Не удалось обновить статус",
+      "deleted": "Заказ удалён",
+      "deleteError": "Не удалось удалить заказ",
+      "loadError": "Не удалось загрузить заказы"
+    },
+    "unauthorized": "Извините, у вас нет доступа к этой странице."
+  },
+  "support": {
+    "title": "Тикеты поддержки",
+    "subtitle": "Управляйте запросами поддержки по всем каналам",
+    "viewToggle": {
+      "inbox": "Входящие",
+      "table": "Таблица"
+    },
+    "stats": {
+      "total": "Всего",
+      "open": "Открытые",
+      "inProgress": "В работе",
+      "resolved": "Решённые"
+    },
+    "filters": {
+      "searchPlaceholder": "Поиск по имени или теме…",
+      "statusPlaceholder": "Статус",
+      "priorityPlaceholder": "Приоритет",
+      "channelPlaceholder": "Канал",
+      "refresh": "Обновить",
+      "status": {
+        "open": "Открыт",
+        "in_progress": "В работе",
+        "resolved": "Решён",
+        "closed": "Закрыт"
+      },
+      "priority": {
+        "urgent": "Срочный",
+        "high": "Высокий",
+        "normal": "Обычный",
+        "low": "Низкий"
+      },
+      "channel": {
+        "portal": "Портал",
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "chat": "Чат"
+      }
+    },
+    "table": {
+      "priority": "Приоритет",
+      "status": "Статус",
+      "student": "Студент",
+      "subject": "Тема",
+      "channel": "Канал",
+      "created": "Создан",
+      "actions": "Действия",
+      "start": "Начать",
+      "resolve": "Решить",
+      "view": "Просмотр",
+      "totalTickets": "Всего {{total}} тикетов",
+      "message": "Сообщение",
+      "notes": "Заметки",
+      "reply": "Ответить",
+      "internalNote": "Внутренняя заметка"
+    },
+    "inbox": {
+      "noTickets": "Тикеты не найдены"
+    },
+    "conversation": {
+      "selectTicket": "Выберите тикет для просмотра деталей",
+      "addInternalNote": "Добавить внутреннюю заметку",
+      "notePlaceholder": "Внутренняя заметка (не видна студенту)…",
+      "replyPlaceholder": "Напишите ответ студенту…",
+      "reply": "Ответить",
+      "add": "Добавить",
+      "adminReply": "Ответ администратора",
+      "adminNote": "Заметка администратора",
+      "start": "Начать",
+      "resolve": "Решить",
+      "close": "Закрыть"
+    },
+    "toast": {
+      "started": "Начат",
+      "resolved": "Решён",
+      "replySent": "Ответ отправлен",
+      "replyError": "Не удалось отправить ответ",
+      "noteAdded": "Заметка добавлена",
+      "noteError": "Не удалось добавить заметку",
+      "statusUpdated": "Тикет отмечен как {{status}}",
+      "statusError": "Не удалось обновить статус"
+    }
+  },
+  "roles": {
+    "title": "Роли и права доступа",
+    "newRole": "Новая роль",
+    "roleCount": "{{count}} роль",
+    "roleCount_plural": "{{count}} ролей",
+    "table": {
+      "role": "Роль",
+      "description": "Описание",
+      "permissions": "Права",
+      "users": "Пользователи",
+      "actions": ""
+    },
+    "permissions": {
+      "noPermissions": "Нет прав",
+      "fullAccess": "Полный доступ",
+      "allGranted": "Все предоставлены",
+      "partial": "Частичные",
+      "moreCategories": "+{{count}} ещё"
+    },
+    "superAdmin": {
+      "label": "Супер-администратор — Полный доступ",
+      "description": "Предоставляет все текущие и будущие права. Использовать с осторожностью.",
+      "tooltip": "Предоставляет все права, включая будущие.",
+      "fullAccessMessage": "Полный доступ ко всем функциям",
+      "fullAccessHint": "Отключите выше для настройки детальных прав"
+    },
+    "categories": {
+      "bookings": {
+        "label": "Бронирования",
+        "description": "Управление бронированиями уроков и мероприятий",
+        "read": "Просмотр бронирований",
+        "write": "Создание/редактирование бронирований",
+        "delete": "Отмена/удаление бронирований",
+        "approve": "Одобрение ожидающих бронирований"
+      },
+      "users": {
+        "label": "Пользователи",
+        "description": "Управление учётными записями пользователей",
+        "read": "Просмотр пользователей",
+        "write": "Создание/редактирование пользователей",
+        "delete": "Удаление пользователей",
+        "assign_roles": "Назначение ролей пользователям"
+      },
+      "finances": {
+        "label": "Финансы",
+        "description": "Доступ к финансовым данным и транзакциям",
+        "read": "Просмотр финансовых отчётов",
+        "write": "Создание транзакций/платежей",
+        "refund": "Обработка возвратов",
+        "reconcile": "Финансовая сверка"
+      },
+      "wallet": {
+        "label": "Кошелёк",
+        "description": "Управление операциями с кошельком пользователя",
+        "read": "Просмотр балансов кошельков",
+        "topup": "Пополнение кошельков",
+        "deduct": "Списание с кошельков",
+        "transfer": "Перевод между кошельками"
+      },
+      "instructors": {
+        "label": "Инструкторы",
+        "description": "Управление профилями и расписаниями инструкторов",
+        "read": "Просмотр инструкторов",
+        "write": "Создание/редактирование инструкторов",
+        "schedule": "Управление расписаниями",
+        "earnings": "Просмотр/управление доходами"
+      },
+      "equipment": {
+        "label": "Оборудование",
+        "description": "Управление инвентарём прокатного оборудования",
+        "read": "Просмотр оборудования",
+        "write": "Создание/редактирование оборудования",
+        "delete": "Удаление оборудования",
+        "rental": "Управление арендой"
+      },
+      "services": {
+        "label": "Услуги",
+        "description": "Управление предложениями услуг",
+        "read": "Просмотр услуг",
+        "write": "Создание/редактирование услуг",
+        "delete": "Удаление услуг",
+        "pricing": "Управление ценообразованием"
+      },
+      "settings": {
+        "label": "Настройки",
+        "description": "Конфигурация системы",
+        "read": "Просмотр настроек",
+        "write": "Изменение настроек"
+      },
+      "reports": {
+        "label": "Отчёты",
+        "description": "Доступ к аналитике и отчётам",
+        "read": "Просмотр отчётов",
+        "export": "Экспорт данных"
+      },
+      "notifications": {
+        "label": "Уведомления",
+        "description": "Управление системными уведомлениями",
+        "read": "Просмотр уведомлений",
+        "send": "Отправка уведомлений",
+        "manage": "Управление настройками уведомлений"
+      },
+      "audit": {
+        "label": "Журналы аудита",
+        "description": "Доступ к журналам аудита системы",
+        "read": "Просмотр журналов аудита"
+      },
+      "system": {
+        "label": "Система",
+        "description": "Системное администрирование",
+        "admin": "Полный системный доступ",
+        "backup": "Управление резервными копиями",
+        "maintenance": "Режим обслуживания"
+      }
+    },
+    "modals": {
+      "createRole": "Создать роль",
+      "editRole": "Редактировать роль",
+      "assignRole": "Назначить роль",
+      "viewUsers": "пользователей",
+      "changeRole": "Изменить роль",
+      "permissionsLabel": "Права",
+      "roleNameLabel": "Название роли",
+      "roleNamePlaceholder": "напр., менеджер_продаж",
+      "roleNameRequired": "Название роли обязательно",
+      "descriptionLabel": "Описание",
+      "descriptionPlaceholder": "Опишите назначение роли",
+      "selectUserLabel": "Выбрать пользователя",
+      "selectUserPlaceholder": "Поиск пользователей...",
+      "selectUserRequired": "Выберите пользователя",
+      "selectNewRoleLabel": "Новая роль",
+      "selectNewRolePlaceholder": "Выберите новую роль",
+      "selectNewRoleRequired": "Выберите новую роль",
+      "currentRole": "Текущая роль:",
+      "noUsersWithRole": "Нет пользователей с этой ролью",
+      "saveChanges": "Сохранить изменения",
+      "createRoleButton": "Создать роль",
+      "assignRoleButton": "Назначить роль",
+      "changeRoleButton": "Изменить роль",
+      "cancel": "Отмена",
+      "close": "Закрыть",
+      "change": "Изменить"
+    },
+    "popconfirm": {
+      "deleteTitle": "Удалить роль",
+      "deleteDescription": "Вы уверены, что хотите удалить эту роль?",
+      "deleteOk": "Удалить",
+      "cancel": "Отмена"
+    },
+    "tooltips": {
+      "viewUsers": "Просмотр пользователей",
+      "edit": "Редактировать",
+      "assignToUser": "Назначить пользователю",
+      "systemRoleCannotDelete": "Системные роли нельзя удалить",
+      "removeUsersFirst": "Сначала удалите всех пользователей",
+      "deleteRole": "Удалить роль"
+    },
+    "toast": {
+      "roleDeleted": "Роль удалена",
+      "roleDeleteError": "Не удалось удалить роль",
+      "roleCreated": "Роль создана",
+      "roleCreateError": "Не удалось создать роль",
+      "roleUpdated": "Роль обновлена",
+      "roleUpdateError": "Не удалось обновить роль",
+      "roleAssigned": "Роль назначена пользователю",
+      "roleAssignError": "Не удалось назначить роль",
+      "roleChanged": "Роль для {{name}} изменена",
+      "roleChangeError": "Не удалось изменить роль",
+      "loadError": "Не удалось загрузить роли/пользователей"
+    },
+    "mobileCard": {
+      "system": "системная",
+      "users": "{{count}} пользователей",
+      "usersButton": "Пользователи",
+      "edit": "Редактировать",
+      "assign": "Назначить"
+    }
+  },
+  "userRoleManager": {
+    "title": "Управление ролью пользователя",
+    "changeRole": "Изменить роль",
+    "selectNewRole": "Выбрать новую роль:",
+    "noChanges": "Нет изменений",
+    "updateRole": "Обновить роль",
+    "cancel": "Отмена",
+    "warning": "Изменение роли пользователя немедленно повлияет на его права доступа. Возможно, потребуется выйти из системы и войти снова для полного вступления изменений в силу.",
+    "warningLabel": "Внимание:",
+    "roleDescriptions": {
+      "student": "Базовый доступ пользователя",
+      "freelancer": "Независимый подрядчик",
+      "assistant": "Ограниченная административная поддержка",
+      "instructor": "Управление обучением и бронированиями",
+      "receptionist": "Операции на ресепшн",
+      "manager": "Операционное управление",
+      "admin": "Полный системный доступ"
+    },
+    "toast": {
+      "noChanges": "Изменений не внесено",
+      "success": "Роль {{name}} успешно изменена на {{role}}"
+    }
+  },
+  "currency": {
+    "title": "Управление валютами",
+    "addCurrency": "Добавить валюту",
+    "note": "Для управления валютами, доступными пользователям при регистрации, перейдите в Настройки > Настройки валюты.",
+    "table": {
+      "currency": "Валюта",
+      "name": "Название",
+      "exchangeRate": "Обменный курс",
+      "status": "Статус",
+      "actions": "Действия",
+      "baseCurrency": "Базовая (1.0000)"
+    },
+    "popconfirm": {
+      "setBase": "Установить как базовую валюту?",
+      "setBaseDescription": "Все остальные валюты будут относительны к этой"
+    },
+    "modal": {
+      "editTitle": "Редактировать валюту",
+      "addTitle": "Добавить валюту",
+      "currencyCode": "Код валюты",
+      "currencyCodePlaceholder": "USD",
+      "currencyCodeRequired": "Введите код валюты",
+      "currencyName": "Название валюты",
+      "currencyNamePlaceholder": "Доллар США",
+      "currencyNameRequired": "Введите название валюты",
+      "symbol": "Символ",
+      "symbolPlaceholder": "$",
+      "symbolRequired": "Введите символ валюты",
+      "exchangeRate": "Обменный курс",
+      "exchangeRateRequired": "Введите обменный курс",
+      "active": "Активна",
+      "updateButton": "Обновить валюту",
+      "addButton": "Добавить валюту",
+      "cancel": "Отмена"
+    },
+    "toast": {
+      "added": "Валюта успешно добавлена",
+      "updated": "Валюта успешно обновлена",
+      "activated": "Валюта активирована",
+      "deactivated": "Валюта деактивирована",
+      "baseCurrencyUpdated": "Базовая валюта обновлена",
+      "exchangeRateUpdated": "Обменный курс обновлён",
+      "registrationCurrenciesUpdated": "Валюты регистрации обновлены",
+      "loadError": "Не удалось загрузить валюты",
+      "saveError": "Не удалось сохранить валюту",
+      "toggleError": "Не удалось обновить статус валюты",
+      "baseError": "Не удалось установить базовую валюту",
+      "rateError": "Не удалось обновить обменный курс",
+      "registrationLoadError": "Не удалось загрузить настройки регистрации",
+      "registrationUpdateError": "Не удалось обновить валюты регистрации"
+    }
+  },
+  "ratings": {
+    "title": "Аналитика оценок инструкторов",
+    "subtitle": "Отслеживайте производительность инструкторов и отзывы студентов по всем услугам.",
+    "metrics": {
+      "averageRating": "Средняя оценка",
+      "fiveStarShare": "Доля пятизвёздочных",
+      "activeInstructors": "Активные инструкторы",
+      "mostRecentFeedback": "Последний отзыв",
+      "noRatings": "Оценок пока нет.",
+      "computedAcross": "Вычислено по {{count}} отправкам.",
+      "portionFiveStars": "Доля от общего числа отзывов, получивших пять звёзд.",
+      "collectMore": "Соберите больше отзывов для заполнения этого показателя.",
+      "currentlyOnLeaderboard": "В настоящее время включён в таблицу лидеров.",
+      "noInstructorsYet": "Нет инструкторов с оценками.",
+      "latestSubmissionDate": "Дата последней отправки среди отслеживаемых инструкторов.",
+      "noFeedback": "Отзывов пока нет.",
+      "noRatingsYet": "Нет оценок"
+    },
+    "charts": {
+      "ratingDistribution": "Распределение оценок",
+      "ratingDistributionSubtitle": "Как студенты оценивают инструкторов со временем.",
+      "noRatingData": "Данных оценок пока нет",
+      "serviceBreakdown": "Разбивка по услугам",
+      "serviceBreakdownSubtitle": "{{fiveStarPercent}} оценок — пятизвёздочные. Общая средняя — {{average}}.",
+      "noServiceBreakdown": "Соберите больше отзывов для разблокировки этой разбивки.",
+      "noServiceBreakdownData": "Нет данных разбивки по услугам",
+      "lessons": "Уроки",
+      "rentals": "Аренда",
+      "accommodation": "Проживание",
+      "stars": "{{count}} звёзд"
+    },
+    "insights": {
+      "title": "Ключевые наблюдения",
+      "noRatings": "Оценок пока нет",
+      "noRatingsDescription": "Поощряйте студентов оставлять первые отзывы для разблокировки аналитики.",
+      "overallAverage": "Общая средняя",
+      "overallAverageDescription": "{{average}} по {{total}} всего оценкам.",
+      "fiveStarChampions": "Чемпионы пяти звёзд",
+      "fiveStarChampionsDescription": "{{name}} лидирует с {{percent}} пятизвёздочных отзывов.",
+      "mostFeedback": "Больше всего отзывов",
+      "mostFeedbackDescription": "{{name}} получил {{count}} оценок всего."
+    },
+    "topPerformers": {
+      "title": "Лучшие исполнители",
+      "noInstructors": "Нет ранжированных инструкторов",
+      "champion": "Чемпион",
+      "avgRatingsFormat": "Сред {{avg}} · {{count}} оценок · {{fiveStarPct}} 5★"
+    },
+    "leaderboard": {
+      "title": "Таблица лидеров инструкторов",
+      "subtitle": "Используйте таблицу лидеров для выявления стабильно высоких исполнителей и областей, требующих поддержки.",
+      "noDataTitle": "Нет данных",
+      "noDataSubtitle": "Оценки появятся после того, как студенты начнут оставлять отзывы.",
+      "waitingForRatings": "Данные таблицы лидеров появятся после получения инструкторами оценок.",
+      "sortBy": "Сортировать по",
+      "benchmarkHighlight": "Подсветка эталона",
+      "showingBadges": "Показать значки",
+      "hidden": "Скрыто",
+      "autoRefresh": "Автообновление",
+      "every60s": "Каждые 60с",
+      "actions": "Действия",
+      "refresh": "Обновить",
+      "export": "Экспорт",
+      "sortedBy": "Отсортировано по {{descriptor}}",
+      "benchmarkNote": "Эталонные исполнители выделены янтарным цветом.",
+      "totalInstructors": "{{count}} инструктор",
+      "totalInstructors_plural": "{{count}} инструкторов"
+    },
+    "table": {
+      "rank": "#",
+      "instructor": "Инструктор",
+      "averageRating": "Средняя оценка",
+      "ratings": "Оценки",
+      "fiveStarShare": "Доля 5★",
+      "lastRating": "Последняя оценка",
+      "lessonAvg": "Сред урок",
+      "rentalAvg": "Сред аренда",
+      "accommodationAvg": "Сред проживание",
+      "benchmark": "Эталон",
+      "topPerformer": "Лучший исполнитель",
+      "belowTarget": "Ниже цели"
+    },
+    "mobileCard": {
+      "avg": "Сред",
+      "topTier": "Высший уровень",
+      "ratingsLabel": "Оценки:",
+      "fiveStarShare": "Доля 5★:",
+      "lesson": "Урок",
+      "rental": "Аренда",
+      "accomm": "Прожив",
+      "lastRated": "Последняя оценка: {{date}}"
+    },
+    "sort": {
+      "average": "Наивысший средний рейтинг",
+      "count": "Больше всего оценок",
+      "recent": "Последние отзывы"
+    },
+    "serviceType": {
+      "all": "Все услуги",
+      "lesson": "Уроки",
+      "rental": "Аренда",
+      "accommodation": "Проживание"
+    },
+    "timeRange": {
+      "all": "За всё время",
+      "7d": "Последние 7 дней",
+      "30d": "Последние 30 дней",
+      "90d": "Последние 90 дней"
+    },
+    "error": "Не удалось загрузить аналитику инструкторов"
+  },
+  "kai": {
+    "title": "Разговоры Kai",
+    "subtitle": "Автообновление каждые 30с",
+    "subtitleWithTime": "Автообновление каждые 30с · последнее обновление {{time}}",
+    "refreshNow": "Обновить сейчас",
+    "stats": {
+      "totalSessions": "Всего сессий",
+      "totalMessages": "Всего сообщений",
+      "outsider": "Посетитель",
+      "student": "Студент",
+      "staffAdmin": "Персонал / Администратор",
+      "hasUnanswered": "Без ответа"
+    },
+    "filters": {
+      "searchPlaceholder": "Поиск по имени, email или сообщению…",
+      "allRoles": "Все роли",
+      "unansweredOnly": "Только без ответа",
+      "roles": {
+        "outsider": "Посетитель",
+        "student": "Студент",
+        "instructor": "Инструктор",
+        "manager": "Менеджер",
+        "admin": "Администратор"
+      }
+    },
+    "sessions": {
+      "found": "{{count}} сессий найдено",
+      "notAnswered": "без ответа",
+      "previous": "Предыдущая",
+      "next": "Следующая",
+      "pageRange": "{{from}}–{{to}} из {{total}}",
+      "noSessions": "Сессии не найдены",
+      "couldntAnswer": "Не удалось ответить полностью"
+    },
+    "drawer": {
+      "conversation": "Разговор",
+      "summary": "Сводка",
+      "noMessages": "Сообщений не сохранено",
+      "loadError": "Не удалось загрузить разговор. Попробуйте снова."
+    }
+  },
+  "settings": {
+    "title": "Настройки",
+    "loading": "Загрузка настроек...",
+    "tabs": {
+      "general": "Общие",
+      "calendar": "Календарь",
+      "bookingDefaults": "Настройки бронирования",
+      "forecast": "Прогноз",
+      "finance": "Финансы",
+      "currency": "Валюта",
+      "services": "Создание услуг",
+      "roles": "Роли и права",
+      "waivers": "Отказы",
+      "legal": "Юридические документы",
+      "refunds": "Возвраты",
+      "bankAccounts": "Банковские счета",
+      "kaiLogs": "Журналы Kai",
+      "deletedBookings": "Удалённые бронирования",
+      "safety": "Безопасность и медицина",
+      "availability": "Доступность",
+      "teachingPrefs": "Предпочтения преподавания",
+      "instructorNotifications": "Уведомления",
+      "teamNotifications": "Уведомления команды",
+      "operationalDefaults": "Операционные настройки"
+    },
+    "groups": {
+      "personal": "Личные",
+      "business": "Бизнес",
+      "services": "Услуги",
+      "access": "Доступ",
+      "legal": "Юридические",
+      "payments": "Платежи",
+      "operations": "Операции",
+      "schedule": "Расписание",
+      "teaching": "Преподавание",
+      "ai": "ИИ"
+    },
+    "tabDescriptions": {
+      "generalAdmin": "Управляйте аккаунтом, личными настройками и уведомлениями",
+      "general": "Управляйте данными аккаунта, настройками и уведомлениями",
+      "calendar": "Настройте цвета инструкторов для просмотра календаря",
+      "forecast": "Настройте параметры прогноза ветра, включая единицы, источники данных и отображение",
+      "finance": "Настройте ставки расчётов и комиссии платежей",
+      "currency": "Управляйте бизнес-валютой, валютами регистрации и обменными курсами",
+      "bookingDefaults": "Настройте стандартную длительность бронирования и доступные варианты",
+      "services": "Управляйте категориями и типами услуг",
+      "roles": "Управляйте ролями и правами пользователей",
+      "waivers": "Управляйте шаблонами отказов и отправками",
+      "legal": "Управляйте условиями использования, политикой конфиденциальности и юридическими документами",
+      "deletedBookings": "Просматривайте и управляйте удалёнными бронированиями",
+      "refunds": "Обрабатывайте и отслеживайте возвраты платежей",
+      "bankAccounts": "Управляйте банковскими счетами для платежей",
+      "bookingPrefs": "Задайте настройки по умолчанию для бронирования уроков",
+      "instructorPrefs": "Выберите предпочитаемого инструктора и язык урока",
+      "safety": "Укажите контакт на случай чрезвычайной ситуации и медицинские данные",
+      "availability": "Управляйте еженедельными рабочими часами и запросами на отгул",
+      "teachingPrefs": "Настройте предпочтения преподавания и специализации",
+      "instructorNotifications": "Выберите уведомления, которые вы получаете как инструктор",
+      "teamNotifications": "Настройте уведомления об активности команды и операциях",
+      "operationalDefaults": "Задайте значения по умолчанию для ежедневных операций бронирования"
+    },
+    "loggedInAs": "Вы вошли как",
+    "roleLabels": {
+      "admin": "(Администратор)",
+      "manager": "(Менеджер)",
+      "instructor": "(Инструктор)",
+      "student": "(Студент)"
+    },
+    "notifications": {
+      "title": "Настройки уведомлений",
+      "email": "Email-уведомления",
+      "emailDescription": "Получайте подтверждения бронирований и обновления по email",
+      "sms": "SMS-уведомления",
+      "smsDescription": "Получайте текстовые сообщения о важных обновлениях",
+      "push": "Push-уведомления",
+      "pushDescription": "Получайте уведомления в реальном времени в браузере",
+      "newBookingAlerts": "Оповещения о новых бронированиях",
+      "newBookingAlertsDescription": "Получайте уведомление, когда студенты запрашивают новые бронирования"
+    },
+    "languageRegion": {
+      "title": "Язык и регион",
+      "languageLabel": "Язык",
+      "languageDescription": "Выберите предпочтительный язык интерфейса"
+    },
+    "savePersonalSettings": "Сохранить личные настройки",
+    "calendarSection": {
+      "workingHours": "Рабочие часы",
+      "workingHoursDescription": "Задайте ежедневное время открытия и закрытия для календаря бронирований и доступных временных слотов.",
+      "opensAt": "Открывается в",
+      "closesAt": "Закрывается в",
+      "saveWorkingHours": "Сохранить рабочие часы",
+      "instructorVisibility": "Видимость инструкторов по форме",
+      "instructorVisibilityDescription": "Ограничьте инструкторов, отображаемых в каждой форме бронирования. Оставьте пустым для отображения всех инструкторов.",
+      "allInstructors": "Все инструкторы (без ограничений)",
+      "saveVisibility": "Сохранить видимость",
+      "formContexts": {
+        "staff_booking": {
+          "label": "Мастер бронирования персонала",
+          "description": "Выбор инструктора при создании нового бронирования персоналом"
+        },
+        "customer_modal": {
+          "label": "Модальное окно бронирования клиента",
+          "description": "Бронирование со страницы профиля клиента"
+        },
+        "public_booking": {
+          "label": "Публичная форма бронирования",
+          "description": "Форма бронирования посетителя / гостя"
+        }
+      },
+      "toast": {
+        "workingHoursSaved": "Рабочие часы сохранены",
+        "workingHoursError": "Не удалось сохранить рабочие часы",
+        "visibilitySaved": "Видимость инструкторов сохранена",
+        "visibilityError": "Не удалось сохранить видимость инструкторов",
+        "closingAfterOpening": "Время закрытия должно быть позже времени открытия"
+      }
+    },
+    "currencySection": {
+      "defaultTitle": "Основная бизнес-валюта",
+      "defaultDescription": "Эта валюта используется по умолчанию для новых услуг, бронирований и транзакций. Существующие записи сохраняют исходную валюту.",
+      "oneCurrencyWarning": "Активна только одна валюта. Перейдите в Администрирование > Валюты для активации дополнительных.",
+      "preferredCurrency": "Предпочтительная валюта",
+      "currentCurrency": "Текущая: {{symbol}} ({{code}})",
+      "savePreferredCurrency": "Сохранить предпочтительную валюту",
+      "registrationTitle": "Варианты валюты при регистрации",
+      "registrationDescription": "Контролируйте, какие валюты пользователи могут выбирать при создании нового аккаунта. Можно выбрать только активные валюты.",
+      "allowedCurrencies": "Разрешённые валюты для новых пользователей",
+      "registrationCurrenciesPlaceholder": "Выберите валюты для регистрации",
+      "loadingPlaceholder": "Загрузка валют...",
+      "registrationInfo": "Валюты регистрации",
+      "registrationInfoDescription": "Новые пользователи могут выбрать из: {{currencies}}",
+      "exchangeRates": "Обменные курсы",
+      "exchangeRatesDescription": "Управляйте обменными курсами относительно EUR (базовая валюта). Включите автообновление для автоматического получения курсов.",
+      "toast": {
+        "currencyUpdated": "Бизнес-валюта обновлена",
+        "currencyError": "Не удалось обновить валюту",
+        "preferredUpdated": "Предпочтительная валюта успешно обновлена",
+        "preferredError": "Не удалось обновить предпочтительную валюту"
+      }
+    },
+    "bookingDefaults": {
+      "description": "Настройте стандартную длительность бронирования и доступные варианты.",
+      "defaultDuration": "Стандартная длительность",
+      "availableDurations": "Доступные длительности",
+      "save": "Сохранить настройки бронирования",
+      "durations": {
+        "60": "1 час",
+        "90": "1,5 часа",
+        "120": "2 часа",
+        "150": "2,5 часа",
+        "180": "3 часа",
+        "240": "4 часа"
+      },
+      "toast": {
+        "saved": "Настройки бронирования обновлены",
+        "error": "Не удалось обновить настройки бронирования",
+        "durationMismatch": "Стандартная длительность должна быть одним из разрешённых вариантов"
+      }
+    }
+  },
+  "legal": {
+    "title": "Юридические документы и управление согласием",
+    "subtitle": "Управляйте условиями использования, политикой конфиденциальности и маркетинговыми настройками",
+    "tabs": {
+      "terms": "Условия использования",
+      "privacy": "Политика конфиденциальности",
+      "marketing": "Маркетинговые настройки"
+    },
+    "terms": {
+      "alertTitle": "Условия использования",
+      "alertDescription": "Пользователи должны будут принять новые версии. Обновите номер версии для запроса повторного согласия.",
+      "versionLabel": "Версия",
+      "versionRequired": "Версия обязательна",
+      "versionPlaceholder": "напр., 2025-10-01",
+      "contentLabel": "Содержание условий (поддерживается HTML)",
+      "save": "Сохранить условия использования",
+      "preview": "Предпросмотр"
+    },
+    "privacy": {
+      "alertTitle": "Политика конфиденциальности",
+      "alertDescription": "Пользователи должны будут принять новые версии. Обновите номер версии для запроса повторного согласия.",
+      "versionLabel": "Версия",
+      "versionRequired": "Версия обязательна",
+      "versionPlaceholder": "напр., 2025-10-01",
+      "contentLabel": "Содержание политики (поддерживается HTML)",
+      "save": "Сохранить политику конфиденциальности",
+      "preview": "Предпросмотр"
+    },
+    "marketing": {
+      "alertTitle": "Настройки маркетинговых коммуникаций",
+      "alertDescription": "Настройте описание, отображаемое пользователям при настройке маркетинговых предпочтений.",
+      "descriptionLabel": "Текст описания",
+      "descriptionPlaceholder": "Эти переключатели необязательны. Подпишитесь на обновления и напоминания о бронировании по предпочтительным каналам.",
+      "save": "Сохранить маркетинговые настройки"
+    },
+    "toast": {
+      "termsSaved": "Условия использования успешно сохранены",
+      "privacySaved": "Политика конфиденциальности успешно сохранена",
+      "marketingSaved": "Маркетинговые настройки успешно сохранены",
+      "saveError": "Не удалось сохранить документ",
+      "loadError": "Не удалось загрузить юридические документы"
+    }
+  },
+  "members": {
+    "title": "Члены",
+    "assignMembership": "Назначить членство",
+    "assignFirst": "Назначить первого члена",
+    "assign": "Назначить",
+    "refresh": "Обновить",
+    "clear": "Очистить",
+    "filters": {
+      "searchPlaceholder": "Поиск по имени или email...",
+      "allStatus": "Все статусы",
+      "active": "Активный",
+      "pending": "Ожидает",
+      "expired": "Истёкший",
+      "cancelled": "Отменённый",
+      "from": "От",
+      "to": "До"
+    },
+    "table": {
+      "member": "Член",
+      "membership": "Членство",
+      "status": "Статус",
+      "purchased": "Куплено",
+      "expires": "Истекает",
+      "amount": "Сумма",
+      "never": "Никогда"
+    },
+    "status": {
+      "active": "Активный",
+      "pending": "Ожидает",
+      "expired": "Истёкший",
+      "cancelled": "Отменённый"
+    },
+    "detail": {
+      "title": "Данные члена",
+      "close": "Закрыть",
+      "memberName": "Имя члена",
+      "email": "Email",
+      "membershipType": "Тип членства",
+      "status": "Статус",
+      "purchaseDate": "Дата покупки",
+      "expiryDate": "Дата окончания",
+      "neverExpires": "Бессрочное",
+      "amountPaid": "Оплаченная сумма",
+      "paymentMethod": "Способ оплаты",
+      "notes": "Примечания"
+    },
+    "empty": {
+      "noMembers": "Члены не найдены"
+    },
+    "count": "{{count}} член",
+    "count_plural": "{{count}} членов",
+    "totalMembers": "{{total}} членов",
+    "toast": {
+      "assigned": "Членство успешно назначено!"
+    }
+  },
+  "community": {
+    "team": {
+      "pageTitle": "Наша команда | Сообщество | UKC",
+      "pageDescription": "Познакомьтесь с командой UKC — наши увлечённые инструкторы и персонал, делающие ваш опыт незабываемым.",
+      "heading": "ПОЗНАКОМЬТЕСЬ С КОМАНДОЙ DPC-URLA",
+      "subtitle": "Наши увлечённые инструкторы и персонал здесь, чтобы сделать ваш опыт водных видов спорта незабываемым.",
+      "loading": "Загрузка команды...",
+      "teamInfoComingSoon": "Информация о команде скоро появится",
+      "teamInfoComingSoonDescription": "Информация о нашей команде обновляется. Проверьте позже!",
+      "teamMemberCount": "{{count}} член команды",
+      "teamMemberCount_plural": "{{count}} членов команды",
+      "instructor": "Инструктор",
+      "featured": "Рекомендуемый",
+      "specializations": "Специализации",
+      "languages": "Языки",
+      "withUsSince": "С нами с {{year}} года",
+      "bookALesson": "Записаться на урок"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "title": "Права конфиденциальности данных GDPR",
+      "privacyRightsTitle": "Ваши права на конфиденциальность",
+      "privacyRightsDescription": "В соответствии с Общим регламентом по защите данных (GDPR) вы имеете определённые права в отношении своих персональных данных. Вы можете экспортировать все свои данные или запросить их удаление в любое время.",
+      "waiverSection": {
+        "title": "Отказ от ответственности и история подписей",
+        "description": "Просмотрите текущий статус вашего отказа и проверьте предыдущие подписи. Если вам нужно подписать или обновить отказ, вы можете сделать это ниже.",
+        "loadError": "Не удалось загрузить данные отказа",
+        "loadErrorDescription": "Мы не смогли найти информацию о вашем аккаунте. Пожалуйста, войдите снова и вернитесь на эту страницу.",
+        "accountError": "Мы не смогли определить ваш аккаунт для загрузки отказа. Пожалуйста, войдите снова."
+      },
+      "export": {
+        "title": "Экспорт ваших данных (Статья 15 — Право доступа)",
+        "description": "Скачайте полную копию всех ваших персональных данных в машиночитаемом формате (JSON). Это включает:",
+        "button": "Экспортировать все мои данные",
+        "successTitle": "Экспорт данных выполнен",
+        "successDescription": "Ваши данные были загружены. Файл содержит всю вашу личную информацию в формате JSON."
+      },
+      "deletion": {
+        "title": "Удаление ваших данных (Статья 17 — Право на стирание)",
+        "importantNotice": "Важное уведомление",
+        "noticeDescription1": "Это действие анонимизирует ваши персональные данные. Ваш аккаунт будет удалён навсегда.",
+        "noticeDescription2": "Финансовые записи должны храниться 7 лет в соответствии с налоговым законодательством. Эти записи будут сохранены, но анонимизированы (без личных идентификаторов).",
+        "irreversible": "Это действие нельзя отменить!",
+        "button": "Запросить удаление данных",
+        "confirmTitle": "Подтвердить удаление данных",
+        "confirmAction": "Это действие необратимо и не может быть отменено!",
+        "confirmInstruction": "Для подтверждения удаления введите",
+        "confirmPlaceholder": "Введите: УДАЛИТЬ МОИ ДАННЫЕ",
+        "retentionNote": "Финансовые записи будут храниться 7 лет (анонимизированными) для юридического соответствия.",
+        "okText": "Удалить мои данные",
+        "cancelText": "Отмена",
+        "successTitle_modal": "Анонимизация данных выполнена",
+        "successDescription_modal": "Ваши персональные данные были анонимизированы. Финансовые записи сохранены для юридического соответствия (7 лет).",
+        "anonymizedAt": "Анонимизировано:",
+        "loggingOut": "Вы будете выведены из системы через 5 секунд..."
+      },
+      "rights": {
+        "title": "Ваши права по GDPR",
+        "access": {
+          "label": "Право доступа (Ст. 15)",
+          "value": "Экспортировать все ваши персональные данные"
+        },
+        "rectification": {
+          "label": "Право на исправление (Ст. 16)",
+          "value": "Обновите информацию профиля в настройках аккаунта"
+        },
+        "erasure": {
+          "label": "Право на стирание (Ст. 17)",
+          "value": "Запросить удаление персональных данных"
+        },
+        "portability": {
+          "label": "Право на переносимость (Ст. 20)",
+          "value": "Получить данные в машиночитаемом формате (JSON)"
+        },
+        "withdrawConsent": {
+          "label": "Право отзыва согласия (Ст. 7)",
+          "value": "Управляйте коммуникационными предпочтениями в настройках аккаунта"
+        }
+      },
+      "contact": "Контакт:",
+      "responseTime": "Мы ответим на ваш запрос в течение 30 дней, как предусмотрено GDPR."
+    },
+    "waiver": {
+      "title": "Требуется отказ от ответственности",
+      "subtitle": "Протокол безопасности Duotone Pro Center",
+      "inPersonTitle": "Требуется личная подпись",
+      "inPersonDescription": "Для вашей безопасности и юридической защиты все отказы от ответственности должны быть подписаны лично в нашем центре до первого урока или аренды оборудования.",
+      "whatToExpect": "Чего ожидать",
+      "expectItems": {
+        "arrive": "Прибудьте за 15 минут до запланированного времени урока",
+        "signWithId": "Подпишите отказ с действительным удостоверением личности",
+        "staffProvide": "Наш персонал предоставит отказ от ответственности в центре",
+        "readCarefully": "Внимательно прочитайте отказ и задайте любые вопросы",
+        "validity": "Отказы действительны 12 месяцев с даты подписания"
+      },
+      "importantInfo": "Важная информация",
+      "minors": "Участники до 18 лет: Родитель или законный опекун должен присутствовать для подписания отказа от имени несовершеннолетнего.",
+      "groups": "Групповые бронирования: Каждый участник должен подписать собственный отказ. Пожалуйста, выделите дополнительное время для групп.",
+      "finalNote": "Вы подпишете отказ в центре перед уроком",
+      "finalSubnote": "Онлайн-подпись не требуется • Действителен 12 месяцев • Возьмите удостоверение личности",
+      "iUnderstand": "Я понимаю"
+    }
+  },
+  "account": {
+    "profilePhoto": {
+      "title": "Фото профиля",
+      "updatePhotoLabel": "Обновить фото",
+      "uploadDescription": "JPG, PNG или GIF. Макс {{maxMb}} МБ.",
+      "uploadButton": "Загрузить фото",
+      "toast": {
+        "updated": "Фото профиля обновлено",
+        "uploadError": "Не удалось загрузить фото",
+        "fileTooLarge": "Фото должно быть меньше {{maxMb}} МБ"
+      }
+    },
+    "personalInfo": {
+      "title": "Личная информация",
+      "firstName": "Имя",
+      "firstNamePlaceholder": "Имя",
+      "lastName": "Фамилия",
+      "lastNamePlaceholder": "Фамилия",
+      "email": "Email",
+      "emailPlaceholder": "Адрес email",
+      "phone": "Телефон",
+      "phonePlaceholder": "Номер телефона",
+      "dateOfBirth": "Дата рождения",
+      "bio": "О себе",
+      "bioPlaceholder": "Расскажите другим немного о себе",
+      "save": "Сохранить профиль",
+      "toast": {
+        "saved": "Личная информация обновлена",
+        "saveError": "Не удалось обновить личную информацию"
+      }
+    },
+    "password": {
+      "title": "Изменить пароль",
+      "currentPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "confirmPassword": "Подтвердить новый пароль",
+      "save": "Изменить пароль",
+      "toast": {
+        "changed": "Пароль успешно изменён",
+        "changeError": "Не удалось изменить пароль",
+        "enterCurrent": "Введите текущий пароль",
+        "minLength": "Новый пароль должен содержать не менее 8 символов",
+        "noMatch": "Новые пароли не совпадают"
+      }
+    }
+  }
+}

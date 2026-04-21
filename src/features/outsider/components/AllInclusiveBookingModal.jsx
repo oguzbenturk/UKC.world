@@ -10,6 +10,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Button, Tag, Steps, Spin, Input, Select, Tooltip, Alert, App } from 'antd';
 import {
   CalendarOutlined,
@@ -171,6 +172,7 @@ const findFirstAvailableDate = (bookedRanges, nights) => {
 
 /* ─────────────────────── DateStep ─────────────────────── */
 const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, bookedRanges = [], loadingAvailability = false, initialMonth }) => {
+  const { t } = useTranslation(['outsider']);
   const { message } = App.useApp();
   const today = dayjs().startOf('day');
   const [calendarMonth, setCalendarMonth] = useState(initialMonth || dayjs().startOf('month'));
@@ -281,7 +283,7 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
         <Spin size="large" />
-        <p className="text-slate-500 text-sm font-duotone-regular">Checking availability...</p>
+        <p className="text-slate-500 text-sm font-duotone-regular">{t('outsider:allInclusive.dates.checking')}</p>
       </div>
     );
   }
@@ -291,8 +293,8 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
       <div className="mb-4 text-center">
         <p className="text-slate-600 text-sm font-duotone-regular">
           {accommodationNights > 0
-            ? <>Select your check-in date <span className="text-duotone-blue font-duotone-bold">({accommodationNights} nights — check-out auto-calculated)</span></>
-            : 'Select your check-in and check-out dates'
+            ? <>{t('outsider:allInclusive.dates.selectCheckin', { nights: accommodationNights })}</>
+            : t('outsider:allInclusive.dates.selectRange')
           }
         </p>
       </div>
@@ -300,10 +302,10 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
       {bookedRanges.length > 0 && (
         <div className="mb-3 flex items-center justify-center gap-4 text-xs text-slate-500 font-duotone-regular">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300" /> Booked
+            <span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300" /> {t('outsider:allInclusive.dates.legend.booked')}
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded bg-duotone-blue" /> Selected
+            <span className="inline-block w-3 h-3 rounded bg-duotone-blue" /> {t('outsider:allInclusive.dates.legend.selected')}
           </span>
         </div>
       )}
@@ -337,13 +339,13 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
 
       {/* Selection summary */}
       <div className="mt-4 flex flex-wrap gap-2 justify-center">
-        {checkIn && <Tag className="!bg-duotone-blue/10 !border-duotone-blue/40 !text-sky-800 !text-xs font-duotone-regular">Check-in: {checkIn.format('DD MMM YYYY')}</Tag>}
-        {checkOut && <Tag className="!bg-duotone-blue/10 !border-duotone-blue/40 !text-sky-800 !text-xs font-duotone-regular">Check-out: {checkOut.format('DD MMM YYYY')}</Tag>}
-        {nights > 0 && <Tag className="!bg-emerald-50 !border-emerald-200 !text-emerald-800 !text-xs font-duotone-regular">{nights} night{nights > 1 ? 's' : ''}</Tag>}
+        {checkIn && <Tag className="!bg-duotone-blue/10 !border-duotone-blue/40 !text-sky-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.dates.checkin')}: {checkIn.format('DD MMM YYYY')}</Tag>}
+        {checkOut && <Tag className="!bg-duotone-blue/10 !border-duotone-blue/40 !text-sky-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.dates.checkout')}: {checkOut.format('DD MMM YYYY')}</Tag>}
+        {nights > 0 && <Tag className="!bg-emerald-50 !border-emerald-200 !text-emerald-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.dates.nights', { count: nights })}</Tag>}
       </div>
 
       {selectingCheckOut && checkIn && (
-        <p className="text-center text-duotone-blue text-xs mt-2 font-duotone-bold">Now click your check-out date</p>
+        <p className="text-center text-duotone-blue text-xs mt-2 font-duotone-bold">{t('outsider:allInclusive.dates.selectCheckout')}</p>
       )}
     </div>
   );
@@ -351,6 +353,7 @@ const DateStep = ({ checkIn, checkOut, onDateChange, accommodationNights, booked
 
 /* ─────────────────────── RentalStep ─────────────────────── */
 const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalChange, rentalServiceName }) => {
+  const { t } = useTranslation(['outsider']);
   const { message } = App.useApp();
   // Build array of selectable dates: accommodation dates + extra days to cover rental period
   // If rental days > accommodation nights, extend the range before/after
@@ -404,7 +407,7 @@ const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalC
     <div>
       <div className="mb-4 text-center">
         <p className="text-slate-600 text-sm font-duotone-regular">
-          Select which days you want equipment rental
+          {t('outsider:allInclusive.rentals.instruction')}
         </p>
         <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
           <Tag className="!bg-orange-50 !border-orange-200 !text-orange-800 !text-xs font-duotone-regular">
@@ -412,7 +415,7 @@ const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalC
             {rentalServiceName || 'Equipment Rental'}
           </Tag>
           <Tag className="!bg-slate-100 !border-slate-200 !text-slate-800 !text-xs font-duotone-regular">
-            {selectedCount} / {rentalDays} days selected
+            {t('outsider:allInclusive.rentals.daysSelected', { selected: selectedCount, total: rentalDays })}
           </Tag>
         </div>
       </div>
@@ -436,9 +439,9 @@ const RentalStep = ({ checkIn, checkOut, rentalDays, rentalSelections, onRentalC
                 <span className="font-duotone-bold text-slate-900">{date.format('ddd, DD MMM YYYY')}</span>
               </div>
               {isSelected ? (
-                <Tag className="!bg-orange-600 !text-white !border-orange-600 !m-0 font-duotone-bold">Rental</Tag>
+                <Tag className="!bg-orange-600 !text-white !border-orange-600 !m-0 font-duotone-bold">{t('outsider:allInclusive.rentals.rentalTag')}</Tag>
               ) : (
-                <span className="text-xs text-slate-500 font-duotone-regular">Click to add</span>
+                <span className="text-xs text-slate-500 font-duotone-regular">{t('outsider:allInclusive.rentals.clickToAdd')}</span>
               )}
             </button>
           );
@@ -457,6 +460,7 @@ const LessonStep = ({
   onLessonScheduleChange,
   lessonServiceName,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const [instructors, setInstructors] = useState([]);
   const [loadingInstructors, setLoadingInstructors] = useState(true);
   const [slotsCache, setSlotsCache] = useState({}); // { 'YYYY-MM-DD_instructorId': availableStarts[] }
@@ -647,7 +651,7 @@ const LessonStep = ({
     return (
       <div className="flex items-center justify-center py-12">
         <Spin size="large" />
-        <span className="ml-3 text-slate-500 font-duotone-regular">Loading instructors...</span>
+        <span className="ml-3 text-slate-500 font-duotone-regular">{t('outsider:allInclusive.lessons.loadingInstructors')}</span>
       </div>
     );
   }
@@ -656,7 +660,7 @@ const LessonStep = ({
     <div>
       <div className="mb-4 text-center">
         <p className="text-slate-600 text-sm font-duotone-regular">
-          Schedule your {LESSON_DURATION_HOURS}h lesson blocks with available instructors
+          {t('outsider:allInclusive.lessons.scheduleBlocks', { hours: LESSON_DURATION_HOURS })}
         </p>
         <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
           <Tag className="!bg-emerald-50 !border-emerald-200 !text-emerald-800 !text-xs font-duotone-regular">
@@ -677,10 +681,10 @@ const LessonStep = ({
       {/* Single global instructor selector */}
       <div className="mb-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <UserOutlined className="mr-1" /> Instructor
+          <UserOutlined className="mr-1" /> {t('outsider:allInclusive.lessons.instructorLabel')}
         </p>
         <Select
-          placeholder="Select instructor for all lessons"
+          placeholder={t('outsider:allInclusive.lessons.selectInstructor')}
           value={globalInstructorId || undefined}
           onChange={handleGlobalInstructorChange}
           className="w-full"
@@ -711,12 +715,12 @@ const LessonStep = ({
                   onClick={() => addBlock(dateStr)}
                   className="!border-slate-300 !text-slate-600 hover:!text-slate-900 hover:!border-duotone-blue"
                 >
-                  + Add Lesson
+                  {t('outsider:allInclusive.lessons.addLesson')}
                 </Button>
               </div>
 
               {blocks.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-2 font-duotone-regular">No lessons scheduled for this day</p>
+                <p className="text-slate-500 text-xs text-center py-2 font-duotone-regular">{t('outsider:allInclusive.lessons.noLessonsDay')}</p>
               ) : (
                 <div className="space-y-2">
                   {blocks.map((block) => {
@@ -728,10 +732,10 @@ const LessonStep = ({
                       <div key={block.idx} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center bg-white rounded-lg p-2 border border-slate-100">
                         <div className="flex-1 min-w-0">
                           {!globalInstructorId ? (
-                            <span className="text-slate-400 text-xs px-2 font-duotone-regular">Pick an instructor above first</span>
+                            <span className="text-slate-400 text-xs px-2 font-duotone-regular">{t('outsider:allInclusive.lessons.pickInstructorFirst')}</span>
                           ) : isLoadingSlot ? (
                             <div className="flex items-center gap-2 text-slate-500 text-xs px-2 font-duotone-regular">
-                              <Spin size="small" /> Loading times...
+                              <Spin size="small" /> {t('outsider:allInclusive.lessons.loadingTimes')}
                             </div>
                           ) : slots.length > 0 ? (
                             <Select
@@ -746,10 +750,10 @@ const LessonStep = ({
                               }))}
                             />
                           ) : (
-                            <span className="text-red-600 text-xs px-2 font-duotone-regular">No available slots</span>
+                            <span className="text-red-600 text-xs px-2 font-duotone-regular">{t('outsider:allInclusive.lessons.noSlots')}</span>
                           )}
                         </div>
-                        <Tooltip title="Remove this lesson block">
+                        <Tooltip title={t('outsider:allInclusive.lessons.removeLesson')}>
                           <Button
                             size="small"
                             danger
@@ -789,6 +793,7 @@ const PaymentStep = ({
   getDisplayPrice,
   isPurchasing = false,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const packagePriceEur = Number(selectedPackage?.price) || 0;
   const voucherServiceId =
     selectedPackage?.id != null && VOUCHER_SERVICE_UUID_RE.test(String(selectedPackage.id))
@@ -799,12 +804,12 @@ const PaymentStep = ({
     <div className="space-y-5">
       {/* Price summary card */}
       <div className="rounded-2xl border border-[rgba(0,168,196,0.35)] bg-gradient-to-br from-duotone-blue/10 to-duotone-blue/5 p-4">
-        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-600 mb-1">Total Price</p>
+        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-600 mb-1">{t('outsider:allInclusive.payment.totalPrice')}</p>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-2xl font-duotone-bold text-slate-900">{getDisplayPrice()}</span>
           {appliedVoucher && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-duotone-bold">
-              <CheckCircleOutlined className="text-[10px]" /> Discount Applied
+              <CheckCircleOutlined className="text-[10px]" /> {t('outsider:allInclusive.payment.discountApplied')}
             </span>
           )}
         </div>
@@ -812,7 +817,7 @@ const PaymentStep = ({
 
       {/* Promo Code */}
       <div>
-        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-500 mb-2">Promo Code</p>
+        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-500 mb-2">{t('outsider:allInclusive.payment.promoCode')}</p>
         <PromoCodeInput
           variant="light"
           context="packages"
@@ -828,7 +833,7 @@ const PaymentStep = ({
 
       {/* Payment Method — card buttons like QuickBookingModal */}
       <div>
-        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-500 mb-2">Payment Method</p>
+        <p className="text-xs font-duotone-bold-extended uppercase tracking-wider text-slate-500 mb-2">{t('outsider:allInclusive.payment.paymentMethod')}</p>
         <div className={`grid gap-2 ${isTrustedCustomer ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {/* Wallet */}
           <button
@@ -846,7 +851,7 @@ const PaymentStep = ({
               </div>
             )}
             <WalletOutlined className={`text-xl ${selectedPaymentMethod === 'wallet' ? 'text-blue-600' : 'text-slate-500'}`} />
-            <span className={`text-sm font-duotone-bold ${selectedPaymentMethod === 'wallet' ? 'text-blue-800' : 'text-slate-700'}`}>Wallet</span>
+            <span className={`text-sm font-duotone-bold ${selectedPaymentMethod === 'wallet' ? 'text-blue-800' : 'text-slate-700'}`}>{t('outsider:allInclusive.payment.wallet')}</span>
             <span className={`text-[10px] font-duotone-regular ${selectedPaymentMethod === 'wallet' ? 'text-blue-700' : 'text-slate-600'}`}>
               {formatCurrency(walletBalance, userCurrency)}
             </span>
@@ -869,9 +874,9 @@ const PaymentStep = ({
                 </div>
               )}
               <CalendarOutlined className={`text-xl ${selectedPaymentMethod === 'pay_later' ? 'text-orange-600' : 'text-slate-500'}`} />
-              <span className={`text-sm font-duotone-bold ${selectedPaymentMethod === 'pay_later' ? 'text-orange-900' : 'text-slate-700'}`}>Pay Later</span>
+              <span className={`text-sm font-duotone-bold ${selectedPaymentMethod === 'pay_later' ? 'text-orange-900' : 'text-slate-700'}`}>{t('outsider:allInclusive.payment.payLater')}</span>
               <span className={`text-[10px] font-duotone-regular ${selectedPaymentMethod === 'pay_later' ? 'text-orange-800' : 'text-slate-600'}`}>
-                At the center
+                {t('outsider:allInclusive.payment.atCenter')}
               </span>
             </button>
           )}
@@ -893,6 +898,7 @@ const AllInclusiveBookingModal = ({
   onPurchase,
   isPurchasing = false,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const { message } = App.useApp();
   const { user } = useAuth();
   const { userCurrency, formatCurrency, convertCurrency } = useCurrency();
@@ -932,12 +938,12 @@ const AllInclusiveBookingModal = ({
   // Determine which steps to show based on package contents
   const steps = useMemo(() => {
     const s = [];
-    if (includesAccommodation) s.push({ key: 'dates', title: 'Dates', icon: <CalendarOutlined /> });
-    if (includesRental) s.push({ key: 'rentals', title: 'Rentals', icon: <CarOutlined /> });
-    if (includesLessons) s.push({ key: 'lessons', title: 'Lessons', icon: <BookOutlined /> });
-    s.push({ key: 'payment', title: 'Payment', icon: <WalletOutlined /> });
+    if (includesAccommodation) s.push({ key: 'dates', title: t('outsider:allInclusive.steps.dates'), icon: <CalendarOutlined /> });
+    if (includesRental) s.push({ key: 'rentals', title: t('outsider:allInclusive.steps.rentals'), icon: <CarOutlined /> });
+    if (includesLessons) s.push({ key: 'lessons', title: t('outsider:allInclusive.steps.lessons'), icon: <BookOutlined /> });
+    s.push({ key: 'payment', title: t('outsider:allInclusive.steps.payment'), icon: <WalletOutlined /> });
     return s;
-  }, [includesAccommodation, includesRental, includesLessons]);
+  }, [includesAccommodation, includesRental, includesLessons, t]);
 
   const currentStepKey = steps[currentStep]?.key;
 
@@ -1132,7 +1138,7 @@ const AllInclusiveBookingModal = ({
       title={
         <div className="flex items-center gap-3 text-slate-900 font-duotone-bold text-base">
           <ShoppingOutlined className="text-duotone-blue text-lg" />
-          <span>Book All-Inclusive Package</span>
+          <span>{t('outsider:allInclusive.title')}</span>
         </div>
       }
       open={open}
@@ -1153,9 +1159,9 @@ const AllInclusiveBookingModal = ({
             <div>
               <p className="text-slate-900 font-duotone-bold text-sm">{selectedPackage.name}</p>
               <div className="flex flex-wrap gap-1 mt-1">
-                {includesLessons && <Tag className="!bg-emerald-50 !border-emerald-200 !text-emerald-800 !text-xs font-duotone-regular">Lessons {totalHours}h</Tag>}
-                {includesRental && <Tag className="!bg-orange-50 !border-orange-200 !text-orange-800 !text-xs font-duotone-regular">Rental {rentalDays}d</Tag>}
-                {includesAccommodation && <Tag className="!bg-sky-50 !border-sky-200 !text-sky-800 !text-xs font-duotone-regular">Stay {accommodationNights}n</Tag>}
+                {includesLessons && <Tag className="!bg-emerald-50 !border-emerald-200 !text-emerald-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.packageSummary.lessons', { hours: totalHours })}</Tag>}
+                {includesRental && <Tag className="!bg-orange-50 !border-orange-200 !text-orange-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.packageSummary.rental', { days: rentalDays })}</Tag>}
+                {includesAccommodation && <Tag className="!bg-sky-50 !border-sky-200 !text-sky-800 !text-xs font-duotone-regular">{t('outsider:allInclusive.packageSummary.stay', { nights: accommodationNights })}</Tag>}
               </div>
             </div>
             <span className="text-duotone-blue font-duotone-bold text-lg">{getDisplayPrice()}</span>
@@ -1167,8 +1173,8 @@ const AllInclusiveBookingModal = ({
               type="error"
               showIcon
               className="mb-4 !rounded-xl"
-              message="Accommodation Unavailable"
-              description="The accommodation unit linked to this package is currently unavailable. Please contact support or try a different package."
+              message={t('outsider:allInclusive.accommodationUnavailable.title')}
+              description={t('outsider:allInclusive.accommodationUnavailable.description')}
             />
           )}
 
@@ -1221,8 +1227,8 @@ const AllInclusiveBookingModal = ({
                 type="warning"
                 showIcon
                 className="mb-4 !rounded-xl"
-                message="Lesson service not configured"
-                description="This package does not have a lesson service linked. Your lesson schedule will be saved but lesson bookings may not be created automatically. Please contact staff to confirm your lessons."
+                message={t('outsider:allInclusive.lessonNotConfigured.title')}
+                description={t('outsider:allInclusive.lessonNotConfigured.description')}
               />
             )}
 
@@ -1252,7 +1258,7 @@ const AllInclusiveBookingModal = ({
               className="!border-slate-300 !text-slate-600 hover:!text-slate-900 hover:!border-slate-400 font-duotone-regular"
               icon={<LeftOutlined />}
             >
-              Back
+              {t('outsider:allInclusive.nav.back')}
             </Button>
 
             {currentStep < steps.length - 1 ? (
@@ -1263,7 +1269,7 @@ const AllInclusiveBookingModal = ({
                 icon={<RightOutlined />}
                 iconPosition="end"
               >
-                Next
+                {t('outsider:allInclusive.nav.next')}
               </Button>
             ) : (
               <Button
@@ -1272,7 +1278,7 @@ const AllInclusiveBookingModal = ({
                 loading={isPurchasing}
                 onClick={() => {
                   Modal.confirm({
-                    title: <span className="text-slate-900 font-duotone-bold">Confirm Purchase</span>,
+                    title: <span className="text-slate-900 font-duotone-bold">{t('outsider:allInclusive.confirm.title')}</span>,
                     icon: <CheckCircleOutlined className="text-duotone-blue" />,
                     content: (
                       <div className="mt-2 space-y-2 font-duotone-regular text-slate-600">
@@ -1280,16 +1286,16 @@ const AllInclusiveBookingModal = ({
                         <p className="text-lg font-duotone-bold text-slate-900">{getDisplayPrice()}</p>
                         {checkIn && checkOut && (
                           <p className="text-slate-500 text-sm">
-                            Dates: {checkIn.format('DD MMM')} — {checkOut.format('DD MMM YYYY')}
+                            {t('outsider:allInclusive.confirm.datesLabel')} {checkIn.format('DD MMM')} — {checkOut.format('DD MMM YYYY')}
                           </p>
                         )}
                         <p className="text-slate-500 text-sm">
-                          Payment: {selectedPaymentMethod === 'wallet' ? 'Wallet' : selectedPaymentMethod === 'credit_card' ? 'Card' : 'Pay Later'}
+                          {t('outsider:allInclusive.confirm.paymentLabel')} {selectedPaymentMethod === 'wallet' ? t('outsider:allInclusive.payment.wallet') : selectedPaymentMethod === 'credit_card' ? 'Card' : t('outsider:allInclusive.payment.payLater')}
                         </p>
                       </div>
                     ),
-                    okText: 'Confirm & Pay',
-                    cancelText: 'Go Back',
+                    okText: t('outsider:allInclusive.confirm.confirmPay'),
+                    cancelText: t('outsider:allInclusive.confirm.goBack'),
                     centered: true,
                     onOk: handlePurchase,
                     styles: {
@@ -1303,7 +1309,7 @@ const AllInclusiveBookingModal = ({
                 className="!bg-duotone-blue !border-duotone-blue hover:!bg-sky-600 hover:!border-sky-600 !text-white !font-duotone-bold"
                 icon={<CheckCircleOutlined />}
               >
-                Complete Purchase
+                {t('outsider:allInclusive.nav.completePurchase')}
               </Button>
             )}
           </div>

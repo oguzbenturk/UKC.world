@@ -111,8 +111,13 @@ Each role gets its own lazy-loaded namespace JSON. Dependency chain: **Common �
   - [x] [RentalStandardPage.jsx](src/features/outsider/pages/RentalStandardPage.jsx) (was 437L with dead code, now 119L) — rewrote cleanly, package data (names/descriptions/highlights/badges/duration labels) all resolved via `t('outsider:rentalStandard.packages.*', { returnObjects: true })`
   - [x] [RentalPremiumPage.jsx](src/features/outsider/pages/RentalPremiumPage.jsx) (281L) — standalone layout with SLS/D-LAB/Foil Board packages fully migrated
   - [x] [AcademyServicePackagesPage.jsx](src/features/outsider/components/AcademyServicePackagesPage.jsx) shared component chrome — discipline filter labels, "All Services" button, empty states, FAQ section, Contact Us button. This also translates the /rental/sls, /rental/dlab, /rental/efoil showcase pages (which all wrap this shared component with CMS-sourced package data).
-- [ ] Detail pages — ProductDetailPage, StayBookingPage, ExperienceBookPackagePage
-- [ ] Public booking modals (QuickBookingModal, AllInclusiveBookingModal, RentalBookingModal) — ~4,000L combined
+- [ ] Detail pages — ProductDetailPage, StayBookingPage
+- [x] [ExperienceBookPackagePage.jsx](src/features/outsider/pages/ExperienceBookPackagePage.jsx) — PackageList sub-component fully migrated (back button, available packages label, loading/empty states, owned badge, hoursLeft, purchase/buyAgain buttons)
+- [x] Public booking modals — all 4 migrated (~4,000L combined):
+  - [x] [AccommodationBookingModal.jsx](src/features/outsider/components/AccommodationBookingModal.jsx) — calendar legend/hints, guests, payment methods, deposit breakdown, summary, submit buttons, validation, toasts
+  - [x] [RentalBookingModal.jsx](src/features/outsider/components/RentalBookingModal.jsx) — DateStep, PayStep, DoneStep, main modal (stepTitles, confirm dialog, toasts)
+  - [x] [AllInclusiveBookingModal.jsx](src/features/outsider/components/AllInclusiveBookingModal.jsx) — DateStep, RentalStep, LessonStep, PaymentStep, main modal (steps array, package summary tags, alerts, nav buttons, confirm dialog)
+  - [x] [QuickBookingModal.jsx](src/features/outsider/components/QuickBookingModal.jsx) — PayStep, SessionSlotRow, ScheduleStep, DoneStep, main modal (stepTitles, visibleSteps, step counter, confirm dialogs, toasts)
 - [ ] `src/features/forms/public/**` — public forms, group invitations
 
 ### Student / Trusted Customer (~300 strings) — `student.json`
@@ -132,10 +137,12 @@ Each role gets its own lazy-loaded namespace JSON. Dependency chain: **Common �
 - [ ] `src/features/accommodation/**`, `src/features/marketing/**`, `src/features/events/**`
 - [ ] `src/features/quicklinks/**`, `src/features/services/**`
 
-### Admin (~600 strings) — `admin.json`
-- [ ] `src/features/admin/**`, `src/features/settings/**`
-- [ ] `src/features/compliance/**`, `src/features/members/**`, `src/features/community/**`
-- [ ] Waivers, legal, support tickets, spare parts, vouchers, deleted bookings
+### Admin (~700 strings) — `admin.json`
+- [x] `src/features/admin/**`, `src/features/settings/**`
+- [x] `src/features/compliance/**`, `src/features/members/**`, `src/features/community/**`
+- [x] Waivers, legal, support tickets, spare parts, vouchers, deleted bookings
+- [x] All 6 locale files written and validated (en, tr, fr, ru, es, de)
+- [ ] Component files migrated to `useTranslation(['admin'])` + `t('admin:key')` calls
 
 ### Errors (~80 strings) — `errors.json`
 - [ ] One key per backend error code from Phase 3

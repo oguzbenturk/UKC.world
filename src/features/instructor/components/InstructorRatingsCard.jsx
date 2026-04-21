@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { useInstructorRatings } from '../hooks/useInstructorRatings';
 
 const formatTimestamp = (isoString) => {
@@ -28,6 +29,7 @@ const MiniStars = ({ value = 0 }) => (
 const barColors = { 5: 'bg-emerald-500', 4: 'bg-emerald-400', 3: 'bg-amber-400', 2: 'bg-orange-400', 1: 'bg-rose-400' };
 
 const InstructorRatingsCard = ({ limit = 5 }) => {
+  const { t } = useTranslation(['instructor']);
   const { ratings, summary, stats, isLoading, error } = useInstructorRatings({ limit });
   const recentRatings = useMemo(() => ratings.slice(0, limit), [ratings, limit]);
 
@@ -60,7 +62,9 @@ const InstructorRatingsCard = ({ limit = 5 }) => {
           </div>
           <div>
             <MiniStars value={averageRating} />
-            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">{totalRatings} rating{totalRatings !== 1 ? 's' : ''}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
+              {totalRatings} {totalRatings !== 1 ? t('instructor:ratings.ratings') : t('instructor:ratings.rating')}
+            </p>
           </div>
         </div>
       </div>
@@ -89,14 +93,14 @@ const InstructorRatingsCard = ({ limit = 5 }) => {
       {/* Recent feedback - compact */}
       <div className="px-3 sm:px-5 py-2.5 sm:py-3">
         {error && (
-          <p className="text-xs text-rose-500 mb-2">{error.message || 'Failed to load'}</p>
+          <p className="text-xs text-rose-500 mb-2">{error.message || t('instructor:ratings.failedToLoad')}</p>
         )}
         {!recentRatings.length ? (
-          <p className="text-xs text-slate-400 py-1">Feedback will appear here after lessons.</p>
+          <p className="text-xs text-slate-400 py-1">{t('instructor:ratings.noFeedback')}</p>
         ) : (
           <div className="space-y-2.5">
             {recentRatings.map((rating) => {
-              const name = rating.isAnonymous ? 'Anonymous' : (rating.studentName || 'Student');
+              const name = rating.isAnonymous ? t('instructor:ratings.anonymous') : (rating.studentName || 'Student');
               return (
                 <div key={rating.id} className="flex items-start gap-2.5">
                   <div className="h-7 w-7 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 text-[11px] font-semibold shrink-0 mt-0.5">

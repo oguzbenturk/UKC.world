@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 const statusColors = {
   completed: { badge: 'bg-emerald-100 text-emerald-700', accent: 'bg-emerald-500', ring: 'ring-emerald-100' },
   confirmed: { badge: 'bg-sky-100 text-sky-700', accent: 'bg-sky-500', ring: 'ring-sky-100' },
@@ -12,11 +14,13 @@ const getStatusColor = (status) => {
 };
 
 const LessonStatusHeatmap = ({ breakdown = [] }) => {
+  const { t } = useTranslation(['instructor']);
+
   if (!breakdown.length) {
     return (
       <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-4">
-        <h2 className="text-sm font-semibold text-slate-900">Lesson activity</h2>
-        <p className="mt-1 text-[10px] sm:text-xs text-slate-400">Book sessions to unlock insights.</p>
+        <h2 className="text-sm font-semibold text-slate-900">{t('instructor:lessonActivity.title')}</h2>
+        <p className="mt-1 text-[10px] sm:text-xs text-slate-400">{t('instructor:lessonActivity.bookToUnlock')}</p>
       </section>
     );
   }
@@ -26,8 +30,8 @@ const LessonStatusHeatmap = ({ breakdown = [] }) => {
   return (
     <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-4 space-y-2 sm:space-y-3">
       <header className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Lesson activity</h2>
-        <span className="text-[10px] text-slate-400 tabular-nums">{total} total</span>
+        <h2 className="text-sm font-semibold text-slate-900">{t('instructor:lessonActivity.title')}</h2>
+        <span className="text-[10px] text-slate-400 tabular-nums">{t('instructor:lessonActivity.total', { count: total })}</span>
       </header>
 
       <div className="grid grid-cols-3 gap-1.5 sm:gap-3">

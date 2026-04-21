@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { App, DatePicker, Modal, Spin, Form, Input, Alert } from 'antd';
 import { CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { CalendarDaysIcon, ClockIcon } from '@heroicons/react/24/outline';
@@ -127,10 +128,10 @@ const StatusBadge = ({ status }) => {
 /* ── Lesson detail modal ── */
 const DETAIL_STATUS = {
   completed: { accent: '#10b981', label: 'Completed', icon: '✓' },
-  scheduled: { accent: '#00a8c4', label: 'Scheduled', icon: '◉' },
-  pending:   { accent: '#f59e0b', label: 'Pending',   icon: '◷' },
-  cancelled: { accent: '#ef4444', label: 'Cancelled', icon: '✕' },
-  confirmed: { accent: '#00a8c4', label: 'Confirmed', icon: '✓' },
+  scheduled: { accent: '#00a8c4', key: 'scheduled', icon: '◉' },
+  pending:   { accent: '#f59e0b', key: 'pending',   icon: '◷' },
+  cancelled: { accent: '#ef4444', key: 'cancelled', icon: '✕' },
+  confirmed: { accent: '#00a8c4', key: 'confirmed', icon: '✓' },
 };
 
 const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
@@ -186,7 +187,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
       <div className="px-6 py-5 space-y-4">
         {/* Lesson name */}
         <div>
-          <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400 mb-1">Lesson</p>
+          <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400 mb-1">{t('student:schedule.detailModal.lessonLabel')}</p>
           <p className="text-[15px] font-duotone-bold text-slate-900">{meta.lessonName}</p>
         </div>
 
@@ -200,7 +201,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
             </div>
           )}
           <div>
-            <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400">Instructor</p>
+            <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400">{t('student:schedule.detailModal.instructorLabel')}</p>
             <p className="text-sm font-gotham-medium text-slate-800">{meta.instructorName}</p>
           </div>
         </div>
@@ -208,7 +209,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
         {/* Duration */}
         {lesson.duration && (
           <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 px-4 py-2.5">
-            <span className="text-xs text-slate-500 font-gotham-medium">Duration</span>
+            <span className="text-xs text-slate-500 font-gotham-medium">{t('student:schedule.detailModal.durationLabel')}</span>
             <span className="text-sm font-duotone-bold text-slate-900">{lesson.duration}h</span>
           </div>
         )}
@@ -216,7 +217,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
         {/* Notes */}
         {meta.hasNotes && (
           <div className="rounded-xl bg-amber-50/60 border border-amber-200/50 px-4 py-3">
-            <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-amber-600/80 mb-1">Notes</p>
+            <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-amber-600/80 mb-1">{t('student:schedule.detailModal.notesLabel')}</p>
             <p className="text-sm text-slate-700 leading-relaxed">{meta.notes}</p>
           </div>
         )}
@@ -272,7 +273,7 @@ const LessonRow = ({ lesson, meta, onRowClick, enableActions, onAction, isFirst 
             {meta.hasNotes && <> — <span className="italic">{meta.notes}</span></>}
           </span>
         </div>
-        {isFirst && <span className="shrink-0 rounded bg-duotone-blue px-1.5 py-px text-[8px] font-gotham-medium uppercase tracking-wider text-white leading-normal">Next</span>}
+        {isFirst && <span className="shrink-0 rounded bg-duotone-blue px-1.5 py-px text-[8px] font-gotham-medium uppercase tracking-wider text-white leading-normal">{t('student:schedule.lessonRow.nextBadge')}</span>}
       </div>
 
       {/* Status */}
@@ -421,7 +422,7 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
               disabled={!canSubmit}
               className="px-4 py-2 rounded-lg text-sm font-gotham-medium text-white bg-duotone-blue hover:bg-duotone-blue/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Sending...' : 'Request Reschedule'}
+              {submitting ? t('student:schedule.rescheduleModal.sendingButton') : t('student:schedule.rescheduleModal.submitButton')}
             </button>
           </div>
         </div>
@@ -434,7 +435,7 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200">
-          <p className="text-[10px] font-gotham-medium text-slate-400 uppercase tracking-wider mb-2">Current Booking</p>
+          <p className="text-[10px] font-gotham-medium text-slate-400 uppercase tracking-wider mb-2">{t('student:schedule.rescheduleModal.currentBookingLabel')}</p>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-duotone-bold text-slate-900">{lessonName}</p>
@@ -448,8 +449,8 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-gotham-medium text-slate-700 mb-2">Select New Date</label>
-          <DatePicker value={selectedDate} onChange={handleDateChange} disabledDate={disabledDate} className="w-full" format="dddd, MMMM D, YYYY" placeholder="Pick a date" size="large" />
+          <label className="block text-sm font-gotham-medium text-slate-700 mb-2">{t('student:schedule.rescheduleModal.selectDateLabel')}</label>
+          <DatePicker value={selectedDate} onChange={handleDateChange} disabledDate={disabledDate} className="w-full" format="dddd, MMMM D, YYYY" {...{placeholder: t('student:schedule.rescheduleModal.datePlaceholder')}} size="large" />
         </div>
 
         {selectedDate && (
@@ -463,15 +464,15 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
               <div className="flex justify-center py-6 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="text-center">
                   <Spin size="default" />
-                  <p className="mt-2 text-xs text-slate-500">Checking availability...</p>
+                  <p className="mt-2 text-xs text-slate-500">{t('student:schedule.rescheduleModal.checkingAvailability')}</p>
                 </div>
               </div>
             ) : availableStarts.length === 0 ? (
-              <Alert type="warning" showIcon message="No available slots" description={`${instructorName} has no available slots on ${selectedDate.format('MMM D')}. Try a different date.`} className="rounded-xl" />
+              <Alert type="warning" showIcon {...{message: t('student:schedule.rescheduleModal.noSlots')}} description={`${instructorName} has no available slots on ${selectedDate.format('MMM D')}. Try a different date.`} className="rounded-xl" />
             ) : (
               <div className="p-3 bg-sky-50/50 border border-sky-200 rounded-xl">
                 <p className="text-xs text-sky-700 mb-3 font-gotham-medium">
-                  {availableStarts.length} slot{availableStarts.length > 1 ? 's' : ''} available
+                  {t('student:schedule.rescheduleModal.slotsAvailable', { count: availableStarts.length })}
                 </p>
                 <div className="grid gap-2 grid-cols-2">
                   {availableStarts.map((slot) => (
@@ -509,8 +510,8 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
           );
         })()}
 
-        <Form.Item label={<span className="text-slate-700 font-gotham-medium">Reason for reschedule (optional)</span>} name="reason" className="mb-0">
-          <Input.TextArea rows={2} placeholder="e.g., Schedule conflict, personal emergency..." className="rounded-xl" />
+        <Form.Item label={<span className="text-slate-700 font-gotham-medium">{t('student:schedule.rescheduleModal.reasonLabel')}</span>} name="reason" className="mb-0">
+          <Input.TextArea rows={2} {...{placeholder: t('student:schedule.rescheduleModal.reasonPlaceholder')}} className="rounded-xl" />
         </Form.Item>
       </Form>
     </Modal>
@@ -595,7 +596,7 @@ const StudentSchedule = () => {
   }), [lessons.length, sortedUpcoming.length, sortedPast.length]);
 
   useEffect(() => {
-    if (error) notification.error({ message: 'Failed to load schedule', description: error.message, placement: 'bottomRight' });
+    if (error) notification.error({ message: t('student:schedule.rescheduleModal.errors.loadFailed'), description: error.message, placement: 'bottomRight' });
   }, [error, notification]);
 
   const handleAction = (type, booking) => setAction({ type, booking });
@@ -606,7 +607,7 @@ const StudentSchedule = () => {
   const handleReschedule = async (values) => {
     if (!action.booking) return;
     if (!values.newDateTime || typeof values.newStartHour !== 'number' || Number.isNaN(values.newStartHour)) {
-      notification.error({ message: 'Invalid reschedule data', description: 'Please select both a date and time slot' });
+      notification.error({ message: t('student:schedule.rescheduleModal.errors.invalidData'), description: t('student:schedule.rescheduleModal.errors.invalidDataDesc') });
       return;
     }
     try {
@@ -614,11 +615,11 @@ const StudentSchedule = () => {
         bookingId: action.booking.bookingId,
         payload: { action: 'reschedule', newDate: values.newDateTime.format('YYYY-MM-DD'), newStartHour: values.newStartHour, reason: values.reason, notifyManager: true },
       });
-      message.success('Reschedule request sent! A manager will confirm your new time.');
+      message.success(t('student:schedule.rescheduleModal.successMessage'));
       closeModal();
       refetch();
     } catch (e) {
-      notification.error({ message: 'Unable to reschedule', description: e.message });
+      notification.error({ message: t('student:schedule.rescheduleModal.errors.unableToReschedule'), description: e.message });
     }
   };
 
@@ -695,7 +696,7 @@ const StudentSchedule = () => {
             <LessonsList
               lessons={sortedUpcoming}
               loading={isLoading}
-              emptyMessage="No upcoming lessons yet"
+              {...{emptyMessage: t('student:schedule.emptyMessages.noUpcoming')}}
               enableActions
               onAction={handleAction}
               onRowClick={openDetail}
@@ -711,7 +712,7 @@ const StudentSchedule = () => {
             <LessonsList
               lessons={sortedPast}
               loading={isLoading}
-              emptyMessage="No lessons recorded yet"
+              {...{emptyMessage: t('student:schedule.emptyMessages.noPast')}}
               enableActions={false}
               onAction={handleAction}
               onRowClick={openDetail}

@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { 
-  Avatar, 
-  Form, 
-  Input, 
-  Modal, 
-  Space, 
-  Switch, 
-  Typography, 
-  Tag, 
+import { useTranslation } from 'react-i18next';
+import {
+  Avatar,
+  Form,
+  Input,
+  Modal,
+  Space,
+  Switch,
+  Typography,
+  Tag,
   Divider,
   Radio
 } from 'antd';
-import { 
-  EditOutlined, 
-  LockOutlined, 
-  UnlockOutlined, 
+import {
+  EditOutlined,
+  LockOutlined,
+  UnlockOutlined,
   PushpinOutlined,
   UserOutlined,
   CalendarOutlined,
@@ -26,15 +27,15 @@ import { useInstructorStudentNotes } from '../hooks/useInstructorStudentNotes';
 const { Text, Title, Paragraph } = Typography;
 
 // Header component
-const ModalHeader = () => (
+const ModalHeader = ({ t }) => (
   <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 px-6 py-6 text-white">
     <div className="flex items-center gap-4">
       <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-white/30 bg-white/20 shadow-lg backdrop-blur">
         <EditOutlined className="text-2xl text-white" />
       </div>
       <div>
-        <Title level={4} className="!mb-0 !text-white">Add Lesson Note</Title>
-        <Text className="text-white/80">Share feedback about this session</Text>
+        <Title level={4} className="!mb-0 !text-white">{t('instructor:lessonNote.title')}</Title>
+        <Text className="text-white/80">{t('instructor:lessonNote.subtitle')}</Text>
       </div>
     </div>
   </div>
@@ -65,42 +66,42 @@ LessonInfo.propTypes = {
 };
 
 // Visibility selector component
-const VisibilitySelector = ({ visibility, setVisibility }) => (
-  <Form.Item 
+const VisibilitySelector = ({ visibility, setVisibility, t }) => (
+  <Form.Item
     name="visibility"
     label={
       <Space>
         {visibility === 'student_visible' ? <UnlockOutlined className="text-emerald-500" /> : <LockOutlined className="text-amber-500" />}
-        <Text className="text-slate-600">Who can see this note?</Text>
+        <Text className="text-slate-600">{t('instructor:lessonNote.visibility')}</Text>
       </Space>
     }
     initialValue="student_visible"
   >
     <Radio.Group onChange={(e) => setVisibility(e.target.value)} className="w-full">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Radio.Button 
-          value="student_visible" 
+        <Radio.Button
+          value="student_visible"
           className="h-auto rounded-xl border-2 p-4 text-left hover:border-emerald-300"
           style={{ borderColor: visibility === 'student_visible' ? '#10b981' : undefined, backgroundColor: visibility === 'student_visible' ? '#ecfdf5' : undefined }}
         >
           <div className="flex items-start gap-3">
             <UnlockOutlined className="mt-1 text-emerald-500" />
             <div>
-              <Text strong>Student Visible</Text>
-              <Paragraph className="!mb-0 text-xs text-slate-500">Student can see this in their dashboard</Paragraph>
+              <Text strong>{t('instructor:lessonNote.studentVisible')}</Text>
+              <Paragraph className="!mb-0 text-xs text-slate-500">{t('instructor:lessonNote.studentVisibleDesc')}</Paragraph>
             </div>
           </div>
         </Radio.Button>
-        <Radio.Button 
-          value="instructor_only" 
+        <Radio.Button
+          value="instructor_only"
           className="h-auto rounded-xl border-2 p-4 text-left hover:border-amber-300"
           style={{ borderColor: visibility === 'instructor_only' ? '#f59e0b' : undefined, backgroundColor: visibility === 'instructor_only' ? '#fffbeb' : undefined }}
         >
           <div className="flex items-start gap-3">
             <LockOutlined className="mt-1 text-amber-500" />
             <div>
-              <Text strong>Private Note</Text>
-              <Paragraph className="!mb-0 text-xs text-slate-500">Only you and admins can see this</Paragraph>
+              <Text strong>{t('instructor:lessonNote.privateNote')}</Text>
+              <Paragraph className="!mb-0 text-xs text-slate-500">{t('instructor:lessonNote.privateNoteDesc')}</Paragraph>
             </div>
           </div>
         </Radio.Button>
@@ -111,18 +112,19 @@ const VisibilitySelector = ({ visibility, setVisibility }) => (
 
 VisibilitySelector.propTypes = {
   visibility: PropTypes.string.isRequired,
-  setVisibility: PropTypes.func.isRequired
+  setVisibility: PropTypes.func.isRequired,
+  t: PropTypes.func.isRequired
 };
 
 // Pin option component
-const PinOption = () => (
+const PinOption = ({ t }) => (
   <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         <PushpinOutlined className="text-lg text-indigo-500" />
         <div>
-          <Text strong className="text-slate-700">Pin this note</Text>
-          <Paragraph className="!mb-0 text-xs text-slate-500">Pinned notes appear at the top of the student&apos;s profile</Paragraph>
+          <Text strong className="text-slate-700">{t('instructor:lessonNote.pinNote')}</Text>
+          <Paragraph className="!mb-0 text-xs text-slate-500">{t('instructor:lessonNote.pinNoteDesc')}</Paragraph>
         </div>
       </div>
       <Form.Item name="isPinned" valuePropName="checked" className="!mb-0">
@@ -133,7 +135,7 @@ const PinOption = () => (
 );
 
 // Submit buttons component
-const SubmitButtons = ({ isCreating, onSubmit, onCancel }) => (
+const SubmitButtons = ({ isCreating, onSubmit, onCancel, t }) => (
   <>
     <button
       type="button"
@@ -144,10 +146,10 @@ const SubmitButtons = ({ isCreating, onSubmit, onCancel }) => (
       {isCreating ? (
         <span className="flex items-center justify-center gap-2">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          Saving...
+          {t('instructor:lessonNote.saving')}
         </span>
       ) : (
-        <span className="flex items-center justify-center gap-2"><EditOutlined />Save Note</span>
+        <span className="flex items-center justify-center gap-2"><EditOutlined />{t('instructor:lessonNote.saveNote')}</span>
       )}
     </button>
     <button
@@ -156,7 +158,7 @@ const SubmitButtons = ({ isCreating, onSubmit, onCancel }) => (
       disabled={isCreating}
       className="mt-3 w-full rounded-lg px-4 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed"
     >
-      Cancel
+      {t('instructor:lessonNote.cancel')}
     </button>
   </>
 );
@@ -164,7 +166,8 @@ const SubmitButtons = ({ isCreating, onSubmit, onCancel }) => (
 SubmitButtons.propTypes = {
   isCreating: PropTypes.bool.isRequired,
   onSubmit: PropTypes.func.isRequired,
-  onCancel: PropTypes.func.isRequired
+  onCancel: PropTypes.func.isRequired,
+  t: PropTypes.func.isRequired
 };
 
 /**
@@ -172,15 +175,16 @@ SubmitButtons.propTypes = {
  * Can be used after lesson checkout or from student detail page
  */
 // eslint-disable-next-line complexity
-export const LessonNoteModal = ({ 
-  open = false, 
-  lesson = null, 
+export const LessonNoteModal = ({
+  open = false,
+  lesson = null,
   onClose = undefined,
-  onSuccess = undefined 
+  onSuccess = undefined
 }) => {
+  const { t } = useTranslation(['instructor']);
   const [form] = Form.useForm();
   const [visibility, setVisibility] = useState('student_visible');
-  
+
   const studentId = lesson?.studentId || lesson?.student?.id;
   const { createNote, isCreating } = useInstructorStudentNotes(studentId, { enabled: false });
 
@@ -232,34 +236,34 @@ export const LessonNoteModal = ({
     >
       {lesson && studentId ? (
         <div className="overflow-hidden rounded-lg">
-          <ModalHeader />
+          <ModalHeader t={t} />
           <LessonInfo studentName={studentName} serviceName={serviceName} lessonDate={lessonDate} />
           <div className="px-6 py-6">
             <Form layout="vertical" form={form} requiredMark={false}>
-              <Form.Item 
+              <Form.Item
                 name="note"
-                label={<Text className="text-slate-600">Your notes about this lesson</Text>}
-                rules={[{ required: true, message: 'Please enter your notes' }]}
+                label={<Text className="text-slate-600">{t('instructor:lessonNote.yourNotes')}</Text>}
+                rules={[{ required: true, message: t('instructor:lessonNote.pleaseEnterNotes') }]}
               >
-                <Input.TextArea 
-                  rows={4} 
-                  maxLength={2000} 
+                <Input.TextArea
+                  rows={4}
+                  maxLength={2000}
                   showCount
-                  placeholder="How did the lesson go? Any progress, challenges, or things to work on next time?"
+                  placeholder={t('instructor:lessonNote.notesPlaceholder')}
                   className="rounded-xl"
                 />
               </Form.Item>
               <Divider className="my-4" />
-              <VisibilitySelector visibility={visibility} setVisibility={setVisibility} />
-              <PinOption />
-              <SubmitButtons isCreating={isCreating} onSubmit={handleSubmit} onCancel={() => onClose?.(false)} />
+              <VisibilitySelector visibility={visibility} setVisibility={setVisibility} t={t} />
+              <PinOption t={t} />
+              <SubmitButtons isCreating={isCreating} onSubmit={handleSubmit} onCancel={() => onClose?.(false)} t={t} />
             </Form>
           </div>
         </div>
       ) : (
         <div className="p-6 text-center">
           <Paragraph style={{ marginBottom: 0 }}>
-            We couldn&apos;t find details for this lesson.
+            {t('instructor:lessonNote.noLessonDetails')}
           </Paragraph>
           <Form form={form} style={{ display: 'none' }} />
         </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ThunderboltOutlined,
   RiseOutlined,
@@ -121,17 +122,20 @@ const foilPackages = [
   }
 ];
 
-const FoilLessonsPage = () => (
-  <AcademyServicePackagesPage
-    seoTitle="Foil Lessons | UKC Academy"
-    seoDescription="Learn hydrofoil safely with structured packages from intro to advanced progression."
-    headline="Foil"
-    accentWord="Lessons"
-    academyTheme="academy"
-    subheadline="Fly above the water with a guided progression path built for confident and controlled foil riding."
-    packages={foilPackages}
-    dynamicServiceKey="foil"
-  />
-);
+const FoilLessonsPage = () => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <AcademyServicePackagesPage
+      seoTitle="Foil Lessons | UKC Academy"
+      seoDescription="Learn hydrofoil safely with structured packages from intro to advanced progression."
+      headline={t('outsider:academyFoil.hero.title')}
+      accentWord={t('outsider:academyFoil.hero.titleAccent')}
+      academyTheme="academy"
+      subheadline={t('outsider:academyFoil.hero.subtitle')}
+      packages={foilPackages}
+      dynamicServiceKey="foil"
+    />
+  );
+};
 
 export default FoilLessonsPage;

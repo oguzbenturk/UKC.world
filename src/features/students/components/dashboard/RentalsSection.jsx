@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import dayjs from 'dayjs';
 
@@ -57,8 +58,9 @@ const RentalRow = ({ rental, onClick }) => {
   );
 };
 
-const RentalGroup = ({ label, rentals, defaultExpanded }) => {
+const RentalGroup = ({ label, labelKey, rentals, defaultExpanded }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [showAll, setShowAll] = useState(false);
 
@@ -74,7 +76,7 @@ const RentalGroup = ({ label, rentals, defaultExpanded }) => {
         </button>
         {expanded && (
           <div className="border-t border-slate-100 px-4 py-6 text-center text-xs text-slate-400">
-            No {label.toLowerCase()} rentals
+            {t('student:dashboard.rentalsSection.noRentals', { label: labelKey ? t(labelKey).toLowerCase() : label.toLowerCase() })}
           </div>
         )}
       </div>
@@ -102,10 +104,10 @@ const RentalGroup = ({ label, rentals, defaultExpanded }) => {
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Date</th>
-                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Equipment</th>
-                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Duration</th>
-                <th className="w-1/4 px-4 py-2 text-center text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Status</th>
+                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.rentalsSection.columns.date')}</th>
+                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.rentalsSection.columns.equipment')}</th>
+                <th className="w-1/4 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.rentalsSection.columns.duration')}</th>
+                <th className="w-1/4 px-4 py-2 text-center text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.rentalsSection.columns.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +127,7 @@ const RentalGroup = ({ label, rentals, defaultExpanded }) => {
               onClick={() => setShowAll(true)}
               className="w-full py-2.5 text-xs font-gotham-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50/50 transition-colors"
             >
-              Show more ({remaining})
+              {t('student:dashboard.rentalsSection.showMore', { count: remaining })}
             </button>
           )}
         </div>
@@ -135,12 +137,13 @@ const RentalGroup = ({ label, rentals, defaultExpanded }) => {
 };
 
 const RentalsSection = ({ upcoming = [], past = [] }) => {
+  const { t } = useTranslation(['student']);
   if (upcoming.length === 0 && past.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <RentalGroup label="Upcoming" rentals={upcoming} defaultExpanded />
-      <RentalGroup label="Past" rentals={past} defaultExpanded={false} />
+      <RentalGroup label={t('student:dashboard.rentalsSection.upcomingLabel')} labelKey="student:dashboard.rentalsSection.upcomingLabel" rentals={upcoming} defaultExpanded />
+      <RentalGroup label={t('student:dashboard.rentalsSection.pastLabel')} labelKey="student:dashboard.rentalsSection.pastLabel" rentals={past} defaultExpanded={false} />
     </div>
   );
 };

@@ -1,0 +1,69 @@
+{
+  "language": {
+    "label": "Sprache",
+    "change": "Sprache ändern"
+  },
+  "app": {
+    "loading": "Wird geladen...",
+    "continueAnyway": "Trotzdem fortfahren",
+    "logout": "Abmelden",
+    "consentSaved": "Einwilligung gespeichert",
+    "consentFailed": "Einwilligung konnte nicht gespeichert werden"
+  },
+  "buttons": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "confirm": "Bestätigen",
+    "close": "Schließen",
+    "ok": "OK",
+    "yes": "Ja",
+    "no": "Nein",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen",
+    "submit": "Absenden"
+  },
+  "status": {
+    "active": "Aktiv",
+    "pending": "Ausstehend",
+    "completed": "Abgeschlossen",
+    "cancelled": "Storniert",
+    "inactive": "Inaktiv",
+    "available": "Verfügbar",
+    "unavailable": "Nicht verfügbar"
+  },
+  "table": {
+    "noData": "Keine Daten",
+    "loading": "Wird geladen...",
+    "actions": "Aktionen"
+  },
+  "empty": {
+    "default": "Noch nichts vorhanden"
+  },
+  "pagination": {
+    "prev": "Zurück",
+    "next": "Weiter",
+    "total": "Gesamt {{count}}"
+  },
+  "validation": {
+    "required": "Pflichtfeld",
+    "email": "Gültige E-Mail-Adresse eingeben",
+    "minLen": "Mindestens {{count}} Zeichen",
+    "maxLen": "Höchstens {{count}} Zeichen",
+    "phone": "Gültige Telefonnummer eingeben",
+    "pattern": "Ungültiges Format"
+  },
+  "duration": {
+    "min": "{{count}} Min",
+    "hr": "{{count}} Std",
+    "hrMin": "{{hours}} Std {{minutes}} Min"
+  },
+  "dateFormat": {
+    "short": "DD.MM.YYYY",
+    "shortWithTime": "DD.MM.YYYY HH:mm"
+  }
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { App } from 'antd';
 import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -80,6 +81,7 @@ const PaymentsSkeleton = () => (
 // eslint-disable-next-line complexity
 const StudentPayments = () => {
   const { notification } = App.useApp();
+  const { t } = useTranslation(['student']);
   const outletContext = useOutletContext() ?? {};
   const overview = outletContext?.overview;
   const [page, setPage] = useState(1);
@@ -97,10 +99,10 @@ const StudentPayments = () => {
     const currency = searchParams.get('currency');
     if (paymentResult === 'success') {
       notification.success({
-        message: 'Payment Successful!',
+        message: t('student:payments.notifications.paymentSuccess'),
         description: amount && currency
-          ? `Your deposit of ${amount} ${currency} has been processed successfully.`
-          : 'Your deposit has been processed successfully.',
+          ? t('student:payments.notifications.depositProcessed', { amount, currency })
+          : t('student:payments.notifications.depositProcessedGeneric'),
         duration: 6, placement: 'topRight',
       });
       refetch();
@@ -108,8 +110,8 @@ const StudentPayments = () => {
     } else if (paymentResult === 'failed') {
       const reason = searchParams.get('reason');
       notification.error({
-        message: 'Payment Failed',
-        description: reason ? `Reason: ${decodeURIComponent(reason)}` : 'Your payment could not be processed. Please try again.',
+        message: t('student:payments.notifications.paymentFailed'),
+        description: reason ? t('student:payments.notifications.paymentFailedReason', { reason: decodeURIComponent(reason) }) : t('student:payments.notifications.paymentFailedGeneric'),
         duration: 10, placement: 'topRight',
       });
       navigate('/student/payments', { replace: true });
@@ -158,8 +160,8 @@ const StudentPayments = () => {
   );
 
   useEffect(() => {
-    if (error) notification.error({ message: 'Unable to load payments', description: error.message, placement: 'bottomRight' });
-  }, [error, notification]);
+    if (error) notification.error({ message: t('student:payments.notifications.loadError'), description: error.message, placement: 'bottomRight' });
+  }, [error, notification, t]);
 
   const invoiceRows = useMemo(() => computeInvoiceRows(data?.invoices, overview?.payments), [data?.invoices, overview?.payments]);
   const totals = useMemo(() => computeTotals(invoiceRows, storageCurrency, convertCurrency), [invoiceRows, storageCurrency, convertCurrency]);
@@ -179,24 +181,24 @@ const StudentPayments = () => {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Wallet Balance</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.walletBalance')}</p>
           <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(rawWalletBalance, storageCurrency)}</p>
-          <p className="mt-1 text-xs text-slate-400">Available to spend</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.availableToSpend')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settled</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.settled')}</p>
           <p className="mt-2 text-xl font-bold text-emerald-600">{totals.settledCount}</p>
-          <p className="mt-1 text-xs text-slate-400">Completed invoices</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.completedInvoices')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Settled Amount</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.settledAmount')}</p>
           <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(totals.settledAmount, storageCurrency)}</p>
-          <p className="mt-1 text-xs text-slate-400">Total paid</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.totalPaid')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.pending')}</p>
           <p className="mt-2 text-xl font-bold text-rose-600">{totals.pendingCount}</p>
-          <p className="mt-1 text-xs text-slate-400">Awaiting processing</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.awaitingProcessing')}</p>
         </div>
       </div>
 
@@ -207,14 +209,14 @@ const StudentPayments = () => {
           onClick={() => setDepositModalVisible(true)}
           className="px-5 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-medium shadow-sm hover:bg-sky-500 transition-colors"
         >
-          + Add Funds
+          {t('student:payments.actions.addFunds')}
         </button>
         <button
           type="button"
           onClick={openWallet}
           className="px-5 py-2.5 rounded-xl bg-white text-slate-700 text-sm font-medium border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors"
         >
-          Open Wallet
+          {t('student:payments.actions.openWallet')}
         </button>
         <button
           type="button"
@@ -231,27 +233,27 @@ const StudentPayments = () => {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {isFetching ? 'Refreshing...' : 'Refresh'}
+          {isFetching ? t('student:payments.actions.refreshing') : t('student:payments.actions.refresh')}
         </button>
       </div>
 
       {/* ── Payment history ── */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Payment History</h2>
+          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{t('student:payments.table.heading')}</h2>
         </div>
 
         {invoiceRows.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-slate-400">No payments yet</div>
+          <div className="px-6 py-12 text-center text-sm text-slate-400">{t('student:payments.table.emptyState')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-xs uppercase tracking-wide text-slate-500">
-                  <th className="text-left px-5 py-3 font-semibold">Date</th>
-                  <th className="text-left px-5 py-3 font-semibold">Description</th>
-                  <th className="text-right px-5 py-3 font-semibold">Amount</th>
-                  <th className="text-left px-5 py-3 font-semibold">Status</th>
+                  <th className="text-left px-5 py-3 font-semibold">{t('student:payments.table.columns.date')}</th>
+                  <th className="text-left px-5 py-3 font-semibold">{t('student:payments.table.columns.description')}</th>
+                  <th className="text-right px-5 py-3 font-semibold">{t('student:payments.table.columns.amount')}</th>
+                  <th className="text-left px-5 py-3 font-semibold">{t('student:payments.table.columns.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,10 +295,10 @@ const StudentPayments = () => {
               disabled={page <= 1}
               className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
             >
-              Previous
+              {t('student:payments.pagination.previous')}
             </button>
             <span className="text-xs text-slate-500">
-              Page {page} of {totalPages}
+              {t('student:payments.pagination.pageOf', { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -304,7 +306,7 @@ const StudentPayments = () => {
               disabled={page >= totalPages}
               className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
             >
-              Next
+              {t('student:payments.pagination.next')}
             </button>
           </div>
         )}
@@ -318,8 +320,8 @@ const StudentPayments = () => {
           setDepositModalVisible(false);
           await refetch();
           notification.success({
-            message: 'Funds Added',
-            description: 'The amount has been successfully added to your wallet.',
+            message: t('student:payments.notifications.fundsAdded'),
+            description: t('student:payments.notifications.fundsAddedDesc'),
             placement: 'bottomRight',
           });
         }}

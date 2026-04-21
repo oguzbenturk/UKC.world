@@ -1,0 +1,802 @@
+{
+  "dashboard": {
+    "recommendations": {
+      "heading": "Recommended for You",
+      "subheading": "Suggestions from your instructor",
+      "viewCta": "View →"
+    },
+    "emptyState": {
+      "heading": "Nothing to show yet",
+      "body": "Your dashboard will come alive once you book your first lesson."
+    },
+    "errorToast": {
+      "title": "Unable to load dashboard"
+    },
+    "ratingToast": {
+      "title": "Thanks for your feedback!",
+      "description": "Your rating helps us improve your experience."
+    },
+    "nextLesson": {
+      "label": "Next lesson",
+      "comingSoon": "Coming soon",
+      "noLesson": {
+        "heading": "Your kite is waiting",
+        "body": "No lessons on the horizon yet — book one to get started."
+      },
+      "progressLabel": "Progress"
+    },
+    "ratingPrompt": {
+      "rateWith": "Rate your lesson with",
+      "moreCount": "+{{count}} more",
+      "rateButton": "Rate"
+    },
+    "packageCards": {
+      "sectionHeading": "Active packages",
+      "progressRow": {
+        "left": "{{remaining}} left",
+        "used": "{{used}} / {{total}} used"
+      },
+      "lessonHours": "Lesson hours",
+      "rentalDays": "Rental days",
+      "accommodationNights": "Accommodation nights",
+      "expiresSoon": "Expires soon",
+      "exp": "Exp. {{date}}"
+    },
+    "quickLinks": {
+      "sectionHeading": "Quick access",
+      "visitLessons": "Visit Lessons",
+      "visitRentals": "Visit Rentals",
+      "visitShop": "Visit Shop",
+      "visitMyLessons": "Visit My Lessons"
+    },
+    "statsStrip": {
+      "lessons": "Lessons",
+      "rentals": "Rentals",
+      "accommodations": "Accommodations",
+      "shop": "Shop",
+      "memberships": "Memberships",
+      "wallet": "Wallet",
+      "stats": {
+        "completed": "Completed",
+        "upcoming": "Upcoming",
+        "totalHours": "Total hours",
+        "days": "Days",
+        "spent": "Spent",
+        "nights": "Nights",
+        "pending": "Pending",
+        "active": "Active",
+        "expired": "Expired",
+        "balance": "Balance"
+      },
+      "membership": {
+        "owned": "Owned",
+        "expires": "Expires {{date}}"
+      },
+      "accommodation": {
+        "now": "Now",
+        "nightCount_one": "{{count}} night",
+        "nightCount_other": "{{count}} nights",
+        "guests": "{{count}} guests"
+      }
+    },
+    "lessonsSection": {
+      "upcomingLabel": "Upcoming",
+      "pastLabel": "Past",
+      "noLessons": "No {{label}} lessons",
+      "columns": {
+        "date": "Date",
+        "lesson": "Lesson",
+        "instructor": "Instructor",
+        "duration": "Duration",
+        "status": "Status"
+      },
+      "showMore": "Show more ({{count}})"
+    },
+    "rentalsSection": {
+      "upcomingLabel": "Upcoming",
+      "pastLabel": "Past",
+      "noRentals": "No {{label}} rentals",
+      "columns": {
+        "date": "Date",
+        "equipment": "Equipment",
+        "duration": "Duration",
+        "status": "Status"
+      },
+      "showMore": "Show more ({{count}})"
+    }
+  },
+  "schedule": {
+    "tabs": {
+      "mySchedule": "My Schedule",
+      "groupLessons": "Group Lessons"
+    },
+    "statsBar": {
+      "total": "total",
+      "upcoming": "upcoming",
+      "past": "past",
+      "next": "Next:"
+    },
+    "sections": {
+      "upcomingHeading": "Upcoming",
+      "pastHeading": "Past"
+    },
+    "emptyMessages": {
+      "noUpcoming": "No upcoming lessons yet",
+      "noPast": "No lessons recorded yet"
+    },
+    "lessonRow": {
+      "nextBadge": "Next",
+      "reschedule": "Reschedule"
+    },
+    "detailModal": {
+      "lessonLabel": "Lesson",
+      "instructorLabel": "Instructor",
+      "durationLabel": "Duration",
+      "notesLabel": "Notes",
+      "requestReschedule": "Request Reschedule",
+      "close": "Close",
+      "statusLabels": {
+        "completed": "Completed",
+        "scheduled": "Scheduled",
+        "pending": "Pending",
+        "cancelled": "Cancelled",
+        "confirmed": "Confirmed"
+      }
+    },
+    "rescheduleModal": {
+      "title": "Request Reschedule",
+      "subtitle": "Choose a new date and time",
+      "currentBookingLabel": "Current Booking",
+      "withInstructor": "with {{name}}",
+      "selectDateLabel": "Select New Date",
+      "datePlaceholder": "Pick a date",
+      "availableSlotsLabel": "Available Time Slots",
+      "checkingAvailability": "Checking availability...",
+      "noSlots": "No available slots",
+      "noSlotsDescription": "{{name}} has no available slots on {{date}}. Try a different date.",
+      "slotsAvailable_one": "{{count}} slot available",
+      "slotsAvailable_other": "{{count}} slots available",
+      "newTimeSummary": "New time: {{datetime}} — {{slot}}",
+      "newTimeSub": "{{duration}}h {{lesson}} with {{instructor}}",
+      "reasonLabel": "Reason for reschedule (optional)",
+      "reasonPlaceholder": "e.g., Schedule conflict, personal emergency...",
+      "managerConfirm": "Manager will confirm your request",
+      "cancelButton": "Cancel",
+      "submitButton": "Request Reschedule",
+      "sendingButton": "Sending...",
+      "successMessage": "Reschedule request sent! A manager will confirm your new time.",
+      "errors": {
+        "loadFailed": "Failed to load schedule",
+        "invalidData": "Invalid reschedule data",
+        "invalidDataDesc": "Please select both a date and time slot",
+        "unableToReschedule": "Unable to reschedule"
+      }
+    }
+  },
+  "payments": {
+    "stats": {
+      "walletBalance": "Wallet Balance",
+      "availableToSpend": "Available to spend",
+      "settled": "Settled",
+      "completedInvoices": "Completed invoices",
+      "settledAmount": "Settled Amount",
+      "totalPaid": "Total paid",
+      "pending": "Pending",
+      "awaitingProcessing": "Awaiting processing"
+    },
+    "actions": {
+      "addFunds": "+ Add Funds",
+      "openWallet": "Open Wallet",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing..."
+    },
+    "table": {
+      "heading": "Payment History",
+      "emptyState": "No payments yet",
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "amount": "Amount",
+        "status": "Status"
+      }
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{total}}"
+    },
+    "notifications": {
+      "paymentSuccess": "Payment Successful!",
+      "depositProcessed": "Your deposit of {{amount}} {{currency}} has been processed successfully.",
+      "depositProcessedGeneric": "Your deposit has been processed successfully.",
+      "paymentFailed": "Payment Failed",
+      "paymentFailedReason": "Reason: {{reason}}",
+      "paymentFailedGeneric": "Your payment could not be processed. Please try again.",
+      "fundsAdded": "Funds Added",
+      "fundsAddedDesc": "The amount has been successfully added to your wallet.",
+      "loadError": "Unable to load payments"
+    }
+  },
+  "myProfile": {
+    "profileCard": {
+      "profileFields": {
+        "email": "Email",
+        "phone": "Phone",
+        "preferredLanguage": "Preferred Language",
+        "customerSince": "Customer Since",
+        "notProvided": "Not provided",
+        "notSet": "Not set",
+        "unknown": "Unknown"
+      },
+      "accountHighlights": {
+        "currentBalance": "Current Balance",
+        "lifetimeValue": "Lifetime Value",
+        "lastPayment": "Last Payment",
+        "noPaymentsYet": "No payments yet"
+      },
+      "statCards": {
+        "hoursAttended": "Hours Attended",
+        "attendanceRate": "Attendance Rate",
+        "totalLessons": "Total Lessons",
+        "totalRentals": "Total Rentals"
+      },
+      "notes": "Notes"
+    },
+    "packageSummary": {
+      "heading": "Package Summary",
+      "viewOnly": "View only",
+      "generalPackage": "General package",
+      "rentalSuffix": "+ Rental",
+      "accommodationSuffix": "+ Accommodation",
+      "noPackages": "No packages assigned",
+      "expiresOn": "Expires {{date}}",
+      "noExpiry": "No expiry",
+      "sections": {
+        "totalHours": "Total Hours",
+        "used": "Used",
+        "remaining": "Remaining",
+        "utilisation": "Utilisation",
+        "totalDays": "Total Days",
+        "equipment": "Equipment",
+        "totalNights": "Total Nights",
+        "unit": "Unit"
+      }
+    },
+    "upcomingLessons": {
+      "heading": "Upcoming Lessons",
+      "viewOnly": "View only",
+      "scheduled": "Scheduled",
+      "instructorPrefix": "Instructor:",
+      "noUpcoming": "No upcoming lessons"
+    },
+    "historySection": {
+      "tabs": {
+        "total": "Total History",
+        "lessons": "Lesson History",
+        "rentals": "Rental History",
+        "shop": "Shop History",
+        "memberships": "Membership History",
+        "events": "Event History",
+        "financial": "Financial History"
+      },
+      "tableHeadings": {
+        "allActivity": "All Activity",
+        "lessonHistory": "Lesson History",
+        "rentalHistory": "Rental History",
+        "shopPurchases": "Shop Purchases",
+        "membershipPurchases": "Membership Purchases",
+        "eventRegistrations": "Event Registrations",
+        "financialHistory": "Financial History"
+      },
+      "columns": {
+        "date": "Date",
+        "type": "Type",
+        "description": "Description",
+        "dateTime": "Date & Time",
+        "service": "Service",
+        "instructor": "Instructor",
+        "duration": "Duration",
+        "price": "Price",
+        "status": "Status",
+        "payment": "Payment",
+        "equipment": "Equipment",
+        "rentalDate": "Rental Date",
+        "amount": "Amount",
+        "purchased": "Purchased",
+        "membership": "Membership",
+        "expires": "Expires",
+        "item": "Item",
+        "quantity": "Quantity",
+        "event": "Event",
+        "location": "Location",
+        "registration": "Registration"
+      },
+      "emptyStates": {
+        "noActivity": "No activity history",
+        "noLessons": "No lesson history",
+        "noRentals": "No rental history",
+        "noShop": "No shop purchases",
+        "noMemberships": "No membership purchases",
+        "noEvents": "No event registrations",
+        "noFinancial": "No payments recorded"
+      },
+      "values": {
+        "notAssigned": "Not assigned",
+        "hour_one": "{{count}} hour",
+        "hour_other": "{{count}} hours",
+        "item_one": "{{count}} item",
+        "item_other": "{{count}} items",
+        "free": "Free",
+        "tba": "TBA"
+      }
+    },
+    "familyAlert": {
+      "message": "Looking for family members?",
+      "description": "Manage family details from the sidebar by navigating to Profile → Family."
+    },
+    "loadingActivity": "Loading your activity...",
+    "alerts": {
+      "profileUnavailable": "Profile unavailable",
+      "historyError": "We had trouble loading some of your history"
+    }
+  },
+  "family": {
+    "pageTitle": "Family Members",
+    "pageSubtitle": "Add and manage your children's profiles for bookings and waivers.",
+    "seoTitle": "Family Members • Plannivo",
+    "seoDescription": "Manage your family members (under 18) to book lessons and rentals and complete waivers.",
+    "cardTitle": "Family Members",
+    "management": {
+      "description": "Manage your family members below. You can book lessons and rentals for any family member listed here.",
+      "showingCount_one": "Showing {{count}} member",
+      "showingCount_other": "Showing {{count}} members",
+      "showingOf": " of {{total}} total",
+      "adjustFilters": " Adjust your filters to see more family members."
+    },
+    "emptyState": {
+      "heading": "No family members yet",
+      "body": "Add your children (under 18) to easily book lessons and rentals for them. You'll also be able to sign waivers and track their activity.",
+      "addButton": "Add Your First Family Member"
+    },
+    "filteredEmpty": {
+      "heading": "No matches found",
+      "body": "Try adjusting your search or filters",
+      "clearButton": "Clear All Filters"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by name or notes...",
+      "allRelationships": "All relationships",
+      "allWaiverStatuses": "All waiver statuses",
+      "clearButton": "Clear"
+    },
+    "actions": {
+      "export": "Export",
+      "exportTooltipOnline": "Download CSV export",
+      "exportTooltipOffline": "Connect to export",
+      "addMember": "Add Member",
+      "addMemberTooltipOnline": "Add a new family member",
+      "addMemberTooltipOffline": "You are offline"
+    },
+    "offline": {
+      "title": "Offline mode",
+      "description": "You are viewing the latest cached family members. Creating or editing family members requires an internet connection."
+    },
+    "loadError": "Error Loading Family Members",
+    "loading": "Loading family members...",
+    "relationships": {
+      "son": "Son",
+      "daughter": "Daughter",
+      "child": "Child",
+      "sibling": "Sibling",
+      "other": "Other"
+    },
+    "waiverStatuses": {
+      "signed": "Signed",
+      "pending": "Action required",
+      "expired": "Expired",
+      "unknown": "Unknown"
+    },
+    "memberCard": {
+      "yearsOld_one": "{{count}} year old",
+      "yearsOld_other": "{{count}} years old",
+      "hasMedicalNotes": "Has medical notes",
+      "waiver": {
+        "upToDate": "Waiver Up to Date",
+        "expired": "Waiver Expired",
+        "newVersionRequired": "New Version Required",
+        "pending": "Waiver Pending",
+        "unknown": "Waiver Status Unknown",
+        "lastSigned": "Last signed on {{date}}",
+        "signButton": "Sign Waiver"
+      },
+      "tooltips": {
+        "viewActivity": "View activity",
+        "signWaiver": "Sign waiver",
+        "edit": "Edit",
+        "remove": "Remove"
+      }
+    },
+    "deleteConfirm": {
+      "title": "Remove Family Member",
+      "body": "Are you sure you want to remove {{name}} from your family members?",
+      "consequence": "This will not affect their existing bookings, but they will not be available for new bookings.",
+      "okText": "Remove",
+      "cancelText": "Cancel",
+      "undoMessage": "{{name}} removed.",
+      "undoButton": "Undo",
+      "restored": "{{name}} has been restored",
+      "removeError": "Failed to remove family member"
+    },
+    "modal": {
+      "addTitle": "Add Family Member",
+      "editTitle": "Edit Family Member",
+      "addSubtitle": "Add a family member to book activities on their behalf",
+      "editSubtitle": "Update the family member details below",
+      "sections": {
+        "personal": "Personal",
+        "basicInfo": "Basic Information",
+        "safety": "Safety",
+        "emergencyMedical": "Emergency & Medical"
+      },
+      "ageAlert": {
+        "childTitle": "Age restriction applies",
+        "childDesc": "Children, sons, daughters, and siblings must be under 18 years old.",
+        "adultTitle": "Add any family member",
+        "adultDesc": "You can add a spouse, parent, or any adult family member."
+      },
+      "fields": {
+        "fullName": "Full Name",
+        "fullNamePlaceholder": "Enter full name",
+        "relationship": "Relationship",
+        "relationshipPlaceholder": "Select relationship",
+        "dateOfBirth": "Date of Birth",
+        "dobUnderAge": "Must be under 18 years old",
+        "dobEnter": "Enter date of birth",
+        "gender": "Gender",
+        "genderPlaceholder": "Select gender (optional)",
+        "emergencyContact": "Emergency Contact",
+        "emergencyPlaceholder": "Phone number or contact info (optional)",
+        "medicalNotes": "Medical Notes",
+        "medicalPlaceholder": "Enter any medical information, allergies, or special needs (optional)",
+        "medicalHint": "Any allergies, medical conditions, or special needs. This information is encrypted and only accessible by authorized staff."
+      },
+      "genderOptions": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "preferNotToSay": "Prefer not to say"
+      },
+      "relationships": {
+        "son": "Son",
+        "daughter": "Daughter",
+        "child": "Child",
+        "spouse": "Spouse/Wife",
+        "sibling": "Sibling",
+        "parent": "Parent",
+        "other": "Other"
+      },
+      "validation": {
+        "nameRequired": "Please enter the full name",
+        "nameMin": "Name must be at least 2 characters",
+        "nameMax": "Name must be less than 255 characters",
+        "relationshipRequired": "Please select relationship",
+        "dobRequired": "Please select date of birth",
+        "emergencyMax": "Emergency contact must be less than 50 characters",
+        "medicalMax": "Medical notes must be less than 2000 characters"
+      },
+      "ageError": {
+        "title": "Age Requirement Not Met",
+        "content": "Children, sons, daughters, and siblings must be under 18 years old. For adults, please select \"Spouse\" or \"Parent\" as the relationship."
+      },
+      "saveError": {
+        "title": "Failed to Save"
+      },
+      "discardConfirm": {
+        "title": "Discard changes?",
+        "content": "You have unsaved changes. Are you sure you want to close without saving?",
+        "okText": "Discard",
+        "cancelText": "Continue editing"
+      },
+      "buttons": {
+        "cancel": "Cancel",
+        "add": "Add Family Member",
+        "update": "Update"
+      },
+      "toasts": {
+        "updated": "{{name}} has been updated",
+        "added": "{{name}} has been added to your family",
+        "saveError": "Failed to save family member"
+      }
+    },
+    "exportSuccess": "Family member list downloaded",
+    "exportError": "Failed to export family members",
+    "waiverSigned": "{{name}}'s waiver has been signed",
+    "waiverSignedGeneric": "Waiver signed successfully"
+  },
+  "support": {
+    "stats": {
+      "totalTickets": "Total Tickets",
+      "open": "Open",
+      "resolved": "Resolved"
+    },
+    "channelPicker": {
+      "heading": "Get help",
+      "channels": {
+        "ticket": {
+          "label": "New Ticket",
+          "description": "Open a support request"
+        },
+        "email": {
+          "label": "Email Us",
+          "description": "hello@plannivo.com"
+        },
+        "whatsapp": {
+          "label": "WhatsApp",
+          "description": "Chat on WhatsApp"
+        },
+        "chat": {
+          "label": "Live Chat",
+          "description": "Chat with the team"
+        },
+        "kai": {
+          "label": "Ask Kai",
+          "description": "Get instant AI answers"
+        }
+      }
+    },
+    "tabs": {
+      "newTicket": "New Ticket",
+      "myTickets": "My Tickets"
+    },
+    "form": {
+      "intro": "Need help with bookings, payments, or gear? Send us a quick note and our team will get back to you.",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "e.g. Need to adjust my lesson",
+      "subjectRequired": "Tell us how we can help",
+      "priorityLabel": "Priority",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Write your message for the school",
+      "messageRequired": "Provide a bit more detail",
+      "submitButton": "Send request",
+      "sendingButton": "Sending…",
+      "priorityOptions": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High"
+      }
+    },
+    "ticketList": {
+      "emptyState": "You have no support requests yet",
+      "ticketFallback": "Ticket #{{id}}",
+      "statusLabels": {
+        "open": "Open",
+        "in_progress": "In Progress",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "pending": "Pending"
+      }
+    },
+    "notifications": {
+      "requestSent": "Support request sent",
+      "sendError": "Unable to send request"
+    }
+  },
+  "ratingModal": {
+    "sessionHeading": "How was your session?",
+    "sessionWith": "with",
+    "feedbackLabel": {
+      "under5": "How can we earn 5 stars?",
+      "under5Required": "*",
+      "5stars": "Share your experience"
+    },
+    "placeholders": {
+      "under5": "We'd love to do better — what could we improve?",
+      "5stars": "What made this session great?"
+    },
+    "charCount": "{{count}} / 2000",
+    "requiredNote": "Required for ratings under 5 stars",
+    "anonymous": {
+      "label": "Submit anonymously",
+      "hint": "Your rating counts, your name stays private"
+    },
+    "submitButton": "Submit Rating",
+    "submittingButton": "Submitting…",
+    "maybeLater": "Maybe later",
+    "noBookingFound": "We couldn't find details for this lesson.",
+    "success": {
+      "heading": "Thank you!",
+      "body": "Your feedback helps us ride bigger waves."
+    },
+    "ratings": {
+      "poor": "Poor",
+      "fair": "Fair",
+      "good": "Good",
+      "great": "Great",
+      "amazing": "Amazing!"
+    }
+  },
+  "layout": {
+    "portalDisabled": {
+      "heading": "Student portal is disabled",
+      "body": "Your account is active, but the student portal isn't available yet. Please contact the school if you believe this is a mistake."
+    },
+    "welcome": "Welcome, {{name}}"
+  },
+  "portalUnavailable": {
+    "heading": "Student portal coming soon",
+    "body": "The student experience is being prepared for release. Check back later or contact the school if you need help managing your lessons."
+  },
+  "myOrders": {
+    "pageTitle": "My Orders",
+    "pageSubtitle": "Track purchases, payments, and conversations",
+    "browseShop": "Browse Shop",
+    "orderHistory": {
+      "heading": "Order history",
+      "subheading": "Review purchases, track status, and continue conversations"
+    },
+    "metrics": {
+      "totalOrders": "Total Orders",
+      "totalOrdersHint": "Loaded on this page",
+      "active": "Active",
+      "activeHint": "Pending or in progress",
+      "completed": "Completed",
+      "completedHint": "Delivered successfully",
+      "unreadMessages": "Unread Messages",
+      "unreadThreads_one": "{{count}} thread",
+      "unreadThreads_other": "{{count}} threads"
+    },
+    "latestOrderHint": "Latest order <strong>{{number}}</strong> was placed {{time}}. Tap to see updates or message the team.",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "paymentLabels": {
+      "wallet": "Wallet",
+      "credit_card": "Credit Card",
+      "cash": "Cash",
+      "other": "Other"
+    },
+    "paymentTags": {
+      "paid": "Paid",
+      "paymentPending": "Payment Pending"
+    },
+    "orderCard": {
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "moreItems_one": "+{{count}} more item",
+      "moreItems_other": "+{{count}} more items",
+      "qty": "Qty: {{qty}}",
+      "size": "Size: {{size}}",
+      "newMessages_one": "{{count}} new",
+      "newMessages_other": "{{count}} new"
+    },
+    "emptyState": {
+      "noOrdersTitle": "No orders yet",
+      "noFilterTitle": "No {{filter}} orders",
+      "noOrdersBody": "Your purchases will show up here with payment details, shipping updates, and messaging.",
+      "noFilterBody": "Try another filter or refresh to see the latest.",
+      "clearFilter": "Clear Filter"
+    },
+    "detail": {
+      "drawerTitle": "Order Details",
+      "statusHistory": "Status History",
+      "fromStatus": "from {{status}}",
+      "orderNotes": "Order Notes",
+      "orderCancelledTitle": "Order Cancelled",
+      "orderRefundedTitle": "Order Refunded",
+      "infoLabels": {
+        "status": "Status",
+        "payment": "Payment",
+        "voucher": "Voucher",
+        "shippingAddress": "Shipping Address"
+      },
+      "itemsHeading": "Items",
+      "totals": {
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "total": "Total"
+      }
+    },
+    "messages": {
+      "heading": "Order Messages",
+      "emptyState": "No messages yet. Ask a question about your order!",
+      "placeholder": "Type your message...",
+      "staffFallback": "Staff"
+    }
+  },
+  "feedback": {
+    "form": {
+      "title": "Share Your Experience",
+      "updateTitle": "Update Your Feedback",
+      "overallExperience": "Overall Experience",
+      "wouldRecommend": "Would you recommend us to friends?",
+      "recommendYes": "Yes, definitely!",
+      "recommendNo": "No, probably not",
+      "detailedRatings": "Detailed Ratings",
+      "instructorRating": "Instructor",
+      "equipmentRating": "Equipment Quality",
+      "locationRating": "Location & Conditions",
+      "valueRating": "Value for Money",
+      "skillProgress": "Your Kitesurfing Progress",
+      "skillBefore": "Skill Level Before Lesson",
+      "skillAfter": "Skill Level After Lesson",
+      "skillPlaceholderBefore": "Select your skill level before the lesson",
+      "skillPlaceholderAfter": "Select your skill level after the lesson",
+      "skillLevels": {
+        "complete_beginner": "Complete Beginner",
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced",
+        "expert": "Expert"
+      },
+      "lessonConditions": "Lesson Conditions",
+      "weatherConditions": "How were the weather conditions?",
+      "weatherOptions": {
+        "excellent": "Excellent - Perfect for kitesurfing",
+        "good": "Good - Nice conditions",
+        "fair": "Fair - Acceptable conditions",
+        "poor": "Poor - Challenging conditions",
+        "unsuitable": "Unsuitable - Should have been cancelled"
+      },
+      "favoriteAspect": "Favorite Aspect of the Lesson",
+      "favoriteAspectPlaceholder": "What did you enjoy most?",
+      "favoriteOptions": {
+        "instructor_teaching": "Instructor's teaching style",
+        "equipment_quality": "High quality equipment",
+        "location_beauty": "Beautiful location",
+        "safety_measures": "Safety measures",
+        "skill_progress": "Learning progress",
+        "overall_experience": "Overall experience"
+      },
+      "commentsLabel": "Tell us about your experience",
+      "commentsPlaceholder": "Share details about your lesson, what you learned, how you felt...",
+      "improvementLabel": "How can we improve?",
+      "improvementPlaceholder": "Any suggestions to make our lessons even better?",
+      "submitButton": "Submit Feedback",
+      "updateButton": "Update Feedback",
+      "validation": {
+        "overallRequired": "Please rate your overall experience",
+        "instructorRequired": "Please rate your instructor",
+        "equipmentRequired": "Please rate the equipment",
+        "locationRequired": "Please rate the location",
+        "valueRequired": "Please rate the value"
+      },
+      "errors": {
+        "submitFailed": "Failed to submit feedback. Please try again.",
+        "errorTitle": "Error"
+      }
+    },
+    "thankYou": {
+      "heading": "Thank You for Your Feedback!",
+      "body": "Your feedback helps us improve our kitesurfing lessons and provide better experiences for all students.",
+      "continueButton": "Continue"
+    },
+    "summary": {
+      "totalReviews": "Total Reviews",
+      "averageRating": "Average Rating",
+      "recommendationRate": "Recommendation Rate",
+      "responseRate": "Response Rate",
+      "ratingBreakdown": "Rating Breakdown",
+      "recentComments": "Recent Comments",
+      "suggestionPrefix": "Suggestion:",
+      "noFeedback": "No feedback data available",
+      "noFeedbackDesc": "No feedback has been received for the selected period.",
+      "loading": "Loading feedback summary..."
+    },
+    "achievements": {
+      "modalTitle": "Achievement Unlocked!"
+    }
+  }
+}

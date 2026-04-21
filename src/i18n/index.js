@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
 
-export const SUPPORTED_LANGUAGES = ['en', 'tr', 'fr', 'ru', 'es'];
+export const SUPPORTED_LANGUAGES = ['en', 'tr', 'fr', 'ru', 'es', 'de'];
 export const DEFAULT_LANGUAGE = 'en';
 const STORAGE_KEY = 'plannivo.lang';
 
@@ -15,7 +15,7 @@ i18n
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: SUPPORTED_LANGUAGES,
     load: 'languageOnly',
-    ns: ['common', 'errors', 'public', 'outsider'],
+    ns: ['common', 'errors', 'public', 'outsider', 'student', 'instructor', 'manager', 'admin'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

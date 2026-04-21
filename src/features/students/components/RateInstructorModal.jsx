@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import { Modal } from 'antd';
 import { useSubmitRating } from '../hooks/useRatings';
 
-/* ── Rating config ── */
-const RATINGS = [
-  { value: 1, label: 'Poor',     emoji: '\u{1F61E}', color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  },
-  { value: 2, label: 'Fair',     emoji: '\u{1F615}', color: '#f97316', bg: 'rgba(249,115,22,0.07)' },
-  { value: 3, label: 'Good',     emoji: '\u{1F60A}', color: '#eab308', bg: 'rgba(234,179,8,0.07)'  },
-  { value: 4, label: 'Great',    emoji: '\u{1F604}', color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  },
-  { value: 5, label: 'Amazing!', emoji: '\u{1F929}', color: '#00a8c4', bg: 'rgba(0,168,196,0.08)'  },
+/* ── Rating config (labels resolved at render time) ── */
+const RATING_DEFS = [
+  { value: 1, key: 'poor',    emoji: '\u{1F61E}', color: '#ef4444', bg: 'rgba(239,68,68,0.07)'  },
+  { value: 2, key: 'fair',    emoji: '\u{1F615}', color: '#f97316', bg: 'rgba(249,115,22,0.07)' },
+  { value: 3, key: 'good',    emoji: '\u{1F60A}', color: '#eab308', bg: 'rgba(234,179,8,0.07)'  },
+  { value: 4, key: 'great',   emoji: '\u{1F604}', color: '#22c55e', bg: 'rgba(34,197,94,0.07)'  },
+  { value: 5, key: 'amazing', emoji: '\u{1F929}', color: '#00a8c4', bg: 'rgba(0,168,196,0.08)'  },
 ];
 
 /* ── Custom star ── */
@@ -43,32 +44,37 @@ const Star = ({ filled, hovered, index, onClick, onHover, onLeave, color }) => (
 );
 
 /* ── Success overlay ── */
-const SuccessState = () => (
-  <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
-    <div
-      className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-5"
-      style={{ animation: 'rateSuccessPop 400ms cubic-bezier(.34,1.56,.64,1) forwards' }}
-    >
-      <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M5 13l4 4L19 7"
-          style={{
-            strokeDasharray: 24,
-            strokeDashoffset: 24,
-            animation: 'rateCheckDraw 500ms 200ms ease forwards',
-          }}
-        />
-      </svg>
+const SuccessState = () => {
+  const { t } = useTranslation(['student']);
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+      <div
+        className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-5"
+        style={{ animation: 'rateSuccessPop 400ms cubic-bezier(.34,1.56,.64,1) forwards' }}
+      >
+        <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+            style={{
+              strokeDasharray: 24,
+              strokeDashoffset: 24,
+              animation: 'rateCheckDraw 500ms 200ms ease forwards',
+            }}
+          />
+        </svg>
+      </div>
+      <h3 className="font-duotone-bold text-xl text-slate-800 mb-1">{t('student:ratingModal.success.heading')}</h3>
+      <p className="text-slate-500 text-sm font-gotham-medium">{t('student:ratingModal.success.body')}</p>
     </div>
-    <h3 className="font-duotone-bold text-xl text-slate-800 mb-1">Thank you!</h3>
-    <p className="text-slate-500 text-sm font-gotham-medium">Your feedback helps us ride bigger waves.</p>
-  </div>
-);
+  );
+};
 
 /* ── Main component ── */
 export const RateInstructorModal = ({ open = false, booking = null, onClose = undefined }) => {
+  const { t } = useTranslation(['student']);
+  const RATINGS = RATING_DEFS.map(r => ({ ...r, label: t(`student:ratingModal.ratings.${r.key}`) }));
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
@@ -206,10 +212,10 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
             </div>
 
             <h2 className="font-duotone-bold text-[1.15rem] text-slate-800 leading-tight mb-1.5">
-              How was your session?
+              {t('student:ratingModal.sessionHeading')}
             </h2>
             <p className="text-slate-500 text-sm">
-              with{' '}
+              {t('student:ratingModal.sessionWith')}{' '}
               <span className="text-duotone-blue font-gotham-medium">{instructorName}</span>
             </p>
 
@@ -268,9 +274,9 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
             <label className="block mb-2">
               <span className="text-[10px] font-gotham-medium uppercase tracking-[0.12em] text-slate-400">
                 {rating < 5 ? (
-                  <>How can we earn 5 stars? <span className="text-duotone-blue">*</span></>
+                  <>{t('student:ratingModal.feedbackLabel.under5')} <span className="text-duotone-blue">{t('student:ratingModal.feedbackLabel.under5Required')}</span></>
                 ) : (
-                  'Share your experience'
+                  t('student:ratingModal.feedbackLabel.5stars')
                 )}
               </span>
             </label>
@@ -282,18 +288,18 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
               placeholder={
                 rating < 5
                   ? "We'd love to do better \u2014 what could we improve?"
-                  : 'What made this session great?'
+                  : t('student:ratingModal.placeholders.5stars')
               }
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 resize-none outline-none transition-all duration-200 focus:border-duotone-blue/50 focus:bg-white focus:ring-1 focus:ring-duotone-blue/20"
             />
             <div className="flex items-center justify-between mt-1 px-0.5">
               {rating < 5 && !feedbackText.trim() && (
                 <span className="text-[11px] text-amber-600 font-gotham-medium">
-                  Required for ratings under 5 stars
+                  {t('student:ratingModal.requiredNote')}
                 </span>
               )}
               <span className="text-[11px] text-slate-400 ml-auto tabular-nums">
-                {feedbackText.length} / 2000
+                {t('student:ratingModal.charCount', { count: feedbackText.length })}
               </span>
             </div>
           </div>
@@ -311,10 +317,10 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
             >
               <div className="text-left">
                 <p className={`text-sm font-gotham-medium transition-colors duration-200 ${isAnonymous ? 'text-duotone-blue' : 'text-slate-700'}`}>
-                  Submit anonymously
+                  {t('student:ratingModal.anonymous.label')}
                 </p>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Your rating counts, your name stays private
+                  {t('student:ratingModal.anonymous.hint')}
                 </p>
               </div>
               <div
@@ -365,7 +371,7 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
                         clipRule="evenodd"
                       />
                     </svg>
-                    Submit Rating
+                    {t('student:ratingModal.submitButton')}
                   </>
                 )}
               </span>
@@ -379,13 +385,13 @@ export const RateInstructorModal = ({ open = false, booking = null, onClose = un
               disabled={isPending}
               className="w-full mt-2 py-2.5 text-sm text-slate-400 hover:text-slate-600 transition-colors duration-150 disabled:cursor-not-allowed font-gotham-medium"
             >
-              Maybe later
+              {t('student:ratingModal.maybeLater')}
             </button>
           </div>
         </div>
       ) : (
         <div className="py-12 px-8 text-center">
-          <p className="text-slate-500 text-sm">We couldn&apos;t find details for this lesson.</p>
+          <p className="text-slate-500 text-sm">{t('student:ratingModal.noBookingFound')}</p>
         </div>
       )}
     </Modal>

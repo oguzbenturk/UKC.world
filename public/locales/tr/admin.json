@@ -1,0 +1,1307 @@
+{
+  "waivers": {
+    "title": "Feragatname Yönetimi",
+    "subtitle": "Öğrenciler ve aile üyeleri için imzalanan feragatnameleri arayın, denetleyin ve dışa aktarın.",
+    "filters": {
+      "searchPlaceholder": "Ad veya e-posta ile ara",
+      "refresh": "Yenile",
+      "exportCsv": "CSV Dışa Aktar"
+    },
+    "status": {
+      "all": "Tüm durumlar",
+      "valid": "Geçerli",
+      "outdated": "Yeniden İmza Gerekli",
+      "expired": "Süresi Dolmuş",
+      "missing": "İmzalanmadı",
+      "pending": "Beklemede (eksik/süresi dolmuş/güncel değil)"
+    },
+    "subjectType": {
+      "all": "Tüm kişiler",
+      "user": "Öğrenciler",
+      "family": "Aile Üyeleri"
+    },
+    "sort": {
+      "nameAsc": "Ad A → Z",
+      "nameDesc": "Ad Z → A",
+      "signedAtDesc": "En Son İmzalanan",
+      "signedAtAsc": "En Eski İmzalar",
+      "statusAsc": "Durum (Önce Geçerli)",
+      "statusDesc": "Durum (Önce Eksik)"
+    },
+    "table": {
+      "name": "Ad",
+      "status": "Durum",
+      "signedAt": "İmzalanma Tarihi",
+      "version": "Versiyon",
+      "parentContact": "Veli / İletişim",
+      "actions": "İşlemler",
+      "view": "Görüntüle",
+      "student": "Öğrenci",
+      "familyMember": "Aile Üyesi",
+      "noParent": "Veli kaydı yok",
+      "latestVersion": "Yeni: {{version}}"
+    },
+    "mobileCard": {
+      "viewDetails": "Detayları Gör",
+      "signed": "İmzalandı:",
+      "version": "Versiyon:",
+      "parent": "Veli:",
+      "noRecord": "Kayıt yok",
+      "newVersion": "Yeni: {{version}}"
+    },
+    "stats": {
+      "totalSubjects": "Toplam Kişi",
+      "signed": "İmzalı",
+      "pending": "Beklemede",
+      "completionRate": "Tamamlanma Oranı",
+      "valid": "Geçerli: {{count}}",
+      "outdated": "Güncel Değil: {{count}}",
+      "expired": "Süresi Dolmuş: {{count}}",
+      "missing": "Eksik: {{count}}"
+    },
+    "viewer": {
+      "title": "Feragatname Detayı",
+      "loading": "Feragatname detayı yükleniyor...",
+      "loadError": "Feragatname detayı yüklenemedi",
+      "noSubject": "Kişi seçilmedi",
+      "subjectInfo": "Kişi Bilgileri",
+      "signatureImage": "İmza Görseli",
+      "waiverHistory": "Feragatname Geçmişi",
+      "noHistory": "Henüz feragatname kaydı yok",
+      "notes": "Notlar",
+      "notesDescription": "Geçmiş, bu kişi için kaydedilen tüm feragatname başvurularını içerir. \"Yeniden İmza Gerekli\" olarak işaretlenmiş bir kayıt, yeni bir versiyonun aktif olduğunu veya feragatnamenin süresinin dolduğunu gösterir.",
+      "historyColumns": {
+        "signedAt": "İmzalanma Tarihi",
+        "version": "Versiyon",
+        "language": "Dil",
+        "photoConsent": "Fotoğraf İzni"
+      },
+      "photoConsentYes": "Evet",
+      "photoConsentNo": "Hayır",
+      "photoConsentGranted": "Verildi",
+      "photoConsentDeclined": "Reddedildi",
+      "subjectFields": {
+        "name": "Ad",
+        "relationship": "Yakınlık",
+        "email": "E-posta",
+        "contactEmail": "İletişim E-postası",
+        "parentGuardian": "Veli / Yasal Temsilci",
+        "accountOwner": "Hesap Sahibi",
+        "lastSignedBy": "Son İmzalayan",
+        "language": "Dil",
+        "ipAddress": "IP Adresi",
+        "userAgent": "Kullanıcı Tarayıcısı"
+      },
+      "statusMessages": {
+        "noSignature": "İmza kaydı yok",
+        "lastSigned": "Son imzalanma: {{datetime}}",
+        "defaultMessage": "En güncel feragatname durum bilgisi aşağıda gösterilmektedir."
+      }
+    },
+    "toast": {
+      "exportSuccess": "Feragatname dışa aktarma indirildi",
+      "exportError": "Feragatname dışa aktarılamadı",
+      "loadError": "Feragatnameler yüklenemedi",
+      "statsError": "Feragatname istatistikleri yüklenemedi"
+    }
+  },
+  "vouchers": {
+    "title": "Kupon Yönetimi",
+    "subtitle": "İndirim kodları, hediye kuponları ve promosyon teklifleri oluşturun ve yönetin",
+    "actions": {
+      "refresh": "Yenile",
+      "bulkGenerate": "Toplu Oluştur",
+      "createVoucher": "Kupon Oluştur",
+      "updateVoucher": "Kuponu Güncelle"
+    },
+    "stats": {
+      "totalVouchers": "Toplam Kupon",
+      "activeVouchers": "Aktif Kupon",
+      "totalRedemptions": "Toplam Kullanım",
+      "totalDiscountGiven": "Toplam Verilen İndirim"
+    },
+    "filters": {
+      "searchPlaceholder": "Kod veya ad ile ara...",
+      "filterByType": "Türe göre filtrele",
+      "activeOnly": "Yalnızca Aktif",
+      "inactiveOnly": "Yalnızca Pasif",
+      "all": "Tümü"
+    },
+    "table": {
+      "code": "Kod",
+      "name": "Ad",
+      "type": "Tür",
+      "value": "Değer",
+      "usage": "Kullanım",
+      "validity": "Geçerlilik",
+      "status": "Durum",
+      "actions": "İşlemler",
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "copyCode": "Kodu kopyala",
+      "validUntil": "Bitiş: {{date}}",
+      "totalVouchers": "Toplam {{total}} kupon"
+    },
+    "mobileCard": {
+      "validUntil": "Geçerlilik Bitiş:",
+      "usage": "Kullanım:"
+    },
+    "voucherTypes": {
+      "percentage": {
+        "label": "Yüzde İndirim",
+        "description": "Toplam tutardan yüzde olarak indirim. Satış ve promosyonlar için idealdir."
+      },
+      "fixed_amount": {
+        "label": "Sabit Tutar",
+        "description": "Siparişten sabit tutar indirimi. Sade ve anlaşılır."
+      },
+      "wallet_credit": {
+        "label": "Cüzdan Kredisi",
+        "description": "Kullanıcının cüzdanına kredi ekler. Referanslar için uygundur."
+      },
+      "free_service": {
+        "label": "Ücretsiz Hizmet",
+        "description": "Müşteriye ücretsiz hizmet açar."
+      },
+      "package_upgrade": {
+        "label": "Paket Yükseltme",
+        "description": "Müşterinin paketini bir üst seviyeye yükseltir."
+      }
+    },
+    "appliesTo": {
+      "all": {
+        "label": "Tüm Hizmetler",
+        "description": "Her yerde geçerlidir — dersler, mağaza, kiralama vb."
+      },
+      "shop": {
+        "label": "Yalnızca Mağaza",
+        "description": "Fiziksel ürünler ve ticari ürünler"
+      },
+      "lessons": {
+        "label": "Yalnızca Dersler",
+        "description": "Ders rezervasyonları ve eğitim oturumları"
+      },
+      "rentals": {
+        "label": "Yalnızca Kiralama",
+        "description": "Ekipman kiralama rezervasyonları"
+      },
+      "accommodation": {
+        "label": "Yalnızca Konaklama",
+        "description": "Oda ve konaklama rezervasyonları"
+      },
+      "packages": {
+        "label": "Yalnızca Paketler",
+        "description": "Paket fırsatlar ve demetler"
+      },
+      "wallet": {
+        "label": "Cüzdan Yüklemeleri",
+        "description": "Cüzdan bakiyesi yükleme işlemleri"
+      }
+    },
+    "usageType": {
+      "single_global": "Tek Kullanımlık (Toplam)",
+      "single_per_user": "Kullanıcı Başına Tek Kullanım",
+      "multi_limited": "Sınırlı Kullanım",
+      "multi_per_user": "Kullanıcı Başına Sınırlı",
+      "unlimited": "Sınırsız"
+    },
+    "visibility": {
+      "public": "Herkese Açık (Herkes kullanabilir)",
+      "private": "Özel (Yalnızca atanan kullanıcılar)",
+      "role_based": "Role Göre"
+    },
+    "wizard": {
+      "editTitle": "Kuponu Düzenle",
+      "createTitle": "Kupon Oluştur",
+      "editSubtitle": "Kupon ayarlarını güncelleyin",
+      "createSubtitle": "Birkaç kolay adımda yeni bir indirim kodu oluşturun",
+      "steps": {
+        "type": "Tür",
+        "valueScope": "Değer ve Kapsam",
+        "rules": "Kurallar",
+        "codeReview": "Kod ve İnceleme"
+      },
+      "step0": {
+        "prompt": "Hangi tür kuponu oluşturmak istiyorsunuz?"
+      },
+      "step1": {
+        "promptPercentage": "Yüzde kaç indirim?",
+        "promptFixed": "Toplam tutardan ne kadar indirim?",
+        "promptWallet": "Ne kadar cüzdan kredisi?",
+        "promptFreeService": "Ücretsiz hizmet detayları",
+        "promptPackageUpgrade": "Paket yükseltme detayları",
+        "percentageLabel": "Yüzde (%)",
+        "creditAmountLabel": "Kredi Tutarı",
+        "discountAmountLabel": "İndirim Tutarı",
+        "currencyLabel": "Para Birimi",
+        "maxDiscountLabel": "Maksimum İndirim Tavanı",
+        "maxDiscountExtra": "İsteğe bağlı — yüksek değerli siparişlerde indirimi sınırlar",
+        "minPurchaseLabel": "Minimum Alışveriş Tutarı",
+        "minPurchaseExtra": "Müşteri bu kodu kullanmak için en az bu kadar harcamalıdır",
+        "whereUsed": "Bu kupon nerede kullanılabilir?"
+      },
+      "step2": {
+        "prompt": "Kullanım kuralları ve kısıtlamalarını ayarlayın",
+        "usageLimits": "Kullanım Sınırları",
+        "howManyTimes": "Bu kaç kez kullanılabilir?",
+        "maxTotalUses": "Toplam Maksimum Kullanım",
+        "maxUsesPerUser": "Kullanıcı Başına Maksimum Kullanım",
+        "validityPeriod": "Geçerlilik Süresi",
+        "validDateRange": "Geçerlilik Tarihi Aralığı",
+        "validDateExtra": "Zaman kısıtlaması için boş bırakın",
+        "startDate": "Başlangıç Tarihi",
+        "endDate": "Bitiş Tarihi",
+        "accessControl": "Erişim Kontrolü",
+        "whoCanUse": "Bu kuponu kim kullanabilir?",
+        "firstPurchaseOnly": "Yalnızca İlk Alışveriş",
+        "canCombine": "Birleştirilebilir",
+        "activeOnCreate": "Oluşturulduğunda Aktif"
+      },
+      "step3": {
+        "prompt": "Kuponunuzu adlandırın ve inceleyin",
+        "voucherCode": "Kupon Kodu",
+        "voucherCodeExtra": "Müşteriler ödeme sırasında bu kodu girer",
+        "displayName": "Görünen Ad",
+        "displayNameExtra": "Dahili ad (uygulandığında müşteriye gösterilir)",
+        "internalDescription": "Dahili Açıklama",
+        "descriptionPlaceholder": "Bu kupon hakkında isteğe bağlı notlar",
+        "reviewSummary": "İnceleme Özeti",
+        "type": "TÜR",
+        "value": "DEĞER",
+        "appliesTo": "KAPSAM",
+        "usage": "KULLANIM",
+        "minPurchase": "MİN ALIŞVERİŞ",
+        "maxDiscount": "maks {{amount}} {{currency}}"
+      },
+      "navigation": {
+        "back": "Geri",
+        "next": "İleri",
+        "review": "İncele",
+        "cancel": "İptal",
+        "createVoucher": "Kupon Oluştur"
+      }
+    },
+    "bulk": {
+      "title": "Toplu Kod Oluştur",
+      "subtitle": "Aynı ayarlarla birden fazla benzersiz kupon kodu oluşturun",
+      "numberOfCodes": "Kod Sayısı",
+      "codePrefix": "Kod Ön Eki",
+      "codePrefixExtra": "örn. GIFT → GIFT-A1B2C3",
+      "voucherName": "Kupon Adı",
+      "type": "Tür",
+      "value": "Değer",
+      "scope": "Kapsam",
+      "validDateRange": "Geçerlilik Tarihi Aralığı",
+      "validDateExtra": "Zaman kısıtlaması için boş bırakın",
+      "cancel": "İptal",
+      "generate": "Kodları Oluştur"
+    },
+    "detail": {
+      "drawerTitle": "Kupon Detayları: {{code}}",
+      "voucherInfo": "Kupon Bilgileri",
+      "redemptionHistory": "Kullanım Geçmişi",
+      "noRedemptions": "Henüz kullanım yok",
+      "code": "Kod",
+      "status": "Durum",
+      "type": "Tür",
+      "value": "Değer",
+      "usage": "Kullanım",
+      "appliesTo": "Kapsam",
+      "validFrom": "Geçerlilik Başlangıcı",
+      "validUntil": "Geçerlilik Bitişi",
+      "created": "Oluşturulma",
+      "redemptionColumns": {
+        "user": "Kullanıcı",
+        "email": "E-posta",
+        "originalAmount": "Orijinal Tutar",
+        "discountApplied": "Uygulanan İndirim",
+        "reference": "Referans",
+        "date": "Tarih"
+      }
+    },
+    "popconfirm": {
+      "deactivateTitle": "Bu kuponu devre dışı bırakılsın mı?",
+      "deactivateDescription": "Kullanıcılar artık bu kodu kullanamayacak.",
+      "deactivateOk": "Devre Dışı Bırak",
+      "cancel": "İptal",
+      "deactivateMobile": "Devre dışı bırak?"
+    },
+    "toast": {
+      "created": "Kupon başarıyla oluşturuldu",
+      "updated": "Kupon başarıyla güncellendi",
+      "deactivated": "Kupon devre dışı bırakıldı",
+      "bulkGenerated": "{{count}} kupon kodu oluşturuldu",
+      "codeCopied": "Kod panoya kopyalandı",
+      "duplicateCode": "Bu kodla zaten bir kupon mevcut",
+      "loadError": "Kuponlar yüklenemedi",
+      "createError": "Kupon oluşturulamadı",
+      "updateError": "Kupon güncellenemedi",
+      "deleteError": "Kupon silinemedi",
+      "bulkError": "Kuponlar oluşturulamadı",
+      "redemptionsError": "Kullanım geçmişi yüklenemedi"
+    },
+    "validation": {
+      "codeRequired": "Kod zorunludur",
+      "codeMin": "En az 3 karakter",
+      "codeMax": "En fazla 50 karakter",
+      "codePattern": "Yalnızca harfler, rakamlar, - ve _",
+      "nameRequired": "Ad zorunludur",
+      "enterValue": "Bir değer girin"
+    }
+  },
+  "spareParts": {
+    "title": "Yedek Parça Siparişleri",
+    "actions": {
+      "refresh": "Yenile",
+      "exportCsv": "CSV Dışa Aktar",
+      "newOrder": "Yeni Sipariş",
+      "apply": "Uygula"
+    },
+    "filters": {
+      "statusPlaceholder": "Durum",
+      "searchPlaceholder": "Parça veya tedarikçi ara...",
+      "status": {
+        "pending": "Beklemede",
+        "ordered": "Sipariş Edildi",
+        "received": "Teslim Alındı",
+        "cancelled": "İptal Edildi"
+      }
+    },
+    "table": {
+      "part": "Parça",
+      "quantity": "Miktar",
+      "supplier": "Tedarikçi",
+      "status": "Durum",
+      "actions": "İşlemler",
+      "markOrdered": "Sipariş Edildi İşaretle",
+      "markReceived": "Teslim Alındı İşaretle",
+      "delete": "Sil"
+    },
+    "mobileCard": {
+      "supplierLabel": "Tedarikçi: {{supplier}}",
+      "qty": "Miktar: {{qty}}",
+      "ordered": "Sipariş Edildi",
+      "recv": "Teslim Al",
+      "del": "Sil"
+    },
+    "modal": {
+      "title": "Yeni Yedek Parça Siparişi",
+      "create": "Oluştur",
+      "partLabel": "Parça",
+      "partPlaceholder": "örn. Fren balataları",
+      "partRequired": "Parça adı zorunludur",
+      "quantityLabel": "Miktar",
+      "quantityPlaceholder": "örn. 2",
+      "quantityRequired": "Miktar zorunludur",
+      "supplierLabel": "Tedarikçi",
+      "supplierPlaceholder": "örn. ABC Tedarik",
+      "statusLabel": "Durum"
+    },
+    "toast": {
+      "created": "Sipariş oluşturuldu",
+      "createError": "Sipariş oluşturulamadı",
+      "statusUpdated": "Durum {{status}} olarak güncellendi",
+      "statusError": "Durum güncellenemedi",
+      "deleted": "Sipariş silindi",
+      "deleteError": "Sipariş silinemedi",
+      "loadError": "Siparişler yüklenemedi"
+    },
+    "unauthorized": "Üzgünüz, bu sayfaya erişim yetkiniz yok."
+  },
+  "support": {
+    "title": "Destek Talepleri",
+    "subtitle": "Tüm kanallardaki destek taleplerini yönetin",
+    "viewToggle": {
+      "inbox": "Gelen Kutusu",
+      "table": "Tablo"
+    },
+    "stats": {
+      "total": "Toplam",
+      "open": "Açık",
+      "inProgress": "İşlemde",
+      "resolved": "Çözüldü"
+    },
+    "filters": {
+      "searchPlaceholder": "Ad veya konu ara…",
+      "statusPlaceholder": "Durum",
+      "priorityPlaceholder": "Öncelik",
+      "channelPlaceholder": "Kanal",
+      "refresh": "Yenile",
+      "status": {
+        "open": "Açık",
+        "in_progress": "İşlemde",
+        "resolved": "Çözüldü",
+        "closed": "Kapatıldı"
+      },
+      "priority": {
+        "urgent": "Acil",
+        "high": "Yüksek",
+        "normal": "Normal",
+        "low": "Düşük"
+      },
+      "channel": {
+        "portal": "Portal",
+        "email": "E-posta",
+        "whatsapp": "WhatsApp",
+        "chat": "Sohbet"
+      }
+    },
+    "table": {
+      "priority": "Öncelik",
+      "status": "Durum",
+      "student": "Öğrenci",
+      "subject": "Konu",
+      "channel": "Kanal",
+      "created": "Oluşturulma",
+      "actions": "İşlemler",
+      "start": "Başlat",
+      "resolve": "Çöz",
+      "view": "Görüntüle",
+      "totalTickets": "Toplam {{total}} talep",
+      "message": "Mesaj",
+      "notes": "Notlar",
+      "reply": "Yanıtla",
+      "internalNote": "Dahili Not"
+    },
+    "inbox": {
+      "noTickets": "Talep bulunamadı"
+    },
+    "conversation": {
+      "selectTicket": "Detayları görüntülemek için bir talep seçin",
+      "addInternalNote": "Dahili not ekle",
+      "notePlaceholder": "Dahili not (öğrenciye görünmez)…",
+      "replyPlaceholder": "Öğrenciye bir yanıt yazın…",
+      "reply": "Yanıtla",
+      "add": "Ekle",
+      "adminReply": "Yönetici yanıtı",
+      "adminNote": "Yönetici notu",
+      "start": "Başlat",
+      "resolve": "Çöz",
+      "close": "Kapat"
+    },
+    "toast": {
+      "started": "Başlatıldı",
+      "resolved": "Çözüldü",
+      "replySent": "Yanıt gönderildi",
+      "replyError": "Yanıt gönderilemedi",
+      "noteAdded": "Not eklendi",
+      "noteError": "Not eklenemedi",
+      "statusUpdated": "Talep {{status}} olarak işaretlendi",
+      "statusError": "Durum güncellenemedi"
+    }
+  },
+  "roles": {
+    "title": "Roller ve İzinler",
+    "newRole": "Yeni Rol",
+    "roleCount": "{{count}} rol",
+    "roleCount_plural": "{{count}} rol",
+    "table": {
+      "role": "Rol",
+      "description": "Açıklama",
+      "permissions": "İzinler",
+      "users": "Kullanıcılar",
+      "actions": ""
+    },
+    "permissions": {
+      "noPermissions": "İzin yok",
+      "fullAccess": "Tam Erişim",
+      "allGranted": "Tümü verildi",
+      "partial": "Kısmi",
+      "moreCategories": "+{{count}} daha"
+    },
+    "superAdmin": {
+      "label": "Süper Yönetici — Tam Erişim",
+      "description": "Mevcut ve gelecekteki tüm izinleri verir. Dikkatli kullanın.",
+      "tooltip": "Gelecektekiler dahil tüm izinleri verir.",
+      "fullAccessMessage": "Tüm özelliklere tam erişim",
+      "fullAccessHint": "Ayrıntılı izinleri yapılandırmak için yukarıdaki geçişi kapatın"
+    },
+    "categories": {
+      "bookings": {
+        "label": "Rezervasyonlar",
+        "description": "Ders ve aktivite rezervasyonlarını yönet",
+        "read": "Rezervasyonları görüntüle",
+        "write": "Rezervasyon oluştur/düzenle",
+        "delete": "Rezervasyonları iptal et/sil",
+        "approve": "Bekleyen rezervasyonları onayla"
+      },
+      "users": {
+        "label": "Kullanıcılar",
+        "description": "Kullanıcı hesaplarını yönet",
+        "read": "Kullanıcıları görüntüle",
+        "write": "Kullanıcı oluştur/düzenle",
+        "delete": "Kullanıcıları sil",
+        "assign_roles": "Kullanıcılara rol ata"
+      },
+      "finances": {
+        "label": "Finanslar",
+        "description": "Finansal verilere ve işlemlere eriş",
+        "read": "Finansal raporları görüntüle",
+        "write": "İşlem/ödeme oluştur",
+        "refund": "İade işle",
+        "reconcile": "Mali mutabakat yap"
+      },
+      "wallet": {
+        "label": "Cüzdan",
+        "description": "Kullanıcı cüzdan işlemlerini yönet",
+        "read": "Cüzdan bakiyelerini görüntüle",
+        "topup": "Cüzdanlara para ekle",
+        "deduct": "Cüzdanlardan düş",
+        "transfer": "Cüzdanlar arası transfer"
+      },
+      "instructors": {
+        "label": "Eğitmenler",
+        "description": "Eğitmen profillerini ve programlarını yönet",
+        "read": "Eğitmenleri görüntüle",
+        "write": "Eğitmen oluştur/düzenle",
+        "schedule": "Programları yönet",
+        "earnings": "Kazançları görüntüle/yönet"
+      },
+      "equipment": {
+        "label": "Ekipman",
+        "description": "Kiralık ekipman envanterini yönet",
+        "read": "Ekipmanı görüntüle",
+        "write": "Ekipman oluştur/düzenle",
+        "delete": "Ekipmanı sil",
+        "rental": "Kiralamaları yönet"
+      },
+      "services": {
+        "label": "Hizmetler",
+        "description": "Hizmet tekliflerini yönet",
+        "read": "Hizmetleri görüntüle",
+        "write": "Hizmet oluştur/düzenle",
+        "delete": "Hizmetleri sil",
+        "pricing": "Fiyatlandırmayı yönet"
+      },
+      "settings": {
+        "label": "Ayarlar",
+        "description": "Sistem yapılandırması",
+        "read": "Ayarları görüntüle",
+        "write": "Ayarları değiştir"
+      },
+      "reports": {
+        "label": "Raporlar",
+        "description": "Analitik ve raporlara eriş",
+        "read": "Raporları görüntüle",
+        "export": "Veriyi dışa aktar"
+      },
+      "notifications": {
+        "label": "Bildirimler",
+        "description": "Sistem bildirimlerini yönet",
+        "read": "Bildirimleri görüntüle",
+        "send": "Bildirim gönder",
+        "manage": "Bildirim ayarlarını yönet"
+      },
+      "audit": {
+        "label": "Denetim Günlükleri",
+        "description": "Sistem denetim günlüklerine eriş",
+        "read": "Denetim günlüklerini görüntüle"
+      },
+      "system": {
+        "label": "Sistem",
+        "description": "Sistem yönetimi",
+        "admin": "Tam sistem erişimi",
+        "backup": "Yedeklemeleri yönet",
+        "maintenance": "Bakım modu"
+      }
+    },
+    "modals": {
+      "createRole": "Rol Oluştur",
+      "editRole": "Rolü Düzenle",
+      "assignRole": "Rol Ata",
+      "viewUsers": "kullanıcılar",
+      "changeRole": "Rol Değiştir",
+      "permissionsLabel": "İzinler",
+      "roleNameLabel": "Rol Adı",
+      "roleNamePlaceholder": "örn. satis_yoneticisi",
+      "roleNameRequired": "Rol adı zorunludur",
+      "descriptionLabel": "Açıklama",
+      "descriptionPlaceholder": "Rolün amacını açıklayın",
+      "selectUserLabel": "Kullanıcı Seç",
+      "selectUserPlaceholder": "Kullanıcı ara...",
+      "selectUserRequired": "Bir kullanıcı seçin",
+      "selectNewRoleLabel": "Yeni Rol",
+      "selectNewRolePlaceholder": "Yeni rol seçin",
+      "selectNewRoleRequired": "Yeni bir rol seçin",
+      "currentRole": "Mevcut rol:",
+      "noUsersWithRole": "Bu rolle kullanıcı yok",
+      "saveChanges": "Değişiklikleri Kaydet",
+      "createRoleButton": "Rol Oluştur",
+      "assignRoleButton": "Rol Ata",
+      "changeRoleButton": "Rolü Değiştir",
+      "cancel": "İptal",
+      "close": "Kapat",
+      "change": "Değiştir"
+    },
+    "popconfirm": {
+      "deleteTitle": "Rolü sil",
+      "deleteDescription": "Bu rolü silmek istediğinizden emin misiniz?",
+      "deleteOk": "Sil",
+      "cancel": "İptal"
+    },
+    "tooltips": {
+      "viewUsers": "Kullanıcıları Görüntüle",
+      "edit": "Düzenle",
+      "assignToUser": "Kullanıcıya Ata",
+      "systemRoleCannotDelete": "Sistem rolleri silinemez",
+      "removeUsersFirst": "Önce tüm kullanıcıları kaldırın",
+      "deleteRole": "Rolü sil"
+    },
+    "toast": {
+      "roleDeleted": "Rol silindi",
+      "roleDeleteError": "Rol silinemedi",
+      "roleCreated": "Rol oluşturuldu",
+      "roleCreateError": "Rol oluşturulamadı",
+      "roleUpdated": "Rol güncellendi",
+      "roleUpdateError": "Rol güncellenemedi",
+      "roleAssigned": "Rol kullanıcıya atandı",
+      "roleAssignError": "Rol atanamadı",
+      "roleChanged": "{{name}} için rol değiştirildi",
+      "roleChangeError": "Rol değiştirilemedi",
+      "loadError": "Roller/kullanıcılar yüklenemedi"
+    },
+    "mobileCard": {
+      "system": "sistem",
+      "users": "{{count}} kullanıcı",
+      "usersButton": "Kullanıcılar",
+      "edit": "Düzenle",
+      "assign": "Ata"
+    }
+  },
+  "userRoleManager": {
+    "title": "Kullanıcı Rolünü Yönet",
+    "changeRole": "Rol Değiştir",
+    "selectNewRole": "Yeni rol seçin:",
+    "noChanges": "Değişiklik Yok",
+    "updateRole": "Rolü Güncelle",
+    "cancel": "İptal",
+    "warning": "Kullanıcının rolünü değiştirmek erişim izinlerini hemen etkiler. Değişikliklerin tam olarak uygulanması için oturumu kapatıp tekrar açması gerekebilir.",
+    "warningLabel": "Uyarı:",
+    "roleDescriptions": {
+      "student": "Temel kullanıcı erişimi",
+      "freelancer": "Bağımsız yüklenici",
+      "assistant": "Sınırlı idari destek",
+      "instructor": "Öğretim ve rezervasyon yönetimi",
+      "receptionist": "Resepsiyon operasyonları",
+      "manager": "Operasyonel yönetim",
+      "admin": "Tam sistem erişimi"
+    },
+    "toast": {
+      "noChanges": "Değişiklik yapılmadı",
+      "success": "{{name}} kullanıcısının rolü başarıyla {{role}} olarak değiştirildi"
+    }
+  },
+  "currency": {
+    "title": "Para Birimi Yönetimi",
+    "addCurrency": "Para Birimi Ekle",
+    "note": "Kullanıcıların kayıt sırasında hangi para birimini seçebileceğini kontrol etmek için Ayarlar > Para Birimi Ayarları bölümüne gidin.",
+    "table": {
+      "currency": "Para Birimi",
+      "name": "Ad",
+      "exchangeRate": "Döviz Kuru",
+      "status": "Durum",
+      "actions": "İşlemler",
+      "baseCurrency": "Baz (1,0000)"
+    },
+    "popconfirm": {
+      "setBase": "Baz para birimi olarak ayarlanSın mı?",
+      "setBaseDescription": "Bu, diğer tüm para birimlerini bu para birimine göre yapacaktır"
+    },
+    "modal": {
+      "editTitle": "Para Birimini Düzenle",
+      "addTitle": "Para Birimi Ekle",
+      "currencyCode": "Para Birimi Kodu",
+      "currencyCodePlaceholder": "USD",
+      "currencyCodeRequired": "Lütfen para birimi kodu girin",
+      "currencyName": "Para Birimi Adı",
+      "currencyNamePlaceholder": "Amerikan Doları",
+      "currencyNameRequired": "Lütfen para birimi adı girin",
+      "symbol": "Sembol",
+      "symbolPlaceholder": "$",
+      "symbolRequired": "Lütfen para birimi sembolü girin",
+      "exchangeRate": "Döviz Kuru",
+      "exchangeRateRequired": "Lütfen döviz kuru girin",
+      "active": "Aktif",
+      "updateButton": "Para Birimini Güncelle",
+      "addButton": "Para Birimi Ekle",
+      "cancel": "İptal"
+    },
+    "toast": {
+      "added": "Para birimi başarıyla eklendi",
+      "updated": "Para birimi başarıyla güncellendi",
+      "activated": "Para birimi etkinleştirildi",
+      "deactivated": "Para birimi devre dışı bırakıldı",
+      "baseCurrencyUpdated": "Baz para birimi güncellendi",
+      "exchangeRateUpdated": "Döviz kuru güncellendi",
+      "registrationCurrenciesUpdated": "Kayıt para birimleri güncellendi",
+      "loadError": "Para birimleri yüklenemedi",
+      "saveError": "Para birimi kaydedilemedi",
+      "toggleError": "Para birimi durumu güncellenemedi",
+      "baseError": "Baz para birimi ayarlanamadı",
+      "rateError": "Döviz kuru güncellenemedi",
+      "registrationLoadError": "Kayıt ayarları yüklenemedi",
+      "registrationUpdateError": "Kayıt para birimleri güncellenemedi"
+    }
+  },
+  "ratings": {
+    "title": "Eğitmen Derecelendirme Analitikleri",
+    "subtitle": "Tüm hizmetlerde eğitmen performansını ve öğrenci geri bildirimlerini takip edin.",
+    "metrics": {
+      "averageRating": "Ortalama puan",
+      "fiveStarShare": "Beş yıldız oranı",
+      "activeInstructors": "Aktif eğitmenler",
+      "mostRecentFeedback": "En son geri bildirim",
+      "noRatings": "Henüz puanlama yapılmadı.",
+      "computedAcross": "{{count}} değerlendirme üzerinden hesaplandı.",
+      "portionFiveStars": "Beş yıldız alan toplam yorum oranı.",
+      "collectMore": "Bu metriği doldurmak için daha fazla geri bildirim toplayın.",
+      "currentlyOnLeaderboard": "Şu anda lider tablosuna dahil.",
+      "noInstructorsYet": "Henüz puanlama almış eğitmen yok.",
+      "latestSubmissionDate": "Takip edilen eğitmenler arasındaki en son gönderim tarihi.",
+      "noFeedback": "Henüz geri bildirim yapılmadı.",
+      "noRatingsYet": "Puanlama yok"
+    },
+    "charts": {
+      "ratingDistribution": "Puan dağılımı",
+      "ratingDistributionSubtitle": "Öğrencilerin eğitmenleri zaman içinde nasıl puanladığı.",
+      "noRatingData": "Henüz puan verisi yok",
+      "serviceBreakdown": "Hizmet bazlı analiz",
+      "serviceBreakdownSubtitle": "Puanların %{{fiveStarPercent}}'i beş yıldız. Genel ortalama {{average}}.",
+      "noServiceBreakdown": "Bu dökümü açmak için daha fazla geri bildirim toplayın.",
+      "noServiceBreakdownData": "Hizmet dökümü mevcut değil",
+      "lessons": "Dersler",
+      "rentals": "Kiralamalar",
+      "accommodation": "Konaklama",
+      "stars": "{{count}} Yıldız"
+    },
+    "insights": {
+      "title": "Temel içgörüler",
+      "noRatings": "Henüz puanlama yok",
+      "noRatingsDescription": "Analitiklerin açılması için öğrencileri ilk yorumlarını yazmaya teşvik edin.",
+      "overallAverage": "Genel ortalama",
+      "overallAverageDescription": "Toplam {{total}} değerlendirmede {{average}}.",
+      "fiveStarChampions": "Beş yıldız şampiyonları",
+      "fiveStarChampionsDescription": "{{name}}, %{{percent}} beş yıldızlı yorum ile lider.",
+      "mostFeedback": "En çok geri bildirim toplayan",
+      "mostFeedbackDescription": "{{name}} toplam {{count}} puan aldı."
+    },
+    "topPerformers": {
+      "title": "En iyi performans gösterenler",
+      "noInstructors": "Henüz sıralama yapılmadı",
+      "champion": "Şampiyon",
+      "avgRatingsFormat": "Ort {{avg}} · {{count}} puan · %{{fiveStarPct}} 5★"
+    },
+    "leaderboard": {
+      "title": "Eğitmen lider tablosu",
+      "subtitle": "Sürekli yüksek performans gösteren eğitmenleri ve destek gereken alanları belirlemek için lider tablosunu kullanın.",
+      "noDataTitle": "Veri mevcut değil",
+      "noDataSubtitle": "Öğrenciler geri bildirim göndermeye başladığında puanlar görünecek.",
+      "waitingForRatings": "Eğitmenler puan aldığında lider tablosu verisi görünecek.",
+      "sortBy": "Sıralama ölçütü",
+      "benchmarkHighlight": "Kıyaslama vurgusu",
+      "showingBadges": "Rozetler gösteriliyor",
+      "hidden": "Gizli",
+      "autoRefresh": "Otomatik yenile",
+      "every60s": "Her 60 saniyede",
+      "actions": "İşlemler",
+      "refresh": "Yenile",
+      "export": "Dışa Aktar",
+      "sortedBy": "{{descriptor}} ölçütüne göre sıralı",
+      "benchmarkNote": "Kıyaslama performansçıları amber rengiyle vurgulanmıştır.",
+      "totalInstructors": "{{count}} eğitmen",
+      "totalInstructors_plural": "{{count}} eğitmen"
+    },
+    "table": {
+      "rank": "#",
+      "instructor": "Eğitmen",
+      "averageRating": "Ortalama Puan",
+      "ratings": "Puanlar",
+      "fiveStarShare": "5★ Oranı",
+      "lastRating": "Son Puan",
+      "lessonAvg": "Ders Ort.",
+      "rentalAvg": "Kiralama Ort.",
+      "accommodationAvg": "Konaklama Ort.",
+      "benchmark": "Kıyaslama",
+      "topPerformer": "En iyi performans",
+      "belowTarget": "Hedefin altında"
+    },
+    "mobileCard": {
+      "avg": "Ort.",
+      "topTier": "Üst Düzey",
+      "ratingsLabel": "Puanlar:",
+      "fiveStarShare": "5★ Oranı:",
+      "lesson": "Ders",
+      "rental": "Kiralama",
+      "accomm": "Konak.",
+      "lastRated": "Son puan: {{date}}"
+    },
+    "sort": {
+      "average": "En yüksek ortalama puan",
+      "count": "En fazla puan gönderilen",
+      "recent": "En son geri bildirim"
+    },
+    "serviceType": {
+      "all": "Tüm hizmetler",
+      "lesson": "Dersler",
+      "rental": "Kiralamalar",
+      "accommodation": "Konaklama"
+    },
+    "timeRange": {
+      "all": "Tüm zamanlar",
+      "7d": "Son 7 gün",
+      "30d": "Son 30 gün",
+      "90d": "Son 90 gün"
+    },
+    "error": "Eğitmen analitikleri yüklenemedi"
+  },
+  "kai": {
+    "title": "Kai Konuşmaları",
+    "subtitle": "Her 30 saniyede otomatik güncellenir",
+    "subtitleWithTime": "Her 30 saniyede otomatik güncellenir · son güncelleme {{time}}",
+    "refreshNow": "Şimdi yenile",
+    "stats": {
+      "totalSessions": "Toplam Oturum",
+      "totalMessages": "Toplam Mesaj",
+      "outsider": "Ziyaretçi",
+      "student": "Öğrenci",
+      "staffAdmin": "Personel / Yönetici",
+      "hasUnanswered": "Yanıtsız İçeren"
+    },
+    "filters": {
+      "searchPlaceholder": "Ad, e-posta veya mesaj ara…",
+      "allRoles": "Tüm roller",
+      "unansweredOnly": "Yalnızca yanıtsız",
+      "roles": {
+        "outsider": "Ziyaretçi",
+        "student": "Öğrenci",
+        "instructor": "Eğitmen",
+        "manager": "Yönetici",
+        "admin": "Yönetici"
+      }
+    },
+    "sessions": {
+      "found": "{{count}} oturum bulundu",
+      "notAnswered": "yanıtsız",
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "pageRange": "{{from}}–{{to}} / {{total}}",
+      "noSessions": "Oturum bulunamadı",
+      "couldntAnswer": "Tam olarak yanıtlanamadı"
+    },
+    "drawer": {
+      "conversation": "Konuşma",
+      "summary": "Özet",
+      "noMessages": "Mesaj kaydedilmemiş",
+      "loadError": "Konuşma yüklenemedi. Lütfen tekrar deneyin."
+    }
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "loading": "Ayarlar yükleniyor...",
+    "tabs": {
+      "general": "Genel",
+      "calendar": "Takvim",
+      "bookingDefaults": "Rezervasyon Varsayılanları",
+      "forecast": "Tahmin",
+      "finance": "Finans",
+      "currency": "Para Birimi",
+      "services": "Hizmet Oluşturma",
+      "roles": "Roller ve İzinler",
+      "waivers": "Feragatnameler",
+      "legal": "Hukuki Belgeler",
+      "refunds": "Ödeme İadeleri",
+      "bankAccounts": "Banka Hesapları",
+      "kaiLogs": "Kai Günlükleri",
+      "deletedBookings": "Silinen Rezervasyonlar",
+      "safety": "Güvenlik ve Sağlık",
+      "availability": "Uygunluk",
+      "teachingPrefs": "Öğretim Tercihleri",
+      "instructorNotifications": "Bildirimler",
+      "teamNotifications": "Takım Bildirimleri",
+      "operationalDefaults": "Operasyonel Varsayılanlar"
+    },
+    "groups": {
+      "personal": "Kişisel",
+      "business": "İşletme",
+      "services": "Hizmetler",
+      "access": "Erişim",
+      "legal": "Hukuki",
+      "payments": "Ödemeler",
+      "operations": "Operasyonlar",
+      "schedule": "Program",
+      "teaching": "Öğretim",
+      "ai": "YZ"
+    },
+    "tabDescriptions": {
+      "generalAdmin": "Hesabınızı, kişisel tercihlerinizi ve bildirim ayarlarınızı yönetin",
+      "general": "Hesap bilgilerinizi, tercihlerinizi ve bildirim ayarlarınızı yönetin",
+      "calendar": "Takvim görünümleri için eğitmen renklerini yapılandırın",
+      "forecast": "Birimler, veri kaynakları ve görüntüleme seçenekleri dahil rüzgar tahmin ayarlarını yapılandırın",
+      "finance": "Hesaplama oranlarını ve ödeme ücretlerini yapılandırın",
+      "currency": "İşletme para birimini, kayıt para birimlerini ve döviz kurlarını yönetin",
+      "bookingDefaults": "Varsayılan rezervasyon süresini ve mevcut seçenekleri yapılandırın",
+      "services": "Hizmet kategorilerini ve türlerini yönetin",
+      "roles": "Kullanıcı rollerini ve izinlerini yönetin",
+      "waivers": "Feragatname şablonlarını ve başvurularını yönetin",
+      "legal": "Hizmet koşullarını, gizlilik politikasını ve hukuki belgeleri yönetin",
+      "deletedBookings": "Silinen rezervasyonları görüntüleyin ve yönetin",
+      "refunds": "Ödeme iadelerini işleyin ve takip edin",
+      "bankAccounts": "Ödemeler için banka hesaplarını yönetin",
+      "bookingPrefs": "Ders rezervasyonları için varsayılan tercihlerinizi ayarlayın",
+      "instructorPrefs": "Tercih ettiğiniz eğitmeni ve ders dilini seçin",
+      "safety": "Güvenliğiniz için acil iletişim ve tıbbi bilgileri sağlayın",
+      "availability": "Haftalık çalışma saatlerinizi ve izin taleplerini yönetin",
+      "teachingPrefs": "Öğretim tercihlerinizi ve uzmanlık alanlarınızı yapılandırın",
+      "instructorNotifications": "Eğitmen olarak hangi bildirimleri aldığınızı seçin",
+      "teamNotifications": "Takım aktivitesi ve operasyonel bildirimleri yapılandırın",
+      "operationalDefaults": "Günlük rezervasyon operasyonları için varsayılan değerleri ayarlayın"
+    },
+    "loggedInAs": "Giriş yapıldı:",
+    "roleLabels": {
+      "admin": "(Yönetici)",
+      "manager": "(Müdür)",
+      "instructor": "(Eğitmen)",
+      "student": "(Öğrenci)"
+    },
+    "notifications": {
+      "title": "Bildirim Tercihleri",
+      "email": "E-posta Bildirimleri",
+      "emailDescription": "E-posta yoluyla rezervasyon onayları ve güncellemeleri alın",
+      "sms": "SMS Bildirimleri",
+      "smsDescription": "Önemli güncellemeler için kısa mesaj alın",
+      "push": "Anlık Bildirimler",
+      "pushDescription": "Tarayıcınızda gerçek zamanlı bildirimler alın",
+      "newBookingAlerts": "Yeni Rezervasyon Uyarıları",
+      "newBookingAlertsDescription": "Öğrenciler yeni rezervasyon talep ettiğinde bildirim alın"
+    },
+    "languageRegion": {
+      "title": "Dil ve Bölge",
+      "languageLabel": "Dil",
+      "languageDescription": "Arayüz için tercih ettiğiniz dili seçin"
+    },
+    "savePersonalSettings": "Kişisel Ayarları Kaydet",
+    "calendarSection": {
+      "workingHours": "Çalışma Saatleri",
+      "workingHoursDescription": "Rezervasyon takvimi ve mevcut zaman dilimleri için günlük açılış ve kapanış saatlerini ayarlayın.",
+      "opensAt": "Açılış saati",
+      "closesAt": "Kapanış saati",
+      "saveWorkingHours": "Çalışma Saatlerini Kaydet",
+      "instructorVisibility": "Forma Göre Eğitmen Görünürlüğü",
+      "instructorVisibilityDescription": "Her rezervasyon formunda hangi eğitmenlerin görüneceğini kısıtlayın. Tüm eğitmenleri göstermek için boş bırakın.",
+      "allInstructors": "Tüm eğitmenler (kısıtlama yok)",
+      "saveVisibility": "Görünürlüğü Kaydet",
+      "formContexts": {
+        "staff_booking": {
+          "label": "Personel Rezervasyon Sihirbazı",
+          "description": "Personel yeni rezervasyon oluştururken eğitmen seçici"
+        },
+        "customer_modal": {
+          "label": "Müşteri Rezervasyon Modalı",
+          "description": "Müşteri profil sayfasından rezervasyon"
+        },
+        "public_booking": {
+          "label": "Genel Rezervasyon Formu",
+          "description": "Ziyaretçi / misafir rezervasyon formu"
+        }
+      },
+      "toast": {
+        "workingHoursSaved": "Çalışma saatleri kaydedildi",
+        "workingHoursError": "Çalışma saatleri kaydedilemedi",
+        "visibilitySaved": "Eğitmen görünürlüğü kaydedildi",
+        "visibilityError": "Eğitmen görünürlüğü kaydedilemedi",
+        "closingAfterOpening": "Kapanış saati açılış saatinden sonra olmalıdır"
+      }
+    },
+    "currencySection": {
+      "defaultTitle": "Varsayılan İşletme Para Birimi",
+      "defaultDescription": "Bu para birimi yeni hizmetler, rezervasyonlar ve işlemler için varsayılan olarak kullanılır. Mevcut kayıtlar orijinal para birimlerini korur.",
+      "oneCurrencyWarning": "Yalnızca bir para birimi aktif. Daha fazla para birimi etkinleştirmek için Yönetici > Para Birimleri bölümüne gidin.",
+      "preferredCurrency": "Tercih Edilen Para Birimi",
+      "currentCurrency": "Mevcut: {{symbol}} ({{code}})",
+      "savePreferredCurrency": "Tercih Edilen Para Birimini Kaydet",
+      "registrationTitle": "Kayıt Para Birimi Seçenekleri",
+      "registrationDescription": "Kullanıcıların yeni hesap oluştururken hangi para birimlerini seçebileceğini kontrol edin. Yalnızca aktif para birimleri seçilebilir.",
+      "allowedCurrencies": "Yeni Kullanıcılar için İzin Verilen Para Birimleri",
+      "registrationCurrenciesPlaceholder": "Kayıt sırasında mevcut para birimlerini seçin",
+      "loadingPlaceholder": "Para birimleri yükleniyor...",
+      "registrationInfo": "Kayıt Para Birimleri",
+      "registrationInfoDescription": "Yeni kullanıcılar şunlardan seçebilir: {{currencies}}",
+      "exchangeRates": "Döviz Kurları",
+      "exchangeRatesDescription": "EUR (baz para birimi) göre döviz kurlarını yönetin. Kurları otomatik almak için otomatik güncellemeyi etkinleştirin.",
+      "toast": {
+        "currencyUpdated": "İşletme para birimi güncellendi",
+        "currencyError": "Para birimi güncellenemedi",
+        "preferredUpdated": "Para birimi tercihi başarıyla güncellendi",
+        "preferredError": "Para birimi tercihi güncellenemedi"
+      }
+    },
+    "bookingDefaults": {
+      "description": "Varsayılan rezervasyon süresini ve mevcut seçenekleri yapılandırın.",
+      "defaultDuration": "Varsayılan Süre",
+      "availableDurations": "Mevcut Süreler",
+      "save": "Rezervasyon Varsayılanlarını Kaydet",
+      "durations": {
+        "60": "1 saat",
+        "90": "1,5 saat",
+        "120": "2 saat",
+        "150": "2,5 saat",
+        "180": "3 saat",
+        "240": "4 saat"
+      },
+      "toast": {
+        "saved": "Rezervasyon varsayılanları güncellendi",
+        "error": "Rezervasyon varsayılanları güncellenemedi",
+        "durationMismatch": "Varsayılan süre, izin verilen sürelerden biri olmalıdır"
+      }
+    }
+  },
+  "legal": {
+    "title": "Hukuki Belgeler ve Onay Yönetimi",
+    "subtitle": "Hizmet Koşulları, Gizlilik Politikası ve pazarlama tercih ayarlarını yönetin",
+    "tabs": {
+      "terms": "Hizmet Koşulları",
+      "privacy": "Gizlilik Politikası",
+      "marketing": "Pazarlama Tercihleri"
+    },
+    "terms": {
+      "alertTitle": "Hizmet Koşulları",
+      "alertDescription": "Kullanıcıların yeni versiyonları kabul etmesi gerekecek. Yeniden onay tetiklemek için versiyon numarasını güncelleyin.",
+      "versionLabel": "Versiyon",
+      "versionRequired": "Versiyon zorunludur",
+      "versionPlaceholder": "örn. 2025-10-01",
+      "contentLabel": "Koşullar İçeriği (HTML desteklenir)",
+      "save": "Hizmet Koşullarını Kaydet",
+      "preview": "Önizleme"
+    },
+    "privacy": {
+      "alertTitle": "Gizlilik Politikası",
+      "alertDescription": "Kullanıcıların yeni versiyonları kabul etmesi gerekecek. Yeniden onay tetiklemek için versiyon numarasını güncelleyin.",
+      "versionLabel": "Versiyon",
+      "versionRequired": "Versiyon zorunludur",
+      "versionPlaceholder": "örn. 2025-10-01",
+      "contentLabel": "Gizlilik İçeriği (HTML desteklenir)",
+      "save": "Gizlilik Politikasını Kaydet",
+      "preview": "Önizleme"
+    },
+    "marketing": {
+      "alertTitle": "Pazarlama İletişim Tercihleri",
+      "alertDescription": "Kullanıcılara pazarlama tercihlerini yapılandırırken gösterilen açıklamayı özelleştirin.",
+      "descriptionLabel": "Açıklama Metni",
+      "descriptionPlaceholder": "Bu geçişler isteğe bağlıdır. Tercih ettiğiniz kanallar üzerinden güncellemeler ve rezervasyon hatırlatıcıları almak için abone olun.",
+      "save": "Pazarlama Tercihlerini Kaydet"
+    },
+    "toast": {
+      "termsSaved": "Hizmet Koşulları başarıyla kaydedildi",
+      "privacySaved": "Gizlilik Politikası başarıyla kaydedildi",
+      "marketingSaved": "Pazarlama Tercihleri başarıyla kaydedildi",
+      "saveError": "Belge kaydedilemedi",
+      "loadError": "Hukuki belgeler yüklenemedi"
+    }
+  },
+  "members": {
+    "title": "Üyeler",
+    "assignMembership": "Üyelik Ata",
+    "assignFirst": "İlk Üyeyi Ata",
+    "assign": "Ata",
+    "refresh": "Yenile",
+    "clear": "Temizle",
+    "filters": {
+      "searchPlaceholder": "Ad veya e-posta ara...",
+      "allStatus": "Tüm Durumlar",
+      "active": "Aktif",
+      "pending": "Beklemede",
+      "expired": "Süresi Dolmuş",
+      "cancelled": "İptal Edildi",
+      "from": "Başlangıç",
+      "to": "Bitiş"
+    },
+    "table": {
+      "member": "Üye",
+      "membership": "Üyelik",
+      "status": "Durum",
+      "purchased": "Satın Alındı",
+      "expires": "Bitiş",
+      "amount": "Tutar",
+      "never": "Asla"
+    },
+    "status": {
+      "active": "Aktif",
+      "pending": "Beklemede",
+      "expired": "Süresi Dolmuş",
+      "cancelled": "İptal Edildi"
+    },
+    "detail": {
+      "title": "Üye Detayları",
+      "close": "Kapat",
+      "memberName": "Üye Adı",
+      "email": "E-posta",
+      "membershipType": "Üyelik Türü",
+      "status": "Durum",
+      "purchaseDate": "Satın Alma Tarihi",
+      "expiryDate": "Bitiş Tarihi",
+      "neverExpires": "Hiç sona ermez",
+      "amountPaid": "Ödenen Tutar",
+      "paymentMethod": "Ödeme Yöntemi",
+      "notes": "Notlar"
+    },
+    "empty": {
+      "noMembers": "Üye bulunamadı"
+    },
+    "count": "{{count}} üye",
+    "count_plural": "{{count}} üye",
+    "totalMembers": "{{total}} üye",
+    "toast": {
+      "assigned": "Üyelik başarıyla atandı!"
+    }
+  },
+  "community": {
+    "team": {
+      "pageTitle": "Ekibimiz | Topluluk | UKC",
+      "pageDescription": "UKC'nin arkasındaki ekiple tanışın — deneyiminizi unutulmaz kılan tutkulu eğitmen ve personelimiz.",
+      "heading": "DPC-URLA EKİBİYLE TANIŞ",
+      "subtitle": "Tutkulu eğitmen ve personelimiz su sporları deneyiminizi unutulmaz kılmak için burada.",
+      "loading": "Ekip yükleniyor...",
+      "teamInfoComingSoon": "Ekip bilgisi yakında",
+      "teamInfoComingSoonDescription": "Ekip bilgilerimiz güncelleniyor. Yakında tekrar kontrol edin!",
+      "teamMemberCount": "{{count}} Ekip Üyesi",
+      "teamMemberCount_plural": "{{count}} Ekip Üyesi",
+      "instructor": "Eğitmen",
+      "featured": "Öne Çıkan",
+      "specializations": "Uzmanlıklar",
+      "languages": "Diller",
+      "withUsSince": "{{year}} yılından beri bizimle",
+      "bookALesson": "Ders Rezervasyonu Yap"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "title": "GDPR Veri Gizliliği Hakları",
+      "privacyRightsTitle": "Gizlilik Haklarınız",
+      "privacyRightsDescription": "Genel Veri Koruma Yönetmeliği (GDPR) kapsamında kişisel verilerinize ilişkin belirli haklarınız bulunmaktadır. Verilerinizi istediğiniz zaman dışa aktarabilir veya silinmesini talep edebilirsiniz.",
+      "waiverSection": {
+        "title": "Sorumluluk Feragatnamesi ve İmza Geçmişi",
+        "description": "Mevcut feragatname durumunuzu görüntüleyin ve önceki imzaları inceleyin. Feragatnamenizi imzalamanız veya yenilemeniz gerekiyorsa doğrudan aşağıdan yapabilirsiniz.",
+        "loadError": "Feragatname detayları yüklenemiyor",
+        "loadErrorDescription": "Hesap bilgilerinizi bulamadık. Lütfen tekrar oturum açıp bu sayfayı ziyaret edin.",
+        "accountError": "Feragatnameyi yüklemek için hesabınız belirlenemedi. Lütfen tekrar oturum açın."
+      },
+      "export": {
+        "title": "Verilerinizi Dışa Aktarın (Madde 15 - Erişim Hakkı)",
+        "description": "Tüm kişisel verilerinizin makine tarafından okunabilir formatta (JSON) tam bir kopyasını indirin. Buna şunlar dahildir:",
+        "button": "Tüm Verilerimi Dışa Aktar",
+        "successTitle": "Veri Dışa Aktarma Başarılı",
+        "successDescription": "Verileriniz indirildi. Dosya, JSON formatında tüm kişisel bilgilerinizi içermektedir."
+      },
+      "deletion": {
+        "title": "Verilerinizi Silin (Madde 17 - Silinme Hakkı)",
+        "importantNotice": "Önemli Bildirim",
+        "noticeDescription1": "Bu işlem kişisel verilerinizi anonimleştirecektir. Hesabınız kalıcı olarak silinecektir.",
+        "noticeDescription2": "Mali kayıtların vergi mevzuatı uyumu gereği 7 yıl boyunca saklanması gerekmektedir. Bu kayıtlar tutulacak ancak anonimleştirilecektir (kişisel tanımlayıcı olmadan).",
+        "irreversible": "Bu işlem geri alınamaz!",
+        "button": "Veri Silinmesini Talep Et",
+        "confirmTitle": "Veri Silinmesini Onayla",
+        "confirmAction": "Bu işlem kalıcıdır ve geri alınamaz!",
+        "confirmInstruction": "Silme işlemini onaylamak için lütfen yazın",
+        "confirmPlaceholder": "Yazın: VERİLERİMİ SİL",
+        "retentionNote": "Mali kayıtlar yasal uyum için 7 yıl boyunca (anonimleştirilmiş olarak) saklanacaktır.",
+        "okText": "Verilerimi Sil",
+        "cancelText": "İptal",
+        "successTitle_modal": "Veri Anonimleştirme Başarılı",
+        "successDescription_modal": "Kişisel verileriniz anonimleştirildi. Mali kayıtlar yasal uyum gereği saklandı (7 yıl).",
+        "anonymizedAt": "Anonimleştirilme zamanı:",
+        "loggingOut": "5 saniye içinde oturumunuz kapatılacak..."
+      },
+      "rights": {
+        "title": "GDPR Haklarınız",
+        "access": {
+          "label": "Erişim Hakkı (Md. 15)",
+          "value": "Tüm kişisel verilerinizi dışa aktarın"
+        },
+        "rectification": {
+          "label": "Düzeltme Hakkı (Md. 16)",
+          "value": "Hesap ayarlarında profil bilgilerinizi güncelleyin"
+        },
+        "erasure": {
+          "label": "Silinme Hakkı (Md. 17)",
+          "value": "Kişisel verilerinizin silinmesini talep edin"
+        },
+        "portability": {
+          "label": "Taşınabilirlik Hakkı (Md. 20)",
+          "value": "Verilerinizi makine tarafından okunabilir formatta (JSON) alın"
+        },
+        "withdrawConsent": {
+          "label": "Onay Geri Çekme Hakkı (Md. 7)",
+          "value": "Hesap ayarlarında iletişim tercihlerini yönetin"
+        }
+      },
+      "contact": "İletişim:",
+      "responseTime": "GDPR'ın gerektirdiği şekilde talebinize 30 gün içinde yanıt vereceğiz."
+    },
+    "waiver": {
+      "title": "Sorumluluk Feragatnamesi Gerekli",
+      "subtitle": "Duotone Pro Center Güvenlik Protokolü",
+      "inPersonTitle": "Yüz Yüze İmzalama Gerekli",
+      "inPersonDescription": "Güvenliğiniz ve hukuki korumanız için, tüm sorumluluk feragatnameleri ilk dersiniz veya ekipman kiralamanızdan önce merkezimizde yüz yüze imzalanmalıdır.",
+      "whatToExpect": "Neler Beklenir",
+      "expectItems": {
+        "arrive": "Planladığınız ders saatinden 15 dakika önce gelin",
+        "signWithId": "Geçerli devlet tarafından verilmiş kimlik belgesiyle feragatnameyi imzalayın",
+        "staffProvide": "Personelimiz merkezde feragatnameyi size sunacaktır",
+        "readCarefully": "Feragatnameyi dikkatlice okuyun ve sorularınızı sorun",
+        "validity": "Feragatnameler imzalanma tarihinden itibaren 12 ay geçerlidir"
+      },
+      "importantInfo": "Önemli Bilgiler",
+      "minors": "18 yaş altı katılımcılar: Küçük adına feragatnameyi imzalamak için bir ebeveyn veya yasal vasi hazır bulunmalıdır.",
+      "groups": "Grup rezervasyonları: Her katılımcı kendi feragatnamesini imzalamalıdır. Gruplar için lütfen ekstra süre ayırın.",
+      "finalNote": "Feragatnameyi dersinizden önce merkezde imzalayacaksınız",
+      "finalSubnote": "Çevrimiçi imza gerekmez • 12 ay geçerli • Kimlik getirin",
+      "iUnderstand": "Anladım"
+    }
+  },
+  "account": {
+    "profilePhoto": {
+      "title": "Profil Fotoğrafı",
+      "updatePhotoLabel": "Fotoğrafınızı güncelleyin",
+      "uploadDescription": "JPG, PNG veya GIF. Maks {{maxMb}} MB.",
+      "uploadButton": "Fotoğraf Yükle",
+      "toast": {
+        "updated": "Profil fotoğrafı güncellendi",
+        "uploadError": "Fotoğraf yüklenemedi",
+        "fileTooLarge": "Fotoğraf {{maxMb}} MB'tan küçük olmalıdır"
+      }
+    },
+    "personalInfo": {
+      "title": "Kişisel Bilgiler",
+      "firstName": "Ad",
+      "firstNamePlaceholder": "Adınız",
+      "lastName": "Soyad",
+      "lastNamePlaceholder": "Soyadınız",
+      "email": "E-posta",
+      "emailPlaceholder": "E-posta adresi",
+      "phone": "Telefon",
+      "phonePlaceholder": "Telefon numarası",
+      "dateOfBirth": "Doğum Tarihi",
+      "bio": "Hakkımda",
+      "bioPlaceholder": "Kendiniz hakkında biraz bilgi verin",
+      "save": "Profili Kaydet",
+      "toast": {
+        "saved": "Kişisel bilgiler güncellendi",
+        "saveError": "Kişisel bilgiler güncellenemedi"
+      }
+    },
+    "password": {
+      "title": "Şifre Değiştir",
+      "currentPassword": "Mevcut Şifre",
+      "newPassword": "Yeni Şifre",
+      "confirmPassword": "Yeni Şifreyi Onayla",
+      "save": "Şifreyi Değiştir",
+      "toast": {
+        "changed": "Şifre başarıyla değiştirildi",
+        "changeError": "Şifre değiştirilemedi",
+        "enterCurrent": "Lütfen mevcut şifrenizi girin",
+        "minLength": "Yeni şifre en az 8 karakter olmalıdır",
+        "noMatch": "Yeni şifreler eşleşmiyor"
+      }
+    }
+  }
+}

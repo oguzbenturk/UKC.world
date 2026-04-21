@@ -1,0 +1,802 @@
+{
+  "dashboard": {
+    "recommendations": {
+      "heading": "Recommandé pour vous",
+      "subheading": "Suggestions de votre instructeur",
+      "viewCta": "Voir →"
+    },
+    "emptyState": {
+      "heading": "Rien à afficher pour l'instant",
+      "body": "Votre tableau de bord prendra vie une fois que vous aurez réservé votre première leçon."
+    },
+    "errorToast": {
+      "title": "Impossible de charger le tableau de bord"
+    },
+    "ratingToast": {
+      "title": "Merci pour votre avis !",
+      "description": "Votre évaluation nous aide à améliorer votre expérience."
+    },
+    "nextLesson": {
+      "label": "Prochaine leçon",
+      "comingSoon": "Bientôt",
+      "noLesson": {
+        "heading": "Votre cerf-volant vous attend",
+        "body": "Aucune leçon à l'horizon — réservez-en une pour commencer."
+      },
+      "progressLabel": "Progression"
+    },
+    "ratingPrompt": {
+      "rateWith": "Évaluez votre leçon avec",
+      "moreCount": "+{{count}} de plus",
+      "rateButton": "Évaluer"
+    },
+    "packageCards": {
+      "sectionHeading": "Forfaits actifs",
+      "progressRow": {
+        "left": "{{remaining}} restant(s)",
+        "used": "{{used}} / {{total}} utilisé(s)"
+      },
+      "lessonHours": "Heures de cours",
+      "rentalDays": "Jours de location",
+      "accommodationNights": "Nuits d'hébergement",
+      "expiresSoon": "Expire bientôt",
+      "exp": "Exp. {{date}}"
+    },
+    "quickLinks": {
+      "sectionHeading": "Accès rapide",
+      "visitLessons": "Voir les leçons",
+      "visitRentals": "Voir les locations",
+      "visitShop": "Visiter la boutique",
+      "visitMyLessons": "Mes leçons"
+    },
+    "statsStrip": {
+      "lessons": "Leçons",
+      "rentals": "Locations",
+      "accommodations": "Hébergements",
+      "shop": "Boutique",
+      "memberships": "Abonnements",
+      "wallet": "Portefeuille",
+      "stats": {
+        "completed": "Terminé",
+        "upcoming": "À venir",
+        "totalHours": "Heures totales",
+        "days": "Jours",
+        "spent": "Dépensé",
+        "nights": "Nuits",
+        "pending": "En attente",
+        "active": "Actif",
+        "expired": "Expiré",
+        "balance": "Solde"
+      },
+      "membership": {
+        "owned": "Possédé",
+        "expires": "Expire le {{date}}"
+      },
+      "accommodation": {
+        "now": "En cours",
+        "nightCount_one": "{{count}} nuit",
+        "nightCount_other": "{{count}} nuits",
+        "guests": "{{count}} invités"
+      }
+    },
+    "lessonsSection": {
+      "upcomingLabel": "À venir",
+      "pastLabel": "Passé",
+      "noLessons": "Aucune leçon {{label}}",
+      "columns": {
+        "date": "Date",
+        "lesson": "Leçon",
+        "instructor": "Instructeur",
+        "duration": "Durée",
+        "status": "Statut"
+      },
+      "showMore": "Voir plus ({{count}})"
+    },
+    "rentalsSection": {
+      "upcomingLabel": "À venir",
+      "pastLabel": "Passé",
+      "noRentals": "Aucune location {{label}}",
+      "columns": {
+        "date": "Date",
+        "equipment": "Équipement",
+        "duration": "Durée",
+        "status": "Statut"
+      },
+      "showMore": "Voir plus ({{count}})"
+    }
+  },
+  "schedule": {
+    "tabs": {
+      "mySchedule": "Mon planning",
+      "groupLessons": "Leçons en groupe"
+    },
+    "statsBar": {
+      "total": "total",
+      "upcoming": "à venir",
+      "past": "passé",
+      "next": "Prochain :"
+    },
+    "sections": {
+      "upcomingHeading": "À venir",
+      "pastHeading": "Passé"
+    },
+    "emptyMessages": {
+      "noUpcoming": "Aucune leçon à venir",
+      "noPast": "Aucune leçon enregistrée"
+    },
+    "lessonRow": {
+      "nextBadge": "Prochain",
+      "reschedule": "Reprogrammer"
+    },
+    "detailModal": {
+      "lessonLabel": "Leçon",
+      "instructorLabel": "Instructeur",
+      "durationLabel": "Durée",
+      "notesLabel": "Notes",
+      "requestReschedule": "Demander un report",
+      "close": "Fermer",
+      "statusLabels": {
+        "completed": "Terminé",
+        "scheduled": "Planifié",
+        "pending": "En attente",
+        "cancelled": "Annulé",
+        "confirmed": "Confirmé"
+      }
+    },
+    "rescheduleModal": {
+      "title": "Demande de report",
+      "subtitle": "Choisissez une nouvelle date et heure",
+      "currentBookingLabel": "Réservation actuelle",
+      "withInstructor": "avec {{name}}",
+      "selectDateLabel": "Sélectionner une nouvelle date",
+      "datePlaceholder": "Choisir une date",
+      "availableSlotsLabel": "Créneaux disponibles",
+      "checkingAvailability": "Vérification des disponibilités...",
+      "noSlots": "Aucun créneau disponible",
+      "noSlotsDescription": "{{name}} n'a aucun créneau disponible le {{date}}. Essayez une autre date.",
+      "slotsAvailable_one": "{{count}} créneau disponible",
+      "slotsAvailable_other": "{{count}} créneaux disponibles",
+      "newTimeSummary": "Nouveau créneau : {{datetime}} — {{slot}}",
+      "newTimeSub": "{{duration}}h {{lesson}} avec {{instructor}}",
+      "reasonLabel": "Raison du report (optionnel)",
+      "reasonPlaceholder": "ex. Conflit d'horaire, urgence personnelle...",
+      "managerConfirm": "Le responsable confirmera votre demande",
+      "cancelButton": "Annuler",
+      "submitButton": "Demander un report",
+      "sendingButton": "Envoi en cours...",
+      "successMessage": "Demande de report envoyée ! Un responsable confirmera votre nouvel horaire.",
+      "errors": {
+        "loadFailed": "Impossible de charger le planning",
+        "invalidData": "Données de report invalides",
+        "invalidDataDesc": "Veuillez sélectionner une date et un créneau horaire",
+        "unableToReschedule": "Impossible de reprogrammer"
+      }
+    }
+  },
+  "payments": {
+    "stats": {
+      "walletBalance": "Solde du portefeuille",
+      "availableToSpend": "Disponible à dépenser",
+      "settled": "Réglés",
+      "completedInvoices": "Factures complétées",
+      "settledAmount": "Montant réglé",
+      "totalPaid": "Total payé",
+      "pending": "En attente",
+      "awaitingProcessing": "En attente de traitement"
+    },
+    "actions": {
+      "addFunds": "+ Ajouter des fonds",
+      "openWallet": "Ouvrir le portefeuille",
+      "refresh": "Actualiser",
+      "refreshing": "Actualisation..."
+    },
+    "table": {
+      "heading": "Historique des paiements",
+      "emptyState": "Aucun paiement pour l'instant",
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "amount": "Montant",
+        "status": "Statut"
+      }
+    },
+    "pagination": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {{page}} sur {{total}}"
+    },
+    "notifications": {
+      "paymentSuccess": "Paiement réussi !",
+      "depositProcessed": "Votre dépôt de {{amount}} {{currency}} a été traité avec succès.",
+      "depositProcessedGeneric": "Votre dépôt a été traité avec succès.",
+      "paymentFailed": "Paiement échoué",
+      "paymentFailedReason": "Raison : {{reason}}",
+      "paymentFailedGeneric": "Votre paiement n'a pas pu être traité. Veuillez réessayer.",
+      "fundsAdded": "Fonds ajoutés",
+      "fundsAddedDesc": "Le montant a été ajouté avec succès à votre portefeuille.",
+      "loadError": "Impossible de charger les paiements"
+    }
+  },
+  "myProfile": {
+    "profileCard": {
+      "profileFields": {
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "preferredLanguage": "Langue préférée",
+        "customerSince": "Client depuis",
+        "notProvided": "Non renseigné",
+        "notSet": "Non défini",
+        "unknown": "Inconnu"
+      },
+      "accountHighlights": {
+        "currentBalance": "Solde actuel",
+        "lifetimeValue": "Valeur totale",
+        "lastPayment": "Dernier paiement",
+        "noPaymentsYet": "Aucun paiement"
+      },
+      "statCards": {
+        "hoursAttended": "Heures suivies",
+        "attendanceRate": "Taux de présence",
+        "totalLessons": "Leçons totales",
+        "totalRentals": "Locations totales"
+      },
+      "notes": "Notes"
+    },
+    "packageSummary": {
+      "heading": "Récapitulatif des forfaits",
+      "viewOnly": "Lecture seule",
+      "generalPackage": "Forfait général",
+      "rentalSuffix": "+ Location",
+      "accommodationSuffix": "+ Hébergement",
+      "noPackages": "Aucun forfait attribué",
+      "expiresOn": "Expire le {{date}}",
+      "noExpiry": "Sans date d'expiration",
+      "sections": {
+        "totalHours": "Heures totales",
+        "used": "Utilisé",
+        "remaining": "Restant",
+        "utilisation": "Utilisation",
+        "totalDays": "Jours totaux",
+        "equipment": "Équipement",
+        "totalNights": "Nuits totales",
+        "unit": "Unité"
+      }
+    },
+    "upcomingLessons": {
+      "heading": "Prochaines leçons",
+      "viewOnly": "Lecture seule",
+      "scheduled": "Planifié",
+      "instructorPrefix": "Instructeur :",
+      "noUpcoming": "Aucune leçon à venir"
+    },
+    "historySection": {
+      "tabs": {
+        "total": "Historique complet",
+        "lessons": "Historique des leçons",
+        "rentals": "Historique des locations",
+        "shop": "Historique boutique",
+        "memberships": "Historique abonnements",
+        "events": "Historique événements",
+        "financial": "Historique financier"
+      },
+      "tableHeadings": {
+        "allActivity": "Toutes les activités",
+        "lessonHistory": "Historique des leçons",
+        "rentalHistory": "Historique des locations",
+        "shopPurchases": "Achats boutique",
+        "membershipPurchases": "Achats d'abonnements",
+        "eventRegistrations": "Inscriptions aux événements",
+        "financialHistory": "Historique financier"
+      },
+      "columns": {
+        "date": "Date",
+        "type": "Type",
+        "description": "Description",
+        "dateTime": "Date et heure",
+        "service": "Service",
+        "instructor": "Instructeur",
+        "duration": "Durée",
+        "price": "Prix",
+        "status": "Statut",
+        "payment": "Paiement",
+        "equipment": "Équipement",
+        "rentalDate": "Date de location",
+        "amount": "Montant",
+        "purchased": "Acheté",
+        "membership": "Abonnement",
+        "expires": "Expiration",
+        "item": "Article",
+        "quantity": "Quantité",
+        "event": "Événement",
+        "location": "Lieu",
+        "registration": "Inscription"
+      },
+      "emptyStates": {
+        "noActivity": "Aucun historique d'activité",
+        "noLessons": "Aucun historique de leçon",
+        "noRentals": "Aucun historique de location",
+        "noShop": "Aucun achat en boutique",
+        "noMemberships": "Aucun achat d'abonnement",
+        "noEvents": "Aucune inscription à un événement",
+        "noFinancial": "Aucun paiement enregistré"
+      },
+      "values": {
+        "notAssigned": "Non attribué",
+        "hour_one": "{{count}} heure",
+        "hour_other": "{{count}} heures",
+        "item_one": "{{count}} article",
+        "item_other": "{{count}} articles",
+        "free": "Gratuit",
+        "tba": "À confirmer"
+      }
+    },
+    "familyAlert": {
+      "message": "Vous cherchez vos membres de famille ?",
+      "description": "Gérez les membres de votre famille depuis la barre latérale : Profil → Famille."
+    },
+    "loadingActivity": "Chargement de vos activités...",
+    "alerts": {
+      "profileUnavailable": "Profil indisponible",
+      "historyError": "Nous avons eu du mal à charger une partie de votre historique"
+    }
+  },
+  "family": {
+    "pageTitle": "Membres de la famille",
+    "pageSubtitle": "Ajoutez et gérez les profils de vos enfants pour les réservations et les décharges.",
+    "seoTitle": "Membres de la famille • Plannivo",
+    "seoDescription": "Gérez vos membres de famille (moins de 18 ans) pour les réservations de cours et de locations ainsi que les décharges.",
+    "cardTitle": "Membres de la famille",
+    "management": {
+      "description": "Gérez vos membres de famille ci-dessous. Vous pouvez réserver des cours et des locations pour tout membre de la famille listé ici.",
+      "showingCount_one": "Affichage de {{count}} membre",
+      "showingCount_other": "Affichage de {{count}} membres",
+      "showingOf": " sur {{total}} au total",
+      "adjustFilters": " Ajustez vos filtres pour voir plus de membres de la famille."
+    },
+    "emptyState": {
+      "heading": "Aucun membre de la famille pour l'instant",
+      "body": "Ajoutez vos enfants (moins de 18 ans) pour réserver facilement des cours et des locations en leur nom. Vous pourrez également signer des décharges et suivre leurs activités.",
+      "addButton": "Ajouter votre premier membre de famille"
+    },
+    "filteredEmpty": {
+      "heading": "Aucun résultat",
+      "body": "Essayez d'ajuster votre recherche ou vos filtres",
+      "clearButton": "Effacer tous les filtres"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom ou notes...",
+      "allRelationships": "Toutes les relations",
+      "allWaiverStatuses": "Tous les statuts de décharge",
+      "clearButton": "Effacer"
+    },
+    "actions": {
+      "export": "Exporter",
+      "exportTooltipOnline": "Télécharger l'export CSV",
+      "exportTooltipOffline": "Connectez-vous pour exporter",
+      "addMember": "Ajouter un membre",
+      "addMemberTooltipOnline": "Ajouter un nouveau membre de famille",
+      "addMemberTooltipOffline": "Vous êtes hors ligne"
+    },
+    "offline": {
+      "title": "Mode hors ligne",
+      "description": "Vous consultez les membres de famille mis en cache. La création ou la modification de membres nécessite une connexion Internet."
+    },
+    "loadError": "Erreur lors du chargement des membres de famille",
+    "loading": "Chargement des membres de famille...",
+    "relationships": {
+      "son": "Fils",
+      "daughter": "Fille",
+      "child": "Enfant",
+      "sibling": "Frère/Sœur",
+      "other": "Autre"
+    },
+    "waiverStatuses": {
+      "signed": "Signé",
+      "pending": "Action requise",
+      "expired": "Expiré",
+      "unknown": "Inconnu"
+    },
+    "memberCard": {
+      "yearsOld_one": "{{count}} an",
+      "yearsOld_other": "{{count}} ans",
+      "hasMedicalNotes": "Notes médicales présentes",
+      "waiver": {
+        "upToDate": "Décharge à jour",
+        "expired": "Décharge expirée",
+        "newVersionRequired": "Nouvelle version requise",
+        "pending": "Décharge en attente",
+        "unknown": "Statut de décharge inconnu",
+        "lastSigned": "Dernière signature le {{date}}",
+        "signButton": "Signer la décharge"
+      },
+      "tooltips": {
+        "viewActivity": "Voir l'activité",
+        "signWaiver": "Signer la décharge",
+        "edit": "Modifier",
+        "remove": "Supprimer"
+      }
+    },
+    "deleteConfirm": {
+      "title": "Supprimer le membre de famille",
+      "body": "Êtes-vous sûr de vouloir supprimer {{name}} de vos membres de famille ?",
+      "consequence": "Cela n'affectera pas les réservations existantes, mais ce membre ne sera plus disponible pour de nouvelles réservations.",
+      "okText": "Supprimer",
+      "cancelText": "Annuler",
+      "undoMessage": "{{name}} supprimé.",
+      "undoButton": "Annuler",
+      "restored": "{{name}} a été restauré",
+      "removeError": "Impossible de supprimer le membre de famille"
+    },
+    "modal": {
+      "addTitle": "Ajouter un membre de famille",
+      "editTitle": "Modifier le membre de famille",
+      "addSubtitle": "Ajoutez un membre de famille pour réserver des activités en son nom",
+      "editSubtitle": "Mettez à jour les informations du membre de famille ci-dessous",
+      "sections": {
+        "personal": "Personnel",
+        "basicInfo": "Informations de base",
+        "safety": "Sécurité",
+        "emergencyMedical": "Urgences et médical"
+      },
+      "ageAlert": {
+        "childTitle": "Restriction d'âge applicable",
+        "childDesc": "Les enfants, fils, filles et frères/sœurs doivent avoir moins de 18 ans.",
+        "adultTitle": "Ajouter tout membre de famille",
+        "adultDesc": "Vous pouvez ajouter un conjoint, un parent ou tout membre adulte de la famille."
+      },
+      "fields": {
+        "fullName": "Nom complet",
+        "fullNamePlaceholder": "Entrez le nom complet",
+        "relationship": "Relation",
+        "relationshipPlaceholder": "Sélectionnez la relation",
+        "dateOfBirth": "Date de naissance",
+        "dobUnderAge": "Doit avoir moins de 18 ans",
+        "dobEnter": "Entrez la date de naissance",
+        "gender": "Genre",
+        "genderPlaceholder": "Sélectionnez le genre (optionnel)",
+        "emergencyContact": "Contact d'urgence",
+        "emergencyPlaceholder": "Numéro de téléphone ou coordonnées (optionnel)",
+        "medicalNotes": "Notes médicales",
+        "medicalPlaceholder": "Entrez les informations médicales, allergies ou besoins spéciaux (optionnel)",
+        "medicalHint": "Allergies, conditions médicales ou besoins spéciaux. Ces informations sont cryptées et accessibles uniquement par le personnel autorisé."
+      },
+      "genderOptions": {
+        "male": "Homme",
+        "female": "Femme",
+        "other": "Autre",
+        "preferNotToSay": "Préfère ne pas préciser"
+      },
+      "relationships": {
+        "son": "Fils",
+        "daughter": "Fille",
+        "child": "Enfant",
+        "spouse": "Conjoint(e)",
+        "sibling": "Frère/Sœur",
+        "parent": "Parent",
+        "other": "Autre"
+      },
+      "validation": {
+        "nameRequired": "Veuillez saisir le nom complet",
+        "nameMin": "Le nom doit comporter au moins 2 caractères",
+        "nameMax": "Le nom doit comporter moins de 255 caractères",
+        "relationshipRequired": "Veuillez sélectionner une relation",
+        "dobRequired": "Veuillez sélectionner une date de naissance",
+        "emergencyMax": "Le contact d'urgence doit comporter moins de 50 caractères",
+        "medicalMax": "Les notes médicales doivent comporter moins de 2000 caractères"
+      },
+      "ageError": {
+        "title": "Condition d'âge non remplie",
+        "content": "Les enfants, fils, filles et frères/sœurs doivent avoir moins de 18 ans. Pour les adultes, veuillez sélectionner \"Conjoint\" ou \"Parent\"."
+      },
+      "saveError": {
+        "title": "Échec de l'enregistrement"
+      },
+      "discardConfirm": {
+        "title": "Abandonner les modifications ?",
+        "content": "Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir fermer sans enregistrer ?",
+        "okText": "Abandonner",
+        "cancelText": "Continuer la modification"
+      },
+      "buttons": {
+        "cancel": "Annuler",
+        "add": "Ajouter le membre",
+        "update": "Mettre à jour"
+      },
+      "toasts": {
+        "updated": "{{name}} a été mis à jour",
+        "added": "{{name}} a été ajouté à votre famille",
+        "saveError": "Impossible d'enregistrer le membre de famille"
+      }
+    },
+    "exportSuccess": "Liste des membres de famille téléchargée",
+    "exportError": "Impossible d'exporter les membres de famille",
+    "waiverSigned": "La décharge de {{name}} a été signée",
+    "waiverSignedGeneric": "Décharge signée avec succès"
+  },
+  "support": {
+    "stats": {
+      "totalTickets": "Tickets totaux",
+      "open": "Ouvert",
+      "resolved": "Résolu"
+    },
+    "channelPicker": {
+      "heading": "Obtenir de l'aide",
+      "channels": {
+        "ticket": {
+          "label": "Nouveau ticket",
+          "description": "Ouvrir une demande de support"
+        },
+        "email": {
+          "label": "Nous écrire",
+          "description": "hello@plannivo.com"
+        },
+        "whatsapp": {
+          "label": "WhatsApp",
+          "description": "Discuter sur WhatsApp"
+        },
+        "chat": {
+          "label": "Chat en direct",
+          "description": "Discuter avec l'équipe"
+        },
+        "kai": {
+          "label": "Demander à Kai",
+          "description": "Obtenir des réponses IA instantanées"
+        }
+      }
+    },
+    "tabs": {
+      "newTicket": "Nouveau ticket",
+      "myTickets": "Mes tickets"
+    },
+    "form": {
+      "intro": "Besoin d'aide pour les réservations, paiements ou équipements ? Envoyez-nous un message et notre équipe vous répondra.",
+      "subjectLabel": "Sujet",
+      "subjectPlaceholder": "ex. Besoin d'ajuster ma leçon",
+      "subjectRequired": "Dites-nous comment nous pouvons vous aider",
+      "priorityLabel": "Priorité",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Écrivez votre message à l'école",
+      "messageRequired": "Fournissez un peu plus de détails",
+      "submitButton": "Envoyer la demande",
+      "sendingButton": "Envoi en cours…",
+      "priorityOptions": {
+        "low": "Faible",
+        "normal": "Normal",
+        "high": "Élevé"
+      }
+    },
+    "ticketList": {
+      "emptyState": "Vous n'avez aucune demande de support",
+      "ticketFallback": "Ticket #{{id}}",
+      "statusLabels": {
+        "open": "Ouvert",
+        "in_progress": "En cours",
+        "resolved": "Résolu",
+        "closed": "Fermé",
+        "pending": "En attente"
+      }
+    },
+    "notifications": {
+      "requestSent": "Demande de support envoyée",
+      "sendError": "Impossible d'envoyer la demande"
+    }
+  },
+  "ratingModal": {
+    "sessionHeading": "Comment s'est passée votre session ?",
+    "sessionWith": "avec",
+    "feedbackLabel": {
+      "under5": "Comment pouvons-nous mériter 5 étoiles ?",
+      "under5Required": "*",
+      "5stars": "Partagez votre expérience"
+    },
+    "placeholders": {
+      "under5": "Nous souhaitons nous améliorer — que pourrions-nous faire mieux ?",
+      "5stars": "Qu'est-ce qui a rendu cette session géniale ?"
+    },
+    "charCount": "{{count}} / 2000",
+    "requiredNote": "Obligatoire pour les notes inférieures à 5 étoiles",
+    "anonymous": {
+      "label": "Soumettre anonymement",
+      "hint": "Votre note compte, votre nom reste privé"
+    },
+    "submitButton": "Soumettre l'évaluation",
+    "submittingButton": "Envoi en cours…",
+    "maybeLater": "Peut-être plus tard",
+    "noBookingFound": "Nous n'avons pas trouvé les détails de cette leçon.",
+    "success": {
+      "heading": "Merci !",
+      "body": "Votre avis nous aide à surfer sur de meilleures vagues."
+    },
+    "ratings": {
+      "poor": "Mauvais",
+      "fair": "Passable",
+      "good": "Bien",
+      "great": "Super",
+      "amazing": "Incroyable !"
+    }
+  },
+  "layout": {
+    "portalDisabled": {
+      "heading": "Portail étudiant désactivé",
+      "body": "Votre compte est actif, mais le portail étudiant n'est pas encore disponible. Veuillez contacter l'école si vous pensez qu'il s'agit d'une erreur."
+    },
+    "welcome": "Bienvenue, {{name}}"
+  },
+  "portalUnavailable": {
+    "heading": "Portail étudiant bientôt disponible",
+    "body": "L'expérience étudiant est en cours de préparation. Revenez plus tard ou contactez l'école si vous avez besoin d'aide pour gérer vos leçons."
+  },
+  "myOrders": {
+    "pageTitle": "Mes commandes",
+    "pageSubtitle": "Suivez vos achats, paiements et conversations",
+    "browseShop": "Parcourir la boutique",
+    "orderHistory": {
+      "heading": "Historique des commandes",
+      "subheading": "Consultez vos achats, suivez le statut et poursuivez les conversations"
+    },
+    "metrics": {
+      "totalOrders": "Commandes totales",
+      "totalOrdersHint": "Chargées sur cette page",
+      "active": "Actives",
+      "activeHint": "En attente ou en cours",
+      "completed": "Terminées",
+      "completedHint": "Livrées avec succès",
+      "unreadMessages": "Messages non lus",
+      "unreadThreads_one": "{{count}} fil",
+      "unreadThreads_other": "{{count}} fils"
+    },
+    "latestOrderHint": "Dernière commande <strong>{{number}}</strong> passée {{time}}. Appuyez pour voir les mises à jour ou envoyer un message.",
+    "filters": {
+      "all": "Tout",
+      "active": "Actives",
+      "completed": "Terminées",
+      "cancelled": "Annulées"
+    },
+    "statusLabels": {
+      "pending": "En attente",
+      "confirmed": "Confirmé",
+      "processing": "En traitement",
+      "shipped": "Expédié",
+      "delivered": "Livré",
+      "completed": "Terminé",
+      "cancelled": "Annulé",
+      "refunded": "Remboursé"
+    },
+    "paymentLabels": {
+      "wallet": "Portefeuille",
+      "credit_card": "Carte de crédit",
+      "cash": "Espèces",
+      "other": "Autre"
+    },
+    "paymentTags": {
+      "paid": "Payé",
+      "paymentPending": "Paiement en attente"
+    },
+    "orderCard": {
+      "items_one": "{{count}} article",
+      "items_other": "{{count}} articles",
+      "moreItems_one": "+{{count}} article supplémentaire",
+      "moreItems_other": "+{{count}} articles supplémentaires",
+      "qty": "Qté : {{qty}}",
+      "size": "Taille : {{size}}",
+      "newMessages_one": "{{count}} nouveau",
+      "newMessages_other": "{{count}} nouveaux"
+    },
+    "emptyState": {
+      "noOrdersTitle": "Aucune commande",
+      "noFilterTitle": "Aucune commande {{filter}}",
+      "noOrdersBody": "Vos achats apparaîtront ici avec les détails de paiement, les mises à jour d'expédition et la messagerie.",
+      "noFilterBody": "Essayez un autre filtre ou actualisez pour voir les dernières commandes.",
+      "clearFilter": "Effacer le filtre"
+    },
+    "detail": {
+      "drawerTitle": "Détails de la commande",
+      "statusHistory": "Historique des statuts",
+      "fromStatus": "depuis {{status}}",
+      "orderNotes": "Notes de commande",
+      "orderCancelledTitle": "Commande annulée",
+      "orderRefundedTitle": "Commande remboursée",
+      "infoLabels": {
+        "status": "Statut",
+        "payment": "Paiement",
+        "voucher": "Bon de réduction",
+        "shippingAddress": "Adresse de livraison"
+      },
+      "itemsHeading": "Articles",
+      "totals": {
+        "subtotal": "Sous-total",
+        "discount": "Remise",
+        "total": "Total"
+      }
+    },
+    "messages": {
+      "heading": "Messages de commande",
+      "emptyState": "Aucun message pour l'instant. Posez une question sur votre commande !",
+      "placeholder": "Tapez votre message...",
+      "staffFallback": "Personnel"
+    }
+  },
+  "feedback": {
+    "form": {
+      "title": "Partagez votre expérience",
+      "updateTitle": "Mettre à jour votre avis",
+      "overallExperience": "Expérience globale",
+      "wouldRecommend": "Nous recommanderiez-vous à vos amis ?",
+      "recommendYes": "Oui, sans hésitation !",
+      "recommendNo": "Non, probablement pas",
+      "detailedRatings": "Évaluations détaillées",
+      "instructorRating": "Instructeur",
+      "equipmentRating": "Qualité de l'équipement",
+      "locationRating": "Lieu et conditions",
+      "valueRating": "Rapport qualité-prix",
+      "skillProgress": "Votre progression en kitesurf",
+      "skillBefore": "Niveau avant la leçon",
+      "skillAfter": "Niveau après la leçon",
+      "skillPlaceholderBefore": "Sélectionnez votre niveau avant la leçon",
+      "skillPlaceholderAfter": "Sélectionnez votre niveau après la leçon",
+      "skillLevels": {
+        "complete_beginner": "Débutant complet",
+        "beginner": "Débutant",
+        "intermediate": "Intermédiaire",
+        "advanced": "Avancé",
+        "expert": "Expert"
+      },
+      "lessonConditions": "Conditions de la leçon",
+      "weatherConditions": "Comment étaient les conditions météo ?",
+      "weatherOptions": {
+        "excellent": "Excellentes - Idéales pour le kitesurf",
+        "good": "Bonnes - Belles conditions",
+        "fair": "Correctes - Conditions acceptables",
+        "poor": "Mauvaises - Conditions difficiles",
+        "unsuitable": "Inadaptées - Auraient dû être annulées"
+      },
+      "favoriteAspect": "Aspect préféré de la leçon",
+      "favoriteAspectPlaceholder": "Qu'avez-vous le plus apprécié ?",
+      "favoriteOptions": {
+        "instructor_teaching": "Style d'enseignement de l'instructeur",
+        "equipment_quality": "Équipement de haute qualité",
+        "location_beauty": "Beau cadre",
+        "safety_measures": "Mesures de sécurité",
+        "skill_progress": "Progression d'apprentissage",
+        "overall_experience": "Expérience globale"
+      },
+      "commentsLabel": "Parlez-nous de votre expérience",
+      "commentsPlaceholder": "Partagez les détails de votre leçon, ce que vous avez appris, comment vous vous êtes senti...",
+      "improvementLabel": "Comment pouvons-nous nous améliorer ?",
+      "improvementPlaceholder": "Des suggestions pour rendre nos leçons encore meilleures ?",
+      "submitButton": "Soumettre l'avis",
+      "updateButton": "Mettre à jour l'avis",
+      "validation": {
+        "overallRequired": "Veuillez évaluer votre expérience globale",
+        "instructorRequired": "Veuillez évaluer votre instructeur",
+        "equipmentRequired": "Veuillez évaluer l'équipement",
+        "locationRequired": "Veuillez évaluer le lieu",
+        "valueRequired": "Veuillez évaluer le rapport qualité-prix"
+      },
+      "errors": {
+        "submitFailed": "Impossible de soumettre l'avis. Veuillez réessayer.",
+        "errorTitle": "Erreur"
+      }
+    },
+    "thankYou": {
+      "heading": "Merci pour votre avis !",
+      "body": "Votre avis nous aide à améliorer nos leçons de kitesurf et à offrir de meilleures expériences à tous les étudiants.",
+      "continueButton": "Continuer"
+    },
+    "summary": {
+      "totalReviews": "Total des avis",
+      "averageRating": "Note moyenne",
+      "recommendationRate": "Taux de recommandation",
+      "responseRate": "Taux de réponse",
+      "ratingBreakdown": "Répartition des notes",
+      "recentComments": "Commentaires récents",
+      "suggestionPrefix": "Suggestion :",
+      "noFeedback": "Aucune donnée d'avis disponible",
+      "noFeedbackDesc": "Aucun avis reçu pour la période sélectionnée.",
+      "loading": "Chargement du résumé des avis..."
+    },
+    "achievements": {
+      "modalTitle": "Succès débloqué !"
+    }
+  }
+}

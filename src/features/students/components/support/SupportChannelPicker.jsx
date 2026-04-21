@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FormOutlined,
   MailOutlined,
@@ -8,47 +9,48 @@ import {
 } from '@ant-design/icons';
 import { useAIChat } from '@/shared/contexts/AIChatContext';
 
-const channels = [
-  {
-    key: 'ticket',
-    label: 'New Ticket',
-    description: 'Open a support request',
-    icon: FormOutlined,
-    color: 'text-sky-600 bg-sky-50',
-  },
-  {
-    key: 'email',
-    label: 'Email Us',
-    description: 'hello@plannivo.com',
-    icon: MailOutlined,
-    color: 'text-indigo-600 bg-indigo-50',
-  },
-  {
-    key: 'whatsapp',
-    label: 'WhatsApp',
-    description: 'Chat on WhatsApp',
-    icon: WhatsAppOutlined,
-    color: 'text-emerald-600 bg-emerald-50',
-  },
-  {
-    key: 'chat',
-    label: 'Live Chat',
-    description: 'Chat with the team',
-    icon: MessageOutlined,
-    color: 'text-amber-600 bg-amber-50',
-  },
-  {
-    key: 'kai',
-    label: 'Ask Kai',
-    description: 'Get instant AI answers',
-    icon: RobotOutlined,
-    color: 'text-violet-600 bg-violet-50',
-  },
-];
-
 const SupportChannelPicker = ({ onOpenTicketForm }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   const { openChat } = useAIChat();
+
+  const channels = [
+    {
+      key: 'ticket',
+      label: t('student:support.channelPicker.channels.ticket.label'),
+      description: t('student:support.channelPicker.channels.ticket.description'),
+      icon: FormOutlined,
+      color: 'text-sky-600 bg-sky-50',
+    },
+    {
+      key: 'email',
+      label: t('student:support.channelPicker.channels.email.label'),
+      description: t('student:support.channelPicker.channels.email.description'),
+      icon: MailOutlined,
+      color: 'text-indigo-600 bg-indigo-50',
+    },
+    {
+      key: 'whatsapp',
+      label: t('student:support.channelPicker.channels.whatsapp.label'),
+      description: t('student:support.channelPicker.channels.whatsapp.description'),
+      icon: WhatsAppOutlined,
+      color: 'text-emerald-600 bg-emerald-50',
+    },
+    {
+      key: 'chat',
+      label: t('student:support.channelPicker.channels.chat.label'),
+      description: t('student:support.channelPicker.channels.chat.description'),
+      icon: MessageOutlined,
+      color: 'text-amber-600 bg-amber-50',
+    },
+    {
+      key: 'kai',
+      label: t('student:support.channelPicker.channels.kai.label'),
+      description: t('student:support.channelPicker.channels.kai.description'),
+      icon: RobotOutlined,
+      color: 'text-violet-600 bg-violet-50',
+    },
+  ];
 
   const handleClick = (key) => {
     switch (key) {
@@ -73,7 +75,7 @@ const SupportChannelPicker = ({ onOpenTicketForm }) => {
   return (
     <section>
       <h3 className="mb-3 font-duotone-bold text-sm uppercase tracking-[0.12em] text-antrasit">
-        Get help
+        {t('student:support.channelPicker.heading')}
       </h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {channels.map(({ key, label, description, icon: Icon, color }) => (

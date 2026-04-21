@@ -1,5 +1,6 @@
 // src/features/manager/pages/ManagerCommissionSettings.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, Button, Space, Tag, Spin, Empty, Avatar, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
@@ -16,6 +17,7 @@ import { formatCurrency } from '@/shared/utils/formatters';
 import EnhancedManagerDetailPanel from '../components/EnhancedManagerDetailPanel';
 
 function ManagerCommissionSettings() {
+  const { t } = useTranslation(['manager']);
   const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -29,14 +31,14 @@ function ManagerCommissionSettings() {
       if (response.success) {
         setManagers(response.data || []);
       } else {
-        message.error('Failed to load managers');
+        message.error(t('manager:errors.loadFailed'));
       }
     } catch (error) {
-      message.error(error.message || 'Failed to load managers');
+      message.error(error.message || t('manager:errors.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchManagers();
@@ -49,7 +51,7 @@ function ManagerCommissionSettings() {
 
   const columns = [
     {
-      title: 'Manager',
+      title: t('manager:commissionSettings.columns.manager'),
       key: 'manager',
       render: (_, record) => (
         <div
@@ -70,36 +72,36 @@ function ManagerCommissionSettings() {
       )
     },
     {
-      title: 'Salary Type',
+      title: t('manager:commissionSettings.columns.salaryType'),
       key: 'salaryType',
       render: (_, record) => {
         const type = record.settings?.salaryType || 'commission';
         const map = {
-          commission: { color: 'blue', icon: <PercentageOutlined />, label: 'Commission' },
-          fixed_per_lesson: { color: 'green', icon: <DollarOutlined />, label: 'Per Lesson' },
-          monthly_salary: { color: 'purple', icon: <DollarOutlined />, label: 'Monthly Salary' }
+          commission: { color: 'blue', icon: <PercentageOutlined />, label: t('manager:commissionSettings.salaryTypeLabels.commission') },
+          fixed_per_lesson: { color: 'green', icon: <DollarOutlined />, label: t('manager:commissionSettings.salaryTypeLabels.fixed_per_lesson') },
+          monthly_salary: { color: 'purple', icon: <DollarOutlined />, label: t('manager:commissionSettings.salaryTypeLabels.monthly_salary') }
         };
         const info = map[type] || map.commission;
         return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>;
       }
     },
     {
-      title: 'Rate / Amount',
+      title: t('manager:commissionSettings.columns.rateAmount'),
       key: 'rateAmount',
       render: (_, record) => {
         const s = record.settings || {};
         const type = s.salaryType || 'commission';
         if (type === 'monthly_salary') {
-          return <span className="font-semibold text-purple-600">{formatCurrency(s.fixedSalaryAmount || 0, 'EUR')}/mo</span>;
+          return <span className="font-semibold text-purple-600">{formatCurrency(s.fixedSalaryAmount || 0, 'EUR')}{t('manager:detailPanel.profile.perMonth')}</span>;
         }
         if (type === 'fixed_per_lesson') {
-          return <span className="font-semibold text-green-600">{formatCurrency(s.perLessonAmount || 0, 'EUR')}/lesson</span>;
+          return <span className="font-semibold text-green-600">{formatCurrency(s.perLessonAmount || 0, 'EUR')}{t('manager:detailPanel.profile.perLesson')}</span>;
         }
         return <span className="font-semibold text-blue-600">{s.defaultRate ?? 0}%</span>;
       }
     },
     {
-      title: 'Category Rates',
+      title: t('manager:commissionSettings.columns.categoryRates'),
       key: 'categoryRates',
       render: (_, record) => {
         const s = record.settings || {};
@@ -107,17 +109,17 @@ function ManagerCommissionSettings() {
           return <span className="text-gray-400">—</span>;
         }
         const rates = [
-          { key: 'bookingRate', label: 'Booking' },
-          { key: 'rentalRate', label: 'Rental' },
-          { key: 'accommodationRate', label: 'Accommodation' },
-          { key: 'packageRate', label: 'Package' },
-          { key: 'shopRate', label: 'Shop' },
-          { key: 'membershipRate', label: 'Membership' }
+          { key: 'bookingRate', label: t('manager:detailPanel.commissions.categories.bookingRate') },
+          { key: 'rentalRate', label: t('manager:detailPanel.commissions.categories.rentalRate') },
+          { key: 'accommodationRate', label: t('manager:detailPanel.commissions.categories.accommodationRate') },
+          { key: 'packageRate', label: t('manager:detailPanel.commissions.categories.packageRate') },
+          { key: 'shopRate', label: t('manager:detailPanel.commissions.categories.shopRate') },
+          { key: 'membershipRate', label: t('manager:detailPanel.commissions.categories.membershipRate') }
         ].filter(r => s[r.key]);
         return (
           <Space size="small" wrap>
             {rates.map(r => (
-              <Tooltip key={r.key} title={`${r.label} commission`}>
+              <Tooltip key={r.key} title={`${r.label}`}>
                 <Tag>{r.label}: {s[r.key]}%</Tag>
               </Tooltip>
             ))}
@@ -126,7 +128,7 @@ function ManagerCommissionSettings() {
       }
     },
     {
-      title: 'Total Earnings',
+      title: t('manager:commissionSettings.columns.totalEarnings'),
       key: 'totalEarnings',
       render: (_, record) => {
         const total = (record.pendingCommission || 0) + (record.paidCommission || 0);
@@ -138,10 +140,10 @@ function ManagerCommissionSettings() {
       }
     },
     {
-      title: 'Pending',
+      title: t('manager:commissionSettings.columns.pending'),
       key: 'pending',
       render: (_, record) => (
-        <Tooltip title="Pending commission amount">
+        <Tooltip title={t('manager:commissionSettings.tooltips.pendingCommission')}>
           <span className="flex items-center gap-1 text-amber-600">
             <ClockCircleOutlined />
             {formatCurrency(record.pendingCommission || 0, 'EUR')}
@@ -150,10 +152,10 @@ function ManagerCommissionSettings() {
       )
     },
     {
-      title: 'Paid',
+      title: t('manager:commissionSettings.columns.paid'),
       key: 'paid',
       render: (_, record) => (
-        <Tooltip title="Total paid commission">
+        <Tooltip title={t('manager:commissionSettings.tooltips.totalPaid')}>
           <span className="flex items-center gap-1 text-green-600">
             <CheckCircleOutlined />
             {formatCurrency(record.paidCommission || 0, 'EUR')}
@@ -162,21 +164,21 @@ function ManagerCommissionSettings() {
       )
     },
     {
-      title: 'Actions',
+      title: t('manager:commissionSettings.columns.actions'),
       key: 'actions',
       width: 160,
       render: (_, record) => (
         <Space>
-          <Tooltip title="View Details">
+          <Tooltip title={t('manager:commissionSettings.tooltips.viewDetails')}>
             <Button
               icon={<UserOutlined />}
               onClick={(e) => { e.stopPropagation(); openPanel(record); }}
               size="small"
             >
-              Details
+              {t('manager:commissionSettings.actions.details')}
             </Button>
           </Tooltip>
-          <Tooltip title="View Payroll">
+          <Tooltip title={t('manager:commissionSettings.tooltips.viewPayroll')}>
             <Button
               icon={<BarChartOutlined />}
               onClick={(e) => { e.stopPropagation(); navigate(`/admin/manager-payroll/${record.id}`); }}
@@ -199,8 +201,8 @@ function ManagerCommissionSettings() {
           <Spin size="large" />
         </div>
       ) : managers.length === 0 ? (
-        <Empty 
-          description="No managers found. Change a user's role to Manager to get started."
+        <Empty
+          description={t('manager:commissionSettings.empty')}
         />
       ) : (
         <Table 

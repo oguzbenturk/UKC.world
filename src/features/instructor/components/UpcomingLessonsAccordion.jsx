@@ -2,6 +2,7 @@ import { Disclosure, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { Fragment } from 'react';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 const formatLessonTime = (startTime) => {
   if (!startTime) return 'TBD';
@@ -21,8 +22,6 @@ const getStatusStyle = (status) => {
   const key = (status || '').toLowerCase();
   return statusStyles[key] || 'bg-slate-50 text-slate-600 border-slate-200';
 };
-
-const pluralize = (count, singular, plural) => count === 1 ? singular : (plural || `${singular}s`);
 
 const LessonRow = ({ lesson }) => (
   <div className="flex items-center justify-between rounded-lg sm:rounded-xl border border-slate-100 px-3 py-2 sm:px-4 sm:py-3 bg-white hover:bg-slate-50/50 transition">
@@ -45,15 +44,16 @@ const LessonRow = ({ lesson }) => (
 );
 
 const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
+  const { t } = useTranslation(['instructor']);
   const placeholders = Array.from({ length: 3 }, (_, index) => `placeholder-${index}`);
   const totalSessions = groupedLessons.reduce((acc, g) => acc + g.lessons.length, 0);
 
   return (
     <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5 space-y-2 sm:space-y-3">
       <header className="flex items-center justify-between">
-        <h2 className="text-sm sm:text-base font-semibold text-slate-900">Upcoming lessons</h2>
+        <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:lessons.upcomingLessons')}</h2>
         <span className="hidden sm:inline-flex items-center rounded-full bg-sky-50 text-sky-700 px-2.5 py-1 text-xs font-medium">
-          {totalSessions} {pluralize(totalSessions, 'session')}
+          {totalSessions} {totalSessions === 1 ? t('instructor:lessons.session') : t('instructor:lessons.sessions')}
         </span>
       </header>
 
@@ -65,7 +65,7 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
         </div>
       ) : !groupedLessons.length ? (
         <div className="rounded-xl bg-slate-50 px-4 py-6 text-center">
-          <p className="text-sm text-slate-500">No future lessons are scheduled at the moment.</p>
+          <p className="text-sm text-slate-500">{t('instructor:lessons.noLessonsScheduled')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -76,7 +76,7 @@ const UpcomingLessonsAccordion = ({ groupedLessons = [], loading = false }) => {
                   <Disclosure.Button className={`flex w-full items-center justify-between px-4 py-3 text-sm font-medium transition ${open ? 'text-sky-800 bg-sky-50/50' : 'text-slate-700 bg-slate-50/50 hover:bg-slate-50'}`}>
                     <span>{group.label}</span>
                     <div className="flex items-center gap-2.5 text-xs text-slate-500">
-                      <span className="tabular-nums">{group.lessons.length} {pluralize(group.lessons.length, 'session')}</span>
+                      <span className="tabular-nums">{group.lessons.length} {group.lessons.length === 1 ? t('instructor:lessons.session') : t('instructor:lessons.sessions')}</span>
                       <ChevronDownIcon
                         className={`h-4 w-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
                       />

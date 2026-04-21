@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Empty, Tag } from 'antd';
 import {
   ExclamationCircleOutlined,
@@ -10,19 +11,21 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const statusConfig = {
-  open: { color: 'gold', icon: <ExclamationCircleOutlined />, label: 'Open' },
-  in_progress: { color: 'blue', icon: <SyncOutlined spin />, label: 'In Progress' },
-  resolved: { color: 'green', icon: <CheckCircleOutlined />, label: 'Resolved' },
-  closed: { color: 'default', icon: <ClockCircleOutlined />, label: 'Closed' },
-  pending: { color: 'blue', icon: <ClockCircleOutlined />, label: 'Pending' },
-};
-
 const priorityColors = { urgent: 'red', high: 'orange', normal: 'blue', low: 'default' };
 
 const TicketHistoryList = ({ tickets, onSelect }) => {
+  const { t } = useTranslation(['student']);
+
+  const statusConfig = {
+    open: { color: 'gold', icon: <ExclamationCircleOutlined />, label: t('student:support.ticketList.statusLabels.open') },
+    in_progress: { color: 'blue', icon: <SyncOutlined spin />, label: t('student:support.ticketList.statusLabels.in_progress') },
+    resolved: { color: 'green', icon: <CheckCircleOutlined />, label: t('student:support.ticketList.statusLabels.resolved') },
+    closed: { color: 'default', icon: <ClockCircleOutlined />, label: t('student:support.ticketList.statusLabels.closed') },
+    pending: { color: 'blue', icon: <ClockCircleOutlined />, label: t('student:support.ticketList.statusLabels.pending') },
+  };
+
   if (!tickets?.length) {
-    return <Empty description="You have no support requests yet" className="py-8" />;
+    return <Empty description={t('student:support.ticketList.emptyState')} className="py-8" />;
   }
 
   return (
@@ -39,7 +42,7 @@ const TicketHistoryList = ({ tickets, onSelect }) => {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-slate-800 truncate">
-                    {ticket.subject || `Ticket #${ticket.id}`}
+                    {ticket.subject || t('student:support.ticketList.ticketFallback', { id: ticket.id })}
                   </p>
                   {ticket.message && (
                     <p className="mt-1 text-xs text-slate-500 line-clamp-2">{ticket.message}</p>

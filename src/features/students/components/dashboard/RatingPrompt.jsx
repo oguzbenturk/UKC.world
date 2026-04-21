@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 const RatingPrompt = ({ reminders = [], onRate }) => {
+  const { t } = useTranslation(['student']);
   if (!reminders.length) return null;
 
   const first = reminders[0];
@@ -18,8 +20,8 @@ const RatingPrompt = ({ reminders = [], onRate }) => {
           </span>
         )}
         <p className="flex-1 font-duotone-regular text-sm text-slate-700">
-          Rate your lesson with <span className="font-duotone-bold">{instructorName}</span>
-          {hasMultiple && <span className="ml-1 text-slate-500">+{reminders.length - 1} more</span>}
+          {t('student:dashboard.ratingPrompt.rateWith')} <span className="font-duotone-bold">{instructorName}</span>
+          {hasMultiple && <span className="ml-1 text-slate-500">{t('student:dashboard.ratingPrompt.moreCount', { count: reminders.length - 1 })}</span>}
         </p>
         <button
           type="button"
@@ -27,7 +29,7 @@ const RatingPrompt = ({ reminders = [], onRate }) => {
           className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-4 py-1.5 font-gotham-medium text-xs text-white shadow-sm transition hover:bg-amber-600"
         >
           <StarIcon className="h-3.5 w-3.5" />
-          Rate
+          {t('student:dashboard.ratingPrompt.rateButton')}
         </button>
       </div>
     </section>

@@ -1,5 +1,8 @@
 {
-  "_meta": { "ai_drafted": false, "reviewed": false },
+  "_meta": {
+    "ai_drafted": false,
+    "reviewed": false
+  },
   "common": {
     "viewDetails": "Detayları Gör",
     "readFaq": "SSS'yi Oku",
@@ -15,18 +18,101 @@
     "browseShop": "MAĞAZAYA GÖZ AT",
     "discover": "Keşfet",
     "services": {
-      "shop": { "title": "Mağaza", "tagline": "Resmi Duotone Bayisi", "subItems": ["Kitesurf", "Wing Foil", "E-Foil", "Dalış Elbiseleri", "ION ACCS", "SecondWind"] },
-      "academy": { "title": "Akademi", "tagline": "IKO Sertifikalı Eğitmenler", "subItems": ["Kite Dersleri", "Foil Dersleri", "Wing Dersleri", "E-Foil", "Premium"] },
-      "rentals": { "title": "Kiralama", "tagline": "Premium Ekipman", "subItems": ["Tam Set", "Sadece Kiteboard", "Dalış Elbisesi", "Harness & Bar", "E-Foil"] },
-      "membership": { "title": "Üyelik", "tagline": "Özel Avantajlar", "subItems": ["Plaj Olanakları", "WIFI", "Plaj Tuvaletleri", "Duşlar", "Kompresörler", "Kalkış & İniş Desteği", "Ve Çok Daha Fazlası..."] },
-      "care": { "title": "Bakım", "tagline": "Tüm Markalar Kabul Edilir", "subItems": ["Kite Tamiri", "Board Tamiri", "Bar & İp", "Tam Servis"] },
-      "stay": { "title": "Konaklama", "tagline": "Plaj Kenarında Yaşam", "subItems": ["Havuzlu Çiftlik Evi", "Zeytinlikte Stüdyo Daireler"] },
-      "experience": { "title": "Deneyim", "tagline": "Macera Bekliyor", "subItems": ["Kite Paketleri", "Wing Paketleri", "DownWinders", "Kamplar"] },
-      "community": { "title": "Topluluk", "tagline": "Kabileye Katıl", "subItems": ["Canlı Sohbet", "Etkinlikler & Buluşmalar", "Sürücü Topluluğu"] }
+      "shop": {
+        "title": "Mağaza",
+        "tagline": "Resmi Duotone Bayisi",
+        "subItems": [
+          "Kitesurf",
+          "Wing Foil",
+          "E-Foil",
+          "Dalış Elbiseleri",
+          "ION ACCS",
+          "SecondWind"
+        ]
+      },
+      "academy": {
+        "title": "Akademi",
+        "tagline": "IKO Sertifikalı Eğitmenler",
+        "subItems": [
+          "Kite Dersleri",
+          "Foil Dersleri",
+          "Wing Dersleri",
+          "E-Foil",
+          "Premium"
+        ]
+      },
+      "rentals": {
+        "title": "Kiralama",
+        "tagline": "Premium Ekipman",
+        "subItems": [
+          "Tam Set",
+          "Sadece Kiteboard",
+          "Dalış Elbisesi",
+          "Harness & Bar",
+          "E-Foil"
+        ]
+      },
+      "membership": {
+        "title": "Üyelik",
+        "tagline": "Özel Avantajlar",
+        "subItems": [
+          "Plaj Olanakları",
+          "WIFI",
+          "Plaj Tuvaletleri",
+          "Duşlar",
+          "Kompresörler",
+          "Kalkış & İniş Desteği",
+          "Ve Çok Daha Fazlası..."
+        ]
+      },
+      "care": {
+        "title": "Bakım",
+        "tagline": "Tüm Markalar Kabul Edilir",
+        "subItems": [
+          "Kite Tamiri",
+          "Board Tamiri",
+          "Bar & İp",
+          "Tam Servis"
+        ]
+      },
+      "stay": {
+        "title": "Konaklama",
+        "tagline": "Plaj Kenarında Yaşam",
+        "subItems": [
+          "Havuzlu Çiftlik Evi",
+          "Zeytinlikte Stüdyo Daireler"
+        ]
+      },
+      "experience": {
+        "title": "Deneyim",
+        "tagline": "Macera Bekliyor",
+        "subItems": [
+          "Kite Paketleri",
+          "Wing Paketleri",
+          "DownWinders",
+          "Kamplar"
+        ]
+      },
+      "community": {
+        "title": "Topluluk",
+        "tagline": "Kabileye Katıl",
+        "subItems": [
+          "Canlı Sohbet",
+          "Etkinlikler & Buluşmalar",
+          "Sürücü Topluluğu"
+        ]
+      }
     }
   },
   "academy": {
-    "nav": { "kite": "KITE", "foil": "FOIL", "wing": "WING", "efoil": "E-FOIL", "premium": "PREMIUM", "premiumShort": "VIP" },
+    "nav": {
+      "kite": "KITE",
+      "foil": "FOIL",
+      "wing": "WING",
+      "efoil": "E-FOIL",
+      "premium": "PREMIUM",
+      "premiumShort": "VIP"
+    },
     "sections": {
       "kite": {
         "title": "KITE DERSLERİ",
@@ -157,52 +243,155 @@
         "name": "Başlangıç Özel",
         "subtitle": "1-1 Eğitim",
         "description": "En hızlı öğrenme yolu. İlerleme hızınıza ve konfor seviyenize tamamen odaklanmış özel bir eğitmenden %100 kişiselleştirilmiş ilgi.",
-        "highlights": ["Özel eğitmen", "Telsiz kask iletişimi", "En yeni Duotone ekipman dahil", "Kişiselleştirilmiş ilerleme planı", "Adım adım ilerleme takibi", "Kişisel seans özeti"],
-        "badges": ["Özel Odak", "Telsiz Kask"],
+        "highlights": [
+          "Özel eğitmen",
+          "Telsiz kask iletişimi",
+          "En yeni Duotone ekipman dahil",
+          "Kişiselleştirilmiş ilerleme planı",
+          "Adım adım ilerleme takibi",
+          "Kişisel seans özeti"
+        ],
+        "badges": [
+          "Özel Odak",
+          "Telsiz Kask"
+        ],
         "durations": [
-          { "label": "Giriş", "sessions": "2 x 2sa", "tag": "Temel" },
-          { "label": "Standart", "sessions": "3 x 2sa", "tag": "Popüler" },
-          { "label": "Plus", "sessions": "4 x 2sa", "tag": "Önerilen" },
-          { "label": "Pro", "sessions": "5 x 2sa", "tag": "En Avantajlı" }
+          {
+            "label": "Giriş",
+            "sessions": "2 x 2sa",
+            "tag": "Temel"
+          },
+          {
+            "label": "Standart",
+            "sessions": "3 x 2sa",
+            "tag": "Popüler"
+          },
+          {
+            "label": "Plus",
+            "sessions": "4 x 2sa",
+            "tag": "Önerilen"
+          },
+          {
+            "label": "Pro",
+            "sessions": "5 x 2sa",
+            "tag": "En Avantajlı"
+          }
         ]
       },
       "group": {
         "name": "Grup Dersi",
         "subtitle": "Yarı-Özel (2 Öğrenci)",
         "description": "Bir arkadaşınızla öğrenin ya da yeni bir kite arkadaşıyla tanışın! Bu yarı-özel format, eğitim ve dinlenme/gözlem süresinin mükemmel dengesini sunar.",
-        "highlights": ["Eğitmen başına maks. 2 öğrenci", "Ortak kite ve board", "Başkalarını izleyerek öğrenin", "Eğlenceli sosyal ortam", "Daha uygun fiyat", "Tüm ekipman dahil"],
-        "badges": ["En Çok Satan", "Sosyal Eğlence"],
+        "highlights": [
+          "Eğitmen başına maks. 2 öğrenci",
+          "Ortak kite ve board",
+          "Başkalarını izleyerek öğrenin",
+          "Eğlenceli sosyal ortam",
+          "Daha uygun fiyat",
+          "Tüm ekipman dahil"
+        ],
+        "badges": [
+          "En Çok Satan",
+          "Sosyal Eğlence"
+        ],
         "durations": [
-          { "label": "Giriş", "sessions": "2 x 2sa", "tag": "Başlangıç" },
-          { "label": "Standart", "sessions": "3 x 2sa", "tag": "Popüler" },
-          { "label": "Plus", "sessions": "4 x 2sa", "tag": "Değer" },
-          { "label": "Pro", "sessions": "5 x 2sa", "tag": "Tam" }
+          {
+            "label": "Giriş",
+            "sessions": "2 x 2sa",
+            "tag": "Başlangıç"
+          },
+          {
+            "label": "Standart",
+            "sessions": "3 x 2sa",
+            "tag": "Popüler"
+          },
+          {
+            "label": "Plus",
+            "sessions": "4 x 2sa",
+            "tag": "Değer"
+          },
+          {
+            "label": "Pro",
+            "sessions": "5 x 2sa",
+            "tag": "Tam"
+          }
         ]
       },
       "advanced": {
         "name": "İleri Düzey Koçluk",
         "subtitle": "Profesyonel Eğitim",
         "description": "Zaten sürüyor musunuz? Kıdemli eğitmenlerimizle becerilerinizi bir üst seviyeye taşıyın. Atlama, geçiş, kanca dışı hareketler veya dalga sürüşünde ustalaşın.",
-        "highlights": ["Seviye 3 Kıdemli Eğitmen", "İleri performans geri bildirimi", "Trik ilerleme yol haritası", "Downwinder desteği", "Yarış hazırlığı", "Ekipman ayar atölyesi"],
-        "badges": ["Sadece Uzmanlar", "İlerleme Koçluğu"],
+        "highlights": [
+          "Seviye 3 Kıdemli Eğitmen",
+          "İleri performans geri bildirimi",
+          "Trik ilerleme yol haritası",
+          "Downwinder desteği",
+          "Yarış hazırlığı",
+          "Ekipman ayar atölyesi"
+        ],
+        "badges": [
+          "Sadece Uzmanlar",
+          "İlerleme Koçluğu"
+        ],
         "durations": [
-          { "label": "Düzelt", "sessions": "4 x 1sa", "tag": "Ayar" },
-          { "label": "İlerle", "sessions": "6 x 1sa", "tag": "Çekirdek" },
-          { "label": "Ustalık", "sessions": "8 x 1sa", "tag": "İleri" },
-          { "label": "Pro Kamp", "sessions": "10 x 1sa", "tag": "Yoğun" }
+          {
+            "label": "Düzelt",
+            "sessions": "4 x 1sa",
+            "tag": "Ayar"
+          },
+          {
+            "label": "İlerle",
+            "sessions": "6 x 1sa",
+            "tag": "Çekirdek"
+          },
+          {
+            "label": "Ustalık",
+            "sessions": "8 x 1sa",
+            "tag": "İleri"
+          },
+          {
+            "label": "Pro Kamp",
+            "sessions": "10 x 1sa",
+            "tag": "Yoğun"
+          }
         ]
       },
       "supervision": {
         "name": "Gözetim",
         "subtitle": "Bağımsız Pratik",
         "description": "Gönül rahatlığıyla bağımsız olarak pratik yapın. Plaj ekibimiz kalkış/iniş konusunda yardımcı olur ve siz sürerken gözünü sizden ayırmaz.",
-        "highlights": ["Kalkış & İniş desteği", "Güvenlik botu kurtarma", "Okul bölgesi erişimi", "Günlük hava brifingi", "Acil ekipman erişimi"],
-        "badges": ["Güvenlik Önce", "Kiralama Mevcut"],
+        "highlights": [
+          "Kalkış & İniş desteği",
+          "Güvenlik botu kurtarma",
+          "Okul bölgesi erişimi",
+          "Günlük hava brifingi",
+          "Acil ekipman erişimi"
+        ],
+        "badges": [
+          "Güvenlik Önce",
+          "Kiralama Mevcut"
+        ],
         "durations": [
-          { "label": "Yarım Gün", "sessions": "4sa Slot", "tag": "Hızlı" },
-          { "label": "Tam Gün", "sessions": "Günlük", "tag": "Standart" },
-          { "label": "Hafta Sonu", "sessions": "2 Gün", "tag": "Hafta Sonu" },
-          { "label": "Hafta", "sessions": "5 Gün", "tag": "Tatil" }
+          {
+            "label": "Yarım Gün",
+            "sessions": "4sa Slot",
+            "tag": "Hızlı"
+          },
+          {
+            "label": "Tam Gün",
+            "sessions": "Günlük",
+            "tag": "Standart"
+          },
+          {
+            "label": "Hafta Sonu",
+            "sessions": "2 Gün",
+            "tag": "Hafta Sonu"
+          },
+          {
+            "label": "Hafta",
+            "sessions": "5 Gün",
+            "tag": "Tatil"
+          }
         ]
       }
     }
@@ -283,6 +472,33 @@
       }
     }
   },
+  "packageModal": {
+    "readMore": "Devamını oku",
+    "showLess": "Daha az göster",
+    "equipmentIncluded": "Tüm ekipman ve malzemeler dahil",
+    "chooseDuration": "Süre seçin",
+    "packageBadge": "Paket",
+    "owned": "Satın Alındı",
+    "hoursRemaining": "{{hours}} saat kaldı",
+    "hoursScheduled": "{{total}} saatin {{used}} saati planlandı",
+    "noHoursRemaining": "Kalan saat yok",
+    "customLength": "Özel süre",
+    "proRataFromBase": "Temelden orantılı",
+    "customHoursAria": "Özel saat",
+    "hoursUnit": "saat",
+    "youOwnThisPackage": "Bu paket size ait",
+    "scheduledPending": "{{total}} saatin {{used}} saati planlandı — personel onayı bekleniyor",
+    "remainingSchedule": "{{hours}} saat kaldı — bir seans planlayın",
+    "total": "Toplam",
+    "perPerson": "kişi başı",
+    "viewInDashboard": "Panelde görüntüle",
+    "scheduleSession": "Seans Planla",
+    "bookNow": "Şimdi Rezerve Et",
+    "footerScheduledPending": "Paket seanslarınız rezerve edildi ve onay bekliyor.",
+    "footerUseExisting": "Mevcut paket saatlerinizi kullanın — ek ücret yok.",
+    "footerPickNext": "Tarih ve saati bir sonraki adımda seçin.",
+    "footerSignIn": "Yerinizi güvenceye almak için giriş yapın."
+  },
   "contactBanner": {
     "orReachUs": "Ya da bize doğrudan ulaşın",
     "whatsapp": "WhatsApp",
@@ -302,46 +518,121 @@
         "name": "Tam Set Kiralama",
         "subtitle": "Komple Kite Kurulumu",
         "description": "Suya çıkmak için ihtiyacınız olan her şey — güvenilir, ilerlemeye uygun ekipmanla.",
-        "highlights": ["Kite + board + bar", "Harness ve dalış elbisesi dahil", "Güvenlik leash'i ve kask", "Günlük kontrol edilen ekipman", "İlerleme için ideal", "Ekipman dahil"],
-        "badges": ["Standart", "Tam Set"],
+        "highlights": [
+          "Kite + board + bar",
+          "Harness ve dalış elbisesi dahil",
+          "Güvenlik leash'i ve kask",
+          "Günlük kontrol edilen ekipman",
+          "İlerleme için ideal",
+          "Ekipman dahil"
+        ],
+        "badges": [
+          "Standart",
+          "Tam Set"
+        ],
         "durations": [
-          { "label": "Hızlı Seans", "sessions": "1 seans" },
-          { "label": "Yarım Gün", "sessions": "Yarım günlük kiralama", "tag": "Popüler" },
-          { "label": "Tam Gün", "sessions": "Tam günlük kiralama" },
-          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "En Avantajlı" }
+          {
+            "label": "Hızlı Seans",
+            "sessions": "1 seans"
+          },
+          {
+            "label": "Yarım Gün",
+            "sessions": "Yarım günlük kiralama",
+            "tag": "Popüler"
+          },
+          {
+            "label": "Tam Gün",
+            "sessions": "Tam günlük kiralama"
+          },
+          {
+            "label": "1 Hafta",
+            "sessions": "7 günlük kiralama",
+            "tag": "En Avantajlı"
+          }
         ]
       },
       "board": {
         "name": "Board Kiralama",
         "subtitle": "Twin Tip / Directional",
         "description": "Hafif seyahat edin ve sadece board kiralayın. Farklı koşullar için çeşitli boy ve şekil seçenekleri.",
-        "highlights": ["Twin tip ve directional seçenekleri", "Strap/pad dahil", "Board çantası mevcut", "Taze hazırlanmış ekipman", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
-        "badges": ["Boardlar", "Standart"],
+        "highlights": [
+          "Twin tip ve directional seçenekleri",
+          "Strap/pad dahil",
+          "Board çantası mevcut",
+          "Taze hazırlanmış ekipman",
+          "Ekipman dahil",
+          "Bu sayfadan doğrudan rezerve edin"
+        ],
+        "badges": [
+          "Boardlar",
+          "Standart"
+        ],
         "durations": [
-          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
-          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "Popüler" }
+          {
+            "label": "1 Gün",
+            "sessions": "1 günlük kiralama"
+          },
+          {
+            "label": "1 Hafta",
+            "sessions": "7 günlük kiralama",
+            "tag": "Popüler"
+          }
         ]
       },
       "wetsuit": {
         "name": "Dalış Elbisesi Kiralama",
         "subtitle": "ION Dalış Elbiseleri",
         "description": "Her kullanım sonrası temizlenip hazırlanan, birden fazla beden ile premium ION dalış elbiseleri.",
-        "highlights": ["Tüm bedenler mevcut", "Taze temizlenmiş", "Konfor odaklı kesim", "Bot opsiyonel", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
-        "badges": ["Dalış Elbisesi", "Standart"],
+        "highlights": [
+          "Tüm bedenler mevcut",
+          "Taze temizlenmiş",
+          "Konfor odaklı kesim",
+          "Bot opsiyonel",
+          "Ekipman dahil",
+          "Bu sayfadan doğrudan rezerve edin"
+        ],
+        "badges": [
+          "Dalış Elbisesi",
+          "Standart"
+        ],
         "durations": [
-          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
-          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "En Avantajlı" }
+          {
+            "label": "1 Gün",
+            "sessions": "1 günlük kiralama"
+          },
+          {
+            "label": "1 Hafta",
+            "sessions": "7 günlük kiralama",
+            "tag": "En Avantajlı"
+          }
         ]
       },
       "harnessBar": {
         "name": "Harness & Bar",
         "subtitle": "Kontrol Sistemi",
         "description": "Güvenli ve duyarlı seanslar için en yeni kontrol sistemleri ve harness seçenekleri.",
-        "highlights": ["Duotone kontrol barları", "Bel ve koltuk harness seçenekleri", "Hızlı bırakma güvenlik sistemleri", "Güvenlik kontrolleri dahil", "Ekipman dahil", "Bu sayfadan doğrudan rezerve edin"],
-        "badges": ["Aksesuarlar", "Standart"],
+        "highlights": [
+          "Duotone kontrol barları",
+          "Bel ve koltuk harness seçenekleri",
+          "Hızlı bırakma güvenlik sistemleri",
+          "Güvenlik kontrolleri dahil",
+          "Ekipman dahil",
+          "Bu sayfadan doğrudan rezerve edin"
+        ],
+        "badges": [
+          "Aksesuarlar",
+          "Standart"
+        ],
         "durations": [
-          { "label": "1 Gün", "sessions": "1 günlük kiralama" },
-          { "label": "1 Hafta", "sessions": "7 günlük kiralama", "tag": "Popüler" }
+          {
+            "label": "1 Gün",
+            "sessions": "1 günlük kiralama"
+          },
+          {
+            "label": "1 Hafta",
+            "sessions": "7 günlük kiralama",
+            "tag": "Popüler"
+          }
         ]
       }
     }
@@ -359,10 +650,22 @@
     "whyPremium": {
       "title": "Neden Premium?",
       "cards": {
-        "light": { "title": "Ultra Hafif", "description": "SLS teknolojisi ağırlığı %20'ye kadar azaltır" },
-        "responsive": { "title": "Daha Duyarlı", "description": "Anlık geri bildirim için daha sert çerçeveler" },
-        "serviced": { "title": "Günlük Servis", "description": "Ekipman her gün kontrol edilir ve bakımı yapılır" },
-        "latest": { "title": "En Yeni Modeller", "description": "Yıllık güncellenen 2024 sezon ekipmanı" }
+        "light": {
+          "title": "Ultra Hafif",
+          "description": "SLS teknolojisi ağırlığı %20'ye kadar azaltır"
+        },
+        "responsive": {
+          "title": "Daha Duyarlı",
+          "description": "Anlık geri bildirim için daha sert çerçeveler"
+        },
+        "serviced": {
+          "title": "Günlük Servis",
+          "description": "Ekipman her gün kontrol edilir ve bakımı yapılır"
+        },
+        "latest": {
+          "title": "En Yeni Modeller",
+          "description": "Yıllık güncellenen 2024 sezon ekipmanı"
+        }
       }
     },
     "options": {
@@ -376,22 +679,51 @@
         "title": "SLS Ekipmanı",
         "subtitle": "Saatlik Kiralama",
         "description": "Duotone SLS (Strong Light Superior) serisi en üst performansı sunar. Standart ekipmandan daha hafif, sert ve daha duyarlı.",
-        "durations": ["1 saat", "4 saat (Yarım Gün)", "8 saat (Tam Gün)", "1 Hafta"],
-        "included": ["En yeni SLS kite modeli", "Seçtiğiniz SLS board", "Premium harness ve bar", "ION dalış elbisesi", "Güvenlik ekipmanı"]
+        "durations": [
+          "1 saat",
+          "4 saat (Yarım Gün)",
+          "8 saat (Tam Gün)",
+          "1 Hafta"
+        ],
+        "included": [
+          "En yeni SLS kite modeli",
+          "Seçtiğiniz SLS board",
+          "Premium harness ve bar",
+          "ION dalış elbisesi",
+          "Güvenlik ekipmanı"
+        ]
       },
       "dlab": {
         "title": "D/LAB Ekipmanı",
         "subtitle": "Üst Düzey Performans",
         "description": "D/LAB, Duotone'un en gelişmiş serisidir. Mükemmellik arayan sürücüler için el yapımı, sınırlı üretim ekipmanı.",
-        "durations": ["1 saat", "4 saat (Yarım Gün)", "8 saat (Tam Gün)"],
-        "included": ["D/LAB kite (sınırlı üretim)", "D/LAB veya SLS board", "Premium harness ve bar", "ION dalış elbisesi", "Öncelikli kurtarma desteği"]
+        "durations": [
+          "1 saat",
+          "4 saat (Yarım Gün)",
+          "8 saat (Tam Gün)"
+        ],
+        "included": [
+          "D/LAB kite (sınırlı üretim)",
+          "D/LAB veya SLS board",
+          "Premium harness ve bar",
+          "ION dalış elbisesi",
+          "Öncelikli kurtarma desteği"
+        ]
       },
       "foilBoard": {
         "title": "SLS Foil Board",
         "subtitle": "Hidrofoil Ekipmanı",
         "description": "Deneyimli sürücüler için premium foil boardlar. Hafif rüzgar seansları veya foiling'inizi bir üst seviyeye taşımak için ideal.",
-        "durations": ["1 gün", "1 hafta"],
-        "included": ["SLS foil board", "Tam foil seti", "Board çantası", "Foil güvenlik brifingi"]
+        "durations": [
+          "1 gün",
+          "1 hafta"
+        ],
+        "included": [
+          "SLS foil board",
+          "Tam foil seti",
+          "Board çantası",
+          "Foil güvenlik brifingi"
+        ]
       }
     },
     "bottomCta": {
@@ -402,7 +734,16 @@
     }
   },
   "rental": {
-    "nav": { "standard": "STANDART KİRALAMA", "standardShort": "STANDART", "sls": "SLS KİRALAMA", "slsShort": "SLS", "dlab": "D-LAB KİRALAMA", "dlabShort": "D-LAB", "efoil": "E-FOIL KİRALAMA", "efoilShort": "E-FOIL" },
+    "nav": {
+      "standard": "STANDART KİRALAMA",
+      "standardShort": "STANDART",
+      "sls": "SLS KİRALAMA",
+      "slsShort": "SLS",
+      "dlab": "D-LAB KİRALAMA",
+      "dlabShort": "D-LAB",
+      "efoil": "E-FOIL KİRALAMA",
+      "efoilShort": "E-FOIL"
+    },
     "sections": {
       "standard": {
         "title": "STANDART KİRALAMA",
@@ -454,7 +795,12 @@
   },
   "experience": {
     "brandSubtitle": "deneyim",
-    "nav": { "kite": "KITE PAKETLERİ", "wing": "WING PAKETLERİ", "downwinders": "DOWNWINDERS", "camps": "KAMPLAR" },
+    "nav": {
+      "kite": "KITE PAKETLERİ",
+      "wing": "WING PAKETLERİ",
+      "downwinders": "DOWNWINDERS",
+      "camps": "KAMPLAR"
+    },
     "sections": {
       "kite": {
         "title": "KITE PAKETLERİ",
@@ -480,6 +826,797 @@
     "faq": {
       "title": "Paketlerimizle ilgili sorularınız mı var?",
       "description": "Seviyeniz ve hedefleriniz için doğru deneyim paketini seçmenize yardımcı olmak üzere ekibimiz burada."
+    }
+  },
+  "academyFoil": {
+    "hero": {
+      "pretitle": "Akademi",
+      "title": "Foil",
+      "titleAccent": "Dersleri",
+      "subtitle": "Güvenli ve kontrollü foil sürüşü için tasarlanmış rehberli ilerleme yoluyla suyun üzerinde uçun."
+    }
+  },
+  "academyWing": {
+    "hero": {
+      "pretitle": "Akademi",
+      "title": "Wing",
+      "titleAccent": "Dersleri",
+      "subtitle": "Wing ilerleme yolunuzu seçin. İlk sürüşlerden ileri geçişlere kadar ekibimiz her adımda yanınızda."
+    }
+  },
+  "academyEFoil": {
+    "hero": {
+      "pretitle": "Akademi",
+      "title": "E-Foil",
+      "titleAccent": "Dersleri",
+      "subtitle": "Tüm beceri seviyeleri için yapılandırılmış oturumlarla elektrikli foilin pürüzsüz hissini yaşayın."
+    }
+  },
+  "academyPremium": {
+    "hero": {
+      "pretitle": "Akademi",
+      "title": "Premium",
+      "titleAccent": "Dersleri",
+      "subtitle": "Yönetici tarafından yapılandırılabilir süre ve fiyatlara sahip özel koçluk paketleri."
+    }
+  },
+  "contact": {
+    "hero": {
+      "title": "Sizinle tanışmayı çok isteriz",
+      "subtitle": "Dersler, kiralamalar, müsaitlik veya sadece merhaba demek için sorularınız mı var — aşağıdaki kanallardan biriyle bize ulaşın."
+    },
+    "channels": {
+      "whatsapp": {
+        "label": "WhatsApp",
+        "value": "Mağaza ve Okul hatları",
+        "description": "Hızlı sorular ve rezervasyonlar için bize ulaşmanın en hızlı yolu.",
+        "btnLabel": "Hat seçin"
+      },
+      "email": {
+        "label": "E-posta",
+        "value": "ukcturkey@gmail.com",
+        "description": "Bize ayrıntılı bir mesaj gönderin, 24 saat içinde size geri döneceğiz.",
+        "btnLabel": "E-posta Gönder"
+      },
+      "instagram": {
+        "label": "Instagram",
+        "value": "3 hesap",
+        "description": "Yolculuğumuzu takip edin ve istediğiniz zaman DM gönderin.",
+        "btnLabel": "Hesap seçin"
+      },
+      "phone": {
+        "label": "Telefon",
+        "value": "+90 507 138 91 96",
+        "description": "Okul saatlerinde bizi doğrudan arayın.",
+        "btnLabel": "Şimdi Ara"
+      }
+    },
+    "whatsappOptions": {
+      "shop": "Mağaza sorguları",
+      "school": "Okul sorguları"
+    },
+    "instagramOptions": {
+      "dpc": "DPC-urla",
+      "urla": "Urla Kite Center",
+      "shop": "UKC Shop"
+    },
+    "location": {
+      "heading": "Bizi Bulun",
+      "name": "Duotone Pro Center Urla",
+      "address": "Urla, İzmir — Türkiye",
+      "note": "Tam su kenarında."
+    },
+    "hours": {
+      "heading": "Okul Saatleri",
+      "days": "Her Gün",
+      "time": "09:00 – 18:00",
+      "note": "Rüzgar ve hava koşullarına bağlı."
+    }
+  },
+  "care": {
+    "hero": {
+      "pretitle": "RESMİ ONARIM MERKEZİ",
+      "description": "Profesyonel uçurtma ve su sporları ekipmanı tamiri. Uçurtma, tahta, bar, dalgıç kıyafeti ve daha fazlasını onarıyoruz."
+    },
+    "tabs": {
+      "submit": "Talep Gönder",
+      "track": "Tamirinizi Takip Edin"
+    },
+    "equipmentTypes": {
+      "kite": "Uçurtma",
+      "board": "Tahta (Kiteboard / Sörf Tahtası / Foil)",
+      "bar": "Bar ve Hatlar",
+      "wetsuit": "Dalgıç Kıyafeti",
+      "harness": "Harnes",
+      "bladder": "Balon",
+      "other": "Diğer"
+    },
+    "priorityOptions": {
+      "low": "Düşük – ne zaman olsa olur",
+      "medium": "Orta – bir hafta içinde",
+      "high": "Yüksek – 2–3 gün içinde",
+      "urgent": "Acil – En kısa sürede"
+    },
+    "statusConfig": {
+      "received": {
+        "label": "Alındı",
+        "description": "Talebiniz alındı ve sıraya girdi."
+      },
+      "inProgress": {
+        "label": "Devam Ediyor",
+        "description": "Ekipmanınız teknisyenimiz tarafından üzerinde çalışılıyor."
+      },
+      "completed": {
+        "label": "Tamamlandı",
+        "description": "Tamiriniz tamamlandı ve teslime hazır."
+      },
+      "cancelled": {
+        "label": "İptal Edildi",
+        "description": "Bu tamir talebi iptal edildi."
+      }
+    },
+    "submitSection": {
+      "heading": "Yeni Tamir Talebi",
+      "subheading": "Hesap gerekmez. Tamamlandığında size bir takip kodu vereceğiz."
+    },
+    "form": {
+      "contactInfo": "İletişim Bilgileriniz",
+      "fullName": "Ad Soyad",
+      "email": "E-posta (önerilir)",
+      "phone": "Telefon / WhatsApp",
+      "equipmentDetails": "Ekipman Detayları",
+      "equipmentType": "Ekipman Türü",
+      "brandItem": "Marka / Ürün Adı",
+      "issueDescription": "Sorun Açıklaması",
+      "urgency": "Aciliyet",
+      "currentLocation": "Mevcut Konum (isteğe bağlı)",
+      "placeholders": {
+        "fullName": "Adınız Soyadınız",
+        "email": "siz@ornek.com",
+        "phone": "+90 530 000 00 00",
+        "brandItem": "örn. Cabrinha Switchblade 12m",
+        "issueDescription": "Hasarı veya sorunu açıklayın...",
+        "urgency": "Ne kadar acil?",
+        "currentLocation": "örn. Okul deposunda bırakıldı"
+      },
+      "validation": {
+        "nameRequired": "Lütfen adınızı girin",
+        "emailInvalid": "Geçerli bir e-posta girin",
+        "phoneRequired": "Lütfen telefon numaranızı girin",
+        "equipmentTypeRequired": "Lütfen ekipman türünü seçin",
+        "brandRequired": "Lütfen marka / ürün adını girin",
+        "issueRequired": "Lütfen sorunu açıklayın",
+        "urgencyRequired": "Lütfen aciliyeti seçin"
+      },
+      "submitButton": "Tamir Talebi Gönder"
+    },
+    "success": {
+      "title": "Talep Alındı!",
+      "description": "Tamir talebinizi kaydettik. Durumu takip etmek için bir takip kodu alacaksınız.",
+      "tokenLabel": "Takip Kodunuz",
+      "trackButton": "Bu Talebi Takip Et",
+      "anotherButton": "Başka Bir Talep Gönder"
+    },
+    "track": {
+      "heading": "Tamirinizi Takip Edin",
+      "tokenLabel": "Takip Kodu",
+      "tokenPlaceholder": "Takip kodunuzu buraya yapıştırın...",
+      "checkButton": "Durumu Kontrol Et",
+      "loadingButton": "Aranıyor...",
+      "loadingText": "Talebiniz aranıyor…",
+      "notFound": "Bulunamadı"
+    },
+    "adminCta": {
+      "text": "Giriş yaptınız — tüm taleplerinizi tek bir yerde görün",
+      "button": "Tamir Panosuna Git"
+    }
+  },
+  "shop": {
+    "carousel": {
+      "shopNow": "Hemen Alışveriş Yap",
+      "prevSlide": "Önceki slayt",
+      "nextSlide": "Sonraki slayt",
+      "slideLabel": "Slayt {{index}}"
+    },
+    "loading": "Öne çıkan ürünler yükleniyor…",
+    "hotDeals": {
+      "eyebrow": "Sınırlı Teklifler",
+      "heading": "Şu An İndirimde",
+      "viewAll": "Tümünü gör",
+      "scrollLeft": "Sola kaydır",
+      "scrollRight": "Sağa kaydır"
+    },
+    "promoBanners": {
+      "ion": {
+        "eyebrow": "Ekipmanını Al",
+        "title": "ION Aksesuarları",
+        "body": "ION'dan harnesler, dalgıç kıyafetleri, çarpma yelekleri ve daha fazlası.",
+        "cta": "ION'u İncele"
+      },
+      "secondwind": {
+        "eyebrow": "İkinci El & Demo",
+        "title": "İkinci Rüzgar",
+        "body": "Rakipsiz fiyatlarla kaliteli ikinci el ekipman.",
+        "cta": "Secondwind'i İncele"
+      }
+    },
+    "categories": {
+      "browseLabel": "Gözat",
+      "heading": "Kategoriye Göre Alışveriş"
+    },
+    "about": {
+      "eyebrow": "Duotone Pro Center Urla",
+      "heading": "Hakkımızda",
+      "para1": "Urla, İzmir'de su kenarında yer alan resmi bir Duotone Pro Center'ız. Mağazamız Duotone uçurtmaları, tahtaları ve aksesuarların tüm yelpazesini sunmaktadır.",
+      "para2": "İster ilk kurulumunu arayan bir başlangıç seviyesi olun ister en son ekipmanın peşindeki deneyimli bir sörfçü, ekibimiz yardımcı olmaya hazır.",
+      "browseButton": "Tüm Ürünlere Göz At"
+    },
+    "whyShop": {
+      "heading": "Neden Bizden Alışveriş Yapmalısınız?",
+      "cards": [
+        {
+          "title": "Yetkili Bayi",
+          "body": "Yalnızca üst markalardan orijinal, garantili ekipman satıyoruz."
+        },
+        {
+          "title": "Uzman Tavsiyesi",
+          "body": "Eğitmenlerimiz sattıkları ekipmanı kendileri kullanır — gerçek sürücülerden gerçek tavsiye."
+        },
+        {
+          "title": "Almadan Önce Dene",
+          "body": "Seçili ekipmanlar için taahhüt etmeden önce demo oturumları mevcuttur."
+        }
+      ]
+    },
+    "cta": {
+      "heading": "Seçim Konusunda Yardıma Mı İhtiyacınız Var?",
+      "description": "Ekibimiz seviyeniz ve hedefleriniz için doğru ekipmanı bulmanıza yardımcı olmaya hazır. İstediğiniz zaman ulaşın.",
+      "contactButton": "Bize Ulaşın"
+    }
+  },
+  "productDetail": {
+    "back": "Geri",
+    "shopBreadcrumb": "Mağaza",
+    "stock": {
+      "outOfStock": "Stokta Yok",
+      "lowStock": "Az Stok",
+      "limited": "Sınırlı",
+      "inStock": "Stokta Var"
+    },
+    "sections": {
+      "description": "Açıklama",
+      "details": "Detaylar"
+    },
+    "detailLabels": {
+      "sku": "SKU",
+      "category": "Kategori",
+      "type": "Tür",
+      "weight": "Ağırlık"
+    },
+    "order": {
+      "total": "Toplam",
+      "mobileTotal": "Toplam ({{count}} ürün)",
+      "addToCart": "Sepete Ekle",
+      "addToCartCount": "Sepete Ekle ({{count}})",
+      "savePercent": "%{{percent}} Tasarruf Et"
+    },
+    "toasts": {
+      "addedToCart": "{{count}} ürün sepete eklendi",
+      "removedFromWishlist": "İstek listesinden kaldırıldı",
+      "savedToWishlist": "İstek listesine kaydedildi"
+    },
+    "error": {
+      "notFound": "Ürün bulunamadı",
+      "failedToLoad": "Ürün yüklenemedi",
+      "backToShop": "Mağazaya Geri Dön"
+    }
+  },
+  "stayBooking": {
+    "hero": {
+      "title": "Konaklama Rezervasyonu Yap",
+      "location": "Urla, Gülbahçe - İzmir, Türkiye",
+      "description": "Uçurtma noktasına yakın, mükemmel konumdaki ortak otellerimiz ve tatil evlerimizden birini seçin.",
+      "bookNow": "Şimdi Rezervasyon Yap",
+      "callReservations": "Rezervasyon için Arayın"
+    },
+    "chooseStay": "Konaklamanızı Seçin",
+    "accommodationTypes": {
+      "hotel": {
+        "title": "Otel",
+        "subtitle": "Burlahan Otel",
+        "description": "Rahat bir konaklama için ihtiyaç duyduğunuz tüm olanaklara sahip konforlu bir otel.",
+        "highlights": [
+          "Kahvaltı dahil",
+          "Yüzme havuzu",
+          "Günlük oda temizliği",
+          "Yerinde restoran"
+        ]
+      },
+      "home": {
+        "title": "Ev",
+        "subtitle": "Havuzlu Stüdyolar ve Çiftlik Evi",
+        "description": "Gruplar ve uzun konaklamalar için mükemmel havuzlu kiralık stüdyolar ve bir çiftlik evi.",
+        "highlights": [
+          "Kendi kendine yeterlilik seçenekleri",
+          "Havuz erişimi",
+          "Daha fazla alan",
+          "Topluluk atmosferi"
+        ]
+      }
+    },
+    "from": "Başlangıç",
+    "perNight": "/ gece",
+    "viewOptions": "Seçenekleri Gör",
+    "packages": {
+      "heading": "Konaklama + Öğrenme Paketleri",
+      "description": "En iyi değer için konaklamayı ve dersleri birleştirin.",
+      "startingFrom": "Başlangıç fiyatı",
+      "bookButton": "Paketi Rezerve Et",
+      "items": [
+        {
+          "name": "Hafta Sonu Kaçamağı",
+          "includes": [
+            "2 gece konaklama",
+            "6 saatlik dersler",
+            "Ekipman kiralama"
+          ],
+          "savings": "%15 tasarruf"
+        },
+        {
+          "name": "Hafta Macerası",
+          "includes": [
+            "7 gece konaklama",
+            "15 saatlik dersler",
+            "Ekipman kiralama",
+            "Havalimanı transferi"
+          ],
+          "savings": "%20 tasarruf"
+        },
+        {
+          "name": "Tam Dalmak",
+          "includes": [
+            "14 gece konaklama",
+            "30 saatlik dersler",
+            "Ekipman kiralama",
+            "Havalimanı transferi",
+            "Sosyal aktiviteler"
+          ],
+          "savings": "%25 tasarruf"
+        }
+      ]
+    },
+    "whyBook": {
+      "heading": "Neden UKC ile Rezervasyon Yapmalısınız?",
+      "cards": [
+        {
+          "title": "Kolaylık",
+          "body": "Tüm konaklamalar uçurtma noktasına yakın"
+        },
+        {
+          "title": "En İyi Fiyatlar",
+          "body": "Doğrudan rezervasyon, aracı ücreti olmadığı anlamına gelir"
+        },
+        {
+          "title": "Yerel Destek",
+          "body": "İhtiyacınız olan her şeyde yardımcı olmak için buradayız"
+        },
+        {
+          "title": "Ulaşım",
+          "body": "Uçurtma merkezine/merkezinden servis hizmeti"
+        }
+      ]
+    },
+    "contact": {
+      "heading": "Seçim Konusunda Yardıma Mı İhtiyacınız Var?",
+      "description": "Ekibimiz konaklamanız için doğru seçeneği belirlemenize yardımcı olmaya hazır."
+    }
+  },
+  "experienceBookPackage": {
+    "title": "Paket Satın Al",
+    "description": "Bir kategori seçin ve size en uygun paketi belirleyin.",
+    "wallet": "Cüzdan:",
+    "selectCategory": "Kategori Seçin",
+    "viewPackages": "Paketleri Gör",
+    "back": "Geri",
+    "availablePackages": "Bu kategorideki mevcut paketler",
+    "loading": "Paketler yükleniyor...",
+    "empty": "Bu kategoride mevcut paket yok",
+    "backToCategories": "← Kategorilere Geri Dön",
+    "categories": [
+      {
+        "key": "lesson",
+        "label": "Dersler",
+        "description": "Uçurtma sörfü ve su sporları ders paketleri"
+      },
+      {
+        "key": "rental",
+        "label": "Kiralamalar",
+        "description": "Ekipman kiralama paketleri"
+      },
+      {
+        "key": "allInclusive",
+        "label": "Her Şey Dahil",
+        "description": "Dersler, kiralama ve konaklamayı içeren eksiksiz paketler"
+      },
+      {
+        "key": "accommodation",
+        "label": "Konaklama",
+        "description": "Ortak lokasyonlarda konaklama paketleri"
+      },
+      {
+        "key": "shop",
+        "label": "Mağaza Kredisi",
+        "description": "UKC mağazası için kredi paketleri"
+      },
+      {
+        "key": "experience",
+        "label": "Deneyimler",
+        "description": "Benzersiz su sporları deneyimleri"
+      },
+      {
+        "key": "other",
+        "label": "Diğer",
+        "description": "Çeşitli paketler"
+      }
+    ],
+    "packageCard": {
+      "owned": "Sahipsiniz",
+      "hoursLeft": "{{hours}}s kaldı",
+      "youOwnThis": "Bu Size Ait",
+      "buyAgainPrompt": "Daha fazla saat için tekrar satın alın",
+      "price": "Fiyat",
+      "buyAgain": "Tekrar Satın Al",
+      "purchase": "Satın Al"
+    },
+    "help": {
+      "heading": "Yardıma mı ihtiyacınız var?",
+      "description": "Herhangi bir paket hakkında sorularınız varsa bize ulaşın."
+    },
+    "notifications": {
+      "purchaseSuccess": "Paket Satın Alındı!",
+      "purchaseError": "Satın Alma Başarısız"
+    }
+  },
+  "quickBooking": {
+    "steps": {
+      "reviewPay": "İncele ve Öde",
+      "schedule": "Oturum Planla",
+      "complete": "Tamamlandı",
+      "groupPackage": "Grup Paketiniz",
+      "findPartner": "Ortak Bul",
+      "title": "Hızlı Rezervasyon",
+      "subtitle": "Grup dersi kurulumu",
+      "stepOf": "Adım {{current}} / {{total}}"
+    },
+    "pay": {
+      "lessonPrice": "Ders Fiyatı",
+      "packageTotal": "Paket Toplamı",
+      "groupLessonNote": "Bu bir grup dersi paketidir",
+      "groupLessonDetail": "Grup dersleri en az 2 kişi gerektirir. Aşağıdan nasıl devam etmek istediğinizi seçin.",
+      "haveAFriend": "Arkadaşım var — Grup Oluştur",
+      "findPartner": "Yalnızım — Bana ortak bul",
+      "paymentMethod": "Ödeme Yöntemi",
+      "wallet": "Cüzdan",
+      "deposit": "%{{percent}} Depozito",
+      "insufficientBalance": "Yetersiz cüzdan bakiyesi",
+      "topUpPrompt": "Devam etmek için cüzdanınızı doldurun.",
+      "payDepositVia": "Depozito ödemesi için",
+      "bankTransfer": "Banka Havalesi",
+      "selectBankAccount": "Banka Hesabı Seçin",
+      "chooseBankAccount": "Transfer yapılacak hesabı seçin…",
+      "uploadReceipt": "Dekont Yükle",
+      "selectReceipt": "Dekont Seçin (JPEG, PNG veya PDF)",
+      "promoCode": "Promosyon Kodu",
+      "continueSchedule": "Devam Et — Oturum Planla",
+      "depositNote": "Yerinizi ayırtmak için şimdi %{{percent}} ödeyin. Kalan %{{remaining}} gelişte ödenecek.",
+      "uploadReceiptNote": "{{amount}} tutarındaki depozito dekontunuzu yükleyin — JPEG, PNG veya PDF kabul edilir.",
+      "preferGroup": "Grup dersini tercih ediyor musunuz?",
+      "haveAFriendShort": "Arkadaşım var →",
+      "findPartnerShort": "Bana ortak bul →"
+    },
+    "schedule": {
+      "bookYourLesson": "Dersinizi Rezerve Edin",
+      "bookYourLessonSub": "Aşağıdan eğitmen, tarih ve saat dilimi seçin.",
+      "activePackage": "Aktif bir paketiniz var!",
+      "activePackageSub": "{{hours}} saat kaldı — aşağıdan bir oturum planlayın.",
+      "packagePurchased": "Paket satın alındı!",
+      "packagePurchasedSub": "Şimdi ilk oturumunuzu planlayın veya atlayın.",
+      "partnerSection": "Grup ortağı",
+      "partnerHoursLeft": "Grup ortağı • Paketinde {{hours}}s kaldı",
+      "partnerInclude": "Grup ortağınızı dahil etmek için dokunun",
+      "sessionDuration": "Oturum Süresi",
+      "recommended": "Önerilen",
+      "instructor": "Eğitmen",
+      "chooseInstructor": "Eğitmeninizi seçin",
+      "anyInstructor": "Herhangi bir müsait eğitmen",
+      "dateTime": "Tarih ve Saat",
+      "pickDate": "Tarih seçin",
+      "noSlots": "Uygun slot yok",
+      "pickDateFirst": "Önce tarih seçin",
+      "addAnotherDay": "Başka bir gün ekle",
+      "skipBookLater": "Atla — Sonra Rezerve Et",
+      "bookSessions": "{{count}} Oturum Rezerve Et",
+      "bookSession": "Oturum Rezerve Et",
+      "pickTime": "Saat seçin"
+    },
+    "done": {
+      "inviteSent": "Davet Gönderildi!",
+      "allDone": "Her Şey Tamam!",
+      "partner": "Ortak",
+      "status": "Durum",
+      "awaitingAcceptance": "Kabul bekleniyor",
+      "sessions": "Oturum(lar)",
+      "lesson": "Ders",
+      "package": "Paket",
+      "instructor": "Eğitmen",
+      "price": "Fiyat",
+      "payment": "Ödeme",
+      "paid": "Ödendi",
+      "bankTransfer": "Banka Havalesi",
+      "processing": "İşleniyor",
+      "source": "Kaynak",
+      "existingPackage": "Mevcut Paket",
+      "sessionsLabel": "Oturumlar",
+      "remaining": "Kalan",
+      "done": "Tamam",
+      "subtitlePartnerInvite": "{{name}} adlı kişiye onay isteği gönderildi. Ders kabul edildikten sonra onaylanacak.",
+      "subtitleStandaloneMulti": "{{count}} ders oturumu rezerve edildi! Ayrıntılar için panonuzu kontrol edin.",
+      "subtitleStandaloneSingle": "Ders oturumunuz rezerve edildi! Ayrıntılar için panonuzu kontrol edin.",
+      "subtitleExistingMulti": "Mevcut paketinizden {{count}} oturum rezerve edildi.",
+      "subtitleExistingSingle": "Oturumunuz mevcut paketinizden rezerve edildi.",
+      "subtitleNewMulti": "Paket satın alındı ve {{count}} oturum rezerve edildi.",
+      "subtitleNewSingle": "Paket satın alındı ve ilk oturumunuz rezerve edildi.",
+      "subtitleSkipExisting": "Oturum rezerve edilmedi — panonuzdan istediğiniz zaman planlayabilirsiniz.",
+      "subtitleSkipNew": "Paket satın alındı — panonuzdan oturumları istediğiniz zaman rezerve edin."
+    },
+    "confirm": {
+      "payTitle": "Depozito Ödemesini Onayla",
+      "purchaseTitle": "Satın Almayı Onayla",
+      "packageTotal": "Paket Toplamı",
+      "depositNow": "Şimdi Depozito",
+      "remainingOnArrival": "Kalan {{amount}} gelişte ödenecek",
+      "payDeposit": "{{amount}} Depozito Öde",
+      "confirmPay": "Onayla ve Öde",
+      "goBack": "Geri Git",
+      "bookingTitle": "Rezervasyonu Onayla",
+      "instructorLabel": "Eğitmen:",
+      "durationLabel": "Süre: oturum başına {{duration}}",
+      "bookSessions": "{{count}} Oturum Rezerve Et",
+      "bookGoBack": "Geri Git",
+      "packageFallback": "Paket",
+      "paymentLabel": "Ödeme: {{method}}",
+      "paymentWallet": "Cüzdan",
+      "paymentCreditCard": "Kredi Kartı",
+      "paymentDepositCard": "Kart",
+      "paymentDepositBank": "Banka Havalesi",
+      "paymentDeposit": "Depozito %{{percent}} ({{method}})"
+    },
+    "toasts": {
+      "paymentConfirmed": "Ödeme onaylandı! Paket satın alındı.",
+      "packagePurchased": "Paket satın alındı!",
+      "inviteSent": "Davet gönderildi! {{name}} kabul etmesi için bildirim alacak.",
+      "sessionsBooked": "{{count}} oturum rezerve edildi!",
+      "receiptRequired": "Lütfen ödeme kanıtı (dekont) yükleyin"
+    }
+  },
+  "allInclusive": {
+    "title": "Her Şey Dahil Paket Rezerve Et",
+    "packageSummary": {
+      "lessons": "Dersler {{hours}}s",
+      "rental": "Kiralama {{days}}g",
+      "stay": "Konaklama {{nights}}g"
+    },
+    "accommodationUnavailable": {
+      "title": "Konaklama Mevcut Değil",
+      "description": "Bu pakete bağlı konaklama birimi şu anda mevcut değil. Alternatifler için lütfen bizimle iletişime geçin."
+    },
+    "steps": {
+      "dates": "Tarihler",
+      "rentals": "Kiralamalar",
+      "lessons": "Dersler",
+      "payment": "Ödeme"
+    },
+    "dates": {
+      "checking": "Müsaitlik kontrol ediliyor...",
+      "selectCheckin": "Giriş tarihinizi seçin ({{nights}} gece — çıkış otomatik hesaplanır)",
+      "selectRange": "Giriş ve çıkış tarihlerinizi seçin",
+      "legend": {
+        "booked": "Dolu",
+        "selected": "Seçili"
+      },
+      "checkin": "Giriş",
+      "checkout": "Çıkış",
+      "nights": "{{count}} gece",
+      "selectCheckout": "Şimdi çıkış tarihinize tıklayın"
+    },
+    "rentals": {
+      "instruction": "Ekipman kiralama istediğiniz günleri seçin",
+      "daysSelected": "{{selected}} / {{total}} gün seçildi",
+      "clickToAdd": "Eklemek için tıklayın",
+      "rentalTag": "Kiralama"
+    },
+    "lessons": {
+      "loadingInstructors": "Eğitmenler yükleniyor...",
+      "scheduleBlocks": "{{hours}}s ders bloklarınızı müsait eğitmenlerle planlayın",
+      "instructorLabel": "Eğitmen",
+      "selectInstructor": "Tüm dersler için eğitmen seçin",
+      "noLessonsDay": "Bu gün için ders planlanmadı",
+      "addLesson": "+ Ders Ekle",
+      "pickInstructorFirst": "Önce yukarıdan bir eğitmen seçin",
+      "loadingTimes": "Saatler yükleniyor...",
+      "noSlots": "Uygun slot yok",
+      "removeLesson": "Bu ders bloğunu kaldır"
+    },
+    "payment": {
+      "totalPrice": "Toplam Fiyat",
+      "discountApplied": "İndirim Uygulandı",
+      "promoCode": "Promosyon Kodu",
+      "paymentMethod": "Ödeme Yöntemi",
+      "wallet": "Cüzdan",
+      "payLater": "Sonra Öde",
+      "atCenter": "Merkezde"
+    },
+    "nav": {
+      "back": "Geri",
+      "next": "İleri",
+      "completePurchase": "Satın Almayı Tamamla"
+    },
+    "confirm": {
+      "title": "Satın Almayı Onayla",
+      "datesLabel": "Tarihler:",
+      "paymentLabel": "Ödeme:",
+      "confirmPay": "Onayla ve Öde",
+      "goBack": "Geri Git"
+    },
+    "lessonNotConfigured": {
+      "title": "Ders hizmeti yapılandırılmadı",
+      "description": "Bu paket için ders hizmeti henüz ayarlanmadı. Lütfen bizimle iletişime geçin."
+    }
+  },
+  "rentalBooking": {
+    "steps": {
+      "selectDates": "Tarih Seç",
+      "reviewPay": "İncele ve Öde",
+      "complete": "Tamamlandı",
+      "stepOf": "Adım {{current}} / {{total}}",
+      "fallbackTitle": "Ekipman Kirala"
+    },
+    "dates": {
+      "packageTag": "Paket",
+      "rentalTag": "Kiralama",
+      "includes": "Dahil:",
+      "weekdays": "Hafta İçi",
+      "tapInstruction": "Seçmek için günlere dokunun — seçimi kaldırmak için tekrar dokunun",
+      "daysSelected": "{{count}} gün seçildi",
+      "daysCounter": "{{selected}}/{{total}} gün",
+      "dailyRate": "Günlük ücret",
+      "duration": "Süre",
+      "clearAll": "Tümünü Temizle",
+      "continueButton": "Devam Et — {{count}} gün",
+      "selectToContinue": "Devam etmek için tarih seçin",
+      "perDay": "/ gün",
+      "dayCount_one": "{{count}} gün",
+      "dayCount_other": "{{count}} gün",
+      "rateLine_one": "{{rate}} × {{count}} gün",
+      "rateLine_other": "{{rate}} × {{count}} gün"
+    },
+    "pay": {
+      "rentalTag": "Kiralama",
+      "insurance": "Ekipman Sigortası",
+      "addInsurance": "Ekipman sigortası ekle",
+      "insuranceNote": "Kiralama maliyetinin %{{percent}}'i — kazara hasar için geçerli",
+      "paymentMethod": "Ödeme Yöntemi",
+      "wallet": "Cüzdan",
+      "payLater": "Sonra Öde",
+      "atCenter": "Merkezde",
+      "insufficientBalance": "Yetersiz cüzdan bakiyesi",
+      "switchOrTopUp": "Kredi Kartına geçin veya önce cüzdanınızı doldurun.",
+      "promoCode": "Promosyon Kodu",
+      "total": "Toplam",
+      "maxLine_package_one": "Paket — {{count}} gün",
+      "maxLine_package_other": "Paket — {{count}} gün",
+      "maxLine_rental_one": "Kiralama — {{count}} gün",
+      "maxLine_rental_other": "Kiralama — {{count}} gün",
+      "creditCard": "Kredi Kartı"
+    },
+    "done": {
+      "title": "Her Şey Tamam!",
+      "subtitle": "Kiralamanız rezerve edildi! Ayrıntılar için panonuzu kontrol edin.",
+      "equipment": "Ekipman",
+      "dates": "Tarihler",
+      "duration": "Süre",
+      "total": "Toplam",
+      "payment": "Ödeme",
+      "paid": "Ödendi",
+      "cardPaid": "Kartla Ödendi",
+      "payLater": "Sonra Öde",
+      "done": "Tamam"
+    },
+    "confirm": {
+      "title": "Kiralamayı Onayla",
+      "multipleRentals": "{{count}} ayrı kiralama oluşturulacak",
+      "insurance": "Sigorta (%{{percent}}): +{{amount}}",
+      "payment": "Ödeme: {{method}}",
+      "confirmPay": "Onayla ve Öde",
+      "goBack": "Geri Git",
+      "rentalPackageFallback": "Kiralama Paketi",
+      "equipmentRentalFallback": "Ekipman Kiralama"
+    },
+    "toasts": {
+      "rentalsBooked": "{{count}} kiralama rezerve edildi!",
+      "paymentConfirmed": "Ödeme onaylandı! Kiralama rezerve edildi."
+    }
+  },
+  "accommodationBooking": {
+    "header": {
+      "requestDates": "Tercih ettiğiniz tarihleri talep edin",
+      "selectAndPay": "Tarih seçin ve ödeyin",
+      "perNight": "/ gece"
+    },
+    "calendar": {
+      "legend": {
+        "selected": "Seçili",
+        "booked": "Dolu",
+        "today": "Bugün"
+      },
+      "hint": {
+        "selectCheckin": "Giriş tarihinizi seçin",
+        "selectCheckout": "Giriş: {{date}} — şimdi çıkış tarihini seçin",
+        "rangeSelected": "{{checkin}} — {{checkout}} ({{nights}} gece)"
+      }
+    },
+    "guests": {
+      "label": "Misafirler",
+      "max": "maks {{count}}",
+      "notesPlaceholder": "Notlar (isteğe bağlı)"
+    },
+    "payment": {
+      "method": "Ödeme Yöntemi",
+      "wallet": "Cüzdan",
+      "deposit": "%{{percent}} Depozito",
+      "twentyPercent": "Şimdi %20",
+      "payLater": "Sonra Öde",
+      "atCenter": "Merkezde",
+      "depositNow": "Şimdi Depozito",
+      "payOnArrival": "Gelişte Öde",
+      "payDepositVia": "Depozito ödemesi için",
+      "bankTransfer": "Banka Havalesi",
+      "chooseBankAccount": "Transfer yapılacak banka hesabını seçin…",
+      "uploadReceipt": "Dekont Yükle",
+      "selectReceipt": "Dekont Seçin (JPEG, PNG veya PDF)",
+      "promoCode": "Promosyon Kodu"
+    },
+    "insufficient": {
+      "title": "Yetersiz cüzdan bakiyesi",
+      "description": "Bu rezervasyon için cüzdan bakiyeniz yetersiz. Lütfen doldurun veya farklı bir ödeme yöntemi seçin."
+    },
+    "summary": {
+      "total": "Toplam",
+      "selectDates": "Tarih seçin",
+      "mixedRates": "karışık ücretler",
+      "discount": "İndirim ({{nights}}+ gece)"
+    },
+    "submit": {
+      "payDeposit": "{{amount}} Depozito Öde",
+      "confirmPayLater": "Onayla — Sonra Öde",
+      "payWithCard": "Kartla {{amount}} Öde",
+      "requestBooking": "Rezervasyon Talep Et",
+      "pay": "{{amount}} Öde"
+    },
+    "toasts": {
+      "confirmedPayAtCenter": "Rezervasyon onaylandı — merkezde ödeyin.",
+      "hotelRequestSubmitted": "Otel rezervasyon talebi gönderildi!",
+      "stayBooked": "Konaklama başarıyla rezerve edildi!",
+      "paymentSuccess": "Ödeme başarılı! Rezervasyonunuz onaylandı.",
+      "errors": {
+        "default": "Bir şeyler ters gitti. Lütfen tekrar deneyin."
+      }
+    },
+    "validation": {
+      "selectDates": "Lütfen giriş ve çıkış tarihlerini seçin.",
+      "checkoutAfterCheckin": "Çıkış tarihi girişten en az 1 gün sonra olmalıdır.",
+      "uploadReceipt": "Lütfen bir banka hesabı seçin ve depozito dekontu yükleyin.",
+      "overlapBooking": "Seçilen aralık mevcut bir rezervasyonla çakışıyor."
     }
   }
 }

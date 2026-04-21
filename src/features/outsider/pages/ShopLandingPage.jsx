@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import {
@@ -37,31 +38,37 @@ const CATEGORIES = [
   { id: 'secondwind', label: 'SECONDWIND',        image: '/assets/images/2ndwind.jpeg' },
 ];
 
-const PROMO_BANNERS = [
-  {
-    id: 'ion-promo',
-    image: '/assets/images/harness.png',
-    eyebrow: 'Gear Up',
-    title: 'ION Accessories',
-    body: 'Harnesses, wetsuits, impact vests, and protection gear from ION.',
-    cta: 'Shop ION',
-    to: '/shop/ion',
-    align: 'right',
-  },
-  {
-    id: 'secondwind-promo',
-    image: '/assets/images/2ndwind.jpeg',
-    eyebrow: 'Pre-Owned & Demo',
-    title: 'Second Wind',
-    body: 'Quality pre-owned and demo gear at unbeatable prices. Ride more, spend less.',
-    cta: 'Shop Secondwind',
-    to: '/shop/secondwind',
-    align: 'left',
-  },
-];
-
 const ShopLandingPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['outsider']);
+
+  const whyShopCards = useMemo(
+    () => t('outsider:shop.whyShop.cards', { returnObjects: true }),
+    [t],
+  );
+
+  const PROMO_BANNERS = [
+    {
+      id: 'ion-promo',
+      image: '/assets/images/harness.png',
+      eyebrow: t('outsider:shop.promoBanners.ion.eyebrow'),
+      title: t('outsider:shop.promoBanners.ion.title'),
+      body: t('outsider:shop.promoBanners.ion.body'),
+      cta: t('outsider:shop.promoBanners.ion.cta'),
+      to: '/shop/ion',
+      align: 'right',
+    },
+    {
+      id: 'secondwind-promo',
+      image: '/assets/images/2ndwind.jpeg',
+      eyebrow: t('outsider:shop.promoBanners.secondwind.eyebrow'),
+      title: t('outsider:shop.promoBanners.secondwind.title'),
+      body: t('outsider:shop.promoBanners.secondwind.body'),
+      cta: t('outsider:shop.promoBanners.secondwind.cta'),
+      to: '/shop/secondwind',
+      align: 'left',
+    },
+  ];
   const { allProducts, setAllProducts } = useShopFilters();
 
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -303,7 +310,7 @@ const ShopLandingPage = () => {
                           style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
                           onClick={(e) => { e.stopPropagation(); navigate(`/shop/${product.category}`); }}
                         >
-                          Shop Now
+                          {t('outsider:shop.carousel.shopNow')}
                         </Button>
                       </div>
                     </div>
@@ -318,7 +325,7 @@ const ShopLandingPage = () => {
             <>
               <button
                 type="button"
-                aria-label="Previous slide"
+                aria-label={t('outsider:shop.carousel.prevSlide')}
                 className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/70 transition-all"
                 onClick={prevSlide}
               >
@@ -326,7 +333,7 @@ const ShopLandingPage = () => {
               </button>
               <button
                 type="button"
-                aria-label="Next slide"
+                aria-label={t('outsider:shop.carousel.nextSlide')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/70 transition-all"
                 onClick={nextSlide}
               >
@@ -338,7 +345,7 @@ const ShopLandingPage = () => {
                   <button
                     key={i}
                     type="button"
-                    aria-label={`Slide ${i + 1}`}
+                    aria-label={t('outsider:shop.carousel.slideLabel', { index: i + 1 })}
                     onClick={() => goToSlide(i)}
                     className={`rounded-full transition-all duration-300 ${i === carouselIndex ? 'w-6 h-2 bg-[#00a8c4]' : 'w-2 h-2 bg-white/40 hover:bg-white/70'}`}
                   />
@@ -358,7 +365,7 @@ const ShopLandingPage = () => {
             aria-hidden
           />
           <div className="text-center px-4">
-            <p className="text-white/40 font-duotone-regular text-sm">Loading featured products…</p>
+            <p className="text-white/40 font-duotone-regular text-sm">{t('outsider:shop.loading')}</p>
           </div>
         </div>
       )}
@@ -369,9 +376,9 @@ const ShopLandingPage = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <span className="text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-1 block">Limited Offers</span>
+                <span className="text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-1 block">{t('outsider:shop.hotDeals.eyebrow')}</span>
                 <h2 className="text-xl sm:text-2xl font-duotone-bold-extended text-white">
-                  On Sale Now
+                  {t('outsider:shop.hotDeals.heading')}
                 </h2>
               </div>
               <button
@@ -379,14 +386,14 @@ const ShopLandingPage = () => {
                 className="text-[#00a8c4] text-sm font-duotone-regular hover:underline underline-offset-4"
                 onClick={() => navigate('/shop/browse')}
               >
-                View all
+                {t('outsider:shop.hotDeals.viewAll')}
               </button>
             </div>
             <div className="relative group/deals">
               {/* Left arrow */}
               <button
                 type="button"
-                aria-label="Scroll left"
+                aria-label={t('outsider:shop.hotDeals.scrollLeft')}
                 className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all opacity-0 group-hover/deals:opacity-100"
                 onClick={() => scrollDeals(-1)}
               >
@@ -416,7 +423,7 @@ const ShopLandingPage = () => {
               {/* Right arrow */}
               <button
                 type="button"
-                aria-label="Scroll right"
+                aria-label={t('outsider:shop.hotDeals.scrollRight')}
                 className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm border border-white/10 text-white/80 hover:bg-white/20 hover:text-white transition-all opacity-0 group-hover/deals:opacity-100"
                 onClick={() => scrollDeals(1)}
               >
@@ -475,9 +482,9 @@ const ShopLandingPage = () => {
       <div className="py-14 sm:py-16 bg-[#0d1511]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <span className="text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-1 block">Browse</span>
+            <span className="text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-1 block">{t('outsider:shop.categories.browseLabel')}</span>
             <h2 className="text-xl sm:text-2xl font-duotone-bold-extended text-white">
-              Shop by Category
+              {t('outsider:shop.categories.heading')}
             </h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -512,16 +519,16 @@ const ShopLandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
             <div>
               <span className="text-xs font-duotone-regular uppercase tracking-widest text-[#00a8c4] mb-3 block">
-                Duotone Pro Center Urla
+                {t('outsider:shop.about.eyebrow')}
               </span>
               <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-white mb-4 leading-tight">
-                About Us
+                {t('outsider:shop.about.heading')}
               </h2>
               <p className="font-duotone-regular text-white/70 mb-4 leading-relaxed">
-                As an official Duotone Pro Center, we stock the full range of Duotone kites, wings, foils, and boards — plus ION wetsuits, harnesses, and protection gear. Every product we sell is genuine, warrantied, and backed by our team's real-world experience.
+                {t('outsider:shop.about.para1')}
               </p>
               <p className="font-duotone-regular text-white/70 mb-6 leading-relaxed">
-                Our instructors ride the gear they sell. Whether you're a beginner looking for your first setup or an expert upgrading, we'll help you make the right call.
+                {t('outsider:shop.about.para2')}
               </p>
               <Button
                 size="large"
@@ -529,7 +536,7 @@ const ShopLandingPage = () => {
                 style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
                 onClick={() => navigate('/shop/browse')}
               >
-                Browse All Products
+                {t('outsider:shop.about.browseButton')}
               </Button>
             </div>
             <div className="relative rounded-xl overflow-hidden" style={{ minHeight: '280px' }}>
@@ -553,21 +560,15 @@ const ShopLandingPage = () => {
       <div className="py-20 bg-[#0d1511]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl sm:text-3xl font-duotone-bold-extended text-center text-white mb-12">
-            Why Shop With Us?
+            {t('outsider:shop.whyShop.heading')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center">
-              <h3 className="text-lg font-duotone-bold text-white mb-2">Authorized Dealer</h3>
-              <p className="text-sm font-duotone-regular text-white/60">Official Duotone, ION & Fliteboard dealer. Genuine products with full manufacturer warranty.</p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-duotone-bold text-white mb-2">Expert Advice</h3>
-              <p className="text-sm font-duotone-regular text-white/60">Our instructors ride the gear they sell. Get real, hands-on advice from people who know.</p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-duotone-bold text-white mb-2">Try Before You Buy</h3>
-              <p className="text-sm font-duotone-regular text-white/60">Test equipment from our rental fleet before committing. Rent, ride, decide — then buy with confidence.</p>
-            </div>
+            {(Array.isArray(whyShopCards) ? whyShopCards : []).map((card, i) => (
+              <div key={i} className="text-center">
+                <h3 className="text-lg font-duotone-bold text-white mb-2">{card.title}</h3>
+                <p className="text-sm font-duotone-regular text-white/60">{card.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -575,15 +576,15 @@ const ShopLandingPage = () => {
       {/* ── CTA ── */}
       <div className="py-16 bg-[#0d1511]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-duotone-bold-extended mb-4 text-white">Need Help Choosing?</h2>
-          <p className="text-gray-400 font-duotone-regular mb-8">Not sure which gear is right for you? Our team can recommend the perfect setup based on your level and riding style.</p>
+          <h2 className="text-2xl font-duotone-bold-extended mb-4 text-white">{t('outsider:shop.cta.heading')}</h2>
+          <p className="text-gray-400 font-duotone-regular mb-8">{t('outsider:shop.cta.description')}</p>
           <Button
             size="large"
             className="font-duotone-bold !px-6 !py-3 !rounded-md transition-all duration-150 focus:outline-none"
             style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
             onClick={() => navigate('/contact')}
           >
-            Contact Us
+            {t('outsider:shop.cta.contactButton')}
           </Button>
           <ContactOptionsBanner />
         </div>

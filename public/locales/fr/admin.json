@@ -1,0 +1,1307 @@
+{
+  "waivers": {
+    "title": "Gestion des décharges",
+    "subtitle": "Recherchez, auditez et exportez les décharges signées pour les étudiants et les membres de la famille.",
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom ou e-mail",
+      "refresh": "Actualiser",
+      "exportCsv": "Exporter CSV"
+    },
+    "status": {
+      "all": "Tous les statuts",
+      "valid": "Valide",
+      "outdated": "À re-signer",
+      "expired": "Expiré",
+      "missing": "Non signé",
+      "pending": "En attente (manquant/expiré/obsolète)"
+    },
+    "subjectType": {
+      "all": "Tous les sujets",
+      "user": "Étudiants",
+      "family": "Membres de la famille"
+    },
+    "sort": {
+      "nameAsc": "Nom A → Z",
+      "nameDesc": "Nom Z → A",
+      "signedAtDesc": "Signé le plus récemment",
+      "signedAtAsc": "Signatures les plus anciennes",
+      "statusAsc": "Statut (Valide en premier)",
+      "statusDesc": "Statut (Manquant en premier)"
+    },
+    "table": {
+      "name": "Nom",
+      "status": "Statut",
+      "signedAt": "Signé le",
+      "version": "Version",
+      "parentContact": "Parent / Contact",
+      "actions": "Actions",
+      "view": "Voir",
+      "student": "Étudiant",
+      "familyMember": "Membre de la famille",
+      "noParent": "Aucun parent enregistré",
+      "latestVersion": "Dernière : {{version}}"
+    },
+    "mobileCard": {
+      "viewDetails": "Voir les détails",
+      "signed": "Signé :",
+      "version": "Version :",
+      "parent": "Parent :",
+      "noRecord": "Aucun enregistrement",
+      "newVersion": "Nouvelle : {{version}}"
+    },
+    "stats": {
+      "totalSubjects": "Total des sujets",
+      "signed": "Signé",
+      "pending": "En attente",
+      "completionRate": "Taux de complétion",
+      "valid": "Valide : {{count}}",
+      "outdated": "Obsolète : {{count}}",
+      "expired": "Expiré : {{count}}",
+      "missing": "Manquant : {{count}}"
+    },
+    "viewer": {
+      "title": "Détail de la décharge",
+      "loading": "Chargement du détail de la décharge...",
+      "loadError": "Impossible de charger le détail de la décharge",
+      "noSubject": "Aucun sujet sélectionné",
+      "subjectInfo": "Informations sur le sujet",
+      "signatureImage": "Image de signature",
+      "waiverHistory": "Historique des décharges",
+      "noHistory": "Aucune soumission de décharge pour l'instant",
+      "notes": "Notes",
+      "notesDescription": "L'historique comprend toutes les soumissions de décharge enregistrées pour ce sujet. Un enregistrement marqué « À re-signer » indique qu'une version plus récente est active ou que la décharge a expiré.",
+      "historyColumns": {
+        "signedAt": "Signé le",
+        "version": "Version",
+        "language": "Langue",
+        "photoConsent": "Consentement photo"
+      },
+      "photoConsentYes": "Oui",
+      "photoConsentNo": "Non",
+      "photoConsentGranted": "Accordé",
+      "photoConsentDeclined": "Refusé",
+      "subjectFields": {
+        "name": "Nom",
+        "relationship": "Relation",
+        "email": "E-mail",
+        "contactEmail": "E-mail de contact",
+        "parentGuardian": "Parent / Tuteur",
+        "accountOwner": "Propriétaire du compte",
+        "lastSignedBy": "Dernière signature par",
+        "language": "Langue",
+        "ipAddress": "Adresse IP",
+        "userAgent": "Agent utilisateur"
+      },
+      "statusMessages": {
+        "noSignature": "Aucune signature enregistrée",
+        "lastSigned": "Dernière signature {{datetime}}",
+        "defaultMessage": "Les dernières informations sur le statut de la décharge sont affichées ci-dessous."
+      }
+    },
+    "toast": {
+      "exportSuccess": "Export des décharges téléchargé",
+      "exportError": "Échec de l'export des décharges",
+      "loadError": "Impossible de charger les décharges",
+      "statsError": "Impossible de charger les statistiques des décharges"
+    }
+  },
+  "vouchers": {
+    "title": "Gestion des bons",
+    "subtitle": "Créez et gérez des codes de réduction, des bons cadeaux et des offres promotionnelles",
+    "actions": {
+      "refresh": "Actualiser",
+      "bulkGenerate": "Génération en masse",
+      "createVoucher": "Créer un bon",
+      "updateVoucher": "Mettre à jour le bon"
+    },
+    "stats": {
+      "totalVouchers": "Total des bons",
+      "activeVouchers": "Bons actifs",
+      "totalRedemptions": "Total des utilisations",
+      "totalDiscountGiven": "Total des remises accordées"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher par code ou nom...",
+      "filterByType": "Filtrer par type",
+      "activeOnly": "Actifs seulement",
+      "inactiveOnly": "Inactifs seulement",
+      "all": "Tous"
+    },
+    "table": {
+      "code": "Code",
+      "name": "Nom",
+      "type": "Type",
+      "value": "Valeur",
+      "usage": "Utilisation",
+      "validity": "Validité",
+      "status": "Statut",
+      "actions": "Actions",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "copyCode": "Copier le code",
+      "validUntil": "Jusqu'au : {{date}}",
+      "totalVouchers": "Total {{total}} bons"
+    },
+    "mobileCard": {
+      "validUntil": "Valable jusqu'au :",
+      "usage": "Utilisation :"
+    },
+    "voucherTypes": {
+      "percentage": {
+        "label": "Remise en pourcentage",
+        "description": "Réduction d'un pourcentage du total. Idéal pour les ventes et promos."
+      },
+      "fixed_amount": {
+        "label": "Montant fixe",
+        "description": "Montant fixe déduit de la commande. Simple et clair."
+      },
+      "wallet_credit": {
+        "label": "Crédit portefeuille",
+        "description": "Ajoute du crédit au portefeuille de l'utilisateur. Parfait pour les parrainages."
+      },
+      "free_service": {
+        "label": "Service gratuit",
+        "description": "Débloque un service gratuit pour le client."
+      },
+      "package_upgrade": {
+        "label": "Mise à niveau de forfait",
+        "description": "Améliore le niveau de forfait du client."
+      }
+    },
+    "appliesTo": {
+      "all": {
+        "label": "Tous les services",
+        "description": "Valable partout — cours, boutique, location, etc."
+      },
+      "shop": {
+        "label": "Boutique uniquement",
+        "description": "Produits physiques et marchandises"
+      },
+      "lessons": {
+        "label": "Cours uniquement",
+        "description": "Réservations de cours et sessions de formation"
+      },
+      "rentals": {
+        "label": "Locations uniquement",
+        "description": "Réservations de location d'équipement"
+      },
+      "accommodation": {
+        "label": "Hébergement uniquement",
+        "description": "Réservations de chambre et hébergement"
+      },
+      "packages": {
+        "label": "Forfaits uniquement",
+        "description": "Offres forfaitaires et bundles"
+      },
+      "wallet": {
+        "label": "Dépôts portefeuille",
+        "description": "Transactions de rechargement du portefeuille"
+      }
+    },
+    "usageType": {
+      "single_global": "Usage unique (total)",
+      "single_per_user": "Usage unique par utilisateur",
+      "multi_limited": "Utilisations limitées",
+      "multi_per_user": "Limité par utilisateur",
+      "unlimited": "Illimité"
+    },
+    "visibility": {
+      "public": "Public (tout le monde peut utiliser)",
+      "private": "Privé (utilisateurs assignés uniquement)",
+      "role_based": "Basé sur le rôle"
+    },
+    "wizard": {
+      "editTitle": "Modifier le bon",
+      "createTitle": "Créer un bon",
+      "editSubtitle": "Mettre à jour les paramètres du bon",
+      "createSubtitle": "Configurez un nouveau code de réduction en quelques étapes simples",
+      "steps": {
+        "type": "Type",
+        "valueScope": "Valeur & Portée",
+        "rules": "Règles",
+        "codeReview": "Code & Révision"
+      },
+      "step0": {
+        "prompt": "Quel type de bon souhaitez-vous créer ?"
+      },
+      "step1": {
+        "promptPercentage": "Quel pourcentage de réduction ?",
+        "promptFixed": "Combien de réduction sur le total ?",
+        "promptWallet": "Combien de crédit portefeuille ?",
+        "promptFreeService": "Détails du service gratuit",
+        "promptPackageUpgrade": "Détails de la mise à niveau de forfait",
+        "percentageLabel": "Pourcentage (%)",
+        "creditAmountLabel": "Montant du crédit",
+        "discountAmountLabel": "Montant de la remise",
+        "currencyLabel": "Devise",
+        "maxDiscountLabel": "Plafond de remise maximum",
+        "maxDiscountExtra": "Optionnel — limite la remise pour les commandes de grande valeur",
+        "minPurchaseLabel": "Montant minimum d'achat",
+        "minPurchaseExtra": "Le client doit dépenser au moins ce montant pour utiliser le code",
+        "whereUsed": "Où ce bon peut-il être utilisé ?"
+      },
+      "step2": {
+        "prompt": "Définir les règles et restrictions d'utilisation",
+        "usageLimits": "Limites d'utilisation",
+        "howManyTimes": "Combien de fois peut-il être utilisé ?",
+        "maxTotalUses": "Utilisations totales max",
+        "maxUsesPerUser": "Utilisations max par utilisateur",
+        "validityPeriod": "Période de validité",
+        "validDateRange": "Plage de dates valides",
+        "validDateExtra": "Laisser vide pour aucune restriction de temps",
+        "startDate": "Date de début",
+        "endDate": "Date de fin",
+        "accessControl": "Contrôle d'accès",
+        "whoCanUse": "Qui peut utiliser ce bon ?",
+        "firstPurchaseOnly": "Premier achat uniquement",
+        "canCombine": "Combinable",
+        "activeOnCreate": "Actif à la création"
+      },
+      "step3": {
+        "prompt": "Nommez votre bon et révisez",
+        "voucherCode": "Code du bon",
+        "voucherCodeExtra": "Les clients saisissent ce code à la caisse",
+        "displayName": "Nom d'affichage",
+        "displayNameExtra": "Nom interne (affiché au client lors de l'application)",
+        "internalDescription": "Description interne",
+        "descriptionPlaceholder": "Notes optionnelles sur ce bon",
+        "reviewSummary": "Résumé de révision",
+        "type": "TYPE",
+        "value": "VALEUR",
+        "appliesTo": "S'APPLIQUE À",
+        "usage": "UTILISATION",
+        "minPurchase": "ACHAT MIN",
+        "maxDiscount": "max {{amount}} {{currency}}"
+      },
+      "navigation": {
+        "back": "Retour",
+        "next": "Suivant",
+        "review": "Réviser",
+        "cancel": "Annuler",
+        "createVoucher": "Créer le bon"
+      }
+    },
+    "bulk": {
+      "title": "Générer des codes en masse",
+      "subtitle": "Générez plusieurs codes de bon uniques avec les mêmes paramètres",
+      "numberOfCodes": "Nombre de codes",
+      "codePrefix": "Préfixe du code",
+      "codePrefixExtra": "ex. CADEAU → CADEAU-A1B2C3",
+      "voucherName": "Nom du bon",
+      "type": "Type",
+      "value": "Valeur",
+      "scope": "Portée",
+      "validDateRange": "Plage de dates valides",
+      "validDateExtra": "Laisser vide pour aucune restriction de temps",
+      "cancel": "Annuler",
+      "generate": "Générer les codes"
+    },
+    "detail": {
+      "drawerTitle": "Détails du bon : {{code}}",
+      "voucherInfo": "Informations du bon",
+      "redemptionHistory": "Historique des utilisations",
+      "noRedemptions": "Aucune utilisation pour l'instant",
+      "code": "Code",
+      "status": "Statut",
+      "type": "Type",
+      "value": "Valeur",
+      "usage": "Utilisation",
+      "appliesTo": "S'applique à",
+      "validFrom": "Valable du",
+      "validUntil": "Valable jusqu'au",
+      "created": "Créé",
+      "redemptionColumns": {
+        "user": "Utilisateur",
+        "email": "E-mail",
+        "originalAmount": "Montant original",
+        "discountApplied": "Remise appliquée",
+        "reference": "Référence",
+        "date": "Date"
+      }
+    },
+    "popconfirm": {
+      "deactivateTitle": "Désactiver ce bon ?",
+      "deactivateDescription": "Les utilisateurs ne pourront plus utiliser ce code.",
+      "deactivateOk": "Désactiver",
+      "cancel": "Annuler",
+      "deactivateMobile": "Désactiver ?"
+    },
+    "toast": {
+      "created": "Bon créé avec succès",
+      "updated": "Bon mis à jour avec succès",
+      "deactivated": "Bon désactivé",
+      "bulkGenerated": "{{count}} codes de bon générés",
+      "codeCopied": "Code copié dans le presse-papiers",
+      "duplicateCode": "Un bon avec ce code existe déjà",
+      "loadError": "Impossible de charger les bons",
+      "createError": "Impossible de créer le bon",
+      "updateError": "Impossible de mettre à jour le bon",
+      "deleteError": "Impossible de supprimer le bon",
+      "bulkError": "Impossible de générer les bons",
+      "redemptionsError": "Impossible de charger les utilisations"
+    },
+    "validation": {
+      "codeRequired": "Le code est obligatoire",
+      "codeMin": "Minimum 3 caractères",
+      "codeMax": "Maximum 50 caractères",
+      "codePattern": "Lettres, chiffres, - et _ uniquement",
+      "nameRequired": "Le nom est obligatoire",
+      "enterValue": "Entrez une valeur"
+    }
+  },
+  "spareParts": {
+    "title": "Commandes de pièces détachées",
+    "actions": {
+      "refresh": "Actualiser",
+      "exportCsv": "Exporter CSV",
+      "newOrder": "Nouvelle commande",
+      "apply": "Appliquer"
+    },
+    "filters": {
+      "statusPlaceholder": "Statut",
+      "searchPlaceholder": "Rechercher une pièce ou un fournisseur...",
+      "status": {
+        "pending": "En attente",
+        "ordered": "Commandé",
+        "received": "Reçu",
+        "cancelled": "Annulé"
+      }
+    },
+    "table": {
+      "part": "Pièce",
+      "quantity": "Quantité",
+      "supplier": "Fournisseur",
+      "status": "Statut",
+      "actions": "Actions",
+      "markOrdered": "Marquer commandé",
+      "markReceived": "Marquer reçu",
+      "delete": "Supprimer"
+    },
+    "mobileCard": {
+      "supplierLabel": "Fournisseur : {{supplier}}",
+      "qty": "Qté : {{qty}}",
+      "ordered": "Commandé",
+      "recv": "Reçu",
+      "del": "Supp"
+    },
+    "modal": {
+      "title": "Nouvelle commande de pièce détachée",
+      "create": "Créer",
+      "partLabel": "Pièce",
+      "partPlaceholder": "ex. Plaquettes de frein",
+      "partRequired": "Le nom de la pièce est obligatoire",
+      "quantityLabel": "Quantité",
+      "quantityPlaceholder": "ex. 2",
+      "quantityRequired": "La quantité est obligatoire",
+      "supplierLabel": "Fournisseur",
+      "supplierPlaceholder": "ex. Fournitures ACME",
+      "statusLabel": "Statut"
+    },
+    "toast": {
+      "created": "Commande créée",
+      "createError": "Impossible de créer la commande",
+      "statusUpdated": "Statut mis à jour en {{status}}",
+      "statusError": "Impossible de mettre à jour le statut",
+      "deleted": "Commande supprimée",
+      "deleteError": "Impossible de supprimer la commande",
+      "loadError": "Impossible de charger les commandes"
+    },
+    "unauthorized": "Désolé, vous n'êtes pas autorisé à accéder à cette page."
+  },
+  "support": {
+    "title": "Tickets de support",
+    "subtitle": "Gérez les demandes de support sur tous les canaux",
+    "viewToggle": {
+      "inbox": "Boîte de réception",
+      "table": "Tableau"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Ouvert",
+      "inProgress": "En cours",
+      "resolved": "Résolu"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher nom ou sujet…",
+      "statusPlaceholder": "Statut",
+      "priorityPlaceholder": "Priorité",
+      "channelPlaceholder": "Canal",
+      "refresh": "Actualiser",
+      "status": {
+        "open": "Ouvert",
+        "in_progress": "En cours",
+        "resolved": "Résolu",
+        "closed": "Fermé"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "Élevé",
+        "normal": "Normal",
+        "low": "Faible"
+      },
+      "channel": {
+        "portal": "Portail",
+        "email": "E-mail",
+        "whatsapp": "WhatsApp",
+        "chat": "Chat"
+      }
+    },
+    "table": {
+      "priority": "Priorité",
+      "status": "Statut",
+      "student": "Étudiant",
+      "subject": "Sujet",
+      "channel": "Canal",
+      "created": "Créé",
+      "actions": "Actions",
+      "start": "Démarrer",
+      "resolve": "Résoudre",
+      "view": "Voir",
+      "totalTickets": "Total {{total}} tickets",
+      "message": "Message",
+      "notes": "Notes",
+      "reply": "Répondre",
+      "internalNote": "Note interne"
+    },
+    "inbox": {
+      "noTickets": "Aucun ticket trouvé"
+    },
+    "conversation": {
+      "selectTicket": "Sélectionnez un ticket pour voir les détails",
+      "addInternalNote": "Ajouter une note interne",
+      "notePlaceholder": "Note interne (non visible par l'étudiant)…",
+      "replyPlaceholder": "Tapez une réponse à l'étudiant…",
+      "reply": "Répondre",
+      "add": "Ajouter",
+      "adminReply": "Réponse de l'administrateur",
+      "adminNote": "Note de l'administrateur",
+      "start": "Démarrer",
+      "resolve": "Résoudre",
+      "close": "Fermer"
+    },
+    "toast": {
+      "started": "Démarré",
+      "resolved": "Résolu",
+      "replySent": "Réponse envoyée",
+      "replyError": "Impossible d'envoyer la réponse",
+      "noteAdded": "Note ajoutée",
+      "noteError": "Impossible d'ajouter la note",
+      "statusUpdated": "Ticket marqué comme {{status}}",
+      "statusError": "Impossible de mettre à jour le statut"
+    }
+  },
+  "roles": {
+    "title": "Rôles & Permissions",
+    "newRole": "Nouveau rôle",
+    "roleCount": "{{count}} rôle",
+    "roleCount_plural": "{{count}} rôles",
+    "table": {
+      "role": "Rôle",
+      "description": "Description",
+      "permissions": "Permissions",
+      "users": "Utilisateurs",
+      "actions": ""
+    },
+    "permissions": {
+      "noPermissions": "Aucune permission",
+      "fullAccess": "Accès complet",
+      "allGranted": "Tout accordé",
+      "partial": "Partiel",
+      "moreCategories": "+{{count}} de plus"
+    },
+    "superAdmin": {
+      "label": "Super Admin — Accès complet",
+      "description": "Accorde toutes les permissions actuelles et futures. Utiliser avec précaution.",
+      "tooltip": "Accorde toutes les permissions y compris les futures.",
+      "fullAccessMessage": "Accès complet à toutes les fonctionnalités",
+      "fullAccessHint": "Désactivez ci-dessus pour configurer des permissions granulaires"
+    },
+    "categories": {
+      "bookings": {
+        "label": "Réservations",
+        "description": "Gérer les réservations de cours et d'activités",
+        "read": "Voir les réservations",
+        "write": "Créer/modifier des réservations",
+        "delete": "Annuler/supprimer des réservations",
+        "approve": "Approuver les réservations en attente"
+      },
+      "users": {
+        "label": "Utilisateurs",
+        "description": "Gérer les comptes utilisateurs",
+        "read": "Voir les utilisateurs",
+        "write": "Créer/modifier des utilisateurs",
+        "delete": "Supprimer des utilisateurs",
+        "assign_roles": "Attribuer des rôles aux utilisateurs"
+      },
+      "finances": {
+        "label": "Finances",
+        "description": "Accéder aux données financières et aux transactions",
+        "read": "Voir les rapports financiers",
+        "write": "Créer des transactions/paiements",
+        "refund": "Traiter les remboursements",
+        "reconcile": "Effectuer la réconciliation financière"
+      },
+      "wallet": {
+        "label": "Portefeuille",
+        "description": "Gérer les opérations du portefeuille utilisateur",
+        "read": "Voir les soldes du portefeuille",
+        "topup": "Ajouter des fonds aux portefeuilles",
+        "deduct": "Déduire des portefeuilles",
+        "transfer": "Transférer entre portefeuilles"
+      },
+      "instructors": {
+        "label": "Instructeurs",
+        "description": "Gérer les profils et les plannings des instructeurs",
+        "read": "Voir les instructeurs",
+        "write": "Créer/modifier des instructeurs",
+        "schedule": "Gérer les plannings",
+        "earnings": "Voir/gérer les revenus"
+      },
+      "equipment": {
+        "label": "Équipement",
+        "description": "Gérer l'inventaire des équipements de location",
+        "read": "Voir l'équipement",
+        "write": "Créer/modifier l'équipement",
+        "delete": "Supprimer l'équipement",
+        "rental": "Gérer les locations"
+      },
+      "services": {
+        "label": "Services",
+        "description": "Gérer les offres de services",
+        "read": "Voir les services",
+        "write": "Créer/modifier des services",
+        "delete": "Supprimer des services",
+        "pricing": "Gérer la tarification"
+      },
+      "settings": {
+        "label": "Paramètres",
+        "description": "Configuration du système",
+        "read": "Voir les paramètres",
+        "write": "Modifier les paramètres"
+      },
+      "reports": {
+        "label": "Rapports",
+        "description": "Accéder aux analyses et rapports",
+        "read": "Voir les rapports",
+        "export": "Exporter les données"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Gérer les notifications système",
+        "read": "Voir les notifications",
+        "send": "Envoyer des notifications",
+        "manage": "Gérer les paramètres de notification"
+      },
+      "audit": {
+        "label": "Journaux d'audit",
+        "description": "Accéder aux journaux d'audit du système",
+        "read": "Voir les journaux d'audit"
+      },
+      "system": {
+        "label": "Système",
+        "description": "Administration du système",
+        "admin": "Accès système complet",
+        "backup": "Gérer les sauvegardes",
+        "maintenance": "Mode maintenance"
+      }
+    },
+    "modals": {
+      "createRole": "Créer un rôle",
+      "editRole": "Modifier le rôle",
+      "assignRole": "Attribuer un rôle",
+      "viewUsers": "utilisateurs",
+      "changeRole": "Changer de rôle",
+      "permissionsLabel": "Permissions",
+      "roleNameLabel": "Nom du rôle",
+      "roleNamePlaceholder": "ex. responsable_ventes",
+      "roleNameRequired": "Le nom du rôle est obligatoire",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Décrivez l'objectif du rôle",
+      "selectUserLabel": "Sélectionner un utilisateur",
+      "selectUserPlaceholder": "Rechercher des utilisateurs...",
+      "selectUserRequired": "Sélectionnez un utilisateur",
+      "selectNewRoleLabel": "Nouveau rôle",
+      "selectNewRolePlaceholder": "Sélectionner un nouveau rôle",
+      "selectNewRoleRequired": "Sélectionnez un nouveau rôle",
+      "currentRole": "Rôle actuel :",
+      "noUsersWithRole": "Aucun utilisateur avec ce rôle",
+      "saveChanges": "Enregistrer les modifications",
+      "createRoleButton": "Créer un rôle",
+      "assignRoleButton": "Attribuer un rôle",
+      "changeRoleButton": "Changer de rôle",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "change": "Changer"
+    },
+    "popconfirm": {
+      "deleteTitle": "Supprimer le rôle",
+      "deleteDescription": "Êtes-vous sûr de vouloir supprimer ce rôle ?",
+      "deleteOk": "Supprimer",
+      "cancel": "Annuler"
+    },
+    "tooltips": {
+      "viewUsers": "Voir les utilisateurs",
+      "edit": "Modifier",
+      "assignToUser": "Attribuer à un utilisateur",
+      "systemRoleCannotDelete": "Les rôles système ne peuvent pas être supprimés",
+      "removeUsersFirst": "Retirez d'abord tous les utilisateurs",
+      "deleteRole": "Supprimer le rôle"
+    },
+    "toast": {
+      "roleDeleted": "Rôle supprimé",
+      "roleDeleteError": "Impossible de supprimer le rôle",
+      "roleCreated": "Rôle créé",
+      "roleCreateError": "Impossible de créer le rôle",
+      "roleUpdated": "Rôle mis à jour",
+      "roleUpdateError": "Impossible de mettre à jour le rôle",
+      "roleAssigned": "Rôle attribué à l'utilisateur",
+      "roleAssignError": "Impossible d'attribuer le rôle",
+      "roleChanged": "Rôle modifié pour {{name}}",
+      "roleChangeError": "Impossible de changer le rôle",
+      "loadError": "Impossible de charger les rôles/utilisateurs"
+    },
+    "mobileCard": {
+      "system": "système",
+      "users": "{{count}} utilisateurs",
+      "usersButton": "Utilisateurs",
+      "edit": "Modifier",
+      "assign": "Attribuer"
+    }
+  },
+  "userRoleManager": {
+    "title": "Gérer le rôle de l'utilisateur",
+    "changeRole": "Changer de rôle",
+    "selectNewRole": "Sélectionner un nouveau rôle :",
+    "noChanges": "Aucune modification",
+    "updateRole": "Mettre à jour le rôle",
+    "cancel": "Annuler",
+    "warning": "Modifier le rôle de l'utilisateur affectera immédiatement ses permissions d'accès. Il peut être nécessaire de se déconnecter et de se reconnecter pour que les modifications prennent pleinement effet.",
+    "warningLabel": "Avertissement :",
+    "roleDescriptions": {
+      "student": "Accès utilisateur de base",
+      "freelancer": "Contractant indépendant",
+      "assistant": "Support administratif limité",
+      "instructor": "Gestion des cours et des réservations",
+      "receptionist": "Opérations de réception",
+      "manager": "Gestion opérationnelle",
+      "admin": "Accès système complet"
+    },
+    "toast": {
+      "noChanges": "Aucune modification effectuée",
+      "success": "Le rôle de {{name}} a été changé en {{role}} avec succès"
+    }
+  },
+  "currency": {
+    "title": "Gestion des devises",
+    "addCurrency": "Ajouter une devise",
+    "note": "Pour contrôler les devises que les utilisateurs peuvent sélectionner lors de l'inscription, allez dans Paramètres > Paramètres de devise.",
+    "table": {
+      "currency": "Devise",
+      "name": "Nom",
+      "exchangeRate": "Taux de change",
+      "status": "Statut",
+      "actions": "Actions",
+      "baseCurrency": "Base (1.0000)"
+    },
+    "popconfirm": {
+      "setBase": "Définir comme devise de base ?",
+      "setBaseDescription": "Cela rendra toutes les autres devises relatives à celle-ci"
+    },
+    "modal": {
+      "editTitle": "Modifier la devise",
+      "addTitle": "Ajouter une devise",
+      "currencyCode": "Code de devise",
+      "currencyCodePlaceholder": "USD",
+      "currencyCodeRequired": "Veuillez entrer le code de devise",
+      "currencyName": "Nom de la devise",
+      "currencyNamePlaceholder": "Dollar américain",
+      "currencyNameRequired": "Veuillez entrer le nom de la devise",
+      "symbol": "Symbole",
+      "symbolPlaceholder": "$",
+      "symbolRequired": "Veuillez entrer le symbole de la devise",
+      "exchangeRate": "Taux de change",
+      "exchangeRateRequired": "Veuillez entrer le taux de change",
+      "active": "Actif",
+      "updateButton": "Mettre à jour la devise",
+      "addButton": "Ajouter une devise",
+      "cancel": "Annuler"
+    },
+    "toast": {
+      "added": "Devise ajoutée avec succès",
+      "updated": "Devise mise à jour avec succès",
+      "activated": "Devise activée",
+      "deactivated": "Devise désactivée",
+      "baseCurrencyUpdated": "Devise de base mise à jour",
+      "exchangeRateUpdated": "Taux de change mis à jour",
+      "registrationCurrenciesUpdated": "Devises d'inscription mises à jour",
+      "loadError": "Impossible de charger les devises",
+      "saveError": "Impossible d'enregistrer la devise",
+      "toggleError": "Impossible de mettre à jour le statut de la devise",
+      "baseError": "Impossible de définir la devise de base",
+      "rateError": "Impossible de mettre à jour le taux de change",
+      "registrationLoadError": "Impossible de charger les paramètres d'inscription",
+      "registrationUpdateError": "Impossible de mettre à jour les devises d'inscription"
+    }
+  },
+  "ratings": {
+    "title": "Analyses des évaluations des instructeurs",
+    "subtitle": "Suivez les performances des instructeurs et les retours des étudiants pour tous les services.",
+    "metrics": {
+      "averageRating": "Note moyenne",
+      "fiveStarShare": "Part des cinq étoiles",
+      "activeInstructors": "Instructeurs actifs",
+      "mostRecentFeedback": "Retour le plus récent",
+      "noRatings": "Aucune évaluation soumise pour l'instant.",
+      "computedAcross": "Calculé sur {{count}} soumissions.",
+      "portionFiveStars": "Portion du total des avis obtenant cinq étoiles.",
+      "collectMore": "Collectez plus de retours pour renseigner cette métrique.",
+      "currentlyOnLeaderboard": "Actuellement inclus dans le classement.",
+      "noInstructorsYet": "Aucun instructeur n'a encore d'évaluations.",
+      "latestSubmissionDate": "Date de la dernière soumission parmi les instructeurs suivis.",
+      "noFeedback": "Aucun retour soumis pour l'instant.",
+      "noRatingsYet": "Aucune évaluation"
+    },
+    "charts": {
+      "ratingDistribution": "Distribution des évaluations",
+      "ratingDistributionSubtitle": "Comment les étudiants notent les instructeurs au fil du temps.",
+      "noRatingData": "Pas encore de données d'évaluation",
+      "serviceBreakdown": "Répartition par service",
+      "serviceBreakdownSubtitle": "{{fiveStarPercent}} des évaluations sont cinq étoiles. La moyenne générale est {{average}}.",
+      "noServiceBreakdown": "Collectez plus de retours pour débloquer cette répartition.",
+      "noServiceBreakdownData": "Aucune répartition par service disponible",
+      "lessons": "Cours",
+      "rentals": "Locations",
+      "accommodation": "Hébergement",
+      "stars": "{{count}} étoiles"
+    },
+    "insights": {
+      "title": "Points clés",
+      "noRatings": "Pas encore d'évaluations",
+      "noRatingsDescription": "Encouragez les étudiants à soumettre leurs premières avis pour débloquer les analyses.",
+      "overallAverage": "Moyenne générale",
+      "overallAverageDescription": "{{average}} sur {{total}} évaluations au total.",
+      "fiveStarChampions": "Champions cinq étoiles",
+      "fiveStarChampionsDescription": "{{name}} est en tête avec {{percent}} d'avis cinq étoiles.",
+      "mostFeedback": "Le plus de retours collectés",
+      "mostFeedbackDescription": "{{name}} a reçu {{count}} évaluations au total."
+    },
+    "topPerformers": {
+      "title": "Meilleurs performeurs",
+      "noInstructors": "Aucun instructeur classé pour l'instant",
+      "champion": "Champion",
+      "avgRatingsFormat": "Moy {{avg}} · {{count}} évaluations · {{fiveStarPct}} 5★"
+    },
+    "leaderboard": {
+      "title": "Classement des instructeurs",
+      "subtitle": "Utilisez le classement pour repérer les performeurs régulièrement élevés et les domaines nécessitant un soutien.",
+      "noDataTitle": "Aucune donnée disponible",
+      "noDataSubtitle": "Les évaluations apparaîtront une fois que les étudiants commenceront à soumettre des retours.",
+      "waitingForRatings": "Les données du classement apparaîtront une fois que les instructeurs auront reçu des évaluations.",
+      "sortBy": "Trier par",
+      "benchmarkHighlight": "Mise en évidence du benchmark",
+      "showingBadges": "Affichage des badges",
+      "hidden": "Masqué",
+      "autoRefresh": "Actualisation automatique",
+      "every60s": "Toutes les 60s",
+      "actions": "Actions",
+      "refresh": "Actualiser",
+      "export": "Exporter",
+      "sortedBy": "Trié par {{descriptor}}",
+      "benchmarkNote": "Les performeurs de benchmark sont mis en évidence en ambre.",
+      "totalInstructors": "{{count}} instructeur",
+      "totalInstructors_plural": "{{count}} instructeurs"
+    },
+    "table": {
+      "rank": "#",
+      "instructor": "Instructeur",
+      "averageRating": "Note moyenne",
+      "ratings": "Évaluations",
+      "fiveStarShare": "Part 5★",
+      "lastRating": "Dernière évaluation",
+      "lessonAvg": "Moy cours",
+      "rentalAvg": "Moy location",
+      "accommodationAvg": "Moy hébergement",
+      "benchmark": "Benchmark",
+      "topPerformer": "Meilleur performeur",
+      "belowTarget": "En dessous de la cible"
+    },
+    "mobileCard": {
+      "avg": "Moy",
+      "topTier": "Niveau supérieur",
+      "ratingsLabel": "Évaluations :",
+      "fiveStarShare": "Part 5★ :",
+      "lesson": "Cours",
+      "rental": "Location",
+      "accomm": "Héberg",
+      "lastRated": "Dernière évaluation : {{date}}"
+    },
+    "sort": {
+      "average": "Note moyenne la plus élevée",
+      "count": "Le plus d'évaluations soumises",
+      "recent": "Retour le plus récent"
+    },
+    "serviceType": {
+      "all": "Tous les services",
+      "lesson": "Cours",
+      "rental": "Locations",
+      "accommodation": "Hébergement"
+    },
+    "timeRange": {
+      "all": "Tout le temps",
+      "7d": "7 derniers jours",
+      "30d": "30 derniers jours",
+      "90d": "90 derniers jours"
+    },
+    "error": "Impossible de charger les analyses des instructeurs"
+  },
+  "kai": {
+    "title": "Conversations Kai",
+    "subtitle": "Actualisation automatique toutes les 30s",
+    "subtitleWithTime": "Actualisation automatique toutes les 30s · dernière mise à jour {{time}}",
+    "refreshNow": "Actualiser maintenant",
+    "stats": {
+      "totalSessions": "Total des sessions",
+      "totalMessages": "Total des messages",
+      "outsider": "Visiteur",
+      "student": "Étudiant",
+      "staffAdmin": "Personnel / Admin",
+      "hasUnanswered": "Sans réponse"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher nom, e-mail ou message…",
+      "allRoles": "Tous les rôles",
+      "unansweredOnly": "Sans réponse uniquement",
+      "roles": {
+        "outsider": "Visiteur",
+        "student": "Étudiant",
+        "instructor": "Instructeur",
+        "manager": "Responsable",
+        "admin": "Admin"
+      }
+    },
+    "sessions": {
+      "found": "{{count}} sessions trouvées",
+      "notAnswered": "sans réponse",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageRange": "{{from}}–{{to}} sur {{total}}",
+      "noSessions": "Aucune session trouvée",
+      "couldntAnswer": "Impossible de répondre complètement"
+    },
+    "drawer": {
+      "conversation": "Conversation",
+      "summary": "Résumé",
+      "noMessages": "Aucun message enregistré",
+      "loadError": "Impossible de charger la conversation. Veuillez réessayer."
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "loading": "Chargement des paramètres...",
+    "tabs": {
+      "general": "Général",
+      "calendar": "Calendrier",
+      "bookingDefaults": "Réservations par défaut",
+      "forecast": "Prévisions",
+      "finance": "Finance",
+      "currency": "Devise",
+      "services": "Création de services",
+      "roles": "Rôles & Permissions",
+      "waivers": "Décharges",
+      "legal": "Documents légaux",
+      "refunds": "Remboursements",
+      "bankAccounts": "Comptes bancaires",
+      "kaiLogs": "Journaux Kai",
+      "deletedBookings": "Réservations supprimées",
+      "safety": "Sécurité & Médical",
+      "availability": "Disponibilité",
+      "teachingPrefs": "Préférences d'enseignement",
+      "instructorNotifications": "Notifications",
+      "teamNotifications": "Notifications d'équipe",
+      "operationalDefaults": "Valeurs opérationnelles par défaut"
+    },
+    "groups": {
+      "personal": "Personnel",
+      "business": "Entreprise",
+      "services": "Services",
+      "access": "Accès",
+      "legal": "Légal",
+      "payments": "Paiements",
+      "operations": "Opérations",
+      "schedule": "Planning",
+      "teaching": "Enseignement",
+      "ai": "IA"
+    },
+    "tabDescriptions": {
+      "generalAdmin": "Gérez votre compte, vos préférences personnelles et vos paramètres de notification",
+      "general": "Gérez les détails de votre compte, vos préférences et vos paramètres de notification",
+      "calendar": "Configurez les couleurs des instructeurs pour les vues du calendrier",
+      "forecast": "Configurez les paramètres de prévision du vent, y compris les unités, les sources de données et les options d'affichage",
+      "finance": "Configurez les taux de calcul et les frais de paiement",
+      "currency": "Gérez la devise de l'entreprise, les devises d'inscription et les taux de change",
+      "bookingDefaults": "Configurez la durée de réservation par défaut et les options disponibles",
+      "services": "Gérez les catégories et types de services",
+      "roles": "Gérez les rôles et permissions des utilisateurs",
+      "waivers": "Gérez les modèles de décharge et les soumissions",
+      "legal": "Gérez les conditions d'utilisation, la politique de confidentialité et les documents légaux",
+      "deletedBookings": "Consultez et gérez les réservations supprimées",
+      "refunds": "Traitez et suivez les remboursements",
+      "bankAccounts": "Gérez les comptes bancaires pour les paiements",
+      "bookingPrefs": "Définissez vos préférences par défaut pour la réservation de cours",
+      "instructorPrefs": "Choisissez votre instructeur préféré et la langue du cours",
+      "safety": "Fournissez les coordonnées d'urgence et les informations médicales pour votre sécurité",
+      "availability": "Gérez vos heures de travail hebdomadaires et les demandes de congé",
+      "teachingPrefs": "Configurez vos préférences d'enseignement et vos spécialisations",
+      "instructorNotifications": "Choisissez les notifications que vous recevez en tant qu'instructeur",
+      "teamNotifications": "Configurez les notifications d'activité d'équipe et opérationnelles",
+      "operationalDefaults": "Définissez les valeurs par défaut pour les opérations de réservation quotidiennes"
+    },
+    "loggedInAs": "Connecté en tant que",
+    "roleLabels": {
+      "admin": "(Admin)",
+      "manager": "(Responsable)",
+      "instructor": "(Instructeur)",
+      "student": "(Étudiant)"
+    },
+    "notifications": {
+      "title": "Préférences de notification",
+      "email": "Notifications par e-mail",
+      "emailDescription": "Recevez des confirmations de réservation et des mises à jour par e-mail",
+      "sms": "Notifications SMS",
+      "smsDescription": "Recevez des messages texte pour les mises à jour importantes",
+      "push": "Notifications push",
+      "pushDescription": "Recevez des notifications en temps réel dans votre navigateur",
+      "newBookingAlerts": "Alertes de nouvelles réservations",
+      "newBookingAlertsDescription": "Soyez notifié lorsque des étudiants demandent de nouvelles réservations"
+    },
+    "languageRegion": {
+      "title": "Langue & Région",
+      "languageLabel": "Langue",
+      "languageDescription": "Choisissez votre langue préférée pour l'interface"
+    },
+    "savePersonalSettings": "Enregistrer les paramètres personnels",
+    "calendarSection": {
+      "workingHours": "Heures de travail",
+      "workingHoursDescription": "Définissez les heures d'ouverture et de fermeture quotidiennes pour le calendrier de réservation et les créneaux horaires disponibles.",
+      "opensAt": "Ouvre à",
+      "closesAt": "Ferme à",
+      "saveWorkingHours": "Enregistrer les heures de travail",
+      "instructorVisibility": "Visibilité des instructeurs par formulaire",
+      "instructorVisibilityDescription": "Limitez les instructeurs qui apparaissent dans chaque formulaire de réservation. Laissez vide pour afficher tous les instructeurs.",
+      "allInstructors": "Tous les instructeurs (aucune restriction)",
+      "saveVisibility": "Enregistrer la visibilité",
+      "formContexts": {
+        "staff_booking": {
+          "label": "Assistant de réservation personnel",
+          "description": "Sélecteur d'instructeur lorsque le personnel crée une nouvelle réservation"
+        },
+        "customer_modal": {
+          "label": "Modal de réservation client",
+          "description": "Réservation depuis une page de profil client"
+        },
+        "public_booking": {
+          "label": "Formulaire de réservation public",
+          "description": "Formulaire de réservation visiteur / invité"
+        }
+      },
+      "toast": {
+        "workingHoursSaved": "Heures de travail enregistrées",
+        "workingHoursError": "Impossible d'enregistrer les heures de travail",
+        "visibilitySaved": "Visibilité des instructeurs enregistrée",
+        "visibilityError": "Impossible d'enregistrer la visibilité des instructeurs",
+        "closingAfterOpening": "L'heure de fermeture doit être après l'heure d'ouverture"
+      }
+    },
+    "currencySection": {
+      "defaultTitle": "Devise professionnelle par défaut",
+      "defaultDescription": "Cette devise est utilisée par défaut pour les nouveaux services, réservations et transactions. Les enregistrements existants conservent leur devise d'origine.",
+      "oneCurrencyWarning": "Une seule devise est active. Allez dans Admin > Devises pour activer d'autres devises.",
+      "preferredCurrency": "Devise préférée",
+      "currentCurrency": "Actuelle : {{symbol}} ({{code}})",
+      "savePreferredCurrency": "Enregistrer la devise préférée",
+      "registrationTitle": "Options de devise à l'inscription",
+      "registrationDescription": "Contrôlez les devises que les utilisateurs peuvent sélectionner lors de la création d'un nouveau compte. Seules les devises actives peuvent être sélectionnées.",
+      "allowedCurrencies": "Devises autorisées pour les nouveaux utilisateurs",
+      "registrationCurrenciesPlaceholder": "Sélectionner les devises disponibles lors de l'inscription",
+      "loadingPlaceholder": "Chargement des devises...",
+      "registrationInfo": "Devises d'inscription",
+      "registrationInfoDescription": "Les nouveaux utilisateurs peuvent choisir parmi : {{currencies}}",
+      "exchangeRates": "Taux de change",
+      "exchangeRatesDescription": "Gérez les taux de change par rapport à l'EUR (devise de base). Activez la mise à jour automatique pour récupérer les taux automatiquement.",
+      "toast": {
+        "currencyUpdated": "Devise professionnelle mise à jour",
+        "currencyError": "Impossible de mettre à jour la devise",
+        "preferredUpdated": "Préférence de devise mise à jour avec succès",
+        "preferredError": "Impossible de mettre à jour la préférence de devise"
+      }
+    },
+    "bookingDefaults": {
+      "description": "Configurez la durée de réservation par défaut et les options disponibles.",
+      "defaultDuration": "Durée par défaut",
+      "availableDurations": "Durées disponibles",
+      "save": "Enregistrer les valeurs par défaut",
+      "durations": {
+        "60": "1 heure",
+        "90": "1,5 heure",
+        "120": "2 heures",
+        "150": "2,5 heures",
+        "180": "3 heures",
+        "240": "4 heures"
+      },
+      "toast": {
+        "saved": "Valeurs de réservation par défaut mises à jour",
+        "error": "Impossible de mettre à jour les valeurs par défaut",
+        "durationMismatch": "La durée par défaut doit être l'une des durées autorisées"
+      }
+    }
+  },
+  "legal": {
+    "title": "Documents légaux & Gestion du consentement",
+    "subtitle": "Gérez les conditions d'utilisation, la politique de confidentialité et les paramètres de préférences marketing",
+    "tabs": {
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "marketing": "Préférences marketing"
+    },
+    "terms": {
+      "alertTitle": "Conditions d'utilisation",
+      "alertDescription": "Les utilisateurs devront accepter les nouvelles versions. Mettez à jour le numéro de version pour déclencher un nouveau consentement.",
+      "versionLabel": "Version",
+      "versionRequired": "La version est obligatoire",
+      "versionPlaceholder": "ex. 2025-10-01",
+      "contentLabel": "Contenu des conditions (HTML pris en charge)",
+      "save": "Enregistrer les conditions d'utilisation",
+      "preview": "Aperçu"
+    },
+    "privacy": {
+      "alertTitle": "Politique de confidentialité",
+      "alertDescription": "Les utilisateurs devront accepter les nouvelles versions. Mettez à jour le numéro de version pour déclencher un nouveau consentement.",
+      "versionLabel": "Version",
+      "versionRequired": "La version est obligatoire",
+      "versionPlaceholder": "ex. 2025-10-01",
+      "contentLabel": "Contenu de la politique (HTML pris en charge)",
+      "save": "Enregistrer la politique de confidentialité",
+      "preview": "Aperçu"
+    },
+    "marketing": {
+      "alertTitle": "Préférences de communication marketing",
+      "alertDescription": "Personnalisez la description affichée aux utilisateurs lorsqu'ils configurent leurs préférences marketing.",
+      "descriptionLabel": "Texte de description",
+      "descriptionPlaceholder": "Ces bascules sont optionnelles. Optez pour recevoir des mises à jour et des rappels de réservation via les canaux que vous préférez.",
+      "save": "Enregistrer les préférences marketing"
+    },
+    "toast": {
+      "termsSaved": "Conditions d'utilisation enregistrées avec succès",
+      "privacySaved": "Politique de confidentialité enregistrée avec succès",
+      "marketingSaved": "Préférences marketing enregistrées avec succès",
+      "saveError": "Impossible d'enregistrer le document",
+      "loadError": "Impossible de charger les documents légaux"
+    }
+  },
+  "members": {
+    "title": "Membres",
+    "assignMembership": "Attribuer un abonnement",
+    "assignFirst": "Attribuer le premier membre",
+    "assign": "Attribuer",
+    "refresh": "Actualiser",
+    "clear": "Effacer",
+    "filters": {
+      "searchPlaceholder": "Rechercher nom ou e-mail...",
+      "allStatus": "Tous les statuts",
+      "active": "Actif",
+      "pending": "En attente",
+      "expired": "Expiré",
+      "cancelled": "Annulé",
+      "from": "De",
+      "to": "À"
+    },
+    "table": {
+      "member": "Membre",
+      "membership": "Abonnement",
+      "status": "Statut",
+      "purchased": "Acheté",
+      "expires": "Expire",
+      "amount": "Montant",
+      "never": "Jamais"
+    },
+    "status": {
+      "active": "Actif",
+      "pending": "En attente",
+      "expired": "Expiré",
+      "cancelled": "Annulé"
+    },
+    "detail": {
+      "title": "Détails du membre",
+      "close": "Fermer",
+      "memberName": "Nom du membre",
+      "email": "E-mail",
+      "membershipType": "Type d'abonnement",
+      "status": "Statut",
+      "purchaseDate": "Date d'achat",
+      "expiryDate": "Date d'expiration",
+      "neverExpires": "N'expire jamais",
+      "amountPaid": "Montant payé",
+      "paymentMethod": "Mode de paiement",
+      "notes": "Notes"
+    },
+    "empty": {
+      "noMembers": "Aucun membre trouvé"
+    },
+    "count": "{{count}} membre",
+    "count_plural": "{{count}} membres",
+    "totalMembers": "{{total}} membres",
+    "toast": {
+      "assigned": "Abonnement attribué avec succès !"
+    }
+  },
+  "community": {
+    "team": {
+      "pageTitle": "Notre équipe | Communauté | UKC",
+      "pageDescription": "Rencontrez l'équipe derrière UKC — nos instructeurs et personnel passionnés qui rendent votre expérience inoubliable.",
+      "heading": "RENCONTREZ L'ÉQUIPE DPC-URLA",
+      "subtitle": "Nos instructeurs et personnel passionnés sont là pour rendre votre expérience sportive nautique inoubliable.",
+      "loading": "Chargement de l'équipe...",
+      "teamInfoComingSoon": "Informations sur l'équipe bientôt disponibles",
+      "teamInfoComingSoonDescription": "Les informations sur notre équipe sont en cours de mise à jour. Revenez bientôt !",
+      "teamMemberCount": "{{count}} membre de l'équipe",
+      "teamMemberCount_plural": "{{count}} membres de l'équipe",
+      "instructor": "Instructeur",
+      "featured": "En vedette",
+      "specializations": "Spécialisations",
+      "languages": "Langues",
+      "withUsSince": "Avec nous depuis {{year}}",
+      "bookALesson": "Réserver un cours"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "title": "Droits à la vie privée RGPD",
+      "privacyRightsTitle": "Vos droits à la vie privée",
+      "privacyRightsDescription": "En vertu du Règlement général sur la protection des données (RGPD), vous disposez de droits spécifiques concernant vos données personnelles. Vous pouvez exporter toutes vos données ou demander leur suppression à tout moment.",
+      "waiverSection": {
+        "title": "Décharge de responsabilité & Historique des signatures",
+        "description": "Consultez votre statut de décharge actuel et examinez les signatures précédentes. Si vous devez signer ou renouveler votre décharge, vous pouvez le faire directement ci-dessous.",
+        "loadError": "Impossible de charger les détails de la décharge",
+        "loadErrorDescription": "Nous n'avons pas trouvé les informations de votre compte. Veuillez vous reconnecter et revisiter cette page.",
+        "accountError": "Nous n'avons pas pu déterminer votre compte pour charger la décharge. Veuillez vous reconnecter."
+      },
+      "export": {
+        "title": "Exporter vos données (Article 15 - Droit d'accès)",
+        "description": "Téléchargez une copie complète de toutes vos données personnelles dans un format lisible par machine (JSON). Cela inclut :",
+        "button": "Exporter toutes mes données",
+        "successTitle": "Export de données réussi",
+        "successDescription": "Vos données ont été téléchargées. Le fichier contient toutes vos informations personnelles au format JSON."
+      },
+      "deletion": {
+        "title": "Supprimer vos données (Article 17 - Droit à l'effacement)",
+        "importantNotice": "Avis important",
+        "noticeDescription1": "Cette action anonymisera vos données personnelles. Votre compte sera définitivement supprimé.",
+        "noticeDescription2": "Les données financières doivent être conservées pendant 7 ans conformément à la législation fiscale. Ces données seront conservées mais anonymisées (sans identifiants personnels).",
+        "irreversible": "Cette action est irréversible !",
+        "button": "Demander la suppression des données",
+        "confirmTitle": "Confirmer la suppression des données",
+        "confirmAction": "Cette action est permanente et ne peut pas être annulée !",
+        "confirmInstruction": "Pour confirmer la suppression, veuillez taper",
+        "confirmPlaceholder": "Tapez : SUPPRIMER MES DONNÉES",
+        "retentionNote": "Les données financières seront conservées pendant 7 ans (anonymisées) pour conformité légale.",
+        "okText": "Supprimer mes données",
+        "cancelText": "Annuler",
+        "successTitle_modal": "Anonymisation des données réussie",
+        "successDescription_modal": "Vos données personnelles ont été anonymisées. Les données financières ont été conservées pour conformité légale (7 ans).",
+        "anonymizedAt": "Anonymisé le :",
+        "loggingOut": "Vous serez déconnecté dans 5 secondes..."
+      },
+      "rights": {
+        "title": "Vos droits RGPD",
+        "access": {
+          "label": "Droit d'accès (Art. 15)",
+          "value": "Exporter toutes vos données personnelles"
+        },
+        "rectification": {
+          "label": "Droit de rectification (Art. 16)",
+          "value": "Mettez à jour les informations de votre profil dans les paramètres du compte"
+        },
+        "erasure": {
+          "label": "Droit à l'effacement (Art. 17)",
+          "value": "Demander la suppression de vos données personnelles"
+        },
+        "portability": {
+          "label": "Droit à la portabilité (Art. 20)",
+          "value": "Recevoir vos données dans un format lisible par machine (JSON)"
+        },
+        "withdrawConsent": {
+          "label": "Droit de retrait du consentement (Art. 7)",
+          "value": "Gérez les préférences de communication dans les paramètres du compte"
+        }
+      },
+      "contact": "Contact :",
+      "responseTime": "Nous répondrons à votre demande dans un délai de 30 jours conformément au RGPD."
+    },
+    "waiver": {
+      "title": "Décharge de responsabilité requise",
+      "subtitle": "Protocole de sécurité du Duotone Pro Center",
+      "inPersonTitle": "Signature en personne requise",
+      "inPersonDescription": "Pour votre sécurité et protection juridique, toutes les décharges de responsabilité doivent être signées en personne dans notre centre avant votre premier cours ou location d'équipement.",
+      "whatToExpect": "À quoi s'attendre",
+      "expectItems": {
+        "arrive": "Arrivez 15 minutes avant l'heure prévue de votre cours",
+        "signWithId": "Signez la décharge avec une pièce d'identité gouvernementale valide",
+        "staffProvide": "Notre personnel vous fournira la décharge de responsabilité au centre",
+        "readCarefully": "Lisez attentivement la décharge et posez toutes vos questions",
+        "validity": "Les décharges sont valables 12 mois à compter de la date de signature"
+      },
+      "importantInfo": "Informations importantes",
+      "minors": "Participants de moins de 18 ans : Un parent ou tuteur légal doit être présent pour signer la décharge au nom du mineur.",
+      "groups": "Réservations de groupe : Chaque participant doit signer sa propre décharge. Prévoyez un délai supplémentaire pour les groupes.",
+      "finalNote": "Vous signerez la décharge au centre avant votre cours",
+      "finalSubnote": "Aucune signature en ligne requise • Valable 12 mois • Apportez une pièce d'identité valide",
+      "iUnderstand": "Je comprends"
+    }
+  },
+  "account": {
+    "profilePhoto": {
+      "title": "Photo de profil",
+      "updatePhotoLabel": "Mettre à jour votre photo",
+      "uploadDescription": "JPG, PNG ou GIF. Max {{maxMb}} Mo.",
+      "uploadButton": "Télécharger une photo",
+      "toast": {
+        "updated": "Photo de profil mise à jour",
+        "uploadError": "Impossible de télécharger la photo",
+        "fileTooLarge": "La photo doit être inférieure à {{maxMb}} Mo"
+      }
+    },
+    "personalInfo": {
+      "title": "Informations personnelles",
+      "firstName": "Prénom",
+      "firstNamePlaceholder": "Prénom",
+      "lastName": "Nom",
+      "lastNamePlaceholder": "Nom",
+      "email": "E-mail",
+      "emailPlaceholder": "Adresse e-mail",
+      "phone": "Téléphone",
+      "phonePlaceholder": "Numéro de téléphone",
+      "dateOfBirth": "Date de naissance",
+      "bio": "Bio",
+      "bioPlaceholder": "Parlez un peu de vous aux autres",
+      "save": "Enregistrer le profil",
+      "toast": {
+        "saved": "Informations personnelles mises à jour",
+        "saveError": "Impossible de mettre à jour les informations personnelles"
+      }
+    },
+    "password": {
+      "title": "Changer le mot de passe",
+      "currentPassword": "Mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le nouveau mot de passe",
+      "save": "Changer le mot de passe",
+      "toast": {
+        "changed": "Mot de passe changé avec succès",
+        "changeError": "Impossible de changer le mot de passe",
+        "enterCurrent": "Veuillez entrer votre mot de passe actuel",
+        "minLength": "Le nouveau mot de passe doit comporter au moins 8 caractères",
+        "noMatch": "Les nouveaux mots de passe ne correspondent pas"
+      }
+    }
+  }
+}

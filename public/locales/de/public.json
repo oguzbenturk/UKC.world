@@ -1,0 +1,157 @@
+{
+  "brand": {
+    "name": "Duotone Pro Center Urla"
+  },
+  "login": {
+    "title": "Mitgliederlogin",
+    "welcome": "Willkommen zurück bei {{brand}}.",
+    "emailLabel": "E-Mail-Adresse",
+    "emailPlaceholder": "name@example.com",
+    "passwordLabel": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "rememberMe": "Angemeldet bleiben",
+    "signIn": "ANMELDEN",
+    "mobileNoAccount": "Noch kein Konto?",
+    "createAccountLink": "Konto erstellen",
+    "rightTagline": "Kompetenz. Exzellenz. Erfahrung.",
+    "rightQuote": "Werde Teil der führenden Wassersport-Community in Urla. Zugriff auf deinen Fortschritt, Sessions buchen und Mitgliedschaft mit UKC verwalten.",
+    "rightNewHere": "Neu hier?",
+    "rightCreateCta": "KONTO ERSTELLEN",
+    "features": {
+      "dashboard": "Dashboard-Analysen",
+      "lessons": "Kursbuchung",
+      "rentals": "Ausrüstungsverleih",
+      "finance": "Finanzverfolgung",
+      "community": "Community-Verwaltung"
+    },
+    "errors": {
+      "enterEmail": "Bitte E-Mail-Adresse eingeben",
+      "enterPassword": "Bitte Passwort eingeben",
+      "incorrect": "E-Mail oder Passwort ist falsch.",
+      "networkError": "Server nicht erreichbar. Verbindung prüfen.",
+      "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden.",
+      "genericFailed": "Anmeldung fehlgeschlagen. Bitte erneut versuchen."
+    }
+  },
+  "register": {
+    "steps": {
+      "account": { "title": "Konto", "subtitle": "Legen wir los!" },
+      "profile": { "title": "Rider-Profil", "subtitle": "Hilf uns, die richtige Ausrüstung für dich zu finden" },
+      "address": { "title": "Dein Standort", "subtitle": "Wohin sollen wir deine Bestellungen schicken?" }
+    },
+    "stepIndicator": "Schritt {{current}} von {{total}}",
+    "fields": {
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "email": "E-Mail-Adresse",
+      "password": "Passwort",
+      "confirmPassword": "Passwort bestätigen",
+      "phone": "Telefonnummer",
+      "dob": "Geburtsdatum",
+      "weight": "Gewicht (kg)",
+      "currency": "Bevorzugte Währung",
+      "address": "Straße",
+      "city": "Stadt",
+      "zip": "Postleitzahl",
+      "country": "Land"
+    },
+    "placeholders": {
+      "firstName": "Max",
+      "lastName": "Mustermann",
+      "email": "du@example.com",
+      "phone": "5xx xxx xxxx",
+      "weight": "z. B. 70",
+      "currency": "Währung wählen",
+      "address": "Strandstraße 123, Wohnung 4",
+      "city": "z. B. Istanbul",
+      "zip": "z. B. 34000",
+      "country": "Land wählen"
+    },
+    "hints": {
+      "dob": "Für Sicherheitsrichtlinien",
+      "weight": "Für die richtige Kite- & Board-Größe",
+      "currency": "Alle Preise und Zahlungen werden in dieser Währung verarbeitet",
+      "shipping": "Deine Adresse wird als Standard-Lieferadresse für Shop-Bestellungen verwendet. Du kannst sie beim Checkout immer ändern."
+    },
+    "strength": { "weak": "Schwach", "fair": "Mittel", "good": "Gut", "strong": "Stark" },
+    "validation": {
+      "passwordMin": "Min. 8 Zeichen",
+      "passwordPattern": "Benötigt Groß-, Kleinbuchstaben, Zahl & Sonderzeichen (@$!%*?&)",
+      "passwordsDontMatch": "Passwörter stimmen nicht überein",
+      "phonePattern": "Gültige Telefonnummer erforderlich",
+      "ageTooYoung": "Mindestens 10 Jahre alt",
+      "ageInvalid": "Bitte ein gültiges Datum eingeben",
+      "weightRange": "30–200 kg"
+    },
+    "buttons": {
+      "cancel": "ABBRECHEN",
+      "back": "ZURÜCK",
+      "continue": "WEITER",
+      "finish": "FERTIG",
+      "creating": "WIRD ERSTELLT..."
+    },
+    "success": {
+      "welcome": "Willkommen, {{name}}! Dein Konto ist bereit.",
+      "created": "Konto erfolgreich erstellt! Bitte anmelden."
+    },
+    "errors": { "generic": "Registrierung fehlgeschlagen" }
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen?",
+    "subtitle": "Gib deine E-Mail ein und wir senden dir einen Link zum Zurücksetzen deines Passworts.",
+    "emailLabel": "E-Mail-Adresse",
+    "emailPlaceholder": "name@example.com",
+    "send": "RESET-LINK SENDEN",
+    "sending": "WIRD GESENDET...",
+    "backToLogin": "ZURÜCK ZUM LOGIN",
+    "rateLimited": "Zu viele Anfragen. Bitte vor einem erneuten Versuch warten.",
+    "invalidEmail": "Bitte eine gültige E-Mail-Adresse eingeben",
+    "sent": {
+      "title": "E-Mail prüfen",
+      "body": "Falls ein Konto mit <strong>{{email}}</strong> existiert, erhältst du in Kürze einen Reset-Link.",
+      "didntReceive": "Nicht erhalten?",
+      "didntReceiveBody": "Prüfe deinen Spam-Ordner oder die eingegebene Adresse. Der Link läuft in 1 Stunde ab.",
+      "returnLogin": "ZURÜCK ZUM LOGIN"
+    }
+  },
+  "resetPassword": {
+    "validating": "Reset-Link wird geprüft...",
+    "title": "Passwort zurücksetzen",
+    "subtitle": "Neues Passwort für <strong>{{email}}</strong> eingeben",
+    "fields": {
+      "newPassword": "Neues Passwort",
+      "confirmPassword": "Passwort bestätigen"
+    },
+    "requirementsTitle": "Anforderungen:",
+    "requirementLength": "Mindestens 8 Zeichen lang",
+    "requirementStrong": "Wähle ein starkes, einzigartiges Passwort",
+    "submit": "PASSWORT ZURÜCKSETZEN",
+    "submitting": "WIRD ZURÜCKGESETZT...",
+    "cancelReturn": "ABBRECHEN UND ZURÜCK",
+    "successToast": "Passwort erfolgreich zurückgesetzt!",
+    "success": {
+      "title": "Erfolg!",
+      "body": "Dein Passwort wurde erfolgreich zurückgesetzt. Du kannst dich jetzt mit deinem neuen Passwort anmelden.",
+      "goLogin": "ZUM LOGIN"
+    },
+    "invalid": {
+      "title": "Link ungültig",
+      "defaultBody": "Dieser Passwort-Reset-Link ist abgelaufen oder ungültig.",
+      "expiry": "Reset-Links laufen aus Sicherheitsgründen nach 1 Stunde ab.",
+      "requestNew": "NEUEN LINK ANFORDERN",
+      "return": "ZURÜCK ZUM LOGIN"
+    },
+    "errors": {
+      "invalidLink": "Ungültiger Passwort-Reset-Link. Bitte einen neuen anfordern.",
+      "expiredLink": "Dieser Passwort-Reset-Link ist abgelaufen oder ungültig. Bitte einen neuen anfordern.",
+      "validateFailed": "Reset-Link konnte nicht geprüft werden. Bitte später erneut versuchen.",
+      "resetFailed": "Passwort konnte nicht zurückgesetzt werden. Bitte erneut versuchen.",
+      "resetGenericFailed": "Passwort kann nicht zurückgesetzt werden. Bitte später erneut versuchen.",
+      "passwordsMismatch": "Passwörter stimmen nicht überein",
+      "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
+      "enterPassword": "Bitte ein neues Passwort eingeben",
+      "confirmRequired": "Bitte das Passwort bestätigen",
+      "passwordMinValidation": "Passwort muss mindestens 8 Zeichen lang sein"
+    }
+  }
+}

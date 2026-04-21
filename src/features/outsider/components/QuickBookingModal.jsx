@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import {
@@ -261,6 +262,7 @@ const PayStep = ({
   isStandalone = false, servicePrice = 0, onProceedToSchedule, proRataTotalHours = null,
   appliedVoucher = null, onVoucherApplied, onVoucherRemoved, serviceId: payStepServiceId,
 }) => {
+  const { t } = useTranslation(['outsider']);
   const isGroupPackage = packageData?.lessonCategoryTag?.toLowerCase() === 'group'
     || (packageData?.name || '').toLowerCase().includes('group')
     || (isStandalone && (packageName || '').toLowerCase().includes('group'));
@@ -336,7 +338,7 @@ const PayStep = ({
         )}
         <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-end justify-between">
           <span className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider font-semibold">
-            {isStandalone ? 'Lesson Price' : 'Package Total'}
+            {isStandalone ? t('outsider:quickBooking.pay.lessonPrice') : t('outsider:quickBooking.pay.packageTotal')}
           </span>
           <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
             {dualPrice}
@@ -352,8 +354,8 @@ const PayStep = ({
           type="info"
           showIcon
           className="!rounded-xl"
-          message="This is a group lesson package"
-          description="Group lessons require at least 2 people. Choose how you'd like to proceed below."
+          message={t('outsider:quickBooking.pay.groupLessonNote')}
+          description={t('outsider:quickBooking.pay.groupLessonDetail')}
         />
 
         <div className="rounded-xl border-2 border-blue-200 bg-blue-50/60 p-4 space-y-3">
@@ -365,7 +367,7 @@ const PayStep = ({
             icon={<TeamOutlined />}
             onClick={onCreateGroupWithFriend}
           >
-            I have a friend — Create Group
+            {t('outsider:quickBooking.pay.haveAFriend')}
           </Button>
           <Button
             size="large"
@@ -373,7 +375,7 @@ const PayStep = ({
             className="!h-12 !rounded-xl !font-bold !border-violet-300 !text-violet-600 hover:!bg-violet-50"
             onClick={onCreateGroupLesson}
           >
-            I'm alone — Find me a partner
+            {t('outsider:quickBooking.pay.findPartner')}
           </Button>
         </div>
       </>
@@ -382,12 +384,12 @@ const PayStep = ({
         {/* Non-group (private) package — normal payment flow */}
         <div>
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            Payment Method
+            {t('outsider:quickBooking.pay.paymentMethod')}
           </p>
           <div className="grid gap-2 grid-cols-2">
             {[
-              { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', activeColor: '#3b82f6', activeBg: '#eff6ff', sub: formatCurrency(convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance, userCurrency) },
-              { key: 'deposit', icon: <SafetyCertificateOutlined />, label: `Deposit ${DEPOSIT_PERCENT}%`, activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
+              { key: 'wallet', icon: <WalletOutlined />, label: t('outsider:quickBooking.pay.wallet'), activeColor: '#3b82f6', activeBg: '#eff6ff', sub: formatCurrency(convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance, userCurrency) },
+              { key: 'deposit', icon: <SafetyCertificateOutlined />, label: t('outsider:quickBooking.pay.deposit', { percent: DEPOSIT_PERCENT }), activeColor: '#8b5cf6', activeBg: '#f5f3ff', sub: fmtDual(depositAmount) },
             ].map(({ key, icon, label, activeColor, activeBg, sub }) => (
               <button
                 key={key}
@@ -415,8 +417,8 @@ const PayStep = ({
               type="warning"
               showIcon
               className="!mt-3 !rounded-xl !text-xs"
-              message="Insufficient wallet balance"
-              description="Top up your wallet to continue."
+              message={t('outsider:quickBooking.pay.insufficientBalance')}
+              description={t('outsider:quickBooking.pay.topUpPrompt')}
             />
           )}
 
@@ -424,23 +426,23 @@ const PayStep = ({
             <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3 sm:p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="p-3 rounded-lg bg-violet-100/80 border border-violet-200">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-violet-800">Deposit Now</span>
+                  <span className="text-xs font-semibold text-violet-800">{t('outsider:accommodationBooking.payment.depositNow')}</span>
                   <span className="text-sm font-bold text-violet-900">{fmtDual(depositAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-violet-800">Pay on Arrival</span>
+                  <span className="text-xs font-semibold text-violet-800">{t('outsider:accommodationBooking.payment.payOnArrival')}</span>
                   <span className="text-sm font-bold text-violet-900">{fmtDual(remainingAmount)}</span>
                 </div>
                 <p className="text-[10px] text-violet-600 mt-2 leading-tight">
-                  Pay {DEPOSIT_PERCENT}% now to reserve your spot. The remaining {100 - DEPOSIT_PERCENT}% is due on arrival.
+                  {t('outsider:quickBooking.pay.depositNote', { percent: DEPOSIT_PERCENT, remaining: 100 - DEPOSIT_PERCENT })}
                 </p>
               </div>
 
               <div className="border-t border-violet-200 pt-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 mb-2">Pay deposit via</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 mb-2">{t('outsider:quickBooking.pay.payDepositVia')}</p>
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer', activeColor: '#3b82f6' },
+                    { key: 'bank_transfer', icon: <BankOutlined />, label: t('outsider:quickBooking.pay.bankTransfer'), activeColor: '#3b82f6' },
                   ].map(({ key, icon, label, activeColor }) => (
                     <button
                       key={key}
@@ -462,10 +464,10 @@ const PayStep = ({
                 <>
                   <div>
                     <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">
-                      Select Bank Account
+                      {t('outsider:quickBooking.pay.selectBankAccount')}
                     </p>
                     <Select
-                      placeholder="Choose account to transfer to…"
+                      placeholder={t('outsider:quickBooking.pay.chooseBankAccount')}
                       className="w-full"
                       size="large"
                       value={selectedBankAccountId}
@@ -480,7 +482,7 @@ const PayStep = ({
                   {selectedAccount && (
                     <div className="pt-2 border-t border-violet-200/50">
                       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-violet-700 mb-2">
-                        Upload Receipt
+                        {t('outsider:quickBooking.pay.uploadReceipt')}
                       </p>
                       <Upload
                         onRemove={(file) => setFileList((prev) => prev.filter((item) => item.uid !== file.uid))}
@@ -498,11 +500,11 @@ const PayStep = ({
                         accept=".jpg,.jpeg,.png,.pdf"
                       >
                         <Button icon={<UploadOutlined />} className="w-full">
-                          Select Receipt (JPEG, PNG or PDF)
+                          {t('outsider:quickBooking.pay.selectReceipt')}
                         </Button>
                       </Upload>
                       <p className="text-[10px] mt-2 leading-tight text-violet-600/80">
-                        {`Upload your deposit receipt for ${fmtDual(depositAmount)} — JPEG, PNG, or PDF accepted.`}
+                        {t('outsider:quickBooking.pay.uploadReceiptNote', { amount: fmtDual(depositAmount) })}
                       </p>
                     </div>
                   )}
@@ -515,7 +517,7 @@ const PayStep = ({
         {/* Promo Code */}
         <div>
           <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            Promo Code
+            {t('outsider:quickBooking.pay.promoCode')}
           </p>
           <PromoCodeInput
             context="lessons"
@@ -541,7 +543,7 @@ const PayStep = ({
           icon={isStandalone ? <CalendarOutlined /> : <ShoppingOutlined />}
         >
           {isStandalone
-            ? 'Continue — Schedule Session'
+            ? t('outsider:quickBooking.pay.continueSchedule')
             : paymentMethod === 'wallet'
               ? `Pay ${dualPrice}`
               : paymentMethod === 'credit_card'
@@ -555,7 +557,7 @@ const PayStep = ({
         <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 p-3 text-center">
           <p className="text-xs text-slate-500 mb-1">
             <TeamOutlined className="mr-1" />
-            Prefer a group lesson?
+            {t('outsider:quickBooking.pay.preferGroup')}
           </p>
           <div className="flex items-center justify-center gap-1">
             <Button
@@ -564,7 +566,7 @@ const PayStep = ({
               className="!text-xs !font-semibold !text-blue-600"
               onClick={onCreateGroupWithFriend}
             >
-              I have a friend →
+              {t('outsider:quickBooking.pay.haveAFriendShort')}
             </Button>
             <span className="text-xs text-slate-300">|</span>
             <Button
@@ -573,7 +575,7 @@ const PayStep = ({
               className="!text-xs !font-semibold !text-violet-600"
               onClick={onCreateGroupLesson}
             >
-              Find me a partner →
+              {t('outsider:quickBooking.pay.findPartnerShort')}
             </Button>
           </div>
         </div>
@@ -597,6 +599,7 @@ const getOccupiedSubSlots = (startTime, durationMinutes) => {
 
 // Session date+time row with its own availability query
 const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, onRemove, showRemove, excludedTimes = [] }) => {
+  const { t } = useTranslation(['outsider']);
   const dateString = date?.isValid() ? date.format('YYYY-MM-DD') : null;
 
   const { data: availabilityData, isLoading: slotsLoading } = useQuery({
@@ -640,16 +643,16 @@ const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, o
           disabledDate={(current) => current && current.isBefore(dayjs(), 'day')}
           format="ddd, MMM D"
           inputReadOnly
-          placeholder="Pick date"
+          placeholder={t('outsider:quickBooking.schedule.pickDate')}
         />
         {dateString ? (
           slotsLoading ? (
             <div className="flex items-center justify-center h-10"><Spin size="small" /></div>
           ) : availableStarts.length === 0 ? (
-            <Select placeholder="No slots" disabled className="w-full" size="large" />
+            <Select placeholder={t('outsider:quickBooking.schedule.noSlots')} disabled className="w-full" size="large" />
           ) : (
             <Select
-              placeholder="Pick time"
+              placeholder={t('outsider:quickBooking.schedule.pickTime')}
               className="w-full"
               size="large"
               value={time}
@@ -658,7 +661,7 @@ const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, o
             />
           )
         ) : (
-          <Select placeholder="Pick date first" disabled className="w-full" size="large" />
+          <Select placeholder={t('outsider:quickBooking.schedule.pickDateFirst')} disabled className="w-full" size="large" />
         )}
       </div>
       {showRemove && (
@@ -674,7 +677,9 @@ const SessionSlotRow = ({ instructorId, durationMinutes, date, time, onChange, o
   );
 };
 
-const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], maxSessions = Infinity, onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions, partnerInfo, includePartner, onTogglePartner }) => (
+const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemaining, durationOptions = [], selectedDurationMinutes, setSelectedDurationMinutes, instructorsData = [], instructorsLoading, selectedInstructorId, setSelectedInstructorId, sessions = [], maxSessions = Infinity, onSessionChange, onAddSession, onRemoveSession, bookingPending, onBookSession, onSkip, onResetSessions, partnerInfo, includePartner, onTogglePartner }) => {
+  const { t } = useTranslation(['outsider']);
+  return (
   <div className="space-y-4 sm:space-y-5">
     {/* Status banner */}
     <div className={`rounded-2xl border p-3 sm:p-4 flex items-start sm:items-center gap-2.5 sm:gap-3 ${
@@ -695,7 +700,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
             ? 'text-blue-800'
             : isExistingPackage ? 'text-blue-800' : 'text-green-800'
         }`}>
-          {isStandalone ? 'Book Your Lesson' : isExistingPackage ? 'You have an active package!' : 'Package purchased!'}
+          {isStandalone ? t('outsider:quickBooking.schedule.bookYourLesson') : isExistingPackage ? t('outsider:quickBooking.schedule.activePackage') : t('outsider:quickBooking.schedule.packagePurchased')}
         </p>
         <p className={`text-[11px] sm:text-xs mt-0.5 leading-relaxed ${
           isStandalone
@@ -703,10 +708,10 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
             : isExistingPackage ? 'text-blue-600' : 'text-green-600'
         }`}>
           {isStandalone
-            ? 'Pick your instructor, date, and time slot below.'
+            ? t('outsider:quickBooking.schedule.bookYourLessonSub')
             : isExistingPackage
-              ? `${existingPackageRemaining}h remaining — schedule a session below.`
-              : 'Now schedule your first session, or skip and book later.'}
+              ? t('outsider:quickBooking.schedule.activePackageSub', { hours: existingPackageRemaining })
+              : t('outsider:quickBooking.schedule.packagePurchasedSub')}
         </p>
       </div>
     </div>
@@ -738,8 +743,8 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
           </p>
           <p className={`text-[11px] sm:text-xs mt-0.5 ${includePartner ? 'text-purple-600' : 'text-slate-400'}`}>
             {includePartner
-              ? `Group partner • ${partnerInfo.partnerRemainingHours}h remaining in their package`
-              : 'Tap to include your group partner'}
+              ? t('outsider:quickBooking.schedule.partnerHoursLeft', { hours: partnerInfo.partnerRemainingHours })
+              : t('outsider:quickBooking.schedule.partnerInclude')}
           </p>
         </div>
       </div>
@@ -748,7 +753,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
     {/* Duration selector */}
     <div>
       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        <ClockCircleOutlined className="mr-1" /> Session Duration
+        <ClockCircleOutlined className="mr-1" /> {t('outsider:quickBooking.schedule.sessionDuration')}
       </p>
       <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
         {durationOptions.map((minutes) => (
@@ -764,7 +769,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
           >
             {formatDurationLabel(minutes)}
             {minutes === DEFAULT_DURATION_MINUTES && (
-              <span className={`block text-[9px] font-medium mt-0.5 ${selectedDurationMinutes === minutes ? 'text-blue-100' : 'text-blue-400'}`}>Recommended</span>
+              <span className={`block text-[9px] font-medium mt-0.5 ${selectedDurationMinutes === minutes ? 'text-blue-100' : 'text-blue-400'}`}>{t('outsider:quickBooking.schedule.recommended')}</span>
             )}
           </button>
         ))}
@@ -774,13 +779,13 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
     {/* Instructor */}
     <div>
       <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-        <UserOutlined className="mr-1" /> Instructor
+        <UserOutlined className="mr-1" /> {t('outsider:quickBooking.schedule.instructor')}
       </p>
       {instructorsLoading ? (
         <div className="flex justify-center py-4"><Spin size="small" /></div>
       ) : (
         <Select
-          placeholder="Choose your instructor"
+          placeholder={t('outsider:quickBooking.schedule.chooseInstructor')}
           className="w-full"
           size="large"
           value={selectedInstructorId}
@@ -794,7 +799,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
             onResetSessions();
           }}
           options={[
-            { value: '__any__', label: '🎲 Any available instructor' },
+            { value: '__any__', label: `🎲 ${t('outsider:quickBooking.schedule.anyInstructor')}` },
             ...instructorsData.map((inst) => ({
               value: inst.id,
               label: `${inst.first_name || ''} ${inst.last_name || ''}`.trim() || inst.name || inst.email,
@@ -808,7 +813,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
     {selectedInstructorId && (
       <div>
         <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <CalendarOutlined className="mr-1" /> Date & Time
+          <CalendarOutlined className="mr-1" /> {t('outsider:quickBooking.schedule.dateTime')}
         </p>
         <div className="space-y-2">
           {sessions.map((session) => {
@@ -839,7 +844,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
               onClick={onAddSession}
               className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-400 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
             >
-              + Add another day
+              {t('outsider:quickBooking.schedule.addAnotherDay')}
             </button>
           )}
         </div>
@@ -850,7 +855,7 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
     <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1 sm:pt-2">
       {!isStandalone && (
         <Button size="large" block onClick={onSkip} className="!h-11 sm:!h-12 !rounded-xl !text-xs sm:!text-sm">
-          Skip — Book Later
+          {t('outsider:quickBooking.schedule.skipBookLater')}
         </Button>
       )}
       <Button
@@ -864,15 +869,17 @@ const ScheduleStep = ({ isExistingPackage, isStandalone, existingPackageRemainin
         icon={<CalendarOutlined />}
       >
         {sessions.filter(s => s.date?.isValid() && s.time).length > 1
-          ? `Book ${sessions.filter(s => s.date?.isValid() && s.time).length} Sessions`
-          : 'Book Session'}
+          ? t('outsider:quickBooking.schedule.bookSessions', { count: sessions.filter(s => s.date?.isValid() && s.time).length })
+          : t('outsider:quickBooking.schedule.bookSession')}
       </Button>
     </div>
   </div>
-);
+  );
+};
 
 // eslint-disable-next-line complexity
 const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, durationHours, _perSessionHours, isExistingPackage, isStandalone, displayPrice, formatCurrency, priceCurrency, eurPrice, userCurrency, instructorName, onClose, sessions = [], groupPartnerMode = false, includePartner = false, partnerData = null }) => {
+  const { t } = useTranslation(['outsider']);
   const remaining = purchasedPackage?.remainingHours ?? (durationHours || 0);
   const usedBooking = !skipSchedule;
   const bookedCount = sessions.filter(s => s.date?.isValid() && s.time).length;
@@ -891,36 +898,36 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
 
       <div className="px-2">
         <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">
-          {isPartnerInvite ? 'Invite Sent!' : 'All Done!'}
+          {isPartnerInvite ? t('outsider:quickBooking.done.inviteSent') : t('outsider:quickBooking.done.allDone')}
         </h3>
         <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
           {isPartnerInvite
-            ? `A confirmation request has been sent to ${partnerName}. The lesson will be confirmed once they accept.`
+            ? t('outsider:quickBooking.done.subtitlePartnerInvite', { name: partnerName })
             : isStandalone
-              ? (bookedCount > 1 ? `${bookedCount} lesson sessions booked! Check your dashboard for details.` : 'Your lesson session has been booked! Check your dashboard for details.')
+              ? (bookedCount > 1 ? t('outsider:quickBooking.done.subtitleStandaloneMulti', { count: bookedCount }) : t('outsider:quickBooking.done.subtitleStandaloneSingle'))
               : usedBooking
                 ? (isExistingPackage
-                  ? (bookedCount > 1 ? `${bookedCount} sessions booked from your existing package.` : 'Your session is booked from your existing package.')
-                  : (bookedCount > 1 ? `Package purchased & ${bookedCount} sessions booked.` : 'Package purchased & your first session is booked.'))
+                  ? (bookedCount > 1 ? t('outsider:quickBooking.done.subtitleExistingMulti', { count: bookedCount }) : t('outsider:quickBooking.done.subtitleExistingSingle'))
+                  : (bookedCount > 1 ? t('outsider:quickBooking.done.subtitleNewMulti', { count: bookedCount }) : t('outsider:quickBooking.done.subtitleNewSingle')))
                 : (isExistingPackage
-                  ? 'No session booked — schedule anytime from your dashboard.'
-                  : 'Package purchased — book sessions anytime from your dashboard.')}
+                  ? t('outsider:quickBooking.done.subtitleSkipExisting')
+                  : t('outsider:quickBooking.done.subtitleSkipNew'))}
         </p>
       </div>
 
       {isPartnerInvite && (
         <div className="bg-blue-50 rounded-2xl border border-blue-200/80 p-3 sm:p-4 text-left space-y-2">
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Partner</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.partner')}</span>
             <span className="font-semibold text-slate-800">{partnerName}</span>
           </div>
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Status</span>
-            <Tag color="orange" className="!m-0 !text-[10px] sm:!text-xs">Awaiting acceptance</Tag>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.status')}</span>
+            <Tag color="orange" className="!m-0 !text-[10px] sm:!text-xs">{t('outsider:quickBooking.done.awaitingAcceptance')}</Tag>
           </div>
           {bookedCount > 0 && (
             <div className="text-xs sm:text-sm">
-              <span className="text-slate-500">Session{bookedCount > 1 ? 's' : ''} ({bookedCount})</span>
+              <span className="text-slate-500">{t('outsider:quickBooking.done.sessions')} ({bookedCount})</span>
               <div className="mt-1.5 space-y-1">
                 {sessions.filter(s => s.date?.isValid() && s.time).map((session, idx) => (
                   <div key={idx} className="flex justify-between items-center">
@@ -939,38 +946,38 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
       {!isPartnerInvite && (
       <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 text-left space-y-2.5">
         <div className="flex justify-between items-center text-xs sm:text-sm">
-          <span className="text-slate-500">{isStandalone ? 'Lesson' : 'Package'}</span>
+          <span className="text-slate-500">{isStandalone ? t('outsider:quickBooking.done.lesson') : t('outsider:quickBooking.done.package')}</span>
           <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{packageName}</span>
         </div>
         {instructorName && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Instructor</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.instructor')}</span>
             <span className="font-semibold text-slate-800 text-right max-w-[60%] truncate">{instructorName}</span>
           </div>
         )}
         {isStandalone && displayPrice > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Price</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.price')}</span>
             <span className="font-semibold text-slate-800">{(() => { const ef = formatCurrency(eurPrice || displayPrice, 'EUR'); if (!userCurrency || userCurrency === 'EUR' || priceCurrency === 'EUR') return ef; return `${ef} (~${formatCurrency(displayPrice, priceCurrency)})`; })()}</span>
           </div>
         )}
         {!isExistingPackage && !isStandalone && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Payment</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.payment')}</span>
             <Tag color={paymentMethod === 'wallet' ? 'green' : 'orange'} className="!m-0 !text-[10px] sm:!text-xs">
-              {paymentMethod === 'wallet' ? 'Paid' : paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Processing'}
+              {paymentMethod === 'wallet' ? t('outsider:quickBooking.done.paid') : paymentMethod === 'bank_transfer' ? t('outsider:quickBooking.done.bankTransfer') : t('outsider:quickBooking.done.processing')}
             </Tag>
           </div>
         )}
         {isExistingPackage && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Source</span>
-            <Tag color="blue" className="!m-0 !text-[10px] sm:!text-xs">Existing Package</Tag>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.source')}</span>
+            <Tag color="blue" className="!m-0 !text-[10px] sm:!text-xs">{t('outsider:quickBooking.done.existingPackage')}</Tag>
           </div>
         )}
         {usedBooking && bookedCount > 0 && (
           <div className="text-xs sm:text-sm">
-            <span className="text-slate-500">Sessions ({bookedCount})</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.sessionsLabel')} ({bookedCount})</span>
             <div className="mt-1.5 space-y-1">
               {sessions.filter(s => s.date?.isValid() && s.time).map((session, idx) => (
                 <div key={idx} className="flex justify-between items-center">
@@ -985,7 +992,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
         )}
         {!isStandalone && remaining > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="text-slate-500">Remaining</span>
+            <span className="text-slate-500">{t('outsider:quickBooking.done.remaining')}</span>
             <span className="font-semibold text-emerald-600">
               {remaining}h left
             </span>
@@ -1001,7 +1008,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
         onClick={onClose}
         className="!h-11 sm:!h-12 !rounded-xl !font-bold !text-sm"
       >
-        Done
+        {t('outsider:quickBooking.done.done')}
       </Button>
     </div>
   );
@@ -1012,6 +1019,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
 // eslint-disable-next-line complexity
 const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHours, servicePrice, serviceName, proRataTotalHours = null, initialOwnedPackage = null }) => {
   const { message, modal } = App.useApp();
+  const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refreshToken } = useAuth();
@@ -1346,9 +1354,9 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
     queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
     queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
-    message.success('Payment confirmed! Package purchased.');
+    message.success(t('outsider:quickBooking.toasts.paymentConfirmed'));
     setStep(1);
-  }, [queryClient, refreshToken]);
+  }, [queryClient, refreshToken, t]);
 
   const { data: iyzicoPolledStatus } = useQuery({
     queryKey: ['iyzico-pkg-status', pendingCustomerPackageId],
@@ -1390,7 +1398,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       queryClient.invalidateQueries({ queryKey: ['student-booking'] });
       queryClient.invalidateQueries({ queryKey: ['student-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['quick-booking', 'owned-packages'] });
-      message.success('Package purchased!');
+      message.success(t('outsider:quickBooking.toasts.packagePurchased'));
       setStep(1);
     },
     onError: (err) => {
@@ -1409,9 +1417,12 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     const depositAmt = isDeposit ? parseFloat((pkgPrice * depositPct / 100).toFixed(2)) : 0;
     const remainAmt = isDeposit ? parseFloat((pkgPrice - depositAmt).toFixed(2)) : 0;
 
-    const paymentLabel = paymentMethod === 'wallet' ? 'Wallet'
-      : paymentMethod === 'credit_card' ? 'Credit Card'
-      : isDeposit ? `Deposit ${depositPct}% (${depositMethod === 'credit_card' ? 'Card' : 'Bank Transfer'})`
+    const paymentLabel = paymentMethod === 'wallet' ? t('outsider:quickBooking.confirm.paymentWallet')
+      : paymentMethod === 'credit_card' ? t('outsider:quickBooking.confirm.paymentCreditCard')
+      : isDeposit ? t('outsider:quickBooking.confirm.paymentDeposit', {
+          percent: depositPct,
+          method: depositMethod === 'credit_card' ? t('outsider:quickBooking.confirm.paymentDepositCard') : t('outsider:quickBooking.confirm.paymentDepositBank'),
+        })
       : paymentMethod;
 
     const fmtDualConfirm = (eurAmt) => {
@@ -1422,32 +1433,32 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     };
 
     modal.confirm({
-      title: isDeposit ? 'Confirm Deposit Payment' : 'Confirm Purchase',
+      title: isDeposit ? t('outsider:quickBooking.confirm.payTitle') : t('outsider:quickBooking.confirm.purchaseTitle'),
       icon: <ShoppingOutlined style={{ color: '#1890ff' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
-          <p><strong>{packageData.name || serviceName || 'Package'}</strong></p>
+          <p><strong>{packageData.name || serviceName || t('outsider:quickBooking.confirm.packageFallback')}</strong></p>
           {isDeposit ? (
             <>
-              <p style={{ fontSize: 14, color: '#666', margin: '4px 0' }}>Package Total: {fmtDualConfirm(pkgPrice)}</p>
-              <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0', color: '#7c3aed' }}>Deposit Now: {fmtDualConfirm(depositAmt)}</p>
-              <p style={{ fontSize: 13, color: '#888' }}>Remaining {fmtDualConfirm(remainAmt)} due on arrival</p>
+              <p style={{ fontSize: 14, color: '#666', margin: '4px 0' }}>{t('outsider:quickBooking.confirm.packageTotal')}: {fmtDualConfirm(pkgPrice)}</p>
+              <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0', color: '#7c3aed' }}>{t('outsider:quickBooking.confirm.depositNow')}: {fmtDualConfirm(depositAmt)}</p>
+              <p style={{ fontSize: 13, color: '#888' }}>{t('outsider:quickBooking.confirm.remainingOnArrival', { amount: fmtDualConfirm(remainAmt) })}</p>
             </>
           ) : (
             <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(pkgPrice, pkgCurrency)}</p>
           )}
-          <p style={{ color: '#888' }}>Payment: {paymentLabel}</p>
+          <p style={{ color: '#888' }}>{t('outsider:quickBooking.confirm.paymentLabel', { method: paymentLabel })}</p>
         </div>
       ),
-      okText: isDeposit ? 'Confirm Deposit' : 'Confirm & Pay',
-      cancelText: 'Go Back',
+      okText: isDeposit ? t('outsider:quickBooking.confirm.payDeposit', { amount: fmtDualConfirm(depositAmt) }) : t('outsider:quickBooking.confirm.confirmPay'),
+      cancelText: t('outsider:quickBooking.confirm.goBack'),
       centered: true,
       onOk: async () => {
         setPurchasing(true);
         let receiptUrl = null;
         if (isBankLike) {
           if (fileList.length === 0) {
-            message.error('Please upload a proof of payment (receipt/dekont)');
+            message.error(t('outsider:quickBooking.toasts.receiptRequired'));
             setPurchasing(false);
             return;
           }
@@ -1472,7 +1483,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
         });
       },
     });
-  }, [packageData, studentId, paymentMethod, depositMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName, modal, selectedBankAccountId, fileList, displayPrice, priceCurrency, proRataTotalHours]);
+  }, [packageData, studentId, paymentMethod, depositMethod, purchaseMutation, userCurrency, convertCurrency, formatCurrency, serviceName, modal, selectedBankAccountId, fileList, displayPrice, priceCurrency, proRataTotalHours, t]);
 
   const executeBookSessions = useCallback(async () => {
     const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
@@ -1482,7 +1493,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     let receiptUrl = null;
     if (isStandalone && isBankLike) {
       if (fileList.length === 0) {
-        message.error('Please upload a proof of payment (receipt/dekont)');
+        message.error(t('outsider:quickBooking.toasts.receiptRequired'));
         setBookingInProgress(false);
         return;
       }
@@ -1563,14 +1574,14 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
 
       message.success(
         includePartner && partnerData
-          ? `Invite sent! ${partnerData.partnerName || 'Your partner'} will be notified to accept.`
-          : `${successCount} session${successCount > 1 ? 's' : ''} booked!`
+          ? t('outsider:quickBooking.toasts.inviteSent', { name: partnerData.partnerName || 'Your partner' })
+          : t('outsider:quickBooking.toasts.sessionsBooked', { count: successCount })
       );
       setStep(2);
     }
 
     setBookingInProgress(false);
-  }, [sessions, studentId, selectedInstructorId, serviceId, activeDurationHours, packageData, purchasedPackage, isStandalone, servicePrice, serviceName, paymentMethod, depositMethod, queryClient, message, includePartner, partnerData]);
+  }, [sessions, studentId, selectedInstructorId, serviceId, activeDurationHours, packageData, purchasedPackage, isStandalone, servicePrice, serviceName, paymentMethod, depositMethod, queryClient, message, includePartner, partnerData, t]);
 
   const handleBookSessions = useCallback(() => {
     const validSessions = sessions.filter(s => s.date?.isValid() && s.time);
@@ -1578,13 +1589,13 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
     const selectedInstr = (instructorsData || []).find(i => i.id === selectedInstructorId);
     const instructorName = selectedInstr?.name || `${selectedInstr?.first_name || ''} ${selectedInstr?.last_name || ''}`.trim() || 'Selected instructor';
     modal.confirm({
-      title: 'Confirm Booking',
+      title: t('outsider:quickBooking.confirm.bookingTitle'),
       icon: <CalendarOutlined style={{ color: '#1890ff' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
           <p><strong>{serviceName || packageData?.name || 'Lesson'}</strong></p>
-          <p style={{ color: '#555' }}>Instructor: {instructorName}</p>
-          <p style={{ color: '#555' }}>Duration: {formatDurationLabel(activeDurationMinutes)} per session</p>
+          <p style={{ color: '#555' }}>{t('outsider:quickBooking.confirm.instructorLabel')} {instructorName}</p>
+          <p style={{ color: '#555' }}>{t('outsider:quickBooking.confirm.durationLabel', { duration: formatDurationLabel(activeDurationMinutes) })}</p>
           {includePartner && partnerData && (
             <p style={{ color: '#7c3aed', fontWeight: 600 }}>
               <TeamOutlined style={{ marginRight: 4 }} />
@@ -1601,12 +1612,12 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           {isStandalone && servicePrice > 0 && <p style={{ fontSize: 16, fontWeight: 700 }}>{formatCurrency(servicePrice * validSessions.length, userCurrency)}</p>}
         </div>
       ),
-      okText: `Book ${validSessions.length} Session${validSessions.length > 1 ? 's' : ''}`,
-      cancelText: 'Go Back',
+      okText: t('outsider:quickBooking.confirm.bookSessions', { count: validSessions.length }),
+      cancelText: t('outsider:quickBooking.confirm.bookGoBack'),
       centered: true,
       onOk: executeBookSessions,
     });
-  }, [sessions, studentId, selectedInstructorId, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSessions, modal, includePartner, partnerData]);
+  }, [sessions, studentId, selectedInstructorId, instructorsData, serviceName, packageData, activeDurationMinutes, isStandalone, servicePrice, formatCurrency, userCurrency, executeBookSessions, modal, includePartner, partnerData, t]);
 
   const handleSkipSchedule = useCallback(() => {
     setSkipSchedule(true);
@@ -1669,16 +1680,16 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
 
   // Dynamic step titles based on whether user already owns the package
   const stepTitles = isExistingPackage
-    ? ['—', 'Schedule Session', 'Complete']
-    : ['Review & Pay', 'Schedule Session', 'Complete'];
+    ? ['—', t('outsider:quickBooking.steps.schedule'), t('outsider:quickBooking.steps.complete')]
+    : [t('outsider:quickBooking.steps.reviewPay'), t('outsider:quickBooking.steps.schedule'), t('outsider:quickBooking.steps.complete')];
   const activeTitle = groupPartnerMode
-    ? (isExistingPackage && matchingOwnedPackage ? 'Your Group Package' : 'Find a Partner')
-    : (stepTitles[step] || 'Quick Booking');
+    ? (isExistingPackage && matchingOwnedPackage ? t('outsider:quickBooking.steps.groupPackage') : t('outsider:quickBooking.steps.findPartner'))
+    : (stepTitles[step] || t('outsider:quickBooking.steps.title'));
 
   // Number of visible steps for the progress indicator
   const visibleSteps = isExistingPackage
-    ? [{ title: 'Schedule Session', idx: 1 }, { title: 'Complete', idx: 2 }]
-    : [{ title: 'Review & Pay', idx: 0 }, { title: 'Schedule Session', idx: 1 }, { title: 'Complete', idx: 2 }];
+    ? [{ title: t('outsider:quickBooking.steps.schedule'), idx: 1 }, { title: t('outsider:quickBooking.steps.complete'), idx: 2 }]
+    : [{ title: t('outsider:quickBooking.steps.reviewPay'), idx: 0 }, { title: t('outsider:quickBooking.steps.schedule'), idx: 1 }, { title: t('outsider:quickBooking.steps.complete'), idx: 2 }];
 
   return (
     <>
@@ -1706,7 +1717,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
               {activeTitle}
             </h3>
             <p className="text-[10px] sm:text-xs text-slate-400 leading-tight mt-0.5">
-              {groupPartnerMode ? 'Group lesson setup' : `Step ${visibleSteps.findIndex(s => s.idx === step) + 1} of ${visibleSteps.length}`}
+              {groupPartnerMode ? t('outsider:quickBooking.steps.subtitle') : t('outsider:quickBooking.steps.stepOf', { current: visibleSteps.findIndex(s => s.idx === step) + 1, total: visibleSteps.length })}
             </p>
           </div>
           {/* Progress bar */}

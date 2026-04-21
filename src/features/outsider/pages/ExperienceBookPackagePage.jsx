@@ -7,6 +7,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { App, Card, Typography, Button, Row, Col, Tag, Divider, Spin, Empty } from 'antd';
 import {
   ShoppingOutlined,
@@ -27,16 +28,9 @@ import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
 const { Title, Paragraph, Text } = Typography;
 
-// Package categories - same as OutsiderBookingPage
-const PACKAGE_CATEGORIES = [
-  { key: 'lesson', label: 'Lessons', icon: '🎓', description: 'Kitesurfing & water sports lesson packages' },
-  { key: 'rental', label: 'Rental Equipment', icon: '🏄', description: 'Rent boards, kites, wetsuits & gear' },
-  { key: 'accommodation', label: 'Accommodation', icon: '🏨', description: 'Stay at our beachfront facilities' },
-  { key: 'lesson_rental', label: 'Lessons + Rental', icon: '🎯', description: 'Learn with equipment included' },
-  { key: 'accommodation_rental', label: 'Accommodation + Rental', icon: '🏖️', description: 'Combined stay and equipment rental' },
-  { key: 'accommodation_lesson', label: 'Accommodation + Lessons', icon: '🏄‍♂️', description: 'Stay and learn packages' },
-  { key: 'all_inclusive', label: 'All Inclusive', icon: '⭐', description: 'Complete package: Stay, lessons & equipment' },
-];
+// Package categories - static keys (labels translated inside component)
+const PACKAGE_CATEGORY_KEYS = ['lesson', 'rental', 'accommodation', 'lesson_rental', 'accommodation_rental', 'accommodation_lesson', 'all_inclusive'];
+const PACKAGE_CATEGORY_ICONS = { lesson: '🎓', rental: '🏄', accommodation: '🏨', lesson_rental: '🎯', accommodation_rental: '🏖️', accommodation_lesson: '🏄‍♂️', all_inclusive: '⭐' };
 
 // Helper to get package price in specific currency
 const getPackagePriceInCurrency = (pkg, targetCurrency, convertCurrencyFn) => {
@@ -76,11 +70,26 @@ const getTypeIcon = (packageType) => {
 
 const ExperienceBookPackagePage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['outsider']);
   const { refreshToken, user } = useAuth();
   const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
   const { notification } = App.useApp();
   const queryClient = useQueryClient();
   
+  // Build translated category list from JSON
+  const translatedCategories = useMemo(() => {
+    const items = t('outsider:experienceBookPackage.categories', { returnObjects: true });
+    return PACKAGE_CATEGORY_KEYS.map((key) => {
+      const found = Array.isArray(items) ? items.find(i => i.key === key) : null;
+      return {
+        key,
+        label: found?.label || key,
+        icon: PACKAGE_CATEGORY_ICONS[key] || '🎓',
+        description: found?.description || ''
+      };
+    });
+  }, [t]);
+
   // State
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
@@ -155,7 +164,7 @@ const ExperienceBookPackagePage = () => {
       }
 
       notification.success({
-        message: 'Package Purchased!',
+        message: t('outsider:experienceBookPackage.notifications.purchaseSuccess'),
         description,
         duration: roleUpgraded ? 8 : 5,
       });
@@ -174,7 +183,7 @@ const ExperienceBookPackagePage = () => {
     },
     onError: (error) => {
       notification.error({
-        message: 'Purchase Failed',
+        message: t('outsider:experienceBookPackage.notifications.purchaseError'),
         description: error.response?.data?.error || 'Failed to purchase package. Please try again.',
       });
     },
@@ -218,18 +227,18 @@ const ExperienceBookPackagePage = () => {
       <div className="text-center mb-8">
         <Title level={1} className="!mb-4">
           <ShoppingOutlined className="mr-3" />
-          Purchase a Package
+          {t('outsider:experienceBookPackage.title')}
         </Title>
         <Paragraph className="text-lg text-gray-600 max-w-3xl mx-auto">
-          Choose a package category to see available options and save money on your activities.
+          {t('outsider:experienceBookPackage.description')}
         </Paragraph>
-        
+
         {/* Wallet Balance */}
         <div className="flex items-center justify-center gap-3 mt-4">
           <div className="flex items-center gap-2 px-4 py-2 bg-sky-50 rounded-full">
             <WalletOutlined className="text-sky-600" />
             <Text strong className="text-sky-600">
-              Wallet: {formatCurrency(typeof walletSummary?.available === 'number' ? walletSummary.available : 0, userCurrency)}
+              {t('outsider:experienceBookPackage.wallet')} {formatCurrency(typeof walletSummary?.available === 'number' ? walletSummary.available : 0, userCurrency)}
             </Text>
           </div>
         </div>
@@ -239,14 +248,14 @@ const ExperienceBookPackagePage = () => {
 
       {/* Category Selection or Package List */}
       {!selectedCategory ? (
-        <CategorySelection 
-          categories={PACKAGE_CATEGORIES} 
-          onSelect={handleCategorySelect} 
+        <CategorySelection
+          categories={translatedCategories}
+          onSelect={handleCategorySelect}
         />
       ) : (
         <PackageList
           selectedCategory={selectedCategory}
-          categories={PACKAGE_CATEGORIES}
+          categories={translatedCategories}
           packages={availablePackages}
           isLoading={packagesLoading}
           onBack={handleBackToCategories}
@@ -304,9 +313,9 @@ const ExperienceBookPackagePage = () => {
 
       {/* Contact Info */}
       <Card className="text-center mt-12">
-        <Title level={3}>Need Help?</Title>
+        <Title level={3}>{t('outsider:experienceBookPackage.help.heading')}</Title>
         <Paragraph>
-          Contact us for custom packages or any questions about our offerings.
+          {t('outsider:experienceBookPackage.help.description')}
         </Paragraph>
         <div className="flex justify-center gap-4 flex-wrap">
           <Button icon={<PhoneOutlined />} href="tel:+905071389196">
@@ -322,49 +331,53 @@ const ExperienceBookPackagePage = () => {
 };
 
 // Sub-component: Category Selection Grid
-const CategorySelection = ({ categories, onSelect }) => (
-  <>
-    <Title level={2} className="text-center mb-8">Select Category</Title>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-      {categories.map((cat) => (
-        <Card
-          key={cat.key}
-          onClick={() => onSelect(cat.key)}
-          className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-sky-400 border-2 border-gray-200"
-          hoverable
-        >
-          <div className="flex items-center gap-4">
-            <div className="text-4xl">{cat.icon}</div>
-            <div className="flex-1">
-              <Title level={4} className="!mb-0">{cat.label}</Title>
-              <Text type="secondary" className="text-sm">{cat.description}</Text>
+const CategorySelection = ({ categories, onSelect }) => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <>
+      <Title level={2} className="text-center mb-8">{t('outsider:experienceBookPackage.selectCategory')}</Title>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+        {categories.map((cat) => (
+          <Card
+            key={cat.key}
+            onClick={() => onSelect(cat.key)}
+            className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-sky-400 border-2 border-gray-200"
+            hoverable
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-4xl">{cat.icon}</div>
+              <div className="flex-1">
+                <Title level={4} className="!mb-0">{cat.label}</Title>
+                <Text type="secondary" className="text-sm">{cat.description}</Text>
+              </div>
+              <Button type="primary" ghost>
+                {t('outsider:experienceBookPackage.viewPackages')}
+              </Button>
             </div>
-            <Button type="primary" ghost>
-              View Packages
-            </Button>
-          </div>
-        </Card>
-      ))}
-    </div>
-  </>
-);
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+};
 
 // Sub-component: Package List
 const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack, onSelect, getDisplayPrice, ownedByPackageId }) => {
+  const { t } = useTranslation(['outsider']);
   const currentCategory = categories.find(c => c.key === selectedCategory);
-  
+
   return (
     <>
       {/* Back Button and Category Title */}
       <div className="mb-6 flex items-center gap-4">
         <Button icon={<LeftOutlined />} onClick={onBack}>
-          Back
+          {t('outsider:experienceBookPackage.back')}
         </Button>
         <div>
           <Title level={3} className="!mb-0">
             {currentCategory?.icon} {currentCategory?.label}
           </Title>
-          <Text type="secondary">Available packages in this category</Text>
+          <Text type="secondary">{t('outsider:experienceBookPackage.availablePackages')}</Text>
         </div>
       </div>
 
@@ -372,11 +385,11 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
       {isLoading ? (
         <div className="text-center py-12">
           <Spin size="large" />
-          <Text className="block mt-4">Loading packages...</Text>
+          <Text className="block mt-4">{t('outsider:experienceBookPackage.loading')}</Text>
         </div>
       ) : !packages || packages.length === 0 ? (
-        <Empty description="No packages available in this category" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-          <Button type="primary" onClick={onBack}>← Back to categories</Button>
+        <Empty description={t('outsider:experienceBookPackage.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE}>
+          <Button type="primary" onClick={onBack}>{t('outsider:experienceBookPackage.backToCategories')}</Button>
         </Empty>
       ) : (
         <Row gutter={[24, 24]}>
@@ -394,9 +407,13 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
                 {ownedPkg && (
                   <div className="flex items-center justify-center gap-1.5 mb-3 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 mx-auto w-fit">
                     <CheckCircleOutlined className="text-emerald-600 text-xs" />
-                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Owned</span>
+                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+                      {t('outsider:experienceBookPackage.packageCard.owned')}
+                    </span>
                     {ownedRemaining > 0 && (
-                      <span className="text-xs text-emerald-500 ml-1">· {ownedRemaining}h left</span>
+                      <span className="text-xs text-emerald-500 ml-1">
+                        · {t('outsider:experienceBookPackage.packageCard.hoursLeft', { hours: ownedRemaining })}
+                      </span>
                     )}
                   </div>
                 )}
@@ -419,14 +436,20 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
                 <div className="text-center mb-4">
                   {ownedPkg ? (
                     <>
-                      <Text className="text-sm text-emerald-600 font-semibold">You Own This</Text>
+                      <Text className="text-sm text-emerald-600 font-semibold">
+                        {t('outsider:experienceBookPackage.packageCard.youOwnThis')}
+                      </Text>
                       <div>
-                        <Text type="secondary" className="text-xs">Buy again for more hours</Text>
+                        <Text type="secondary" className="text-xs">
+                          {t('outsider:experienceBookPackage.packageCard.buyAgainPrompt')}
+                        </Text>
                       </div>
                     </>
                   ) : (
                     <>
-                      <Text type="secondary" className="text-sm">Price</Text>
+                      <Text type="secondary" className="text-sm">
+                        {t('outsider:experienceBookPackage.packageCard.price')}
+                      </Text>
                       <div>
                         <Text strong className="text-2xl text-sky-600">
                           {getDisplayPrice(pkg)}
@@ -441,7 +464,9 @@ const PackageList = ({ selectedCategory, categories, packages, isLoading, onBack
                   onClick={() => onSelect(pkg)}
                   className={ownedPkg ? '!bg-emerald-500 !border-emerald-500 hover:!bg-emerald-400' : ''}
                 >
-                  {ownedPkg ? 'Buy Again' : 'Purchase'}
+                  {ownedPkg
+                    ? t('outsider:experienceBookPackage.packageCard.buyAgain')
+                    : t('outsider:experienceBookPackage.packageCard.purchase')}
                 </Button>
               </Card>
             </Col>

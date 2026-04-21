@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   App,
   Button,
@@ -21,49 +22,25 @@ import waiverAdminApi from '../api/waiverAdminApi';
 
 const { Title, Text } = Typography;
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'valid', label: 'Valid' },
-  { value: 'outdated', label: 'Needs Re-sign' },
-  { value: 'expired', label: 'Expired' },
-  { value: 'missing', label: 'Not Signed' },
-  { value: 'pending', label: 'Pending (missing/expired/outdated)' }
-];
-
-const TYPE_FILTERS = [
-  { value: 'all', label: 'All subjects' },
-  { value: 'user', label: 'Students' },
-  { value: 'family', label: 'Family Members' }
-];
-
-const SORT_OPTIONS = [
-  { value: 'name-asc', label: 'Name A → Z' },
-  { value: 'name-desc', label: 'Name Z → A' },
-  { value: 'signedAt-desc', label: 'Most Recently Signed' },
-  { value: 'signedAt-asc', label: 'Oldest Signatures' },
-  { value: 'status-asc', label: 'Status (Valid first)' },
-  { value: 'status-desc', label: 'Status (Missing first)' }
-];
-
-const STATUS_TAG = {
-  valid: { color: 'green', label: 'Valid' },
-  outdated: { color: 'orange', label: 'Needs Re-sign' },
-  expired: { color: 'red', label: 'Expired' },
-  missing: { color: 'default', label: 'Not Signed' }
-};
-
 const formatDateTime = (value) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '—');
 
 const WaiverMobileCard = ({ record, onView }) => {
+  const { t } = useTranslation(['admin']);
+  const STATUS_TAG = {
+    valid: { color: 'green', label: t('admin:waivers.status.valid') },
+    outdated: { color: 'orange', label: t('admin:waivers.status.outdated') },
+    expired: { color: 'red', label: t('admin:waivers.status.expired') },
+    missing: { color: 'default', label: t('admin:waivers.status.missing') }
+  };
   const meta = STATUS_TAG[record.status] || STATUS_TAG.missing;
   const isFamily = record.subjectType !== 'user';
-  
+
   return (
-    <Card 
-      size="small" 
+    <Card
+      size="small"
       className="mb-3 border-gray-100 shadow-sm"
       actions={[
-        <Button key="view" block type="primary" ghost onClick={() => onView(record)}>View Details</Button>
+        <Button key="view" block type="primary" ghost onClick={() => onView(record)}>{t('admin:waivers.mobileCard.viewDetails')}</Button>
       ]}
     >
       <div className="flex justify-between items-start mb-3">
@@ -72,29 +49,29 @@ const WaiverMobileCard = ({ record, onView }) => {
              <Text strong className="text-lg">{record.name}</Text>
              <Tag color={meta.color}>{meta.label}</Tag>
           </div>
-          <Text type="secondary">{isFamily ? 'Family Member' : 'Student'}</Text>
+          <Text type="secondary">{isFamily ? t('admin:waivers.table.familyMember') : t('admin:waivers.table.student')}</Text>
         </Space>
       </div>
 
       <div className="flex flex-col gap-2 mb-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Signed:</span>
+          <span className="text-gray-500">{t('admin:waivers.mobileCard.signed')}</span>
           <span>{formatDateTime(record.signedAt)}</span>
         </div>
-        
+
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Version:</span>
+          <span className="text-gray-500">{t('admin:waivers.mobileCard.version')}</span>
           <Space>
             <span>{record.waiverVersion || '—'}</span>
             {record.latestVersion && record.latestVersion !== record.waiverVersion && (
-              <Tag color="orange">New: {record.latestVersion}</Tag>
+              <Tag color="orange">{t('admin:waivers.mobileCard.newVersion', { version: record.latestVersion })}</Tag>
             )}
           </Space>
         </div>
 
         {isFamily && (
           <div className="flex justify-between text-sm border-t pt-2 mt-1">
-            <span className="text-gray-500">Parent:</span>
+            <span className="text-gray-500">{t('admin:waivers.mobileCard.parent')}</span>
             <div className="text-right">
               {record.parent ? (
                  <Space direction="vertical" size={0} align="end">
@@ -102,7 +79,7 @@ const WaiverMobileCard = ({ record, onView }) => {
                   {record.parent.email && <Text type="secondary" className="text-xs">{record.parent.email}</Text>}
                 </Space>
               ) : (
-                <Text type="secondary">No record</Text>
+                <Text type="secondary">{t('admin:waivers.mobileCard.noRecord')}</Text>
               )}
             </div>
           </div>
@@ -172,6 +149,7 @@ const useWaiverFilters = () => {
 };
 
 const useWaiverData = (queryParams, statsParams) => {
+  const { t } = useTranslation(['admin']);
   const { message } = App.useApp();
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
@@ -186,11 +164,11 @@ const useWaiverData = (queryParams, statsParams) => {
       setRows(response?.data ?? []);
       setPagination(response?.pagination ?? DEFAULT_PAGINATION);
     } catch (error) {
-      message.error(error.message || 'Failed to load waivers');
+      message.error(error.message || t('admin:waivers.toast.loadError'));
     } finally {
       setListLoading(false);
     }
-  }, [message, queryParams]);
+  }, [message, queryParams, t]);
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
@@ -198,11 +176,11 @@ const useWaiverData = (queryParams, statsParams) => {
       const data = await waiverAdminApi.stats(statsParams);
       setStats(data ?? null);
     } catch (error) {
-      message.error(error.message || 'Failed to load waiver statistics');
+      message.error(error.message || t('admin:waivers.toast.statsError'));
     } finally {
       setStatsLoading(false);
     }
-  }, [message, statsParams]);
+  }, [message, statsParams, t]);
 
   useEffect(() => {
     fetchList();
@@ -223,6 +201,7 @@ const useWaiverData = (queryParams, statsParams) => {
 };
 
 const useWaiverExport = (exportParams) => {
+  const { t } = useTranslation(['admin']);
   const { message } = App.useApp();
   const [exporting, setExporting] = useState(false);
 
@@ -238,13 +217,13 @@ const useWaiverExport = (exportParams) => {
       link.click();
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
-      message.success('Waiver export downloaded');
+      message.success(t('admin:waivers.toast.exportSuccess'));
     } catch (error) {
-      message.error(error.message || 'Failed to export waiver data');
+      message.error(error.message || t('admin:waivers.toast.exportError'));
     } finally {
       setExporting(false);
     }
-  }, [exportParams, message]);
+  }, [exportParams, message, t]);
 
   return { exporting, exportCsv };
 };
@@ -262,75 +241,84 @@ const resolveSortValue = (filters) => {
   return 'name-asc';
 };
 
-const createColumns = (onView) => ([
-  {
-    title: 'Name',
-    dataIndex: 'name',
-    key: 'name',
-    render: (value, record) => (
-      <Space direction="vertical" size={0}>
-        <Text strong>{value}</Text>
-        <Text type="secondary">{record.subjectType === 'user' ? 'Student' : 'Family Member'}</Text>
-      </Space>
-    )
-  },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    key: 'status',
-    render: (value) => {
-      const meta = STATUS_TAG[value] || STATUS_TAG.missing;
-      return <Tag color={meta.color}>{meta.label}</Tag>;
-    }
-  },
-  {
-    title: 'Signed At',
-    dataIndex: 'signedAt',
-    key: 'signedAt',
-    render: formatDateTime
-  },
-  {
-    title: 'Version',
-    dataIndex: 'waiverVersion',
-    key: 'waiverVersion',
-    render: (value, record) => (
-      <Space>
-        <span>{value || '—'}</span>
-        {record.latestVersion && record.latestVersion !== value && (
-          <Tag color="orange">Latest: {record.latestVersion}</Tag>
-        )}
-      </Space>
-    )
-  },
-  {
-    title: 'Parent / Contact',
-    dataIndex: 'parent',
-    key: 'parent',
-    render: (parent, record) => {
-      if (record.subjectType === 'user') {
-        return '—';
-      }
-      if (!parent) {
-        return <Text type="secondary">No parent on record</Text>;
-      }
-      return (
+const useColumns = (onView) => {
+  const { t } = useTranslation(['admin']);
+  const STATUS_TAG = useMemo(() => ({
+    valid: { color: 'green', label: t('admin:waivers.status.valid') },
+    outdated: { color: 'orange', label: t('admin:waivers.status.outdated') },
+    expired: { color: 'red', label: t('admin:waivers.status.expired') },
+    missing: { color: 'default', label: t('admin:waivers.status.missing') }
+  }), [t]);
+  return useMemo(() => ([
+    {
+      title: t('admin:waivers.table.name'),
+      dataIndex: 'name',
+      key: 'name',
+      render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Text>{parent.name || '—'}</Text>
-          {parent.email && <Text type="secondary">{parent.email}</Text>}
+          <Text strong>{value}</Text>
+          <Text type="secondary">{record.subjectType === 'user' ? t('admin:waivers.table.student') : t('admin:waivers.table.familyMember')}</Text>
         </Space>
-      );
+      )
+    },
+    {
+      title: t('admin:waivers.table.status'),
+      dataIndex: 'status',
+      key: 'status',
+      render: (value) => {
+        const meta = STATUS_TAG[value] || STATUS_TAG.missing;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      }
+    },
+    {
+      title: t('admin:waivers.table.signedAt'),
+      dataIndex: 'signedAt',
+      key: 'signedAt',
+      render: formatDateTime
+    },
+    {
+      title: t('admin:waivers.table.version'),
+      dataIndex: 'waiverVersion',
+      key: 'waiverVersion',
+      render: (value, record) => (
+        <Space>
+          <span>{value || '—'}</span>
+          {record.latestVersion && record.latestVersion !== value && (
+            <Tag color="orange">{t('admin:waivers.table.latestVersion', { version: record.latestVersion })}</Tag>
+          )}
+        </Space>
+      )
+    },
+    {
+      title: t('admin:waivers.table.parentContact'),
+      dataIndex: 'parent',
+      key: 'parent',
+      render: (parent, record) => {
+        if (record.subjectType === 'user') {
+          return '—';
+        }
+        if (!parent) {
+          return <Text type="secondary">{t('admin:waivers.table.noParent')}</Text>;
+        }
+        return (
+          <Space direction="vertical" size={0}>
+            <Text>{parent.name || '—'}</Text>
+            {parent.email && <Text type="secondary">{parent.email}</Text>}
+          </Space>
+        );
+      }
+    },
+    {
+      title: t('admin:waivers.table.actions'),
+      key: 'actions',
+      render: (_, record) => (
+        <Button type="link" onClick={() => onView(record)}>
+          {t('admin:waivers.table.view')}
+        </Button>
+      )
     }
-  },
-  {
-    title: 'Actions',
-    key: 'actions',
-    render: (_, record) => (
-      <Button type="link" onClick={() => onView(record)}>
-        View
-      </Button>
-    )
-  }
-]);
+  ]), [t, STATUS_TAG, onView]);
+};
 
 const WaiverFiltersToolbar = ({
   searchInput,
@@ -345,68 +333,95 @@ const WaiverFiltersToolbar = ({
   onExport,
   loading,
   exporting
-}) => (
-  <Card>
-    <Row gutter={[16, 16]} align="middle">
-      <Col xs={24} md={10} lg={8}>
-        <Input
-          placeholder="Search by name or email"
-          allowClear
-          value={searchInput}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-      </Col>
-      <Col xs={24} sm={12} md={7} lg={6}>
-        <Select
-          className="w-full"
-          options={STATUS_FILTERS}
-          value={status}
-          onChange={onStatusChange}
-        />
-      </Col>
-      <Col xs={24} sm={12} md={7} lg={6}>
-        <Select
-          className="w-full"
-          options={TYPE_FILTERS}
-          value={subjectType}
-          onChange={onSubjectTypeChange}
-        />
-      </Col>
-      <Col xs={24} sm={12} md={6} lg={4}>
-        <Select
-          className="w-full"
-          options={SORT_OPTIONS}
-          value={sortValue}
-          onChange={onSortChange}
-        />
-      </Col>
-      <Col xs={24} sm={12} md={6} lg={4}>
-        <Space className="w-full" wrap>
-          <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
-            Refresh
-          </Button>
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={onExport}
-            loading={exporting}
-          >
-            Export CSV
-          </Button>
-        </Space>
-      </Col>
-    </Row>
-  </Card>
-);
+}) => {
+  const { t } = useTranslation(['admin']);
+  const STATUS_FILTERS = [
+    { value: 'all', label: t('admin:waivers.status.all') },
+    { value: 'valid', label: t('admin:waivers.status.valid') },
+    { value: 'outdated', label: t('admin:waivers.status.outdated') },
+    { value: 'expired', label: t('admin:waivers.status.expired') },
+    { value: 'missing', label: t('admin:waivers.status.missing') },
+    { value: 'pending', label: t('admin:waivers.status.pending') }
+  ];
+  const TYPE_FILTERS = [
+    { value: 'all', label: t('admin:waivers.subjectType.all') },
+    { value: 'user', label: t('admin:waivers.subjectType.user') },
+    { value: 'family', label: t('admin:waivers.subjectType.family') }
+  ];
+  const SORT_OPTIONS = [
+    { value: 'name-asc', label: t('admin:waivers.sort.nameAsc') },
+    { value: 'name-desc', label: t('admin:waivers.sort.nameDesc') },
+    { value: 'signedAt-desc', label: t('admin:waivers.sort.signedAtDesc') },
+    { value: 'signedAt-asc', label: t('admin:waivers.sort.signedAtAsc') },
+    { value: 'status-asc', label: t('admin:waivers.sort.statusAsc') },
+    { value: 'status-desc', label: t('admin:waivers.sort.statusDesc') }
+  ];
+  return (
+    <Card>
+      <Row gutter={[16, 16]} align="middle">
+        <Col xs={24} md={10} lg={8}>
+          <Input
+            placeholder={t('admin:waivers.filters.searchPlaceholder')}
+            allowClear
+            value={searchInput}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </Col>
+        <Col xs={24} sm={12} md={7} lg={6}>
+          <Select
+            className="w-full"
+            options={STATUS_FILTERS}
+            value={status}
+            onChange={onStatusChange}
+          />
+        </Col>
+        <Col xs={24} sm={12} md={7} lg={6}>
+          <Select
+            className="w-full"
+            options={TYPE_FILTERS}
+            value={subjectType}
+            onChange={onSubjectTypeChange}
+          />
+        </Col>
+        <Col xs={24} sm={12} md={6} lg={4}>
+          <Select
+            className="w-full"
+            options={SORT_OPTIONS}
+            value={sortValue}
+            onChange={onSortChange}
+          />
+        </Col>
+        <Col xs={24} sm={12} md={6} lg={4}>
+          <Space className="w-full" wrap>
+            <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
+              {t('admin:waivers.filters.refresh')}
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={onExport}
+              loading={exporting}
+            >
+              {t('admin:waivers.filters.exportCsv')}
+            </Button>
+          </Space>
+        </Col>
+      </Row>
+    </Card>
+  );
+};
 
-const StatusBreakdown = ({ breakdown }) => (
-  <Space wrap>
-    <Tag color="green">Valid: {breakdown.valid ?? 0}</Tag>
-    <Tag color="orange">Outdated: {breakdown.outdated ?? 0}</Tag>
-    <Tag color="red">Expired: {breakdown.expired ?? 0}</Tag>
-    <Tag color="default">Missing: {breakdown.missing ?? 0}</Tag>
-  </Space>
-);
+const StatusBreakdown = ({ breakdown }) => {
+  const { t } = useTranslation(['admin']);
+  return (
+    <Space wrap>
+      <Tag color="green">{t('admin:waivers.stats.valid', { count: breakdown.valid ?? 0 })}</Tag>
+      <Tag color="orange">{t('admin:waivers.stats.outdated', { count: breakdown.outdated ?? 0 })}</Tag>
+      <Tag color="red">{t('admin:waivers.stats.expired', { count: breakdown.expired ?? 0 })}</Tag>
+      <Tag color="default">{t('admin:waivers.stats.missing', { count: breakdown.missing ?? 0 })}</Tag>
+    </Space>
+  );
+};
 
 const SummaryCard = ({ title, value, suffix, loading }) => (
   <Col xs={24} md={12} lg={6}>
@@ -417,11 +432,12 @@ const SummaryCard = ({ title, value, suffix, loading }) => (
 );
 
 const SummaryCards = ({ stats, loading }) => {
+  const { t } = useTranslation(['admin']);
   const totalSubjects = stats?.totals?.subjects ?? 0;
   const config = [
-    { key: 'subjects', title: 'Total Subjects', value: totalSubjects },
-    { key: 'signed', title: 'Signed', value: stats?.valid?.overall ?? 0, suffix: `/ ${totalSubjects}` },
-    { key: 'pending', title: 'Pending', value: stats?.pending?.overall ?? 0 }
+    { key: 'subjects', title: t('admin:waivers.stats.totalSubjects'), value: totalSubjects },
+    { key: 'signed', title: t('admin:waivers.stats.signed'), value: stats?.valid?.overall ?? 0, suffix: `/ ${totalSubjects}` },
+    { key: 'pending', title: t('admin:waivers.stats.pending'), value: stats?.pending?.overall ?? 0 }
   ];
 
   return config.map((card) => (
@@ -435,17 +451,20 @@ const SummaryCards = ({ stats, loading }) => {
   ));
 };
 
-const CompletionCard = ({ completionRate, breakdown, loading }) => (
-  <Col xs={24} md={12} lg={6}>
-    <Card loading={loading}>
-      <Space direction="vertical" className="w-full" size="small">
-        <Text type="secondary">Completion Rate</Text>
-        <Progress percent={completionRate} status="active" />
-        <StatusBreakdown breakdown={breakdown} />
-      </Space>
-    </Card>
-  </Col>
-);
+const CompletionCard = ({ completionRate, breakdown, loading }) => {
+  const { t } = useTranslation(['admin']);
+  return (
+    <Col xs={24} md={12} lg={6}>
+      <Card loading={loading}>
+        <Space direction="vertical" className="w-full" size="small">
+          <Text type="secondary">{t('admin:waivers.stats.completionRate')}</Text>
+          <Progress percent={completionRate} status="active" />
+          <StatusBreakdown breakdown={breakdown} />
+        </Space>
+      </Card>
+    </Col>
+  );
+};
 
 const WaiverStatsGrid = ({ stats, loading }) => {
   const completionRate = stats?.completionRate ?? 0;
@@ -460,6 +479,7 @@ const WaiverStatsGrid = ({ stats, loading }) => {
 };
 
 const WaiverManagement = () => {
+  const { t } = useTranslation(['admin']);
   const { filters, setFilters, searchInput, setSearchInput, queryParams, statsParams } = useWaiverFilters();
   const exportParams = useMemo(() => ({
     ...statsParams,
@@ -490,15 +510,16 @@ const WaiverManagement = () => {
 
   const currentSortValue = useMemo(() => resolveSortValue(filters), [filters]);
 
-  const columns = useMemo(() => createColumns((record) => setViewer({ open: true, record })), [setViewer]);
+  const handleView = useCallback((record) => setViewer({ open: true, record }), []);
+  const columns = useColumns(handleView);
 
   return (
     <div className="p-4 md:p-6">
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Space direction="vertical" className="w-full">
-            <Title level={3} style={{ margin: 0 }}>Waiver Management</Title>
-            <Text type="secondary">Search, audit, and export signed waivers across students and family members.</Text>
+            <Title level={3} style={{ margin: 0 }}>{t('admin:waivers.title')}</Title>
+            <Text type="secondary">{t('admin:waivers.subtitle')}</Text>
           </Space>
         </Col>
 
@@ -538,9 +559,9 @@ const WaiverManagement = () => {
               }}
               onChange={handleTableChange}
               mobileCardRenderer={(props) => (
-                <WaiverMobileCard 
-                  {...props} 
-                  onView={(record) => setViewer({ open: true, record })} 
+                <WaiverMobileCard
+                  {...props}
+                  onView={(record) => setViewer({ open: true, record })}
                 />
               )}
             />

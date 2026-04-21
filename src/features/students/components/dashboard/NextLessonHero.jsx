@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { CalendarDaysIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
@@ -44,6 +45,7 @@ const parseSessionDate = (session) => {
 
 const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   const sessionDate = useMemo(() => parseSessionDate(nextSession), [nextSession]);
 
   if (!nextSession) {
@@ -54,8 +56,8 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
             <CalendarDaysIcon className="h-7 w-7 text-[#00a8c4]" />
           </div>
           <div className="flex-1">
-            <h2 className="font-duotone-bold-extended text-xl text-slate-900">Your kite is waiting</h2>
-            <p className="mt-1 font-duotone-regular text-sm text-slate-500">No lessons on the horizon yet — book one to get started.</p>
+            <h2 className="font-duotone-bold-extended text-xl text-slate-900">{t('student:dashboard.nextLesson.noLesson.heading')}</h2>
+            <p className="mt-1 font-duotone-regular text-sm text-slate-500">{t('student:dashboard.nextLesson.noLesson.body')}</p>
           </div>
         </div>
       </section>
@@ -66,9 +68,9 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
     <section className="rounded-3xl border border-slate-200/60 bg-gradient-to-br from-sky-50 via-white to-emerald-50/30 p-6 shadow-sm sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 space-y-3">
-          <p className="font-gotham-medium text-[10px] uppercase tracking-widest text-[#00a8c4]">Next lesson</p>
+          <p className="font-gotham-medium text-[10px] uppercase tracking-widest text-[#00a8c4]">{t('student:dashboard.nextLesson.label')}</p>
           <h2 className="font-duotone-bold-extended text-2xl text-slate-900 sm:text-3xl">
-            {sessionDate ? format(sessionDate, 'EEEE, MMM d') : 'Coming soon'}
+            {sessionDate ? format(sessionDate, 'EEEE, MMM d') : t('student:dashboard.nextLesson.comingSoon')}
           </h2>
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
             {sessionDate && (
@@ -92,7 +94,7 @@ const NextLessonHero = ({ nextSession, completionPercent = 0 }) => {
         </div>
         <div className="flex flex-col items-center gap-2">
           <ProgressRing percent={completionPercent} />
-          <span className="font-gotham-medium text-[10px] uppercase tracking-widest text-slate-400">Progress</span>
+          <span className="font-gotham-medium text-[10px] uppercase tracking-widest text-slate-400">{t('student:dashboard.nextLesson.progressLabel')}</span>
         </div>
       </div>
     </section>

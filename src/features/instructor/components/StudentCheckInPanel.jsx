@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
+
 const StudentCheckInPanel = ({ students = [], loading = false, onSelect }) => {
+  const { t } = useTranslation(['instructor']);
   const placeholders = Array.from({ length: 4 }, (_, index) => `placeholder-${index}`);
 
   return (
     <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5 space-y-2 sm:space-y-3">
       <header>
-        <h2 className="text-sm sm:text-base font-semibold text-slate-900">Students to check in</h2>
-        <p className="text-[10px] sm:text-xs text-slate-400">Reconnect with inactive learners.</p>
+        <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:students.checkIn')}</h2>
+        <p className="text-[10px] sm:text-xs text-slate-400">{t('instructor:students.reconnect')}</p>
       </header>
 
       {loading && !students.length ? (
@@ -16,7 +19,7 @@ const StudentCheckInPanel = ({ students = [], loading = false, onSelect }) => {
         </div>
       ) : !students.length ? (
         <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-3 text-center">
-          <p className="text-xs sm:text-sm text-emerald-700">Great job! Everyone has booked recently.</p>
+          <p className="text-xs sm:text-sm text-emerald-700">{t('instructor:students.allBookedRecently')}</p>
         </div>
       ) : (
         <ul className="space-y-1.5 sm:space-y-2">
@@ -31,13 +34,13 @@ const StudentCheckInPanel = ({ students = [], loading = false, onSelect }) => {
                     <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">{student.name}</p>
                     <p className="text-[10px] sm:text-xs text-slate-400">
                       {student.lastLessonAt
-                        ? `Last ${new Date(student.lastLessonAt).toLocaleDateString()}`
-                        : 'No lessons yet'}
+                        ? t('instructor:students.lastLesson', { date: new Date(student.lastLessonAt).toLocaleDateString() })
+                        : t('instructor:students.noLessonsYet')}
                     </p>
                   </div>
                 </div>
                 <div className="text-right text-[10px] sm:text-xs text-slate-400 tabular-nums shrink-0 ml-2">
-                  <p>{student.completedLessons} lessons</p>
+                  <p>{student.completedLessons} {t('instructor:students.lessons')}</p>
                   <p>{student.totalHours}h</p>
                 </div>
               </div>
@@ -47,7 +50,7 @@ const StudentCheckInPanel = ({ students = [], loading = false, onSelect }) => {
                   onClick={() => onSelect?.(student.studentId)}
                   className="inline-flex items-center rounded-md bg-sky-500 hover:bg-sky-600 active:scale-95 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium transition shadow-sm shadow-sky-500/20"
                 >
-                  View
+                  {t('instructor:students.view')}
                 </button>
                 <button
                   type="button"
@@ -60,7 +63,7 @@ const StudentCheckInPanel = ({ students = [], loading = false, onSelect }) => {
                     }
                   }}
                 >
-                  Message
+                  {t('instructor:students.message')}
                 </button>
               </div>
             </li>

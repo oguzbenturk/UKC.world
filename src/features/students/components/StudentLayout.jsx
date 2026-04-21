@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { featureFlags } from '@/shared/config/featureFlags';
 import { useStudentDashboard } from '../hooks/useStudentDashboard';
@@ -7,26 +8,31 @@ import StudentBookingWizard from './StudentBookingWizard';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 
-const StudentPortalDisabled = () => (
-  <div className="mx-auto max-w-4xl px-4 py-10">
-    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-      <h1 className="text-2xl font-duotone-bold-extended text-slate-900 dark:text-white">Student portal is disabled</h1>
-      <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-        Your account is active, but the student portal isn&apos;t available yet. Please contact the school if you
-        believe this is a mistake.
-      </p>
+const StudentPortalDisabled = () => {
+  const { t } = useTranslation(['student']);
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+        <h1 className="text-2xl font-duotone-bold-extended text-slate-900 dark:text-white">{t('student:layout.portalDisabled.heading')}</h1>
+        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+          {t('student:layout.portalDisabled.body')}
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-const StudentWelcome = ({ firstName }) => (
-  <div className="rounded-3xl border border-slate-200 bg-white px-8 py-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-    <h1 className="text-3xl font-duotone-bold-extended text-slate-900 dark:text-white">
-      Welcome, {firstName}
-    </h1>
-    <div className="mt-3 h-0.5 w-10 rounded-full bg-sky-400" />
-  </div>
-);
+const StudentWelcome = ({ firstName }) => {
+  const { t } = useTranslation(['student']);
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-8 py-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
+      <h1 className="text-3xl font-duotone-bold-extended text-slate-900 dark:text-white">
+        {t('student:layout.welcome', { name: firstName })}
+      </h1>
+      <div className="mt-3 h-0.5 w-10 rounded-full bg-sky-400" />
+    </div>
+  );
+};
 
 const StudentLayout = () => {
   const { user } = useAuth();

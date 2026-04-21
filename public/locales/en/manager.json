@@ -1,0 +1,751 @@
+{
+  "dashboard": {
+    "title": "My Earnings",
+    "salaryTypes": {
+      "commission": "Commission Based",
+      "fixed_per_lesson": "Per Lesson",
+      "monthly_salary": "Monthly Salary"
+    },
+    "stats": {
+      "thisMonth": "This Month",
+      "pendingPayout": "Pending Payout",
+      "yearToDate": "Year to Date",
+      "vsLastMonth": "vs Last Month",
+      "paid_ytd": "Paid (YTD)",
+      "pending_ytd": "Pending (YTD)",
+      "collected": "Collected",
+      "transactions": "{{count}} transactions",
+      "bookingsRentals": "{{bookings}} bookings · {{rentals}} rentals",
+      "prevMonth": "Prev: {{amount}}",
+      "items": "{{count}} items"
+    },
+    "categoryBreakdown": {
+      "title": "This Month by Category",
+      "bookings": "Bookings",
+      "rentals": "Rentals",
+      "accommodation": "Accommodation",
+      "shop": "Shop",
+      "membership": "Membership",
+      "packages": "Packages"
+    },
+    "history": {
+      "title": "Commission History",
+      "columns": {
+        "date": "Date",
+        "source": "Source",
+        "details": "Details",
+        "amount": "Amount",
+        "rate": "Rate",
+        "commission": "Commission",
+        "status": "Status"
+      },
+      "filters": {
+        "source": "Source",
+        "status": "Status",
+        "booking": "Booking",
+        "rental": "Rental",
+        "accommodation": "Accommodation",
+        "shop": "Shop",
+        "membership": "Membership",
+        "package": "Package",
+        "pending": "Pending",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      },
+      "empty": "No commission records found",
+      "total": "{{count}} records"
+    }
+  },
+  "commissionSettings": {
+    "title": "Manager Commission Settings",
+    "columns": {
+      "manager": "Manager",
+      "salaryType": "Salary Type",
+      "rateAmount": "Rate / Amount",
+      "categoryRates": "Category Rates",
+      "totalEarnings": "Total Earnings",
+      "pending": "Pending",
+      "paid": "Paid",
+      "actions": "Actions"
+    },
+    "salaryTypeLabels": {
+      "commission": "Commission",
+      "fixed_per_lesson": "Per Lesson",
+      "monthly_salary": "Monthly Salary"
+    },
+    "tooltips": {
+      "pendingCommission": "Pending commission amount",
+      "totalPaid": "Total paid commission",
+      "viewDetails": "View Details",
+      "viewPayroll": "View Payroll"
+    },
+    "actions": {
+      "details": "Details"
+    },
+    "empty": "No managers found. Change a user's role to Manager to get started."
+  },
+  "payroll": {
+    "title": "Manager Payroll",
+    "subtitle": "Detailed earnings breakdown by month and season",
+    "backToCommissions": "Back to Manager Settings",
+    "back": "Back",
+    "backButton": "Back to Commissions",
+    "noData": "No payroll data found",
+    "paymentProgress": "Payment Progress",
+    "settingsCard": {
+      "title": "Current Salary Configuration",
+      "salaryType": "Salary Type",
+      "commissionType": "Commission Type",
+      "defaultRate": "Default Rate",
+      "perCategory": "Per Category",
+      "flatRate": "Flat Rate"
+    },
+    "seasonalSummary": "Seasonal Summary",
+    "months": {
+      "title": "Monthly Breakdown",
+      "columns": {
+        "month": "Month",
+        "bookings": "Bookings",
+        "rentals": "Rentals",
+        "accommodation": "Accommodation",
+        "shop": "Shop",
+        "membership": "Membership",
+        "packages": "Packages",
+        "grossTotal": "Gross Total",
+        "status": "Status",
+        "count": "Count",
+        "earned": "Earned"
+      },
+      "total": "Total"
+    },
+    "totals": {
+      "gross": "Gross Earnings",
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "status": {
+      "paid": "Paid",
+      "partial": "Partial",
+      "pending": "Pending"
+    },
+    "season": {
+      "bookings": "{{count}} bookings",
+      "rentals": "{{count}} rentals",
+      "paid": "Paid: {{amount}}",
+      "pending": "Pending: {{amount}}"
+    }
+  },
+  "detailPanel": {
+    "sections": {
+      "profile": "Profile",
+      "skills": "Skills",
+      "commissions": "Commissions",
+      "earnings": "Earnings",
+      "history": "History",
+      "payments": "Payments"
+    },
+    "sectionDescriptions": {
+      "info": "Manager profile and quick stats",
+      "skills": "Teaching skills and qualifications",
+      "commissions": "Configure salary type and commission rates",
+      "earnings": "Manager & instructor earnings overview",
+      "history": "Bookings, rentals & commission details",
+      "payroll": "Payments and transaction history"
+    },
+    "profile": {
+      "role": "MANAGER",
+      "email": "Email",
+      "joined": "Joined",
+      "managerCommission": "Manager Commission",
+      "lessonCommission": "Lesson Commission",
+      "paid": "Paid",
+      "pending": "Pending",
+      "instructorIncome": "Instructor Income",
+      "managerIncome": "Manager Income",
+      "totalIncome": "Total Income",
+      "noCategories": "No categories configured",
+      "perLesson": "/lesson",
+      "perMonth": "/month"
+    },
+    "commissions": {
+      "tabs": {
+        "manager": "Manager Commission",
+        "instructor": "Instructor Commission"
+      },
+      "salaryModel": "Salary Model",
+      "salaryModelDesc": "How this manager gets paid",
+      "salaryTypes": {
+        "commission": "Commission %",
+        "fixed_per_lesson": "Per Lesson",
+        "monthly_salary": "Monthly Salary"
+      },
+      "monthlyAmount": "Monthly Amount",
+      "perLessonAmount": "Per Lesson Amount",
+      "perLessonDesc": "Fixed amount per completed booking",
+      "commissionRates": "Commission Rates",
+      "commissionRatesDesc": "Toggle on to enable commission for each category",
+      "categories": {
+        "bookingRate": "Bookings",
+        "rentalRate": "Rentals",
+        "accommodationRate": "Accommodation",
+        "shopRate": "Shop / Sales",
+        "membershipRate": "Membership",
+        "packageRate": "Packages"
+      },
+      "categoryDescs": {
+        "bookingRate": "Private & group lessons",
+        "rentalRate": "Equipment rentals",
+        "accommodationRate": "Room & stay bookings",
+        "shopRate": "Merch & product sales",
+        "membershipRate": "Recurring memberships",
+        "packageRate": "Bundled service packages"
+      },
+      "saveSettings": "Save Settings",
+      "saved": "Commission settings saved",
+      "saveFailed": "Failed to save settings",
+      "validation": {
+        "enterAmount": "Enter amount",
+        "setRate": "Set rate",
+        "rateRange": "0.1–100%"
+      },
+      "placeholders": {
+        "monthlyAmount": "e.g. 2000",
+        "perLessonAmount": "e.g. 25",
+        "perMonthSuffix": "€ / month",
+        "perLessonSuffix": "€ / lesson"
+      }
+    },
+    "earnings": {
+      "managerEarnings": "Manager Earnings",
+      "instructorEarnings": "Instructor Earnings",
+      "totalEarned": "Total Earned",
+      "totalEarnedThisYear": "Total Earned (This Year)",
+      "totalEarnedAllTime": "Total Earned (All Time)",
+      "byCategory": "By Category",
+      "quickRanges": {
+        "thisYear": "This Year",
+        "allTime": "All Time"
+      },
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "history": {
+      "filters": {
+        "sourceType": "Source type",
+        "status": "Status",
+        "search": "Search...",
+        "instructorLesson": "Instructor Lessons",
+        "mgrBooking": "Mgr Comm. — Booking",
+        "mgrRental": "Mgr Comm. — Rental",
+        "mgrAccommodation": "Mgr Comm. — Accommodation",
+        "mgrPackage": "Mgr Comm. — Package",
+        "mgrShop": "Mgr Comm. — Shop",
+        "mgrMembership": "Mgr Comm. — Membership",
+        "pending": "Pending",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      },
+      "categories": {
+        "instructorLessons": "Instructor Lessons",
+        "mgrLessons": "Manager Comm. — Lessons",
+        "mgrRentals": "Manager Comm. — Rentals",
+        "mgrAccommodation": "Manager Comm. — Accommodation",
+        "mgrShop": "Manager Comm. — Shop / Sales",
+        "mgrMembership": "Manager Comm. — Membership",
+        "mgrPackages": "Manager Comm. — Packages"
+      },
+      "columns": {
+        "date": "Date",
+        "student": "Student",
+        "customer": "Customer",
+        "guest": "Guest",
+        "service": "Service",
+        "equipment": "Equipment",
+        "membership": "Membership",
+        "package": "Package",
+        "order": "Order",
+        "duration": "Dur.",
+        "period": "Period",
+        "nights": "Nights",
+        "items": "Items",
+        "days": "Days",
+        "hours": "Hours",
+        "amount": "Amount",
+        "rate": "Rate",
+        "commission": "Comm.",
+        "status": "Status",
+        "earning": "Earning",
+        "start": "Start",
+        "checkIn": "Check-in"
+      },
+      "empty": "No records found",
+      "noCommissions": "No {{category}} commissions"
+    }
+  },
+  "finances": {
+    "overview": {
+      "title": "Finance Management - Overview",
+      "subtitle": "All money in & out across every service",
+      "maintenance": {
+        "title": "Under Maintenance",
+        "message": "The Finance Overview page is currently being updated. Please check back soon."
+      },
+      "quickRanges": {
+        "today": "Today",
+        "thisWeek": "This Week",
+        "thisMonth": "This Month",
+        "thisYear": "This Year",
+        "allHistory": "All History"
+      },
+      "serviceFilter": "Service filter:",
+      "services": {
+        "all": "All",
+        "lessons": "Lessons",
+        "rentals": "Rentals",
+        "membership": "Membership",
+        "shop": "Shop"
+      },
+      "stats": {
+        "totalIncome": "Total Income",
+        "totalIncomeSub": "All credits to wallets",
+        "totalCharges": "Total Charges",
+        "totalChargesSub": "All debits from wallets",
+        "netProfit": "Net Profit",
+        "netProfitSub": "Charges − Refunds − Commission",
+        "refundsIssued": "Refunds Issued",
+        "refundsSub": "Money returned to customers",
+        "instructorCommission": "Instructor Commission",
+        "instructorCommissionSub": "Paid to instructors",
+        "depositsHelper": "{{amount}} in deposits",
+        "transactionsHelper": "{{count}} transactions"
+      }
+    },
+    "expenses": {
+      "title": "Business Expenses",
+      "addExpense": "Add Expense",
+      "refresh": "Refresh",
+      "exportCsv": "Export CSV",
+      "exportSuccess": "Expenses exported successfully",
+      "summary": {
+        "totalExpenses": "Total Expenses",
+        "totalEntries": "Total Entries"
+      },
+      "filters": {
+        "searchPlaceholder": "Search description or vendor...",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "category": "Category",
+        "reset": "Reset"
+      },
+      "table": {
+        "date": "Date",
+        "description": "Description",
+        "category": "Category",
+        "amount": "Amount",
+        "payment": "Payment",
+        "addedBy": "Added By",
+        "actions": "Actions",
+        "empty": "No expenses found. Click 'Add Expense' to create one.",
+        "noDescription": "No description",
+        "showTotal": "{{start}}-{{end}} of {{total}} expenses"
+      },
+      "modal": {
+        "addTitle": "Add New Expense",
+        "editTitle": "Edit Expense",
+        "addSuccess": "Expense added successfully",
+        "editSuccess": "Expense updated successfully",
+        "deleteSuccess": "Expense deleted successfully",
+        "loadError": "Failed to load expenses",
+        "saveError": "Failed to save expense",
+        "deleteError": "Failed to delete expense",
+        "deleteConfirm": "Delete expense?",
+        "deleteWarning": "This action cannot be undone.",
+        "add": "Add",
+        "update": "Update",
+        "fields": {
+          "amount": "Amount",
+          "date": "Date",
+          "category": "Category",
+          "paymentMethod": "Payment Method",
+          "description": "Description",
+          "vendor": "Vendor/Supplier",
+          "reference": "Reference/Invoice #",
+          "notes": "Additional Notes"
+        },
+        "placeholders": {
+          "amount": "0.00",
+          "description": "What is this expense for?",
+          "vendor": "Company or person name",
+          "reference": "Invoice or receipt number",
+          "notes": "Any additional information...",
+          "selectCategory": "Select category",
+          "selectMethod": "Select method"
+        },
+        "validation": {
+          "enterAmount": "Please enter amount",
+          "amountMin": "Amount must be greater than 0",
+          "selectDate": "Please select date",
+          "selectCategory": "Please select category",
+          "enterDescription": "Please enter description"
+        }
+      },
+      "categories": {
+        "rent": "Rent",
+        "utilities": "Utilities",
+        "salaries": "Salaries",
+        "equipment": "Equipment",
+        "maintenance": "Maintenance",
+        "supplies": "Supplies",
+        "marketing": "Marketing",
+        "insurance": "Insurance",
+        "professional_services": "Professional Services",
+        "travel": "Travel",
+        "software_subscriptions": "Software/Subscriptions",
+        "bank_fees": "Bank Fees",
+        "taxes": "Taxes",
+        "other": "Other"
+      },
+      "paymentMethods": {
+        "cash": "Cash",
+        "bank_transfer": "Bank Transfer",
+        "card": "Card",
+        "wallet": "Wallet",
+        "other": "Other"
+      }
+    }
+  },
+  "equipment": {
+    "title": "Equipment & Gear",
+    "subtitle": "Track and manage all equipment inventory. Monitor availability, condition, and maintenance schedules.",
+    "addEquipment": "Add Equipment",
+    "refresh": "Refresh",
+    "backToList": "Back to List",
+    "loading": "Loading equipment data...",
+    "tryAgain": "Try again"
+  },
+  "rentals": {
+    "title": "Rentals",
+    "newRental": "New Rental",
+    "tabs": {
+      "requests": "Rental Requests",
+      "recent": "Recent Rentals",
+      "total": "Total Rentals"
+    },
+    "columns": {
+      "customer": "Customer",
+      "equipment": "Equipment",
+      "date": "Date",
+      "price": "Price",
+      "status": "Status",
+      "student": "Student",
+      "service": "Service",
+      "period": "Period",
+      "amount": "Amount",
+      "notes": "Notes",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "pending": "Pending",
+      "cancelled": "Cancelled",
+      "overdue": "Overdue",
+      "reserved": "Reserved",
+      "returned": "Returned",
+      "confirmed": "Approved",
+      "no_show": "No Show"
+    },
+    "actions": {
+      "approve": "Approve",
+      "decline": "Decline",
+      "complete": "Complete",
+      "edit": "Edit",
+      "reject": "Reject"
+    },
+    "confirm": {
+      "declineTitle": "Decline this rental request?",
+      "declineDesc": "The student will be notified and any charged amount will be refunded.",
+      "declineOk": "Decline",
+      "declineCancel": "Keep",
+      "deleteTitle": "Delete?"
+    },
+    "messages": {
+      "approved": "Rental approved successfully",
+      "declined": "Rental declined successfully",
+      "statusUpdated": "Rental {{status}} successfully",
+      "deleted": "Rental deleted successfully",
+      "loadError": "Failed to load rental data",
+      "requestsError": "Failed to load rental requests",
+      "statusError": "Failed to update booking status",
+      "deleteError": "Failed to delete rental"
+    },
+    "empty": {
+      "noRentals": "No rentals found",
+      "noRequests": "No rental booking requests found"
+    },
+    "package": "Package",
+    "groupOf": "Group of {{count}}"
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Manage inventory and back-office products"
+  },
+  "accommodation": {
+    "title": "Accommodation",
+    "admin": {
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "actions": {
+        "confirm": "Confirm",
+        "complete": "Complete",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "nights": "{{count}}n",
+      "unknown": "Unknown"
+    }
+  },
+  "marketing": {
+    "title": "Marketing"
+  },
+  "events": {
+    "title": "Community Events",
+    "subtitle": "Create, manage, and track community events and registrations",
+    "newEvent": "New Event",
+    "eventManager": "Event Manager",
+    "types": {
+      "party": "Party / Social Event",
+      "diving": "Diving Trip",
+      "yoga": "Yoga Session",
+      "workshop": "Workshop",
+      "competition": "Competition",
+      "training": "Group Training",
+      "excursion": "Excursion / Trip",
+      "other": "Other"
+    },
+    "stats": {
+      "total": "Total",
+      "active": "Active",
+      "upcoming": "Upcoming",
+      "registrations": "Registrations"
+    },
+    "columns": {
+      "event": "Event",
+      "type": "Type",
+      "date": "Date",
+      "capacity": "Capacity",
+      "price": "Price",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "price": {
+      "free": "Free",
+      "from": "FROM",
+      "paid": "Paid event",
+      "paidDesc": "{{price}} per person — collected by the academy."
+    },
+    "capacity": {
+      "spotsLeft": "{{count}} SPOTS LEFT",
+      "spotLeft": "{{count}} SPOT LEFT",
+      "soldOut": "SOLD OUT"
+    },
+    "badges": {
+      "going": "GOING",
+      "soldOut": "SOLD OUT",
+      "past": "PAST"
+    },
+    "public": {
+      "heroTitle": "Community Events",
+      "heroSubtitle": "Join the crew. From beach parties and diving trips to workshops and competitions — there's always something happening.",
+      "noEvents": "No upcoming events",
+      "noEventsDesc": "No events are scheduled right now. Check back soon or contact us to stay in the loop.",
+      "contactUs": "Contact Us",
+      "loading": "Loading events...",
+      "stayPosted": "Want to know about upcoming events?",
+      "stayPostedDesc": "Get in touch and we'll keep you posted on everything happening at UKC this season.",
+      "registered": "You're going",
+      "cancelRegistration": "Cancel Registration",
+      "cancellingRegistration": "Cancelling...",
+      "confirmJoin": "Confirm & Join",
+      "joining": "Joining...",
+      "close": "Close",
+      "eventPassed": "This event has passed",
+      "eventFull": "This event is full",
+      "cancelAnytime": "You can cancel your registration at any time.",
+      "registeredCount": "{{count}} registered",
+      "spotsTotal": " / {{total}} spots",
+      "spotsLeft": "· {{count}} left"
+    },
+    "form": {
+      "createTitle": "New Event",
+      "editTitle": "Edit Event",
+      "configureNew": "Configure a new community event",
+      "updateSettings": "Update event settings",
+      "fields": {
+        "name": "Event Name *",
+        "type": "Event Type *",
+        "startAt": "Start Date & Time *",
+        "endAt": "End Date & Time",
+        "capacity": "Max Participants",
+        "price": "Price (per person)",
+        "location": "Default Location",
+        "coverPhoto": "Cover Photo",
+        "description": "Description"
+      },
+      "placeholders": {
+        "name": "e.g., Beach Party, Morning Yoga",
+        "type": "Select type...",
+        "endAt": "End (optional)",
+        "capacity": "Unlimited",
+        "price": "0 = Free",
+        "location": "e.g., Main Beach, Studio A",
+        "description": "Event details, what to bring...",
+        "imageHint": "Shown on the event card. JPG or PNG, max 5 MB. If not set, a gradient based on event type is shown.",
+        "upload": "Upload",
+        "uploading": "Uploading..."
+      },
+      "validation": {
+        "enterName": "Enter event name",
+        "selectType": "Select type",
+        "selectStart": "Select start date"
+      },
+      "removePhoto": "Remove photo",
+      "save": "Create",
+      "update": "Update",
+      "saving": "Saving...",
+      "cancel": "Cancel"
+    },
+    "registrations": {
+      "count": "{{count}} registrations",
+      "countSingular": "{{count}} registration",
+      "capacity": " / {{total}} capacity",
+      "addParticipant": "Add Participant",
+      "searchUsers": "Search users...",
+      "add": "Add",
+      "noRegistrations": "No registrations yet",
+      "loadingRegistrations": "Loading registrations...",
+      "noUsers": "No users found"
+    },
+    "messages": {
+      "created": "Event created",
+      "updated": "Event updated",
+      "deleted": "Event deleted",
+      "statusUpdated": "Status updated",
+      "participantAdded": "Participant added",
+      "participantRemoved": "Participant removed",
+      "registered": "You have been registered!",
+      "unregistered": "Registration cancelled",
+      "createError": "Failed to create event",
+      "updateError": "Failed to update event",
+      "deleteError": "Failed to delete event",
+      "statusError": "Failed to update status",
+      "addError": "Failed to add participant",
+      "removeError": "Failed to remove participant",
+      "registerError": "Failed to register",
+      "unregisterError": "Failed to cancel registration",
+      "imageUploaded": "Image uploaded",
+      "imageError": "Failed to upload image",
+      "imageTypeError": "Please upload an image file",
+      "imageSizeError": "Image must be smaller than 5MB"
+    },
+    "table": {
+      "empty": "No events found",
+      "createFirst": "Create Event",
+      "showTotal": "{{count}} events"
+    },
+    "tooltips": {
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "registrations": "Registrations",
+      "delete": "Delete"
+    },
+    "deleteConfirm": "Delete this event?",
+    "notSet": "Not set"
+  },
+  "quicklinks": {
+    "title": "Quick Links & Forms",
+    "tabs": {
+      "forms": "Forms",
+      "links": "Links",
+      "submissions": "Submissions",
+      "registrations": "Registrations"
+    }
+  },
+  "services": {
+    "title": "Services",
+    "consoleLabel": "Services Console",
+    "allServices": "All Services",
+    "categories": {
+      "all": "All Services",
+      "accommodation": "Accommodation",
+      "lesson": "Lessons",
+      "rental": "Rentals",
+      "sales": "Shop"
+    },
+    "stats": {
+      "total": "Total",
+      "catalogItems": "Catalog items",
+      "categories": "Categories",
+      "typesOffered": "Types offered",
+      "inCart": "In cart",
+      "awaitingCheckout": "Awaiting checkout"
+    },
+    "search": {
+      "placeholder": "Search services...",
+      "liveFilter": "Live filter"
+    },
+    "actions": {
+      "createService": "Create service",
+      "openCart": "Open cart ({{count}})",
+      "proceedToCheckout": "Proceed to Checkout"
+    },
+    "manageDesc": "Manage services, organize offerings, and finalize bookings.",
+    "cart": {
+      "title": "Your Cart ({{count}} items)",
+      "empty": "Your cart is empty",
+      "remove": "Remove",
+      "singleSession": "Single Session",
+      "package": "Package",
+      "bookingInfo": "Booking Information",
+      "bookingInfoDesc": "You'll be able to choose user details and confirm your booking on the next step.",
+      "total": "Total:"
+    },
+    "drawer": {
+      "createTitle": "Create New Service",
+      "editTitle": "Edit Service"
+    },
+    "delete": {
+      "title": "Delete Service",
+      "confirm": "Are you sure you want to delete \"{{name}}\"?",
+      "warning": "This action cannot be undone."
+    },
+    "messages": {
+      "created": "Service created successfully!",
+      "updated": "Service updated successfully!",
+      "deleted": "Service deleted successfully!",
+      "createError": "Failed to create service: {{error}}",
+      "updateError": "Failed to update service: {{error}}",
+      "deleteError": "Failed to delete service: {{error}}",
+      "addedToCart": "Added to cart!",
+      "viewCart": "View Cart",
+      "removedFromCart": "Item removed from cart",
+      "proceedingToCheckout": "Proceeding to checkout...",
+      "loadError": "Failed to load services. Please try again later."
+    },
+    "empty": {
+      "noServices": "No services found in this category.",
+      "createPrompt": "Create a new service to get started."
+    }
+  },
+  "errors": {
+    "loadFailed": "Failed to load data. Please try again."
+  }
+}

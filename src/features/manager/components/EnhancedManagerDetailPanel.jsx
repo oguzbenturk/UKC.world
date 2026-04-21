@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Drawer, Tag, Spin, Avatar, Typography, Tooltip, Form, Switch,
   InputNumber, Select, Input, Divider, Row, Col, Table, Button,
@@ -29,23 +30,7 @@ import dayjs from 'dayjs';
 const { Text } = Typography;
 const { Option } = Select;
 
-const NAV_ITEMS = [
-  { key: 'info', icon: <UserOutlined />, label: 'Profile' },
-  { key: 'skills', icon: <ThunderboltOutlined />, label: 'Skills' },
-  { key: 'commissions', icon: <SettingOutlined />, label: 'Commissions' },
-  { key: 'earnings', icon: <BarChartOutlined />, label: 'Earnings' },
-  { key: 'history', icon: <DollarOutlined />, label: 'History' },
-  { key: 'payroll', icon: <CalendarOutlined />, label: 'Payments' },
-];
-
-const SECTION_DESCRIPTIONS = {
-  info: 'Manager profile and quick stats',
-  skills: 'Teaching skills and qualifications',
-  commissions: 'Configure salary type and commission rates',
-  earnings: 'Manager & instructor earnings overview',
-  history: 'Bookings, rentals & commission details',
-  payroll: 'Payments and transaction history',
-};
+// NAV_ITEMS and SECTION_DESCRIPTIONS are built inside the component using t()
 
 const SOURCE_COLOR = { booking: 'blue', rental: 'green', accommodation: 'purple', shop: 'orange', membership: 'cyan', package: 'magenta' };
 const STATUS_TAG = {
@@ -54,25 +39,47 @@ const STATUS_TAG = {
   cancelled: { color: 'red', icon: null },
 };
 
-const SALARY_TYPE_MAP = {
-  commission: { color: 'blue', icon: <PercentageOutlined />, label: 'Commission Based' },
-  fixed_per_lesson: { color: 'green', icon: <DollarOutlined />, label: 'Fixed Per Lesson' },
-  monthly_salary: { color: 'purple', icon: <DollarOutlined />, label: 'Monthly Salary' },
-};
-
-const CATEGORY_DEFS = [
-  { key: 'bookings', label: 'Bookings', color: '#1890ff' },
-  { key: 'rentals', label: 'Rentals', color: '#52c41a' },
-  { key: 'accommodation', label: 'Accommodation', color: '#722ed1' },
-  { key: 'shop', label: 'Shop', color: '#fa8c16' },
-  { key: 'membership', label: 'Membership', color: '#13c2c2' },
-  { key: 'packages', label: 'Packages', color: '#eb2f96' },
-];
+// SALARY_TYPE_MAP and CATEGORY_DEFS are built inside the component using t()
 
 // Category breakdown is now computed from summary endpoint in renderEarnings()
 
 // ─── Main Component ──────────────────────────────────────────────
 const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () => {} }) => {
+  const { t } = useTranslation(['manager']);
+
+  const NAV_ITEMS = [
+    { key: 'info', icon: <UserOutlined />, label: t('manager:detailPanel.sections.profile') },
+    { key: 'skills', icon: <ThunderboltOutlined />, label: t('manager:detailPanel.sections.skills') },
+    { key: 'commissions', icon: <SettingOutlined />, label: t('manager:detailPanel.sections.commissions') },
+    { key: 'earnings', icon: <BarChartOutlined />, label: t('manager:detailPanel.sections.earnings') },
+    { key: 'history', icon: <DollarOutlined />, label: t('manager:detailPanel.sections.history') },
+    { key: 'payroll', icon: <CalendarOutlined />, label: t('manager:detailPanel.sections.payments') },
+  ];
+
+  const SECTION_DESCRIPTIONS = {
+    info: t('manager:detailPanel.sectionDescriptions.info'),
+    skills: t('manager:detailPanel.sectionDescriptions.skills'),
+    commissions: t('manager:detailPanel.sectionDescriptions.commissions'),
+    earnings: t('manager:detailPanel.sectionDescriptions.earnings'),
+    history: t('manager:detailPanel.sectionDescriptions.history'),
+    payroll: t('manager:detailPanel.sectionDescriptions.payroll'),
+  };
+
+  const SALARY_TYPE_MAP = {
+    commission: { color: 'blue', icon: <PercentageOutlined />, label: t('manager:dashboard.salaryTypes.commission') },
+    fixed_per_lesson: { color: 'green', icon: <DollarOutlined />, label: t('manager:dashboard.salaryTypes.fixed_per_lesson') },
+    monthly_salary: { color: 'purple', icon: <DollarOutlined />, label: t('manager:dashboard.salaryTypes.monthly_salary') },
+  };
+
+  const CATEGORY_DEFS = [
+    { key: 'bookings', label: t('manager:dashboard.categoryBreakdown.bookings'), color: '#1890ff' },
+    { key: 'rentals', label: t('manager:dashboard.categoryBreakdown.rentals'), color: '#52c41a' },
+    { key: 'accommodation', label: t('manager:dashboard.categoryBreakdown.accommodation'), color: '#722ed1' },
+    { key: 'shop', label: t('manager:dashboard.categoryBreakdown.shop'), color: '#fa8c16' },
+    { key: 'membership', label: t('manager:dashboard.categoryBreakdown.membership'), color: '#13c2c2' },
+    { key: 'packages', label: t('manager:dashboard.categoryBreakdown.packages'), color: '#eb2f96' },
+  ];
+
   const [activeSection, setActiveSection] = useState('info');
   const [loading, setLoading] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -227,16 +234,16 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       });
 
       if (res.success) {
-        message.success('Commission settings saved');
+        message.success(t('manager:detailPanel.commissions.saved'));
         // Re-fetch settings
         const updated = await getManagerSettings(manager.id);
         if (updated.success) setSettings(updated.data);
         onUpdate();
       } else {
-        message.error(res.error || 'Failed to save settings');
+        message.error(res.error || t('manager:detailPanel.commissions.saveFailed'));
       }
     } catch (error) {
-      if (!error.errorFields) message.error(error.message || 'Failed to save settings');
+      if (!error.errorFields) message.error(error.message || t('manager:detailPanel.commissions.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -265,7 +272,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-gray-900 truncate">{managerName}</h3>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <Tag color="purple" bordered={false} className="rounded-full text-xs">MANAGER</Tag>
+                <Tag color="purple" bordered={false} className="rounded-full text-xs">{t('manager:detailPanel.profile.role')}</Tag>
                 <Tag color={salaryInfo.color} bordered={false} className="rounded-full text-xs" icon={salaryInfo.icon}>{salaryInfo.label}</Tag>
               </div>
             </div>
@@ -278,7 +285,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
               <span className="text-gray-400 mt-0.5 text-base"><MailOutlined /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Email</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('manager:detailPanel.profile.email')}</div>
                 <div className="text-sm text-gray-800 mt-0.5">{manager.email}</div>
               </div>
             </div>
@@ -287,7 +294,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
               <span className="text-gray-400 mt-0.5 text-base"><CalendarOutlined /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Joined</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('manager:detailPanel.profile.joined')}</div>
                 <div className="text-sm text-gray-800 mt-0.5">{new Date(manager.created_at).toLocaleDateString()}</div>
               </div>
             </div>
@@ -296,23 +303,23 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
               <span className="text-gray-400 mt-0.5 text-base"><PercentageOutlined /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Manager Commission</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('manager:detailPanel.profile.managerCommission')}</div>
                 <div className="text-sm text-gray-800 mt-0.5">
                   {salaryType === 'commission' ? (() => {
                     const cats = [
-                      { label: 'Bookings', rate: settings.bookingRate },
-                      { label: 'Rentals', rate: settings.rentalRate },
-                      { label: 'Accom.', rate: settings.accommodationRate },
-                      { label: 'Shop', rate: settings.shopRate },
-                      { label: 'Membership', rate: settings.membershipRate },
-                      { label: 'Packages', rate: settings.packageRate },
+                      { label: t('manager:dashboard.categoryBreakdown.bookings'), rate: settings.bookingRate },
+                      { label: t('manager:dashboard.categoryBreakdown.rentals'), rate: settings.rentalRate },
+                      { label: t('manager:dashboard.categoryBreakdown.accommodation'), rate: settings.accommodationRate },
+                      { label: t('manager:dashboard.categoryBreakdown.shop'), rate: settings.shopRate },
+                      { label: t('manager:dashboard.categoryBreakdown.membership'), rate: settings.membershipRate },
+                      { label: t('manager:dashboard.categoryBreakdown.packages'), rate: settings.packageRate },
                     ].filter(c => parseFloat(c.rate) > 0);
                     return cats.length > 0
                       ? cats.map(c => `${c.label} ${c.rate}%`).join(', ')
-                      : 'No categories configured';
+                      : t('manager:detailPanel.profile.noCategories');
                   })() :
-                    salaryType === 'fixed_per_lesson' ? `${formatCurrency(settings.perLessonAmount || 0, 'EUR')}/lesson` :
-                    `${formatCurrency(settings.fixedSalaryAmount || 0, 'EUR')}/month`}
+                    salaryType === 'fixed_per_lesson' ? `${formatCurrency(settings.perLessonAmount || 0, 'EUR')}${t('manager:detailPanel.profile.perLesson')}` :
+                    `${formatCurrency(settings.fixedSalaryAmount || 0, 'EUR')}${t('manager:detailPanel.profile.perMonth')}`}
                 </div>
               </div>
             </div>
@@ -321,7 +328,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
               <span className="text-gray-400 mt-0.5 text-base"><ThunderboltOutlined /></span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Lesson Commission</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('manager:detailPanel.profile.lessonCommission')}</div>
                 <div className="text-sm text-gray-800 mt-0.5">
                   {instructorCommission.defaultCommission.type === 'percentage'
                     ? `${instructorCommission.defaultCommission.value}%`
@@ -345,11 +352,11 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
             <div className="text-xl font-bold text-green-600">{formatCurrency(paid, 'EUR')}</div>
-            <div className="text-xs text-gray-500 mt-1">Paid</div>
+            <div className="text-xs text-gray-500 mt-1">{t('manager:detailPanel.profile.paid')}</div>
           </div>
           <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
             <div className="text-xl font-bold text-amber-600">{formatCurrency(pending, 'EUR')}</div>
-            <div className="text-xs text-gray-500 mt-1">Pending</div>
+            <div className="text-xs text-gray-500 mt-1">{t('manager:detailPanel.profile.pending')}</div>
           </div>
         </div>
 
@@ -357,15 +364,15 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-center">
             <div className="text-xl font-bold text-indigo-600">{formatCurrency(instructorEarnings.total, 'EUR')}</div>
-            <div className="text-xs text-gray-500 mt-1">Instructor Income</div>
+            <div className="text-xs text-gray-500 mt-1">{t('manager:detailPanel.profile.instructorIncome')}</div>
           </div>
           <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-4 text-center">
             <div className="text-xl font-bold text-purple-600">{formatCurrency(totalEarned, 'EUR')}</div>
-            <div className="text-xs text-gray-500 mt-1">Manager Income</div>
+            <div className="text-xs text-gray-500 mt-1">{t('manager:detailPanel.profile.managerIncome')}</div>
           </div>
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-center">
             <div className="text-xl font-bold text-emerald-600">{formatCurrency(instructorEarnings.total + totalEarned, 'EUR')}</div>
-            <div className="text-xs text-gray-500 mt-1">Total Income</div>
+            <div className="text-xs text-gray-500 mt-1">{t('manager:detailPanel.profile.totalIncome')}</div>
           </div>
         </div>
       </div>
@@ -384,8 +391,8 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         value={commissionTab}
         onChange={setCommissionTab}
         options={[
-          { label: 'Manager Commission', value: 'manager' },
-          { label: 'Instructor Commission', value: 'instructor' },
+          { label: t('manager:detailPanel.commissions.tabs.manager'), value: 'manager' },
+          { label: t('manager:detailPanel.commissions.tabs.instructor'), value: 'instructor' },
         ]}
         block
       />
@@ -401,15 +408,15 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
                 <DollarOutlined className="text-indigo-500 text-base" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-gray-700">Salary Model</div>
-                <div className="text-[11px] text-gray-400">How this manager gets paid</div>
+                <div className="text-sm font-semibold text-gray-700">{t('manager:detailPanel.commissions.salaryModel')}</div>
+                <div className="text-[11px] text-gray-400">{t('manager:detailPanel.commissions.salaryModelDesc')}</div>
               </div>
             </div>
             <Form.Item name="salaryType" className="mb-0" rules={[{ required: true }]}>
               <Select style={{ width: 180 }} popupMatchSelectWidth={false}>
-                <Option value="commission"><PercentageOutlined className="mr-1" />Commission %</Option>
-                <Option value="fixed_per_lesson"><ThunderboltOutlined className="mr-1" />Per Lesson €</Option>
-                <Option value="monthly_salary"><CalendarOutlined className="mr-1" />Monthly Salary</Option>
+                <Option value="commission"><PercentageOutlined className="mr-1" />{t('manager:detailPanel.commissions.salaryTypes.commission')}</Option>
+                <Option value="fixed_per_lesson"><ThunderboltOutlined className="mr-1" />{t('manager:detailPanel.commissions.salaryTypes.fixed_per_lesson')}</Option>
+                <Option value="monthly_salary"><CalendarOutlined className="mr-1" />{t('manager:detailPanel.commissions.salaryTypes.monthly_salary')}</Option>
               </Select>
             </Form.Item>
           </div>
@@ -422,10 +429,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
               <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
                 <CalendarOutlined className="text-purple-500 text-base" />
               </div>
-              <div className="text-sm font-semibold text-gray-700">Monthly Amount</div>
+              <div className="text-sm font-semibold text-gray-700">{t('manager:detailPanel.commissions.monthlyAmount')}</div>
             </div>
-            <Form.Item name="fixedSalaryAmount" className="mb-0" rules={[{ required: true, message: 'Enter amount' }, { type: 'number', min: 0 }]}>
-              <InputNumber min={0} step={50} addonAfter="€ / month" style={{ width: '100%' }} placeholder="e.g. 2000" size="large" />
+            <Form.Item name="fixedSalaryAmount" className="mb-0" rules={[{ required: true, message: t('manager:detailPanel.commissions.validation.enterAmount') }, { type: 'number', min: 0 }]}>
+              <InputNumber min={0} step={50} addonAfter={t('manager:detailPanel.commissions.placeholders.perMonthSuffix')} style={{ width: '100%' }} placeholder={t('manager:detailPanel.commissions.placeholders.monthlyAmount')} size="large" />
             </Form.Item>
           </div>
         )}
@@ -438,12 +445,12 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
                 <ThunderboltOutlined className="text-green-500 text-base" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-gray-700">Per Lesson Amount</div>
-                <div className="text-[11px] text-gray-400">Fixed amount per completed booking</div>
+                <div className="text-sm font-semibold text-gray-700">{t('manager:detailPanel.commissions.perLessonAmount')}</div>
+                <div className="text-[11px] text-gray-400">{t('manager:detailPanel.commissions.perLessonDesc')}</div>
               </div>
             </div>
-            <Form.Item name="perLessonAmount" className="mb-0" rules={[{ required: true, message: 'Enter amount' }, { type: 'number', min: 0 }]}>
-              <InputNumber min={0} step={5} addonAfter="€ / lesson" style={{ width: '100%' }} placeholder="e.g. 25" size="large" />
+            <Form.Item name="perLessonAmount" className="mb-0" rules={[{ required: true, message: t('manager:detailPanel.commissions.validation.enterAmount') }, { type: 'number', min: 0 }]}>
+              <InputNumber min={0} step={5} addonAfter={t('manager:detailPanel.commissions.placeholders.perLessonSuffix')} style={{ width: '100%' }} placeholder={t('manager:detailPanel.commissions.placeholders.perLessonAmount')} size="large" />
             </Form.Item>
           </div>
         )}
@@ -456,18 +463,18 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
                 <PercentageOutlined className="text-blue-500 text-base" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-gray-700">Commission Rates</div>
-                <div className="text-[11px] text-gray-400">Toggle on to enable commission for each category</div>
+                <div className="text-sm font-semibold text-gray-700">{t('manager:detailPanel.commissions.commissionRates')}</div>
+                <div className="text-[11px] text-gray-400">{t('manager:detailPanel.commissions.commissionRatesDesc')}</div>
               </div>
             </div>
 
             {[
-              { name: 'bookingRate', label: 'Bookings', color: '#1890ff', desc: 'Private & group lessons' },
-              { name: 'rentalRate', label: 'Rentals', color: '#52c41a', desc: 'Equipment rentals' },
-              { name: 'accommodationRate', label: 'Accommodation', color: '#722ed1', desc: 'Room & stay bookings' },
-              { name: 'shopRate', label: 'Shop / Sales', color: '#fa8c16', desc: 'Merch & product sales' },
-              { name: 'membershipRate', label: 'Membership', color: '#13c2c2', desc: 'Recurring memberships' },
-              { name: 'packageRate', label: 'Packages', color: '#eb2f96', desc: 'Bundled service packages' },
+              { name: 'bookingRate', label: t('manager:detailPanel.commissions.categories.bookingRate'), color: '#1890ff', desc: t('manager:detailPanel.commissions.categoryDescs.bookingRate') },
+              { name: 'rentalRate', label: t('manager:detailPanel.commissions.categories.rentalRate'), color: '#52c41a', desc: t('manager:detailPanel.commissions.categoryDescs.rentalRate') },
+              { name: 'accommodationRate', label: t('manager:detailPanel.commissions.categories.accommodationRate'), color: '#722ed1', desc: t('manager:detailPanel.commissions.categoryDescs.accommodationRate') },
+              { name: 'shopRate', label: t('manager:detailPanel.commissions.categories.shopRate'), color: '#fa8c16', desc: t('manager:detailPanel.commissions.categoryDescs.shopRate') },
+              { name: 'membershipRate', label: t('manager:detailPanel.commissions.categories.membershipRate'), color: '#13c2c2', desc: t('manager:detailPanel.commissions.categoryDescs.membershipRate') },
+              { name: 'packageRate', label: t('manager:detailPanel.commissions.categories.packageRate'), color: '#eb2f96', desc: t('manager:detailPanel.commissions.categoryDescs.packageRate') },
             ].map(cat => (
               <div key={cat.name} className={`rounded-lg border p-3 transition-all ${
                 categoryToggles[cat.name] ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50/60'
@@ -482,7 +489,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
                   </div>
                   <div className="flex items-center gap-3">
                     {categoryToggles[cat.name] && (
-                      <Form.Item name={cat.name} className="mb-0" rules={[{ required: true, message: 'Set rate' }, { type: 'number', min: 0.1, max: 100, message: '0.1–100%' }]}>
+                      <Form.Item name={cat.name} className="mb-0" rules={[{ required: true, message: t('manager:detailPanel.commissions.validation.setRate') }, { type: 'number', min: 0.1, max: 100, message: t('manager:detailPanel.commissions.validation.rateRange') }]}>
                         <InputNumber min={0.1} max={100} step={0.5} addonAfter="%" style={{ width: 110 }} placeholder="%" />
                       </Form.Item>
                     )}
@@ -502,7 +509,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         )}
 
         <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSaveCommissions} block size="large" className="rounded-xl h-12">
-          Save Settings
+          {t('manager:detailPanel.commissions.saveSettings')}
         </Button>
       </Form>
       )}
@@ -521,7 +528,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   // Shared column helpers — used in both Earnings and History tables
   const getDetails = (r) => ({ ...r.metadata, ...r.source_details }); // source_details overrides metadata
 
-  const colCustomer = (label = 'Customer') => ({
+  const colCustomer = (label = t('manager:detailPanel.history.columns.customer')) => ({
     title: label, key: 'customer', ellipsis: true,
     render: (_, r) => {
       const d = getDetails(r);
@@ -534,22 +541,22 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     },
   });
   const colCommission = {
-    title: 'Comm.', key: 'commission', width: 90, align: 'right',
+    title: t('manager:detailPanel.history.columns.commission'), key: 'commission', width: 90, align: 'right',
     render: (_, r) => <span className="font-medium text-emerald-700">{formatCurrency(r.commission_amount || r.commissionAmount || 0, 'EUR')}</span>,
   };
   const colRate = {
-    title: 'Rate', key: 'rate', width: 60, align: 'center',
+    title: t('manager:detailPanel.history.columns.rate'), key: 'rate', width: 60, align: 'center',
     render: (_, r) => { const rate = r.commission_rate || r.commissionRate; return rate ? `${rate}%` : '—'; },
   };
   const colAmount = {
-    title: 'Amount', key: 'sourceAmount', width: 85, align: 'right',
+    title: t('manager:detailPanel.history.columns.amount'), key: 'sourceAmount', width: 85, align: 'right',
     render: (_, r) => { const amt = r.source_amount || r.sourceAmount; return amt ? formatCurrency(amt, 'EUR') : '—'; },
   };
   const colStatus = {
-    title: 'Status', dataIndex: 'status', key: 'status', width: 80,
+    title: t('manager:detailPanel.history.columns.status'), dataIndex: 'status', key: 'status', width: 80,
     render: val => { const info = STATUS_TAG[val] || STATUS_TAG.pending; return <Tag color={info.color} icon={info.icon} bordered={false} className="capitalize rounded-full m-0 text-[11px]">{val}</Tag>; },
   };
-  const colDate = (label = 'Date') => ({
+  const colDate = (label = t('manager:detailPanel.history.columns.date')) => ({
     title: label, key: 'date', width: 90,
     render: (_, r) => {
       const d = getDetails(r);
@@ -561,11 +568,11 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   // Bookings columns
   const bookingColumns = [
     colDate(),
-    colCustomer('Student'),
-    { title: 'Service', key: 'service', ellipsis: true, render: (_, r) => {
+    colCustomer(t('manager:detailPanel.history.columns.student')),
+    { title: t('manager:detailPanel.history.columns.service'), key: 'service', ellipsis: true, render: (_, r) => {
       const d = getDetails(r); return <Text className="text-xs text-gray-600">{d.service_name || d.serviceName || '—'}</Text>;
     }},
-    { title: 'Dur.', key: 'duration', width: 55, align: 'center', render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.duration'), key: 'duration', width: 55, align: 'center', render: (_, r) => {
       const d = getDetails(r); const dur = d.duration || d.hours; return dur ? `${dur}h` : '—';
     }},
     colAmount, colRate, colCommission, colStatus,
@@ -573,12 +580,12 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
   // Rentals columns
   const rentalColumns = [
-    colDate('Start'),
+    colDate(t('manager:detailPanel.history.columns.start')),
     colCustomer(),
-    { title: 'Equipment', key: 'equipment', ellipsis: true, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.equipment'), key: 'equipment', ellipsis: true, render: (_, r) => {
       const d = getDetails(r); return <Text className="text-xs text-gray-600">{d.equipment_name || d.equipmentName || '—'}</Text>;
     }},
-    { title: 'Period', key: 'period', width: 60, align: 'center', render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.period'), key: 'period', width: 60, align: 'center', render: (_, r) => {
       const d = getDetails(r);
       const days = computeDays(d.start_date || d.startDate, d.end_date || d.endDate);
       return days ? `${days}d` : '—';
@@ -588,12 +595,12 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
   // Accommodation columns
   const accomColumns = [
-    { title: 'Check-in', key: 'checkin', width: 90, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.checkIn'), key: 'checkin', width: 90, render: (_, r) => {
       const d = getDetails(r); const dt = d.check_in || d.checkIn || r.source_date;
       return dt ? new Date(dt).toLocaleDateString() : '—';
     }},
-    colCustomer('Guest'),
-    { title: 'Nights', key: 'nights', width: 55, align: 'center', render: (_, r) => {
+    colCustomer(t('manager:detailPanel.history.columns.guest')),
+    { title: t('manager:detailPanel.history.columns.nights'), key: 'nights', width: 55, align: 'center', render: (_, r) => {
       const d = getDetails(r);
       const n = computeDays(d.check_in || d.checkIn, d.check_out || d.checkOut);
       return n ? `${n}` : '—';
@@ -605,10 +612,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   const shopColumns = [
     colDate(),
     colCustomer(),
-    { title: 'Order', key: 'order', width: 105, ellipsis: true, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.order'), key: 'order', width: 105, ellipsis: true, render: (_, r) => {
       const d = getDetails(r); return <Text className="text-xs text-gray-600">{d.order_number || d.orderNumber || '—'}</Text>;
     }},
-    { title: 'Items', key: 'items', width: 50, align: 'center', render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.items'), key: 'items', width: 50, align: 'center', render: (_, r) => {
       const d = getDetails(r); return d.item_count || d.itemCount || '—';
     }},
     colAmount, colRate, colCommission, colStatus,
@@ -618,10 +625,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   const membershipColumns = [
     colDate(),
     colCustomer(),
-    { title: 'Membership', key: 'offering', ellipsis: true, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.membership'), key: 'offering', ellipsis: true, render: (_, r) => {
       const d = getDetails(r); return <Text className="text-xs text-gray-600">{d.offering_name || d.offeringName || '—'}</Text>;
     }},
-    { title: 'Days', key: 'days', width: 55, align: 'center', render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.days'), key: 'days', width: 55, align: 'center', render: (_, r) => {
       const d = getDetails(r); return d.duration_days || d.durationDays || '—';
     }},
     colAmount, colRate, colCommission, colStatus,
@@ -631,10 +638,10 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   const packageColumns = [
     colDate(),
     colCustomer(),
-    { title: 'Package', key: 'packageName', ellipsis: true, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.package'), key: 'packageName', ellipsis: true, render: (_, r) => {
       const d = getDetails(r); return <Text className="text-xs text-gray-600">{d.package_name || d.packageName || '—'}</Text>;
     }},
-    { title: 'Hours', key: 'hours', width: 55, align: 'center', render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.hours'), key: 'hours', width: 55, align: 'center', render: (_, r) => {
       const d = getDetails(r); return d.total_hours || d.totalHours || '—';
     }},
     colAmount, colRate, colCommission, colStatus,
@@ -666,7 +673,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         {(collapsible ? isOpen : true) && (
           records.length === 0 ? (
             <div className="px-5 py-3 border-t border-gray-100">
-              <Empty description={`No ${title.toLowerCase()} commissions`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={t('manager:detailPanel.history.noCommissions', { category: title })} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             </div>
           ) : (
             <div className="border-t border-gray-100">
@@ -698,7 +705,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     return (
       <div className="space-y-5">
         {/* ── Manager Earnings ── */}
-        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Manager Earnings</div>
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('manager:detailPanel.earnings.managerEarnings')}</div>
 
         {/* Date range filter */}
         <div className="flex flex-wrap items-center gap-2">
@@ -714,7 +721,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             }}
             className={`rounded-lg ${earningsQuickRange === 'thisYear' ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
           >
-            This Year
+            {t('manager:detailPanel.earnings.quickRanges.thisYear')}
           </Button>
           <Button
             size="small"
@@ -725,7 +732,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
             }}
             className={`rounded-lg ${earningsQuickRange === 'all' ? '' : 'border-slate-200 bg-white/70 hover:bg-slate-50'}`}
           >
-            All Time
+            {t('manager:detailPanel.earnings.quickRanges.allTime')}
           </Button>
           <DatePicker.RangePicker
             size="small"
@@ -752,7 +759,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
         {/* Total + Paid / Pending */}
         <div className="rounded-xl border border-gray-100 bg-gradient-to-br from-slate-50 to-indigo-50/30 p-3 sm:p-5">
-          <div className="text-xs text-gray-400 mb-1">Total Earned{earningsQuickRange === 'thisYear' ? ' (This Year)' : earningsDateRange.startDate ? ` (${earningsDateRange.startDate} – ${earningsDateRange.endDate})` : ' (All Time)'}</div>
+          <div className="text-xs text-gray-400 mb-1">{earningsQuickRange === 'thisYear' ? t('manager:detailPanel.earnings.totalEarnedThisYear') : earningsDateRange.startDate ? `${t('manager:detailPanel.earnings.totalEarned')} (${earningsDateRange.startDate} – ${earningsDateRange.endDate})` : t('manager:detailPanel.earnings.totalEarnedAllTime')}</div>
           <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{formatCurrency(totalEarned, 'EUR')}</div>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
             <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${paidPercent}%` }} />
@@ -760,11 +767,11 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <div className="rounded-lg bg-white/70 p-2 sm:p-2.5 text-center">
               <div className="text-sm sm:text-base font-bold text-green-600">{formatCurrency(paidAmt, 'EUR')}</div>
-              <div className="text-[11px] text-gray-400">Paid</div>
+              <div className="text-[11px] text-gray-400">{t('manager:detailPanel.earnings.paid')}</div>
             </div>
             <div className="rounded-lg bg-white/70 p-2 sm:p-2.5 text-center">
               <div className="text-sm sm:text-base font-bold text-amber-600">{formatCurrency(pendingAmt, 'EUR')}</div>
-              <div className="text-[11px] text-gray-400">Pending</div>
+              <div className="text-[11px] text-gray-400">{t('manager:detailPanel.earnings.pending')}</div>
             </div>
           </div>
         </div>
@@ -772,7 +779,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
         {/* Category Breakdown */}
         {categoryData.length > 0 && (
           <div className="rounded-xl border border-gray-100 bg-white p-3 sm:p-5 space-y-2">
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 sm:mb-2">By Category</div>
+            <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5 sm:mb-2">{t('manager:detailPanel.earnings.byCategory')}</div>
             {categoryData.map(cat => (
               <div key={cat.category} className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
@@ -785,7 +792,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
         {/* ── Instructor Earnings ── */}
         <Divider className="!my-4" />
-        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Instructor Earnings</div>
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('manager:detailPanel.earnings.instructorEarnings')}</div>
         <PayrollDashboard instructor={{ id: manager.id }} defaultPeriod="all_time" />
       </div>
     );
@@ -808,13 +815,13 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
 
   // Instructor lesson columns for History
   const instructorLessonColumns = [
-    { title: 'Date', key: 'date', width: 90, render: (_, r) => r.lesson_date ? new Date(r.lesson_date).toLocaleDateString() : '—' },
-    { title: 'Student', key: 'student', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.student_name || '—'}</Text> },
-    { title: 'Service', key: 'service', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.service_name || '—'}</Text> },
-    { title: 'Dur.', key: 'duration', width: 55, align: 'center', render: (_, r) => r.lesson_duration ? `${r.lesson_duration}h` : '—' },
-    { title: 'Amount', key: 'amount', width: 85, align: 'right', render: (_, r) => formatCurrency(parseFloat(r.lesson_amount || 0), 'EUR') },
-    { title: 'Earning', key: 'earning', width: 90, align: 'right', render: (_, r) => <span className="font-medium text-indigo-700">{formatCurrency(parseFloat(r.total_earnings || 0), 'EUR')}</span> },
-    { title: 'Status', key: 'status', width: 80, render: (_, r) => {
+    { title: t('manager:detailPanel.history.columns.date'), key: 'date', width: 90, render: (_, r) => r.lesson_date ? new Date(r.lesson_date).toLocaleDateString() : '—' },
+    { title: t('manager:detailPanel.history.columns.student'), key: 'student', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.student_name || '—'}</Text> },
+    { title: t('manager:detailPanel.history.columns.service'), key: 'service', ellipsis: true, render: (_, r) => <Text className="text-xs text-gray-600">{r.service_name || '—'}</Text> },
+    { title: t('manager:detailPanel.history.columns.duration'), key: 'duration', width: 55, align: 'center', render: (_, r) => r.lesson_duration ? `${r.lesson_duration}h` : '—' },
+    { title: t('manager:detailPanel.history.columns.amount'), key: 'amount', width: 85, align: 'right', render: (_, r) => formatCurrency(parseFloat(r.lesson_amount || 0), 'EUR') },
+    { title: t('manager:detailPanel.history.columns.earning'), key: 'earning', width: 90, align: 'right', render: (_, r) => <span className="font-medium text-indigo-700">{formatCurrency(parseFloat(r.total_earnings || 0), 'EUR')}</span> },
+    { title: t('manager:detailPanel.history.columns.status'), key: 'status', width: 80, render: (_, r) => {
       const s = r.payment_status || 'completed';
       return <Tag color={s === 'paid' ? 'green' : s === 'completed' ? 'blue' : 'gold'} bordered={false} className="capitalize rounded-full m-0 text-[11px]">{s}</Tag>;
     }},
@@ -845,12 +852,12 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     const commGetDuration = (r) => { const d = getDetails(r); return d.duration || d.hours || 0; };
 
     const commissionCategories = showCommissions ? [
-      { key: 'booking', title: 'Manager Comm. — Lessons', icon: <CalendarOutlined />, color: 'text-blue-600', borderColor: 'border-blue-100', records: bookingRecords, columns: bookingColumns, durationFn: commGetDuration },
-      { key: 'rental', title: 'Manager Comm. — Rentals', icon: <ClockCircleOutlined />, color: 'text-amber-600', borderColor: 'border-amber-100', records: rentalRecords, columns: rentalColumns },
-      { key: 'accommodation', title: 'Manager Comm. — Accommodation', icon: <DollarOutlined />, color: 'text-purple-600', borderColor: 'border-purple-100', records: accomRecords, columns: accomColumns },
-      { key: 'shop', title: 'Manager Comm. — Shop / Sales', icon: <DollarOutlined />, color: 'text-orange-600', borderColor: 'border-orange-100', records: shopRecords, columns: shopColumns },
-      { key: 'membership', title: 'Manager Comm. — Membership', icon: <DollarOutlined />, color: 'text-cyan-600', borderColor: 'border-cyan-100', records: membershipRecords, columns: membershipColumns },
-      { key: 'package', title: 'Manager Comm. — Packages', icon: <DollarOutlined />, color: 'text-pink-600', borderColor: 'border-pink-100', records: packageRecords, columns: packageColumns },
+      { key: 'booking', title: t('manager:detailPanel.history.categories.mgrLessons'), icon: <CalendarOutlined />, color: 'text-blue-600', borderColor: 'border-blue-100', records: bookingRecords, columns: bookingColumns, durationFn: commGetDuration },
+      { key: 'rental', title: t('manager:detailPanel.history.categories.mgrRentals'), icon: <ClockCircleOutlined />, color: 'text-amber-600', borderColor: 'border-amber-100', records: rentalRecords, columns: rentalColumns },
+      { key: 'accommodation', title: t('manager:detailPanel.history.categories.mgrAccommodation'), icon: <DollarOutlined />, color: 'text-purple-600', borderColor: 'border-purple-100', records: accomRecords, columns: accomColumns },
+      { key: 'shop', title: t('manager:detailPanel.history.categories.mgrShop'), icon: <DollarOutlined />, color: 'text-orange-600', borderColor: 'border-orange-100', records: shopRecords, columns: shopColumns },
+      { key: 'membership', title: t('manager:detailPanel.history.categories.mgrMembership'), icon: <DollarOutlined />, color: 'text-cyan-600', borderColor: 'border-cyan-100', records: membershipRecords, columns: membershipColumns },
+      { key: 'package', title: t('manager:detailPanel.history.categories.mgrPackages'), icon: <DollarOutlined />, color: 'text-pink-600', borderColor: 'border-pink-100', records: packageRecords, columns: packageColumns },
     ].filter(cat => cat.records.length > 0) : [];
 
     const hasAny = commissionCategories.length > 0 || (showInstructorLessons && instrLessons.length > 0);
@@ -859,38 +866,38 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       <div className="space-y-4">
         {/* Filters */}
         <div className="flex gap-3 flex-wrap">
-          <Select allowClear placeholder="Source type" value={historySourceType} onChange={v => { setHistorySourceType(v); setHistoryPage(1); }} style={{ width: 180 }}>
-            <Option value="instructor_lesson">Instructor Lessons</Option>
-            <Option value="booking">Mgr Comm. — Booking</Option>
-            <Option value="rental">Mgr Comm. — Rental</Option>
-            <Option value="accommodation">Mgr Comm. — Accommodation</Option>
-            <Option value="package">Mgr Comm. — Package</Option>
-            <Option value="shop">Mgr Comm. — Shop</Option>
-            <Option value="membership">Mgr Comm. — Membership</Option>
+          <Select allowClear placeholder={t('manager:detailPanel.history.filters.sourceType')} value={historySourceType} onChange={v => { setHistorySourceType(v); setHistoryPage(1); }} style={{ width: 180 }}>
+            <Option value="instructor_lesson">{t('manager:detailPanel.history.filters.instructorLesson')}</Option>
+            <Option value="booking">{t('manager:detailPanel.history.filters.mgrBooking')}</Option>
+            <Option value="rental">{t('manager:detailPanel.history.filters.mgrRental')}</Option>
+            <Option value="accommodation">{t('manager:detailPanel.history.filters.mgrAccommodation')}</Option>
+            <Option value="package">{t('manager:detailPanel.history.filters.mgrPackage')}</Option>
+            <Option value="shop">{t('manager:detailPanel.history.filters.mgrShop')}</Option>
+            <Option value="membership">{t('manager:detailPanel.history.filters.mgrMembership')}</Option>
           </Select>
           <Input.Search
-            placeholder="Search..."
+            placeholder={t('manager:detailPanel.history.filters.search')}
             allowClear
             value={historySearch}
             onChange={e => { setHistorySearch(e.target.value); setHistoryPage(1); }}
             style={{ width: 180 }}
           />
           {historySourceType !== 'instructor_lesson' && (
-            <Select allowClear placeholder="Status" value={historyStatus} onChange={v => { setHistoryStatus(v); setHistoryPage(1); }} style={{ width: 130 }}>
-              <Option value="pending">Pending</Option>
-              <Option value="paid">Paid</Option>
-              <Option value="cancelled">Cancelled</Option>
+            <Select allowClear placeholder={t('manager:detailPanel.history.filters.status')} value={historyStatus} onChange={v => { setHistoryStatus(v); setHistoryPage(1); }} style={{ width: 130 }}>
+              <Option value="pending">{t('manager:detailPanel.history.filters.pending')}</Option>
+              <Option value="paid">{t('manager:detailPanel.history.filters.paid')}</Option>
+              <Option value="cancelled">{t('manager:detailPanel.history.filters.cancelled')}</Option>
             </Select>
           )}
         </div>
 
         {!hasAny ? (
-          <Empty description="No records found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('manager:detailPanel.history.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <div className="space-y-4">
             {/* Instructor Lessons (taught by this manager) */}
             {showInstructorLessons && instrLessons.length > 0 && (
-              renderCategoryTable('Instructor Lessons', <ThunderboltOutlined />, 'text-indigo-600', 'border-indigo-100', instrLessons, instructorLessonColumns, {
+              renderCategoryTable(t('manager:detailPanel.history.categories.instructorLessons'), <ThunderboltOutlined />, 'text-indigo-600', 'border-indigo-100', instrLessons, instructorLessonColumns, {
                 collapsible: true,
                 isOpen: earningsOpen.instructor_lesson ?? true,
                 onToggle: () => setEarningsOpen(prev => ({ ...prev, instructor_lesson: !(prev.instructor_lesson ?? true) })),
@@ -1004,7 +1011,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
               </button>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-gray-800 truncate">{managerName}</div>
-                <Tag color="purple" bordered={false} className="rounded-full text-[10px] mt-0.5 px-1.5 py-0 leading-4">MANAGER</Tag>
+                <Tag color="purple" bordered={false} className="rounded-full text-[10px] mt-0.5 px-1.5 py-0 leading-4">{t('manager:detailPanel.profile.role')}</Tag>
               </div>
             </div>
           </div>

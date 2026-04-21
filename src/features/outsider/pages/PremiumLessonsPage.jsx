@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   CrownOutlined,
   StarOutlined,
@@ -114,18 +115,21 @@ const premiumFallbackPackages = [
   }
 ];
 
-const PremiumLessonsPage = () => (
-  <AcademyServicePackagesPage
-    seoTitle="Premium Lessons | UKC Academy"
-    seoDescription="Discover premium lesson packages with advanced coaching and configurable pricing."
-    headline="Premium"
-    accentWord="Lessons"
-    subheadline="Exclusive coaching packages with admin-configurable durations and prices."
-    academyTag="UKC•Premium"
-    academyTheme="premium"
-    packages={premiumFallbackPackages}
-    dynamicServiceKey="premium"
-  />
-);
+const PremiumLessonsPage = () => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <AcademyServicePackagesPage
+      seoTitle="Premium Lessons | UKC Academy"
+      seoDescription="Discover premium lesson packages with advanced coaching and configurable pricing."
+      headline={t('outsider:academyPremium.hero.title')}
+      accentWord={t('outsider:academyPremium.hero.titleAccent')}
+      subheadline={t('outsider:academyPremium.hero.subtitle')}
+      academyTag="UKC•Premium"
+      academyTheme="premium"
+      packages={premiumFallbackPackages}
+      dynamicServiceKey="premium"
+    />
+  );
+};
 
 export default PremiumLessonsPage;

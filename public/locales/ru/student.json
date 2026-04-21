@@ -1,0 +1,812 @@
+{
+  "dashboard": {
+    "recommendations": {
+      "heading": "Рекомендовано для вас",
+      "subheading": "Советы вашего инструктора",
+      "viewCta": "Смотреть →"
+    },
+    "emptyState": {
+      "heading": "Пока нечего показать",
+      "body": "Ваша панель оживёт, как только вы забронируете первый урок."
+    },
+    "errorToast": {
+      "title": "Не удалось загрузить панель"
+    },
+    "ratingToast": {
+      "title": "Спасибо за отзыв!",
+      "description": "Ваша оценка помогает нам улучшить вашу работу."
+    },
+    "nextLesson": {
+      "label": "Следующий урок",
+      "comingSoon": "Скоро",
+      "noLesson": {
+        "heading": "Ваш кайт ждёт",
+        "body": "Уроков пока нет — забронируйте один, чтобы начать."
+      },
+      "progressLabel": "Прогресс"
+    },
+    "ratingPrompt": {
+      "rateWith": "Оцените урок с",
+      "moreCount": "+{{count}} ещё",
+      "rateButton": "Оценить"
+    },
+    "packageCards": {
+      "sectionHeading": "Активные пакеты",
+      "progressRow": {
+        "left": "осталось {{remaining}}",
+        "used": "{{used}} / {{total}} использовано"
+      },
+      "lessonHours": "Часы уроков",
+      "rentalDays": "Дни аренды",
+      "accommodationNights": "Ночи проживания",
+      "expiresSoon": "Скоро истекает",
+      "exp": "Ист. {{date}}"
+    },
+    "quickLinks": {
+      "sectionHeading": "Быстрый доступ",
+      "visitLessons": "Уроки",
+      "visitRentals": "Аренда",
+      "visitShop": "Магазин",
+      "visitMyLessons": "Мои уроки"
+    },
+    "statsStrip": {
+      "lessons": "Уроки",
+      "rentals": "Аренда",
+      "accommodations": "Проживание",
+      "shop": "Магазин",
+      "memberships": "Членства",
+      "wallet": "Кошелёк",
+      "stats": {
+        "completed": "Завершено",
+        "upcoming": "Предстоящие",
+        "totalHours": "Всего часов",
+        "days": "Дни",
+        "spent": "Потрачено",
+        "nights": "Ночи",
+        "pending": "Ожидание",
+        "active": "Активные",
+        "expired": "Истёкшие",
+        "balance": "Баланс"
+      },
+      "membership": {
+        "owned": "Куплено",
+        "expires": "Истекает {{date}}"
+      },
+      "accommodation": {
+        "now": "Сейчас",
+        "nightCount_one": "{{count}} ночь",
+        "nightCount_few": "{{count}} ночи",
+        "nightCount_other": "{{count}} ночей",
+        "guests": "{{count}} гостей"
+      }
+    },
+    "lessonsSection": {
+      "upcomingLabel": "Предстоящие",
+      "pastLabel": "Прошедшие",
+      "noLessons": "Нет {{label}} уроков",
+      "columns": {
+        "date": "Дата",
+        "lesson": "Урок",
+        "instructor": "Инструктор",
+        "duration": "Длительность",
+        "status": "Статус"
+      },
+      "showMore": "Показать ещё ({{count}})"
+    },
+    "rentalsSection": {
+      "upcomingLabel": "Предстоящие",
+      "pastLabel": "Прошедшие",
+      "noRentals": "Нет {{label}} аренды",
+      "columns": {
+        "date": "Дата",
+        "equipment": "Оборудование",
+        "duration": "Длительность",
+        "status": "Статус"
+      },
+      "showMore": "Показать ещё ({{count}})"
+    }
+  },
+  "schedule": {
+    "tabs": {
+      "mySchedule": "Моё расписание",
+      "groupLessons": "Групповые уроки"
+    },
+    "statsBar": {
+      "total": "всего",
+      "upcoming": "предстоящие",
+      "past": "прошедшие",
+      "next": "Следующий:"
+    },
+    "sections": {
+      "upcomingHeading": "Предстоящие",
+      "pastHeading": "Прошедшие"
+    },
+    "emptyMessages": {
+      "noUpcoming": "Предстоящих уроков пока нет",
+      "noPast": "Уроков ещё не записано"
+    },
+    "lessonRow": {
+      "nextBadge": "Следующий",
+      "reschedule": "Перенести"
+    },
+    "detailModal": {
+      "lessonLabel": "Урок",
+      "instructorLabel": "Инструктор",
+      "durationLabel": "Длительность",
+      "notesLabel": "Заметки",
+      "requestReschedule": "Запросить перенос",
+      "close": "Закрыть",
+      "statusLabels": {
+        "completed": "Завершено",
+        "scheduled": "Запланировано",
+        "pending": "Ожидание",
+        "cancelled": "Отменено",
+        "confirmed": "Подтверждено"
+      }
+    },
+    "rescheduleModal": {
+      "title": "Запросить перенос",
+      "subtitle": "Выберите новую дату и время",
+      "currentBookingLabel": "Текущее бронирование",
+      "withInstructor": "с {{name}}",
+      "selectDateLabel": "Выберите новую дату",
+      "datePlaceholder": "Выбрать дату",
+      "availableSlotsLabel": "Доступные временные слоты",
+      "checkingAvailability": "Проверяем доступность...",
+      "noSlots": "Доступных слотов нет",
+      "noSlotsDescription": "У {{name}} нет свободных слотов на {{date}}. Попробуйте другую дату.",
+      "slotsAvailable_one": "{{count}} слот доступен",
+      "slotsAvailable_few": "{{count}} слота доступно",
+      "slotsAvailable_other": "{{count}} слотов доступно",
+      "newTimeSummary": "Новое время: {{datetime}} — {{slot}}",
+      "newTimeSub": "{{duration}} ч {{lesson}} с {{instructor}}",
+      "reasonLabel": "Причина переноса (необязательно)",
+      "reasonPlaceholder": "Например, конфликт расписания, личные обстоятельства...",
+      "managerConfirm": "Менеджер подтвердит ваш запрос",
+      "cancelButton": "Отмена",
+      "submitButton": "Запросить перенос",
+      "sendingButton": "Отправляем...",
+      "successMessage": "Запрос на перенос отправлен! Менеджер подтвердит новое время.",
+      "errors": {
+        "loadFailed": "Не удалось загрузить расписание",
+        "invalidData": "Некорректные данные для переноса",
+        "invalidDataDesc": "Пожалуйста, выберите дату и временной слот",
+        "unableToReschedule": "Невозможно перенести урок"
+      }
+    }
+  },
+  "payments": {
+    "stats": {
+      "walletBalance": "Баланс кошелька",
+      "availableToSpend": "Доступно для трат",
+      "settled": "Оплачено",
+      "completedInvoices": "Закрытые счета",
+      "settledAmount": "Сумма оплат",
+      "totalPaid": "Всего оплачено",
+      "pending": "Ожидание",
+      "awaitingProcessing": "Ожидает обработки"
+    },
+    "actions": {
+      "addFunds": "+ Пополнить",
+      "openWallet": "Открыть кошелёк",
+      "refresh": "Обновить",
+      "refreshing": "Обновляем..."
+    },
+    "table": {
+      "heading": "История платежей",
+      "emptyState": "Платежей пока нет",
+      "columns": {
+        "date": "Дата",
+        "description": "Описание",
+        "amount": "Сумма",
+        "status": "Статус"
+      }
+    },
+    "pagination": {
+      "previous": "Назад",
+      "next": "Вперёд",
+      "pageOf": "Страница {{page}} из {{total}}"
+    },
+    "notifications": {
+      "paymentSuccess": "Платёж прошёл!",
+      "depositProcessed": "Ваш депозит {{amount}} {{currency}} успешно обработан.",
+      "depositProcessedGeneric": "Ваш депозит успешно обработан.",
+      "paymentFailed": "Платёж не прошёл",
+      "paymentFailedReason": "Причина: {{reason}}",
+      "paymentFailedGeneric": "Платёж не удалось обработать. Попробуйте ещё раз.",
+      "fundsAdded": "Средства добавлены",
+      "fundsAddedDesc": "Сумма успешно добавлена в ваш кошелёк.",
+      "loadError": "Не удалось загрузить платежи"
+    }
+  },
+  "myProfile": {
+    "profileCard": {
+      "profileFields": {
+        "email": "Эл. почта",
+        "phone": "Телефон",
+        "preferredLanguage": "Предпочитаемый язык",
+        "customerSince": "Клиент с",
+        "notProvided": "Не указано",
+        "notSet": "Не задано",
+        "unknown": "Неизвестно"
+      },
+      "accountHighlights": {
+        "currentBalance": "Текущий баланс",
+        "lifetimeValue": "Общая ценность",
+        "lastPayment": "Последний платёж",
+        "noPaymentsYet": "Платежей пока нет"
+      },
+      "statCards": {
+        "hoursAttended": "Посещено часов",
+        "attendanceRate": "Посещаемость",
+        "totalLessons": "Всего уроков",
+        "totalRentals": "Всего аренды"
+      },
+      "notes": "Заметки"
+    },
+    "packageSummary": {
+      "heading": "Сводка по пакету",
+      "viewOnly": "Только просмотр",
+      "generalPackage": "Общий пакет",
+      "rentalSuffix": "+ Аренда",
+      "accommodationSuffix": "+ Проживание",
+      "noPackages": "Пакеты не назначены",
+      "expiresOn": "Истекает {{date}}",
+      "noExpiry": "Без срока действия",
+      "sections": {
+        "totalHours": "Всего часов",
+        "used": "Использовано",
+        "remaining": "Осталось",
+        "utilisation": "Использование",
+        "totalDays": "Всего дней",
+        "equipment": "Оборудование",
+        "totalNights": "Всего ночей",
+        "unit": "Единица"
+      }
+    },
+    "upcomingLessons": {
+      "heading": "Предстоящие уроки",
+      "viewOnly": "Только просмотр",
+      "scheduled": "Запланировано",
+      "instructorPrefix": "Инструктор:",
+      "noUpcoming": "Предстоящих уроков нет"
+    },
+    "historySection": {
+      "tabs": {
+        "total": "Вся история",
+        "lessons": "История уроков",
+        "rentals": "История аренды",
+        "shop": "История покупок",
+        "memberships": "История членств",
+        "events": "История мероприятий",
+        "financial": "Финансовая история"
+      },
+      "tableHeadings": {
+        "allActivity": "Вся активность",
+        "lessonHistory": "История уроков",
+        "rentalHistory": "История аренды",
+        "shopPurchases": "Покупки в магазине",
+        "membershipPurchases": "Покупки членств",
+        "eventRegistrations": "Регистрации на мероприятия",
+        "financialHistory": "Финансовая история"
+      },
+      "columns": {
+        "date": "Дата",
+        "type": "Тип",
+        "description": "Описание",
+        "dateTime": "Дата и время",
+        "service": "Услуга",
+        "instructor": "Инструктор",
+        "duration": "Длительность",
+        "price": "Цена",
+        "status": "Статус",
+        "payment": "Оплата",
+        "equipment": "Оборудование",
+        "rentalDate": "Дата аренды",
+        "amount": "Сумма",
+        "purchased": "Куплено",
+        "membership": "Членство",
+        "expires": "Истекает",
+        "item": "Товар",
+        "quantity": "Количество",
+        "event": "Мероприятие",
+        "location": "Место",
+        "registration": "Регистрация"
+      },
+      "emptyStates": {
+        "noActivity": "Истории активности нет",
+        "noLessons": "Истории уроков нет",
+        "noRentals": "Истории аренды нет",
+        "noShop": "Покупок нет",
+        "noMemberships": "Покупок членств нет",
+        "noEvents": "Регистраций на мероприятия нет",
+        "noFinancial": "Платежей не записано"
+      },
+      "values": {
+        "notAssigned": "Не назначено",
+        "hour_one": "{{count}} час",
+        "hour_few": "{{count}} часа",
+        "hour_other": "{{count}} часов",
+        "item_one": "{{count}} товар",
+        "item_few": "{{count}} товара",
+        "item_other": "{{count}} товаров",
+        "free": "Бесплатно",
+        "tba": "Уточняется"
+      }
+    },
+    "familyAlert": {
+      "message": "Ищете членов семьи?",
+      "description": "Управляйте данными семьи из боковой панели: Профиль → Семья."
+    },
+    "loadingActivity": "Загружаем вашу активность...",
+    "alerts": {
+      "profileUnavailable": "Профиль недоступен",
+      "historyError": "Не удалось загрузить часть вашей истории"
+    }
+  },
+  "family": {
+    "pageTitle": "Члены семьи",
+    "pageSubtitle": "Добавляйте и управляйте профилями детей для бронирований и отказов от ответственности.",
+    "seoTitle": "Члены семьи • Plannivo",
+    "seoDescription": "Управляйте членами семьи (до 18 лет) для бронирования уроков, аренды и подписания вайверов.",
+    "cardTitle": "Члены семьи",
+    "management": {
+      "description": "Управляйте членами семьи ниже. Вы можете бронировать уроки и аренду для любого указанного члена семьи.",
+      "showingCount_one": "Показан {{count}} участник",
+      "showingCount_few": "Показано {{count}} участника",
+      "showingCount_other": "Показано {{count}} участников",
+      "showingOf": " из {{total}} всего",
+      "adjustFilters": " Измените фильтры, чтобы увидеть больше членов семьи."
+    },
+    "emptyState": {
+      "heading": "Членов семьи пока нет",
+      "body": "Добавьте детей (до 18 лет), чтобы легко бронировать для них уроки и аренду. Вы также сможете подписывать вайверы и отслеживать их активность.",
+      "addButton": "Добавить первого члена семьи"
+    },
+    "filteredEmpty": {
+      "heading": "Ничего не найдено",
+      "body": "Попробуйте изменить поиск или фильтры",
+      "clearButton": "Сбросить фильтры"
+    },
+    "filters": {
+      "searchPlaceholder": "Поиск по имени или заметкам...",
+      "allRelationships": "Все отношения",
+      "allWaiverStatuses": "Все статусы вайверов",
+      "clearButton": "Сбросить"
+    },
+    "actions": {
+      "export": "Экспорт",
+      "exportTooltipOnline": "Скачать CSV-экспорт",
+      "exportTooltipOffline": "Подключитесь для экспорта",
+      "addMember": "Добавить участника",
+      "addMemberTooltipOnline": "Добавить нового члена семьи",
+      "addMemberTooltipOffline": "Вы офлайн"
+    },
+    "offline": {
+      "title": "Режим офлайн",
+      "description": "Вы просматриваете последних кэшированных членов семьи. Создание или редактирование требует интернет-соединения."
+    },
+    "loadError": "Ошибка загрузки членов семьи",
+    "loading": "Загружаем членов семьи...",
+    "relationships": {
+      "son": "Сын",
+      "daughter": "Дочь",
+      "child": "Ребёнок",
+      "sibling": "Брат/Сестра",
+      "other": "Другое"
+    },
+    "waiverStatuses": {
+      "signed": "Подписан",
+      "pending": "Требуется действие",
+      "expired": "Истёк",
+      "unknown": "Неизвестно"
+    },
+    "memberCard": {
+      "yearsOld_one": "{{count}} год",
+      "yearsOld_few": "{{count}} года",
+      "yearsOld_other": "{{count}} лет",
+      "hasMedicalNotes": "Есть медицинские заметки",
+      "waiver": {
+        "upToDate": "Вайвер актуален",
+        "expired": "Вайвер истёк",
+        "newVersionRequired": "Требуется новая версия",
+        "pending": "Вайвер ожидает",
+        "unknown": "Статус вайвера неизвестен",
+        "lastSigned": "Последний раз подписан {{date}}",
+        "signButton": "Подписать вайвер"
+      },
+      "tooltips": {
+        "viewActivity": "Смотреть активность",
+        "signWaiver": "Подписать вайвер",
+        "edit": "Редактировать",
+        "remove": "Удалить"
+      }
+    },
+    "deleteConfirm": {
+      "title": "Удалить члена семьи",
+      "body": "Вы уверены, что хотите удалить {{name}} из членов семьи?",
+      "consequence": "Это не повлияет на существующие бронирования, но новые бронирования будут недоступны.",
+      "okText": "Удалить",
+      "cancelText": "Отмена",
+      "undoMessage": "{{name}} удалён.",
+      "undoButton": "Отменить",
+      "restored": "{{name}} восстановлен",
+      "removeError": "Не удалось удалить члена семьи"
+    },
+    "modal": {
+      "addTitle": "Добавить члена семьи",
+      "editTitle": "Редактировать члена семьи",
+      "addSubtitle": "Добавьте члена семьи для бронирования активностей от его имени",
+      "editSubtitle": "Обновите данные члена семьи ниже",
+      "sections": {
+        "personal": "Личное",
+        "basicInfo": "Основная информация",
+        "safety": "Безопасность",
+        "emergencyMedical": "Экстренный контакт и медицина"
+      },
+      "ageAlert": {
+        "childTitle": "Применяется возрастное ограничение",
+        "childDesc": "Дети, сыновья, дочери и братья/сёстры должны быть моложе 18 лет.",
+        "adultTitle": "Добавьте любого члена семьи",
+        "adultDesc": "Вы можете добавить супруга, родителя или любого совершеннолетнего члена семьи."
+      },
+      "fields": {
+        "fullName": "Полное имя",
+        "fullNamePlaceholder": "Введите полное имя",
+        "relationship": "Отношение",
+        "relationshipPlaceholder": "Выберите отношение",
+        "dateOfBirth": "Дата рождения",
+        "dobUnderAge": "Должно быть менее 18 лет",
+        "dobEnter": "Введите дату рождения",
+        "gender": "Пол",
+        "genderPlaceholder": "Выберите пол (необязательно)",
+        "emergencyContact": "Экстренный контакт",
+        "emergencyPlaceholder": "Номер телефона или контактная информация (необязательно)",
+        "medicalNotes": "Медицинские заметки",
+        "medicalPlaceholder": "Укажите медицинскую информацию, аллергии или особые потребности (необязательно)",
+        "medicalHint": "Аллергии, медицинские состояния или особые потребности. Эта информация зашифрована и доступна только авторизованному персоналу."
+      },
+      "genderOptions": {
+        "male": "Мужской",
+        "female": "Женский",
+        "other": "Другой",
+        "preferNotToSay": "Предпочитаю не говорить"
+      },
+      "relationships": {
+        "son": "Сын",
+        "daughter": "Дочь",
+        "child": "Ребёнок",
+        "spouse": "Супруг/Супруга",
+        "sibling": "Брат/Сестра",
+        "parent": "Родитель",
+        "other": "Другое"
+      },
+      "validation": {
+        "nameRequired": "Пожалуйста, введите полное имя",
+        "nameMin": "Имя должно быть не менее 2 символов",
+        "nameMax": "Имя должно быть не более 255 символов",
+        "relationshipRequired": "Пожалуйста, выберите отношение",
+        "dobRequired": "Пожалуйста, выберите дату рождения",
+        "emergencyMax": "Экстренный контакт не должен превышать 50 символов",
+        "medicalMax": "Медицинские заметки не должны превышать 2000 символов"
+      },
+      "ageError": {
+        "title": "Возрастное требование не выполнено",
+        "content": "Дети, сыновья, дочери и братья/сёстры должны быть моложе 18 лет. Для взрослых выберите «Супруг» или «Родитель»."
+      },
+      "saveError": {
+        "title": "Не удалось сохранить"
+      },
+      "discardConfirm": {
+        "title": "Отменить изменения?",
+        "content": "У вас есть несохранённые изменения. Закрыть без сохранения?",
+        "okText": "Отменить",
+        "cancelText": "Продолжить редактирование"
+      },
+      "buttons": {
+        "cancel": "Отмена",
+        "add": "Добавить члена семьи",
+        "update": "Обновить"
+      },
+      "toasts": {
+        "updated": "{{name}} обновлён",
+        "added": "{{name}} добавлен в вашу семью",
+        "saveError": "Не удалось сохранить члена семьи"
+      }
+    },
+    "exportSuccess": "Список членов семьи скачан",
+    "exportError": "Не удалось экспортировать членов семьи",
+    "waiverSigned": "Вайвер {{name}} подписан",
+    "waiverSignedGeneric": "Вайвер успешно подписан"
+  },
+  "support": {
+    "stats": {
+      "totalTickets": "Всего обращений",
+      "open": "Открытые",
+      "resolved": "Решённые"
+    },
+    "channelPicker": {
+      "heading": "Получить помощь",
+      "channels": {
+        "ticket": {
+          "label": "Новое обращение",
+          "description": "Создать запрос в поддержку"
+        },
+        "email": {
+          "label": "Написать нам",
+          "description": "hello@plannivo.com"
+        },
+        "whatsapp": {
+          "label": "WhatsApp",
+          "description": "Написать в WhatsApp"
+        },
+        "chat": {
+          "label": "Онлайн-чат",
+          "description": "Чат с командой"
+        },
+        "kai": {
+          "label": "Спросить Kai",
+          "description": "Мгновенные ответы ИИ"
+        }
+      }
+    },
+    "tabs": {
+      "newTicket": "Новое обращение",
+      "myTickets": "Мои обращения"
+    },
+    "form": {
+      "intro": "Нужна помощь с бронированиями, оплатой или снаряжением? Напишите нам, и наша команда ответит вам.",
+      "subjectLabel": "Тема",
+      "subjectPlaceholder": "Например: Нужно изменить урок",
+      "subjectRequired": "Опишите, чем мы можем помочь",
+      "priorityLabel": "Приоритет",
+      "messageLabel": "Сообщение",
+      "messagePlaceholder": "Напишите ваше сообщение для школы",
+      "messageRequired": "Добавьте немного подробностей",
+      "submitButton": "Отправить запрос",
+      "sendingButton": "Отправляем…",
+      "priorityOptions": {
+        "low": "Низкий",
+        "normal": "Обычный",
+        "high": "Высокий"
+      }
+    },
+    "ticketList": {
+      "emptyState": "Обращений в поддержку пока нет",
+      "ticketFallback": "Обращение #{{id}}",
+      "statusLabels": {
+        "open": "Открытое",
+        "in_progress": "В работе",
+        "resolved": "Решено",
+        "closed": "Закрыто",
+        "pending": "Ожидание"
+      }
+    },
+    "notifications": {
+      "requestSent": "Запрос в поддержку отправлен",
+      "sendError": "Не удалось отправить запрос"
+    }
+  },
+  "ratingModal": {
+    "sessionHeading": "Как прошло занятие?",
+    "sessionWith": "с",
+    "feedbackLabel": {
+      "under5": "Как нам заслужить 5 звёзд?",
+      "under5Required": "*",
+      "5stars": "Поделитесь впечатлениями"
+    },
+    "placeholders": {
+      "under5": "Мы хотим стать лучше — что можно улучшить?",
+      "5stars": "Что сделало это занятие отличным?"
+    },
+    "charCount": "{{count}} / 2000",
+    "requiredNote": "Обязательно для оценок ниже 5 звёзд",
+    "anonymous": {
+      "label": "Отправить анонимно",
+      "hint": "Ваша оценка учитывается, ваше имя остаётся приватным"
+    },
+    "submitButton": "Отправить оценку",
+    "submittingButton": "Отправляем…",
+    "maybeLater": "Позже",
+    "noBookingFound": "Не удалось найти данные об этом уроке.",
+    "success": {
+      "heading": "Спасибо!",
+      "body": "Ваш отзыв помогает нам покорять большие волны."
+    },
+    "ratings": {
+      "poor": "Плохо",
+      "fair": "Удовлетворительно",
+      "good": "Хорошо",
+      "great": "Отлично",
+      "amazing": "Превосходно!"
+    }
+  },
+  "layout": {
+    "portalDisabled": {
+      "heading": "Портал для студентов отключён",
+      "body": "Ваш аккаунт активен, но портал для студентов пока недоступен. Обратитесь в школу, если считаете, что это ошибка."
+    },
+    "welcome": "Добро пожаловать, {{name}}"
+  },
+  "portalUnavailable": {
+    "heading": "Портал для студентов скоро откроется",
+    "body": "Раздел для студентов готовится к запуску. Проверьте позже или обратитесь в школу, если нужна помощь с управлением уроками."
+  },
+  "myOrders": {
+    "pageTitle": "Мои заказы",
+    "pageSubtitle": "Отслеживайте покупки, платежи и переписку",
+    "browseShop": "В магазин",
+    "orderHistory": {
+      "heading": "История заказов",
+      "subheading": "Просматривайте покупки, отслеживайте статус и продолжайте общение"
+    },
+    "metrics": {
+      "totalOrders": "Всего заказов",
+      "totalOrdersHint": "Загружено на этой странице",
+      "active": "Активные",
+      "activeHint": "Ожидают или в процессе",
+      "completed": "Завершённые",
+      "completedHint": "Успешно доставлено",
+      "unreadMessages": "Непрочитанные сообщения",
+      "unreadThreads_one": "{{count}} тред",
+      "unreadThreads_few": "{{count}} треда",
+      "unreadThreads_other": "{{count}} тредов"
+    },
+    "latestOrderHint": "Последний заказ <strong>{{number}}</strong> был сделан {{time}}. Нажмите, чтобы увидеть обновления или написать команде.",
+    "filters": {
+      "all": "Все",
+      "active": "Активные",
+      "completed": "Завершённые",
+      "cancelled": "Отменённые"
+    },
+    "statusLabels": {
+      "pending": "Ожидание",
+      "confirmed": "Подтверждён",
+      "processing": "Обрабатывается",
+      "shipped": "Отправлен",
+      "delivered": "Доставлен",
+      "completed": "Завершён",
+      "cancelled": "Отменён",
+      "refunded": "Возврат"
+    },
+    "paymentLabels": {
+      "wallet": "Кошелёк",
+      "credit_card": "Банковская карта",
+      "cash": "Наличные",
+      "other": "Другое"
+    },
+    "paymentTags": {
+      "paid": "Оплачен",
+      "paymentPending": "Ожидает оплаты"
+    },
+    "orderCard": {
+      "items_one": "{{count}} товар",
+      "items_few": "{{count}} товара",
+      "items_other": "{{count}} товаров",
+      "moreItems_one": "+{{count}} товар",
+      "moreItems_few": "+{{count}} товара",
+      "moreItems_other": "+{{count}} товаров",
+      "qty": "Кол-во: {{qty}}",
+      "size": "Размер: {{size}}",
+      "newMessages_one": "{{count}} новое",
+      "newMessages_few": "{{count}} новых",
+      "newMessages_other": "{{count}} новых"
+    },
+    "emptyState": {
+      "noOrdersTitle": "Заказов пока нет",
+      "noFilterTitle": "Нет {{filter}} заказов",
+      "noOrdersBody": "Ваши покупки появятся здесь с деталями оплаты, обновлениями доставки и перепиской.",
+      "noFilterBody": "Попробуйте другой фильтр или обновите страницу.",
+      "clearFilter": "Сбросить фильтр"
+    },
+    "detail": {
+      "drawerTitle": "Детали заказа",
+      "statusHistory": "История статусов",
+      "fromStatus": "из {{status}}",
+      "orderNotes": "Заметки к заказу",
+      "orderCancelledTitle": "Заказ отменён",
+      "orderRefundedTitle": "Заказ возвращён",
+      "infoLabels": {
+        "status": "Статус",
+        "payment": "Оплата",
+        "voucher": "Ваучер",
+        "shippingAddress": "Адрес доставки"
+      },
+      "itemsHeading": "Товары",
+      "totals": {
+        "subtotal": "Подитог",
+        "discount": "Скидка",
+        "total": "Итого"
+      }
+    },
+    "messages": {
+      "heading": "Сообщения по заказу",
+      "emptyState": "Сообщений пока нет. Задайте вопрос о вашем заказе!",
+      "placeholder": "Введите сообщение...",
+      "staffFallback": "Персонал"
+    }
+  },
+  "feedback": {
+    "form": {
+      "title": "Поделитесь впечатлениями",
+      "updateTitle": "Обновить отзыв",
+      "overallExperience": "Общее впечатление",
+      "wouldRecommend": "Порекомендуете ли вы нас друзьям?",
+      "recommendYes": "Да, конечно!",
+      "recommendNo": "Нет, вряд ли",
+      "detailedRatings": "Подробные оценки",
+      "instructorRating": "Инструктор",
+      "equipmentRating": "Качество снаряжения",
+      "locationRating": "Место и условия",
+      "valueRating": "Соотношение цена/качество",
+      "skillProgress": "Ваш прогресс в кайтсёрфинге",
+      "skillBefore": "Уровень до урока",
+      "skillAfter": "Уровень после урока",
+      "skillPlaceholderBefore": "Выберите уровень до урока",
+      "skillPlaceholderAfter": "Выберите уровень после урока",
+      "skillLevels": {
+        "complete_beginner": "Полный новичок",
+        "beginner": "Начинающий",
+        "intermediate": "Средний уровень",
+        "advanced": "Продвинутый",
+        "expert": "Эксперт"
+      },
+      "lessonConditions": "Условия урока",
+      "weatherConditions": "Какая была погода?",
+      "weatherOptions": {
+        "excellent": "Отличная — идеально для кайтсёрфинга",
+        "good": "Хорошая — приятные условия",
+        "fair": "Нормальная — приемлемые условия",
+        "poor": "Плохая — сложные условия",
+        "unsuitable": "Неподходящая — урок следовало отменить"
+      },
+      "favoriteAspect": "Любимый аспект урока",
+      "favoriteAspectPlaceholder": "Что вам понравилось больше всего?",
+      "favoriteOptions": {
+        "instructor_teaching": "Стиль преподавания инструктора",
+        "equipment_quality": "Высококачественное снаряжение",
+        "location_beauty": "Красивое место",
+        "safety_measures": "Меры безопасности",
+        "skill_progress": "Прогресс в обучении",
+        "overall_experience": "Общее впечатление"
+      },
+      "commentsLabel": "Расскажите о вашем опыте",
+      "commentsPlaceholder": "Поделитесь подробностями урока, тем, что вы узнали, как себя чувствовали...",
+      "improvementLabel": "Как мы можем стать лучше?",
+      "improvementPlaceholder": "Есть ли предложения по улучшению уроков?",
+      "submitButton": "Отправить отзыв",
+      "updateButton": "Обновить отзыв",
+      "validation": {
+        "overallRequired": "Пожалуйста, оцените общее впечатление",
+        "instructorRequired": "Пожалуйста, оцените инструктора",
+        "equipmentRequired": "Пожалуйста, оцените снаряжение",
+        "locationRequired": "Пожалуйста, оцените место",
+        "valueRequired": "Пожалуйста, оцените соотношение цена/качество"
+      },
+      "errors": {
+        "submitFailed": "Не удалось отправить отзыв. Попробуйте ещё раз.",
+        "errorTitle": "Ошибка"
+      }
+    },
+    "thankYou": {
+      "heading": "Спасибо за ваш отзыв!",
+      "body": "Ваш отзыв помогает нам улучшать уроки по кайтсёрфингу и создавать лучший опыт для всех студентов.",
+      "continueButton": "Продолжить"
+    },
+    "summary": {
+      "totalReviews": "Всего отзывов",
+      "averageRating": "Средняя оценка",
+      "recommendationRate": "Процент рекомендаций",
+      "responseRate": "Процент ответов",
+      "ratingBreakdown": "Распределение оценок",
+      "recentComments": "Последние комментарии",
+      "suggestionPrefix": "Предложение:",
+      "noFeedback": "Данных об отзывах нет",
+      "noFeedbackDesc": "За выбранный период отзывов не получено.",
+      "loading": "Загружаем сводку отзывов..."
+    },
+    "achievements": {
+      "modalTitle": "Достижение разблокировано!"
+    }
+  }
+}

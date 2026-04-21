@@ -1,5 +1,8 @@
 {
-  "_meta": { "ai_drafted": true, "reviewed": false },
+  "_meta": {
+    "ai_drafted": true,
+    "reviewed": false
+  },
   "common": {
     "viewDetails": "Voir les détails",
     "readFaq": "Lire la FAQ",
@@ -15,18 +18,101 @@
     "browseShop": "PARCOURIR LA BOUTIQUE",
     "discover": "Découvrir",
     "services": {
-      "shop": { "title": "Boutique", "tagline": "Revendeur Officiel Duotone", "subItems": ["Kitesurf", "Wing Foil", "E-Foil", "Combinaisons", "ION ACCS", "SecondWind"] },
-      "academy": { "title": "Académie", "tagline": "Instructeurs certifiés IKO", "subItems": ["Cours de Kite", "Cours de Foil", "Cours de Wing", "E-Foil", "Premium"] },
-      "rentals": { "title": "Locations", "tagline": "Équipement Premium", "subItems": ["Pack Complet", "Kiteboard Seul", "Combinaison", "Harnais & Barre", "E-Foil"] },
-      "membership": { "title": "Adhésion", "tagline": "Avantages Exclusifs", "subItems": ["Installations de plage", "WIFI", "Toilettes de plage", "Douches", "Compresseurs", "Aide au décollage et à l'atterrissage", "Et bien plus..."] },
-      "care": { "title": "Entretien", "tagline": "Toutes marques bienvenues", "subItems": ["Réparation de Kite", "Réparation de Board", "Barre & Lignes", "Service complet"] },
-      "stay": { "title": "Hébergement", "tagline": "Vivre en bord de mer", "subItems": ["Ferme avec piscine", "Studios dans l'oliveraie"] },
-      "experience": { "title": "Expérience", "tagline": "L'aventure vous attend", "subItems": ["Packages Kite", "Packages Wing", "DownWinders", "Stages"] },
-      "community": { "title": "Communauté", "tagline": "Rejoignez la tribu", "subItems": ["Chat en direct", "Événements & rencontres", "Communauté de riders"] }
+      "shop": {
+        "title": "Boutique",
+        "tagline": "Revendeur Officiel Duotone",
+        "subItems": [
+          "Kitesurf",
+          "Wing Foil",
+          "E-Foil",
+          "Combinaisons",
+          "ION ACCS",
+          "SecondWind"
+        ]
+      },
+      "academy": {
+        "title": "Académie",
+        "tagline": "Instructeurs certifiés IKO",
+        "subItems": [
+          "Cours de Kite",
+          "Cours de Foil",
+          "Cours de Wing",
+          "E-Foil",
+          "Premium"
+        ]
+      },
+      "rentals": {
+        "title": "Locations",
+        "tagline": "Équipement Premium",
+        "subItems": [
+          "Pack Complet",
+          "Kiteboard Seul",
+          "Combinaison",
+          "Harnais & Barre",
+          "E-Foil"
+        ]
+      },
+      "membership": {
+        "title": "Adhésion",
+        "tagline": "Avantages Exclusifs",
+        "subItems": [
+          "Installations de plage",
+          "WIFI",
+          "Toilettes de plage",
+          "Douches",
+          "Compresseurs",
+          "Aide au décollage et à l'atterrissage",
+          "Et bien plus..."
+        ]
+      },
+      "care": {
+        "title": "Entretien",
+        "tagline": "Toutes marques bienvenues",
+        "subItems": [
+          "Réparation de Kite",
+          "Réparation de Board",
+          "Barre & Lignes",
+          "Service complet"
+        ]
+      },
+      "stay": {
+        "title": "Hébergement",
+        "tagline": "Vivre en bord de mer",
+        "subItems": [
+          "Ferme avec piscine",
+          "Studios dans l'oliveraie"
+        ]
+      },
+      "experience": {
+        "title": "Expérience",
+        "tagline": "L'aventure vous attend",
+        "subItems": [
+          "Packages Kite",
+          "Packages Wing",
+          "DownWinders",
+          "Stages"
+        ]
+      },
+      "community": {
+        "title": "Communauté",
+        "tagline": "Rejoignez la tribu",
+        "subItems": [
+          "Chat en direct",
+          "Événements & rencontres",
+          "Communauté de riders"
+        ]
+      }
     }
   },
   "academy": {
-    "nav": { "kite": "KITE", "foil": "FOIL", "wing": "WING", "efoil": "E-FOIL", "premium": "PREMIUM", "premiumShort": "VIP" },
+    "nav": {
+      "kite": "KITE",
+      "foil": "FOIL",
+      "wing": "WING",
+      "efoil": "E-FOIL",
+      "premium": "PREMIUM",
+      "premiumShort": "VIP"
+    },
     "sections": {
       "kite": {
         "title": "COURS DE KITE",
@@ -157,52 +243,155 @@
         "name": "Débutant Privé",
         "subtitle": "Cours individuel",
         "description": "La façon la plus rapide d'apprendre. Bénéficiez d'une attention 100 % personnalisée d'un instructeur dédié, entièrement concentré sur votre rythme et votre confort.",
-        "highlights": ["Instructeur privé dédié", "Communication casque radio", "Dernier équipement Duotone inclus", "Plan de progression personnalisé", "Suivi progressif étape par étape", "Débriefing personnel"],
-        "badges": ["Focus privé", "Casque radio"],
+        "highlights": [
+          "Instructeur privé dédié",
+          "Communication casque radio",
+          "Dernier équipement Duotone inclus",
+          "Plan de progression personnalisé",
+          "Suivi progressif étape par étape",
+          "Débriefing personnel"
+        ],
+        "badges": [
+          "Focus privé",
+          "Casque radio"
+        ],
         "durations": [
-          { "label": "Intro", "sessions": "2 x 2h", "tag": "Basique" },
-          { "label": "Standard", "sessions": "3 x 2h", "tag": "Populaire" },
-          { "label": "Plus", "sessions": "4 x 2h", "tag": "Recommandé" },
-          { "label": "Pro", "sessions": "5 x 2h", "tag": "Meilleure offre" }
+          {
+            "label": "Intro",
+            "sessions": "2 x 2h",
+            "tag": "Basique"
+          },
+          {
+            "label": "Standard",
+            "sessions": "3 x 2h",
+            "tag": "Populaire"
+          },
+          {
+            "label": "Plus",
+            "sessions": "4 x 2h",
+            "tag": "Recommandé"
+          },
+          {
+            "label": "Pro",
+            "sessions": "5 x 2h",
+            "tag": "Meilleure offre"
+          }
         ]
       },
       "group": {
         "name": "Cours en groupe",
         "subtitle": "Semi-privé (2 élèves)",
         "description": "Apprenez avec un ami ou rencontrez un nouveau partenaire de kite ! Ce format semi-privé offre un parfait équilibre entre instruction et temps de repos/observation.",
-        "highlights": ["Max 2 élèves par instructeur", "Kite et board partagés", "Apprenez en observant", "Ambiance sociale", "Tarif plus accessible", "Équipement complet inclus"],
-        "badges": ["Best-seller", "Fun social"],
+        "highlights": [
+          "Max 2 élèves par instructeur",
+          "Kite et board partagés",
+          "Apprenez en observant",
+          "Ambiance sociale",
+          "Tarif plus accessible",
+          "Équipement complet inclus"
+        ],
+        "badges": [
+          "Best-seller",
+          "Fun social"
+        ],
         "durations": [
-          { "label": "Intro", "sessions": "2 x 2h", "tag": "Démarrage" },
-          { "label": "Standard", "sessions": "3 x 2h", "tag": "Populaire" },
-          { "label": "Plus", "sessions": "4 x 2h", "tag": "Valeur" },
-          { "label": "Pro", "sessions": "5 x 2h", "tag": "Complet" }
+          {
+            "label": "Intro",
+            "sessions": "2 x 2h",
+            "tag": "Démarrage"
+          },
+          {
+            "label": "Standard",
+            "sessions": "3 x 2h",
+            "tag": "Populaire"
+          },
+          {
+            "label": "Plus",
+            "sessions": "4 x 2h",
+            "tag": "Valeur"
+          },
+          {
+            "label": "Pro",
+            "sessions": "5 x 2h",
+            "tag": "Complet"
+          }
         ]
       },
       "advanced": {
         "name": "Coaching avancé",
         "subtitle": "Niveau pro",
         "description": "Vous ridez déjà ? Passez au niveau supérieur avec nos instructeurs seniors. Maîtrisez sauts, transitions, tricks unhooked ou surf de vague.",
-        "highlights": ["Instructeur senior niveau 3", "Retour performance avancé", "Feuille de route progression tricks", "Support downwinder", "Préparation compétition", "Clinic de réglage équipement"],
-        "badges": ["Réservé experts", "Coaching progression"],
+        "highlights": [
+          "Instructeur senior niveau 3",
+          "Retour performance avancé",
+          "Feuille de route progression tricks",
+          "Support downwinder",
+          "Préparation compétition",
+          "Clinic de réglage équipement"
+        ],
+        "badges": [
+          "Réservé experts",
+          "Coaching progression"
+        ],
         "durations": [
-          { "label": "Réglage", "sessions": "4 x 1h", "tag": "Tune-up" },
-          { "label": "Progression", "sessions": "6 x 1h", "tag": "Core" },
-          { "label": "Maîtrise", "sessions": "8 x 1h", "tag": "Avancé" },
-          { "label": "Pro Camp", "sessions": "10 x 1h", "tag": "Intensif" }
+          {
+            "label": "Réglage",
+            "sessions": "4 x 1h",
+            "tag": "Tune-up"
+          },
+          {
+            "label": "Progression",
+            "sessions": "6 x 1h",
+            "tag": "Core"
+          },
+          {
+            "label": "Maîtrise",
+            "sessions": "8 x 1h",
+            "tag": "Avancé"
+          },
+          {
+            "label": "Pro Camp",
+            "sessions": "10 x 1h",
+            "tag": "Intensif"
+          }
         ]
       },
       "supervision": {
         "name": "Supervision",
         "subtitle": "Pratique autonome",
         "description": "Pratiquez en toute tranquillité. Notre équipe de plage vous aide au décollage/atterrissage et garde un œil sur vous.",
-        "highlights": ["Aide au décollage & atterrissage", "Bateau de sécurité", "Accès zone école", "Briefing météo quotidien", "Accès équipement d'urgence"],
-        "badges": ["Sécurité d'abord", "Location possible"],
+        "highlights": [
+          "Aide au décollage & atterrissage",
+          "Bateau de sécurité",
+          "Accès zone école",
+          "Briefing météo quotidien",
+          "Accès équipement d'urgence"
+        ],
+        "badges": [
+          "Sécurité d'abord",
+          "Location possible"
+        ],
         "durations": [
-          { "label": "Demi-journée", "sessions": "4h", "tag": "Rapide" },
-          { "label": "Journée", "sessions": "Quotidien", "tag": "Standard" },
-          { "label": "Weekend", "sessions": "2 jours", "tag": "Weekend" },
-          { "label": "Semaine", "sessions": "5 jours", "tag": "Séjour" }
+          {
+            "label": "Demi-journée",
+            "sessions": "4h",
+            "tag": "Rapide"
+          },
+          {
+            "label": "Journée",
+            "sessions": "Quotidien",
+            "tag": "Standard"
+          },
+          {
+            "label": "Weekend",
+            "sessions": "2 jours",
+            "tag": "Weekend"
+          },
+          {
+            "label": "Semaine",
+            "sessions": "5 jours",
+            "tag": "Séjour"
+          }
         ]
       }
     }
@@ -283,6 +472,33 @@
       }
     }
   },
+  "packageModal": {
+    "readMore": "Lire plus",
+    "showLess": "Afficher moins",
+    "equipmentIncluded": "Tout l'équipement et le matériel inclus",
+    "chooseDuration": "Choisir la durée",
+    "packageBadge": "Pack",
+    "owned": "Acheté",
+    "hoursRemaining": "{{hours}} h restantes",
+    "hoursScheduled": "{{used}} h sur {{total}} h planifiées",
+    "noHoursRemaining": "Plus d'heures restantes",
+    "customLength": "Durée personnalisée",
+    "proRataFromBase": "Prorata à partir de la base",
+    "customHoursAria": "Heures personnalisées",
+    "hoursUnit": "heures",
+    "youOwnThisPackage": "Vous possédez ce pack",
+    "scheduledPending": "{{used}} h sur {{total}} h planifiées — en attente de confirmation",
+    "remainingSchedule": "{{hours}} h restantes — planifiez une session",
+    "total": "Total",
+    "perPerson": "par personne",
+    "viewInDashboard": "Voir dans le tableau de bord",
+    "scheduleSession": "Planifier une session",
+    "bookNow": "Réserver",
+    "footerScheduledPending": "Vos sessions sont réservées et attendent confirmation.",
+    "footerUseExisting": "Utilisez vos heures de pack existantes — sans frais supplémentaires.",
+    "footerPickNext": "Choisissez date et heure à l'étape suivante.",
+    "footerSignIn": "Connectez-vous pour réserver votre place."
+  },
   "contactBanner": {
     "orReachUs": "Ou contactez-nous directement",
     "whatsapp": "WhatsApp",
@@ -302,46 +518,121 @@
         "name": "Location Pack Complet",
         "subtitle": "Setup Kite complet",
         "description": "Tout le nécessaire pour aller sur l'eau avec un équipement fiable et progressif.",
-        "highlights": ["Aile + board + barre", "Harnais et combinaison inclus", "Leash et casque de sécurité", "Matériel vérifié chaque jour", "Idéal pour progresser", "Équipement inclus"],
-        "badges": ["Standard", "Pack Complet"],
+        "highlights": [
+          "Aile + board + barre",
+          "Harnais et combinaison inclus",
+          "Leash et casque de sécurité",
+          "Matériel vérifié chaque jour",
+          "Idéal pour progresser",
+          "Équipement inclus"
+        ],
+        "badges": [
+          "Standard",
+          "Pack Complet"
+        ],
         "durations": [
-          { "label": "Session rapide", "sessions": "1 session" },
-          { "label": "Demi-journée", "sessions": "Location demi-journée", "tag": "Populaire" },
-          { "label": "Journée", "sessions": "Location journée" },
-          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Meilleure offre" }
+          {
+            "label": "Session rapide",
+            "sessions": "1 session"
+          },
+          {
+            "label": "Demi-journée",
+            "sessions": "Location demi-journée",
+            "tag": "Populaire"
+          },
+          {
+            "label": "Journée",
+            "sessions": "Location journée"
+          },
+          {
+            "label": "1 Semaine",
+            "sessions": "Location 7 jours",
+            "tag": "Meilleure offre"
+          }
         ]
       },
       "board": {
         "name": "Location Board",
         "subtitle": "Twin Tip / Directionnel",
         "description": "Voyagez léger et louez uniquement la board. Plusieurs tailles et formes pour toutes les conditions.",
-        "highlights": ["Options twin tip et directionnel", "Straps/pads inclus", "Housse disponible", "Matériel fraîchement préparé", "Équipement inclus", "Réservez directement ici"],
-        "badges": ["Boards", "Standard"],
+        "highlights": [
+          "Options twin tip et directionnel",
+          "Straps/pads inclus",
+          "Housse disponible",
+          "Matériel fraîchement préparé",
+          "Équipement inclus",
+          "Réservez directement ici"
+        ],
+        "badges": [
+          "Boards",
+          "Standard"
+        ],
         "durations": [
-          { "label": "1 Jour", "sessions": "Location 1 jour" },
-          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Populaire" }
+          {
+            "label": "1 Jour",
+            "sessions": "Location 1 jour"
+          },
+          {
+            "label": "1 Semaine",
+            "sessions": "Location 7 jours",
+            "tag": "Populaire"
+          }
         ]
       },
       "wetsuit": {
         "name": "Location Combinaison",
         "subtitle": "Combinaisons ION",
         "description": "Combinaisons ION premium en plusieurs tailles, nettoyées et préparées après chaque usage.",
-        "highlights": ["Toutes tailles disponibles", "Fraîchement nettoyées", "Coupe confort", "Chaussons en option", "Équipement inclus", "Réservez directement ici"],
-        "badges": ["Combinaison", "Standard"],
+        "highlights": [
+          "Toutes tailles disponibles",
+          "Fraîchement nettoyées",
+          "Coupe confort",
+          "Chaussons en option",
+          "Équipement inclus",
+          "Réservez directement ici"
+        ],
+        "badges": [
+          "Combinaison",
+          "Standard"
+        ],
         "durations": [
-          { "label": "1 Jour", "sessions": "Location 1 jour" },
-          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Meilleure offre" }
+          {
+            "label": "1 Jour",
+            "sessions": "Location 1 jour"
+          },
+          {
+            "label": "1 Semaine",
+            "sessions": "Location 7 jours",
+            "tag": "Meilleure offre"
+          }
         ]
       },
       "harnessBar": {
         "name": "Harnais & Barre",
         "subtitle": "Système de contrôle",
         "description": "Systèmes de contrôle et harnais récents pour des sessions sûres et réactives.",
-        "highlights": ["Barres de contrôle Duotone", "Harnais ceinture et culotte", "Systèmes de largage rapide", "Contrôles de sécurité inclus", "Équipement inclus", "Réservez directement ici"],
-        "badges": ["Accessoires", "Standard"],
+        "highlights": [
+          "Barres de contrôle Duotone",
+          "Harnais ceinture et culotte",
+          "Systèmes de largage rapide",
+          "Contrôles de sécurité inclus",
+          "Équipement inclus",
+          "Réservez directement ici"
+        ],
+        "badges": [
+          "Accessoires",
+          "Standard"
+        ],
         "durations": [
-          { "label": "1 Jour", "sessions": "Location 1 jour" },
-          { "label": "1 Semaine", "sessions": "Location 7 jours", "tag": "Populaire" }
+          {
+            "label": "1 Jour",
+            "sessions": "Location 1 jour"
+          },
+          {
+            "label": "1 Semaine",
+            "sessions": "Location 7 jours",
+            "tag": "Populaire"
+          }
         ]
       }
     }
@@ -359,10 +650,22 @@
     "whyPremium": {
       "title": "Pourquoi le premium ?",
       "cards": {
-        "light": { "title": "Ultra léger", "description": "La technologie SLS réduit le poids jusqu'à 20 %" },
-        "responsive": { "title": "Plus réactif", "description": "Châssis plus rigides pour un retour instantané" },
-        "serviced": { "title": "Révisé chaque jour", "description": "Équipement vérifié et entretenu quotidiennement" },
-        "latest": { "title": "Derniers modèles", "description": "Équipement saison 2024 mis à jour chaque année" }
+        "light": {
+          "title": "Ultra léger",
+          "description": "La technologie SLS réduit le poids jusqu'à 20 %"
+        },
+        "responsive": {
+          "title": "Plus réactif",
+          "description": "Châssis plus rigides pour un retour instantané"
+        },
+        "serviced": {
+          "title": "Révisé chaque jour",
+          "description": "Équipement vérifié et entretenu quotidiennement"
+        },
+        "latest": {
+          "title": "Derniers modèles",
+          "description": "Équipement saison 2024 mis à jour chaque année"
+        }
       }
     },
     "options": {
@@ -376,22 +679,51 @@
         "title": "Équipement SLS",
         "subtitle": "Location horaire",
         "description": "La gamme Duotone SLS (Strong Light Superior) offre le summum de la performance. Plus léger, plus rigide et plus réactif que l'équipement standard.",
-        "durations": ["1 heure", "4 heures (demi-journée)", "8 heures (journée)", "1 Semaine"],
-        "included": ["Dernier modèle de kite SLS", "Board SLS au choix", "Harnais et barre premium", "Combinaison ION", "Équipement de sécurité"]
+        "durations": [
+          "1 heure",
+          "4 heures (demi-journée)",
+          "8 heures (journée)",
+          "1 Semaine"
+        ],
+        "included": [
+          "Dernier modèle de kite SLS",
+          "Board SLS au choix",
+          "Harnais et barre premium",
+          "Combinaison ION",
+          "Équipement de sécurité"
+        ]
       },
       "dlab": {
         "title": "Équipement D/LAB",
         "subtitle": "Performance haut de gamme",
         "description": "D/LAB est la gamme la plus aboutie de Duotone. Équipement fabriqué à la main en série limitée pour les riders exigeant la perfection.",
-        "durations": ["1 heure", "4 heures (demi-journée)", "8 heures (journée)"],
-        "included": ["Kite D/LAB (édition limitée)", "Board D/LAB ou SLS", "Harnais et barre premium", "Combinaison ION", "Assistance prioritaire"]
+        "durations": [
+          "1 heure",
+          "4 heures (demi-journée)",
+          "8 heures (journée)"
+        ],
+        "included": [
+          "Kite D/LAB (édition limitée)",
+          "Board D/LAB ou SLS",
+          "Harnais et barre premium",
+          "Combinaison ION",
+          "Assistance prioritaire"
+        ]
       },
       "foilBoard": {
         "title": "Board de foil SLS",
         "subtitle": "Équipement hydrofoil",
         "description": "Boards de foil premium pour riders expérimentés. Parfait pour les sessions de vent léger ou pour progresser en foil.",
-        "durations": ["1 jour", "1 semaine"],
-        "included": ["Board de foil SLS", "Set de foil complet", "Housse de board", "Briefing sécurité foil"]
+        "durations": [
+          "1 jour",
+          "1 semaine"
+        ],
+        "included": [
+          "Board de foil SLS",
+          "Set de foil complet",
+          "Housse de board",
+          "Briefing sécurité foil"
+        ]
       }
     },
     "bottomCta": {
@@ -402,7 +734,16 @@
     }
   },
   "rental": {
-    "nav": { "standard": "LOCATION STANDARD", "standardShort": "STANDARD", "sls": "LOCATION SLS", "slsShort": "SLS", "dlab": "LOCATION D-LAB", "dlabShort": "D-LAB", "efoil": "LOCATION E-FOIL", "efoilShort": "E-FOIL" },
+    "nav": {
+      "standard": "LOCATION STANDARD",
+      "standardShort": "STANDARD",
+      "sls": "LOCATION SLS",
+      "slsShort": "SLS",
+      "dlab": "LOCATION D-LAB",
+      "dlabShort": "D-LAB",
+      "efoil": "LOCATION E-FOIL",
+      "efoilShort": "E-FOIL"
+    },
     "sections": {
       "standard": {
         "title": "LOCATION STANDARD",
@@ -454,7 +795,12 @@
   },
   "experience": {
     "brandSubtitle": "expérience",
-    "nav": { "kite": "PACKAGES KITE", "wing": "PACKAGES WING", "downwinders": "DOWNWINDERS", "camps": "STAGES" },
+    "nav": {
+      "kite": "PACKAGES KITE",
+      "wing": "PACKAGES WING",
+      "downwinders": "DOWNWINDERS",
+      "camps": "STAGES"
+    },
     "sections": {
       "kite": {
         "title": "PACKAGES KITE",
@@ -480,6 +826,797 @@
     "faq": {
       "title": "Des questions sur nos packages ?",
       "description": "Notre équipe est là pour vous aider à choisir le pack expérience adapté à votre niveau et à vos objectifs."
+    }
+  },
+  "academyFoil": {
+    "hero": {
+      "pretitle": "Académie",
+      "title": "Foil",
+      "titleAccent": "Cours",
+      "subtitle": "Volez au-dessus de l'eau grâce à un parcours de progression guidé conçu pour une pratique confiante et maîtrisée du foil."
+    }
+  },
+  "academyWing": {
+    "hero": {
+      "pretitle": "Académie",
+      "title": "Wing",
+      "titleAccent": "Cours",
+      "subtitle": "Choisissez votre parcours de progression en wing. Des premières glisses aux transitions avancées, notre équipe vous accompagne à chaque étape."
+    }
+  },
+  "academyEFoil": {
+    "hero": {
+      "pretitle": "Académie",
+      "title": "E-Foil",
+      "titleAccent": "Cours",
+      "subtitle": "Vivez la sensation douce du foil électrique avec des sessions structurées pour tous les niveaux."
+    }
+  },
+  "academyPremium": {
+    "hero": {
+      "pretitle": "Académie",
+      "title": "Premium",
+      "titleAccent": "Cours",
+      "subtitle": "Packages de coaching exclusifs avec durées et tarifs configurables par l'administrateur."
+    }
+  },
+  "contact": {
+    "hero": {
+      "title": "Nous serions ravis de vous entendre",
+      "subtitle": "Que ce soit pour une question sur les cours, les locations, la disponibilité, ou simplement pour dire bonjour — contactez-nous via l'un des canaux ci-dessous."
+    },
+    "channels": {
+      "whatsapp": {
+        "label": "WhatsApp",
+        "value": "Lignes Boutique & École",
+        "description": "Le moyen le plus rapide de nous contacter pour des questions rapides et des réservations.",
+        "btnLabel": "Choisir la ligne"
+      },
+      "email": {
+        "label": "E-mail",
+        "value": "ukcturkey@gmail.com",
+        "description": "Envoyez-nous un message détaillé et nous vous répondrons dans les 24 heures.",
+        "btnLabel": "Envoyer un e-mail"
+      },
+      "instagram": {
+        "label": "Instagram",
+        "value": "3 comptes",
+        "description": "Suivez notre aventure et envoyez-nous un message privé à tout moment.",
+        "btnLabel": "Choisir le compte"
+      },
+      "phone": {
+        "label": "Téléphone",
+        "value": "+90 507 138 91 96",
+        "description": "Appelez-nous directement pendant les heures d'école.",
+        "btnLabel": "Appeler maintenant"
+      }
+    },
+    "whatsappOptions": {
+      "shop": "Demandes boutique",
+      "school": "Demandes école"
+    },
+    "instagramOptions": {
+      "dpc": "DPC-urla",
+      "urla": "Urla Kite Center",
+      "shop": "UKC Shop"
+    },
+    "location": {
+      "heading": "Nous trouver",
+      "name": "Duotone Pro Center Urla",
+      "address": "Urla, İzmir — Turquie",
+      "note": "Directement en bord de mer."
+    },
+    "hours": {
+      "heading": "Horaires de l'école",
+      "days": "Tous les jours",
+      "time": "09:00 – 18:00",
+      "note": "Selon le vent et la météo."
+    }
+  },
+  "care": {
+    "hero": {
+      "pretitle": "CENTRE DE RÉPARATION OFFICIEL",
+      "description": "Réparation professionnelle de cerfs-volants et équipements nautiques. Cerfs-volants, planches, barres, combinaisons et plus."
+    },
+    "tabs": {
+      "submit": "Soumettre une demande",
+      "track": "Suivre votre réparation"
+    },
+    "equipmentTypes": {
+      "kite": "Cerf-volant",
+      "board": "Planche (Kiteboard / Surfboard / Foil)",
+      "bar": "Barre & Lignes",
+      "wetsuit": "Combinaison",
+      "harness": "Harnais",
+      "bladder": "Bladder",
+      "other": "Autre"
+    },
+    "priorityOptions": {
+      "low": "Faible – quand vous pouvez",
+      "medium": "Moyen – dans la semaine",
+      "high": "Élevé – dans 2–3 jours",
+      "urgent": "Urgent – dès que possible"
+    },
+    "statusConfig": {
+      "received": {
+        "label": "Reçu",
+        "description": "Votre demande a été reçue et est en attente de traitement."
+      },
+      "inProgress": {
+        "label": "En cours",
+        "description": "Votre équipement est en cours de réparation par notre technicien."
+      },
+      "completed": {
+        "label": "Terminé",
+        "description": "Votre réparation est terminée et prête à être récupérée."
+      },
+      "cancelled": {
+        "label": "Annulé",
+        "description": "Cette demande de réparation a été annulée."
+      }
+    },
+    "submitSection": {
+      "heading": "Nouvelle demande de réparation",
+      "subheading": "Aucun compte nécessaire. Nous vous fournirons un code de suivi une fois terminé."
+    },
+    "form": {
+      "contactInfo": "Vos coordonnées",
+      "fullName": "Nom complet",
+      "email": "E-mail (recommandé)",
+      "phone": "Téléphone / WhatsApp",
+      "equipmentDetails": "Détails de l'équipement",
+      "equipmentType": "Type d'équipement",
+      "brandItem": "Marque / Nom de l'article",
+      "issueDescription": "Description du problème",
+      "urgency": "Urgence",
+      "currentLocation": "Emplacement actuel (optionnel)",
+      "placeholders": {
+        "fullName": "Jean Dupont",
+        "email": "vous@exemple.com",
+        "phone": "+90 530 000 00 00",
+        "brandItem": "ex. Cabrinha Switchblade 12m",
+        "issueDescription": "Décrivez les dommages ou le problème...",
+        "urgency": "Quelle urgence ?",
+        "currentLocation": "ex. Laissé au stockage de l'école"
+      },
+      "validation": {
+        "nameRequired": "Veuillez entrer votre nom",
+        "emailInvalid": "Entrez un e-mail valide",
+        "phoneRequired": "Veuillez entrer votre numéro de téléphone",
+        "equipmentTypeRequired": "Veuillez sélectionner le type d'équipement",
+        "brandRequired": "Veuillez entrer la marque / le nom de l'article",
+        "issueRequired": "Veuillez décrire le problème",
+        "urgencyRequired": "Veuillez sélectionner l'urgence"
+      },
+      "submitButton": "Soumettre la demande de réparation"
+    },
+    "success": {
+      "title": "Demande reçue !",
+      "description": "Nous avons enregistré votre demande de réparation. Vous recevrez un code de suivi pour suivre l'état.",
+      "tokenLabel": "Votre code de suivi",
+      "trackButton": "Suivre cette demande",
+      "anotherButton": "Soumettre une autre"
+    },
+    "track": {
+      "heading": "Suivre votre réparation",
+      "tokenLabel": "Code de suivi",
+      "tokenPlaceholder": "Collez votre code de suivi ici...",
+      "checkButton": "Vérifier le statut",
+      "loadingButton": "Recherche...",
+      "loadingText": "Recherche de votre demande…",
+      "notFound": "Introuvable"
+    },
+    "adminCta": {
+      "text": "Vous êtes connecté — voyez toutes vos demandes en un seul endroit",
+      "button": "Aller au tableau de bord des réparations"
+    }
+  },
+  "shop": {
+    "carousel": {
+      "shopNow": "Acheter maintenant",
+      "prevSlide": "Diapositive précédente",
+      "nextSlide": "Diapositive suivante",
+      "slideLabel": "Diapositive {{index}}"
+    },
+    "loading": "Chargement des produits en vedette…",
+    "hotDeals": {
+      "eyebrow": "Offres limitées",
+      "heading": "En promotion maintenant",
+      "viewAll": "Voir tout",
+      "scrollLeft": "Défiler à gauche",
+      "scrollRight": "Défiler à droite"
+    },
+    "promoBanners": {
+      "ion": {
+        "eyebrow": "Équipez-vous",
+        "title": "Accessoires ION",
+        "body": "Harnais, combinaisons, gilets de protection et plus encore d'ION.",
+        "cta": "Acheter ION"
+      },
+      "secondwind": {
+        "eyebrow": "Occasion & Démo",
+        "title": "Second Souffle",
+        "body": "Équipement d'occasion de qualité à des prix imbattables.",
+        "cta": "Acheter Secondwind"
+      }
+    },
+    "categories": {
+      "browseLabel": "Parcourir",
+      "heading": "Acheter par catégorie"
+    },
+    "about": {
+      "eyebrow": "Duotone Pro Center Urla",
+      "heading": "À propos de nous",
+      "para1": "Nous sommes un Duotone Pro Center officiel situé directement en bord de mer à Urla, İzmir. Notre boutique propose toute la gamme des cerfs-volants, planches et accessoires Duotone.",
+      "para2": "Que vous soyez débutant cherchant votre premier équipement ou un rider expérimenté en quête du dernier matériel, notre équipe est là pour vous aider.",
+      "browseButton": "Parcourir tous les produits"
+    },
+    "whyShop": {
+      "heading": "Pourquoi acheter chez nous ?",
+      "cards": [
+        {
+          "title": "Revendeur agréé",
+          "body": "Nous ne vendons que du matériel authentique et garanti des meilleures marques."
+        },
+        {
+          "title": "Conseil d'expert",
+          "body": "Nos instructeurs utilisent le matériel qu'ils vendent — des conseils vrais de vrais riders."
+        },
+        {
+          "title": "Essayez avant d'acheter",
+          "body": "Des sessions de démo sont disponibles pour certains équipements avant de vous engager."
+        }
+      ]
+    },
+    "cta": {
+      "heading": "Besoin d'aide pour choisir ?",
+      "description": "Notre équipe est disponible pour vous aider à trouver le bon matériel pour votre niveau et vos objectifs. Contactez-nous à tout moment.",
+      "contactButton": "Nous contacter"
+    }
+  },
+  "productDetail": {
+    "back": "Retour",
+    "shopBreadcrumb": "Boutique",
+    "stock": {
+      "outOfStock": "Rupture de stock",
+      "lowStock": "Stock faible",
+      "limited": "Limité",
+      "inStock": "En stock"
+    },
+    "sections": {
+      "description": "Description",
+      "details": "Détails"
+    },
+    "detailLabels": {
+      "sku": "Référence",
+      "category": "Catégorie",
+      "type": "Type",
+      "weight": "Poids"
+    },
+    "order": {
+      "total": "Total",
+      "mobileTotal": "Total ({{count}} articles)",
+      "addToCart": "Ajouter au panier",
+      "addToCartCount": "Ajouter au panier ({{count}})",
+      "savePercent": "Économisez {{percent}}%"
+    },
+    "toasts": {
+      "addedToCart": "{{count}} article(s) ajouté(s) au panier",
+      "removedFromWishlist": "Retiré de la liste de souhaits",
+      "savedToWishlist": "Enregistré dans la liste de souhaits"
+    },
+    "error": {
+      "notFound": "Produit introuvable",
+      "failedToLoad": "Échec du chargement du produit",
+      "backToShop": "Retour à la boutique"
+    }
+  },
+  "stayBooking": {
+    "hero": {
+      "title": "Réserver un hébergement",
+      "location": "Urla, Gülbahçe - İzmir, Turquie",
+      "description": "Choisissez parmi nos hôtels partenaires et maisons de vacances, parfaitement situés près du spot de kite.",
+      "bookNow": "Réserver maintenant",
+      "callReservations": "Appeler pour une réservation"
+    },
+    "chooseStay": "Choisissez votre séjour",
+    "accommodationTypes": {
+      "hotel": {
+        "title": "Hôtel",
+        "subtitle": "Burlahan Otel",
+        "description": "Un hôtel confortable avec toutes les commodités pour un séjour agréable.",
+        "highlights": [
+          "Petit-déjeuner inclus",
+          "Piscine",
+          "Ménage quotidien",
+          "Restaurant sur place"
+        ]
+      },
+      "home": {
+        "title": "Maison",
+        "subtitle": "Studios avec piscine & Ferme",
+        "description": "Studios en location autonome et une maison de ferme avec piscine, idéals pour les groupes et les longs séjours.",
+        "highlights": [
+          "Options autonomes",
+          "Accès à la piscine",
+          "Plus d'espace",
+          "Ambiance communautaire"
+        ]
+      }
+    },
+    "from": "À partir de",
+    "perNight": "/ nuit",
+    "viewOptions": "Voir les options",
+    "packages": {
+      "heading": "Packages Séjour + Apprentissage",
+      "description": "Combinez hébergement et cours pour le meilleur rapport qualité-prix.",
+      "startingFrom": "À partir de",
+      "bookButton": "Réserver le package",
+      "items": [
+        {
+          "name": "Escapade du week-end",
+          "includes": [
+            "2 nuits d'hébergement",
+            "6 heures de cours",
+            "Location d'équipement"
+          ],
+          "savings": "15% d'économies"
+        },
+        {
+          "name": "Aventure d'une semaine",
+          "includes": [
+            "7 nuits d'hébergement",
+            "15 heures de cours",
+            "Location d'équipement",
+            "Transfert aéroport"
+          ],
+          "savings": "20% d'économies"
+        },
+        {
+          "name": "Immersion totale",
+          "includes": [
+            "14 nuits d'hébergement",
+            "30 heures de cours",
+            "Location d'équipement",
+            "Transfert aéroport",
+            "Activités sociales"
+          ],
+          "savings": "25% d'économies"
+        }
+      ]
+    },
+    "whyBook": {
+      "heading": "Pourquoi réserver avec UKC ?",
+      "cards": [
+        {
+          "title": "Commodité",
+          "body": "Tous les hébergements sont proches du spot de kite"
+        },
+        {
+          "title": "Meilleurs prix",
+          "body": "La réservation directe signifie pas d'intermédiaire"
+        },
+        {
+          "title": "Soutien local",
+          "body": "Nous sommes là pour vous aider dans tout ce dont vous avez besoin"
+        },
+        {
+          "title": "Transport",
+          "body": "Service de navette vers/depuis le centre de kite"
+        }
+      ]
+    },
+    "contact": {
+      "heading": "Besoin d'aide pour choisir ?",
+      "description": "Notre équipe est prête à vous aider à choisir le bon hébergement pour votre séjour."
+    }
+  },
+  "experienceBookPackage": {
+    "title": "Acheter un package",
+    "description": "Choisissez une catégorie et sélectionnez le package qui vous convient le mieux.",
+    "wallet": "Portefeuille :",
+    "selectCategory": "Sélectionner une catégorie",
+    "viewPackages": "Voir les packages",
+    "back": "Retour",
+    "availablePackages": "Packages disponibles dans cette catégorie",
+    "loading": "Chargement des packages...",
+    "empty": "Aucun package disponible dans cette catégorie",
+    "backToCategories": "← Retour aux catégories",
+    "categories": [
+      {
+        "key": "lesson",
+        "label": "Cours",
+        "description": "Packages de cours de kitesurf et sports nautiques"
+      },
+      {
+        "key": "rental",
+        "label": "Locations",
+        "description": "Packages de location d'équipement"
+      },
+      {
+        "key": "allInclusive",
+        "label": "Tout inclus",
+        "description": "Packages complets avec cours, location et hébergement"
+      },
+      {
+        "key": "accommodation",
+        "label": "Hébergement",
+        "description": "Packages de séjour dans nos établissements partenaires"
+      },
+      {
+        "key": "shop",
+        "label": "Crédit boutique",
+        "description": "Packages de crédit pour la boutique UKC"
+      },
+      {
+        "key": "experience",
+        "label": "Expériences",
+        "description": "Expériences uniques de sports nautiques"
+      },
+      {
+        "key": "other",
+        "label": "Autre",
+        "description": "Packages divers"
+      }
+    ],
+    "packageCard": {
+      "owned": "Possédé",
+      "hoursLeft": "{{hours}}h restantes",
+      "youOwnThis": "Vous possédez ceci",
+      "buyAgainPrompt": "Acheter à nouveau pour plus d'heures",
+      "price": "Prix",
+      "buyAgain": "Racheter",
+      "purchase": "Acheter"
+    },
+    "help": {
+      "heading": "Besoin d'aide ?",
+      "description": "Contactez-nous si vous avez des questions sur un package."
+    },
+    "notifications": {
+      "purchaseSuccess": "Package acheté !",
+      "purchaseError": "Échec de l'achat"
+    }
+  },
+  "quickBooking": {
+    "steps": {
+      "reviewPay": "Vérifier et payer",
+      "schedule": "Planifier la séance",
+      "complete": "Terminé",
+      "groupPackage": "Votre package de groupe",
+      "findPartner": "Trouver un partenaire",
+      "title": "Réservation rapide",
+      "subtitle": "Configuration du cours en groupe",
+      "stepOf": "Étape {{current}} sur {{total}}"
+    },
+    "pay": {
+      "lessonPrice": "Prix du cours",
+      "packageTotal": "Total du package",
+      "groupLessonNote": "Il s'agit d'un package de cours en groupe",
+      "groupLessonDetail": "Les cours en groupe nécessitent au moins 2 personnes. Choisissez comment vous souhaitez procéder ci-dessous.",
+      "haveAFriend": "J'ai un ami — Créer un groupe",
+      "findPartner": "Je suis seul — Trouvez-moi un partenaire",
+      "paymentMethod": "Méthode de paiement",
+      "wallet": "Portefeuille",
+      "deposit": "Acompte {{percent}}%",
+      "insufficientBalance": "Solde du portefeuille insuffisant",
+      "topUpPrompt": "Rechargez votre portefeuille pour continuer.",
+      "payDepositVia": "Payer l'acompte via",
+      "bankTransfer": "Virement bancaire",
+      "selectBankAccount": "Sélectionner un compte bancaire",
+      "chooseBankAccount": "Choisissez le compte pour le transfert…",
+      "uploadReceipt": "Télécharger le reçu",
+      "selectReceipt": "Sélectionner le reçu (JPEG, PNG ou PDF)",
+      "promoCode": "Code promo",
+      "continueSchedule": "Continuer — Planifier la séance",
+      "depositNote": "Payez {{percent}}% maintenant pour réserver votre place. Les {{remaining}}% restants seront dus à l'arrivée.",
+      "uploadReceiptNote": "Téléchargez votre reçu d'acompte pour {{amount}} — JPEG, PNG ou PDF acceptés.",
+      "preferGroup": "Préférez un cours en groupe ?",
+      "haveAFriendShort": "J'ai un ami →",
+      "findPartnerShort": "Trouvez-moi un partenaire →"
+    },
+    "schedule": {
+      "bookYourLesson": "Réservez votre cours",
+      "bookYourLessonSub": "Choisissez votre instructeur, date et créneau horaire ci-dessous.",
+      "activePackage": "Vous avez un package actif !",
+      "activePackageSub": "{{hours}}h restantes — planifiez une séance ci-dessous.",
+      "packagePurchased": "Package acheté !",
+      "packagePurchasedSub": "Planifiez maintenant votre première séance ou passez pour plus tard.",
+      "partnerSection": "Partenaire de groupe",
+      "partnerHoursLeft": "Partenaire de groupe • {{hours}}h restantes dans leur package",
+      "partnerInclude": "Appuyez pour inclure votre partenaire de groupe",
+      "sessionDuration": "Durée de la séance",
+      "recommended": "Recommandé",
+      "instructor": "Instructeur",
+      "chooseInstructor": "Choisissez votre instructeur",
+      "anyInstructor": "Tout instructeur disponible",
+      "dateTime": "Date et heure",
+      "pickDate": "Choisir une date",
+      "noSlots": "Aucun créneau",
+      "pickDateFirst": "Choisissez d'abord une date",
+      "addAnotherDay": "Ajouter un autre jour",
+      "skipBookLater": "Passer — Réserver plus tard",
+      "bookSessions": "Réserver {{count}} séances",
+      "bookSession": "Réserver la séance",
+      "pickTime": "Choisir l’heure"
+    },
+    "done": {
+      "inviteSent": "Invitation envoyée !",
+      "allDone": "Tout est fait !",
+      "partner": "Partenaire",
+      "status": "Statut",
+      "awaitingAcceptance": "En attente d'acceptation",
+      "sessions": "Séance(s)",
+      "lesson": "Cours",
+      "package": "Package",
+      "instructor": "Instructeur",
+      "price": "Prix",
+      "payment": "Paiement",
+      "paid": "Payé",
+      "bankTransfer": "Virement bancaire",
+      "processing": "En cours",
+      "source": "Source",
+      "existingPackage": "Package existant",
+      "sessionsLabel": "Séances",
+      "remaining": "Restant",
+      "done": "Terminé",
+      "subtitlePartnerInvite": "Une demande de confirmation a été envoyée à {{name}}. Le cours sera confirmé une fois accepté.",
+      "subtitleStandaloneMulti": "{{count}} séances de cours réservées ! Consultez votre tableau de bord pour les détails.",
+      "subtitleStandaloneSingle": "Votre séance de cours a été réservée ! Consultez votre tableau de bord pour les détails.",
+      "subtitleExistingMulti": "{{count}} séances réservées depuis votre package existant.",
+      "subtitleExistingSingle": "Votre séance est réservée depuis votre package existant.",
+      "subtitleNewMulti": "Package acheté et {{count}} séances réservées.",
+      "subtitleNewSingle": "Package acheté et votre première séance est réservée.",
+      "subtitleSkipExisting": "Aucune séance réservée — planifiez depuis votre tableau de bord à tout moment.",
+      "subtitleSkipNew": "Package acheté — réservez des séances depuis votre tableau de bord à tout moment."
+    },
+    "confirm": {
+      "payTitle": "Confirmer le paiement de l'acompte",
+      "purchaseTitle": "Confirmer l'achat",
+      "packageTotal": "Total du package",
+      "depositNow": "Acompte maintenant",
+      "remainingOnArrival": "Restant {{amount}} dû à l'arrivée",
+      "payDeposit": "Payer l'acompte {{amount}}",
+      "confirmPay": "Confirmer et payer",
+      "goBack": "Retour",
+      "bookingTitle": "Confirmer la réservation",
+      "instructorLabel": "Instructeur :",
+      "durationLabel": "Durée : {{duration}} par séance",
+      "bookSessions": "Réserver {{count}} séance(s)",
+      "bookGoBack": "Retour",
+      "packageFallback": "Forfait",
+      "paymentLabel": "Paiement : {{method}}",
+      "paymentWallet": "Portefeuille",
+      "paymentCreditCard": "Carte de Crédit",
+      "paymentDepositCard": "Carte",
+      "paymentDepositBank": "Virement Bancaire",
+      "paymentDeposit": "Acompte {{percent}}% ({{method}})"
+    },
+    "toasts": {
+      "paymentConfirmed": "Paiement confirmé ! Package acheté.",
+      "packagePurchased": "Package acheté !",
+      "inviteSent": "Invitation envoyée ! {{name}} sera notifié pour accepter.",
+      "sessionsBooked": "{{count}} séance(s) réservée(s) !",
+      "receiptRequired": "Veuillez télécharger une preuve de paiement (reçu/dekont)"
+    }
+  },
+  "allInclusive": {
+    "title": "Réserver un package tout inclus",
+    "packageSummary": {
+      "lessons": "Cours {{hours}}h",
+      "rental": "Location {{days}}j",
+      "stay": "Séjour {{nights}}n"
+    },
+    "accommodationUnavailable": {
+      "title": "Hébergement indisponible",
+      "description": "L'unité d'hébergement liée à ce package est actuellement indisponible. Veuillez nous contacter pour des alternatives."
+    },
+    "steps": {
+      "dates": "Dates",
+      "rentals": "Locations",
+      "lessons": "Cours",
+      "payment": "Paiement"
+    },
+    "dates": {
+      "checking": "Vérification de la disponibilité...",
+      "selectCheckin": "Sélectionnez votre date d'arrivée ({{nights}} nuits — départ calculé automatiquement)",
+      "selectRange": "Sélectionnez vos dates d'arrivée et de départ",
+      "legend": {
+        "booked": "Réservé",
+        "selected": "Sélectionné"
+      },
+      "checkin": "Arrivée",
+      "checkout": "Départ",
+      "nights": "{{count}} nuits",
+      "selectCheckout": "Cliquez maintenant sur votre date de départ"
+    },
+    "rentals": {
+      "instruction": "Sélectionnez les jours où vous souhaitez une location d'équipement",
+      "daysSelected": "{{selected}} / {{total}} jours sélectionnés",
+      "clickToAdd": "Cliquer pour ajouter",
+      "rentalTag": "Location"
+    },
+    "lessons": {
+      "loadingInstructors": "Chargement des instructeurs...",
+      "scheduleBlocks": "Planifiez vos blocs de {{hours}}h de cours avec les instructeurs disponibles",
+      "instructorLabel": "Instructeur",
+      "selectInstructor": "Sélectionner l'instructeur pour tous les cours",
+      "noLessonsDay": "Aucun cours planifié pour ce jour",
+      "addLesson": "+ Ajouter un cours",
+      "pickInstructorFirst": "Choisissez d'abord un instructeur ci-dessus",
+      "loadingTimes": "Chargement des horaires...",
+      "noSlots": "Aucun créneau disponible",
+      "removeLesson": "Supprimer ce bloc de cours"
+    },
+    "payment": {
+      "totalPrice": "Prix total",
+      "discountApplied": "Remise appliquée",
+      "promoCode": "Code promo",
+      "paymentMethod": "Méthode de paiement",
+      "wallet": "Portefeuille",
+      "payLater": "Payer plus tard",
+      "atCenter": "Au centre"
+    },
+    "nav": {
+      "back": "Retour",
+      "next": "Suivant",
+      "completePurchase": "Finaliser l'achat"
+    },
+    "confirm": {
+      "title": "Confirmer l'achat",
+      "datesLabel": "Dates :",
+      "paymentLabel": "Paiement :",
+      "confirmPay": "Confirmer et payer",
+      "goBack": "Retour"
+    },
+    "lessonNotConfigured": {
+      "title": "Service de cours non configuré",
+      "description": "Le service de cours pour ce package n'a pas encore été configuré. Veuillez nous contacter."
+    }
+  },
+  "rentalBooking": {
+    "steps": {
+      "selectDates": "Sélectionner les dates",
+      "reviewPay": "Vérifier et payer",
+      "complete": "Terminé",
+      "stepOf": "Étape {{current}} sur {{total}}",
+      "fallbackTitle": "Louer du matériel"
+    },
+    "dates": {
+      "packageTag": "Package",
+      "rentalTag": "Location",
+      "includes": "Inclut :",
+      "weekdays": "Jours ouvrables",
+      "tapInstruction": "Appuyez sur les jours pour sélectionner — appuyez à nouveau pour désélectionner",
+      "daysSelected": "{{count}} jours sélectionnés",
+      "daysCounter": "{{selected}}/{{total}} jours",
+      "dailyRate": "Tarif journalier",
+      "duration": "Durée",
+      "clearAll": "Tout effacer",
+      "continueButton": "Continuer — {{count}} jour(s)",
+      "selectToContinue": "Sélectionnez les dates pour continuer",
+      "perDay": "/ jour",
+      "dayCount_one": "{{count}} jour",
+      "dayCount_other": "{{count}} jours",
+      "rateLine_one": "{{rate}} × {{count}} jour",
+      "rateLine_other": "{{rate}} × {{count}} jours"
+    },
+    "pay": {
+      "rentalTag": "Location",
+      "insurance": "Assurance équipement",
+      "addInsurance": "Ajouter une assurance équipement",
+      "insuranceNote": "{{percent}}% du coût de location — couvre les dommages accidentels",
+      "paymentMethod": "Méthode de paiement",
+      "wallet": "Portefeuille",
+      "payLater": "Payer plus tard",
+      "atCenter": "Au centre",
+      "insufficientBalance": "Solde du portefeuille insuffisant",
+      "switchOrTopUp": "Passez à la carte de crédit ou rechargez d'abord votre portefeuille.",
+      "promoCode": "Code promo",
+      "total": "Total",
+      "maxLine_package_one": "Forfait — {{count}} jour",
+      "maxLine_package_other": "Forfait — {{count}} jours",
+      "maxLine_rental_one": "Location — {{count}} jour",
+      "maxLine_rental_other": "Location — {{count}} jours",
+      "creditCard": "Carte de Crédit"
+    },
+    "done": {
+      "title": "Tout est fait !",
+      "subtitle": "Votre location est réservée ! Vérifiez votre tableau de bord pour les détails.",
+      "equipment": "Équipement",
+      "dates": "Dates",
+      "duration": "Durée",
+      "total": "Total",
+      "payment": "Paiement",
+      "paid": "Payé",
+      "cardPaid": "Payé par carte",
+      "payLater": "Payer plus tard",
+      "done": "Terminé"
+    },
+    "confirm": {
+      "title": "Confirmer la location",
+      "multipleRentals": "{{count}} locations séparées seront créées",
+      "insurance": "Assurance ({{percent}}%) : +{{amount}}",
+      "payment": "Paiement : {{method}}",
+      "confirmPay": "Confirmer et payer",
+      "goBack": "Retour",
+      "rentalPackageFallback": "Forfait de Location",
+      "equipmentRentalFallback": "Location d’Équipement"
+    },
+    "toasts": {
+      "rentalsBooked": "{{count}} location(s) réservée(s) !",
+      "paymentConfirmed": "Paiement confirmé ! Location réservée."
+    }
+  },
+  "accommodationBooking": {
+    "header": {
+      "requestDates": "Demandez vos dates préférées",
+      "selectAndPay": "Sélectionner les dates et payer",
+      "perNight": "/ nuit"
+    },
+    "calendar": {
+      "legend": {
+        "selected": "Sélectionné",
+        "booked": "Réservé",
+        "today": "Aujourd'hui"
+      },
+      "hint": {
+        "selectCheckin": "Sélectionnez votre date d'arrivée",
+        "selectCheckout": "Arrivée : {{date}} — sélectionnez maintenant la date de départ",
+        "rangeSelected": "{{checkin}} — {{checkout}} ({{nights}} nuits)"
+      }
+    },
+    "guests": {
+      "label": "Voyageurs",
+      "max": "max {{count}}",
+      "notesPlaceholder": "Notes (optionnel)"
+    },
+    "payment": {
+      "method": "Méthode de paiement",
+      "wallet": "Portefeuille",
+      "deposit": "Acompte {{percent}}%",
+      "twentyPercent": "20% maintenant",
+      "payLater": "Payer plus tard",
+      "atCenter": "Au centre",
+      "depositNow": "Acompte maintenant",
+      "payOnArrival": "Payer à l'arrivée",
+      "payDepositVia": "Payer l'acompte via",
+      "bankTransfer": "Virement bancaire",
+      "chooseBankAccount": "Choisissez le compte bancaire pour le transfert…",
+      "uploadReceipt": "Télécharger le reçu",
+      "selectReceipt": "Sélectionner le reçu (JPEG, PNG ou PDF)",
+      "promoCode": "Code promo"
+    },
+    "insufficient": {
+      "title": "Solde du portefeuille insuffisant",
+      "description": "Votre solde est trop faible pour cette réservation. Veuillez recharger ou choisir un autre mode de paiement."
+    },
+    "summary": {
+      "total": "Total",
+      "selectDates": "Sélectionner les dates",
+      "mixedRates": "tarifs mixtes",
+      "discount": "Remise ({{nights}}+ nuits)"
+    },
+    "submit": {
+      "payDeposit": "Payer l'acompte {{amount}}",
+      "confirmPayLater": "Confirmer — Payer plus tard",
+      "payWithCard": "Payer {{amount}} par carte",
+      "requestBooking": "Demander la réservation",
+      "pay": "Payer {{amount}}"
+    },
+    "toasts": {
+      "confirmedPayAtCenter": "Réservation confirmée — payer au centre.",
+      "hotelRequestSubmitted": "Demande de réservation d'hôtel soumise !",
+      "stayBooked": "Séjour réservé avec succès !",
+      "paymentSuccess": "Paiement réussi ! Votre réservation a été confirmée.",
+      "errors": {
+        "default": "Quelque chose s'est mal passé. Veuillez réessayer."
+      }
+    },
+    "validation": {
+      "selectDates": "Veuillez sélectionner les dates d'arrivée et de départ.",
+      "checkoutAfterCheckin": "Le départ doit être au moins 1 jour après l'arrivée.",
+      "uploadReceipt": "Veuillez sélectionner un compte bancaire et télécharger votre reçu de dépôt.",
+      "overlapBooking": "La plage sélectionnée chevauche une réservation existante."
     }
   }
 }

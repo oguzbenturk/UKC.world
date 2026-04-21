@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import dayjs from 'dayjs';
 
@@ -69,8 +70,9 @@ const LessonRow = ({ lesson, onClick }) => {
 
 /* ── collapsible sub-section ── */
 
-const LessonGroup = ({ label, lessons, defaultExpanded }) => {
+const LessonGroup = ({ label, labelKey, lessons, defaultExpanded }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [showAll, setShowAll] = useState(false);
 
@@ -86,7 +88,7 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
         </button>
         {expanded && (
           <div className="border-t border-slate-100 px-4 py-6 text-center text-xs text-slate-400">
-            No {label.toLowerCase()} lessons
+            {t('student:dashboard.lessonsSection.noLessons', { label: labelKey ? t(labelKey).toLowerCase() : label.toLowerCase() })}
           </div>
         )}
       </div>
@@ -114,11 +116,11 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Date</th>
-                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Lesson</th>
-                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Instructor</th>
-                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Duration</th>
-                <th className="w-1/5 px-4 py-2 text-center text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">Status</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.lessonsSection.columns.date')}</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.lessonsSection.columns.lesson')}</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.lessonsSection.columns.instructor')}</th>
+                <th className="w-1/5 px-4 py-2 text-left text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.lessonsSection.columns.duration')}</th>
+                <th className="w-1/5 px-4 py-2 text-center text-[10px] font-gotham-medium uppercase tracking-wider text-slate-400">{t('student:dashboard.lessonsSection.columns.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -139,7 +141,7 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
               onClick={() => setShowAll(true)}
               className="w-full py-2.5 text-xs font-gotham-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50/50 transition-colors"
             >
-              Show more ({remaining})
+              {t('student:dashboard.lessonsSection.showMore', { count: remaining })}
             </button>
           )}
         </div>
@@ -151,12 +153,13 @@ const LessonGroup = ({ label, lessons, defaultExpanded }) => {
 /* ── main export ── */
 
 const LessonsSection = ({ upcoming = [], past = [] }) => {
+  const { t } = useTranslation(['student']);
   if (upcoming.length === 0 && past.length === 0) return null;
 
   return (
     <div className="space-y-3">
-      <LessonGroup label="Upcoming" lessons={upcoming} defaultExpanded />
-      <LessonGroup label="Past" lessons={past} defaultExpanded={false} />
+      <LessonGroup label={t('student:dashboard.lessonsSection.upcomingLabel')} labelKey="student:dashboard.lessonsSection.upcomingLabel" lessons={upcoming} defaultExpanded />
+      <LessonGroup label={t('student:dashboard.lessonsSection.pastLabel')} labelKey="student:dashboard.lessonsSection.pastLabel" lessons={past} defaultExpanded={false} />
     </div>
   );
 };

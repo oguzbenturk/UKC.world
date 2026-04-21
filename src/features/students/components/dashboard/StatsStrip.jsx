@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -79,6 +80,7 @@ const fetchMyPurchases = async () => {
 
 const MembershipCards = ({ purchases }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   if (!purchases || purchases.length === 0) return null;
 
   const active = purchases.filter(p => p.status === 'active' && (!p.expires_at || new Date(p.expires_at) > new Date()));
@@ -97,13 +99,13 @@ const MembershipCards = ({ purchases }) => {
             <p className="font-duotone-bold text-sm text-slate-900 truncate">{p.offering_name || p.name || 'Membership'}</p>
             {p.expires_at && (
               <p className="text-[10px] text-slate-400 mt-0.5">
-                Expires {new Date(p.expires_at).toLocaleDateString()}
+                {t('student:dashboard.statsStrip.membership.expires', { date: new Date(p.expires_at).toLocaleDateString() })}
               </p>
             )}
           </div>
           <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
             <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-            Owned
+            {t('student:dashboard.statsStrip.membership.owned')}
           </span>
         </button>
       ))}
@@ -121,6 +123,7 @@ const STATUS_STYLE = {
 
 const AccommodationCards = ({ bookings, formatPrice }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation(['student']);
   if (!bookings || bookings.length === 0) return null;
 
   // Show upcoming/current first, then recent past — max 4
@@ -157,7 +160,7 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
                 </p>
                 {isCurrent && (
                   <span className="shrink-0 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                    Now
+                    {t('student:dashboard.statsStrip.accommodation.now')}
                   </span>
                 )}
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${status.bg} ${status.text}`}>
@@ -165,8 +168,8 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                {checkIn.format('MMM D')} → {checkOut.format('MMM D')} &middot; {nights} night{nights !== 1 ? 's' : ''}
-                {b.guests_count > 1 && <> &middot; {b.guests_count} guests</>}
+                {checkIn.format('MMM D')} → {checkOut.format('MMM D')} &middot; {t('student:dashboard.statsStrip.accommodation.nightCount', { count: nights })}
+                {b.guests_count > 1 && <> &middot; {t('student:dashboard.statsStrip.accommodation.guests', { count: b.guests_count })}</>}
               </p>
             </div>
             <span className="shrink-0 font-duotone-bold text-sm text-purple-600">
@@ -180,6 +183,7 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
 };
 
 const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons = [], upcomingRentalsList = [], pastRentalsList = [] }) => {
+  const { t } = useTranslation(['student']);
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary } = useWalletSummary({ enabled: true, currency: storageCurrency });
@@ -252,54 +256,54 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
 
     return {
       lessons: {
-        label: 'Lessons',
+        label: t('student:dashboard.statsStrip.lessons'),
         items: [
-          { label: 'Completed', value: completedLessons, accentKey: 'completed' },
-          { label: 'Upcoming',  value: upcomingLessons,  accentKey: 'upcoming'  },
-          { label: 'Total hours', value: totalHours,     accentKey: 'hours'     },
+          { label: t('student:dashboard.statsStrip.stats.completed'), value: completedLessons, accentKey: 'completed' },
+          { label: t('student:dashboard.statsStrip.stats.upcoming'),  value: upcomingLessons,  accentKey: 'upcoming'  },
+          { label: t('student:dashboard.statsStrip.stats.totalHours'), value: totalHours,      accentKey: 'hours'     },
         ]
       },
       rentals: {
-        label: 'Rentals',
+        label: t('student:dashboard.statsStrip.rentals'),
         items: [
-          { label: 'Completed', value: completedRentals, accentKey: 'rentals_completed' },
-          { label: 'Upcoming', value: upcomingRentals, accentKey: 'rentals_upcoming' },
-          { label: 'Days', value: totalRentalDays, accentKey: 'rentals_days' },
-          { label: 'Spent', value: formatCurrency(totalRentalSpent, userCurrency), accentKey: 'rentals_spent' },
+          { label: t('student:dashboard.statsStrip.stats.completed'), value: completedRentals, accentKey: 'rentals_completed' },
+          { label: t('student:dashboard.statsStrip.stats.upcoming'), value: upcomingRentals, accentKey: 'rentals_upcoming' },
+          { label: t('student:dashboard.statsStrip.stats.days'), value: totalRentalDays, accentKey: 'rentals_days' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalRentalSpent, userCurrency), accentKey: 'rentals_spent' },
         ]
       },
       accommodations: {
-        label: 'Accommodations',
+        label: t('student:dashboard.statsStrip.accommodations'),
         items: [
-          { label: 'Completed', value: completedAccommodations, accentKey: 'accommodations_completed' },
-          { label: 'Upcoming', value: upcomingAccommodations, accentKey: 'accommodations_upcoming' },
-          { label: 'Nights', value: totalAccommodationNights, accentKey: 'accommodations_nights' },
-          { label: 'Spent', value: formatCurrency(totalAccommodationSpent, userCurrency), accentKey: 'accommodations_spent' },
+          { label: t('student:dashboard.statsStrip.stats.completed'), value: completedAccommodations, accentKey: 'accommodations_completed' },
+          { label: t('student:dashboard.statsStrip.stats.upcoming'), value: upcomingAccommodations, accentKey: 'accommodations_upcoming' },
+          { label: t('student:dashboard.statsStrip.stats.nights'), value: totalAccommodationNights, accentKey: 'accommodations_nights' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalAccommodationSpent, userCurrency), accentKey: 'accommodations_spent' },
         ]
       },
       shop: {
-        label: 'Shop',
+        label: t('student:dashboard.statsStrip.shop'),
         items: [
-          { label: 'Completed', value: completedOrders, accentKey: 'orders_completed' },
-          { label: 'Pending', value: pendingOrders, accentKey: 'orders_pending' },
-          { label: 'Spent', value: formatCurrency(totalOrdersSpent, userCurrency), accentKey: 'orders_spent' },
+          { label: t('student:dashboard.statsStrip.stats.completed'), value: completedOrders, accentKey: 'orders_completed' },
+          { label: t('student:dashboard.statsStrip.stats.pending'), value: pendingOrders, accentKey: 'orders_pending' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalOrdersSpent, userCurrency), accentKey: 'orders_spent' },
         ]
       },
       memberships: {
-        label: 'Memberships',
+        label: t('student:dashboard.statsStrip.memberships'),
         items: [
-          { label: 'Active', value: activeMemberships.length, accentKey: 'memberships_active' },
-          { label: 'Expired', value: expiredMemberships.length, accentKey: 'memberships_expired' },
+          { label: t('student:dashboard.statsStrip.stats.active'), value: activeMemberships.length, accentKey: 'memberships_active' },
+          { label: t('student:dashboard.statsStrip.stats.expired'), value: expiredMemberships.length, accentKey: 'memberships_expired' },
         ]
       },
       wallet: {
-        label: 'Wallet',
+        label: t('student:dashboard.statsStrip.wallet'),
         items: [
-          { label: 'Balance', value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
+          { label: t('student:dashboard.statsStrip.stats.balance'), value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
         ]
       }
     };
-  }, [stats, walletSummary, myPurchases, formatCurrency, convertCurrency, userCurrency]);
+  }, [t, stats, walletSummary, myPurchases, formatCurrency, convertCurrency, userCurrency]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({

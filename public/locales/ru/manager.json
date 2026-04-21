@@ -1,0 +1,751 @@
+{
+  "dashboard": {
+    "title": "Мои Доходы",
+    "salaryTypes": {
+      "commission": "На Комиссии",
+      "fixed_per_lesson": "За Урок",
+      "monthly_salary": "Ежемесячная Зарплата"
+    },
+    "stats": {
+      "thisMonth": "Этот Месяц",
+      "pendingPayout": "Ожидаемая Выплата",
+      "yearToDate": "С Начала Года",
+      "vsLastMonth": "по сравнению с прошлым месяцем",
+      "paid_ytd": "Выплачено (с начала года)",
+      "pending_ytd": "В Ожидании (с начала года)",
+      "collected": "Получено",
+      "transactions": "{{count}} транзакций",
+      "bookingsRentals": "{{bookings}} бронирований · {{rentals}} аренд",
+      "prevMonth": "Пред.: {{amount}}",
+      "items": "{{count}} позиций"
+    },
+    "categoryBreakdown": {
+      "title": "Этот Месяц по Категориям",
+      "bookings": "Бронирования",
+      "rentals": "Аренда",
+      "accommodation": "Проживание",
+      "shop": "Магазин",
+      "membership": "Членство",
+      "packages": "Пакеты"
+    },
+    "history": {
+      "title": "История Комиссий",
+      "columns": {
+        "date": "Дата",
+        "source": "Источник",
+        "details": "Детали",
+        "amount": "Сумма",
+        "rate": "Ставка",
+        "commission": "Комиссия",
+        "status": "Статус"
+      },
+      "filters": {
+        "source": "Источник",
+        "status": "Статус",
+        "booking": "Бронирование",
+        "rental": "Аренда",
+        "accommodation": "Проживание",
+        "shop": "Магазин",
+        "membership": "Членство",
+        "package": "Пакет",
+        "pending": "Ожидает",
+        "paid": "Оплачено",
+        "cancelled": "Отменено"
+      },
+      "empty": "Записи о комиссиях не найдены",
+      "total": "{{count}} записей"
+    }
+  },
+  "commissionSettings": {
+    "title": "Настройки Комиссий Менеджеров",
+    "columns": {
+      "manager": "Менеджер",
+      "salaryType": "Тип Зарплаты",
+      "rateAmount": "Ставка / Сумма",
+      "categoryRates": "Ставки по Категориям",
+      "totalEarnings": "Общий Доход",
+      "pending": "В Ожидании",
+      "paid": "Выплачено",
+      "actions": "Действия"
+    },
+    "salaryTypeLabels": {
+      "commission": "Комиссия",
+      "fixed_per_lesson": "За Урок",
+      "monthly_salary": "Ежемесячная Зарплата"
+    },
+    "tooltips": {
+      "pendingCommission": "Сумма комиссии в ожидании",
+      "totalPaid": "Итоговая выплаченная комиссия",
+      "viewDetails": "Просмотреть Детали",
+      "viewPayroll": "Просмотреть Зарплатную Ведомость"
+    },
+    "actions": {
+      "details": "Детали"
+    },
+    "empty": "Менеджеры не найдены. Измените роль пользователя на Менеджер, чтобы начать."
+  },
+  "payroll": {
+    "title": "Зарплатная Ведомость Менеджера",
+    "subtitle": "Подробная разбивка доходов по месяцам и сезонам",
+    "backToCommissions": "Вернуться к Настройкам Менеджера",
+    "back": "Назад",
+    "backButton": "Вернуться к Комиссиям",
+    "noData": "Данные о зарплате не найдены",
+    "paymentProgress": "Прогресс Выплат",
+    "settingsCard": {
+      "title": "Текущая Конфигурация Зарплаты",
+      "salaryType": "Тип Зарплаты",
+      "commissionType": "Тип Комиссии",
+      "defaultRate": "Ставка по Умолчанию",
+      "perCategory": "По Категории",
+      "flatRate": "Фиксированная Ставка"
+    },
+    "seasonalSummary": "Сезонный Итог",
+    "months": {
+      "title": "Помесячная Разбивка",
+      "columns": {
+        "month": "Месяц",
+        "bookings": "Бронирования",
+        "rentals": "Аренда",
+        "accommodation": "Проживание",
+        "shop": "Магазин",
+        "membership": "Членство",
+        "packages": "Пакеты",
+        "grossTotal": "Валовая Сумма",
+        "status": "Статус",
+        "count": "Кол-во",
+        "earned": "Заработано"
+      },
+      "total": "Итого"
+    },
+    "totals": {
+      "gross": "Валовой Доход",
+      "paid": "Выплачено",
+      "pending": "В Ожидании"
+    },
+    "status": {
+      "paid": "Оплачено",
+      "partial": "Частично",
+      "pending": "Ожидает"
+    },
+    "season": {
+      "bookings": "{{count}} бронирований",
+      "rentals": "{{count}} аренд",
+      "paid": "Выплачено: {{amount}}",
+      "pending": "В ожидании: {{amount}}"
+    }
+  },
+  "detailPanel": {
+    "sections": {
+      "profile": "Профиль",
+      "skills": "Навыки",
+      "commissions": "Комиссии",
+      "earnings": "Доходы",
+      "history": "История",
+      "payments": "Платежи"
+    },
+    "sectionDescriptions": {
+      "info": "Профиль менеджера и быстрая статистика",
+      "skills": "Навыки обучения и квалификации",
+      "commissions": "Настройка типа зарплаты и ставок комиссий",
+      "earnings": "Обзор доходов менеджера и инструктора",
+      "history": "Детали бронирований, аренды и комиссий",
+      "payroll": "История платежей и транзакций"
+    },
+    "profile": {
+      "role": "МЕНЕДЖЕР",
+      "email": "Эл. почта",
+      "joined": "Дата вступления",
+      "managerCommission": "Комиссия Менеджера",
+      "lessonCommission": "Комиссия за Урок",
+      "paid": "Выплачено",
+      "pending": "В Ожидании",
+      "instructorIncome": "Доход Инструктора",
+      "managerIncome": "Доход Менеджера",
+      "totalIncome": "Общий Доход",
+      "noCategories": "Категории не настроены",
+      "perLesson": "/урок",
+      "perMonth": "/мес."
+    },
+    "commissions": {
+      "tabs": {
+        "manager": "Комиссия Менеджера",
+        "instructor": "Комиссия Инструктора"
+      },
+      "salaryModel": "Модель Зарплаты",
+      "salaryModelDesc": "Как оплачивается этот менеджер",
+      "salaryTypes": {
+        "commission": "Комиссия %",
+        "fixed_per_lesson": "За Урок",
+        "monthly_salary": "Ежемесячная Зарплата"
+      },
+      "monthlyAmount": "Ежемесячная Сумма",
+      "perLessonAmount": "Сумма за Урок",
+      "perLessonDesc": "Фиксированная сумма за выполненное бронирование",
+      "commissionRates": "Ставки Комиссий",
+      "commissionRatesDesc": "Включите, чтобы применить комиссию по категории",
+      "categories": {
+        "bookingRate": "Бронирования",
+        "rentalRate": "Аренда",
+        "accommodationRate": "Проживание",
+        "shopRate": "Магазин / Продажи",
+        "membershipRate": "Членство",
+        "packageRate": "Пакеты"
+      },
+      "categoryDescs": {
+        "bookingRate": "Частные и групповые уроки",
+        "rentalRate": "Аренда оборудования",
+        "accommodationRate": "Бронирование номеров и проживания",
+        "shopRate": "Продажи товаров и сувениров",
+        "membershipRate": "Повторяющиеся членства",
+        "packageRate": "Комплексные пакеты услуг"
+      },
+      "saveSettings": "Сохранить Настройки",
+      "saved": "Настройки комиссий сохранены",
+      "saveFailed": "Не удалось сохранить настройки",
+      "validation": {
+        "enterAmount": "Введите сумму",
+        "setRate": "Укажите ставку",
+        "rateRange": "0,1–100%"
+      },
+      "placeholders": {
+        "monthlyAmount": "напр. 2000",
+        "perLessonAmount": "напр. 25",
+        "perMonthSuffix": "€ / мес.",
+        "perLessonSuffix": "€ / урок"
+      }
+    },
+    "earnings": {
+      "managerEarnings": "Доходы Менеджера",
+      "instructorEarnings": "Доходы Инструктора",
+      "totalEarned": "Всего Заработано",
+      "totalEarnedThisYear": "Всего Заработано (Этот Год)",
+      "totalEarnedAllTime": "Всего Заработано (За Всё Время)",
+      "byCategory": "По Категориям",
+      "quickRanges": {
+        "thisYear": "Этот Год",
+        "allTime": "За Всё Время"
+      },
+      "paid": "Выплачено",
+      "pending": "В Ожидании"
+    },
+    "history": {
+      "filters": {
+        "sourceType": "Тип источника",
+        "status": "Статус",
+        "search": "Поиск...",
+        "instructorLesson": "Уроки Инструктора",
+        "mgrBooking": "Ком. Мен. — Бронирование",
+        "mgrRental": "Ком. Мен. — Аренда",
+        "mgrAccommodation": "Ком. Мен. — Проживание",
+        "mgrPackage": "Ком. Мен. — Пакет",
+        "mgrShop": "Ком. Мен. — Магазин",
+        "mgrMembership": "Ком. Мен. — Членство",
+        "pending": "Ожидает",
+        "paid": "Оплачено",
+        "cancelled": "Отменено"
+      },
+      "categories": {
+        "instructorLessons": "Уроки Инструктора",
+        "mgrLessons": "Ком. Мен. — Уроки",
+        "mgrRentals": "Ком. Мен. — Аренда",
+        "mgrAccommodation": "Ком. Мен. — Проживание",
+        "mgrShop": "Ком. Мен. — Магазин / Продажи",
+        "mgrMembership": "Ком. Мен. — Членство",
+        "mgrPackages": "Ком. Мен. — Пакеты"
+      },
+      "columns": {
+        "date": "Дата",
+        "student": "Ученик",
+        "customer": "Клиент",
+        "guest": "Гость",
+        "service": "Услуга",
+        "equipment": "Оборудование",
+        "membership": "Членство",
+        "package": "Пакет",
+        "order": "Заказ",
+        "duration": "Длит.",
+        "period": "Период",
+        "nights": "Ночей",
+        "items": "Позиции",
+        "days": "Дней",
+        "hours": "Часов",
+        "amount": "Сумма",
+        "rate": "Ставка",
+        "commission": "Ком.",
+        "status": "Статус",
+        "earning": "Заработок",
+        "start": "Начало",
+        "checkIn": "Заезд"
+      },
+      "empty": "Записи не найдены",
+      "noCommissions": "Нет комиссий {{category}}"
+    }
+  },
+  "finances": {
+    "overview": {
+      "title": "Управление Финансами - Обзор",
+      "subtitle": "Все денежные потоки по каждой услуге",
+      "maintenance": {
+        "title": "Техническое Обслуживание",
+        "message": "Страница обзора финансов в данный момент обновляется. Пожалуйста, зайдите позже."
+      },
+      "quickRanges": {
+        "today": "Сегодня",
+        "thisWeek": "На Этой Неделе",
+        "thisMonth": "В Этом Месяце",
+        "thisYear": "В Этом Году",
+        "allHistory": "Вся История"
+      },
+      "serviceFilter": "Фильтр услуг:",
+      "services": {
+        "all": "Все",
+        "lessons": "Уроки",
+        "rentals": "Аренда",
+        "membership": "Членство",
+        "shop": "Магазин"
+      },
+      "stats": {
+        "totalIncome": "Общий Доход",
+        "totalIncomeSub": "Все пополнения кошельков",
+        "totalCharges": "Общие Расходы",
+        "totalChargesSub": "Все списания с кошельков",
+        "netProfit": "Чистая Прибыль",
+        "netProfitSub": "Расходы − Возвраты − Комиссия",
+        "refundsIssued": "Произведённые Возвраты",
+        "refundsSub": "Деньги, возвращённые клиентам",
+        "instructorCommission": "Комиссия Инструктора",
+        "instructorCommissionSub": "Выплачено инструкторам",
+        "depositsHelper": "{{amount}} в депозитах",
+        "transactionsHelper": "{{count}} транзакций"
+      }
+    },
+    "expenses": {
+      "title": "Деловые Расходы",
+      "addExpense": "Добавить Расход",
+      "refresh": "Обновить",
+      "exportCsv": "Экспорт CSV",
+      "exportSuccess": "Расходы успешно экспортированы",
+      "summary": {
+        "totalExpenses": "Общие Расходы",
+        "totalEntries": "Всего Записей"
+      },
+      "filters": {
+        "searchPlaceholder": "Поиск по описанию или поставщику...",
+        "startDate": "Дата Начала",
+        "endDate": "Дата Окончания",
+        "category": "Категория",
+        "reset": "Сбросить"
+      },
+      "table": {
+        "date": "Дата",
+        "description": "Описание",
+        "category": "Категория",
+        "amount": "Сумма",
+        "payment": "Оплата",
+        "addedBy": "Добавил",
+        "actions": "Действия",
+        "empty": "Расходы не найдены. Нажмите 'Добавить Расход', чтобы создать.",
+        "noDescription": "Нет описания",
+        "showTotal": "{{start}}-{{end}} из {{total}} расходов"
+      },
+      "modal": {
+        "addTitle": "Добавить Новый Расход",
+        "editTitle": "Редактировать Расход",
+        "addSuccess": "Расход успешно добавлен",
+        "editSuccess": "Расход успешно обновлён",
+        "deleteSuccess": "Расход успешно удалён",
+        "loadError": "Не удалось загрузить расходы",
+        "saveError": "Не удалось сохранить расход",
+        "deleteError": "Не удалось удалить расход",
+        "deleteConfirm": "Удалить расход?",
+        "deleteWarning": "Это действие нельзя отменить.",
+        "add": "Добавить",
+        "update": "Обновить",
+        "fields": {
+          "amount": "Сумма",
+          "date": "Дата",
+          "category": "Категория",
+          "paymentMethod": "Способ Оплаты",
+          "description": "Описание",
+          "vendor": "Поставщик",
+          "reference": "Ссылка / Номер Счёта",
+          "notes": "Дополнительные Заметки"
+        },
+        "placeholders": {
+          "amount": "0,00",
+          "description": "На что этот расход?",
+          "vendor": "Название компании или имя",
+          "reference": "Номер счёта или чека",
+          "notes": "Дополнительная информация...",
+          "selectCategory": "Выбрать категорию",
+          "selectMethod": "Выбрать способ"
+        },
+        "validation": {
+          "enterAmount": "Пожалуйста, введите сумму",
+          "amountMin": "Сумма должна быть больше 0",
+          "selectDate": "Пожалуйста, выберите дату",
+          "selectCategory": "Пожалуйста, выберите категорию",
+          "enterDescription": "Пожалуйста, введите описание"
+        }
+      },
+      "categories": {
+        "rent": "Аренда",
+        "utilities": "Коммунальные Услуги",
+        "salaries": "Зарплаты",
+        "equipment": "Оборудование",
+        "maintenance": "Техобслуживание",
+        "supplies": "Расходные Материалы",
+        "marketing": "Маркетинг",
+        "insurance": "Страхование",
+        "professional_services": "Профессиональные Услуги",
+        "travel": "Командировки",
+        "software_subscriptions": "Программное Обеспечение / Подписки",
+        "bank_fees": "Банковские Комиссии",
+        "taxes": "Налоги",
+        "other": "Прочее"
+      },
+      "paymentMethods": {
+        "cash": "Наличные",
+        "bank_transfer": "Банковский Перевод",
+        "card": "Карта",
+        "wallet": "Кошелёк",
+        "other": "Прочее"
+      }
+    }
+  },
+  "equipment": {
+    "title": "Оборудование и Снаряжение",
+    "subtitle": "Отслеживайте и управляйте всем инвентарём оборудования. Контролируйте наличие, состояние и графики обслуживания.",
+    "addEquipment": "Добавить Оборудование",
+    "refresh": "Обновить",
+    "backToList": "Вернуться к Списку",
+    "loading": "Загрузка данных об оборудовании...",
+    "tryAgain": "Попробовать снова"
+  },
+  "rentals": {
+    "title": "Аренда",
+    "newRental": "Новая Аренда",
+    "tabs": {
+      "requests": "Запросы на Аренду",
+      "recent": "Последние Аренды",
+      "total": "Все Аренды"
+    },
+    "columns": {
+      "customer": "Клиент",
+      "equipment": "Оборудование",
+      "date": "Дата",
+      "price": "Цена",
+      "status": "Статус",
+      "student": "Ученик",
+      "service": "Услуга",
+      "period": "Период",
+      "amount": "Сумма",
+      "notes": "Заметки",
+      "actions": "Действия"
+    },
+    "status": {
+      "active": "Активна",
+      "completed": "Завершена",
+      "pending": "Ожидает",
+      "cancelled": "Отменена",
+      "overdue": "Просрочена",
+      "reserved": "Забронирована",
+      "returned": "Возвращена",
+      "confirmed": "Подтверждена",
+      "no_show": "Не явился"
+    },
+    "actions": {
+      "approve": "Одобрить",
+      "decline": "Отклонить",
+      "complete": "Завершить",
+      "edit": "Редактировать",
+      "reject": "Отклонить"
+    },
+    "confirm": {
+      "declineTitle": "Отклонить этот запрос на аренду?",
+      "declineDesc": "Ученик будет уведомлён, а списанная сумма возвращена.",
+      "declineOk": "Отклонить",
+      "declineCancel": "Оставить",
+      "deleteTitle": "Удалить?"
+    },
+    "messages": {
+      "approved": "Аренда успешно одобрена",
+      "declined": "Аренда успешно отклонена",
+      "statusUpdated": "Аренда {{status}} успешно",
+      "deleted": "Аренда успешно удалена",
+      "loadError": "Не удалось загрузить данные об аренде",
+      "requestsError": "Не удалось загрузить запросы на аренду",
+      "statusError": "Не удалось обновить статус бронирования",
+      "deleteError": "Не удалось удалить аренду"
+    },
+    "empty": {
+      "noRentals": "Аренды не найдены",
+      "noRequests": "Запросы на аренду не найдены"
+    },
+    "package": "Пакет",
+    "groupOf": "Группа из {{count}}"
+  },
+  "products": {
+    "title": "Товары",
+    "subtitle": "Управление инвентарём и товарами бэк-офиса"
+  },
+  "accommodation": {
+    "title": "Проживание",
+    "admin": {
+      "status": {
+        "pending": "Ожидает",
+        "confirmed": "Подтверждено",
+        "completed": "Завершено",
+        "cancelled": "Отменено"
+      },
+      "actions": {
+        "confirm": "Подтвердить",
+        "complete": "Завершить",
+        "cancel": "Отменить",
+        "delete": "Удалить"
+      },
+      "nights": "{{count}}н",
+      "unknown": "Неизвестно"
+    }
+  },
+  "marketing": {
+    "title": "Маркетинг"
+  },
+  "events": {
+    "title": "Общественные Мероприятия",
+    "subtitle": "Создавайте, управляйте и отслеживайте общественные мероприятия и регистрации",
+    "newEvent": "Новое Мероприятие",
+    "eventManager": "Менеджер Мероприятий",
+    "types": {
+      "party": "Вечеринка / Социальное Мероприятие",
+      "diving": "Дайвинг-тур",
+      "yoga": "Занятие Йогой",
+      "workshop": "Воркшоп",
+      "competition": "Соревнование",
+      "training": "Групповая Тренировка",
+      "excursion": "Экскурсия / Поездка",
+      "other": "Другое"
+    },
+    "stats": {
+      "total": "Всего",
+      "active": "Активных",
+      "upcoming": "Предстоящих",
+      "registrations": "Регистраций"
+    },
+    "columns": {
+      "event": "Мероприятие",
+      "type": "Тип",
+      "date": "Дата",
+      "capacity": "Вместимость",
+      "price": "Цена",
+      "status": "Статус"
+    },
+    "status": {
+      "active": "Активно",
+      "inactive": "Неактивно"
+    },
+    "price": {
+      "free": "Бесплатно",
+      "from": "ОТ",
+      "paid": "Платное мероприятие",
+      "paidDesc": "{{price}} с человека — оплачивается академии."
+    },
+    "capacity": {
+      "spotsLeft": "{{count}} МЕСТ ОСТАЛОСЬ",
+      "spotLeft": "{{count}} МЕСТО ОСТАЛОСЬ",
+      "soldOut": "МЕСТ НЕТ"
+    },
+    "badges": {
+      "going": "ИДУ",
+      "soldOut": "МЕСТ НЕТ",
+      "past": "ПРОШЛО"
+    },
+    "public": {
+      "heroTitle": "Общественные Мероприятия",
+      "heroSubtitle": "Присоединяйтесь к команде. От пляжных вечеринок до дайвинг-туров, от воркшопов до соревнований — здесь всегда что-то происходит.",
+      "noEvents": "Нет предстоящих мероприятий",
+      "noEventsDesc": "На данный момент мероприятий не запланировано. Загляните позже или свяжитесь с нами.",
+      "contactUs": "Связаться с Нами",
+      "loading": "Загрузка мероприятий...",
+      "stayPosted": "Хотите узнавать о предстоящих мероприятиях?",
+      "stayPostedDesc": "Свяжитесь с нами, и мы будем держать вас в курсе всего, что происходит в UKC этим сезоном.",
+      "registered": "Я иду",
+      "cancelRegistration": "Отменить Регистрацию",
+      "cancellingRegistration": "Отмена...",
+      "confirmJoin": "Подтвердить & Участвовать",
+      "joining": "Регистрация...",
+      "close": "Закрыть",
+      "eventPassed": "Это мероприятие уже прошло",
+      "eventFull": "На это мероприятие мест нет",
+      "cancelAnytime": "Вы можете отменить регистрацию в любое время.",
+      "registeredCount": "{{count}} зарегистрировано",
+      "spotsTotal": " / {{total}} мест",
+      "spotsLeft": "· {{count}} осталось"
+    },
+    "form": {
+      "createTitle": "Новое Мероприятие",
+      "editTitle": "Редактировать Мероприятие",
+      "configureNew": "Настроить новое общественное мероприятие",
+      "updateSettings": "Обновить настройки мероприятия",
+      "fields": {
+        "name": "Название Мероприятия *",
+        "type": "Тип Мероприятия *",
+        "startAt": "Дата и Время Начала *",
+        "endAt": "Дата и Время Окончания",
+        "capacity": "Макс. Участников",
+        "price": "Цена (за человека)",
+        "location": "Место Проведения",
+        "coverPhoto": "Обложка",
+        "description": "Описание"
+      },
+      "placeholders": {
+        "name": "напр. Пляжная Вечеринка, Утренняя Йога",
+        "type": "Выберите тип...",
+        "endAt": "Конец (необязательно)",
+        "capacity": "Без ограничений",
+        "price": "0 = Бесплатно",
+        "location": "напр. Главный Пляж, Студия А",
+        "description": "Подробности мероприятия, что взять с собой...",
+        "imageHint": "Отображается на карточке мероприятия. JPG или PNG, макс. 5 МБ. Без изображения используется градиент по типу мероприятия.",
+        "upload": "Загрузить",
+        "uploading": "Загрузка..."
+      },
+      "validation": {
+        "enterName": "Введите название мероприятия",
+        "selectType": "Выберите тип",
+        "selectStart": "Выберите дату начала"
+      },
+      "removePhoto": "Удалить фото",
+      "save": "Создать",
+      "update": "Обновить",
+      "saving": "Сохранение...",
+      "cancel": "Отмена"
+    },
+    "registrations": {
+      "count": "{{count}} регистраций",
+      "countSingular": "{{count}} регистрация",
+      "capacity": " / {{total}} мест",
+      "addParticipant": "Добавить Участника",
+      "searchUsers": "Поиск пользователей...",
+      "add": "Добавить",
+      "noRegistrations": "Регистраций пока нет",
+      "loadingRegistrations": "Загрузка регистраций...",
+      "noUsers": "Пользователи не найдены"
+    },
+    "messages": {
+      "created": "Мероприятие создано",
+      "updated": "Мероприятие обновлено",
+      "deleted": "Мероприятие удалено",
+      "statusUpdated": "Статус обновлён",
+      "participantAdded": "Участник добавлен",
+      "participantRemoved": "Участник удалён",
+      "registered": "Вы зарегистрированы!",
+      "unregistered": "Регистрация отменена",
+      "createError": "Не удалось создать мероприятие",
+      "updateError": "Не удалось обновить мероприятие",
+      "deleteError": "Не удалось удалить мероприятие",
+      "statusError": "Не удалось обновить статус",
+      "addError": "Не удалось добавить участника",
+      "removeError": "Не удалось удалить участника",
+      "registerError": "Не удалось зарегистрироваться",
+      "unregisterError": "Не удалось отменить регистрацию",
+      "imageUploaded": "Изображение загружено",
+      "imageError": "Не удалось загрузить изображение",
+      "imageTypeError": "Пожалуйста, загрузите файл изображения",
+      "imageSizeError": "Изображение должно быть менее 5 МБ"
+    },
+    "table": {
+      "empty": "Мероприятия не найдены",
+      "createFirst": "Создать Мероприятие",
+      "showTotal": "{{count}} мероприятий"
+    },
+    "tooltips": {
+      "edit": "Редактировать",
+      "deactivate": "Деактивировать",
+      "activate": "Активировать",
+      "registrations": "Регистрации",
+      "delete": "Удалить"
+    },
+    "deleteConfirm": "Удалить это мероприятие?",
+    "notSet": "Не задано"
+  },
+  "quicklinks": {
+    "title": "Быстрые Ссылки и Формы",
+    "tabs": {
+      "forms": "Формы",
+      "links": "Ссылки",
+      "submissions": "Отправки",
+      "registrations": "Регистрации"
+    }
+  },
+  "services": {
+    "title": "Услуги",
+    "consoleLabel": "Консоль Услуг",
+    "allServices": "Все Услуги",
+    "categories": {
+      "all": "Все Услуги",
+      "accommodation": "Проживание",
+      "lesson": "Уроки",
+      "rental": "Аренда",
+      "sales": "Магазин"
+    },
+    "stats": {
+      "total": "Всего",
+      "catalogItems": "Позиций в каталоге",
+      "categories": "Категории",
+      "typesOffered": "Предлагаемые типы",
+      "inCart": "В корзине",
+      "awaitingCheckout": "Ожидает оформления"
+    },
+    "search": {
+      "placeholder": "Поиск услуг...",
+      "liveFilter": "Живой фильтр"
+    },
+    "actions": {
+      "createService": "Создать услугу",
+      "openCart": "Открыть корзину ({{count}})",
+      "proceedToCheckout": "Перейти к Оформлению"
+    },
+    "manageDesc": "Управляйте услугами, организуйте предложения и завершайте бронирования.",
+    "cart": {
+      "title": "Ваша Корзина ({{count}} товаров)",
+      "empty": "Ваша корзина пуста",
+      "remove": "Удалить",
+      "singleSession": "Одиночная Сессия",
+      "package": "Пакет",
+      "bookingInfo": "Информация о Бронировании",
+      "bookingInfoDesc": "На следующем шаге вы сможете выбрать данные пользователя и подтвердить бронирование.",
+      "total": "Итого:"
+    },
+    "drawer": {
+      "createTitle": "Создать Новую Услугу",
+      "editTitle": "Редактировать Услугу"
+    },
+    "delete": {
+      "title": "Удалить Услугу",
+      "confirm": "Вы уверены, что хотите удалить «{{name}}»?",
+      "warning": "Это действие нельзя отменить."
+    },
+    "messages": {
+      "created": "Услуга успешно создана!",
+      "updated": "Услуга успешно обновлена!",
+      "deleted": "Услуга успешно удалена!",
+      "createError": "Не удалось создать услугу: {{error}}",
+      "updateError": "Не удалось обновить услугу: {{error}}",
+      "deleteError": "Не удалось удалить услугу: {{error}}",
+      "addedToCart": "Добавлено в корзину!",
+      "viewCart": "Просмотреть Корзину",
+      "removedFromCart": "Товар удалён из корзины",
+      "proceedingToCheckout": "Переход к оформлению...",
+      "loadError": "Не удалось загрузить услуги. Пожалуйста, попробуйте позже."
+    },
+    "empty": {
+      "noServices": "В этой категории услуг не найдено.",
+      "createPrompt": "Создайте новую услугу, чтобы начать."
+    }
+  },
+  "errors": {
+    "loadFailed": "Не удалось загрузить данные. Попробуйте снова."
+  }
+}

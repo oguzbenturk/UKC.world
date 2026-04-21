@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, InputNumber, Input, Spin, Alert, App, Select, Upload, Tag } from 'antd';
 import {
   CalendarOutlined,
@@ -87,6 +88,7 @@ const normalizeNumeric = (v, fallback = 0) => {
 
 // eslint-disable-next-line complexity
 const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
+  const { t } = useTranslation(['outsider']);
   const isHotel = (unit?.type || '').toLowerCase() === 'room';
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const { user } = useAuth();
@@ -324,7 +326,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         return;
       }
       if (rangeOverlaps(checkIn, d)) {
-        msg.warning('Selected range overlaps with an existing booking.');
+        msg.warning(t('outsider:accommodationBooking.validation.overlapBooking'));
         return;
       }
       setCheckOut(d);
@@ -369,10 +371,10 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       }
       msg.success(
         paymentMethod === 'pay_later'
-          ? 'Booking confirmed — pay at the center.'
+          ? t('outsider:accommodationBooking.toasts.confirmedPayAtCenter')
           : isHotel
-            ? 'Hotel booking request submitted!'
-            : 'Stay booked successfully!',
+            ? t('outsider:accommodationBooking.toasts.hotelRequestSubmitted')
+            : t('outsider:accommodationBooking.toasts.stayBooked'),
       );
       queryClient.invalidateQueries({ queryKey: ['accommodation-unit-detail', unit?.id] });
       queryClient.invalidateQueries({ queryKey: ['accommodation'] });
@@ -388,15 +390,15 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
   const handleSubmit = async () => {
     if (!checkIn || !checkOut) {
-      msg.warning('Please select check-in and check-out dates.');
+      msg.warning(t('outsider:accommodationBooking.validation.selectDates'));
       return;
     }
     if (nights < 1) {
-      msg.warning('Check-out must be at least 1 day after check-in.');
+      msg.warning(t('outsider:accommodationBooking.validation.checkoutAfterCheckin'));
       return;
     }
     if (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)) {
-      msg.error('Please select a bank account and upload your deposit receipt.');
+      msg.error(t('outsider:accommodationBooking.validation.uploadReceipt'));
       return;
     }
     let receiptUrl = null;
@@ -459,13 +461,13 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-bold text-white m-0 truncate">{unitName}</h3>
             <p className="text-xs text-white/40 m-0">
-              {isHotel ? 'Request your preferred dates' : 'Select dates & pay'}
+              {isHotel ? t('outsider:accommodationBooking.header.requestDates') : t('outsider:accommodationBooking.header.selectAndPay')}
             </p>
           </div>
           {pricePerNight > 0 && (
             <div className="text-right shrink-0">
               <span className="text-blue-400 text-lg font-bold">{formatPrice(pricePerNight)}</span>
-              <span className="text-white/30 text-xs block">/ night</span>
+              <span className="text-white/30 text-xs block">{t('outsider:accommodationBooking.header.perNight')}</span>
             </div>
           )}
         </div>
@@ -534,29 +536,33 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             {/* Legend */}
             <div className="flex items-center gap-4 mt-3 text-[10px] text-white/40">
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-blue-500" /> Selected
+                <span className="w-3 h-3 rounded bg-blue-500" /> {t('outsider:accommodationBooking.calendar.legend.selected')}
               </div>
               {!isHotel && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-red-500/30 border border-red-500/40" /> Booked
+                  <span className="w-3 h-3 rounded bg-red-500/30 border border-red-500/40" /> {t('outsider:accommodationBooking.calendar.legend.booked')}
                 </div>
               )}
               <div className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-blue-400" /> Today
+                <span className="w-1 h-1 rounded-full bg-blue-400" /> {t('outsider:accommodationBooking.calendar.legend.today')}
               </div>
             </div>
 
             {/* Selection hint */}
             <div className="mt-3 text-xs text-center text-white/40">
-              {!checkIn && !selectingCheckOut && 'Select your check-in date'}
+              {!checkIn && !selectingCheckOut && t('outsider:accommodationBooking.calendar.hint.selectCheckin')}
               {checkIn && selectingCheckOut && (
                 <span>
-                  Check-in: <span className="text-blue-400 font-semibold">{checkIn.format('MMM D')}</span> — now select check-out
+                  {t('outsider:accommodationBooking.calendar.hint.selectCheckout', { date: checkIn.format('MMM D') })}
                 </span>
               )}
               {checkIn && checkOut && (
                 <span className="text-blue-300">
-                  {checkIn.format('MMM D')} — {checkOut.format('MMM D')} ({nights} night{nights !== 1 ? 's' : ''})
+                  {t('outsider:accommodationBooking.calendar.hint.rangeSelected', {
+                    checkin: checkIn.format('MMM D'),
+                    checkout: checkOut.format('MMM D'),
+                    nights,
+                  })}
                 </span>
               )}
             </div>
@@ -567,7 +573,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
                 <TeamOutlined className="text-white/40" />
-                <span className="text-xs text-white/60">Guests</span>
+                <span className="text-xs text-white/60">{t('outsider:accommodationBooking.guests.label')}</span>
                 <InputNumber
                   min={1}
                   max={capacity}
@@ -576,12 +582,12 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                   size="small"
                   className="!w-16 !bg-white/5 !border-white/10 [&_.ant-input-number-input]:!text-white"
                 />
-                <span className="text-[10px] text-white/30">max {capacity}</span>
+                <span className="text-[10px] text-white/30">{t('outsider:accommodationBooking.guests.max', { count: capacity })}</span>
               </div>
               <div className="flex items-center gap-2 flex-1">
                 <EditOutlined className="text-white/40" />
                 <Input
-                  placeholder="Notes (optional)"
+                  placeholder={t('outsider:accommodationBooking.guests.notesPlaceholder')}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   size="small"
@@ -594,13 +600,13 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
           {/* ── Payment Method ── */}
           <div className="px-6 pb-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
-              Payment Method
+              {t('outsider:accommodationBooking.payment.method')}
             </p>
             <div className={`grid gap-3 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {[
-                { key: 'wallet', icon: <WalletOutlined />, label: 'Wallet', sub: formatCurrency(walletInUserCurrency, userCurrency), color: 'blue-500', textColor: 'text-blue-400' },
-                { key: 'deposit', icon: <SafetyCertificateOutlined />, label: `Deposit ${DEPOSIT_PERCENT}%`, sub: nights > 0 ? formatPrice(depositAmount) : '20% now', color: 'violet-500', textColor: 'text-violet-400' },
-                ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: 'Pay Later', sub: 'At center', color: 'sky-500', textColor: 'text-sky-400' }] : []),
+                { key: 'wallet', icon: <WalletOutlined />, label: t('outsider:accommodationBooking.payment.wallet'), sub: formatCurrency(walletInUserCurrency, userCurrency), color: 'blue-500', textColor: 'text-blue-400' },
+                { key: 'deposit', icon: <SafetyCertificateOutlined />, label: t('outsider:accommodationBooking.payment.deposit', { percent: DEPOSIT_PERCENT }), sub: nights > 0 ? formatPrice(depositAmount) : t('outsider:accommodationBooking.payment.twentyPercent'), color: 'violet-500', textColor: 'text-violet-400' },
+                ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: t('outsider:accommodationBooking.payment.payLater'), sub: t('outsider:accommodationBooking.payment.atCenter'), color: 'sky-500', textColor: 'text-sky-400' }] : []),
               ].map(({ key, icon, label, sub, color, textColor }) => {
                 const isActive = paymentMethod === key;
                 return (
@@ -632,11 +638,11 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 space-y-3">
                 <div className="rounded-lg bg-violet-500/10 border border-violet-500/15 p-3 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-violet-300 font-semibold">Deposit Now</span>
+                    <span className="text-xs text-violet-300 font-semibold">{t('outsider:accommodationBooking.payment.depositNow')}</span>
                     <span className="text-sm font-bold text-violet-200">{formatPrice(depositAmount)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-violet-300 font-semibold">Pay on Arrival</span>
+                    <span className="text-xs text-violet-300 font-semibold">{t('outsider:accommodationBooking.payment.payOnArrival')}</span>
                     <span className="text-sm font-bold text-violet-200">{formatPrice(remainingAmount)}</span>
                   </div>
                   <p className="text-[10px] text-violet-400/70 leading-tight pt-1">
@@ -645,10 +651,10 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">Pay deposit via</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">{t('outsider:accommodationBooking.payment.payDepositVia')}</p>
                   <div className="grid grid-cols-1 gap-2">
                     {[
-                      { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer' },
+                      { key: 'bank_transfer', icon: <BankOutlined />, label: t('outsider:accommodationBooking.payment.bankTransfer') },
                     ].map(({ key, icon, label }) => {
                       const active = depositMethod === key;
                       return (
@@ -671,7 +677,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 {depositMethod === 'bank_transfer' && (
                   <>
                     <Select
-                      placeholder="Choose bank account to transfer to…"
+                      placeholder={t('outsider:accommodationBooking.payment.chooseBankAccount')}
                       className="w-full"
                       size="large"
                       value={selectedBankAccountId}
@@ -684,7 +690,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {selectedAccount && <BankDetailsCard account={selectedAccount} />}
                     {selectedAccount && (
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">Upload Receipt</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">{t('outsider:accommodationBooking.payment.uploadReceipt')}</p>
                         <Upload
                           onRemove={(file) => setFileList(prev => prev.filter(f => f.uid !== file.uid))}
                           beforeUpload={(file) => {
@@ -704,7 +710,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                             type="button"
                             className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-violet-500/30 bg-violet-500/5 text-violet-400 text-xs hover:bg-violet-500/10 transition-colors"
                           >
-                            <UploadOutlined /> Select Receipt (JPEG, PNG or PDF)
+                            <UploadOutlined /> {t('outsider:accommodationBooking.payment.selectReceipt')}
                           </button>
                         </Upload>
                         <p className="text-[10px] mt-1.5 text-violet-400/60 leading-tight">
@@ -722,8 +728,8 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 type="warning"
                 showIcon
                 className="!mt-3 !rounded-xl !text-xs !bg-amber-500/10 !border-amber-500/20 [&_.ant-alert-message]:!text-amber-400 [&_.ant-alert-description]:!text-amber-400/70 [&_.anticon]:!text-amber-400"
-                message="Insufficient wallet balance"
-                description={`You need ${formatPrice(effectiveTotalPrice)} but have ${formatCurrency(walletInUserCurrency, userCurrency)}. ${canPayLater ? 'Switch to Pay Later or top up your wallet.' : 'Please top up your wallet first.'}`}
+                message={t('outsider:accommodationBooking.insufficient.title')}
+                description={t('outsider:accommodationBooking.insufficient.description')}
               />
             )}
           </div>
@@ -731,7 +737,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
           {/* ── Promo Code ── */}
           <div className="px-6 pb-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
-              Promo Code
+              {t('outsider:accommodationBooking.payment.promoCode')}
             </p>
             <PromoCodeInput
               context="accommodation"
@@ -752,13 +758,13 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               <div className="mb-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-white/40 text-xs uppercase tracking-wider font-semibold m-0">Total</p>
+                    <p className="text-white/40 text-xs uppercase tracking-wider font-semibold m-0">{t('outsider:accommodationBooking.summary.total')}</p>
                     <p className="text-white/30 text-xs m-0">
                       {nights > 0
                         ? (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0)
-                          ? `${nights} night${nights !== 1 ? 's' : ''} (mixed rates)`
+                          ? `${nights} night${nights !== 1 ? 's' : ''} (${t('outsider:accommodationBooking.summary.mixedRates')})`
                           : `${formatPrice(pricePerNight)} × ${nights} night${nights !== 1 ? 's' : ''}`
-                        : 'Select dates'}
+                        : t('outsider:accommodationBooking.summary.selectDates')}
                     </p>
                   </div>
                   <div className="text-right">
@@ -789,7 +795,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     )}
                     {priceBreakdown.discount && (
                       <div className="flex justify-between text-green-400/70">
-                        <span>Discount ({priceBreakdown.discount.min_nights}+ nights)</span>
+                        <span>{t('outsider:accommodationBooking.summary.discount', { nights: priceBreakdown.discount.min_nights })}</span>
                         <span>−{priceBreakdown.discount.discount_type === 'percentage'
                           ? `${priceBreakdown.discount.discount_value}%`
                           : formatPrice(priceBreakdown.discount.discount_value * nights)}</span>
@@ -827,14 +833,14 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                   <>
                     <RocketOutlined />
                     {isDeposit
-                      ? `Pay Deposit ${nights > 0 ? formatPrice(depositAmount) : ''}`
+                      ? t('outsider:accommodationBooking.submit.payDeposit', { amount: nights > 0 ? formatPrice(depositAmount) : '' })
                       : paymentMethod === 'pay_later'
-                        ? 'Confirm — Pay Later'
+                        ? t('outsider:accommodationBooking.submit.confirmPayLater')
                         : paymentMethod === 'credit_card'
-                          ? `Pay ${nights > 0 ? formatPrice(effectiveTotalPrice) : ''} with Card`
+                          ? t('outsider:accommodationBooking.submit.payWithCard', { amount: nights > 0 ? formatPrice(effectiveTotalPrice) : '' })
                           : isHotel
-                            ? 'Request Booking'
-                            : `Pay ${nights > 0 ? formatPrice(effectiveTotalPrice) : ''}`}
+                            ? t('outsider:accommodationBooking.submit.requestBooking')
+                            : t('outsider:accommodationBooking.submit.pay', { amount: nights > 0 ? formatPrice(effectiveTotalPrice) : '' })}
                   </>
                 )}
               </button>
@@ -886,7 +892,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         onSuccess={() => {
           setShowIyzicoModal(false);
           setIyzicoPaymentUrl(null);
-          msg.success('Payment successful! Your booking has been confirmed.');
+          msg.success(t('outsider:accommodationBooking.toasts.paymentSuccess'));
           queryClient.invalidateQueries({ queryKey: ['accommodation-unit-detail', unit?.id] });
           queryClient.invalidateQueries({ queryKey: ['accommodation'] });
           queryClient.invalidateQueries({ queryKey: ['wallet'] });

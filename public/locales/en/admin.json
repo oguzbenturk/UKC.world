@@ -1,0 +1,1307 @@
+{
+  "waivers": {
+    "title": "Waiver Management",
+    "subtitle": "Search, audit, and export signed waivers across students and family members.",
+    "filters": {
+      "searchPlaceholder": "Search by name or email",
+      "refresh": "Refresh",
+      "exportCsv": "Export CSV"
+    },
+    "status": {
+      "all": "All statuses",
+      "valid": "Valid",
+      "outdated": "Needs Re-sign",
+      "expired": "Expired",
+      "missing": "Not Signed",
+      "pending": "Pending (missing/expired/outdated)"
+    },
+    "subjectType": {
+      "all": "All subjects",
+      "user": "Students",
+      "family": "Family Members"
+    },
+    "sort": {
+      "nameAsc": "Name A → Z",
+      "nameDesc": "Name Z → A",
+      "signedAtDesc": "Most Recently Signed",
+      "signedAtAsc": "Oldest Signatures",
+      "statusAsc": "Status (Valid first)",
+      "statusDesc": "Status (Missing first)"
+    },
+    "table": {
+      "name": "Name",
+      "status": "Status",
+      "signedAt": "Signed At",
+      "version": "Version",
+      "parentContact": "Parent / Contact",
+      "actions": "Actions",
+      "view": "View",
+      "student": "Student",
+      "familyMember": "Family Member",
+      "noParent": "No parent on record",
+      "latestVersion": "Latest: {{version}}"
+    },
+    "mobileCard": {
+      "viewDetails": "View Details",
+      "signed": "Signed:",
+      "version": "Version:",
+      "parent": "Parent:",
+      "noRecord": "No record",
+      "newVersion": "New: {{version}}"
+    },
+    "stats": {
+      "totalSubjects": "Total Subjects",
+      "signed": "Signed",
+      "pending": "Pending",
+      "completionRate": "Completion Rate",
+      "valid": "Valid: {{count}}",
+      "outdated": "Outdated: {{count}}",
+      "expired": "Expired: {{count}}",
+      "missing": "Missing: {{count}}"
+    },
+    "viewer": {
+      "title": "Waiver Detail",
+      "loading": "Loading waiver detail...",
+      "loadError": "Failed to load waiver detail",
+      "noSubject": "No subject selected",
+      "subjectInfo": "Subject Information",
+      "signatureImage": "Signature Image",
+      "waiverHistory": "Waiver History",
+      "noHistory": "No waiver submissions yet",
+      "notes": "Notes",
+      "notesDescription": "History includes every waiver submission captured for this subject. A record marked as \"Needs Re-sign\" indicates either a newer version is active or the waiver has expired.",
+      "historyColumns": {
+        "signedAt": "Signed At",
+        "version": "Version",
+        "language": "Language",
+        "photoConsent": "Photo Consent"
+      },
+      "photoConsentYes": "Yes",
+      "photoConsentNo": "No",
+      "photoConsentGranted": "Granted",
+      "photoConsentDeclined": "Declined",
+      "subjectFields": {
+        "name": "Name",
+        "relationship": "Relationship",
+        "email": "Email",
+        "contactEmail": "Contact Email",
+        "parentGuardian": "Parent / Guardian",
+        "accountOwner": "Account Owner",
+        "lastSignedBy": "Last Signed By",
+        "language": "Language",
+        "ipAddress": "IP Address",
+        "userAgent": "User Agent"
+      },
+      "statusMessages": {
+        "noSignature": "No signature on record",
+        "lastSigned": "Last signed {{datetime}}",
+        "defaultMessage": "Latest waiver status information displayed below."
+      }
+    },
+    "toast": {
+      "exportSuccess": "Waiver export downloaded",
+      "exportError": "Failed to export waiver data",
+      "loadError": "Failed to load waivers",
+      "statsError": "Failed to load waiver statistics"
+    }
+  },
+  "vouchers": {
+    "title": "Voucher Management",
+    "subtitle": "Create and manage discount codes, gift vouchers, and promotional offers",
+    "actions": {
+      "refresh": "Refresh",
+      "bulkGenerate": "Bulk Generate",
+      "createVoucher": "Create Voucher",
+      "updateVoucher": "Update Voucher"
+    },
+    "stats": {
+      "totalVouchers": "Total Vouchers",
+      "activeVouchers": "Active Vouchers",
+      "totalRedemptions": "Total Redemptions",
+      "totalDiscountGiven": "Total Discount Given"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by code or name...",
+      "filterByType": "Filter by type",
+      "activeOnly": "Active Only",
+      "inactiveOnly": "Inactive Only",
+      "all": "All"
+    },
+    "table": {
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "value": "Value",
+      "usage": "Usage",
+      "validity": "Validity",
+      "status": "Status",
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive",
+      "copyCode": "Copy code",
+      "validUntil": "Until: {{date}}",
+      "totalVouchers": "Total {{total}} vouchers"
+    },
+    "mobileCard": {
+      "validUntil": "Valid Until:",
+      "usage": "Usage:"
+    },
+    "voucherTypes": {
+      "percentage": {
+        "label": "Percentage Discount",
+        "description": "Discount by a percentage of the total. Great for sales & promos."
+      },
+      "fixed_amount": {
+        "label": "Fixed Amount",
+        "description": "Flat amount off the order. Simple and clear."
+      },
+      "wallet_credit": {
+        "label": "Wallet Credit",
+        "description": "Adds credit to the user's wallet. Good for referrals."
+      },
+      "free_service": {
+        "label": "Free Service",
+        "description": "Unlock a free service for the customer."
+      },
+      "package_upgrade": {
+        "label": "Package Upgrade",
+        "description": "Upgrade the customer's package tier."
+      }
+    },
+    "appliesTo": {
+      "all": {
+        "label": "All Services",
+        "description": "Works everywhere — lessons, shop, rentals, etc."
+      },
+      "shop": {
+        "label": "Shop Only",
+        "description": "Physical products and merchandise"
+      },
+      "lessons": {
+        "label": "Lessons Only",
+        "description": "Lesson bookings and training sessions"
+      },
+      "rentals": {
+        "label": "Rentals Only",
+        "description": "Equipment rental bookings"
+      },
+      "accommodation": {
+        "label": "Accommodation Only",
+        "description": "Room and accommodation bookings"
+      },
+      "packages": {
+        "label": "Packages Only",
+        "description": "Package deals and bundles"
+      },
+      "wallet": {
+        "label": "Wallet Deposits",
+        "description": "Wallet top-up transactions"
+      }
+    },
+    "usageType": {
+      "single_global": "Single Use (Total)",
+      "single_per_user": "Single Use Per User",
+      "multi_limited": "Limited Uses",
+      "multi_per_user": "Limited Per User",
+      "unlimited": "Unlimited"
+    },
+    "visibility": {
+      "public": "Public (Anyone can use)",
+      "private": "Private (Assigned users only)",
+      "role_based": "Role-Based"
+    },
+    "wizard": {
+      "editTitle": "Edit Voucher",
+      "createTitle": "Create Voucher",
+      "editSubtitle": "Update voucher settings",
+      "createSubtitle": "Set up a new discount code in a few easy steps",
+      "steps": {
+        "type": "Type",
+        "valueScope": "Value & Scope",
+        "rules": "Rules",
+        "codeReview": "Code & Review"
+      },
+      "step0": {
+        "prompt": "What kind of voucher do you want to create?"
+      },
+      "step1": {
+        "promptPercentage": "How much percent off?",
+        "promptFixed": "How much off the total?",
+        "promptWallet": "How much wallet credit?",
+        "promptFreeService": "Free service details",
+        "promptPackageUpgrade": "Package upgrade details",
+        "percentageLabel": "Percentage (%)",
+        "creditAmountLabel": "Credit Amount",
+        "discountAmountLabel": "Discount Amount",
+        "currencyLabel": "Currency",
+        "maxDiscountLabel": "Maximum Discount Cap",
+        "maxDiscountExtra": "Optional — limits the discount for high-value orders",
+        "minPurchaseLabel": "Minimum Purchase Amount",
+        "minPurchaseExtra": "Customer must spend at least this much to use the code",
+        "whereUsed": "Where can this voucher be used?"
+      },
+      "step2": {
+        "prompt": "Set usage rules and restrictions",
+        "usageLimits": "Usage Limits",
+        "howManyTimes": "How many times can this be used?",
+        "maxTotalUses": "Max Total Uses",
+        "maxUsesPerUser": "Max Uses Per User",
+        "validityPeriod": "Validity Period",
+        "validDateRange": "Valid Date Range",
+        "validDateExtra": "Leave empty for no time restriction",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "accessControl": "Access Control",
+        "whoCanUse": "Who can use this voucher?",
+        "firstPurchaseOnly": "First Purchase Only",
+        "canCombine": "Can Combine",
+        "activeOnCreate": "Active on Create"
+      },
+      "step3": {
+        "prompt": "Name your voucher and review",
+        "voucherCode": "Voucher Code",
+        "voucherCodeExtra": "Customers type this code at checkout",
+        "displayName": "Display Name",
+        "displayNameExtra": "Internal name (shown to customer on apply)",
+        "internalDescription": "Internal Description",
+        "descriptionPlaceholder": "Optional notes about this voucher",
+        "reviewSummary": "Review Summary",
+        "type": "TYPE",
+        "value": "VALUE",
+        "appliesTo": "APPLIES TO",
+        "usage": "USAGE",
+        "minPurchase": "MIN PURCHASE",
+        "maxDiscount": "max {{amount}} {{currency}}"
+      },
+      "navigation": {
+        "back": "Back",
+        "next": "Next",
+        "review": "Review",
+        "cancel": "Cancel",
+        "createVoucher": "Create Voucher"
+      }
+    },
+    "bulk": {
+      "title": "Bulk Generate Codes",
+      "subtitle": "Generate multiple unique voucher codes with the same settings",
+      "numberOfCodes": "Number of Codes",
+      "codePrefix": "Code Prefix",
+      "codePrefixExtra": "e.g., GIFT → GIFT-A1B2C3",
+      "voucherName": "Voucher Name",
+      "type": "Type",
+      "value": "Value",
+      "scope": "Scope",
+      "validDateRange": "Valid Date Range",
+      "validDateExtra": "Leave empty for no time restriction",
+      "cancel": "Cancel",
+      "generate": "Generate Codes"
+    },
+    "detail": {
+      "drawerTitle": "Voucher Details: {{code}}",
+      "voucherInfo": "Voucher Information",
+      "redemptionHistory": "Redemption History",
+      "noRedemptions": "No redemptions yet",
+      "code": "Code",
+      "status": "Status",
+      "type": "Type",
+      "value": "Value",
+      "usage": "Usage",
+      "appliesTo": "Applies To",
+      "validFrom": "Valid From",
+      "validUntil": "Valid Until",
+      "created": "Created",
+      "redemptionColumns": {
+        "user": "User",
+        "email": "Email",
+        "originalAmount": "Original Amount",
+        "discountApplied": "Discount Applied",
+        "reference": "Reference",
+        "date": "Date"
+      }
+    },
+    "popconfirm": {
+      "deactivateTitle": "Deactivate this voucher?",
+      "deactivateDescription": "Users will no longer be able to use this code.",
+      "deactivateOk": "Deactivate",
+      "cancel": "Cancel",
+      "deactivateMobile": "Deactivate?"
+    },
+    "toast": {
+      "created": "Voucher created successfully",
+      "updated": "Voucher updated successfully",
+      "deactivated": "Voucher deactivated",
+      "bulkGenerated": "Generated {{count}} voucher codes",
+      "codeCopied": "Code copied to clipboard",
+      "duplicateCode": "A voucher with this code already exists",
+      "loadError": "Failed to load vouchers",
+      "createError": "Failed to create voucher",
+      "updateError": "Failed to update voucher",
+      "deleteError": "Failed to delete voucher",
+      "bulkError": "Failed to generate vouchers",
+      "redemptionsError": "Failed to load redemptions"
+    },
+    "validation": {
+      "codeRequired": "Code is required",
+      "codeMin": "Min 3 characters",
+      "codeMax": "Max 50 characters",
+      "codePattern": "Only letters, numbers, - and _",
+      "nameRequired": "Name is required",
+      "enterValue": "Enter a value"
+    }
+  },
+  "spareParts": {
+    "title": "Spare Parts Orders",
+    "actions": {
+      "refresh": "Refresh",
+      "exportCsv": "Export CSV",
+      "newOrder": "New Order",
+      "apply": "Apply"
+    },
+    "filters": {
+      "statusPlaceholder": "Status",
+      "searchPlaceholder": "Search part or supplier...",
+      "status": {
+        "pending": "Pending",
+        "ordered": "Ordered",
+        "received": "Received",
+        "cancelled": "Cancelled"
+      }
+    },
+    "table": {
+      "part": "Part",
+      "quantity": "Quantity",
+      "supplier": "Supplier",
+      "status": "Status",
+      "actions": "Actions",
+      "markOrdered": "Mark Ordered",
+      "markReceived": "Mark Received",
+      "delete": "Delete"
+    },
+    "mobileCard": {
+      "supplierLabel": "Supplier: {{supplier}}",
+      "qty": "Qty: {{qty}}",
+      "ordered": "Ordered",
+      "recv": "Recv",
+      "del": "Del"
+    },
+    "modal": {
+      "title": "New Spare Part Order",
+      "create": "Create",
+      "partLabel": "Part",
+      "partPlaceholder": "e.g., Brake pads",
+      "partRequired": "Part name is required",
+      "quantityLabel": "Quantity",
+      "quantityPlaceholder": "e.g., 2",
+      "quantityRequired": "Quantity is required",
+      "supplierLabel": "Supplier",
+      "supplierPlaceholder": "e.g., ACME Supplies",
+      "statusLabel": "Status"
+    },
+    "toast": {
+      "created": "Order created",
+      "createError": "Failed to create order",
+      "statusUpdated": "Status updated to {{status}}",
+      "statusError": "Failed to update status",
+      "deleted": "Order deleted",
+      "deleteError": "Failed to delete order",
+      "loadError": "Failed to load orders"
+    },
+    "unauthorized": "Sorry, you are not authorized to access this page."
+  },
+  "support": {
+    "title": "Support Tickets",
+    "subtitle": "Manage support requests across all channels",
+    "viewToggle": {
+      "inbox": "Inbox",
+      "table": "Table"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Open",
+      "inProgress": "In Progress",
+      "resolved": "Resolved"
+    },
+    "filters": {
+      "searchPlaceholder": "Search name or subject…",
+      "statusPlaceholder": "Status",
+      "priorityPlaceholder": "Priority",
+      "channelPlaceholder": "Channel",
+      "refresh": "Refresh",
+      "status": {
+        "open": "Open",
+        "in_progress": "In Progress",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      },
+      "channel": {
+        "portal": "Portal",
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "chat": "Chat"
+      }
+    },
+    "table": {
+      "priority": "Priority",
+      "status": "Status",
+      "student": "Student",
+      "subject": "Subject",
+      "channel": "Channel",
+      "created": "Created",
+      "actions": "Actions",
+      "start": "Start",
+      "resolve": "Resolve",
+      "view": "View",
+      "totalTickets": "Total {{total}} tickets",
+      "message": "Message",
+      "notes": "Notes",
+      "reply": "Reply",
+      "internalNote": "Internal Note"
+    },
+    "inbox": {
+      "noTickets": "No tickets found"
+    },
+    "conversation": {
+      "selectTicket": "Select a ticket to view details",
+      "addInternalNote": "Add internal note",
+      "notePlaceholder": "Internal note (not visible to student)…",
+      "replyPlaceholder": "Type a reply to the student…",
+      "reply": "Reply",
+      "add": "Add",
+      "adminReply": "Admin reply",
+      "adminNote": "Admin note",
+      "start": "Start",
+      "resolve": "Resolve",
+      "close": "Close"
+    },
+    "toast": {
+      "started": "Started",
+      "resolved": "Resolved",
+      "replySent": "Reply sent",
+      "replyError": "Failed to send reply",
+      "noteAdded": "Note added",
+      "noteError": "Failed to add note",
+      "statusUpdated": "Ticket marked as {{status}}",
+      "statusError": "Failed to update status"
+    }
+  },
+  "roles": {
+    "title": "Roles & Permissions",
+    "newRole": "New Role",
+    "roleCount": "{{count}} role",
+    "roleCount_plural": "{{count}} roles",
+    "table": {
+      "role": "Role",
+      "description": "Description",
+      "permissions": "Permissions",
+      "users": "Users",
+      "actions": ""
+    },
+    "permissions": {
+      "noPermissions": "No permissions",
+      "fullAccess": "Full Access",
+      "allGranted": "All granted",
+      "partial": "Partial",
+      "moreCategories": "+{{count}} more"
+    },
+    "superAdmin": {
+      "label": "Super Admin — Full Access",
+      "description": "Grants all current and future permissions. Use with caution.",
+      "tooltip": "Grants all permissions including future ones.",
+      "fullAccessMessage": "Full access to all features",
+      "fullAccessHint": "Toggle off above to configure granular permissions"
+    },
+    "categories": {
+      "bookings": {
+        "label": "Bookings",
+        "description": "Manage lesson and activity bookings",
+        "read": "View bookings",
+        "write": "Create/edit bookings",
+        "delete": "Cancel/delete bookings",
+        "approve": "Approve pending bookings"
+      },
+      "users": {
+        "label": "Users",
+        "description": "Manage user accounts",
+        "read": "View users",
+        "write": "Create/edit users",
+        "delete": "Delete users",
+        "assign_roles": "Assign roles to users"
+      },
+      "finances": {
+        "label": "Finances",
+        "description": "Access financial data and transactions",
+        "read": "View financial reports",
+        "write": "Create transactions/payments",
+        "refund": "Process refunds",
+        "reconcile": "Run financial reconciliation"
+      },
+      "wallet": {
+        "label": "Wallet",
+        "description": "Manage user wallet operations",
+        "read": "View wallet balances",
+        "topup": "Add funds to wallets",
+        "deduct": "Deduct from wallets",
+        "transfer": "Transfer between wallets"
+      },
+      "instructors": {
+        "label": "Instructors",
+        "description": "Manage instructor profiles and schedules",
+        "read": "View instructors",
+        "write": "Create/edit instructors",
+        "schedule": "Manage schedules",
+        "earnings": "View/manage earnings"
+      },
+      "equipment": {
+        "label": "Equipment",
+        "description": "Manage rental equipment inventory",
+        "read": "View equipment",
+        "write": "Create/edit equipment",
+        "delete": "Delete equipment",
+        "rental": "Manage rentals"
+      },
+      "services": {
+        "label": "Services",
+        "description": "Manage service offerings",
+        "read": "View services",
+        "write": "Create/edit services",
+        "delete": "Delete services",
+        "pricing": "Manage pricing"
+      },
+      "settings": {
+        "label": "Settings",
+        "description": "System configuration",
+        "read": "View settings",
+        "write": "Modify settings"
+      },
+      "reports": {
+        "label": "Reports",
+        "description": "Access analytics and reports",
+        "read": "View reports",
+        "export": "Export data"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Manage system notifications",
+        "read": "View notifications",
+        "send": "Send notifications",
+        "manage": "Manage notification settings"
+      },
+      "audit": {
+        "label": "Audit Logs",
+        "description": "Access system audit logs",
+        "read": "View audit logs"
+      },
+      "system": {
+        "label": "System",
+        "description": "System administration",
+        "admin": "Full system access",
+        "backup": "Manage backups",
+        "maintenance": "Maintenance mode"
+      }
+    },
+    "modals": {
+      "createRole": "Create Role",
+      "editRole": "Edit Role",
+      "assignRole": "Assign Role",
+      "viewUsers": "users",
+      "changeRole": "Change Role",
+      "permissionsLabel": "Permissions",
+      "roleNameLabel": "Role Name",
+      "roleNamePlaceholder": "e.g., sales_manager",
+      "roleNameRequired": "Role name is required",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Describe the role's purpose",
+      "selectUserLabel": "Select User",
+      "selectUserPlaceholder": "Search users...",
+      "selectUserRequired": "Select a user",
+      "selectNewRoleLabel": "New Role",
+      "selectNewRolePlaceholder": "Select new role",
+      "selectNewRoleRequired": "Select a new role",
+      "currentRole": "Current role:",
+      "noUsersWithRole": "No users with this role",
+      "saveChanges": "Save Changes",
+      "createRoleButton": "Create Role",
+      "assignRoleButton": "Assign Role",
+      "changeRoleButton": "Change Role",
+      "cancel": "Cancel",
+      "close": "Close",
+      "change": "Change"
+    },
+    "popconfirm": {
+      "deleteTitle": "Delete role",
+      "deleteDescription": "Are you sure you want to delete this role?",
+      "deleteOk": "Delete",
+      "cancel": "Cancel"
+    },
+    "tooltips": {
+      "viewUsers": "View Users",
+      "edit": "Edit",
+      "assignToUser": "Assign to User",
+      "systemRoleCannotDelete": "System roles cannot be deleted",
+      "removeUsersFirst": "Remove all users first",
+      "deleteRole": "Delete role"
+    },
+    "toast": {
+      "roleDeleted": "Role deleted",
+      "roleDeleteError": "Failed to delete role",
+      "roleCreated": "Role created",
+      "roleCreateError": "Failed to create role",
+      "roleUpdated": "Role updated",
+      "roleUpdateError": "Failed to update role",
+      "roleAssigned": "Role assigned to user",
+      "roleAssignError": "Failed to assign role",
+      "roleChanged": "Role changed for {{name}}",
+      "roleChangeError": "Failed to change role",
+      "loadError": "Failed to load roles/users"
+    },
+    "mobileCard": {
+      "system": "system",
+      "users": "{{count}} users",
+      "usersButton": "Users",
+      "edit": "Edit",
+      "assign": "Assign"
+    }
+  },
+  "userRoleManager": {
+    "title": "Manage User Role",
+    "changeRole": "Change Role",
+    "selectNewRole": "Select new role:",
+    "noChanges": "No Changes",
+    "updateRole": "Update Role",
+    "cancel": "Cancel",
+    "warning": "Changing the user's role will immediately affect their access permissions. They may need to log out and log back in for changes to take full effect.",
+    "warningLabel": "Warning:",
+    "roleDescriptions": {
+      "student": "Basic user access",
+      "freelancer": "Independent contractor",
+      "assistant": "Limited administrative support",
+      "instructor": "Teaching and booking management",
+      "receptionist": "Front desk operations",
+      "manager": "Operational management",
+      "admin": "Full system access"
+    },
+    "toast": {
+      "noChanges": "No changes made",
+      "success": "Successfully changed {{name}}'s role to {{role}}"
+    }
+  },
+  "currency": {
+    "title": "Currency Management",
+    "addCurrency": "Add Currency",
+    "note": "To control which currencies users can select during registration, go to Settings > Currency Settings.",
+    "table": {
+      "currency": "Currency",
+      "name": "Name",
+      "exchangeRate": "Exchange Rate",
+      "status": "Status",
+      "actions": "Actions",
+      "baseCurrency": "Base (1.0000)"
+    },
+    "popconfirm": {
+      "setBase": "Set as base currency?",
+      "setBaseDescription": "This will make all other currencies relative to this one"
+    },
+    "modal": {
+      "editTitle": "Edit Currency",
+      "addTitle": "Add Currency",
+      "currencyCode": "Currency Code",
+      "currencyCodePlaceholder": "USD",
+      "currencyCodeRequired": "Please enter currency code",
+      "currencyName": "Currency Name",
+      "currencyNamePlaceholder": "US Dollar",
+      "currencyNameRequired": "Please enter currency name",
+      "symbol": "Symbol",
+      "symbolPlaceholder": "$",
+      "symbolRequired": "Please enter currency symbol",
+      "exchangeRate": "Exchange Rate",
+      "exchangeRateRequired": "Please enter exchange rate",
+      "active": "Active",
+      "updateButton": "Update Currency",
+      "addButton": "Add Currency",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "added": "Currency added successfully",
+      "updated": "Currency updated successfully",
+      "activated": "Currency activated",
+      "deactivated": "Currency deactivated",
+      "baseCurrencyUpdated": "Base currency updated",
+      "exchangeRateUpdated": "Exchange rate updated",
+      "registrationCurrenciesUpdated": "Registration currencies updated",
+      "loadError": "Failed to load currencies",
+      "saveError": "Failed to save currency",
+      "toggleError": "Failed to update currency status",
+      "baseError": "Failed to set base currency",
+      "rateError": "Failed to update exchange rate",
+      "registrationLoadError": "Failed to load registration settings",
+      "registrationUpdateError": "Failed to update registration currencies"
+    }
+  },
+  "ratings": {
+    "title": "Instructor Ratings Analytics",
+    "subtitle": "Track instructor performance and student feedback across all services.",
+    "metrics": {
+      "averageRating": "Average rating",
+      "fiveStarShare": "Five-star share",
+      "activeInstructors": "Active instructors",
+      "mostRecentFeedback": "Most recent feedback",
+      "noRatings": "No ratings submitted yet.",
+      "computedAcross": "Computed across {{count}} submissions.",
+      "portionFiveStars": "Portion of total reviews earning five stars.",
+      "collectMore": "Collect more feedback to populate this metric.",
+      "currentlyOnLeaderboard": "Currently included in the leaderboard.",
+      "noInstructorsYet": "No instructors have ratings yet.",
+      "latestSubmissionDate": "Latest submission date among tracked instructors.",
+      "noFeedback": "No feedback submitted yet.",
+      "noRatingsYet": "No ratings"
+    },
+    "charts": {
+      "ratingDistribution": "Rating distribution",
+      "ratingDistributionSubtitle": "How students score instructors over time.",
+      "noRatingData": "No rating data yet",
+      "serviceBreakdown": "Service breakdown",
+      "serviceBreakdownSubtitle": "{{fiveStarPercent}} of ratings are five-star. Overall average is {{average}}.",
+      "noServiceBreakdown": "Collect more feedback to unlock this breakdown.",
+      "noServiceBreakdownData": "No service breakdown available",
+      "lessons": "Lessons",
+      "rentals": "Rentals",
+      "accommodation": "Accommodation",
+      "stars": "{{count}} Stars"
+    },
+    "insights": {
+      "title": "Key insights",
+      "noRatings": "No ratings yet",
+      "noRatingsDescription": "Encourage students to submit their first reviews to unlock analytics.",
+      "overallAverage": "Overall average",
+      "overallAverageDescription": "{{average}} across {{total}} total ratings.",
+      "fiveStarChampions": "Five-star champions",
+      "fiveStarChampionsDescription": "{{name}} leads with {{percent}} five-star reviews.",
+      "mostFeedback": "Most feedback collected",
+      "mostFeedbackDescription": "{{name}} has received {{count}} ratings in total."
+    },
+    "topPerformers": {
+      "title": "Top performers",
+      "noInstructors": "No instructors ranked yet",
+      "champion": "Champion",
+      "avgRatingsFormat": "Avg {{avg}} · {{count}} ratings · {{fiveStarPct}} 5★"
+    },
+    "leaderboard": {
+      "title": "Instructor leaderboard",
+      "subtitle": "Use the leaderboard to spot consistently high performers and areas needing support.",
+      "noDataTitle": "No data available",
+      "noDataSubtitle": "Ratings will appear once students start submitting feedback.",
+      "waitingForRatings": "Leaderboard data will appear once instructors receive ratings.",
+      "sortBy": "Sort by",
+      "benchmarkHighlight": "Benchmark highlight",
+      "showingBadges": "Showing badges",
+      "hidden": "Hidden",
+      "autoRefresh": "Auto refresh",
+      "every60s": "Every 60s",
+      "actions": "Actions",
+      "refresh": "Refresh",
+      "export": "Export",
+      "sortedBy": "Sorted by {{descriptor}}",
+      "benchmarkNote": "Benchmark performers are highlighted in amber.",
+      "totalInstructors": "{{count}} instructor",
+      "totalInstructors_plural": "{{count}} instructors"
+    },
+    "table": {
+      "rank": "#",
+      "instructor": "Instructor",
+      "averageRating": "Average Rating",
+      "ratings": "Ratings",
+      "fiveStarShare": "5★ Share",
+      "lastRating": "Last Rating",
+      "lessonAvg": "Lesson Avg",
+      "rentalAvg": "Rental Avg",
+      "accommodationAvg": "Accommodation Avg",
+      "benchmark": "Benchmark",
+      "topPerformer": "Top performer",
+      "belowTarget": "Below target"
+    },
+    "mobileCard": {
+      "avg": "Avg",
+      "topTier": "Top Tier",
+      "ratingsLabel": "Ratings:",
+      "fiveStarShare": "5★ Share:",
+      "lesson": "Lesson",
+      "rental": "Rental",
+      "accomm": "Accomm",
+      "lastRated": "Last rated: {{date}}"
+    },
+    "sort": {
+      "average": "Highest average rating",
+      "count": "Most ratings submitted",
+      "recent": "Most recent feedback"
+    },
+    "serviceType": {
+      "all": "All services",
+      "lesson": "Lessons",
+      "rental": "Rentals",
+      "accommodation": "Accommodation"
+    },
+    "timeRange": {
+      "all": "All time",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days"
+    },
+    "error": "Failed to load instructor analytics"
+  },
+  "kai": {
+    "title": "Kai Conversations",
+    "subtitle": "Auto-refreshes every 30s",
+    "subtitleWithTime": "Auto-refreshes every 30s · last updated {{time}}",
+    "refreshNow": "Refresh now",
+    "stats": {
+      "totalSessions": "Total Sessions",
+      "totalMessages": "Total Messages",
+      "outsider": "Outsider",
+      "student": "Student",
+      "staffAdmin": "Staff / Admin",
+      "hasUnanswered": "Has Unanswered"
+    },
+    "filters": {
+      "searchPlaceholder": "Search name, email or message…",
+      "allRoles": "All roles",
+      "unansweredOnly": "Unanswered only",
+      "roles": {
+        "outsider": "Outsider",
+        "student": "Student",
+        "instructor": "Instructor",
+        "manager": "Manager",
+        "admin": "Admin"
+      }
+    },
+    "sessions": {
+      "found": "{{count}} sessions found",
+      "notAnswered": "not answered",
+      "previous": "Previous",
+      "next": "Next",
+      "pageRange": "{{from}}–{{to}} of {{total}}",
+      "noSessions": "No sessions found",
+      "couldntAnswer": "Couldn't fully answer"
+    },
+    "drawer": {
+      "conversation": "Conversation",
+      "summary": "Summary",
+      "noMessages": "No messages saved",
+      "loadError": "Failed to load conversation. Please try again."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "loading": "Loading settings...",
+    "tabs": {
+      "general": "General",
+      "calendar": "Calendar",
+      "bookingDefaults": "Booking Defaults",
+      "forecast": "Forecast",
+      "finance": "Finance",
+      "currency": "Currency",
+      "services": "Service Creation",
+      "roles": "Roles & Permissions",
+      "waivers": "Waivers",
+      "legal": "Legal Documents",
+      "refunds": "Payment Refunds",
+      "bankAccounts": "Bank Accounts",
+      "kaiLogs": "Kai Logs",
+      "deletedBookings": "Deleted Bookings",
+      "safety": "Safety & Medical",
+      "availability": "Availability",
+      "teachingPrefs": "Teaching Preferences",
+      "instructorNotifications": "Notifications",
+      "teamNotifications": "Team Notifications",
+      "operationalDefaults": "Operational Defaults"
+    },
+    "groups": {
+      "personal": "Personal",
+      "business": "Business",
+      "services": "Services",
+      "access": "Access",
+      "legal": "Legal",
+      "payments": "Payments",
+      "operations": "Operations",
+      "schedule": "Schedule",
+      "teaching": "Teaching",
+      "ai": "AI"
+    },
+    "tabDescriptions": {
+      "generalAdmin": "Manage your account, personal preferences, and notification settings",
+      "general": "Manage your account details, preferences, and notification settings",
+      "calendar": "Configure instructor colors for calendar views",
+      "forecast": "Configure wind forecast settings including units, data sources, and display options",
+      "finance": "Configure calculation rates and payment fees",
+      "currency": "Manage business currency, registration currencies, and exchange rates",
+      "bookingDefaults": "Configure default booking duration and available options",
+      "services": "Manage service categories and types",
+      "roles": "Manage user roles and permissions",
+      "waivers": "Manage waiver templates and submissions",
+      "legal": "Manage terms of service, privacy policy, and legal documents",
+      "deletedBookings": "View and manage deleted bookings",
+      "refunds": "Process and track payment refunds",
+      "bankAccounts": "Manage bank accounts for payments",
+      "bookingPrefs": "Set your default preferences for booking lessons",
+      "instructorPrefs": "Choose your preferred instructor and lesson language",
+      "safety": "Provide emergency contact and medical information for your safety",
+      "availability": "Manage your weekly working hours and time-off requests",
+      "teachingPrefs": "Configure your teaching preferences and specializations",
+      "instructorNotifications": "Choose which notifications you receive as an instructor",
+      "teamNotifications": "Configure team activity and operational notifications",
+      "operationalDefaults": "Set default values for daily booking operations"
+    },
+    "loggedInAs": "Logged in as",
+    "roleLabels": {
+      "admin": "(Admin)",
+      "manager": "(Manager)",
+      "instructor": "(Instructor)",
+      "student": "(Student)"
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "email": "Email Notifications",
+      "emailDescription": "Receive booking confirmations and updates via email",
+      "sms": "SMS Notifications",
+      "smsDescription": "Get text messages for important updates",
+      "push": "Push Notifications",
+      "pushDescription": "Receive real-time notifications in your browser",
+      "newBookingAlerts": "New Booking Alerts",
+      "newBookingAlertsDescription": "Get notified when students request new bookings"
+    },
+    "languageRegion": {
+      "title": "Language & Region",
+      "languageLabel": "Language",
+      "languageDescription": "Choose your preferred language for the interface"
+    },
+    "savePersonalSettings": "Save Personal Settings",
+    "calendarSection": {
+      "workingHours": "Working Hours",
+      "workingHoursDescription": "Set the daily opening and closing times for the booking calendar and available time slots.",
+      "opensAt": "Opens at",
+      "closesAt": "Closes at",
+      "saveWorkingHours": "Save Working Hours",
+      "instructorVisibility": "Instructor Visibility per Form",
+      "instructorVisibilityDescription": "Restrict which instructors appear in each booking form. Leave empty to show all instructors.",
+      "allInstructors": "All instructors (no restriction)",
+      "saveVisibility": "Save Visibility",
+      "formContexts": {
+        "staff_booking": {
+          "label": "Staff Booking Wizard",
+          "description": "Instructor picker when staff create a new booking"
+        },
+        "customer_modal": {
+          "label": "Customer Booking Modal",
+          "description": "Booking from a customer profile page"
+        },
+        "public_booking": {
+          "label": "Public Booking Form",
+          "description": "Outsider / guest booking form"
+        }
+      },
+      "toast": {
+        "workingHoursSaved": "Working hours saved",
+        "workingHoursError": "Failed to save working hours",
+        "visibilitySaved": "Instructor visibility saved",
+        "visibilityError": "Failed to save instructor visibility",
+        "closingAfterOpening": "Closing time must be after opening time"
+      }
+    },
+    "currencySection": {
+      "defaultTitle": "Default Business Currency",
+      "defaultDescription": "This currency is used as the default for new services, bookings, and transactions. Existing records keep their original currency.",
+      "oneCurrencyWarning": "Only one currency is active. Go to Admin > Currencies to activate more currencies.",
+      "preferredCurrency": "Preferred Currency",
+      "currentCurrency": "Current: {{symbol}} ({{code}})",
+      "savePreferredCurrency": "Save Preferred Currency",
+      "registrationTitle": "Registration Currency Options",
+      "registrationDescription": "Control which currencies users can select when creating a new account. Only active currencies can be selected.",
+      "allowedCurrencies": "Allowed Currencies for New Users",
+      "registrationCurrenciesPlaceholder": "Select currencies available during registration",
+      "loadingPlaceholder": "Loading currencies...",
+      "registrationInfo": "Registration Currencies",
+      "registrationInfoDescription": "New users can choose from: {{currencies}}",
+      "exchangeRates": "Exchange Rates",
+      "exchangeRatesDescription": "Manage exchange rates relative to EUR (base currency). Enable auto-update to fetch rates automatically.",
+      "toast": {
+        "currencyUpdated": "Business currency updated",
+        "currencyError": "Failed to update currency",
+        "preferredUpdated": "Currency preference updated successfully",
+        "preferredError": "Failed to update currency preference"
+      }
+    },
+    "bookingDefaults": {
+      "description": "Configure default booking duration and available options.",
+      "defaultDuration": "Default Duration",
+      "availableDurations": "Available Durations",
+      "save": "Save Booking Defaults",
+      "durations": {
+        "60": "1 hour",
+        "90": "1.5 hours",
+        "120": "2 hours",
+        "150": "2.5 hours",
+        "180": "3 hours",
+        "240": "4 hours"
+      },
+      "toast": {
+        "saved": "Booking defaults updated",
+        "error": "Failed to update booking defaults",
+        "durationMismatch": "Default duration must be one of the allowed durations"
+      }
+    }
+  },
+  "legal": {
+    "title": "Legal Documents & Consent Management",
+    "subtitle": "Manage Terms of Service, Privacy Policy, and marketing preference settings",
+    "tabs": {
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "marketing": "Marketing Preferences"
+    },
+    "terms": {
+      "alertTitle": "Terms of Service",
+      "alertDescription": "Users will be required to accept new versions. Update the version number to trigger re-consent.",
+      "versionLabel": "Version",
+      "versionRequired": "Version is required",
+      "versionPlaceholder": "e.g., 2025-10-01",
+      "contentLabel": "Terms Content (HTML supported)",
+      "save": "Save Terms of Service",
+      "preview": "Preview"
+    },
+    "privacy": {
+      "alertTitle": "Privacy Policy",
+      "alertDescription": "Users will be required to accept new versions. Update the version number to trigger re-consent.",
+      "versionLabel": "Version",
+      "versionRequired": "Version is required",
+      "versionPlaceholder": "e.g., 2025-10-01",
+      "contentLabel": "Privacy Content (HTML supported)",
+      "save": "Save Privacy Policy",
+      "preview": "Preview"
+    },
+    "marketing": {
+      "alertTitle": "Marketing Communication Preferences",
+      "alertDescription": "Customize the description shown to users when they configure their marketing preferences.",
+      "descriptionLabel": "Description Text",
+      "descriptionPlaceholder": "These toggles are optional. Opt in to receive updates and booking reminders through the channels you prefer.",
+      "save": "Save Marketing Preferences"
+    },
+    "toast": {
+      "termsSaved": "Terms of Service saved successfully",
+      "privacySaved": "Privacy Policy saved successfully",
+      "marketingSaved": "Marketing Preferences saved successfully",
+      "saveError": "Failed to save document",
+      "loadError": "Failed to load legal documents"
+    }
+  },
+  "members": {
+    "title": "Members",
+    "assignMembership": "Assign Membership",
+    "assignFirst": "Assign First Member",
+    "assign": "Assign",
+    "refresh": "Refresh",
+    "clear": "Clear",
+    "filters": {
+      "searchPlaceholder": "Search name or email...",
+      "allStatus": "All Status",
+      "active": "Active",
+      "pending": "Pending",
+      "expired": "Expired",
+      "cancelled": "Cancelled",
+      "from": "From",
+      "to": "To"
+    },
+    "table": {
+      "member": "Member",
+      "membership": "Membership",
+      "status": "Status",
+      "purchased": "Purchased",
+      "expires": "Expires",
+      "amount": "Amount",
+      "never": "Never"
+    },
+    "status": {
+      "active": "Active",
+      "pending": "Pending",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "detail": {
+      "title": "Member Details",
+      "close": "Close",
+      "memberName": "Member Name",
+      "email": "Email",
+      "membershipType": "Membership Type",
+      "status": "Status",
+      "purchaseDate": "Purchase Date",
+      "expiryDate": "Expiry Date",
+      "neverExpires": "Never expires",
+      "amountPaid": "Amount Paid",
+      "paymentMethod": "Payment Method",
+      "notes": "Notes"
+    },
+    "empty": {
+      "noMembers": "No members found"
+    },
+    "count": "{{count}} member",
+    "count_plural": "{{count}} members",
+    "totalMembers": "{{total}} members",
+    "toast": {
+      "assigned": "Membership assigned successfully!"
+    }
+  },
+  "community": {
+    "team": {
+      "pageTitle": "Our Team | Community | UKC",
+      "pageDescription": "Meet the team behind UKC — our passionate instructors and staff who make your experience unforgettable.",
+      "heading": "MEET THE DPC-URLA TEAM",
+      "subtitle": "Our passionate instructors and staff are here to make your water sports experience unforgettable.",
+      "loading": "Loading team...",
+      "teamInfoComingSoon": "Team info coming soon",
+      "teamInfoComingSoonDescription": "Our team information is being updated. Check back soon!",
+      "teamMemberCount": "{{count}} Team Member",
+      "teamMemberCount_plural": "{{count}} Team Members",
+      "instructor": "Instructor",
+      "featured": "Featured",
+      "specializations": "Specializations",
+      "languages": "Languages",
+      "withUsSince": "With us since {{year}}",
+      "bookALesson": "Book a Lesson"
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "title": "GDPR Data Privacy Rights",
+      "privacyRightsTitle": "Your Privacy Rights",
+      "privacyRightsDescription": "Under the General Data Protection Regulation (GDPR), you have specific rights regarding your personal data. You can export all your data or request deletion at any time.",
+      "waiverSection": {
+        "title": "Liability Waiver & Signature History",
+        "description": "View your current waiver status and review previous signatures. If you need to sign or refresh your waiver, you can do so directly below.",
+        "loadError": "Unable to load waiver details",
+        "loadErrorDescription": "We couldn't find your account information. Please sign in again and revisit this page.",
+        "accountError": "We could not determine your account to load the waiver. Please sign in again."
+      },
+      "export": {
+        "title": "Export Your Data (Article 15 - Right of Access)",
+        "description": "Download a complete copy of all your personal data in machine-readable format (JSON). This includes:",
+        "button": "Export All My Data",
+        "successTitle": "Data Export Successful",
+        "successDescription": "Your data has been downloaded. The file contains all your personal information in JSON format."
+      },
+      "deletion": {
+        "title": "Delete Your Data (Article 17 - Right to Erasure)",
+        "importantNotice": "Important Notice",
+        "noticeDescription1": "This action will anonymize your personal data. Your account will be permanently deleted.",
+        "noticeDescription2": "Financial records must be retained for 7 years per tax law compliance. These records will be kept but anonymized (no personal identifiers).",
+        "irreversible": "This action cannot be undone!",
+        "button": "Request Data Deletion",
+        "confirmTitle": "Confirm Data Deletion",
+        "confirmAction": "This action is permanent and cannot be undone!",
+        "confirmInstruction": "To confirm deletion, please type",
+        "confirmPlaceholder": "Type: DELETE MY DATA",
+        "retentionNote": "Financial records will be retained for 7 years (anonymized) for legal compliance.",
+        "okText": "Delete My Data",
+        "cancelText": "Cancel",
+        "successTitle_modal": "Data Anonymization Successful",
+        "successDescription_modal": "Your personal data has been anonymized. Financial records have been retained for legal compliance (7 years).",
+        "anonymizedAt": "Anonymized at:",
+        "loggingOut": "You will be logged out in 5 seconds..."
+      },
+      "rights": {
+        "title": "Your GDPR Rights",
+        "access": {
+          "label": "Right to Access (Art. 15)",
+          "value": "Export all your personal data"
+        },
+        "rectification": {
+          "label": "Right to Rectification (Art. 16)",
+          "value": "Update your profile information in account settings"
+        },
+        "erasure": {
+          "label": "Right to Erasure (Art. 17)",
+          "value": "Request deletion of your personal data"
+        },
+        "portability": {
+          "label": "Right to Portability (Art. 20)",
+          "value": "Receive your data in machine-readable format (JSON)"
+        },
+        "withdrawConsent": {
+          "label": "Right to Withdraw Consent (Art. 7)",
+          "value": "Manage communication preferences in account settings"
+        }
+      },
+      "contact": "Contact:",
+      "responseTime": "We will respond to your request within 30 days as required by GDPR."
+    },
+    "waiver": {
+      "title": "Liability Waiver Required",
+      "subtitle": "Duotone Pro Center Safety Protocol",
+      "inPersonTitle": "In-Person Signing Required",
+      "inPersonDescription": "For your safety and legal protection, all liability waivers must be signed in person at our center before your first lesson or equipment rental.",
+      "whatToExpect": "What to Expect",
+      "expectItems": {
+        "arrive": "Arrive 15 minutes before your scheduled lesson time",
+        "signWithId": "Sign the waiver with a valid government-issued ID",
+        "staffProvide": "Our staff will provide the liability waiver at the center",
+        "readCarefully": "Read the waiver carefully and ask any questions",
+        "validity": "Waivers are valid for 12 months from the date of signing"
+      },
+      "importantInfo": "Important Information",
+      "minors": "Participants under 18: A parent or legal guardian must be present to sign the waiver on behalf of the minor.",
+      "groups": "Group bookings: Each participant must sign their own waiver. Please allow extra time for groups.",
+      "finalNote": "You will sign the waiver at the center before your lesson",
+      "finalSubnote": "No online signature required • Valid for 12 months • Bring valid ID",
+      "iUnderstand": "I Understand"
+    }
+  },
+  "account": {
+    "profilePhoto": {
+      "title": "Profile Photo",
+      "updatePhotoLabel": "Update your photo",
+      "uploadDescription": "JPG, PNG or GIF. Max {{maxMb}} MB.",
+      "uploadButton": "Upload Photo",
+      "toast": {
+        "updated": "Profile photo updated",
+        "uploadError": "Failed to upload photo",
+        "fileTooLarge": "Photo must be smaller than {{maxMb}} MB"
+      }
+    },
+    "personalInfo": {
+      "title": "Personal Information",
+      "firstName": "First Name",
+      "firstNamePlaceholder": "First name",
+      "lastName": "Last Name",
+      "lastNamePlaceholder": "Last name",
+      "email": "Email",
+      "emailPlaceholder": "Email address",
+      "phone": "Phone",
+      "phonePlaceholder": "Phone number",
+      "dateOfBirth": "Date of Birth",
+      "bio": "Bio",
+      "bioPlaceholder": "Tell others a bit about yourself",
+      "save": "Save Profile",
+      "toast": {
+        "saved": "Personal information updated",
+        "saveError": "Failed to update personal information"
+      }
+    },
+    "password": {
+      "title": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "save": "Change Password",
+      "toast": {
+        "changed": "Password changed successfully",
+        "changeError": "Failed to change password",
+        "enterCurrent": "Please enter your current password",
+        "minLength": "New password must be at least 8 characters",
+        "noMatch": "New passwords do not match"
+      }
+    }
+  }
+}

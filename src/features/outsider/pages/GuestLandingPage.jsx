@@ -20,38 +20,29 @@ import { usePageSEO } from '@/shared/utils/seo';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 import { featureFlags } from '@/shared/config/featureFlags';
 
-const GuestLandingPage = () => {
+const SERVICE_CONFIG = [
+  ...(featureFlags.publicShopEnabled ? [{
+    key: 'shop', icon: ShoppingBagIcon, accent: '#ec4899', path: '/shop',
+    image: '/Images/guest/dice-sls-header.jpg',
+  }] : []),
+  { key: 'academy', icon: AcademicCapIcon, accent: '#4ade80', path: '/academy', image: '/Images/guest/epump-header.jpg' },
+  { key: 'rentals', icon: CubeIcon, accent: '#fb923c', path: '/rental', image: '/Images/guest/dpc-pingtan-kitefoil-rental.jpg' },
+  { key: 'membership', icon: UsersIcon, accent: '#93c47d', path: '/members/offerings', image: '/Images/guest/wing-foil.jpg' },
+  { key: 'care', icon: WrenchScrewdriverIcon, accent: '#14b8a6', path: '/care', image: '/Images/guest/Efoilassist.jpg' },
+  { key: 'stay', icon: HomeIcon, accent: '#3b82f6', path: '/stay', image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop' },
+  { key: 'experience', icon: CalendarDaysIcon, accent: '#eab308', path: '/experience', image: '/Images/ukc/kite-header.jpg.png' },
+  { key: 'community', icon: ChatBubbleLeftRightIcon, accent: '#0ea5e9', path: '/services/events', image: '/Images/ukc/team.png' },
+];
+
+const ServiceCard = ({ service, onNavigate }) => {
   const { t } = useTranslation(['outsider']);
-  usePageSEO({
-    title: 'Welcome | UKC. Duotone Pro Center Urla',
-    description: 'Explore lessons, rentals, gear shop, experiences, accommodation, and more at UKC. Duotone Pro Center in Urla, Turkey.',
-    path: '/guest',
-  });
-  const navigate = useNavigate();
-
-  // Service configuration — visual/route details stay in code, copy comes from i18n.
-  const SERVICE_CONFIG = [
-    ...(featureFlags.publicShopEnabled ? [{
-      key: 'shop', icon: ShoppingBagIcon, accent: '#ec4899', path: '/shop',
-      image: '/Images/guest/dice-sls-header.jpg',
-    }] : []),
-    { key: 'academy', icon: AcademicCapIcon, accent: '#4ade80', path: '/academy', image: '/Images/guest/epump-header.jpg' },
-    { key: 'rentals', icon: CubeIcon, accent: '#fb923c', path: '/rental', image: '/Images/guest/dpc-pingtan-kitefoil-rental.jpg' },
-    { key: 'membership', icon: UsersIcon, accent: '#93c47d', path: '/members/offerings', image: '/Images/guest/wing-foil.jpg' },
-    { key: 'care', icon: WrenchScrewdriverIcon, accent: '#14b8a6', path: '/care', image: '/Images/guest/Efoilassist.jpg' },
-    { key: 'stay', icon: HomeIcon, accent: '#3b82f6', path: '/stay', image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop' },
-    { key: 'experience', icon: CalendarDaysIcon, accent: '#eab308', path: '/experience', image: '/Images/ukc/kite-header.jpg.png' },
-    { key: 'community', icon: ChatBubbleLeftRightIcon, accent: '#0ea5e9', path: '/services/events', image: '/Images/ukc/team.png' },
-  ];
-
-  const ServiceCard = ({ service }) => {
-    const Icon = service.icon;
-    const title = t(`outsider:landing.services.${service.key}.title`);
-    const tagline = t(`outsider:landing.services.${service.key}.tagline`);
-    const subItems = t(`outsider:landing.services.${service.key}.subItems`, { returnObjects: true });
-    return (
+  const Icon = service.icon;
+  const title = t(`outsider:landing.services.${service.key}.title`);
+  const tagline = t(`outsider:landing.services.${service.key}.tagline`);
+  const subItems = t(`outsider:landing.services.${service.key}.subItems`, { returnObjects: true });
+  return (
       <div
-        onClick={() => navigate(service.path)}
+        onClick={() => onNavigate(service.path)}
         className="group relative cursor-pointer flex flex-col overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
         style={{
           border: '1px solid rgba(75,79,84,0.12)',
@@ -113,7 +104,16 @@ const GuestLandingPage = () => {
         </div>
       </div>
     );
-  };
+};
+
+const GuestLandingPage = () => {
+  const { t } = useTranslation(['outsider']);
+  usePageSEO({
+    title: 'Welcome | UKC. Duotone Pro Center Urla',
+    description: 'Explore lessons, rentals, gear shop, experiences, accommodation, and more at UKC. Duotone Pro Center in Urla, Turkey.',
+    path: '/guest',
+  });
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen" style={{
@@ -149,7 +149,7 @@ const GuestLandingPage = () => {
       <div className="max-w-6xl mx-auto px-6 pb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {SERVICE_CONFIG.map((service) => (
-            <ServiceCard key={service.key} service={service} />
+            <ServiceCard key={service.key} service={service} onNavigate={navigate} />
           ))}
         </div>
       </div>

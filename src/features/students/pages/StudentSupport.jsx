@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { App, Button, Card, Form, Input, Segmented, Select } from 'antd';
 import { useOutletContext } from 'react-router-dom';
 import { useStudentSupportMutation } from '../hooks/useStudentMutations';
@@ -6,12 +7,6 @@ import { useStudentDashboard } from '../hooks/useStudentDashboard';
 import SupportChannelPicker from '../components/support/SupportChannelPicker';
 import TicketHistoryList from '../components/support/TicketHistoryList';
 import TicketDetailDrawer from '../components/support/TicketDetailDrawer';
-
-const priorityOptions = [
-  { value: 'low', label: 'Low' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'high', label: 'High' },
-];
 
 const accentColors = {
   total: 'border-l-slate-400',
@@ -30,6 +25,7 @@ const StatPill = ({ label, value, accentKey }) => (
 
 const StudentSupport = () => {
   const { message, notification } = App.useApp();
+  const { t } = useTranslation(['student']);
   const [form] = Form.useForm();
   const context = useOutletContext();
   const { data: overview } = useStudentDashboard();
@@ -38,19 +34,25 @@ const StudentSupport = () => {
   const [activeTab, setActiveTab] = useState('new-ticket');
   const [selectedTicket, setSelectedTicket] = useState(null);
 
+  const priorityOptions = [
+    { value: 'low', label: t('student:support.form.priorityOptions.low') },
+    { value: 'normal', label: t('student:support.form.priorityOptions.normal') },
+    { value: 'high', label: t('student:support.form.priorityOptions.high') },
+  ];
+
   const tickets = overview?.supportTickets ?? context?.overview?.supportTickets;
   const openCount = Array.isArray(tickets)
-    ? tickets.filter((t) => String(t?.status || '').toLowerCase() === 'open').length
+    ? tickets.filter((tk) => String(tk?.status || '').toLowerCase() === 'open').length
     : 0;
   const resolvedCount = Array.isArray(tickets)
-    ? tickets.filter((t) => String(t?.status || '').toLowerCase() === 'resolved').length
+    ? tickets.filter((tk) => String(tk?.status || '').toLowerCase() === 'resolved').length
     : 0;
 
   useEffect(() => {
     if (mutation.isError && mutation.error) {
-      notification.error({ message: 'Unable to send request', description: mutation.error.message });
+      notification.error({ message: t('student:support.notifications.sendError'), description: mutation.error.message });
     }
-  }, [mutation.error, mutation.isError, notification]);
+  }, [mutation.error, mutation.isError, notification, t]);
 
   const handleSubmit = async (values) => {
     try {
@@ -60,11 +62,11 @@ const StudentSupport = () => {
         priority: values.priority,
         channel: 'portal',
       });
-      message.success('Support request sent');
+      message.success(t('student:support.notifications.requestSent'));
       form.resetFields();
       setActiveTab('my-tickets');
     } catch (err) {
-      notification.error({ message: 'Unable to send request', description: err.message });
+      notification.error({ message: t('student:support.notifications.sendError'), description: err.message });
     }
   };
 
@@ -72,9 +74,9 @@ const StudentSupport = () => {
     <div className="space-y-6">
       {/* Stats strip */}
       <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
-        <StatPill label="Total Tickets" value={tickets?.length ?? 0} accentKey="total" />
-        <StatPill label="Open" value={openCount} accentKey="open" />
-        <StatPill label="Resolved" value={resolvedCount} accentKey="resolved" />
+        <StatPill label={t('student:support.stats.totalTickets')} value={tickets?.length ?? 0} accentKey="total" />
+        <StatPill label={t('student:support.stats.open')} value={openCount} accentKey="open" />
+        <StatPill label={t('student:support.stats.resolved')} value={resolvedCount} accentKey="resolved" />
       </div>
 
       {/* Channel picker */}
@@ -86,8 +88,8 @@ const StudentSupport = () => {
           value={activeTab}
           onChange={setActiveTab}
           options={[
-            { value: 'new-ticket', label: 'New Ticket' },
-            { value: 'my-tickets', label: 'My Tickets' },
+            { value: 'new-ticket', label: t('student:support.tabs.newTicket') },
+            { value: 'my-tickets', label: t('student:support.tabs.myTickets') },
           ]}
           className="mb-4"
         />
@@ -95,30 +97,29 @@ const StudentSupport = () => {
         {activeTab === 'new-ticket' && (
           <Card className="rounded-2xl border border-slate-100 shadow-sm" variant="borderless">
             <p className="mb-4 text-sm text-slate-500">
-              Need help with bookings, payments, or gear? Send us a quick note and our team will get back to
-              you.
+              {t('student:support.form.intro')}
             </p>
             <Form layout="vertical" form={form} onFinish={handleSubmit} disabled={mutation.isLoading}>
               <Form.Item
-                label="Subject"
+                label={t('student:support.form.subjectLabel')}
                 name="subject"
-                rules={[{ required: true, message: 'Tell us how we can help' }]}
+                rules={[{ required: true, message: t('student:support.form.subjectRequired') }]}
               >
-                <Input placeholder="e.g. Need to adjust my lesson" />
+                <Input placeholder={t('student:support.form.subjectPlaceholder')} />
               </Form.Item>
-              <Form.Item label="Priority" name="priority" initialValue="normal">
+              <Form.Item label={t('student:support.form.priorityLabel')} name="priority" initialValue="normal">
                 <Select options={priorityOptions} />
               </Form.Item>
               <Form.Item
-                label="Message"
+                label={t('student:support.form.messageLabel')}
                 name="message"
-                rules={[{ required: true, message: 'Provide a bit more detail' }]}
+                rules={[{ required: true, message: t('student:support.form.messageRequired') }]}
               >
-                <Input.TextArea rows={5} placeholder="Write your message for the school" />
+                <Input.TextArea rows={5} placeholder={t('student:support.form.messagePlaceholder')} />
               </Form.Item>
               <Form.Item className="mb-0">
                 <Button type="primary" htmlType="submit" loading={mutation.isLoading}>
-                  {mutation.isLoading ? 'Sending…' : 'Send request'}
+                  {mutation.isLoading ? t('student:support.form.sendingButton') : t('student:support.form.submitButton')}
                 </Button>
               </Form.Item>
             </Form>

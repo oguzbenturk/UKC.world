@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { TeamOutlined } from '@ant-design/icons';
 import FamilyManagement from '../components/FamilyManagement';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -5,13 +6,14 @@ import { setDocumentTitle, setMetaTag, setOgTag, setLinkTag } from '@/shared/uti
 
 const FamilyManagementPage = () => {
   const { user } = useAuth();
+  const { t } = useTranslation(['student']);
   const userId = user?.id;
 
   // Set SEO metadata for this page (imperatively)
-  setDocumentTitle('Family Members • Plannivo');
-  setMetaTag('description', 'Manage your family members (under 18) to book lessons and rentals and complete waivers.');
-  setOgTag('og:title', 'Family Members • Plannivo');
-  setOgTag('og:description', 'Manage your family members (under 18) to book lessons and rentals and complete waivers.');
+  setDocumentTitle(t('student:family.seoTitle'));
+  setMetaTag('description', t('student:family.seoDescription'));
+  setOgTag('og:title', t('student:family.seoTitle'));
+  setOgTag('og:description', t('student:family.seoDescription'));
   setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://ukc.plannivo.com') + '/student/family');
   setLinkTag('canonical', '/student/family');
 
@@ -24,14 +26,14 @@ const FamilyManagementPage = () => {
             <TeamOutlined className="text-xl" />
           </div>
           <h1 className="text-2xl font-duotone-bold-extended text-slate-900 dark:text-white">
-            Family Members
+            {t('student:family.pageTitle')}
           </h1>
         </div>
         <p className="ml-13 text-slate-500 dark:text-slate-400">
-          Add and manage your children's profiles for bookings and waivers.
+          {t('student:family.pageSubtitle')}
         </p>
       </div>
-      
+
       <FamilyManagement userId={userId} />
     </div>
   );

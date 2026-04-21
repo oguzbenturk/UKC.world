@@ -1,15 +1,19 @@
+import { useTranslation } from 'react-i18next';
 import AcademyServicePackagesPage from '../components/AcademyServicePackagesPage';
 
-const KiteLessonsPublicPage = () => (
-  <AcademyServicePackagesPage
-    seoTitle="Kite Lessons | UKC Academy"
-    seoDescription="Learn kitesurfing with structured packages and standalone lesson options from beginner to advanced."
-    headline="Kite"
-    accentWord="Lessons"
-    academyTheme="academy"
-    subheadline="Choose your perfect learning path. From total beginner to pro-level coaching, our experienced team is ready."
-    dynamicServiceKey="kite"
-  />
-);
+const KiteLessonsPublicPage = () => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <AcademyServicePackagesPage
+      seoTitle="Kite Lessons | UKC Academy"
+      seoDescription="Learn kitesurfing with structured packages and standalone lesson options from beginner to advanced."
+      headline={t('outsider:academyKite.hero.title')}
+      accentWord={t('outsider:academyKite.hero.titleAccent')}
+      academyTheme="academy"
+      subheadline={t('outsider:academyKite.hero.subtitle')}
+      dynamicServiceKey="kite"
+    />
+  );
+};
 
 export default KiteLessonsPublicPage;

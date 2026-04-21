@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useInstructorDashboard } from '../hooks/useInstructorDashboard';
 import { useInstructorStudents } from '../hooks/useInstructorStudents';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -89,31 +90,31 @@ const computeTodaysLessonsCount = (upcomingLessons) => {
   }, 0);
 };
 
-const computePendingHint = (pendingThresholdInfo, formatAmount) => {
-  if (!pendingThresholdInfo) return 'Awaiting confirmation';
-  if (pendingThresholdInfo.meetsThreshold) return 'Eligible to request payout.';
-  return `${formatAmount(pendingThresholdInfo.shortfall)} until payout threshold`;
+const computePendingHint = (pendingThresholdInfo, formatAmount, t) => {
+  if (!pendingThresholdInfo) return t('instructor:metrics.awaitingConfirmation');
+  if (pendingThresholdInfo.meetsThreshold) return t('instructor:metrics.eligibleToPayout');
+  return t('instructor:metrics.untilThreshold', { amount: formatAmount(pendingThresholdInfo.shortfall) });
 };
 
-const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, navigate) => {
+const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t) => {
   if (!data) return [];
   const slides = [];
 
   if (pendingThresholdInfo) {
     slides.push({
       id: 'payout',
-      eyebrow: 'Pending earnings',
-      title: `${formatAmount(data.finance.pending)} ready to unlock`,
+      eyebrow: t('instructor:hero.pendingEarnings'),
+      title: t('instructor:hero.readyToUnlock', { amount: formatAmount(data.finance.pending) }),
       body: pendingThresholdInfo.meetsThreshold
-        ? 'Great news! You can request a payout whenever it suits you.'
-        : `${formatAmount(pendingThresholdInfo.shortfall)} more in confirmed lessons will make your payout available.`,
+        ? t('instructor:hero.payoutEligible')
+        : t('instructor:hero.payoutShortfall', { amount: formatAmount(pendingThresholdInfo.shortfall) }),
       pill: {
-        label: pendingThresholdInfo.meetsThreshold ? 'Action ready' : 'Keep momentum',
+        label: pendingThresholdInfo.meetsThreshold ? t('instructor:hero.actionReady') : t('instructor:hero.keepMomentum'),
       },
       cta: pendingThresholdInfo.meetsThreshold
         ? {
           primary: {
-            label: 'Go to payouts',
+            label: t('instructor:hero.goToPayouts'),
             onClick: () => navigate('/finance'),
           },
         }
@@ -124,16 +125,16 @@ const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, n
   if (nextLesson) {
     slides.push({
       id: 'next-lesson',
-      eyebrow: 'Next on your calendar',
+      eyebrow: t('instructor:hero.nextOnCalendar'),
       title: `${nextLesson.studentName} at ${formatDateShort(nextLesson.startTime)}`,
-      body: 'Jump into the booking board for last-minute adjustments and notes.',
+      body: t('instructor:hero.jumpIntoBoard'),
       pill: {
-        label: "Today's focus",
+        label: t('instructor:hero.todaysFocus'),
         variant: 'bg-emerald-100 text-emerald-700',
       },
       cta: {
         primary: {
-          label: 'View calendar',
+          label: t('instructor:hero.viewCalendar'),
           onClick: () => navigate('/bookings/calendar'),
         },
       },
@@ -142,53 +143,53 @@ const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, n
 
   slides.push({
     id: 'students',
-    eyebrow: 'Momentum',
-    title: `${numberNoDecimals.format(data?.studentStats?.activeThisMonth ?? 0)} students engaged this month`,
-    body: 'Keep streaks going with timely notes and follow-ups for your roster.',
+    eyebrow: t('instructor:hero.momentum'),
+    title: t('instructor:hero.studentsEngaged', { count: numberNoDecimals.format(data?.studentStats?.activeThisMonth ?? 0) }),
+    body: t('instructor:hero.keepStreaks'),
     pill: {
-      label: 'Roster health',
+      label: t('instructor:hero.rosterHealth'),
       variant: 'bg-sky-500 text-white',
     },
     cta: {
       primary: {
-        label: 'Open my students',
+        label: t('instructor:hero.openMyStudents'),
         onClick: () => navigate('/instructor/students'),
       },
     },
     footer: data?.lessonInsights?.inactiveStudents?.length
-      ? `${data.lessonInsights.inactiveStudents.length} students await a check-in`
-      : 'All students have booked recently — great work!'
+      ? t('instructor:hero.studentsAwaitCheckin', { count: data.lessonInsights.inactiveStudents.length })
+      : t('instructor:hero.allStudentsBooked'),
   });
 
   return slides;
 };
 
-const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, pendingHint) => {
+const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, pendingHint, t) => {
   if (!data) return [];
   return [
     {
-      title: 'Active Students',
+      title: t('instructor:metrics.activeStudents'),
       value: numberNoDecimals.format(data.studentStats?.activeThisMonth ?? 0),
-      hint: `${numberNoDecimals.format(data.studentStats?.uniqueStudents ?? 0)} total in roster`,
+      hint: t('instructor:metrics.totalInRoster', { count: numberNoDecimals.format(data.studentStats?.uniqueStudents ?? 0) }),
       dotClass: 'bg-emerald-500',
       textClass: 'text-emerald-600',
     },
     {
-      title: "Today's Lessons",
+      title: t('instructor:metrics.todaysLessons'),
       value: numberNoDecimals.format(todaysLessonsCount),
-      hint: `${numberNoDecimals.format(data.upcomingLessons?.length ?? 0)} upcoming overall`,
+      hint: t('instructor:metrics.upcomingOverall', { count: numberNoDecimals.format(data.upcomingLessons?.length ?? 0) }),
       dotClass: 'bg-sky-500',
       textClass: 'text-sky-600',
     },
     {
-      title: 'Next Lesson',
-      value: nextLesson ? formatDateShort(nextLesson.startTime) : 'None scheduled',
-      hint: nextLesson?.studentName ? `With ${nextLesson.studentName}` : 'Stay ready for new bookings',
+      title: t('instructor:metrics.nextLesson'),
+      value: nextLesson ? formatDateShort(nextLesson.startTime) : t('instructor:metrics.noneScheduled'),
+      hint: nextLesson?.studentName ? t('instructor:metrics.withStudent', { name: nextLesson.studentName }) : t('instructor:metrics.stayReady'),
       dotClass: 'bg-violet-500',
       textClass: 'text-violet-600',
     },
     {
-      title: 'Pending Payout',
+      title: t('instructor:metrics.pendingPayout'),
       value: formatAmount(data.finance?.pending),
       hint: pendingHint,
       dotClass: 'bg-amber-500',
@@ -197,22 +198,22 @@ const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, p
   ];
 };
 
-const buildQuickActions = (navigate, onNewBooking) => ([
+const buildQuickActions = (navigate, onNewBooking, t) => ([
   {
-    title: 'Manage Students',
-    description: 'Review levels, notes, and progress',
+    title: t('instructor:quickActions.manageStudents'),
+    description: t('instructor:quickActions.manageStudentsDesc'),
     icon: '\uD83D\uDC65',
     onClick: () => navigate('/instructor/students'),
   },
   {
-    title: 'Lesson Calendar',
-    description: 'Adjust availability and reschedule',
+    title: t('instructor:quickActions.lessonCalendar'),
+    description: t('instructor:quickActions.lessonCalendarDesc'),
     icon: '\uD83D\uDCC5',
     onClick: () => navigate('/bookings/calendar'),
   },
   {
-    title: 'New Booking',
-    description: 'Schedule a lesson for a student',
+    title: t('instructor:quickActions.newBooking'),
+    description: t('instructor:quickActions.newBookingDesc'),
     icon: '\u2795',
     onClick: onNewBooking,
   },
@@ -241,15 +242,15 @@ const rankTopStudents = (students) => {
     .slice(0, 5);
 };
 
-const buildNudgeMessages = (pendingThresholdInfo, inactiveStudents, formatAmount, navigate, inactiveWindowDays) => {
+const buildNudgeMessages = (pendingThresholdInfo, inactiveStudents, formatAmount, navigate, inactiveWindowDays, t) => {
   const nudges = [];
   if (pendingThresholdInfo && !pendingThresholdInfo.meetsThreshold) {
     nudges.push({
       id: 'payout-shortfall',
-      title: 'Keep the payout streak alive',
-      body: `${formatAmount(pendingThresholdInfo.shortfall)} more in confirmed lessons will unlock your payout. Consider offering a package or sending a reminder.`,
+      title: t('instructor:nudges.payoutStreak'),
+      body: t('instructor:nudges.payoutStreakBody', { amount: formatAmount(pendingThresholdInfo.shortfall) }),
       action: {
-        label: 'Send reminder',
+        label: t('instructor:nudges.sendReminder'),
         onClick: () => navigate('/instructor/students'),
       },
     });
@@ -257,10 +258,10 @@ const buildNudgeMessages = (pendingThresholdInfo, inactiveStudents, formatAmount
   if (inactiveStudents?.length) {
     nudges.push({
       id: 'inactive-students',
-      title: 'Bring back inactive students',
-      body: `${inactiveStudents.length} students have been quiet for ${inactiveWindowDays || 30}+ days. A quick check-in goes a long way.`,
+      title: t('instructor:nudges.inactiveStudents'),
+      body: t('instructor:nudges.inactiveStudentsBody', { count: inactiveStudents.length, days: inactiveWindowDays || 30 }),
       action: {
-        label: 'Open check-in list',
+        label: t('instructor:nudges.openCheckinList'),
         onClick: () => document.getElementById('instructor-checkin')?.scrollIntoView({ behavior: 'smooth' }),
       },
     });
@@ -269,6 +270,7 @@ const buildNudgeMessages = (pendingThresholdInfo, inactiveStudents, formatAmount
 };
 
 const InstructorDashboard = () => {
+  const { t } = useTranslation(['instructor']);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, loading, error, refetch, lastUpdated } = useInstructorDashboard(0);
@@ -312,18 +314,18 @@ const InstructorDashboard = () => {
 
   const pendingThresholdInfo = data?.finance?.pendingThreshold;
   const pendingCardHint = useMemo(
-    () => computePendingHint(pendingThresholdInfo, formatAmount),
-    [pendingThresholdInfo, formatAmount],
+    () => computePendingHint(pendingThresholdInfo, formatAmount, t),
+    [pendingThresholdInfo, formatAmount, t],
   );
 
   const heroSlides = useMemo(
-    () => buildHeroSlides(data, pendingThresholdInfo, nextLesson, formatAmount, navigate),
-    [data, pendingThresholdInfo, nextLesson, formatAmount, navigate],
+    () => buildHeroSlides(data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t),
+    [data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t],
   );
 
   const summaryCards = useMemo(
-    () => buildSummaryCards(data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint),
-    [data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint],
+    () => buildSummaryCards(data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint, t),
+    [data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint, t],
   );
 
   const financeSummary = data?.finance || null;
@@ -338,7 +340,7 @@ const InstructorDashboard = () => {
     setBookingDrawerOpen(true);
   }, []);
 
-  const quickActions = useMemo(() => buildQuickActions(navigate, handleCreateBooking), [navigate, handleCreateBooking]);
+  const quickActions = useMemo(() => buildQuickActions(navigate, handleCreateBooking, t), [navigate, handleCreateBooking, t]);
 
   const groupedLessons = useMemo(
     () => groupLessonsByDay(data?.upcomingLessons),
@@ -437,7 +439,9 @@ const InstructorDashboardView = ({
   inactiveStudents,
   statusBreakdown,
   onCreateBooking,
-}) => (
+}) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <div className="space-y-4 p-4 md:p-5 pb-20 md:pb-8">
     <HeroSection
       name={instructorName}
@@ -489,26 +493,29 @@ const InstructorDashboardView = ({
       />
     </div>
 
-    <FloatingQuickAction label="Create booking" onClick={onCreateBooking} />
+    <FloatingQuickAction label={t('instructor:dashboard.createBooking')} onClick={onCreateBooking} />
   </div>
-);
+  );
+};
 
-const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, slides, quickActions = [] }) => (
+const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, slides, quickActions = [] }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <section className="rounded-xl md:rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/30 to-white shadow-sm p-3 sm:p-5 md:p-6 space-y-2 sm:space-y-3">
     <div className="flex items-start sm:items-center justify-between gap-2">
       <div className="space-y-0.5 sm:space-y-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-sky-500 animate-pulse" />
-          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">Dashboard</p>
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('instructor:dashboard.label')}</p>
         </div>
-        <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate">Welcome back, {name}</h1>
+        <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate">{t('instructor:dashboard.welcomeBack', { name })}</h1>
         <p className="text-xs sm:text-sm text-slate-500 line-clamp-2">
           {nextLesson ? (
             <>
-              Next: <span className="font-semibold text-slate-800">{nextLesson.studentName}</span> at {formatDateShort(nextLesson.startTime)}
+  {t('instructor:dashboard.nextLesson', { studentName: nextLesson.studentName, time: formatDateShort(nextLesson.startTime) })}
             </>
           ) : (
-            <>All caught up. Use the quick actions below to plan ahead.</>
+<>{t('instructor:dashboard.allCaughtUp')}</>
           )}
         </p>
       </div>
@@ -555,17 +562,19 @@ const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, sli
     </div>
   </section>
 );
+}
 
 const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, pendingHint }) => {
+  const { t } = useTranslation(['instructor']);
   const effectivePendingHint = pendingInfo?.meetsThreshold ? 'Eligible to request payout now.' : pendingHint;
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-        <FinanceTile label="Total Earned" value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
-        <FinanceTile label="Month to Date" value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
-        <FinanceTile label="Pending" value={formatAmount(finance?.pending)} accent="text-amber-600" hint={effectivePendingHint} />
-        <FinanceTile label="Paid Out" value={formatAmount(finance?.totalPaid)} accent="text-violet-600" hint={`Net ${formatAmount(finance?.netPayments)}`} />
+        <FinanceTile label={t('instructor:finance.totalEarned')} value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
+        <FinanceTile label={t('instructor:finance.monthToDate')} value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
+        <FinanceTile label={t('instructor:finance.pending')} value={formatAmount(finance?.pending)} accent="text-amber-600" hint={effectivePendingHint} />
+        <FinanceTile label={t('instructor:finance.paidOut')} value={formatAmount(finance?.totalPaid)} accent="text-violet-600" hint={t('instructor:finance.net', { amount: formatAmount(finance?.netPayments) })} />
       </div>
 
       <EarningsTrendCard
@@ -576,32 +585,34 @@ const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, p
       />
 
       <div className="rounded-xl border border-slate-100 p-4 bg-gradient-to-r from-slate-50/50 to-white">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Last Payout</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{t('instructor:finance.lastPayout')}</p>
         {finance?.lastPayout ? (
           <div className="flex items-center justify-between">
             <p className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(finance.lastPayout.amount)}</p>
-            <p className="text-xs text-slate-400">Paid {formatDateTime(finance.lastPayout.paymentDate)}</p>
+            <p className="text-xs text-slate-400">{t('instructor:finance.paid', { datetime: formatDateTime(finance.lastPayout.paymentDate) })}</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-400">No payouts recorded yet.</p>
+          <p className="text-sm text-slate-400">{t('instructor:finance.noPayoutsYet')}</p>
         )}
       </div>
     </div>
   );
 };
 
-const FinanceEarningsTable = ({ earnings, formatAmount }) => (
+const FinanceEarningsTable = ({ earnings, formatAmount }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <>
     {/* Desktop table */}
     <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50/70">
           <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            <th className="py-2.5 px-4">Date</th>
-            <th className="py-2.5 px-4">Student</th>
-            <th className="py-2.5 px-4">Hours</th>
-            <th className="py-2.5 px-4">Amount</th>
-            <th className="py-2.5 px-4">Status</th>
+            <th className="py-2.5 px-4">{t('instructor:earningsTable.date')}</th>
+            <th className="py-2.5 px-4">{t('instructor:earningsTable.student')}</th>
+            <th className="py-2.5 px-4">{t('instructor:earningsTable.hours')}</th>
+            <th className="py-2.5 px-4">{t('instructor:earningsTable.amount')}</th>
+            <th className="py-2.5 px-4">{t('instructor:earningsTable.status')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
@@ -615,7 +626,7 @@ const FinanceEarningsTable = ({ earnings, formatAmount }) => (
             </tr>
           )) : (
             <tr>
-              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">No earnings recorded yet.</td>
+              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">{t('instructor:earningsTable.noEarnings')}</td>
             </tr>
           )}
         </tbody>
@@ -635,24 +646,27 @@ const FinanceEarningsTable = ({ earnings, formatAmount }) => (
           </div>
         </div>
       )) : (
-        <p className="text-center text-xs text-slate-400 py-4">No earnings recorded yet.</p>
+        <p className="text-center text-xs text-slate-400 py-4">{t('instructor:earningsTable.noEarnings')}</p>
       )}
     </div>
   </>
 );
+}
 
-const FinancePaymentsTable = ({ payments, formatAmount }) => (
+const FinancePaymentsTable = ({ payments, formatAmount }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <>
     {/* Desktop table */}
     <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50/70">
           <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            <th className="py-2.5 px-4">Date</th>
-            <th className="py-2.5 px-4">Amount</th>
-            <th className="py-2.5 px-4">Description</th>
-            <th className="py-2.5 px-4">Method</th>
-            <th className="py-2.5 px-4">Reference</th>
+            <th className="py-2.5 px-4">{t('instructor:paymentsTable.date')}</th>
+            <th className="py-2.5 px-4">{t('instructor:paymentsTable.amount')}</th>
+            <th className="py-2.5 px-4">{t('instructor:paymentsTable.description')}</th>
+            <th className="py-2.5 px-4">{t('instructor:paymentsTable.method')}</th>
+            <th className="py-2.5 px-4">{t('instructor:paymentsTable.reference')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
@@ -660,13 +674,13 @@ const FinancePaymentsTable = ({ payments, formatAmount }) => (
             <tr key={payment.id} className="hover:bg-slate-50/50 transition">
               <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(payment.paymentDate)}</td>
               <td className="py-2.5 px-4 font-semibold text-emerald-600 tabular-nums">{formatAmount(payment.amount)}</td>
-              <td className="py-2.5 px-4 text-slate-600">{payment.description || 'Instructor payout'}</td>
+              <td className="py-2.5 px-4 text-slate-600">{payment.description || t('instructor:finance.instructorPayout')}</td>
               <td className="py-2.5 px-4 text-slate-500 capitalize">{payment.method || 'balance'}</td>
               <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{payment.referenceNumber || '\u2014'}</td>
             </tr>
           )) : (
             <tr>
-              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">No payout history yet.</td>
+              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">{t('instructor:paymentsTable.noPayouts')}</td>
             </tr>
           )}
         </tbody>
@@ -682,24 +696,26 @@ const FinancePaymentsTable = ({ payments, formatAmount }) => (
           </div>
           <div className="flex items-center justify-between mt-1">
             <span className="text-[10px] text-slate-400">{formatDateTime(payment.paymentDate)}</span>
-            <span className="text-[10px] text-slate-500">{payment.description || 'Payout'}</span>
+            <span className="text-[10px] text-slate-500">{payment.description || t('instructor:finance.payout')}</span>
           </div>
         </div>
       )) : (
-        <p className="text-center text-xs text-slate-400 py-4">No payout history yet.</p>
+        <p className="text-center text-xs text-slate-400 py-4">{t('instructor:paymentsTable.noPayouts')}</p>
       )}
     </div>
   </>
 );
+}
 
 const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTab }) => {
+  const { t } = useTranslation(['instructor']);
   const pendingInfo = finance?.pendingThreshold;
-  const pendingHint = computePendingHint(pendingInfo, formatAmount);
+  const pendingHint = computePendingHint(pendingInfo, formatAmount, t);
   const tabs = useMemo(() => ([
     {
       key: 'overview',
-      label: 'Overview',
-      description: 'High-level performance at a glance',
+      label: t('instructor:finance.overview'),
+      description: t('instructor:finance.overviewDesc'),
       content: (
         <FinanceOverviewSummary
           finance={finance}
@@ -712,16 +728,16 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
     },
     {
       key: 'earnings',
-      label: 'Earnings',
+      label: t('instructor:finance.earnings'),
       badge: finance?.recentEarnings?.length ?? 0,
-      description: 'Recent completed lessons and earnings breakdown',
+      description: t('instructor:finance.earningsDesc'),
       content: <FinanceEarningsTable earnings={finance?.recentEarnings} formatAmount={formatAmount} />,
     },
     {
       key: 'payments',
-      label: 'Payments',
+      label: t('instructor:finance.payments'),
       badge: finance?.recentPayments?.length ?? 0,
-      description: 'Latest payouts into your account',
+      description: t('instructor:finance.paymentsDesc'),
       content: <FinancePaymentsTable payments={finance?.recentPayments} formatAmount={formatAmount} />,
     },
   ]), [finance, loading, formatAmount, pendingInfo, pendingHint]);
@@ -733,8 +749,8 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
     <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
       <header className="flex items-center justify-between mb-2 sm:mb-3">
         <div>
-          <h2 className="text-sm sm:text-base font-semibold text-slate-900">Earnings Focus</h2>
-          <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">Personal finance summary</p>
+          <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:dashboard.earningsFocus')}</h2>
+          <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">{t('instructor:dashboard.personalFinanceSummary')}</p>
         </div>
         <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums">{lifetimeEarnings}</span>
       </header>
@@ -752,7 +768,7 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
           onChange={onTabChange}
         />
       ) : (
-        <p className="text-sm text-slate-500">Finance data isn&apos;t available yet.</p>
+        <p className="text-sm text-slate-500">{t('instructor:dashboard.financeUnavailable')}</p>
       )}
     </section>
   );
@@ -796,9 +812,11 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-const QuickActions = ({ actions }) => (
+const QuickActions = ({ actions }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-    <h2 className="text-sm font-semibold text-slate-900 mb-2">Quick links</h2>
+    <h2 className="text-sm font-semibold text-slate-900 mb-2">{t('instructor:dashboard.quickLinks')}</h2>
     <div className="space-y-2">
       {actions.map((action) => (
         <button
@@ -819,17 +837,20 @@ const QuickActions = ({ actions }) => (
     </div>
   </section>
 );
+}
 
-const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => (
+const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
     <header className="flex items-center justify-between mb-2 sm:mb-3">
-      <h2 className="text-sm sm:text-base font-semibold text-slate-900">Student spotlight</h2>
+      <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:students.studentSpotlight')}</h2>
       <button
         type="button"
         onClick={onViewAll}
         className="text-xs text-sky-500 hover:text-sky-600 font-medium"
       >
-        View all &rarr;
+{t('instructor:students.viewAll')}
       </button>
     </header>
     {loading && !students.length ? (
@@ -840,7 +861,7 @@ const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => (
       </div>
     ) : !students.length ? (
       <div className="rounded-xl bg-slate-50 px-4 py-6 text-center">
-        <p className="text-sm text-slate-500">We&apos;ll highlight students here once lessons are booked.</p>
+        <p className="text-sm text-slate-500">{t('instructor:students.noStudentsYet')}</p>
       </div>
     ) : (
       <ul className="space-y-2">
@@ -858,7 +879,7 @@ const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => (
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-sky-700 transition truncate">{student.name}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-400">{student.skillLevel || 'Skill level TBD'}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400">{student.skillLevel || t('instructor:students.skillLevelTbd')}</p>
                   </div>
                 </div>
                 <span className="text-[10px] sm:text-xs font-medium text-slate-500 tabular-nums shrink-0">{student.totalHours}h</span>
@@ -881,5 +902,6 @@ const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => (
     )}
   </section>
 );
+}
 
 export default InstructorDashboard;

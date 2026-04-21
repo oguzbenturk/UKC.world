@@ -9,11 +9,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 
 const formatWeekLabel = (isoString) => {
-  if (!isoString) return '\u2014';
+  if (!isoString) return '—';
   const date = new Date(isoString);
-  if (Number.isNaN(date.getTime())) return '\u2014';
+  if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -26,6 +27,8 @@ const EarningsTrendCard = ({
   formatCurrency = (value) => value,
   pendingThreshold,
 }) => {
+  const { t } = useTranslation(['instructor']);
+
   const chartData = useMemo(() => (
     Array.isArray(timeseries)
       ? timeseries.map((entry) => ({
@@ -47,8 +50,8 @@ const EarningsTrendCard = ({
     <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-white to-slate-50/30 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Earnings trend</p>
-          <h3 className="text-base font-semibold text-slate-900">Last 12 weeks</h3>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('instructor:finance.earningsTrend')}</p>
+          <h3 className="text-base font-semibold text-slate-900">{t('instructor:finance.last12Weeks')}</h3>
         </div>
         {pendingThreshold && (
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
@@ -57,8 +60,8 @@ const EarningsTrendCard = ({
               : 'bg-amber-50 text-amber-700'
           }`}>
             {pendingThreshold.meetsThreshold
-              ? 'Eligible for payout now.'
-              : `${formatCurrency(pendingThreshold.shortfall)} to threshold`}
+              ? t('instructor:finance.eligibleForPayoutNow')
+              : t('instructor:finance.toThreshold', { amount: formatCurrency(pendingThreshold.shortfall) })}
           </span>
         )}
       </div>
@@ -67,7 +70,7 @@ const EarningsTrendCard = ({
         <div className="h-48 rounded-lg bg-slate-100/70 animate-pulse" />
       ) : !chartData.length ? (
         <div className="h-48 flex items-center justify-center text-sm text-slate-400">
-          No earnings recorded yet.
+          {t('instructor:finance.noEarningsYet')}
         </div>
       ) : (
         <div className="h-52">
@@ -96,7 +99,7 @@ const EarningsTrendCard = ({
                   stroke="#f59e0b"
                   strokeDasharray="6 3"
                   strokeWidth={1}
-                  label={{ value: 'Threshold', position: 'right', fill: '#d97706', fontSize: 10 }}
+                  label={{ value: t('instructor:finance.threshold'), position: 'right', fill: '#d97706', fontSize: 10 }}
                 />
               )}
               <Tooltip
@@ -107,9 +110,9 @@ const EarningsTrendCard = ({
                   if (Number.isNaN(startDate.getTime())) return label;
                   const endDate = new Date(startDate);
                   endDate.setUTCDate(startDate.getUTCDate() + 6);
-                  return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} \u2013 ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+                  return `${startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
                 }}
-                formatter={(value) => [formatCurrency(value), 'Earnings']}
+                formatter={(value) => [formatCurrency(value), t('instructor:finance.earnings')]}
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.97)',
                   border: '1px solid #e2e8f0',

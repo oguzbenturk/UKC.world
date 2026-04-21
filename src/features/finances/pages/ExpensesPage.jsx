@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Table,
@@ -37,34 +38,36 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-// Expense categories
-const EXPENSE_CATEGORIES = [
-  { value: 'rent', label: 'Rent', color: 'blue' },
-  { value: 'utilities', label: 'Utilities', color: 'cyan' },
-  { value: 'salaries', label: 'Salaries', color: 'green' },
-  { value: 'equipment', label: 'Equipment', color: 'purple' },
-  { value: 'maintenance', label: 'Maintenance', color: 'orange' },
-  { value: 'supplies', label: 'Supplies', color: 'gold' },
-  { value: 'marketing', label: 'Marketing', color: 'magenta' },
-  { value: 'insurance', label: 'Insurance', color: 'geekblue' },
-  { value: 'professional_services', label: 'Professional Services', color: 'volcano' },
-  { value: 'travel', label: 'Travel', color: 'lime' },
-  { value: 'software_subscriptions', label: 'Software/Subscriptions', color: 'cyan' },
-  { value: 'bank_fees', label: 'Bank Fees', color: 'red' },
-  { value: 'taxes', label: 'Taxes', color: 'default' },
-  { value: 'other', label: 'Other', color: 'default' },
-];
-
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'card', label: 'Card' },
-  { value: 'wallet', label: 'Wallet' },
-  { value: 'other', label: 'Other' },
-];
+// EXPENSE_CATEGORIES and PAYMENT_METHODS are built inside the component using t()
 
 const ExpensesPage = () => {
+  const { t } = useTranslation(['manager']);
   const { formatCurrency } = useCurrency();
+
+  const EXPENSE_CATEGORIES = [
+    { value: 'rent', label: t('manager:finances.expenses.categories.rent'), color: 'blue' },
+    { value: 'utilities', label: t('manager:finances.expenses.categories.utilities'), color: 'cyan' },
+    { value: 'salaries', label: t('manager:finances.expenses.categories.salaries'), color: 'green' },
+    { value: 'equipment', label: t('manager:finances.expenses.categories.equipment'), color: 'purple' },
+    { value: 'maintenance', label: t('manager:finances.expenses.categories.maintenance'), color: 'orange' },
+    { value: 'supplies', label: t('manager:finances.expenses.categories.supplies'), color: 'gold' },
+    { value: 'marketing', label: t('manager:finances.expenses.categories.marketing'), color: 'magenta' },
+    { value: 'insurance', label: t('manager:finances.expenses.categories.insurance'), color: 'geekblue' },
+    { value: 'professional_services', label: t('manager:finances.expenses.categories.professional_services'), color: 'volcano' },
+    { value: 'travel', label: t('manager:finances.expenses.categories.travel'), color: 'lime' },
+    { value: 'software_subscriptions', label: t('manager:finances.expenses.categories.software_subscriptions'), color: 'cyan' },
+    { value: 'bank_fees', label: t('manager:finances.expenses.categories.bank_fees'), color: 'red' },
+    { value: 'taxes', label: t('manager:finances.expenses.categories.taxes'), color: 'default' },
+    { value: 'other', label: t('manager:finances.expenses.categories.other'), color: 'default' },
+  ];
+
+  const PAYMENT_METHODS = [
+    { value: 'cash', label: t('manager:finances.expenses.paymentMethods.cash') },
+    { value: 'bank_transfer', label: t('manager:finances.expenses.paymentMethods.bank_transfer') },
+    { value: 'card', label: t('manager:finances.expenses.paymentMethods.card') },
+    { value: 'wallet', label: t('manager:finances.expenses.paymentMethods.wallet') },
+    { value: 'other', label: t('manager:finances.expenses.paymentMethods.other') },
+  ];
   const [loading, setLoading] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState({ totalExpenses: 0, totalCount: 0, byCategory: [] });
@@ -117,7 +120,7 @@ const ExpensesPage = () => {
         total: response.data.total || 0,
       }));
     } catch {
-      message.error('Failed to load expenses');
+      message.error(t('manager:finances.expenses.modal.loadError'));
     } finally {
       setLoading(false);
     }
@@ -183,7 +186,7 @@ const ExpensesPage = () => {
     a.download = `business_expenses_${dayjs().format('YYYY-MM-DD')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    message.success('Expenses exported successfully');
+    message.success(t('manager:finances.expenses.exportSuccess'));
   };
 
   const getCategoryColor = (category) => {
@@ -232,10 +235,10 @@ const ExpensesPage = () => {
 
       if (editingExpense) {
         await apiClient.put(`/business-expenses/${editingExpense.id}`, payload);
-        message.success('Expense updated successfully');
+        message.success(t('manager:finances.expenses.modal.editSuccess'));
       } else {
         await apiClient.post('/business-expenses', payload);
-        message.success('Expense added successfully');
+        message.success(t('manager:finances.expenses.modal.addSuccess'));
       }
 
       setModalOpen(false);
@@ -248,7 +251,7 @@ const ExpensesPage = () => {
       } else if (error.errorFields) {
         // Form validation error
       } else {
-        message.error('Failed to save expense');
+        message.error(t('manager:finances.expenses.modal.saveError'));
       }
     } finally {
       setSubmitting(false);
@@ -258,16 +261,16 @@ const ExpensesPage = () => {
   const handleDelete = async (id) => {
     try {
       await apiClient.delete(`/business-expenses/${id}`);
-      message.success('Expense deleted successfully');
+      message.success(t('manager:finances.expenses.modal.deleteSuccess'));
       fetchExpenses(pagination.current, pagination.pageSize);
     } catch {
-      message.error('Failed to delete expense');
+      message.error(t('manager:finances.expenses.modal.deleteError'));
     }
   };
 
   const columns = [
     {
-      title: 'Date',
+      title: t('manager:finances.expenses.table.date'),
       dataIndex: 'expense_date',
       key: 'expense_date',
       width: 120,
@@ -276,13 +279,13 @@ const ExpensesPage = () => {
       ),
     },
     {
-      title: 'Description',
+      title: t('manager:finances.expenses.table.description'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (text, record) => (
         <div>
-          <Text strong>{text || 'No description'}</Text>
+          <Text strong>{text || t('manager:finances.expenses.table.noDescription')}</Text>
           {record.vendor && (
             <div>
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -294,7 +297,7 @@ const ExpensesPage = () => {
       ),
     },
     {
-      title: 'Category',
+      title: t('manager:finances.expenses.table.category'),
       dataIndex: 'category',
       key: 'category',
       width: 160,
@@ -305,7 +308,7 @@ const ExpensesPage = () => {
       ),
     },
     {
-      title: 'Amount',
+      title: t('manager:finances.expenses.table.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
@@ -317,7 +320,7 @@ const ExpensesPage = () => {
       ),
     },
     {
-      title: 'Payment',
+      title: t('manager:finances.expenses.table.payment'),
       dataIndex: 'payment_method',
       key: 'payment_method',
       width: 120,
@@ -327,7 +330,7 @@ const ExpensesPage = () => {
       responsive: ['lg'],
     },
     {
-      title: 'Added By',
+      title: t('manager:finances.expenses.table.addedBy'),
       key: 'created_by',
       width: 140,
       render: (_, record) => (
@@ -338,7 +341,7 @@ const ExpensesPage = () => {
       responsive: ['xl'],
     },
     {
-      title: 'Actions',
+      title: t('manager:finances.expenses.table.actions'),
       key: 'actions',
       width: 100,
       render: (_, record) => (
@@ -350,10 +353,10 @@ const ExpensesPage = () => {
             size="small"
           />
           <Popconfirm
-            title="Delete expense?"
-            description="This action cannot be undone."
+            title={t('manager:finances.expenses.modal.deleteConfirm')}
+            description={t('manager:finances.expenses.modal.deleteWarning')}
             onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
+            okText={t('manager:accommodation.admin.actions.delete')}
             okButtonProps={{ danger: true }}
           >
             <Button
@@ -375,7 +378,7 @@ const ExpensesPage = () => {
     <div className="p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <Title level={3} className="mb-4 md:mb-0">
-          Business Expenses
+          {t('manager:finances.expenses.title')}
         </Title>
         <Space wrap>
           <Button
@@ -383,20 +386,20 @@ const ExpensesPage = () => {
             icon={<PlusOutlined />}
             onClick={openAddModal}
           >
-            Add Expense
+            {t('manager:finances.expenses.addExpense')}
           </Button>
           <Button
             icon={<ReloadOutlined />}
             onClick={() => fetchExpenses(pagination.current, pagination.pageSize)}
           >
-            Refresh
+            {t('manager:finances.expenses.refresh')}
           </Button>
           <Button
             icon={<DownloadOutlined />}
             onClick={handleExport}
             disabled={expenses.length === 0}
           >
-            Export CSV
+            {t('manager:finances.expenses.exportCsv')}
           </Button>
         </Space>
       </div>
@@ -406,7 +409,7 @@ const ExpensesPage = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Expenses"
+              title={t('manager:finances.expenses.summary.totalExpenses')}
               value={summary.totalExpenses}
               prefix={<DollarOutlined />}
               formatter={(value) => formatCurrency(value)}
@@ -417,7 +420,7 @@ const ExpensesPage = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Entries"
+              title={t('manager:finances.expenses.summary.totalEntries')}
               value={summary.totalCount}
             />
           </Card>
@@ -441,7 +444,7 @@ const ExpensesPage = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={24} md={8} lg={6}>
             <Input.Search
-              placeholder="Search description or vendor..."
+              placeholder={t('manager:finances.expenses.filters.searchPlaceholder')}
               allowClear
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
@@ -454,13 +457,13 @@ const ExpensesPage = () => {
               style={{ width: '100%' }}
               value={filters.dateRange}
               onChange={handleDateRangeChange}
-              placeholder={['Start Date', 'End Date']}
+              placeholder={[t('manager:finances.expenses.filters.startDate'), t('manager:finances.expenses.filters.endDate')]}
             />
           </Col>
           <Col xs={24} sm={12} md={6} lg={4}>
             <Select
               style={{ width: '100%' }}
-              placeholder="Category"
+              placeholder={t('manager:finances.expenses.filters.category')}
               allowClear
               value={filters.category}
               onChange={handleCategoryChange}
@@ -468,12 +471,12 @@ const ExpensesPage = () => {
             />
           </Col>
           <Col xs={24} sm={24} md={2} lg={2}>
-            <Button 
-              icon={<FilterOutlined />} 
+            <Button
+              icon={<FilterOutlined />}
               onClick={handleReset}
               block
             >
-              Reset
+              {t('manager:finances.expenses.filters.reset')}
             </Button>
           </Col>
         </Row>
@@ -489,7 +492,7 @@ const ExpensesPage = () => {
           pagination={{
             ...pagination,
             showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} expenses`,
+            showTotal: (total, range) => t('manager:finances.expenses.table.showTotal', { start: range[0], end: range[1], total }),
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
           onChange={handleTableChange}
@@ -497,7 +500,7 @@ const ExpensesPage = () => {
           locale={{
             emptyText: (
               <Empty
-                description="No expenses found. Click 'Add Expense' to create one."
+                description={t('manager:finances.expenses.table.empty')}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             ),
@@ -507,12 +510,12 @@ const ExpensesPage = () => {
 
       {/* Add/Edit Modal */}
       <Modal
-        title={editingExpense ? 'Edit Expense' : 'Add New Expense'}
+        title={editingExpense ? t('manager:finances.expenses.modal.editTitle') : t('manager:finances.expenses.modal.addTitle')}
         open={modalOpen}
         onCancel={handleModalCancel}
         onOk={handleModalSubmit}
         confirmLoading={submitting}
-        okText={editingExpense ? 'Update' : 'Add'}
+        okText={editingExpense ? t('manager:finances.expenses.modal.update') : t('manager:finances.expenses.modal.add')}
         width={600}
       >
         <Form
@@ -524,10 +527,10 @@ const ExpensesPage = () => {
             <Col span={12}>
               <Form.Item
                 name="amount"
-                label="Amount"
+                label={t('manager:finances.expenses.modal.fields.amount')}
                 rules={[
-                  { required: true, message: 'Please enter amount' },
-                  { type: 'number', min: 0.01, message: 'Amount must be greater than 0' }
+                  { required: true, message: t('manager:finances.expenses.modal.validation.enterAmount') },
+                  { type: 'number', min: 0.01, message: t('manager:finances.expenses.modal.validation.amountMin') }
                 ]}
               >
                 <InputNumber
@@ -535,15 +538,15 @@ const ExpensesPage = () => {
                   prefix="€"
                   precision={2}
                   min={0.01}
-                  placeholder="0.00"
+                  placeholder={t('manager:finances.expenses.modal.placeholders.amount')}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="expense_date"
-                label="Date"
-                rules={[{ required: true, message: 'Please select date' }]}
+                label={t('manager:finances.expenses.modal.fields.date')}
+                rules={[{ required: true, message: t('manager:finances.expenses.modal.validation.selectDate') }]}
               >
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
@@ -554,11 +557,11 @@ const ExpensesPage = () => {
             <Col span={12}>
               <Form.Item
                 name="category"
-                label="Category"
-                rules={[{ required: true, message: 'Please select category' }]}
+                label={t('manager:finances.expenses.modal.fields.category')}
+                rules={[{ required: true, message: t('manager:finances.expenses.modal.validation.selectCategory') }]}
               >
                 <Select
-                  placeholder="Select category"
+                  placeholder={t('manager:finances.expenses.modal.placeholders.selectCategory')}
                   options={EXPENSE_CATEGORIES}
                 />
               </Form.Item>
@@ -566,10 +569,10 @@ const ExpensesPage = () => {
             <Col span={12}>
               <Form.Item
                 name="payment_method"
-                label="Payment Method"
+                label={t('manager:finances.expenses.modal.fields.paymentMethod')}
               >
                 <Select
-                  placeholder="Select method"
+                  placeholder={t('manager:finances.expenses.modal.placeholders.selectMethod')}
                   options={PAYMENT_METHODS}
                   allowClear
                 />
@@ -579,12 +582,12 @@ const ExpensesPage = () => {
 
           <Form.Item
             name="description"
-            label="Description"
-            rules={[{ required: true, message: 'Please enter description' }]}
+            label={t('manager:finances.expenses.modal.fields.description')}
+            rules={[{ required: true, message: t('manager:finances.expenses.modal.validation.enterDescription') }]}
           >
             <TextArea
               rows={2}
-              placeholder="What is this expense for?"
+              placeholder={t('manager:finances.expenses.modal.placeholders.description')}
             />
           </Form.Item>
 

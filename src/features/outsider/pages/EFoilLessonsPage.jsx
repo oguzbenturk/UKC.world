@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   ThunderboltOutlined,
   RocketOutlined,
@@ -121,17 +122,20 @@ const eFoilPackages = [
   }
 ];
 
-const EFoilLessonsPage = () => (
-  <AcademyServicePackagesPage
-    seoTitle="E-Foil Lessons | UKC Academy"
-    seoDescription="Discover e-foil with guided sessions from first ride to advanced control."
-    headline="E-Foil"
-    accentWord="Lessons"
-    academyTheme="academy"
-    subheadline="Experience the smooth feeling of electric foiling with structured sessions for all skill levels."
-    packages={eFoilPackages}
-    dynamicServiceKey="efoil"
-  />
-);
+const EFoilLessonsPage = () => {
+  const { t } = useTranslation(['outsider']);
+  return (
+    <AcademyServicePackagesPage
+      seoTitle="E-Foil Lessons | UKC Academy"
+      seoDescription="Discover e-foil with guided sessions from first ride to advanced control."
+      headline={t('outsider:academyEFoil.hero.title')}
+      accentWord={t('outsider:academyEFoil.hero.titleAccent')}
+      academyTheme="academy"
+      subheadline={t('outsider:academyEFoil.hero.subtitle')}
+      packages={eFoilPackages}
+      dynamicServiceKey="efoil"
+    />
+  );
+};
 
 export default EFoilLessonsPage;
