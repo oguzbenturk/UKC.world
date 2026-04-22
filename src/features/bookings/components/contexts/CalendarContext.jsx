@@ -1036,6 +1036,7 @@ function CalendarProvider({ children }) {
         serviceId: bookingData.serviceId,
         start_hour: start_hour,
         user: {
+          id: bookingData.userId || bookingData.user?.id || null,
           name: bookingData.user?.name || bookingData.userName || '',
           email: bookingData.user?.email || bookingData.userEmail || '',
           phone: bookingData.user?.phone || bookingData.userPhone || '',

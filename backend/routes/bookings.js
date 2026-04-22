@@ -3217,39 +3217,46 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
 
-    logger.info('POST /bookings/calendar received', { date, time, instructorId, serviceId, userName: user?.name, userEmail: user?.email, hasUser: !!user });
-
     if (!date || !time || !instructorId || !serviceId || !user) {
-      logger.warn('POST /bookings/calendar 400: missing fields', { date: !!date, time: !!time, instructorId: !!instructorId, serviceId: !!serviceId, user: !!user });
       return res.status(400).json({ error: 'Missing required booking information' });
     }
-      if (!user.name || !user.email) {
-      logger.warn('POST /bookings/calendar 400: missing user info', { userName: user?.name, userEmail: user?.email });
+
+    // Allow booking for existing users identified by id (may have no email stored)
+    if (!user.id && (!user.name || !user.email)) {
       return res.status(400).json({ error: 'Missing required user information (name and email)' });
     }
-    
+
     // Convert time string (like "09:00") to decimal hours (like 9.0)
     const [hours, minutes] = time.split(':').map(Number);
     const start_hour = hours + (minutes / 60);
-    
+
     // Use provided duration or default to 1 hour
     const bookingDuration = parseFloat(duration) || 1.0;
-    
-    // Check if the user already exists in the system
+
+    // Find or create the student being booked
     let userId;
-    const userCheck = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [user.email]
-    );
-    
+    if (user.id) {
+      // Existing user selected from the system — look up by ID
+      const userById = await pool.query('SELECT id FROM users WHERE id = $1', [user.id]);
+      if (userById.rows.length > 0) {
+        userId = userById.rows[0].id;
+      }
+    }
+    if (!userId && user.email) {
+      const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [user.email]);
+      if (userCheck.rows.length > 0) {
+        userId = userCheck.rows[0].id;
+      }
+    }
+
     // Begin transaction
     const client = await pool.connect();
     try {
       const actorId = resolveActorId(req);
       await client.query('BEGIN');
-      
+
       // If user doesn't exist, create a new user record with student role
-      if (userCheck.rows.length === 0) {
+      if (!userId) {
         // Get student role ID
         const roleQuery = await client.query(
           'SELECT id FROM roles WHERE name = $1',
@@ -3269,10 +3276,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
           [user.name, user.email, user.phone, studentRoleId, 'calendar_user_no_password']
         );
         userId = newUser.rows[0].id;
-      } else {
-        userId = userCheck.rows[0].id;
       }
-      
+
       // Get user's preferred currency if not specified in request
       if (!resolvedWalletCurrency) {
         const userCurrencyResult = await client.query(
