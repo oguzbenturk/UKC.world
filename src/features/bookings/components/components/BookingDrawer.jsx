@@ -368,6 +368,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const [bookingDefaults, setBookingDefaults] = useState(null);
   const [instructorSearch, setInstructorSearch] = useState('');
   const [conflictWarning, setConflictWarning] = useState(null);
+  const [slotPreFilled, setSlotPreFilled] = useState(false);
 
   // Customer
   const [showNewUserModal, setShowNewUserModal] = useState(false);
@@ -454,6 +455,15 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   useEffect(() => {
     if (isOpen) {
       resetFormData();
+      const hasSlot = !!(initialFormData.instructorId && initialFormData.startTime);
+      setSlotPreFilled(hasSlot);
+      setInstructorSearch(initialFormData.instructorName || '');
+      if (hasSlot && initialFormData.startTime && initialFormData.endTime) {
+        const [sh, sm] = initialFormData.startTime.split(':').map(Number);
+        const [eh, em] = initialFormData.endTime.split(':').map(Number);
+        const mins = (eh * 60 + em) - (sh * 60 + sm);
+        if (mins > 0) setSelectedDuration(mins);
+      }
       setShowReview(false);
       setConflictWarning(null);
       setUserPackages({});
@@ -461,7 +471,6 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setAllUserPackages({});
       setIsSubmitting(false);
       setServiceSearch('');
-      setInstructorSearch(initialFormData.instructorName || '');
       setAvailableSlots([]);
       // Load recent customers from localStorage
       try {
@@ -470,6 +479,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       } catch { setRecentCustomers([]); }
     } else {
       resetFormData();
+      setSlotPreFilled(false);
       setIsSubmitting(false);
       setServiceSearch('');
       setInstructorSearch('');
@@ -1231,7 +1241,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             <SectionErrorBoundary section="Instructor">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
-              {hasInstructor && activeSection !== 'instructor' ? (
+              {hasInstructor && activeSection !== 'instructor' && !slotPreFilled ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
@@ -1265,7 +1275,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             <SectionErrorBoundary section="Schedule">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
-              {hasSchedule && activeSection !== 'schedule' ? (
+              {hasSchedule && activeSection !== 'schedule' && !slotPreFilled ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
