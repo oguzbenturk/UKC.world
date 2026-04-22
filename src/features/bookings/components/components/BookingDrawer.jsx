@@ -628,7 +628,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       const user = customerPool.find(u => u.id === id);
       return {
         userId: id,
-        userName: user?.name || '',
+        userName: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || '',
         userEmail: user?.email || '',
         userPhone: user?.phone || '',
         isPrimary: false,
@@ -957,7 +957,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           serviceId: formData.serviceId,
           serviceName: selectedService.name,
           userId: participant?.userId || formData.userId,
-          user: { name: participant?.userName || formData.userName, email: participant?.userEmail || '', phone: participant?.userPhone || '', notes: formData.notes || '' },
+          user: { name: participant?.userName || formData.userName, email: participant?.userEmail || formData.userEmail || '', phone: participant?.userPhone || formData.userPhone || '', notes: formData.notes || '' },
           price: hourlyRate,
           totalCost: finalPrice,
           usePackageHours: usePackage,
