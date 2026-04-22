@@ -3217,10 +3217,14 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
 
+    logger.info('POST /bookings/calendar received', { date, time, instructorId, serviceId, userName: user?.name, userEmail: user?.email, hasUser: !!user });
+
     if (!date || !time || !instructorId || !serviceId || !user) {
+      logger.warn('POST /bookings/calendar 400: missing fields', { date: !!date, time: !!time, instructorId: !!instructorId, serviceId: !!serviceId, user: !!user });
       return res.status(400).json({ error: 'Missing required booking information' });
     }
       if (!user.name || !user.email) {
+      logger.warn('POST /bookings/calendar 400: missing user info', { userName: user?.name, userEmail: user?.email });
       return res.status(400).json({ error: 'Missing required user information (name and email)' });
     }
     
