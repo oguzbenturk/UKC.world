@@ -6,7 +6,7 @@ import { App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import 'antd/dist/reset.css';
 import '@/index.css';
-import '@/i18n';
+import { i18nReady } from '@/i18n';
 import AppLocaleProvider from '@/i18n/AppLocaleProvider';
 import ErrorBoundary from '@/shared/components/error/ErrorBoundary';
 import AppErrorFallback from '@/shared/components/error/AppErrorFallback';
@@ -55,33 +55,39 @@ const queryClient = new QueryClient({
   }
 });
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  // StrictMode temporarily disabled to troubleshoot refresh issues
-  <ErrorBoundary
-    fallback={AppErrorFallback}
-    showDetails={import.meta.env.DEV}
-  >
-    <AppLocaleProvider
-      theme={{
-        token: {
-          colorPrimary: '#3B82F6', // brand blue
-          colorInfo: '#3B82F6',
-          colorSuccess: '#10B981', // emerald
-          colorWarning: '#F59E0B', // amber
-        },
-        components: {
-          Button: {
-            colorPrimaryHover: '#3B82F6',   // same as colorPrimary → no blue shift on hover
-            colorPrimaryActive: '#2563EB',
-          }
-        }
-      }}
+const mount = () => {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    // StrictMode temporarily disabled to troubleshoot refresh issues
+    <ErrorBoundary
+      fallback={AppErrorFallback}
+      showDetails={import.meta.env.DEV}
     >
-      <AntdApp>
-        <QueryClientProvider client={queryClient}>
-          <App />
-        </QueryClientProvider>
-      </AntdApp>
-    </AppLocaleProvider>
-  </ErrorBoundary>
-);
+      <AppLocaleProvider
+        theme={{
+          token: {
+            colorPrimary: '#3B82F6', // brand blue
+            colorInfo: '#3B82F6',
+            colorSuccess: '#10B981', // emerald
+            colorWarning: '#F59E0B', // amber
+          },
+          components: {
+            Button: {
+              colorPrimaryHover: '#3B82F6',   // same as colorPrimary → no blue shift on hover
+              colorPrimaryActive: '#2563EB',
+            }
+          }
+        }}
+      >
+        <AntdApp>
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </AntdApp>
+      </AppLocaleProvider>
+    </ErrorBoundary>
+  );
+};
+
+// Wait for i18n to finish loading its namespaces before mounting so the UI never
+// flashes raw translation keys. If loading fails, mount anyway so the app still works.
+i18nReady.then(mount, mount);

@@ -7,7 +7,7 @@ export const SUPPORTED_LANGUAGES = ['en', 'tr', 'fr', 'ru', 'es', 'de'];
 export const DEFAULT_LANGUAGE = 'en';
 const STORAGE_KEY = 'plannivo.lang';
 
-i18n
+export const i18nReady = i18n
   .use(HttpBackend)
   .use(LanguageDetector)
   .use(initReactI18next)

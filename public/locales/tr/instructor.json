@@ -223,9 +223,9 @@
   },
   "profile": {
     "navItems": {
-      "profile": "Profil",
+      "info": "Profil",
       "skills": "Beceriler",
-      "upcoming": "Yaklaşan",
+      "lessons": "Dersler",
       "students": "Öğrenciler",
       "earnings": "Kazançlar",
       "timeOff": "İzin",

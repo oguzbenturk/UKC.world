@@ -35,7 +35,7 @@ const CreateFormDrawer = ({
     open={open}
     onClose={onCancel}
     width={480}
-    destroyOnClose
+    destroyOnHidden
   >
     <div className="py-2">
       <Paragraph type="secondary" className="mb-4">

@@ -296,7 +296,7 @@ export default function PendingLessonsTab() {
         open={isReceiptModalVisible}
         onCancel={() => setIsReceiptModalVisible(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         centered
         width={800}
         title="Payment Receipt"

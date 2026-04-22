@@ -8,33 +8,55 @@ import WeightPickerBar from '../components/WeightPickerBar';
 import { initialWeight } from '../utils/kiteSize';
 
 const WindFlowBackdrop = () => (
-  <svg
-    aria-hidden
-    className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[360px] w-full opacity-[0.06]"
-    preserveAspectRatio="none"
-    viewBox="0 0 1440 360"
-  >
-    <defs>
-      <linearGradient id="flowGrad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stopColor="#00a8c4" stopOpacity="0" />
-        <stop offset="40%" stopColor="#00a8c4" stopOpacity="1" />
-        <stop offset="100%" stopColor="#00a8c4" stopOpacity="0" />
-      </linearGradient>
-    </defs>
-    {Array.from({ length: 12 }).map((_, i) => {
-      const y = 20 + i * 28;
-      const offset = (i % 3) * 60;
-      return (
-        <path
-          key={i}
-          d={`M${-80 + offset} ${y} Q 360 ${y - 14} 720 ${y} T 1520 ${y}`}
-          stroke="url(#flowGrad)"
-          strokeWidth="1"
-          fill="none"
-        />
-      );
-    })}
-  </svg>
+  <>
+    <style>{`
+      @keyframes windDrift {
+        0%   { transform: translateX(-60px); opacity: 0.5; }
+        50%  { opacity: 1; }
+        100% { transform: translateX(60px); opacity: 0.5; }
+      }
+      @keyframes windDriftAlt {
+        0%   { transform: translateX(40px); opacity: 0.6; }
+        50%  { opacity: 1; }
+        100% { transform: translateX(-40px); opacity: 0.6; }
+      }
+    `}</style>
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[360px] w-full opacity-[0.08]"
+      preserveAspectRatio="none"
+      viewBox="0 0 1440 360"
+    >
+      <defs>
+        <linearGradient id="flowGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#00a8c4" stopOpacity="0" />
+          <stop offset="40%" stopColor="#00a8c4" stopOpacity="1" />
+          <stop offset="100%" stopColor="#00a8c4" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {Array.from({ length: 12 }).map((_, i) => {
+        const y = 20 + i * 28;
+        const offset = (i % 3) * 60;
+        const duration = 14 + (i % 5) * 3;
+        const delay = (i * 0.35).toFixed(2);
+        const anim = i % 2 === 0 ? 'windDrift' : 'windDriftAlt';
+        return (
+          <path
+            key={i}
+            d={`M${-80 + offset} ${y} Q 360 ${y - 14} 720 ${y} T 1520 ${y}`}
+            stroke="url(#flowGrad)"
+            strokeWidth="1"
+            fill="none"
+            style={{
+              animation: `${anim} ${duration}s ease-in-out ${delay}s infinite alternate`,
+              transformOrigin: 'center',
+              transformBox: 'fill-box',
+            }}
+          />
+        );
+      })}
+    </svg>
+  </>
 );
 
 const WindReportPage = () => {
@@ -92,11 +114,12 @@ const WindReportPage = () => {
 
         {reports && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {reports.map((report) => (
+            {reports.map((report, i) => (
               <SpotCard
                 key={report.spot.id}
                 report={report}
                 weight={weight}
+                index={i}
               />
             ))}
           </div>

@@ -717,7 +717,7 @@ export default function EventsPage() {
           footer={null}
           centered
           width={460}
-          destroyOnClose
+          destroyOnHidden
           closeIcon={null}
           styles={{ content: { padding: 0, overflow: 'hidden', borderRadius: 20 }, body: { padding: 0 } }}
         >

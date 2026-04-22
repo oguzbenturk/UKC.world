@@ -348,7 +348,7 @@ export default function InstructorAvailabilitySettings() {
         onOk={handleSubmitRequest}
         okText="Submit Request"
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <div className="space-y-4 mt-4">
           <div>

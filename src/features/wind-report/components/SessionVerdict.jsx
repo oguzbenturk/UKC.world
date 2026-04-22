@@ -1,14 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-// Skill chip styles optimised for dark background
+// Skill chip styles optimised for a light sky background
 const SKILL_STYLES = {
-  flat:     { bg: 'bg-slate-500/30',  text: 'text-slate-100', dot: 'bg-slate-300' },
-  light:    { bg: 'bg-sky-500/25',    text: 'text-sky-100',   dot: 'bg-sky-300' },
-  beginner: { bg: 'bg-emerald-500/25',text: 'text-emerald-100', dot: 'bg-emerald-300' },
-  ideal:    { bg: 'bg-lime-400/25',   text: 'text-lime-100',  dot: 'bg-lime-300' },
-  strong:   { bg: 'bg-amber-500/25',  text: 'text-amber-100', dot: 'bg-amber-300' },
-  expert:   { bg: 'bg-rose-500/25',   text: 'text-rose-100',  dot: 'bg-rose-300' },
+  flat:     { bg: 'bg-slate-100 ring-1 ring-slate-200',     text: 'text-slate-700',   dot: 'bg-slate-400' },
+  light:    { bg: 'bg-sky-50 ring-1 ring-sky-200',          text: 'text-sky-700',     dot: 'bg-sky-500' },
+  beginner: { bg: 'bg-emerald-50 ring-1 ring-emerald-200',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  ideal:    { bg: 'bg-lime-50 ring-1 ring-lime-200',        text: 'text-lime-800',    dot: 'bg-lime-500' },
+  strong:   { bg: 'bg-amber-50 ring-1 ring-amber-200',      text: 'text-amber-800',   dot: 'bg-amber-500' },
+  expert:   { bg: 'bg-rose-50 ring-1 ring-rose-200',        text: 'text-rose-700',    dot: 'bg-rose-500' },
 };
 
 const SessionVerdict = ({ summary }) => {
@@ -36,7 +36,7 @@ const SessionVerdict = ({ summary }) => {
         <span className={`inline-block h-1.5 w-1.5 rounded-full ${style.dot}`} />
         {bandLabel}
       </span>
-      <p className="font-gotham-medium text-[13.5px] leading-snug text-slate-200">
+      <p className="font-gotham-medium text-[13.5px] leading-snug text-slate-700">
         {sentence}
       </p>
     </div>

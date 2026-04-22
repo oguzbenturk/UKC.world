@@ -392,7 +392,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
       width={480}
       open={isOpen}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-between">
           <div>

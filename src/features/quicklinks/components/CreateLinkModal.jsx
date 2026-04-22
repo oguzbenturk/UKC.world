@@ -46,7 +46,7 @@ const CreateLinkDrawer = ({
       open={open}
       onClose={onCancel}
       width={520}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="py-2">
         {selectedFormForLink && (

@@ -143,7 +143,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
           </Button>
         </div>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

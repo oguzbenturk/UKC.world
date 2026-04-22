@@ -223,9 +223,9 @@
   },
   "profile": {
     "navItems": {
-      "profile": "Profile",
+      "info": "Profile",
       "skills": "Skills",
-      "upcoming": "Upcoming",
+      "lessons": "Lessons",
       "students": "Students",
       "earnings": "Earnings",
       "timeOff": "Time Off",

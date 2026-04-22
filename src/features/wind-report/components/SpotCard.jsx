@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { ArrowUpRightIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import DayStrip from './DayStrip';
 import SessionVerdict from './SessionVerdict';
@@ -8,11 +9,11 @@ import KiteRecommendation from './KiteRecommendation';
 import { dailySummary, groupByDay } from '../utils/verdict';
 
 const REGION_META = {
-  izmir:     { label: 'İzmir',     accent: 'text-cyan-400',  dot: 'bg-cyan-400',  border: 'before:from-cyan-400/80 before:to-emerald-400/40' },
-  canakkale: { label: 'Çanakkale', accent: 'text-amber-400', dot: 'bg-amber-400', border: 'before:from-amber-400/80 before:to-rose-400/40' },
+  izmir:     { label: 'İzmir',     accent: 'text-cyan-700',  dot: 'bg-cyan-500',  glow: 'bg-cyan-300' },
+  canakkale: { label: 'Çanakkale', accent: 'text-amber-700', dot: 'bg-amber-500', glow: 'bg-amber-300' },
 };
 
-const SpotCard = ({ report, weight }) => {
+const SpotCard = ({ report, weight, index = 0 }) => {
   const { t, i18n } = useTranslation('common');
   const locale = (i18n.resolvedLanguage || i18n.language || 'en').slice(0, 2);
 
@@ -61,15 +62,24 @@ const SpotCard = ({ report, weight }) => {
     : '';
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06),0_4px_16px_-6px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_1px_2px_rgba(15,23,42,0.08),0_16px_40px_-12px_rgba(15,23,42,0.18)]">
-      {/* ── HERO BAND (dark) ─────────────────────────────────────── */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 px-6 py-5">
-        {/* Subtle radial glow in region accent */}
-        <div
-          className={`pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full blur-3xl opacity-30 ${
-            spot.region === 'canakkale' ? 'bg-amber-500' : 'bg-cyan-500'
-          }`}
+    <motion.article
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, delay: index * 0.09, ease: [0.22, 1, 0.36, 1] }}
+      className="group relative overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_16px_-6px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_16px_40px_-12px_rgba(15,23,42,0.12)]"
+    >
+      {/* ── HERO BAND (light sky) ────────────────────────────────── */}
+      <div className="relative bg-gradient-to-br from-sky-50 via-white to-sky-50/60 px-6 py-5">
+        {/* Regional accent glow — soft, breathing */}
+        <motion.div
+          aria-hidden
+          className={`pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full blur-3xl ${region.glow}`}
+          initial={{ opacity: 0.2, scale: 0.9 }}
+          animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.08, 1] }}
+          transition={{ duration: 9, ease: 'easeInOut', repeat: Infinity, delay: index * 0.4 }}
         />
+        {/* Bottom fade into the timeline gradient */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-200/70 to-transparent" />
 
         <div className="relative flex items-start justify-between gap-6">
           {/* Left: region + name + verdict */}
@@ -77,13 +87,13 @@ const SpotCard = ({ report, weight }) => {
             <div className="mb-2 flex items-center gap-2 text-[10px] font-gotham-medium uppercase tracking-[0.3em]">
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${region.dot}`} />
               <span className={region.accent}>{region.label}</span>
-              <span className="text-slate-600">·</span>
+              <span className="text-slate-300">·</span>
               <span className="inline-flex items-center gap-1 text-slate-500">
                 <MapPinIcon className="h-3 w-3" />
                 {spot.lat.toFixed(2)}°N
               </span>
             </div>
-            <h2 className="font-duotone-bold-extended text-[30px] leading-[0.95] tracking-tight text-white sm:text-[34px]">
+            <h2 className="font-duotone-bold-extended text-[30px] leading-[0.95] tracking-tight text-slate-900 sm:text-[34px]">
               {t(spot.nameKey)}
             </h2>
             <div className="mt-3 max-w-md">
@@ -155,7 +165,7 @@ const SpotCard = ({ report, weight }) => {
           <ArrowUpRightIcon className="h-3 w-3" />
         </a>
       </div>
-    </article>
+    </motion.article>
   );
 };
 

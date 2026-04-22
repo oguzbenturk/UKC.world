@@ -518,7 +518,7 @@ const StudentGroupBookingDetailDrawer = ({ bookingId, open, onClose, onUpdated }
 
   return (
     <>
-      <Drawer title={null} open={open} onClose={onClose} width={500} styles={{ body: { padding: '16px 20px' } }} destroyOnClose>
+      <Drawer title={null} open={open} onClose={onClose} width={500} styles={{ body: { padding: '16px 20px' } }} destroyOnHidden>
         {renderBody()}
       </Drawer>
 

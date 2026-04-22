@@ -223,9 +223,9 @@
   },
   "profile": {
     "navItems": {
-      "profile": "Perfil",
+      "info": "Perfil",
       "skills": "Habilidades",
-      "upcoming": "Próximas",
+      "lessons": "Lecciones",
       "students": "Estudiantes",
       "earnings": "Ganancias",
       "timeOff": "Tiempo libre",

@@ -86,7 +86,17 @@ export async function getInstructorStudents(instructorId) {
           COUNT(b.id) FILTER (WHERE b.status NOT IN ('cancelled')) AS total_lessons,
           COALESCE(SUM(b.duration),0) AS total_hours,
           MAX( (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) ) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()) AS last_lesson_ts,
-          MIN( (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) ) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()) AS upcoming_lesson_ts
+          MIN( (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) ) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()) AS upcoming_lesson_ts,
+          to_char(
+            MAX(b.date + (b.start_hour * INTERVAL '1 hour'))
+              FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()),
+            'YYYY-MM-DD"T"HH24:MI:SS'
+          ) AS last_lesson_iso,
+          to_char(
+            MIN(b.date + (b.start_hour * INTERVAL '1 hour'))
+              FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()),
+            'YYYY-MM-DD"T"HH24:MI:SS'
+          ) AS upcoming_lesson_iso
         FROM bookings b
         WHERE b.instructor_user_id = $1
           AND b.student_user_id IS NOT NULL
@@ -116,6 +126,8 @@ export async function getInstructorStudents(instructorId) {
         ld.total_hours,
         ld.last_lesson_ts,
         ld.upcoming_lesson_ts,
+        ld.last_lesson_iso,
+        ld.upcoming_lesson_iso,
         COALESCE(pc.progress_events,0) AS progress_events,
         pd.pkg_total_hours,
         pd.pkg_used_hours,
@@ -139,8 +151,8 @@ export async function getInstructorStudents(instructorId) {
         skillLevel: r.skill_level || null,
         totalLessonCount: Number(r.total_lessons) || 0,
         totalHours: Number(r.total_hours) || 0,
-        lastLessonAt: r.last_lesson_ts ? r.last_lesson_ts.toISOString() : null,
-        upcomingLessonAt: r.upcoming_lesson_ts ? r.upcoming_lesson_ts.toISOString() : null,
+        lastLessonAt: r.last_lesson_iso || null,
+        upcomingLessonAt: r.upcoming_lesson_iso || null,
         progressPercent: pkgTotal > 0 ? Math.min(100, Math.round((pkgUsed / pkgTotal) * 100)) : 0,
         progressEvents: Number(r.progress_events) || 0,
         packageHours: { totalHours: pkgTotal, usedHours: pkgUsed, remainingHours: pkgRemaining }
@@ -160,8 +172,16 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
       client.query(
         `SELECT COUNT(*) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled') AS total_lessons,
                 COALESCE(SUM(b.duration), 0) AS total_hours,
-                MAX((b.date::timestamptz + (b.start_hour * INTERVAL '1 hour'))) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()) AS last_lesson_ts,
-                MIN((b.date::timestamptz + (b.start_hour * INTERVAL '1 hour'))) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()) AS next_lesson_ts
+                to_char(
+                  MAX(b.date + (b.start_hour * INTERVAL '1 hour'))
+                    FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()),
+                  'YYYY-MM-DD"T"HH24:MI:SS'
+                ) AS last_lesson_iso,
+                to_char(
+                  MIN(b.date + (b.start_hour * INTERVAL '1 hour'))
+                    FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()),
+                  'YYYY-MM-DD"T"HH24:MI:SS'
+                ) AS next_lesson_iso
            FROM bookings b
           WHERE b.instructor_user_id = $1
             AND b.student_user_id = $2
@@ -196,15 +216,21 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
       ),
       client.query(
         `SELECT b.id,
-                (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
-                (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour')) AS end_ts,
+                to_char(
+                  b.date + (b.start_hour * INTERVAL '1 hour'),
+                  'YYYY-MM-DD"T"HH24:MI:SS'
+                ) AS start_iso,
+                to_char(
+                  b.date + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour'),
+                  'YYYY-MM-DD"T"HH24:MI:SS'
+                ) AS end_iso,
                 b.duration,
                 b.status
            FROM bookings b
           WHERE b.instructor_user_id = $1
             AND b.student_user_id = $2
             AND b.deleted_at IS NULL
-          ORDER BY start_ts DESC
+          ORDER BY b.date DESC, b.start_hour DESC
           LIMIT 6`,
         [instructorId, studentId]
       ),
@@ -248,8 +274,8 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
       stats: {
         totalLessons: Number(statsRow.total_lessons || 0),
         totalHours: Number(statsRow.total_hours || 0),
-        lastLessonAt: statsRow.last_lesson_ts ? statsRow.last_lesson_ts.toISOString() : null,
-        nextLessonAt: statsRow.next_lesson_ts ? statsRow.next_lesson_ts.toISOString() : null
+        lastLessonAt: statsRow.last_lesson_iso || null,
+        nextLessonAt: statsRow.next_lesson_iso || null
       },
       progress: progressRes.rows.map((row) => ({
         id: row.id,
@@ -274,8 +300,8 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
       })),
       recentLessons: lessonsRes.rows.map((row) => ({
         id: row.id,
-        startTime: row.start_ts ? row.start_ts.toISOString() : null,
-        endTime: row.end_ts ? row.end_ts.toISOString() : null,
+        startTime: row.start_iso || null,
+        endTime: row.end_iso || null,
         durationHours: Number(row.duration || 0),
         status: row.status || 'pending'
       })),
@@ -621,7 +647,10 @@ export async function getInstructorDashboard(instructorId) {
   try {
     const upcomingLessonsQuery = `
       SELECT b.id,
-             (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS start_ts,
+             to_char(
+               b.date + (b.start_hour * INTERVAL '1 hour'),
+               'YYYY-MM-DD"T"HH24:MI:SS'
+             ) AS start_iso,
              b.duration,
              b.status,
              COALESCE(s.name, CONCAT(COALESCE(s.first_name,''),' ',COALESCE(s.last_name,''))) AS student_name
@@ -630,15 +659,19 @@ export async function getInstructorDashboard(instructorId) {
       WHERE b.instructor_user_id = $1
         AND (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()
         AND (b.status IS NULL OR b.status NOT IN ('cancelled'))
-      ORDER BY start_ts ASC
+      ORDER BY b.date ASC, b.start_hour ASC
       LIMIT 8;
     `;
 
     const inactiveStudentsQuery = `
       WITH lesson_activity AS (
-        SELECT 
+        SELECT
           b.student_user_id AS student_id,
           MAX(b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS last_lesson_ts,
+          to_char(
+            MAX(b.date + (b.start_hour * INTERVAL '1 hour')),
+            'YYYY-MM-DD"T"HH24:MI:SS'
+          ) AS last_lesson_iso,
           COUNT(*) FILTER (WHERE b.status = 'completed') AS completed_lessons,
           SUM(b.duration) AS total_hours
         FROM bookings b
@@ -647,10 +680,10 @@ export async function getInstructorDashboard(instructorId) {
           AND b.deleted_at IS NULL
         GROUP BY b.student_user_id
       )
-      SELECT 
+      SELECT
         u.id,
         COALESCE(u.name, CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) AS name,
-        la.last_lesson_ts AS last_lesson_ts,
+        la.last_lesson_iso,
         la.completed_lessons,
         la.total_hours
       FROM lesson_activity la
@@ -787,7 +820,7 @@ export async function getInstructorDashboard(instructorId) {
     const inactiveStudents = inactiveRes.rows.map((row) => ({
       studentId: row.id,
       name: row.name?.trim() || 'Unnamed',
-      lastLessonAt: row.last_lesson_ts ? row.last_lesson_ts.toISOString() : null,
+      lastLessonAt: row.last_lesson_iso || null,
       completedLessons: Number(row.completed_lessons || 0),
       totalHours: Number(row.total_hours || 0),
     }));
@@ -822,7 +855,7 @@ export async function getInstructorDashboard(instructorId) {
       upcomingLessons: upcomingRes.rows.map(r => ({
         id: r.id,
         studentName: r.student_name || '—',
-        startTime: r.start_ts ? r.start_ts.toISOString() : null,
+        startTime: r.start_iso || null,
         durationHours: Number(r.duration || 0),
         status: r.status || 'pending'
       })),
