@@ -453,11 +453,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // ── Reset on open / close ───────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
+      resetFormData();
       setShowReview(false);
       setConflictWarning(null);
       setUserPackages({});
       setUserBalances({});
       setAllUserPackages({});
+      setIsSubmitting(false);
+      setServiceSearch('');
+      setInstructorSearch(initialFormData.instructorName || '');
+      setAvailableSlots([]);
       // Load recent customers from localStorage
       try {
         const stored = JSON.parse(localStorage.getItem('plannivo_recent_customers') || '[]');
